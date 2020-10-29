@@ -7,6 +7,7 @@
 
 #include "mvnc.h"
 #include "XLinkPlatform.h"
+#include "ncPrivateTypes.h"
 #ifdef __cplusplus
 extern "C"
 {
@@ -22,6 +23,9 @@ int copyNcDeviceDescrToXLink(
     const struct ncDeviceDescr_t *in_ncDeviceDesc, deviceDesc_t *out_deviceDesc);
 int copyXLinkDeviceDescrToNc(
     const deviceDesc_t *in_DeviceDesc, struct ncDeviceDescr_t *out_ncDeviceDesc);
+
+ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,
+    const char* mv_cmd_file_path, const bootOptions_t bootOptions);
 
 #ifdef __cplusplus
 }

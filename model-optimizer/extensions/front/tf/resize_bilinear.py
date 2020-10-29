@@ -25,8 +25,6 @@ class ResizeBilinearFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         mapping_rule = {
-            'pads_begin': 0,
-            'pads_end': 0,
             'align_corners': int(node.pb.attr['align_corners'].b),
             'mode': 'linear',
             'axes': int64_array([1, 2]),

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,17 +21,20 @@
 
 namespace kernel_selector {
 
-ParamsKey ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::GetSupportedKey() const {
+ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+
     k.EnableInputWeightsType(WeightsType::INT8);
+
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDilation();
@@ -47,7 +50,7 @@ ParamsKey ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::GetSupportedKey() const {
     return k;
 }
 
-bool ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p, const optional_params &o) const {
+bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p, const optional_params &o) const {
     if (!Parent::Validate(p, o)) {
         return false;
     }
@@ -60,7 +63,7 @@ bool ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p, cons
     return true;
 }
 
-ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::AutoTuneOption ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::GetAutoTuneOptions(const Params &p,
+ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::AutoTuneOption ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetAutoTuneOptions(const Params &p,
                                                                                                                         int autoTuneIndex) const {
     if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
         return autoTuneOptions[autoTuneIndex];
@@ -83,40 +86,40 @@ ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::AutoTuneOption ConvolutionKernel_MM
     return option;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::SetDefault(const convolution_params &cp,
-                                                                                          int autoTuneIndex) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
+ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::SetDefault(const convolution_params &cp,
+                                                                                            int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
-    runInfo.cldnnStyle.blockWidth = tuneOptions.blockWidth;
-    runInfo.cldnnStyle.blockHeight = tuneOptions.blockHeight;
-    runInfo.cldnnStyle.prefetch = tuneOptions.prefetch;
+    dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
+    dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
+    dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
-    runInfo.gws0 = Align(cp.output.Feature().v, 32) / 2;
-    runInfo.gws1 = CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth) * cp.output.Y().v;
-    runInfo.gws2 = cp.output.Batch().v;
+    dispatchData.gws[0] = Align(cp.output.Feature().v, 32) / 2;
+    dispatchData.gws[1] = CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth) * cp.output.Y().v;
+    dispatchData.gws[2] = cp.output.Batch().v;
 
-    runInfo.lws0 = 16;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 16;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const convolution_params &params,
-                                                                        const DispatchData &runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const convolution_params &params,
+                                                                        const DispatchData &dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws0));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]));
     jit.AddConstant(MakeJitConstant("OSV", 32));
     jit.AddConstant(MakeJitConstant("ISV", 32));
-    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", runInfo.cldnnStyle.blockWidth));
+    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("IFM_BLOCKS", CeilDiv(params.inputs[0].Feature().v, 32)));
     auto input = params.inputs[0];
     auto output = params.output;
-    auto blockWidth = runInfo.cldnnStyle.blockWidth;
+    auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     size_t input_line_size = std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1,
                                       input.X().v + input.X().pad.Total());
 
@@ -136,7 +139,7 @@ JitConstants ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const 
     return jit;
 }
 
-KernelsData ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::GetKernelsData(const Params &params, const optional_params &options) const {
+KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsData(const Params &params, const optional_params &options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
     if (!kd.empty()) {
         kd[0].estimatedTime = FORCE_PRIORITY_2;
@@ -145,15 +148,15 @@ KernelsData ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::GetKernelsData(const Pa
     return kd;
 }
 
-KernelsData ConvolutionKernel_MMAD_bfyx_to_b_fs_yx_fsv4::GetKernelsDataForAutoTune(const Params &params,
-                                                                                 const optional_params &options) const {
+KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsDataForAutoTune(const Params &params,
+                                                                                   const optional_params &options) const {
     if (!Validate(params, options)) {
         return {};
     }
 
     KernelsData res = {};
 
-    for (size_t i = 0; i < autoTuneOptions.size(); i++) {
+    for (int i = -1; i < static_cast<int>(autoTuneOptions.size()); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params, options, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);

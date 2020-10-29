@@ -35,6 +35,7 @@ struct program_impl;
 class reorder_inputs;
 class graph_initializations;
 class prepare_quantization;
+class pre_replace_deconv;
 
 template <class T>
 struct typed_program_node;
@@ -70,6 +71,7 @@ struct program_node {
     friend struct program_impl;                     // to be removed when possible
     friend class compile_graph;                     // to be removed when possible
     friend class graph_initializations;             // to be removed when possible
+    friend class pre_replace_deconv;                // to be removed when possible
     friend class prepare_primitive_fusing;          // to be removed when possible
     friend class prepare_quantization;              // to be removed when possible
     friend class prepare_conv_eltw_fusing;          // to be removed when possible
@@ -295,6 +297,7 @@ public:
     }
 
     const std::vector<fused_primitive_desc>& get_fused_primitives() const { return fused_prims; }
+    std::vector<fused_primitive_desc>& get_fused_primitives() { return fused_prims; }
 
     size_t get_fused_inputs_count() const {
         size_t count = 0;
@@ -312,6 +315,8 @@ public:
             return layout(data_types::f32, format::bfyx, tensor());
         return fp.back().output_layout;
     }
+
+    bool need_lockable_memory() const;
 
 protected:
     std::shared_ptr<primitive> desc;
@@ -365,6 +370,7 @@ struct api_typed_program_node_base : public program_node {
                   "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from "
                   "cldnn::internal_primitive");
     friend class cldnn::graph_initializations;
+    friend class cldnn::pre_replace_deconv;
     friend class cldnn::prepare_quantization;
     friend struct cldnn::program_impl;
     friend class cldnn::reorder_inputs;

@@ -7,7 +7,10 @@
  */
 
 #pragma once
+
 #include <string>
+
+#include "ie_imemory_state.hpp"
 
 namespace InferenceEngine {
 
@@ -22,7 +25,11 @@ public:
      * constructs MemoryState from the initialized shared_pointer
      * @param pState Initialized shared pointer
      */
-    explicit MemoryState(IMemoryState::Ptr pState): actual(pState) {}
+    explicit MemoryState(IMemoryState::Ptr pState): actual(pState) {
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "MemoryState wrapper was not initialized.";
+        }
+    }
 
     /**
      * @copybrief IMemoryState::Reset
@@ -37,6 +44,7 @@ public:
      * @copybrief IMemoryState::GetName
      *
      * Wraps IMemoryState::GetName
+     * @return A string representing a state name
      */
     std::string GetName() const {
         char name[256];
@@ -48,6 +56,7 @@ public:
      * @copybrief IMemoryState::GetLastState
      *
      * Wraps IMemoryState::GetLastState
+     * @return A blob representing a last state 
      */
     Blob::CPtr GetLastState() const {
         Blob::CPtr stateBlob;
@@ -59,6 +68,7 @@ public:
      * @copybrief IMemoryState::SetState
      *
      * Wraps IMemoryState::SetState
+     * @param state The current state to set
      */
     void SetState(Blob::Ptr state) {
         CALL_STATUS_FNC(SetState, state);

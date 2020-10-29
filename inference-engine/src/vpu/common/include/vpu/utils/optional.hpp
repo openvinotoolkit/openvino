@@ -4,24 +4,25 @@
 
 #pragma once
 
+#include <vpu/utils/error.hpp>
+#include <vpu/utils/io.hpp>
+#include <vpu/utils/dot_io.hpp>
+
 #include <utility>
 #include <type_traits>
-
-#include <details/ie_exception.hpp>
 
 namespace vpu {
 
 template <typename T>
 class Optional final {
 public:
-    Optional() noexcept : _mem{} {
-    }
+    Optional() = default;
 
     ~Optional() {
         reset();
     }
 
-    Optional(const Optional& other) : _mem{} {
+    Optional(const Optional& other) {
         if (other._hasValue) {
             constructValue(other.getValueRef());
         }
@@ -41,7 +42,7 @@ public:
         return *this;
     }
 
-    Optional(Optional&& other) : _mem{} {
+    Optional(Optional&& other) {
         if (other._hasValue) {
             constructValue(other.getValueMoveRef());
         }
@@ -62,7 +63,7 @@ public:
     }
 
     template <typename U>
-    Optional(const Optional<U>& other) : _mem{} {
+    Optional(const Optional<U>& other) {
         if (other._hasValue) {
             constructValue(other.getValueRef());
         }
@@ -84,7 +85,7 @@ public:
     }
 
     template <typename U>
-    Optional(Optional<U>&& other) : _mem{} {
+    Optional(Optional<U>&& other) {
         if (other._hasValue) {
             constructValue(other.getValueMoveRef());
         }
@@ -105,7 +106,7 @@ public:
         return *this;
     }
 
-    Optional(const T& value) : _mem{} {  // NOLINT
+    Optional(const T& value) {  // NOLINT
         constructValue(value);
     }
     Optional& operator=(const T& value) {
@@ -117,8 +118,7 @@ public:
         return *this;
     }
 
-
-    Optional(T&& value) : _mem{} {  // NOLINT
+    Optional(T&& value) {  // NOLINT
         constructValue(std::move(value));
     }
     Optional& operator=(T&& value) {
@@ -131,7 +131,7 @@ public:
     }
 
     template <typename... Args, typename = typename std::enable_if<std::is_constructible<T, Args...>::value>::type>
-    Optional(Args&&... args) : _mem{} {  // NOLINT
+    Optional(Args&&... args) {  // NOLINT
         constructValue(std::forward<Args>(args)...);
     }
 
@@ -146,7 +146,7 @@ public:
     }
 
     const T& get() const {
-        IE_ASSERT(_hasValue);
+        VPU_INTERNAL_CHECK(_hasValue, "Optional object is not set");
         return getValueRef();
     }
 
@@ -168,23 +168,24 @@ public:
         if (_hasValue) {
             return getValueRef();
         } else {
-            return def;
+            return std::move(def);
         }
     }
 
     T&& move() {
-        IE_ASSERT(_hasValue);
+        VPU_INTERNAL_CHECK(_hasValue, "Optional object is not set");
         return getValueMoveRef();
     }
 
 private:
-    using Memory = typename std::aligned_storage<sizeof(T), alignof(T)>::type[1];
+    using Memory = typename std::aligned_storage<sizeof(T), alignof(T)>::type;
 
+private:
     T& getValueRef() {
-        return *reinterpret_cast<T*>(_mem);
+        return *reinterpret_cast<T*>(&_mem);
     }
     const T& getValueRef() const {
-        return *reinterpret_cast<const T*>(_mem);
+        return *reinterpret_cast<const T*>(&_mem);
     }
 
     T&& getValueMoveRef() {
@@ -193,23 +194,34 @@ private:
 
     template <typename... Args, typename = typename std::enable_if<std::is_constructible<T, Args...>::value>::type>
     void constructValue(Args&&... args) {
-        new (_mem) T(std::forward<Args>(args)...);
+        new (&_mem) T(std::forward<Args>(args)...);
         _hasValue = true;
     }
 
     void destroyValue() {
-        reinterpret_cast<T*>(_mem)->~T();
+        reinterpret_cast<T*>(&_mem)->~T();
         _hasValue = false;
     }
 
 private:
-    // TODO: actually, it would be better to initialize _mem here instead of doing it
-    // in each contructor but it causes a segfault in gcc 4.8
     Memory _mem;
     bool _hasValue = false;
 
     template <typename U>
     friend class Optional;
 };
+
+template <typename T>
+void printTo(std::ostream& os, const Optional<T>& opt) {
+    if (opt.hasValue()) {
+        printTo(os, opt.get());
+    }
+}
+template <typename T>
+void printTo(DotLabel& lbl, const Optional<T>& opt) {
+    if (opt.hasValue()) {
+        printTo(lbl, opt.get());
+    }
+}
 
 }  // namespace vpu

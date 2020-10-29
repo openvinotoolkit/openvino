@@ -10,7 +10,7 @@
 #include <utility>
 #include <set>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <vpu/model/base.hpp>
 #include <vpu/model/edges.hpp>
@@ -53,12 +53,11 @@ VPU_DECLARE_ENUM(StageType,
     StubPriorBox,
     StubPriorBoxClustered,
 
-    Concat,
+    StubConcat,
     Split,
     Reshape,
     Expand,
-    Shrink,
-    StridedSlice,
+    Crop,
 
     Empty = -1,
 
@@ -88,7 +87,6 @@ VPU_DECLARE_ENUM(StageType,
     Deconvolution = 22,
     Elu = 23,
     Power = 26,
-    Crop = 27,
     Tile = 28,
     RegionYolo = 29,
     ReorgYolo = 30,
@@ -105,7 +103,6 @@ VPU_DECLARE_ENUM(StageType,
     HwFcRelayout = 56,
     Clamp = 57,
     RefConvolution = 58,
-    GlobalAvgPool = 59,
     GlobalMaxPool = 60,
     GRN = 61,
     MVN = 62,
@@ -120,7 +117,6 @@ VPU_DECLARE_ENUM(StageType,
     Pad = 71,
     Resample = 72,
     Upsampling = 73,
-    ArgMax = 74,
     Div = 75,
     Min = 76,
     Squared_diff = 77,
@@ -145,9 +141,9 @@ VPU_DECLARE_ENUM(StageType,
     Exp = 101,
     Floor = 102,
     TopK = 104,
+    ScatterUpdate = 103,
     ReduceMin = 105,
     ExpDetectionOutput = 106,  // ExperimentalDetectronDetectionOutput
-    NonMaxSuppression = 107,
     ROIFeatureExtractor = 108,
     SCRelu = 109,
     Erf = 110,
@@ -160,6 +156,22 @@ VPU_DECLARE_ENUM(StageType,
     PoolND = 118,
     LoopStart = 119,
     LoopEnd = 120,
+    ExpPriorGridGenerator = 121,
+    NonZero = 122,
+    ROIAlign = 123,
+    ExpGenerateProposals = 124,
+    ExpTopKROIs = 125,
+    ScatterElementsUpdate = 126,
+    OutShapeOfReshape = 127,
+    Concat = 128,
+    Broadcast = 129,
+    StaticShapeNMS = 130,
+    Mish = 131,
+    Gelu = 132,
+    StridedSlice = 133,
+    SoftPlus = 134,
+    Swish = 135,
+    HSwish = 137,
 )
 
 //
@@ -223,6 +235,35 @@ VPU_DECLARE_ENUM(TopKSort,
     None = 0,
     Value = 1,
     Index = 2)
+
+//
+// TopKOutput
+//
+
+// Firmware implementations must be aligned with these values
+VPU_DECLARE_ENUM(TopKOutputs,
+    All = 0,
+    ValueOnly = 1,
+    IndexOnly = 2)
+
+//
+// ConcatInferRequirement
+//
+
+// Requirement whether to infer Concat stage on the device side
+VPU_DECLARE_ENUM(ConcatInferRequirement,
+    NeedToInfer = 0,
+    CanBeReplaced = 1)
+
+//
+// ConcatInferRequirement
+//
+
+// Modes for Broadcast operation according to specification
+VPU_DECLARE_ENUM(BroadcastMode,
+    NUMPY = 0,
+    EXPLICIT = 1,
+    BIDIRECTIONAL = 2)
 
 //
 // StageDataInfo
@@ -607,8 +648,10 @@ void assertAllInputsOutputsTypes(const Stage& stage,
                                  const DataType& expectedInputsType,
                                  const DataType& expectedOutputsType);
 
+using DataTypesRequirement = std::vector<EnumSet<DataType>>;
+
 void assertInputsOutputsTypes(const Stage& stage,
-                              const std::vector<EnumSet<DataType>>& expectedInputsTypes,
-                              const std::vector<EnumSet<DataType>>& expectedOutputsTypes);
+                              const DataTypesRequirement& expectedInputsTypes,
+                              const DataTypesRequirement& expectedOutputsTypes);
 
 }  // namespace vpu

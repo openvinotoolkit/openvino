@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-from mo.utils.ir_reader.extender import Extender
-from mo.utils.graph import Node
-
 from mo.front.common.partial_infer.utils import int64_array
+from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
 class Conv_extender(Extender):
@@ -33,6 +32,9 @@ class Conv_extender(Extender):
 
         op['batch_dims'] = int64_array([0])
         op['channel_dims'] = int64_array([1])
+
+        if op.has_valid('output_padding'):
+            op.output_padding = int64_array([0, 0] + op.output_padding)
 
         # Be VERY careful with these attributes!
         op['input_feature_channel'] = 1

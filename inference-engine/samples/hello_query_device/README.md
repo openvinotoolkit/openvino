@@ -1,8 +1,8 @@
-# Hello Query Device C++ Sample
+# Hello Query Device C++ Sample {#openvino_inference_engine_samples_hello_query_device_README}
 
-This topic demonstrates how to run the Hello Query Device sample application, which queries Inference Engine devices and prints their metrics and default configuration values. The sample shows how to use [Query Device API feature](./docs/IE_DG/InferenceEngine_QueryAPI.md).
+This topic demonstrates how to run the Hello Query Device sample application, which queries Inference Engine devices and prints their metrics and default configuration values. The sample shows how to use [Query Device API feature](../../../docs/IE_DG/InferenceEngine_QueryAPI.md).
 > **NOTE:** This topic describes usage of C++ implementation of the Query Device Sample. 
-> For the Python* implementation, refer to [Hello Query Device Python* Sample](./inference-engine/ie_bridges/python/sample/hello_query_device/README.md)
+> For the Python* implementation, refer to [Hello Query Device Python* Sample](../../ie_bridges/python/sample/hello_query_device/README.md)
 ## Running
 
 To see quired information, run the following:
@@ -51,6 +51,6 @@ Available devices:
 ```
 
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)
-* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,15 +36,20 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
     auto input_layout = node.input().get_output_layout();
     auto weights_layout = node.weights(0).get_output_layout();  // weights are stored after inputs
 
+    auto data_type = input_layout.data_type;
+    if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) && !node.has_fused_primitives()) {
+        data_type = data_types::f32;
+    }
+
+    if (node.has_fused_primitives()) {
+        data_type = node.get_fused_output_layout().data_type;
+    }
+
     auto input_offset = desc->input_offset;
     auto strd = desc->stride;
-    auto split = desc->weights.size();
+    auto group = desc->groups;
 
-    auto number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(split);
-
-    // Deconvolution is used for convolution backward pass, but number of features will differ then
-    if (desc->gradient())
-        number_of_features = weights_layout.size.feature[0] * static_cast<int32_t>(split);
+    auto number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(group);
 
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
@@ -71,7 +76,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
-        return {input_layout.data_type, input_layout.format, output_size};
+        return {data_type, input_layout.format, output_size};
     }
 
     // compute output_dim <= stride * (input_size - 1) + kernel_size + 2 * input_offset;
@@ -98,7 +103,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
 
     tensor output_size(input_layout.size.batch[0],
                        number_of_features, x, y, z);
-    return {input_layout.data_type, input_layout.format, output_size};
+    return {data_type, input_layout.format, output_size};
 }
 
 std::string deconvolution_inst::to_string(deconvolution_node const& node) {
@@ -132,6 +137,7 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     deconv_info.add("stride", strd.to_string());
     deconv_info.add("input offset", desc->input_offset.to_string());
     deconv_info.add("split", split);
+    deconv_info.add("groups", desc->groups);
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
         ud_out_size_info.add("size", desc->output_size.to_string());
@@ -231,22 +237,12 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
                               "expected output batch size",
                               1,
                               "Only one-dimensional features are supported");
-
-        if (node.get_primitive()->gradient()) {
-            CLDNN_ERROR_LESS_THAN(node.id(),
-                                  "Weights feature maps number",
-                                  (input_inst.size.feature[0] - input_offset.feature[0]) / split,
-                                  "input feature maps number",
-                                  filter_inst.size.batch[0],
-                                  "Weights/ifm mimsmatch");
-        } else {
-            CLDNN_ERROR_LESS_THAN(node.id(),
-                                  "Weights feature maps number",
-                                  (input_inst.size.feature[0] - input_offset.feature[0]) / split,
-                                  "input feature maps number",
-                                  filter_inst.size.feature[0],
-                                  "Weights/ifm mimsmatch");
-        }
+        CLDNN_ERROR_LESS_THAN(node.id(),
+                              "Weights feature maps number",
+                              (input_inst.size.feature[0] - input_offset.feature[0]) / split,
+                              "input feature maps number",
+                              filter_inst.size.feature[0],
+                              "Weights/ifm mimsmatch");
     }
 }
 }  // namespace cldnn

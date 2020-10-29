@@ -32,7 +32,6 @@ function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
 
     target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             "${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include"
             "${IE_MAIN_SOURCE_DIR}/samples/common/samples"
             "${IE_MAIN_SOURCE_DIR}/samples/common/format_reader")
@@ -46,7 +45,8 @@ function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
         ${PLUGIN_NAME} ${ARGN})
 
     set_target_properties(${TARGET_NAME} PROPERTIES
-        COMPILE_PDB_NAME ${TARGET_NAME})
+        COMPILE_PDB_NAME ${TARGET_NAME}
+        FOLDER tools)
 
     add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endfunction()
@@ -55,6 +55,6 @@ if(ENABLE_MYRIAD)
     add_perfcheck_target(myriad_perfcheck myriadPlugin)
 
     install(TARGETS myriad_perfcheck
-            RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
             COMPONENT myriad)
 endif()

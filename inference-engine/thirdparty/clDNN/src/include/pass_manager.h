@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void add_reorder(program_impl& p, program_node* node, program_node* usr, const layout& reorder_layout);
+    void add_reorder(program_impl& p, program_node* node, program_node* usr);
 };
 
 class add_reshape_to_primitives : public base_pass {
@@ -115,7 +115,6 @@ public:
 private:
     void run(program_impl& p) override;
     void replace_nodes(program_impl& p);
-    void handle_detection_output(program_impl& p);
     void handle_lstm(program_impl& p);
     void handle_dynamic_lstm(program_impl& p);
     void set_outputs(program_impl& p);
@@ -163,20 +162,22 @@ private:
     void run(program_impl& p) override;
     void prepare_packed_quantize(program_impl& p);
     void prepare_scale_shift_opt(program_impl& p);
+    void prepare_dequantize_merge(program_impl& p);
     void remove_fake_reorders(program_impl& p);
     void prepare_asymmetric_quantization(program_impl& p);
 };
 
 class prepare_conv_eltw_fusing : public base_pass {
 public:
-    explicit prepare_conv_eltw_fusing(layout_optimizer& lo_ref, bool bfyx_f16_opt = false) :
-        base_pass("prepare_conv_eltw_fusing"), _lo(lo_ref), bfyx_f16_opt(bfyx_f16_opt) {}
+    explicit prepare_conv_eltw_fusing(layout_optimizer& lo_ref, bool b_fs_yx_fsv16_opt = false) :
+        base_pass("prepare_conv_eltw_fusing"), _lo(lo_ref), b_fs_yx_fsv16_opt(b_fs_yx_fsv16_opt) {}
 
 private:
     void run(program_impl& p) override;
     void fuse_conv_eltwise(program_impl& p, program_node* node);
+    void fuse_conv_depth_to_space(program_impl& p, program_node* node);
     layout_optimizer& _lo;
-    bool bfyx_f16_opt;
+    bool b_fs_yx_fsv16_opt;
 };
 
 class prepare_conv_eltw_read_write_opt : public base_pass {
@@ -188,26 +189,6 @@ private:
     void conv_eltwise_read_write_opt(program_impl& p, program_node* node);
 };
 
-class prepare_depthwise_sep_opt : public base_pass {
-public:
-    prepare_depthwise_sep_opt() : base_pass("prepare_depthwise_sep_opt") {}
-
-private:
-    void run(program_impl& p) override;
-    template <typename T>
-    void optimize_depthwise_sep_pre(T& node);
-};
-
-class prep_opt_depthwise_sep_post : public base_pass {
-public:
-    prep_opt_depthwise_sep_post() : base_pass("prep_opt_depthwise_sep_post") {}
-
-private:
-    void run(program_impl& p) override;
-    template <typename T>
-    void optimize_depthwise_sep_pre(program_impl& p, T& node);
-};
-
 class prepare_primitive_fusing : public base_pass {
 public:
     explicit prepare_primitive_fusing(layout_optimizer& lo_ref) :
@@ -215,10 +196,21 @@ public:
 
 private:
     void run(program_impl& p) override;
+    void fuse_sigmoid_mul_to_swish(program_impl &p);
     void fuse_reorders(program_impl& p);
     void fuse_activations(program_impl& p);
-    void fuse_skip_layers(program_impl& p);
     void fuse_simple_primitives(program_impl &p);
+    void optimize_fused_ops(program_impl &p);
+    layout_optimizer& _lo;
+};
+
+class pre_replace_deconv : public base_pass {
+public:
+    explicit pre_replace_deconv(layout_optimizer& lo_ref) :
+        base_pass("pre_replace_deconv"), _lo(lo_ref) {}
+
+private:
+    void run(program_impl& p) override;
     layout_optimizer& _lo;
 };
 
@@ -297,13 +289,15 @@ private:
 
 class remove_redundant_reorders : public base_pass {
 public:
-    explicit remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing = false, bool update_implementations = false);
+    explicit remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing = false, bool update_implementations = false,
+        bool remove_output_reorders = false);
     void run(program_impl& p) override;
 
 private:
     layout_optimizer& lo;
     bool enable_reorder_fusing;
     bool update_implementations;
+    bool remove_output_reorders;
 };
 
 class reorder_inputs : public base_pass {
@@ -336,4 +330,63 @@ public:
     reverse_optional_nodes_outputs() : base_pass("reverse_optional_nodes_outputs") {}
     void run(program_impl& p) override;
 };
+
+class concat_input_order : public base_pass {
+    // This optimization changes order of inputs for concatenation to provide
+    // better alignment for execution and allow for optimizing out in some cases.
+    // For example concatenation along features with inputs [13, 1024] in format fsv16
+    // has only first input aligned to feature blocks, blocking performant implementation
+    // for second one.
+    // This can be fixed by chaning order to [1024, 13] and fusing reshuffling of those features
+    // into following layers, such as convolution or fully connected, where it can be
+    // implemented as compile-time weights shuffling.
+    //
+    // Requirements - may work incorrectly if not fullfiled:
+    // - formats are selected
+    // - implementations aren't selected
+    //
+    // Soft requirements - reduce applicability if not fullfiled:
+    // - constant primitives are reduced to data nodes
+    // - no fused primitives
+public:
+    concat_input_order() : base_pass("concat_input_order") {}
+    void run(program_impl& p) override;
+};
+
+class memory_dependency_pass : public base_pass {
+public:
+    explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
+    void add_memory_dependency(program_node* node, program_node* dep) {
+        if (node->can_be_optimized() || !dep->can_be_optimized()) {
+            node->add_memory_dependency(dep->id());
+        } else {
+            if (node->id() == dep->id()) {
+                return;
+            }
+            for (auto subdep : dep->get_dependencies()) {
+                add_memory_dependency(node, subdep);
+                add_memory_dependency(subdep, node);
+            }
+        }
+    }
+};
+
+class basic_memory_dependencies : public memory_dependency_pass {
+public:
+    basic_memory_dependencies() : memory_dependency_pass("basic_memory_dependencies") {}
+    void run(program_impl& p) override;
+};
+
+class skipped_branch_memory_dependencies : public memory_dependency_pass {
+public:
+    skipped_branch_memory_dependencies() : memory_dependency_pass("skipped_branch_memory_dependencies") {}
+    void run(program_impl& p) override;
+};
+
+class oooq_memory_dependencies : public memory_dependency_pass {
+public:
+    oooq_memory_dependencies() : memory_dependency_pass("oooq_memory_dependencies") {}
+    void run(program_impl& p) override;
+};
+
 }  // namespace cldnn

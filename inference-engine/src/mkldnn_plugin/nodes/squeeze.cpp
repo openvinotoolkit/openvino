@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -10,7 +9,7 @@
 #include <vector>
 #include <cassert>
 #include "ie_parallel.hpp"
-#include "common/simple_copy.h"
+#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -50,14 +49,14 @@ public:
         if (src != dst) {
             size_t srcSize = inputs[0]->byteSize();
             size_t dstSize = outputs[0]->byteSize();
-            simple_copy(dst, dstSize, src, srcSize);
+            cpu_memcpy_s(dst, dstSize, src, srcSize);
         }
 
         return OK;
     }
 };
 
-REG_FACTORY_FOR(ImplFactory<SqueezeImpl>, Squeeze);
+REG_FACTORY_FOR(SqueezeImpl, Squeeze);
 
 }  // namespace Cpu
 }  // namespace Extensions

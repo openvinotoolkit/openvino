@@ -16,9 +16,8 @@
 
 import unittest
 
-import networkx as nx
-from mo.graph.graph import Graph
 from extensions.ops.instance_normalization import InstanceNormalization
+from mo.graph.graph import Graph
 
 
 class InstanceNormalizationOp(unittest.TestCase):

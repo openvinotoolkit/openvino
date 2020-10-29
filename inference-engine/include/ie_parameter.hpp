@@ -3,9 +3,8 @@
 //
 
 /**
- * @brief A header file for the CNNNetworkIterator class
- *
- * @file ie_cnn_network_iterator.hpp
+ * @brief A header file for the Parameter class
+ * @file ie_parameter.hpp
  */
 #pragma once
 
@@ -21,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-#include "ie_api.h"
+#include "ie_blob.h"
 
 namespace ngraph {
 
@@ -296,12 +295,14 @@ private:
         }
 
         template <class U>
-        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
+        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type
+        equal(const Any& left, const Any& rhs) const {
             THROW_IE_EXCEPTION << "Parameter doesn't contain equal operator";
         }
 
         template <class U>
-        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
+        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type
+        equal(const Any& left, const Any& rhs) const {
             return dyn_cast<U>(&left) == dyn_cast<U>(&rhs);
         }
 
@@ -326,6 +327,7 @@ private:
 };
 
 #ifdef __clang__
+extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<float>);

@@ -54,7 +54,7 @@ struct _devicePrivate_t {
     deviceCapabilities_t dev_attr;
     ncDeviceState_t state;
     uint32_t device_id;
-    wd_context watchdog_ctx;
+    WdDeviceHndl_t* watchdog_device;
     int wd_interval;
 };
 
@@ -111,6 +111,10 @@ struct _fifoPrivate_t {
     void* output_data;
 };
 
+typedef struct {
+    char memType;
+    char wdEnable;
+} bootOptions_t;
 
 #if (!defined(_WIN32) && !defined(_WIN64))
 #define PACKED(name) struct __attribute__((packed)) name

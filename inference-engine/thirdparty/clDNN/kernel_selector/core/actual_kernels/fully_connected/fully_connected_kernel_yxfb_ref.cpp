@@ -34,8 +34,8 @@ ParamsKey FullyConnected_yxfb_ref::GetSupportedKey() const {
     return k;
 }
 
-JitConstants FullyConnected_yxfb_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+JitConstants FullyConnected_yxfb_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
         FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "result", input_dt, 1 };
@@ -50,12 +50,7 @@ KernelsData FullyConnected_yxfb_ref::GetKernelsData(const Params& params, const 
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
                                                     DataLayout::yxfb,
-                                                    {WeightsLayout::io,
-                                                     WeightsLayout::oi,
-                                                     WeightsLayout::oiyx,
-                                                     WeightsLayout::oyxi,
-                                                     WeightsLayout::iyxo,
-                                                     WeightsLayout::yxio},
+                                                    WeightsLayout::oiyx,
                                                     DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

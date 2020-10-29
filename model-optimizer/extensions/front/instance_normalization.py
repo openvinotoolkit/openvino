@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node, Graph
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.mvn import MVN
+from mo.front.common.replacement import FrontReplacementOp
+from mo.graph.graph import Node, Graph
 
 
 class InstanceNormalization(FrontReplacementOp):

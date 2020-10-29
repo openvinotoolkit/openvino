@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.middle.passes.eliminate import remove_op_node_with_data_node
 from mo.middle.replacement import MiddleReplacementPattern
 

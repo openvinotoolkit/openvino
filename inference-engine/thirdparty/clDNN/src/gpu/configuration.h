@@ -33,6 +33,7 @@ struct configuration {
     bool meaningful_kernels_names;
     bool dump_custom_program;
     bool host_out_of_order;
+    bool use_unifed_shared_memory;
     std::string compiler_options;
     std::string single_kernel_name;
     std::string log;

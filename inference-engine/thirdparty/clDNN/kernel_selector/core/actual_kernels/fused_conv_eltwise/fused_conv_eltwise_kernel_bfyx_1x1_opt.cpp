@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -116,45 +116,45 @@ bool fused_conv_eltwise_kernel_bfyx_1x1_opt::Validate(const Params& p, const opt
     return true;
 }
 
-std::vector<WeightsLayout> fused_conv_eltwise_kernel_bfyx_1x1_opt::GetSupportedWeightLayouts(
+WeightsLayout fused_conv_eltwise_kernel_bfyx_1x1_opt::GetPreferreddWeightsLayout(
     const fused_conv_eltwise_params& p) const {
     auto block = get_out_block_size(p);
     if (block.out_depth == 8)
-        return {WeightsLayout::os_iyx_osv64};
+        return WeightsLayout::os_iyx_osv64;
     if (block.out_depth == 4)
-        return {WeightsLayout::os_iyx_osv32};
+        return WeightsLayout::os_iyx_osv32;
     if (block.out_depth == 2)
-        return {WeightsLayout::os_iyx_osv16};
+        return WeightsLayout::os_iyx_osv16;
     else
-        return {WeightsLayout::yxio};
+        return WeightsLayout::yxio;
 }
 
 fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_1x1_opt::SetDefault(
     const fused_conv_eltwise_params& arg,
     int) const {
-    DispatchData runInfo = Parent::SetDefault(arg);
+    DispatchData dispatchData = Parent::SetDefault(arg);
 
     constexpr size_t sub_group_size = 8;
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
     auto block = get_out_block_size(arg);
 
-    runInfo.gws0 = arg.output.X().v / block.out_width;
-    runInfo.gws1 = arg.output.Y().v / block.out_height;
-    runInfo.gws2 = 2 * (arg.output.Feature().v * arg.output.Batch().v) /
-                   block.out_depth;  // process 8 output channels per Workitem
+    dispatchData.gws[0] = arg.output.X().v / block.out_width;
+    dispatchData.gws[1] = arg.output.Y().v / block.out_height;
+    dispatchData.gws[2] = 2 * (arg.output.Feature().v * arg.output.Batch().v) /
+                          block.out_depth;  // process 8 output channels per Workitem
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 2 * sub_group_size;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 2 * sub_group_size;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants fused_conv_eltwise_kernel_bfyx_1x1_opt::GetJitConstants(const fused_conv_eltwise_params& params,
-                                                                     const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                                     const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto block = get_out_block_size(params);
     jit.AddConstant(MakeJitConstant("OUT_BLOCK_WIDTH", block.out_width));

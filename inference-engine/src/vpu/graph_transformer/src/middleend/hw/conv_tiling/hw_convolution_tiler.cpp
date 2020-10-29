@@ -48,6 +48,34 @@ void correctOutputPlaneSizeF(const ConvolutionOptions& convolutionOptions, bool 
     outputTileDims.set(Dim::H, std::min(outputTileDims[Dim::H], maxOutputHeight));
 }
 
+// If output tile size appears too small to cover whole output
+// tensor size with the given number of tiles, then we re-work
+// the input tile size using the output-to-input direction.
+static
+void updateInputTileSize(int & inputTileSize,
+                         int   numTiles,
+                         int   outputSize,
+                         int   kernelSize,
+                         int   kernelStride,
+                         int   padBefore,
+                         int   padAfter,
+                         bool  useCeil) {
+    int outputTileSizeMin = divUp(outputSize, numTiles);
+    int outputTileSize = calcOutputSize(inputTileSize,
+                                        kernelSize,
+                                        kernelStride,
+                                        padBefore,
+                                        padAfter,
+                                        useCeil);
+    if (outputTileSize < outputTileSizeMin) {
+        inputTileSize = calcInputSize(outputTileSizeMin,
+                                      kernelSize,
+                                      kernelStride,
+                                      padBefore,
+                                      padAfter);
+    }
+}
+
 class ConvInputToOutputDirection;
 class ConvOutputToInputDirection;
 
@@ -92,6 +120,15 @@ public:
         }
         if (tilingOption.numHeightTiles > 1) {
             tileDimH = divUp(tileDimH, _convolutionOptions._kernelStride) * _convolutionOptions._kernelStride;
+
+            updateInputTileSize(tileDimH,
+                                tilingOption.numHeightTiles,
+                                _convolutionOptions._outputDims[Dim::H],
+                                _convolutionOptions._kernelSizeY,
+                                _convolutionOptions._kernelStride,
+                                _convolutionOptions._paddingBottom,
+                                _convolutionOptions._paddingTop,
+                                false);  // do not use ceil
         }
 
         _inputTileDims.set(Dim::W, tileDimW);
@@ -594,6 +631,10 @@ std::vector<TilingOption> HWConvolutionTilingSearcher::selectBetterTiling() cons
     const auto outputTileInitial = dirTiling.getOutputTileDims();
     const auto inputTileInitial = dirTiling.getInputTileDims();
 
+    const int maxInputTileDimW = 2048;
+    const int maxInputTileDimH = 2048;
+    const int maxInputTileDimC = 2048;
+
     auto minInputTileDimW = 64;
     auto minInputTileDimH = _convolutionOptions._kernelSizeY;
     if (_convolutionOptions._withPool) {
@@ -603,14 +644,20 @@ std::vector<TilingOption> HWConvolutionTilingSearcher::selectBetterTiling() cons
 
     const auto& splitOver = dirTiling.splitOverTensorDims();
     const auto direction = dirTiling.getDirection();
+    const auto cmxLimit = env.resources.tilingCMXLimit;
 
     // split over Input tensor for the Channel dimension always
     for (int numChannelTiles = 1; numChannelTiles <= maxNumChannelTiles; numChannelTiles++) {
         const int tileSizeDimC = divUp(_convolutionOptions._inputDims[Dim::C], numChannelTiles);
 
+        if (tileSizeDimC > maxInputTileDimC)
+            continue;
         // here split and iterate either over input tensors or over output tensors depending on the direction.
         for (int numWidthTiles = 1; numWidthTiles <= maxNumWidthTiles; numWidthTiles++) {
             int tileSizeDimW = divUp(splitOver[Dim::W], numWidthTiles);
+
+            if (tileSizeDimW > maxInputTileDimW)
+                continue;
 
             //
             // Filter-out too small SoW input tiles when loops split input tensors.
@@ -628,13 +675,24 @@ std::vector<TilingOption> HWConvolutionTilingSearcher::selectBetterTiling() cons
             for (int numHeightTiles = 1; numHeightTiles <= maxNumHeightTiles; numHeightTiles++) {
                 int tileSizeDimH = divUp(splitOver[Dim::H], numHeightTiles);
 
+                if (tileSizeDimH > maxInputTileDimH)
+                    continue;
+
                 //
                 // Filter-out too small SoH input tiles when loops split input tensors.
                 //
-
                 if (numHeightTiles > 1 && direction == Direction::INPUT_TO_OUTPUT) {
                     tileSizeDimH = divUp(tileSizeDimH,
                                          _convolutionOptions._kernelStride) * _convolutionOptions._kernelStride;
+
+                    updateInputTileSize(tileSizeDimH,
+                                        numHeightTiles,
+                                        _convolutionOptions._outputDims[Dim::H],
+                                        _convolutionOptions._kernelSizeY,
+                                        _convolutionOptions._kernelStride,
+                                        _convolutionOptions._paddingBottom,
+                                        _convolutionOptions._paddingTop,
+                                        false);  // do not use ceil
 
                     if (tileSizeDimH < minInputTileDimH) {
                         break;
@@ -691,7 +749,15 @@ std::vector<TilingOption> HWConvolutionTilingSearcher::selectBetterTiling() cons
                         if (_convolutionOptions._withPool) {
                             if (widthTile.inputWithJunk % 2 != 0 || heightTile.inputWithJunk % 2 != 0 ||
                                 widthTile.outputWithJunk % 2 != 0 || widthTile.outputWithJunk <= 2 ||
-                                heightTile.outputWithJunk <= 2) {
+                                heightTile.outputWithJunk <= 2 ||
+                                // this restrictions come from restrictions on HW tile sizes in case of Conv+Pool:
+                                (tileSizeDimC <= 128 && tileSizeDimC > 112 && widthTile.inputWithJunk > 72) ||
+                                (tileSizeDimC <= 112 && tileSizeDimC > 96  && widthTile.inputWithJunk > 80) ||
+                                (tileSizeDimC <= 96  && tileSizeDimC > 80  && widthTile.inputWithJunk > 96) ||
+                                (tileSizeDimC <= 80  && tileSizeDimC > 64  && widthTile.inputWithJunk > 112) ||
+                                (tileSizeDimC <= 64  && tileSizeDimC > 48  && widthTile.inputWithJunk > 144) ||
+                                (tileSizeDimC <= 48  && tileSizeDimC > 32  && widthTile.inputWithJunk > 192) ||
+                                (tileSizeDimC <= 32  && tileSizeDimC > 16  && widthTile.inputWithJunk > 288)) {
                                 isOK = false;
                                 break;
                             }
@@ -723,7 +789,7 @@ std::vector<TilingOption> HWConvolutionTilingSearcher::selectBetterTiling() cons
                         fullOutputTileDims.set(Dim::C, outputTileInitial[Dim::C]);
 
                         // TODO: support HCW
-                        if (calculateHwBufferSize(fullOutputTileDims) > env.resources.cmxLimit) {
+                        if (calculateHwBufferSize(fullOutputTileDims) > cmxLimit) {
                             isOK = false;
                             break;
                         }

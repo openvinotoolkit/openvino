@@ -13,26 +13,34 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-import networkx as nx
-
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
 
-class ShuffleChannelOp(Op):
-    """
-    Op for ShuffleChannel layer. It will be replaced by ShuffleChannel MiddleReplacer.
-    """
-    op = 'ShuffleChannel'
-    enabled = True
+class ShuffleChannels(Op):
+    op = 'ShuffleChannels'
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': None,
-            'op': __class__.op,
+            'op': self.op,
+            'type': self.op,
+            'version': 'opset3',
+
+            'infer': self.infer,
+
+            'axis': 1,
+            'group': None,
+
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': copy_shape_infer
         }, attrs)
+
+    def backend_attrs(self):
+        return ['group', 'axis']
+
+    @staticmethod
+    def infer(node: Node):
+        node_name = node.soft_get('name', node.id)
+        assert node.soft_get('group') is not None, 'The attribute "group" must be set for node {}'.format(node_name)
+        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())

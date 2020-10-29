@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include <net_pass.h>
-#include <details/caseless.hpp>
+#include <legacy/net_pass.h>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 #include <vpu/compile_env.hpp>
 
@@ -30,8 +30,16 @@ void FrontEnd::unrollLoops(ie::ICNNNetwork& network) {
         }
     }
 
-    // Try to convert network to a RNN sequence due to performance reasons
-    ie::NetPass::CombineRNNSeq(network);
+    if (env.config.forcePureTensorIterator) {
+        return;
+    }
+
+    if (env.config.enableTensorIteratorUnrolling) {
+        ie::NetPass::UnrollTI(network);
+    } else {
+        // Try to convert network to a RNN sequence due to performance reasons
+        ie::NetPass::CombineRNNSeq(network);
+    }
 }
 
 }  // namespace vpu

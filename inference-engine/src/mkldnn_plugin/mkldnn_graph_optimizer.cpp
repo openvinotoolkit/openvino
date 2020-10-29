@@ -6,25 +6,37 @@
 
 #include "mkldnn_extension_utils.h"
 #include "nodes/mkldnn_reshape_node.h"
-#include "nodes/mkldnn_activation_node.h"
 #include "nodes/mkldnn_pooling_node.h"
 #include "nodes/mkldnn_eltwise_node.h"
-#include "nodes/mkldnn_depthwise_node.h"
 #include "nodes/mkldnn_concat_node.h"
 #include "nodes/mkldnn_reorder_node.h"
 #include "nodes/mkldnn_conv_node.h"
 #include "nodes/mkldnn_bin_conv_node.h"
 #include "nodes/mkldnn_quantize_node.h"
 #include "nodes/mkldnn_mvn_node.h"
+#include "nodes/mkldnn_resample_node.h"
+#include "nodes/mkldnn_interpolate_node.h"
+#include "nodes/mkldnn_input_node.h"
 
 #include <blob_factory.hpp>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
+
+// WA for xbyak.h
+#ifdef _WIN32
+# ifndef _WINSOCKAPI_
+#  define _WINSOCKAPI_
+# endif
+# ifndef _WINSOCK2API_
+#  define _WINSOCK2API_
+#endif
+#endif
 #include <cpu_isa_traits.hpp>
 
 #include <string>
 #include <list>
 #include <memory>
 #include <set>
+#include <algorithm>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -33,10 +45,19 @@ using namespace InferenceEngine;
 MKLDNNGraphOptimizer::MKLDNNGraphOptimizer() {}
 
 void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
+    MergeTwoEqualScaleShifts(graph);
+    graph.RemoveDroppedNodes();
+
     MergeConversions(graph);
     graph.RemoveDroppedNodes();
 
     FuseBroadcastAndEltwise(graph);
+    graph.RemoveDroppedNodes();
+
+    FuseClampAndQuantize(graph);
+    graph.RemoveDroppedNodes();
+
+    FuseScaleShiftAndQuantize(graph);
     graph.RemoveDroppedNodes();
 
     MergeGroupConvolution(graph);
@@ -45,22 +66,14 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseConvolutionAndZeroPoints(graph);
     graph.RemoveDroppedNodes();
 
-#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
     FuseConvolutionAndDepthwise(graph);
     graph.RemoveDroppedNodes();
-#endif
 
-#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
     FuseConvolutionAndActivation(graph);
     graph.RemoveDroppedNodes();
-    FuseFullyConnectedAndActivation(graph);
-    graph.RemoveDroppedNodes();
-#endif
 
-#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
     FuseConvolutionAndDepthwise(graph);
     graph.RemoveDroppedNodes();
-#endif
 
     FuseConvolutionAndQuantize(graph);
     graph.RemoveDroppedNodes();
@@ -68,10 +81,8 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     graph.SortTopologically();
     graph.RemoveDroppedEdges();
 
-#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
     FuseConvolutionAndDepthwise(graph);
     graph.RemoveDroppedNodes();
-#endif
 
     FusePoolingAndQuantize(graph);
     graph.RemoveDroppedNodes();
@@ -101,7 +112,19 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseConvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
+    FuseFullyConnectedAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
     FuseMVNAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
+    FuseResampleAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
+    FuseInterpolateAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
+    FuseNormalizeAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
     FuseEltwiseAndSimple(graph);
@@ -171,16 +194,6 @@ void MKLDNNGraphOptimizer::MergeConversions(MKLDNNGraph& graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableConvNode = [](MKLDNNNodePtr node) {
@@ -194,13 +207,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
         if (convLayer == nullptr)
             THROW_IE_EXCEPTION << "Cannot get convolution layer " << node->getName();
 
-        // FIXME: int8 GEMM convolution shows bad accuracy for several cases
-        bool isBrokenGemmConv = convLayer->input()->getDims().size() == 5 && convLayer->_group != 1 &&
-                                (convLayer->input()->getDims()[1] / convLayer->_group % 4 != 0 || convLayer->_out_depth / convLayer->_group % 8 != 0);
-
-        if (isBrokenGemmConv)
-            return false;
-
         return true;
     };
 
@@ -213,11 +219,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
         int OC = node->getChildEdgesAtPort(0)[0]->getDims()[1];
 
         if (parent0->getType() == Eltwise) {
-            auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(parent0->getCnnLayer().get());
-            if (eltwiseLayer == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get eltwise layer " << node->getName();
-
-            if (eltwiseLayer->_operation != EltwiseLayer::Sub)
+            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(parent0.get());
+            if (eltwiseNode->getOpType() != Subtract)
                 return false;
 
             if (parent0->getParentEdges().size() != 2)
@@ -227,6 +230,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                 auto arg0 = parent0->getParentEdgesAtPort(1)[0]->getParent();
                 if (arg0->getCnnLayer()->outData[0]->getPrecision() != Precision::U8)
                     return false;
+
+                if (parent0->getParentEdgesAtPort(1)[0]->getDims().size() < 2) {
+                    return false;
+                }
 
                 if (parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != 1 &&
                     parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != IC)
@@ -264,11 +271,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
         int OC = node->getChildEdgesAtPort(0)[0]->getDims()[1];
 
         if (parent0->getType() == Eltwise) {
-            auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(parent0->getCnnLayer().get());
-            if (eltwiseLayer == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get eltwise layer " << node->getName();
-
-            if (eltwiseLayer->_operation != EltwiseLayer::Sub)
+            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(parent0.get());
+            if (eltwiseNode->getOpType() != Subtract)
                 return false;
 
             if (parent0->getParentEdges().size() != 2)
@@ -319,9 +323,9 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
         if (convNode->inputZeroPoints.empty())
             return;
 
-        auto weightsLayer = convLayer->insData[1].lock()->getCreatorLayer().lock();
+        auto weightsLayer = getCreatorLayer(convLayer->insData[1].lock()).lock();
         if (weightsLayer->type != "Const") {
-            weightsLayer = weightsLayer->insData[0].lock()->getCreatorLayer().lock();
+            weightsLayer = getCreatorLayer(weightsLayer->insData[0].lock()).lock();
         }
 
         auto weightsBlob = dynamic_cast<TBlob<int8_t>*>(weightsLayer->blobs["custom"].get());
@@ -445,6 +449,111 @@ void MKLDNNGraphOptimizer::MergeGroupConvolution(MKLDNNGraph &graph) {
     }
 }
 
+//  WA: We need it until LP transformations will not optimize this pattern inside
+void MKLDNNGraphOptimizer::MergeTwoEqualScaleShifts(MKLDNNGraph& graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableScaleShiftNode = [](MKLDNNNodePtr node) {
+        if (node->getType() != Eltwise)
+            return false;
+
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast " << node->getName() << " to Eltwise node";
+
+        if (eltwiseNode->getChildEdges().size() != 1)
+            return false;
+
+        if (eltwiseNode->getOpType() != MulAdd)
+            return false;
+
+        return true;
+    };
+
+    auto isEqualScaleShiftNodes = [](MKLDNNNodePtr node1, MKLDNNNodePtr node2) {
+        if (node1->getParentEdgeAt(0) != node2->getParentEdgeAt(0))
+            return false;
+
+        auto *eltwiseNode1 = dynamic_cast<MKLDNNEltwiseNode *>(node1.get());
+        auto *eltwiseNode2 = dynamic_cast<MKLDNNEltwiseNode *>(node2.get());
+
+        auto eltwiseLayer1 = eltwiseNode1->getCnnLayer();
+        auto eltwiseLayer2 = eltwiseNode2->getCnnLayer();
+
+        Blob::Ptr scalesBlob1 = eltwiseLayer1->blobs["weights"];
+        Blob::Ptr shiftsBlob1 = eltwiseLayer1->blobs["biases"];
+        Blob::Ptr scalesBlob2 = eltwiseLayer2->blobs["weights"];
+        Blob::Ptr shiftsBlob2 = eltwiseLayer2->blobs["biases"];
+        if (scalesBlob1 == nullptr || shiftsBlob1 == nullptr || scalesBlob2 == nullptr || shiftsBlob2 == nullptr)
+            return false;
+
+        if (scalesBlob1->size() != shiftsBlob1->size() || scalesBlob2->size() != shiftsBlob2->size()
+            || scalesBlob1->size() != scalesBlob2->size()) return false;
+
+        const float *scalesBufferPtr1 = scalesBlob1->buffer().as<float *>();
+        const float *shiftsBufferPtr1 = shiftsBlob1->buffer().as<float *>();
+        const float *scalesBufferPtr2 = scalesBlob2->buffer().as<float *>();
+        const float *shiftsBufferPtr2 = shiftsBlob2->buffer().as<float *>();
+
+        for (int i = 0; i < scalesBlob1->size(); i++)
+            if (scalesBufferPtr1[i] != scalesBufferPtr2[i] || shiftsBufferPtr1[i] != shiftsBufferPtr2[i])
+                return false;
+
+        return true;
+    };
+
+    auto MergeScaleShiftNodes = [&](MKLDNNNodePtr childNode1, MKLDNNNodePtr childNode2) {
+        auto parentNode = childNode2->getParentEdgeAt(0)->getParent();
+        auto ccNode2 = childNode2->getChildEdgeAt(0)->getChild();
+
+        auto parentEdges = childNode2->parentEdges;
+        for (auto &parentEdge : parentEdges) {
+            auto p_edge = parentEdge.lock();
+            if (p_edge->getParent() == parentNode)
+                continue;
+
+            removeEdge(graph, p_edge);
+        }
+
+        graph.DropNode(childNode2);
+
+        MKLDNNEdgePtr remEdge;
+        for (auto edge : parentNode->getChildEdges()) {
+            if (edge.lock()->getChild() == ccNode2) {
+                remEdge = edge.lock();
+                break;
+            }
+        }
+        if (remEdge == nullptr)
+            THROW_IE_EXCEPTION << "Edge was not found";
+        remEdge->drop();
+        graph.GetEdges().erase(std::remove(graph.GetEdges().begin(), graph.GetEdges().end(), remEdge), graph.GetEdges().end());
+
+        if (childNode1->getChildEdgeAt(0)->getChild() != ccNode2) {
+            auto iIndex = childNode1->getChildEdgeAt(0)->getInputNum();
+            auto oIndex = remEdge->getOutputNum();
+            MKLDNNEdgePtr newEdge(new MKLDNNEdge(childNode1, ccNode2, iIndex, oIndex));
+            childNode1->addEdge(newEdge);
+            graph.GetEdges().push_back(newEdge);
+        }
+    };
+
+    for (int i = 0; i < graphNodes.size(); i++) {
+        auto parentNode = graphNodes[i];
+        if (parentNode->getChildEdges().size() != 2) continue;
+
+        auto childNode1 = parentNode->getChildEdgeAt(0)->getChild();
+        if (!isSutableScaleShiftNode(childNode1)) continue;
+
+        auto childNode2 = parentNode->getChildEdgeAt(1)->getChild();
+        if (!isSutableScaleShiftNode(childNode2)) continue;
+
+        if (!isEqualScaleShiftNodes(childNode1, childNode2)) continue;
+
+        MergeScaleShiftNodes(childNode1, childNode2);
+    }
+}
+
 void MKLDNNGraphOptimizer::FuseBatchNormWithScale(MKLDNNGraph &graph) {
     auto &graphNodes = graph.GetNodes();
 
@@ -459,8 +568,18 @@ void MKLDNNGraphOptimizer::FuseBatchNormWithScale(MKLDNNGraph &graph) {
                                 return x->getName() == node_name;}) == outputNodes.end()) {
                 if (bn->getChildEdges().size() == 1) {
                     auto child = bn->getChildEdgeAt(0)->getChild();
-                    if (child->type == Depthwise && child->getCnnLayer()->type == "ScaleShift") {
+                    if (child->type == Eltwise && child->getCnnLayer()->type == "ScaleShift") {
                         bn->fuseWith(child);
+
+                        auto parentEdges = child->parentEdges;
+                        for (auto &parentEdge : parentEdges) {
+                            auto p_edge = parentEdge.lock();
+                            if (p_edge->getParent()->getType() == BatchNormalization)
+                                continue;
+
+                            removeEdge(graph, p_edge);
+                        }
+
                         graph.DropNode(child);
                     }
                 }
@@ -469,29 +588,19 @@ void MKLDNNGraphOptimizer::FuseBatchNormWithScale(MKLDNNGraph &graph) {
     }
 }
 
-#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
 void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
-    auto isOneOf = [&](mkldnn::algorithm alg, std::vector<mkldnn::algorithm> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isFusingSupported = [&](MKLDNNNodePtr conv, MKLDNNNodePtr activation) {
         if (!activation->getCnnLayer())
             return false;
 
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(activation.get());
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(activation.get());
 
-        return activationNode &&
-            (activationNode->getAlgorithm() == eltwise_relu ||
+        return eltwiseNode &&
+            (eltwiseNode->getOpType() == Relu ||
             (conv->getCnnLayer()->precision == Precision::FP32 &&
-             isOneOf(activationNode->getAlgorithm(), {eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp})));
+            IsOneOf(eltwiseNode->getOpType(), {Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish, Hsigmoid})));
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
@@ -540,42 +649,112 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
     }
 }
 
-void MKLDNNGraphOptimizer::FuseFullyConnectedAndActivation(MKLDNNGraph &graph) {
+void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto isFusingSupported = [&](MKLDNNNodePtr fc, MKLDNNNodePtr activation) {
-        if (!activation->getCnnLayer())
-            return false;
-
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(activation.get());
-
-        // TODO: fuse on fp32 not optimized yet in mkl-dnn
-        return activationNode && fc->getCnnLayer()->precision != Precision::FP32 &&
-            (activationNode->getAlgorithm() == eltwise_relu);
+    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+        return node->getType() == FullyConnected &&
+               node->getChildEdges().size() == 1;
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
-        if (graphNodes[i]->getType() == FullyConnected) {
-            auto fc = graphNodes[i];
+    auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+        if (!childNode->getCnnLayer())
+            return false;
 
-            auto fuse = [&] (MKLDNNNodePtr relu) {
-                fc->fuseWith(relu);
-            };
+        if (childNode->getType() == Quantize) {
+            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(childNode.get());
+            if (quantizeNode == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get quantize layer " << childNode->getName();
 
-            if (fc->getChildEdges().size() == 1) {
-                auto ch1 = fc->getChildEdgeAt(0)->getChild();
+            if (parentNode->getParentEdgesAtPort(0)[0]->getDims().ndims() != 3) {
+                return !quantizeNode->isBinarization();
+            } else {
+                return (quantizeNode->isInputLowBroadcast() && quantizeNode->isInputHighBroadcast() &&
+                        quantizeNode->isOutputLowBroadcast() && quantizeNode->isOutputHighBroadcast() &&
+                        !quantizeNode->isBinarization());
+            }
+        } else if (childNode->getType() == Eltwise) {
+            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(childNode.get());
+            if (eltwiseNode == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get Eltwise node " << childNode->getName();
 
-                if (isFusingSupported(fc, ch1)) {
-                    fuse(ch1);
-                    graph.DropNode(ch1);
+            if (IsOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish, Hsigmoid})) {
+                return true;
+            } else if (IsOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu})) {
+                if (eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() != 2)
+                    return false;
+
+                if (parentNode->getParentEdgesAtPort(0)[0]->getDims().ndims() != 3) {
+                    return true;
+                } else {
+                    const auto &eltwiseLayer = eltwiseNode->getCnnLayer();
+                    if (eltwiseLayer == nullptr)
+                        THROW_IE_EXCEPTION << "Cannot get scale shift layer " << eltwiseNode->getName();
+
+                    if (eltwiseNode->getOpType() != MulAdd)
+                        return false;
+
+                    Blob::Ptr scalesBlob = eltwiseLayer->blobs["weights"];
+                    if (scalesBlob == nullptr)
+                        return false;
+
+                    Blob::Ptr shiftsBlob = eltwiseLayer->blobs["biases"];
+                    if (shiftsBlob == nullptr)
+                        return false;
+
+                    const float *scalesBufferPtr = scalesBlob->buffer().as<float *>();
+                    const float *shiftsBufferPtr = shiftsBlob->buffer().as<float *>();
+
+                    if (scalesBlob->size() != shiftsBlob->size())
+                        return false;
+
+                    for (int i = 1; i < scalesBlob->size(); i++)
+                        if (scalesBufferPtr[0] != scalesBufferPtr[i])
+                            return false;
+
+                    for (int i = 1; i < shiftsBlob->size(); i++)
+                        if (shiftsBufferPtr[0] != shiftsBufferPtr[i])
+                            return false;
+
+                    return true;
                 }
             }
         }
+
+        return false;
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSutableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (!isSutableChildNode(parentNode, childNode)) {
+            parent++;
+            continue;
+        }
+
+        parentNode->fuseWith(childNode);
+
+        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getType() == FullyConnected)
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+        }
+
+        graph.DropNode(childNode);
     }
 }
-#endif
 
-#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
 void MKLDNNGraphOptimizer::FuseConvolutionAndDepthwise(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
@@ -587,17 +766,17 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDepthwise(MKLDNNGraph &graph) {
     };
 
     auto isSutableChildNode = [](MKLDNNNodePtr node) {
-        if (node->getType() != Depthwise)
+        if (node->getType() != Eltwise)
             return false;
 
         if (!node->getCnnLayer())
             return false;
 
-        auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
-        if (depthwiseNode == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get depthwise node " << node->getName();
-        return ((depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_scale_shift && depthwiseNode->isWithBiases()) ||
-                (depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_prelu));
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get eltwise node " << node->getName();
+        return ((eltwiseNode->getOpType() == MulAdd && node->getCnnLayer()->blobs.size() == 2) ||
+                (eltwiseNode->getOpType() == Prelu));
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
@@ -614,14 +793,32 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDepthwise(MKLDNNGraph &graph) {
 
             if (isSutableChildNode(depthwise1)) {
                 conv->fuseWith(depthwise1);
+
+                auto parents = depthwise1->parentEdges;
+                for (size_t j = 0; j < parents.size(); j++) {
+                    auto p_edge = parents[j].lock();
+                    if (p_edge->getParent()->getType() == Eltwise)
+                        continue;
+
+                    removeEdge(graph, p_edge);
+                }
+
                 graph.DropNode(depthwise1);
             }
+        }
+
+        auto parents = depthwise0->parentEdges;
+        for (size_t j = 0; j < parents.size(); j++) {
+            auto p_edge = parents[j].lock();
+            if (p_edge->getParent()->getType() == Convolution || p_edge->getParent()->getType() == BinaryConvolution)
+                continue;
+
+            removeEdge(graph, p_edge);
         }
 
         graph.DropNode(depthwise0);
     }
 }
-#endif
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
@@ -769,16 +966,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
 
 #if defined(COMPILED_CPU_MKLDNN_QUANTIZE_NODE)
 void MKLDNNGraphOptimizer::FuseConvolutionAndQuantize(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -832,25 +1019,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndQuantize(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph) {
-    auto isOneOf = [&](mkldnn::algorithm alg, std::vector<mkldnn::algorithm> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -869,19 +1037,14 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
                 THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
 
             return !quantizeNode->isBinarization();
-        } else if (node->getType() == Depthwise) {
-            auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode*>(node.get());
-            if (depthwiseNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get depthwise layer " << node->getName();
+        } else if (node->getType() == Eltwise) {
+            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+            if (eltwiseNode == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get eltwise node " << node->getName();
 
-            return ((depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_scale_shift && depthwiseNode->isWithBiases()) ||
-                    (depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_prelu));
-        } else if (node->getType() == Activation) {
-            auto* activationNode = dynamic_cast<MKLDNNActivationNode*>(node.get());
-            if (activationNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get activation layer " << node->getName();
-
-            return isOneOf(activationNode->getAlgorithm(), {eltwise_relu, eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp});
+            return ((eltwiseNode->getOpType() == MulAdd && node->getCnnLayer()->blobs.size() == 2) ||
+                    (eltwiseNode->getOpType() == Prelu) ||
+                    IsOneOf(eltwiseNode->getOpType(), {Relu, Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish, Hsigmoid}));
         }
 
         return false;
@@ -903,7 +1066,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
 
         parentNode->fuseWith(childNode);
 
-        if (childNode->getType() == Quantize) {
+        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
             auto parentEdges = childNode->parentEdges;
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
@@ -919,16 +1082,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
 }
 
 void MKLDNNGraphOptimizer::FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -973,16 +1126,6 @@ void MKLDNNGraphOptimizer::FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph) 
 }
 
 void MKLDNNGraphOptimizer::FusePoolingAndQuantize(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1106,29 +1249,16 @@ static bool is_data_dependency(const std::shared_ptr<MKLDNNNode> &parent,
 void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph) {
     std::vector<MKLDNNNodePtr> &graphNodes = graph.GetNodes();
 
-    auto isOneOf = [&](mkldnn::algorithm alg, std::vector<mkldnn::algorithm> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
     auto isFusingSupported = [&](MKLDNNNodePtr conv, MKLDNNNodePtr activation) {
         if (!activation->getCnnLayer())
             return false;
 
-#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(activation.get());
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(activation.get());
 
-        return activationNode &&
-            (activationNode->getAlgorithm() == eltwise_relu ||
+        return eltwiseNode &&
+            (eltwiseNode->getOpType() == Relu ||
             (conv->getCnnLayer()->precision == Precision::FP32 &&
-             isOneOf(activationNode->getAlgorithm(), {eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp})));
-#else
-        return false;
-#endif
+             IsOneOf(eltwiseNode->getOpType(), {Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish, Hsigmoid})));
     };
 
     for (auto &graphNode : graphNodes) {
@@ -1136,7 +1266,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             continue;
 
         if (!std::dynamic_pointer_cast<MKLDNNEltwiseNode>(graphNode)->isSum()) continue;
-        if (!std::dynamic_pointer_cast<MKLDNNEltwiseNode>(graphNode)->isUnitScales()) continue;
         if (std::dynamic_pointer_cast<MKLDNNEltwiseNode>(graphNode)->isWithBroadcast()) continue;
 
         // TODO: Enlarge to several inputs
@@ -1260,16 +1389,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
 #endif
 
 void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1295,16 +1414,14 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
             if (quantizeNode == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
             return !quantizeNode->isBinarization();
-        } else if (node->getType() == Depthwise) {
-            auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode*>(node.get());
-            if (depthwiseNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get depthwise layer " << node->getName();
-            return depthwiseNode->cnnLayer->type == "ScaleShift";
-        } else if (node->getType() == Activation) {
-            auto* activationNode = dynamic_cast<MKLDNNActivationNode*>(node.get());
-            if (activationNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get activation layer " << node->getName();
-            return activationNode->getAlgorithm() == eltwise_relu;
+        } else if (node->getType() == Eltwise) {
+            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+            if (eltwiseNode == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get eltwise node " << node->getName();
+
+            return ((eltwiseNode->getOpType() == MulAdd) ||
+                    (eltwiseNode->getOpType() == Prelu) ||
+                     eltwiseNode->getOpType() == Relu);
         }
 
         return false;
@@ -1326,7 +1443,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
 
         parentNode->fuseWith(childNode);
 
-        if (childNode->getType() == Quantize) {
+        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
             auto parentEdges = childNode->parentEdges;
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
@@ -1341,62 +1458,24 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     }
 }
 
-void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
-    auto isOneOf = [&](mkldnn::algorithm alg, std::vector<mkldnn::algorithm> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
+void MKLDNNGraphOptimizer::FuseResampleAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        bool isSutableEltwise = node->getType() == Eltwise;
+        bool isSutableResample = (node->getType() == Resample) && (node->inDims[0].ndims() == 4 || node->inDims[0].ndims() == 5);
 
-        if (isSutableEltwise) {
-            auto *eltwiseLayer = dynamic_cast<EltwiseLayer *>(node->getCnnLayer().get());
-            if (eltwiseLayer == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get Eltwise layer " << node->getName();
+        if (isSutableResample) {
+            auto *resampleLayer = node->getCnnLayer().get();
+            if (resampleLayer == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get Resample layer " << node->getName();
 
-            ptrdiff_t maxChannels = 1;
-            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
-                if (node->getParentEdgeAt(0)->getDims().ndims() != node->getParentEdgeAt(i)->getDims().ndims())
-                    return false;
-                if (node->getParentEdgeAt(i)->getDims().ndims() != 2 &&
-                    node->getParentEdgeAt(i)->getDims().ndims() != 4 &&
-                    node->getParentEdgeAt(i)->getDims().ndims() != 5)
-                    return false;
-                if (maxChannels < node->getParentEdgeAt(i)->getDims()[1])
-                    maxChannels = node->getParentEdgeAt(i)->getDims()[1];
-            }
-
-            int simdWidth = mkldnn::impl::cpu::mayiuse(impl::cpu::cpu_isa_t::avx512_common) ? 16 :
-                            mkldnn::impl::cpu::mayiuse(impl::cpu::cpu_isa_t::avx2) ? 8 : 4;
-            if (maxChannels < simdWidth)
-                return false;
-
-            return node->getChildEdges().size() == 1 &&
-                   (eltwiseLayer->_operation == EltwiseLayer::Sum || eltwiseLayer->_operation == EltwiseLayer::Prod) &&
-                   !node->isFusedWith(Quantize);
+            return node->getChildEdges().size() == 1 && resampleLayer->GetParamAsString("type") == "caffe.ResampleParameter.NEAREST";
         } else {
             return false;
         }
     };
 
-    auto isSutableChildNode = [&](MKLDNNNodePtr node) {
+    auto isSutableChildNode = [](MKLDNNNodePtr node) {
         if (!node->getCnnLayer())
             return false;
 
@@ -1405,17 +1484,12 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
             if (quantizeNode == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
             return !quantizeNode->isBinarization();
-        } else if (node->getType() == Activation) {
-            // Applicability was narrowed down in order not to affect FP32 topologies
-            if (node->getChildEdges().size() != 1)
-                return false;
-            if (node->getChildEdgeAt(0)->getChild()->getType() != Quantize)
-                return false;
-
-            auto *activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-            if (activationNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get activation layer " << node->getName();
-            return isOneOf(activationNode->getAlgorithm(), {eltwise_relu, eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp});
+        } else if (node->getType() == Eltwise) {
+            auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+            if (eltwiseNode == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get Eltwise node " << node->getName();
+            return eltwiseNode->getOpType() == Relu ||
+                   eltwiseNode->getOpType() == MulAdd;
         }
 
         return false;
@@ -1431,6 +1505,189 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!isSutableChildNode(childNode)) {
+            parent++;
+            continue;
+        }
+
+        parentNode->fuseWith(childNode);
+
+        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getType() == Resample)
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+        }
+
+        graph.DropNode(childNode);
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](MKLDNNNodePtr node) {
+        bool isSuitable = (node->getType() == Interpolate);
+        if (isSuitable) {
+            return node->getChildEdges().size() == 1;
+        } else {
+            return false;
+        }
+    };
+
+    auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+        // Avoid cycle dependencies
+        for (auto &childParentEdge : childNode->getParentEdges()) {
+            for (auto &parentParentEdge : parentNode->getParentEdges()) {
+                if (childParentEdge.lock()->getParent() == parentParentEdge.lock()->getParent())
+                    return false;
+            }
+        }
+        if (!childNode->getFusedWith().empty())
+            return false;
+        auto interpolateNode = dynamic_cast<MKLDNNInterpolateNode*>(parentNode.get());
+        return interpolateNode->canFuse(childNode);
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSuitableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        auto interpolateNode = dynamic_cast<MKLDNNInterpolateNode*>(parentNode.get());
+        if (!isSutableChildNode(parentNode, childNode)) {
+            parent++;
+            continue;
+        }
+
+        parentNode->fuseWith(childNode);
+
+        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getType() == Interpolate)
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+        }
+
+        graph.DropNode(childNode);
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+        bool isSutableNormalize = node->getType() == Normalize;
+
+        if (isSutableNormalize) {
+            return node->getChildEdges().size() == 1;
+        } else {
+            return false;
+        }
+    };
+
+    auto isSutableChildNode = [&](MKLDNNNodePtr node) {
+        if (!node->getCnnLayer())
+            return false;
+
+        if (node->getType() == Quantize) {
+            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
+            if (quantizeNode == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
+            return !quantizeNode->isBinarization();
+        } else if (node->getType() == Eltwise) {
+            auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+            if (eltwiseNode == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get Eltwise node " << node->getName();
+            return IsOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, Tanh, Swish,
+                                                      Hswish, Mish, Hsigmoid, Linear, Abs, Square, Sqrt}) ||
+                    ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
+                     (eltwiseNode->getOpType() == Prelu));
+        }
+
+        return false;
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSutableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (!isSutableChildNode(childNode)) {
+            parent++;
+            continue;
+        }
+
+        parentNode->fuseWith(childNode);
+
+        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getType() == Normalize)
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+        }
+
+        graph.DropNode(childNode);
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+        return node->getType() == Eltwise && node->getChildEdges().size() == 1;
+    };
+
+    auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+        for (auto &childParentEdge : childNode->getParentEdges()) {
+            // WA to prevent unsupported reorder exception issue in some cases
+            if (childParentEdge.lock()->getParent()->getType() == Split) {
+                return false;
+            }
+
+            // Avoid cycle dependencies
+            for (auto &parentParentEdge : parentNode->getParentEdges()) {
+                if (childParentEdge.lock()->getParent() == parentParentEdge.lock()->getParent())
+                    return false;
+            }
+        }
+
+        if (!childNode->getFusedWith().empty())
+            return false;
+
+        auto eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(parentNode.get());
+        return eltwiseNode->canFuse(childNode);
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSutableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (!isSutableChildNode(parentNode, childNode)) {
             parent++;
             continue;
         }
@@ -1446,9 +1703,70 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
 
                 removeEdge(graph, p_edge);
             }
-        }
 
-        graph.DropNode(childNode);
+            graph.DropNode(childNode);
+        } else if (childNode->getType() == Eltwise) {
+            auto childs = childNode->childEdges;
+            auto parents = childNode->parentEdges;
+
+            for (size_t i = 0; i < parents.size(); i++) {
+                auto p_edge = parents[i].lock();
+                if (!p_edge) continue;
+                auto parent = p_edge->getParent();
+                if (!parent) continue;
+
+                if (parent == parentNode) {
+                    for (size_t j = 0; j < childs.size(); j++) {
+                        if (!childs[j].lock())
+                            continue;
+                        auto child = childs[j].lock()->getChild();
+                        if (!child)
+                            continue;
+
+                        MKLDNNEdgePtr &remEdge = p_edge;
+                        int inNum = 0;
+                        if (remEdge) {
+                            inNum = remEdge->getInputNum();
+                            remEdge->drop();
+                            removeEdge(graph, remEdge);
+                        }
+                        remEdge = childs[j].lock();
+                        int outNum = 0;
+                        if (remEdge) {
+                            outNum = remEdge->getOutputNum();
+                            remEdge->drop();
+                            removeEdge(graph, remEdge);
+                        }
+                        MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
+                        auto &graphEdges = graph.GetEdges();
+                        graphEdges.push_back(newEdge);
+                        parent->addEdge(newEdge);
+
+                        parent->outDims[inNum] = child->inDims[outNum];
+                    }
+                } else {
+                    MKLDNNEdgePtr &remEdge = p_edge;
+                    int inNum = 0;
+                    if (remEdge) {
+                        inNum = remEdge->getInputNum();
+                        remEdge->drop();
+                        removeEdge(graph, remEdge);
+                    }
+
+                    auto parentEltwise = parentNode;
+                    MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, parentEltwise, inNum, parentEltwise->getParentEdges().size()));
+                    auto &graphEdges = graph.GetEdges();
+                    graphEdges.push_back(newEdge);
+                    parent->addEdge(newEdge);
+
+                    parentEltwise->inDims.push_back(parent->outDims[0]);
+                }
+            }
+
+            graph.DropNode(childNode);
+        } else {
+            graph.DropNode(childNode);
+        }
     }
 }
 
@@ -1456,15 +1774,18 @@ void MKLDNNGraphOptimizer::RemoveIdentityOperator(MKLDNNGraph &graph) {
     for (MKLDNNNodePtr& node : graph.GetNodes()) {
         bool toDrop = false;
 
-        if (node->getType() == Power) {
-            PowerLayer* l = dynamic_cast<PowerLayer*>(node->getCnnLayer().get());
-            if (l == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get power layer " << node->getName();
+        if (node->getType() == Eltwise) {
+            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
+            if (eltwiseNode->getOpType() == PowerStatic) {
+                PowerLayer *l = dynamic_cast<PowerLayer *>(node->getCnnLayer().get());
+                if (l == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot get power layer " << node->getName();
 
-            if (l->power == 1.0f && l->scale == 1.0f && l->offset == 0.0f) toDrop = true;
+                if (l->power == 1.0f && l->scale == 1.0f && l->offset == 0.0f) toDrop = true;
+            }
         }
 
-        if (node->getType() == Depthwise && node->getCnnLayer()->type == "ScaleShift") {
+        if (node->getType() == Eltwise && node->getCnnLayer()->type == "ScaleShift") {
             ScaleShiftLayer* l = dynamic_cast<ScaleShiftLayer*>(node->getCnnLayer().get());
             if (l == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get scale shift layer " << node->getName();
@@ -1527,7 +1848,7 @@ void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
             CNNLayerPtr layer(new CNNLayer({layerName,
                                             "Reorder",
                                             n->getInput().getPrecision()}));
-            MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, graph.getEngine(), graph.socket));
+            MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, graph.getEngine(), graph.weightsCache));
             auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
             if (reorderPtr) {
                 reorderPtr->setDescs(n->getInput(), nn->getOutput());
@@ -1614,7 +1935,7 @@ void MKLDNNGraphOptimizer::DropConvertReorder(MKLDNNGraph& graph) {
 
 void MKLDNNGraphOptimizer::RemoveIOScaleShifts(MKLDNNGraph &graph) {
     for (MKLDNNNodePtr& node : graph.GetNodes()) {
-        if (node->getType() == Depthwise && node->getCnnLayer()->type == "ScaleShift") {
+        if (node->getType() == Eltwise && node->getCnnLayer()->type == "ScaleShift") {
             ScaleShiftLayer* l = dynamic_cast<ScaleShiftLayer*>(node->getCnnLayer().get());
             if (l == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get scale shift layer " << node->getName();
@@ -1672,6 +1993,25 @@ bool MKLDNNGraphOptimizer::IsOneOf(Type type, std::vector<Type> types) {
     return false;
 }
 
+bool MKLDNNGraphOptimizer::IsOneOf(EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
+    for (auto a : algs) {
+        if (alg == a) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MKLDNNGraphOptimizer::removeEdge(MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
+    auto& edges = graph.GetEdges();
+    for (auto it = edges.begin(); it != edges.end(); it++) {
+        if ((*it) == edge) {
+            edges.erase(it);
+            return;
+        }
+    }
+}
+
 void MKLDNNGraphOptimizer::FuseBroadcastAndEltwise(MKLDNNGraph &graph) {
     std::vector<MKLDNNNodePtr>& graphNodes = graph.GetNodes();
 
@@ -1699,5 +2039,201 @@ void MKLDNNGraphOptimizer::FuseBroadcastAndEltwise(MKLDNNGraph &graph) {
             }
         }
         graph.DropNode(broadcastNode);
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseClampAndQuantize(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableClampNode = [](MKLDNNNodePtr node) {
+        if (node->getType() != Eltwise)
+            return false;
+
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast " << node->getName() << " to Eltwise node";
+
+        if (eltwiseNode->getChildEdges().size() != 1)
+            return false;
+
+        if (eltwiseNode->getOpType() != Clamp)
+            return false;
+
+        return true;
+    };
+
+    auto isSutableQuantizeNode = [](MKLDNNNodePtr node) {
+        if (node->getType() != Quantize)
+            return false;
+
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
+        if (quantizeNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast " << node->getName() << " to Quantize node";
+
+        return !quantizeNode->isBinarization();
+    };
+
+    auto fuseClampAndQuantizeNodes = [](MKLDNNNodePtr parent, MKLDNNNodePtr child) {
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(parent.get());
+        if (eltwiseNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast " << parent->getName() << " to Eltwise node";
+
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(child.get());
+        if (quantizeNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast " << child->getName() << " to Quantize node";
+
+        const std::vector<float>& cropLowData = quantizeNode->getCropLow();
+        const std::vector<float>& cropHighData = quantizeNode->getCropHigh();
+
+        std::vector<float> newCropLow(cropLowData.size());
+        std::vector<float> newCropHigh(cropHighData.size());
+        for (int i = 0; i < cropLowData.size(); i++)
+            newCropLow[i] = std::max(cropLowData[i], eltwiseNode->getBeta());
+        for (int i = 0; i < cropHighData.size(); i++)
+            newCropHigh[i] = std::min(cropHighData[i], eltwiseNode->getAlpha());
+
+        quantizeNode->setCropLow(newCropLow);
+        quantizeNode->setCropHigh(newCropHigh);
+
+        return true;
+    };
+
+    for (int i = 0; i < graphNodes.size(); i++) {
+        auto parent = graphNodes[i];
+        if (!isSutableClampNode(parent)) continue;
+
+        auto child = parent->getChildEdgeAt(0)->getChild();
+        if (!isSutableQuantizeNode(child)) continue;
+
+        if (fuseClampAndQuantizeNodes(parent, child)) {
+            graph.DropNode(parent);
+        }
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableScaleShiftNode = [](MKLDNNNodePtr node) {
+        if (node->getType() != Eltwise)
+            return false;
+
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast " << node->getName() << " to eltwise node";
+
+        if (eltwiseNode->getChildEdges().size() != 1)
+            return false;
+
+        if (eltwiseNode->getOpType() != MulAdd)
+            return false;
+
+        return true;
+    };
+
+    auto isSutableQuantizeNode = [](MKLDNNNodePtr node) {
+        if (node->getType() != Quantize)
+            return false;
+
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
+        if (quantizeNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast " << node->getName() << " to Quantize node";
+
+        return !quantizeNode->isBinarization();
+    };
+
+    auto fuseScaleShiftAndQuantizeNodes = [](MKLDNNNodePtr parent, MKLDNNNodePtr child) {
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(parent.get());
+        if (eltwiseNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast " << parent->getName() << " to eltwise node";
+
+        auto eltwiseLayer = eltwiseNode->getCnnLayer();
+        if (eltwiseLayer == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get scale shift layer " << eltwiseNode->getName();
+
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(child.get());
+        if (quantizeNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast " << child->getName() << " to Quantize node";
+
+        Blob::Ptr scalesBlob = eltwiseLayer->blobs["weights"];
+        if (scalesBlob == nullptr)
+            return false;
+
+        Blob::Ptr shiftsBlob = eltwiseLayer->blobs["biases"];
+        if (shiftsBlob == nullptr)
+            return false;
+
+        const float* scalesBufferPtr = scalesBlob->buffer().as<float*>();
+        const float* shiftsBufferPtr = shiftsBlob->buffer().as<float*>();
+
+        if (scalesBlob->size() != shiftsBlob->size())
+            return false;
+
+        for (int i = 0; i < scalesBlob->size(); i++)
+            if (scalesBufferPtr[i] <= 0.f)
+                return false;
+
+        const std::vector<float>& cropLowData = quantizeNode->getCropLow();
+        const std::vector<float>& cropHighData = quantizeNode->getCropHigh();
+        const std::vector<float>& inputScaleData = quantizeNode->getInputScale();
+        const std::vector<float>& inputShiftData = quantizeNode->getInputShift();
+
+        std::vector<float> newCropLow(scalesBlob->size());
+        std::vector<float> newCropHigh(scalesBlob->size());
+        std::vector<float> newInputScale(scalesBlob->size());
+        std::vector<float> newInputShift(scalesBlob->size());
+
+        for (int i = 0; i < newCropLow.size(); i++) {
+            float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
+
+            newCropLow[i] = (cl - shiftsBufferPtr[i]) / scalesBufferPtr[i];
+        }
+
+        for (int i = 0; i < newCropHigh.size(); i++) {
+            float ch = cropHighData.size() == 1 ? cropHighData[0] : cropHighData[i];
+
+            newCropHigh[i] = (ch - shiftsBufferPtr[i]) / scalesBufferPtr[i];
+        }
+
+        for (int i = 0; i < newInputScale.size(); i++) {
+            float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
+
+            newInputScale[i] = isc * scalesBufferPtr[i];
+        }
+
+        for (int i = 0; i < newInputShift.size(); i++) {
+            float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
+            float ish = inputShiftData.size() == 1 ? inputShiftData[0] : inputShiftData[i];
+
+            newInputShift[i] = ish + shiftsBufferPtr[i] * isc;
+        }
+
+        quantizeNode->setCropLow(newCropLow);
+        quantizeNode->setCropHigh(newCropHigh);
+        quantizeNode->setInputScale(newInputScale);
+        quantizeNode->setInputShift(newInputShift);
+
+        return true;
+    };
+
+    for (int i = 0; i < graphNodes.size(); i++) {
+        auto parent = graphNodes[i];
+        if (!isSutableScaleShiftNode(parent)) continue;
+
+        auto child = parent->getChildEdgeAt(0)->getChild();
+        if (!isSutableQuantizeNode(child)) continue;
+
+        if (fuseScaleShiftAndQuantizeNodes(parent, child)) {
+            auto parentEdges = parent->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getCnnLayer()->type != "Const")
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+
+            graph.DropNode(parent);
+        }
     }
 }

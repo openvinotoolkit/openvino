@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,16 @@ primitive_type_id normalize::type_id() {
 layout normalize_inst::calc_output_layout(normalize_node const& node) {
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
            "Output data type forcing is not supported for normalize_node!");
-    return node.input().get_non_padded_output_layout();
+    auto input_node_layout = node.input().get_non_padded_output_layout();
+    auto output_type = input_node_layout.data_type;
+
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    } else if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
+        output_type = data_types::f32;
+    }
+
+    return layout(output_type, input_node_layout.format, input_node_layout.size);
 }
 
 std::string normalize_inst::to_string(normalize_node const& node) {
@@ -48,7 +57,7 @@ std::string normalize_inst::to_string(normalize_node const& node) {
     normalize_info.add("epsilon", epsilon);
     normalize_info.add("normalization region", norm_region);
 
-    node_info->add("noramlize info", normalize_info);
+    node_info->add("normalize info", normalize_info);
     node_info->dump(primitive_description);
 
     return primitive_description.str();

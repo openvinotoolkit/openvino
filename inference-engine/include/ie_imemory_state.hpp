@@ -9,19 +9,24 @@
  */
 
 #pragma once
+
 #include <memory>
 
-#include "details/ie_no_copy.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
+#include "details/ie_no_copy.hpp"
 
 namespace InferenceEngine {
 
 /**
+ * @interface IMemoryState
  * @brief manages data for reset operations
  */
 class IMemoryState : public details::no_copy {
 public:
+    /**
+     * @brief A shared pointer to the IMemoryState interface
+     */
     using Ptr = std::shared_ptr<IMemoryState>;
 
     /**

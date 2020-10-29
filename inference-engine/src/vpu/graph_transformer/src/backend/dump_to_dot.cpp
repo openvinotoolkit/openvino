@@ -26,8 +26,7 @@
 #include <atomic>
 
 #include <precision_utils.h>
-#include <details/caseless.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
@@ -37,6 +36,7 @@
 #include <vpu/utils/file_system.hpp>
 #include <vpu/utils/numeric.hpp>
 #include <vpu/utils/profiling.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 
 namespace vpu {
 
@@ -128,15 +128,15 @@ void BackEnd::dumpModelToDot(
             } else if (data->usage() == DataUsage::Temp) {
                 dataColor = "cyan";
             } else if (data->usage() == DataUsage::Intermediate) {
-                if (data->location() == DataLocation::BSS) {
+                if (data->dataLocation().location == Location::BSS) {
                     dataColor = "cyan";
-                } else if (data->location() == DataLocation::CMX) {
+                } else if (data->dataLocation().location == Location::CMX) {
                     dataColor = "magenta";
-                } else if (data->location() == DataLocation::Blob) {
+                } else if (data->dataLocation().location == Location::Blob) {
                     dataColor = "aquamarine";
-                } else if (data->location() == DataLocation::Input) {
+                } else if (data->dataLocation().location == Location::Input) {
                     dataColor = "green";
-                } else if (data->location() == DataLocation::Output) {
+                } else if (data->dataLocation().location == Location::Output) {
                     dataColor = "deepskyblue";
                 }
             }
@@ -178,8 +178,12 @@ void BackEnd::dumpModelToDot(
                     }
                 }
                 lbl.appendPair("memReqs", data->memReqs());
-                lbl.appendPair("location", data->location());
-                lbl.appendPair("memoryOffset", data->memoryOffset());
+                lbl.appendPair("dataLocation", data->dataLocation().location);
+                lbl.appendPair("dataOffset", data->dataLocation().offset);
+                lbl.appendPair("dimsLocation", data->shapeLocation().dimsLocation);
+                lbl.appendPair("dimsOffset", data->shapeLocation().dimsOffset);
+                lbl.appendPair("stridesLocation", data->shapeLocation().stridesLocation);
+                lbl.appendPair("stridesOffset", data->shapeLocation().stridesOffset);
                 if (!data->attrs().empty()) {
                     lbl.appendPair("extraAttrs", data->attrs());
                 }
@@ -307,23 +311,57 @@ void BackEnd::dumpModelToDot(
         }
 
         //
+        // Dump Data->Stage edges
+        //
+
+        for (const auto& data : model->datas()) {
+            for (const auto& dependentStageEdge : data->dependentStagesEdges()) {
+                out.append("%s -> %s [", dataDotName(data), stageDotName(dependentStageEdge->dependentStage()));
+                {
+                    VPU_DOT_IDENT(out);
+
+                    DotLabel lbl("Extra dependency", out);
+                }
+                out.append("];");
+            }
+        }
+
+        //
         // Dump Data<->Data edges
         //
 
         for (const auto& data : model->datas()) {
-            if (auto edge = data->parentDataEdge()) {
+            if (auto edge = data->parentDataToDataEdge()) {
                 out.append("%s -> %s [", dataDotName(edge->child()), dataDotName(edge->parent()));
                 {
                     VPU_DOT_IDENT(out);
 
                     out.append("style=dotted");
 
-                    DotLabel lbl("SharedAllocation", out);
+                    DotLabel lbl("DataToDataAllocation", out);
                     lbl.appendPair("mode", edge->mode());
                     lbl.appendPair("order", edge->order());
                     if (!edge->attrs().empty()) {
                         lbl.appendPair("extraAttrs", edge->attrs());
                     }
+                }
+                out.append("];");
+            }
+        }
+
+        //
+        // Dump Data<->Data shape edges
+        //
+
+        for (const auto& data : model->datas()) {
+            if (auto edge = data->parentDataToShapeEdge()) {
+                out.append("%s -> %s [", dataDotName(edge->parent()), dataDotName(edge->child()));
+                {
+                    VPU_DOT_IDENT(out);
+
+                    out.append("style=dotted");
+
+                    DotLabel lbl("DataToShapeAllocation", out);
                 }
                 out.append("];");
             }
@@ -339,7 +377,7 @@ void BackEnd::dumpModelToDot(
                 {
                     VPU_DOT_IDENT(out);
 
-                    out.append("style=dotted");
+                    out.append("style=dashed");
 
                     DotLabel lbl("Injected Stage", out);
                     if (!injectionEdge->attrs().empty()) {

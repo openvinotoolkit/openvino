@@ -16,7 +16,7 @@
 
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
-from mo.ops.slice import Slice
+from mo.ops.slice import TFSlice
 
 
 class SliceExtractor(FrontExtractorOp):
@@ -25,9 +25,5 @@ class SliceExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        Slice.update_node_stat(node, {
-                                      'axis': None,
-                                      'start': None,
-                                      'end': None,
-                                      })
+        TFSlice.update_node_stat(node)
         return cls.enabled

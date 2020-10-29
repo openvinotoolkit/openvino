@@ -22,7 +22,7 @@ from mo.ops.const import Const
 from mo.ops.strided_slice import StridedSlice
 
 
-class SliceFrontReplacer(FrontReplacementOp):
+class MXSliceToStridedSliceReplacer(FrontReplacementOp):
     op = 'MXSlice'
     enabled = True
 

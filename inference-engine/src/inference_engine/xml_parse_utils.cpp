@@ -76,7 +76,7 @@ unsigned int XMLParseUtils::GetUIntAttr(const pugi::xml_node& node, const char* 
 std::string XMLParseUtils::GetStrAttr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
-        THROW_IE_EXCEPTION << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
+        THROW_IE_EXCEPTION << "node <" << node.name() << "> is missing mandatory attribute: '" << str << "' at offset "
                            << node.offset_debug();
     return attr.value();
 }

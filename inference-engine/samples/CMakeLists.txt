@@ -2,14 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 2.8.12)
+cmake_minimum_required (VERSION 3.10)
 
 project(Samples)
+
+if(POLICY CMP0054)
+    cmake_policy(SET CMP0054 NEW)
+endif()
+
+if(POLICY CMP0063)
+    cmake_policy(SET CMP0063 NEW)
+endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if (NOT(BIN_FOLDER))
     string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
@@ -27,6 +37,8 @@ if(IE_MAIN_SOURCE_DIR)
     set(IE_MAIN_SAMPLES_DIR ${OpenVINO_MAIN_SOURCE_DIR})
     # hint for find_package(InferenceEngine in the samples folder)
     set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
+    # hint for find_package(ngraph in the samples folder)
+    set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
 else()
     # in case if samples are built out of IE repo
     set(IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -60,28 +72,47 @@ if (WIN32)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") #treating warnings as errors
     endif ()
 
-    if (CMAKE_CXX_COMPILER_ID MATCHES MSVC)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267") #disable some warnings
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
+    endif()
+
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819") #disable some warnings
     endif()
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
+    if(TREAT_WARNING_AS_ERROR)
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
+    endif()
+
     if (APPLE)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-command-line-argument")
     elseif(UNIX)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self")
-        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmaybe-uninitialized")
         endif()
     endif()
 endif()
 
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
+
+set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
 ####################################
-## to use C++11
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX_EXTENSIONS OFF)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
-if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
-    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+## to use C++11; can overwritten via cmake command line
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    set (CMAKE_CXX_STANDARD 11)
+    set (CMAKE_CXX_EXTENSIONS OFF)
+    set (CMAKE_CXX_STANDARD_REQUIRED ON)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+    endif()
 endif()
 ####################################
 
@@ -93,9 +124,10 @@ set (BUILD_TESTING OFF)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
     add_subdirectory(thirdparty/gflags)
+    set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
@@ -113,6 +145,8 @@ endif()
 # exactly the same OpenCV_DIR path which was used for the InferenceEngine build
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
     add_subdirectory(common/format_reader)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wraper")
+    add_subdirectory(common/opencv_c_wraper)
 endif()
 
 # samples build can be switched off during whole IE build
@@ -182,9 +216,14 @@ macro(ie_add_sample)
         target_compile_definitions(${IE_SAMPLE_NAME} PRIVATE USE_OPENCV)
     endif()
 
-    if(WIN32)
-        set_target_properties(${IE_SAMPLE_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
+    set(folder_name cpp_samples)
+    if(IE_SAMPLE_NAME MATCHES ".*_c$")
+        set(c_sample ON)
+        set(folder_name c_samples)
     endif()
+
+    set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
+                                                       COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
 
     if(IE_SAMPLE_INCLUDE_DIRECTORIES)
         target_include_directories(${IE_SAMPLE_NAME} PRIVATE ${IE_SAMPLE_INCLUDE_DIRECTORIES})
@@ -192,7 +231,10 @@ macro(ie_add_sample)
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
-                                                    ${IE_SAMPLE_DEPENDENCIES} gflags)
+                                                    ${IE_SAMPLE_DEPENDENCIES})
+    if(NOT c_sample)
+        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
+    endif()
 
     # create global target with all samples / demo apps
     if(NOT TARGET ie_samples)
@@ -201,7 +243,11 @@ macro(ie_add_sample)
     add_dependencies(ie_samples ${IE_SAMPLE_NAME})
 
     if(COMMAND add_cpplint_target AND NOT IE_SAMPLE_EXCLUDE_CPPLINT)
-        add_cpplint_target(${IE_SAMPLE_NAME}_cpplint FOR_TARGETS ${IE_SAMPLE_NAME})
+        if(c_sample)
+            set(custom_filters "-readability/casting")
+        endif()
+        add_cpplint_target(${IE_SAMPLE_NAME}_cpplint FOR_TARGETS ${IE_SAMPLE_NAME}
+                           CUSTOM_FILTERS ${custom_filters})
     endif()
 endmacro()
 

@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
 from extensions.ops.activation_ops import ReLU
+from mo.front.extractor import FrontExtractorOp
 
 
 class RectifiedLinearComponentFrontExtractor(FrontExtractorOp):

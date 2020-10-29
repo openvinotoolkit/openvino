@@ -38,9 +38,9 @@ nodes_attributes = {
     'split_data_1': {'kind': 'data', 'value': None, 'shape': np.array([1, 227, 227, 1])},
     'last_data': {'kind': 'data', 'value': None, 'shape': np.array([1, 227, 227, 3])},
 
-    'axis_const': {'kind': 'op'},
+    'axis_const': {'kind': 'op', 'op': 'Const'},
     'axis_const_data': {'value': np.int64(1), 'shape': None, 'kind': 'data'},
-    'split_dim_const': {'kind': 'op'},
+    'split_dim_const': {'kind': 'op', 'op': 'Const'},
     'split_dim_const_data': {'value': np.array([1, 2, 3]), 'shape': None, 'kind': 'data'},
 
 }

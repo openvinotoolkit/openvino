@@ -83,15 +83,15 @@ private:
         IE_ASSERT(numOutputs() == 1 || numOutputs() == 2);
 
         for (int i = 0; i < levels_num + 1; i++) {
-            inputEdge(i)->input()->serializeNewBuffer(serializer);
+            inputEdge(i)->input()->serializeBuffer(serializer);
         }
 
         for (auto i = 0; i < numOutputs(); i++) {
             auto output = outputEdge(i)->output();
-            output->serializeNewBuffer(serializer);
+            output->serializeBuffer(serializer);
         }
 
-        tempBuffer(0)->serializeNewBuffer(serializer);
+        tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 
@@ -149,7 +149,7 @@ void FrontEnd::parseROIFeatureExtractor(const Model& model, const ie::CNNLayerPt
                       size_dummy_mapping_buf +
                       size_repacked_buf;
 
-    model->addTempBuffer(stage, DataDesc({buffer_size}));
+    model->addTempBuffer(stage, buffer_size);
 }
 
 }  // namespace vpu

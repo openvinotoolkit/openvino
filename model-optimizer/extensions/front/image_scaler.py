@@ -16,10 +16,10 @@
 
 import numpy as np
 
+from extensions.ops.elementwise import Mul, Add
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph
 from mo.ops.const import Const
-from extensions.ops.elementwise import Mul, Add
 
 
 class ImageScaler(FrontReplacementOp):

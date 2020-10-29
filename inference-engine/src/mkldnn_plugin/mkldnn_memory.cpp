@@ -13,6 +13,7 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
+#include "nodes/common/cpu_memcpy.h"
 
 using namespace InferenceEngine;
 using namespace mkldnn;
@@ -23,11 +24,14 @@ MKLDNNMemory::MKLDNNMemory(const engine& eng) : eng(eng) {}
 
 size_t MKLDNNMemory::GetSize() const {
     uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(GetDataType()));
+    return GetElementsCount() * itemSize;
+}
 
+size_t MKLDNNMemory::GetElementsCount() const {
     auto desc = GetDescriptor();
     std::vector<int> dims(desc.data.layout_desc.blocking.padding_dims,
                           desc.data.layout_desc.blocking.padding_dims + desc.data.ndims);
-    return std::accumulate(std::begin(dims), std::end(dims), (size_t) 1, std::multiplies<size_t>()) * itemSize;
+    return std::accumulate(std::begin(dims), std::end(dims), (size_t) 1, std::multiplies<size_t>());
 }
 
 void MKLDNNMemory::Create(memory::dims dims, memory::data_type data_type, memory::format format, const void* data) {
@@ -50,7 +54,6 @@ void MKLDNNMemory::Create(memory::dims dims, memory::data_type data_type, memory
 
 void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bool pads_zeroing) {
     auto primitive_desc = memory::primitive_desc(desc, eng);
-    uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(desc.data.data_type));
 
     if (data == nullptr) {
         prim.reset(new memory(primitive_desc));
@@ -95,10 +98,8 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, co
 
         std::vector<ptrdiff_t> dims(memData.dims, memData.dims + memData.ndims);
 
-        auto data_type = GetDataType();
-
         MKLDNNMemory src(eng);
-        src.Create(dims, data_type, format, data);
+        src.Create(dims, dataType, format, data);
 
         std::shared_ptr<mkldnn::reorder> pReorder =
                 std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
@@ -108,7 +109,7 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, co
         uint8_t* dataPtr = static_cast<uint8_t*>(GetData());
         // We cannot support strides for i/o blobs because it affects performance.
         dataPtr += itemSize * prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
-        memcpy(dataPtr, data, size);
+        cpu_memcpy(dataPtr, data, size);
     }
 
     if (ftz && dataType == mkldnn_f32) {
@@ -128,7 +129,8 @@ void MKLDNNMemory::SetData(const MKLDNNMemory& memory, bool ftz) const {
     mkldnn::reorder reorderPrim(memory.GetPrimitive(), GetPrimitive());
     mkldnn::stream(stream::kind::eager).submit({reorderPrim});
 
-    if (ftz && memory.GetDataType() == mkldnn::memory::f32 && GetFormat() != mkldnn::memory::wino_fmt) {
+    if (ftz && memory.GetDataType() == mkldnn::memory::f32 && GetFormat() != mkldnn::memory::wino_fmt &&
+        GetDataType() != mkldnn::memory::bf16) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
         memData += prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
@@ -181,6 +183,7 @@ bool MKLDNNMemory::isConsistant(memory::dims dims, memory::format format) {
         case f::OhIw16o4i:
         case f::OIhw4i16o4i:
         case f::OhIw8o4i:
+        case f::IOhw16o16i:
             ndims = 4; break;
         // DHW
         case f::ncdhw:
@@ -346,6 +349,28 @@ void MKLDNNMemory::CreateBlockingDesc(memory::desc &desc) {
         blk.strides[0][curr_idx] = dims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, dims[prev_idx]);
     }
 }
+
+Precision MKLDNNMemory::convertToIePrec(memory::data_type dataType) {
+    switch (dataType) {
+        case memory::f32:
+            return Precision::FP32;
+        case memory::u8:
+            return Precision::U8;
+        case memory::s8:
+            return Precision::I8;
+        case memory::s16:
+            return Precision::I16;
+        case memory::s32:
+            return Precision::I32;
+        case memory::bin:
+            return Precision::BIN;
+        case memory::bf16:
+            return Precision::BF16;
+        default:
+           THROW_IE_EXCEPTION << "Unknown mkldnn data type";
+    }
+}
+
 memory::format MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
     switch (layout) {
         case NCHW:
@@ -410,6 +435,7 @@ std::string MKLDNNMemory::formatToString(memory::format fmt) {
         case memory::OhIw8o4i: return "OhIw8o4i";
         case memory::OhIw16o4i: return "OhIw16o4i";
         case memory::OIhw4i16o4i: return "OIhw4i16o4i";
+        case memory::IOhw16o16i: return "IOhw16o16i";
 
         case memory::oidhw: return "oidhw";
         case memory::dhwio: return "dhwio";
@@ -540,6 +566,9 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
         case mkldnn_bin:
             precision = Precision::BIN;
             break;
+        case mkldnn_bf16:
+            precision = Precision::BF16;
+            break;
         default:
             THROW_IE_EXCEPTION << "Cannot cast to TensorDesc. Unsupported precision!";
     }
@@ -653,6 +682,13 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims.push_back(8);
             layout = Layout::BLOCKED;
             break;
+        case memory::gOdhwi8o:
+            order = {0, 1, 2, 3, 4, 5, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
+            blkDims.push_back(8);
+            layout = Layout::BLOCKED;
+            break;
         case memory::nChw16c:
             order = {0, 1, 2, 3, 1};
             blkDims = dims;
@@ -663,6 +699,13 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
         case memory::gOhwi16o:
         case memory::nCdhw16c:
             order = {0, 1, 2, 3, 4, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
+            blkDims.push_back(16);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::gOdhwi16o:
+            order = {0, 1, 2, 3, 4, 5, 1};
             blkDims = dims;
             blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
             blkDims.push_back(16);
@@ -714,6 +757,33 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims.push_back(16);
             layout = Layout::BLOCKED;
             break;
+        case memory::OIhw8o8i:
+            order = {0, 1, 2, 3, 0, 1};
+            blkDims = dims;
+            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
+            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
+            blkDims.push_back(8);
+            blkDims.push_back(8);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::OIhw16o16i:
+            order = {0, 1, 2, 3, 0, 1};
+            blkDims = dims;
+            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
+            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
+            blkDims.push_back(16);
+            blkDims.push_back(16);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::IOhw16o16i:
+            order = {1, 0, 2, 3, 0, 1};
+            blkDims = dims;
+            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
+            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
+            blkDims.push_back(16);
+            blkDims.push_back(16);
+            layout = Layout::BLOCKED;
+            break;
         case memory::OIdhw8i8o:
             order = {0, 1, 2, 3, 4, 1, 0};
             blkDims = dims;
@@ -732,8 +802,26 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims.push_back(16);
             layout = Layout::BLOCKED;
             break;
+        case memory::OIdhw8o8i:
+            order = {0, 1, 2, 3, 4, 1, 0};
+            blkDims = dims;
+            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
+            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
+            blkDims.push_back(8);
+            blkDims.push_back(8);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::OIdhw16o16i:
+            order = {0, 1, 2, 3, 4, 0, 1};
+            blkDims = dims;
+            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
+            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
+            blkDims.push_back(16);
+            blkDims.push_back(16);
+            layout = Layout::BLOCKED;
+            break;
         case memory::gOIhw4o4i:
-            order = {0, 1, 2, 3, 4, 2, 1};
+            order = {0, 1, 2, 3, 4, 1, 2};
             blkDims = dims;
             blkDims[1] = blkDims[1] / 4 + (blkDims[1] % 4 ? 1 : 0);
             blkDims[2] = blkDims[2] / 4 + (blkDims[2] % 4 ? 1 : 0);
@@ -750,8 +838,26 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims.push_back(8);
             layout = Layout::BLOCKED;
             break;
+        case memory::gOIhw8o8i:
+            order = {0, 1, 2, 3, 4, 1, 2};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
+            blkDims[2] = blkDims[2] / 8 + (blkDims[2] % 8 ? 1 : 0);
+            blkDims.push_back(8);
+            blkDims.push_back(8);
+            layout = Layout::BLOCKED;
+            break;
         case memory::gOIhw16i16o:
             order = {0, 1, 2, 3, 4, 2, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
+            blkDims[2] = blkDims[2] / 16 + (blkDims[2] % 16 ? 1 : 0);
+            blkDims.push_back(16);
+            blkDims.push_back(16);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::gOIhw16o16i:
+            order = {0, 1, 2, 3, 4, 1, 2};
             blkDims = dims;
             blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
             blkDims[2] = blkDims[2] / 16 + (blkDims[2] % 16 ? 1 : 0);
@@ -984,8 +1090,11 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         case Precision::BOOL:
             data_type = mkldnn::memory::data_type::u8;
             break;
+        case Precision::BF16:
+            data_type = mkldnn::memory::data_type::bf16;
+            break;
         default:
-            THROW_IE_EXCEPTION << "Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision!";
+            THROW_IE_EXCEPTION << "Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision: " << tDesc.getPrecision();
     }
 
     mkldnn::memory::format mkldnnFormat = memory::format::format_undef;
@@ -1044,6 +1153,11 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
                 mkldnnFormat = memory::format::x;
             } else if (realDims.ndims() == 2) {
                 mkldnnFormat = memory::format::nc;
+            } else if (realDims.ndims() == 3) {
+                if (order == SizeVector{0, 1, 2})
+                    mkldnnFormat = memory::format::tnc;
+                else if (order == SizeVector{1, 0, 2})
+                    mkldnnFormat = memory::format::ntc;
             } else if (realDims.ndims() == 4) {
                 if (order.size() == 7 &&
                     order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1 && order[5] == 0 && order[6] == 1) {
@@ -1059,6 +1173,16 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
                         mkldnnFormat = memory::format::OIhw8i8o;
                     } else if (blkdDims[4] == 16 && blkdDims[5] == 16) {
                         mkldnnFormat = memory::format::OIhw16i16o;
+                    }
+                } else if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
+                    if (blkdDims[4] == 8 && blkdDims[5] == 8) {
+                        mkldnnFormat = memory::format::OIhw8o8i;
+                    } else if (blkdDims[4] == 16 && blkdDims[5] == 16) {
+                        mkldnnFormat = memory::format::OIhw16o16i;
+                    }
+                } else if (order.size() == 6 && order[0] == 1 && order[1] == 0 && order[2] == 2 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
+                    if (blkdDims[4] == 16 && blkdDims[5] == 16) {
+                        mkldnnFormat = memory::format::IOhw16o16i;
                     }
                 } else if (order.size() == 5 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 0) {
                     if (blkdDims[4] == 8) {
@@ -1116,6 +1240,13 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
                         mkldnnFormat = memory::format::OIdhw16i16o;
                     }
                 } else if (order.size() == 7 &&
+                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 0 && order[6] == 1) {
+                    if (blkdDims[6] == 8) {
+                        mkldnnFormat = memory::format::OIdhw8o8i;
+                    } else if (blkdDims[6] == 16) {
+                        mkldnnFormat = memory::format::OIdhw16o16i;
+                    }
+                } else if (order.size() == 7 &&
                            order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 1 && order[4] == 4 && order[5] == 0 && order[6] == 1) {
                     if (blkdDims[5] == 8) {
                         mkldnnFormat = memory::format::OdhIw8o4i;
@@ -1129,11 +1260,20 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
                 } else if (order.size() == 7 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 2 && order[6] == 1) {
                     if (blkdDims[6] == 4) {
-                        mkldnnFormat = memory::format::gOIhw4o4i;
+                        mkldnnFormat = memory::format::gOIhw4i4o;
                     } else if (blkdDims[6] == 8) {
                         mkldnnFormat = memory::format::gOIhw8i8o;
                     } else if (blkdDims[6] == 16) {
                         mkldnnFormat = memory::format::gOIhw16i16o;
+                    }
+                } else if (order.size() == 7 &&
+                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1 && order[6] == 2) {
+                    if (blkdDims[6] == 4) {
+                        mkldnnFormat = memory::format::gOIhw4o4i;
+                    } else if (blkdDims[6] == 8) {
+                        mkldnnFormat = memory::format::gOIhw8o8i;
+                    } else if (blkdDims[6] == 16) {
+                        mkldnnFormat = memory::format::gOIhw16o16i;
                     }
                 } else if (order.size() == 7 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 2 && order[4] == 4 && order[5] == 1 && order[6] == 2) {
@@ -1166,6 +1306,13 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
                         mkldnnFormat = memory::format::Goidhw8g;
                     } else if (blkdDims[6] == 16) {
                         mkldnnFormat = memory::format::Goidhw16g;
+                    }
+                } else if (order.size() == 7 &&
+                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 && order[6] == 1) {
+                    if (blkdDims[6] == 8) {
+                        mkldnnFormat = memory::format::gOdhwi8o;
+                    } else if (blkdDims[6] == 16) {
+                        mkldnnFormat = memory::format::gOdhwi16o;
                     }
                 } else if (order.size() == 8 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 4 && order[4] == 2 && order[5] == 5 &&

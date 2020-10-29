@@ -21,14 +21,21 @@
 
 namespace cldnn {
 
-void err_details::cldnn_print_error_message(const std::string& file,
-                                            int line,
+void err_details::cldnn_print_error_message(
+#ifndef NDEBUG
+                                            const std::string& file, int line,
+#else
+                                            const std::string&, int,
+#endif
                                             const std::string& instance_id,
                                             std::stringstream& msg,
                                             const std::string& add_msg) {
     {
         std::stringstream source_of_error;
+
+#ifndef NDEBUG
         source_of_error << file << " at line: " << line << std::endl;
+#endif
         source_of_error << "Error has occured for: " << instance_id << std::endl;
 
         std::stringstream addidtional_message;

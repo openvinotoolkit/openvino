@@ -25,9 +25,9 @@ class NormalizeL2Op(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'eps': None,
             'p': None,
             'eps_mode': None,

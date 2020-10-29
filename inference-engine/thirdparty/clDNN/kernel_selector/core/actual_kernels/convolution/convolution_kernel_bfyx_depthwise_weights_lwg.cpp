@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ ParamsKey ConvolutionKernel_bfyx_depthwise_weights_lwg::GetSupportedKey() const 
     k.EnableSubGroupShort();
     k.EnableDepthwiseSeparableOpt();
     k.EnableDilation();
+    k.EnableGroupedConvolution();
     return k;
 }
 
@@ -46,39 +47,31 @@ bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p, con
     }
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
-    if (!cp.depthwise_separable_opt)
-        return false;
-    if ((cp.filterSize.x > 4) || (cp.filterSize.y > 4) ||
-        ((cp.inputs[0].Feature().v != cp.split) && (cp.inputs[0].Feature().v != cp.groups))) {
+
+    if ((cp.filterSize.x > 5) || (cp.filterSize.y > 5) || (cp.groups == 1) ||
+        (cp.weights.IFM().v != 1) || (cp.weights.OFM().v != 1)) {
         return false;
     }
 
     return true;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg::SetDefault(
-    const convolution_params& params,
-    int) const {
-    DispatchData runInfo = Parent::SetDefault(params);
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg::SetDefault(const convolution_params& params,
+                                                                                             int) const {
+    DispatchData dispatchData = Parent::SetDefault(params);
     const auto& out = params.output;
 
-    std::vector<size_t> global = {out.X().v * out.Y().v, out.Feature().v, out.Batch().v};
+    dispatchData.gws = { Align(out.X().v * out.Y().v, 16), out.Feature().v, out.Batch().v };
+    dispatchData.lws = { 16, 1, 1 };
 
-    runInfo.gws0 = Align(global[0], 16);
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-    runInfo.lws0 = 16;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    runInfo.effiency = FORCE_PRIORITY_6;
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConvolutionKernel_bfyx_depthwise_weights_lwg::GetJitConstants(const convolution_params& params,
-                                                                           const DispatchData& kd) const {
-    auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                                           const DispatchData& dispatchData) const {
+    auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     if (params.padding.x != 0 || params.padding.y != 0)
         mem_consts.AddConstant(MakeJitConstant("BOUNDARY_CHECK", 1));

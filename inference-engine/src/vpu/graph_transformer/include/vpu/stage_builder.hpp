@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <vpu/model/model.hpp>
 
@@ -27,6 +27,14 @@ public:
             float bias = 0.0f);
 
     Stage addSumStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input0,
+            const Data& input1,
+            const Data& output);
+
+    Stage addMaxStage(
             const Model& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
@@ -108,7 +116,8 @@ public:
             const ie::CNNLayerPtr& layer,
             Dim axis,
             const DataVector& inputs,
-            const Data& output);
+            const Data& output,
+            ConcatInferRequirement inferRequirement = ConcatInferRequirement::CanBeReplaced);
 
     Stage addConcatStage(
             const Model& model,
@@ -159,7 +168,7 @@ public:
             const Data& output,
             const DimValues& offset = DimValues());
 
-    Stage addShrinkStage(
+    Stage addCropStage(
             const Model& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
@@ -195,6 +204,13 @@ public:
             const DataVector& inputs,
             const Data& output);
 
+    Stage addPoolingStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input,
+            const Data& output,
+            const ie::PoolingLayer::PoolType& poolType);
 
     Stage addGatherStage(
             const Model& model,
@@ -231,6 +247,16 @@ public:
             const Data& input,
             const Data& output);
 
+    Stage addConvolutionStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input,
+            const Data& output,
+            const Data& weights,
+            const Data& biases,
+            const Data& scales);
+
     Stage addReduceStage(
             const Model& model,
             const std::string& name,
@@ -239,6 +265,26 @@ public:
             bool keep_dims,
             const DataVector& inputs,
             const Data& output);
+
+    Stage addScatterUpdateStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input,
+            const Data& output,
+            const Data& indices,
+            const Data& updates,
+            const Data& axis);
+
+    Stage addScatterElementsUpdateStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input,
+            const Data& output,
+            const Data& indices,
+            const Data& updates,
+            const Data& axis);
 
     Stage addLoopStartStage(
         const Model& model,
@@ -251,6 +297,21 @@ public:
         const std::string& name,
         const DataVector& inputs,
         const DataVector& outputs);
+
+    Stage addSigmoidStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const DataVector& inputs,
+            const DataVector& outputs);
+
+    Stage addProdStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input0,
+            const Data& input1,
+            const Data& output);
 };
 
 }  // namespace vpu

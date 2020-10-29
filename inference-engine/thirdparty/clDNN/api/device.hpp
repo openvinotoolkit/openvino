@@ -29,6 +29,12 @@ namespace cldnn {
 /// @defgroup cpp_device GPU Device
 /// @{
 
+/// @brief Enumeration of supported device types
+enum class device_type {
+    integrated_gpu = 0,
+    discrete_gpu = 1
+};
+
 /// @brief Information about the device properties and capabilities.
 struct device_info {
     uint32_t cores_count;     ///< Number of available HW cores.
@@ -51,8 +57,12 @@ struct device_info {
     uint8_t supports_imad;   ///< Does engine support int8 mad.
     uint8_t supports_immad;  ///< Does engine support int8 multi mad.
 
+    uint8_t supports_usm;    ///< Does engine support unified shared memory.
+
     std::string dev_name;     ///< Device ID string
     std::string driver_version;  ///< Version of OpenCL driver
+
+    device_type dev_type;  ///< Defines type of current GPU device (integrated or discrete)
 };
 
 struct device_impl;

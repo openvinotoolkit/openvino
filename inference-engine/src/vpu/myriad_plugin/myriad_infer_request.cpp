@@ -5,9 +5,7 @@
 #define NOMINMAX
 #include <utility>
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
 #include <description_buffer.hpp>
-#include <debug.h>
 #include <ie_layouts.h>
 #include <precision_utils.h>
 
@@ -142,6 +140,56 @@ void MyriadInferRequest::InferAsync() {
                               _inputInfo.totalSize, nullptr, 0);
 }
 
+static void copyBlobAccordingUpperBound(
+    const Blob::Ptr& in,
+    const Blob::Ptr& out) {
+    const auto inLayout = in->getTensorDesc().getLayout();
+    const auto outLayout = out->getTensorDesc().getLayout();
+
+    const auto& inBlockingDesc = in->getTensorDesc().getBlockingDesc();
+    const auto& outBlockingDesc = out->getTensorDesc().getBlockingDesc();
+
+    const auto& inDims = inBlockingDesc.getBlockDims();
+    const auto& outDims = outBlockingDesc.getBlockDims();
+    const auto inTotalDimSize = in->byteSize();
+
+    // Strides in blocking description is presented by elements.
+    // So we need to multiply them by element size
+    auto inStrides = inBlockingDesc.getStrides();
+    std::transform(inStrides.begin(), inStrides.end(), inStrides.begin(),
+                   std::bind(std::multiplies<size_t>(), std::placeholders::_1, in->element_size()));
+
+    IE_ASSERT(inLayout == outLayout);
+
+    auto inPtr = in->cbuffer().as<uint8_t *>();
+    IE_ASSERT(inPtr != nullptr);
+
+    auto outPtr = out->cbuffer().as<uint8_t *>();
+    IE_ASSERT(outPtr != nullptr);
+
+    const auto inLineByteSize = inDims[inDims.size() - 1] * in->element_size();
+    const auto outLineByteSize = outDims[inDims.size() - 1] * out->element_size();
+
+    for (size_t inByteOffset = 0, outByteOffset = 0; inByteOffset < inTotalDimSize; inByteOffset += inLineByteSize) {
+        auto offset = inByteOffset;
+        bool isGarbageLine = false;
+        for (size_t dim = 0; dim < inStrides.size() - 1; ++dim) {
+            const auto coordAlongDim = offset / inStrides[dim];
+            if (coordAlongDim > outDims[dim] - 1) {
+                isGarbageLine = true;
+                break;
+            }
+
+            offset %= inStrides[dim];
+        }
+        if (!isGarbageLine) {
+            // We transfer outLineByteSize bytes, so garbage data at the end of the line is not copied.
+            std::copy_n(inPtr + inByteOffset, outLineByteSize, outPtr + outByteOffset);
+            outByteOffset += outLineByteSize;
+        }
+    }
+}
+
 void MyriadInferRequest::GetResult() {
     VPU_PROFILE(GetResult);
 
@@ -153,24 +201,25 @@ void MyriadInferRequest::GetResult() {
         return foundBlob->second->getTensorDesc().getLayout();
     };
 
-    if (_outputs.size() == 1) {
+    // For networks with only one output
+    if (_outputInfo.offset.size() == 1) {
         const auto& it = _outputs.begin();
         const auto& name = (*it).first;
         const auto& blob = (*it).second;
 
         if (blob->getTensorDesc().getLayout() == getVpuLayout(name)) {
-            _executor->getResult(_graphDesc, blob->buffer(), blob->byteSize());
+            _executor->getResult(_graphDesc, blob->buffer(), static_cast<unsigned>(blob->byteSize()));
             return;
         }
     }
 
-    _executor->getResult(_graphDesc, resultBuffer.data(), resultBuffer.size());
+    _executor->getResult(_graphDesc, resultBuffer.data(), static_cast<unsigned>(resultBuffer.size()));
 
     for (const auto& output : _outputs) {
-        const auto& name = output.first;
-        const auto& blob = output.second;
+        const auto& ieBlobName = output.first;
+        const auto& ieBlob = output.second; // Original IE output blob
 
-        const auto resultOffset = [&] {
+        const auto resultOffset = [&](const std::string& name) {
             const auto offset_it = _outputInfo.offset.find(name);
             IE_ASSERT(offset_it != _outputInfo.offset.end())  << "MyriadInferRequest::InferAsync()\n"
                                                                        << "Output offset [" << name << "] error.";
@@ -180,14 +229,54 @@ void MyriadInferRequest::GetResult() {
                                                       << "Required offset: " << offset
                                                       << "Result buffer size: " << resultBuffer.size();
             return offset;
-        }();
+        };
 
-        const auto outDesc = blob->getTensorDesc();
-        // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
-        const auto tempTensorDesc = ie::TensorDesc{outDesc.getPrecision(), outDesc.getDims(), getVpuLayout(name)};
-        const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset);
+        const auto& ieOutDesc = ieBlob->getTensorDesc();
+        const auto& ieOutPrc = ieOutDesc.getPrecision();
 
-        copyBlob(tmpBlob, blob);
+        auto ieOutDims = ieOutDesc.getDims();
+
+        // Eject dynamic output shape (suffix "@shape") and copy it to vector of dimensions in reverse order
+        const auto& shapeInfo = _outputInfo.offset.find(ieBlobName + "@shape");
+        // if (isDynamic)
+        if (shapeInfo != _outputInfo.offset.end()) {
+            auto outData = networkOutputs[ieBlobName];
+            const auto& descFromPlugin = _outputInfo.descFromPlugin.find(ieBlobName);
+            VPU_THROW_UNLESS(descFromPlugin != _outputInfo.descFromPlugin.end(),
+                "Can not find tensor descriptor by plugin for {} output", ieBlobName);
+            const auto& dynOutputDesc = descFromPlugin->second;
+
+            if (ieBlob->getTensorDesc().getLayout() != dynOutputDesc.getLayout()) {
+                ieBlob->deallocate();
+                ieBlob->getTensorDesc().reshape(dynOutputDesc.getDims(), dynOutputDesc.getLayout());
+                ieBlob->allocate();
+                outData->reshape(dynOutputDesc.getDims(), dynOutputDesc.getLayout());
+            }
+
+            const auto shapeResultOffset = resultOffset(shapeInfo->first);
+            const auto shapePtr = reinterpret_cast<const int32_t*>(resultBuffer.data() + shapeResultOffset);
+
+            auto shapeRank = dynOutputDesc.getDims().size();
+            ieOutDims.resize(shapeRank);
+            for (size_t idx = 0; idx < shapeRank; ++idx) {
+                ieOutDims[idx] = shapePtr[idx];
+            }
+
+            outData->setDims(ieOutDims);
+            ieBlob->getTensorDesc().setDims(ieOutDims);
+
+            // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
+            const auto tempTensorDesc = ie::TensorDesc{ieOutPrc, dynOutputDesc.getDims(), dynOutputDesc.getLayout()};
+            const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset(ieBlobName));
+
+            copyBlobAccordingUpperBound(tmpBlob, ieBlob);
+        } else {
+            // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
+            const auto tempTensorDesc = ie::TensorDesc{ieOutPrc, ieOutDims, getVpuLayout(ieBlobName)};
+            const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset(ieBlobName));
+
+            copyBlob(tmpBlob, ieBlob);
+        }
     }
 }
 
@@ -202,6 +291,6 @@ void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
 
     perfMap = vpu::parsePerformanceReport(
         _stagesMetaData,
-        perfInfo.data(), perfInfo.size(),
+        perfInfo.data(), static_cast<int>(perfInfo.size()),
         _config.perfReport(), _config.printReceiveTensorTime());
 }

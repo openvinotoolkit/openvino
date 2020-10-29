@@ -28,12 +28,11 @@ namespace vpu {
 // Resources
 //
 
-// TODO: get rid of `cmxLimit`.
-
 struct Resources final {
     int numCMXSlices = 0;
     int numSHAVEs = 0;
-    int cmxLimit = 0;
+    int numExecutors = 0;
+    int tilingCMXLimit = 0;
 };
 
 void printTo(std::ostream& os, const Resources& res);
@@ -61,8 +60,6 @@ private:
 
     VPU_MODEL_ATTRIBUTE(int, batchSize, 1)
 
-    VPU_MODEL_ATTRIBUTE(InferenceEngine::NetworkStatsMap, nodesStats, {})
-
 public:
     //
     // Constructor
@@ -80,8 +77,6 @@ public:
 
     void setBatchSize(int batchSize);
 
-    inline void setNodesStats(const ie::NetworkStatsMap& stats) { _nodesStats = stats; }
-
     //
     // Data nodes
     //
@@ -98,6 +93,8 @@ public:
             const std::string& name,
             const DataDesc& desc,
             const DataContent::Ptr& content);
+
+    Data addConstData(const std::string& name, const DataDesc& descriptor, const std::function<void(const ie::Blob::Ptr&)>& generator = {});
 
     Data addNewData(
             const std::string& name,
@@ -141,9 +138,17 @@ public:
             const Stage& stage,
             const Data& data);
 
+    StageDependency addStageDependency(
+            const Stage& stage,
+            const Data& data);
+
     StageTempBuffer addTempBuffer(
             const Stage& stage,
             const DataDesc& desc);
+
+    StageTempBuffer addTempBuffer(
+            const Stage& stage,
+            size_t bufferSize);
 
     void replaceStageInput(
             const StageInput& edge,
@@ -152,6 +157,17 @@ public:
     void replaceStageOutput(
             const StageOutput& edge,
             const Data& newOutput);
+
+    void replaceStageDependency(
+            const StageDependency& edge,
+            const Data& newDependency);
+
+    void replaceDependentStage(
+            const StageDependency& edge,
+            const Stage& newDependentStage);
+
+    void removeStageDependency(const StageDependency& edge);
+    void removeStageDependency(const Stage& stage, const Data& dependency);
 
     //
     // Stage <-> Stage edges
@@ -192,30 +208,30 @@ public:
     // Data<->Data edges
     //
 
-    class DataEdgeHelper final {
+    class DataToDataEdgeHelper final {
     public:
-        inline DataEdgeHelper(DataEdgeHelper&&) = default;
+        inline DataToDataEdgeHelper(DataToDataEdgeHelper&&) = default;
 
-        DataEdgeHelper(const DataEdgeHelper&) = delete;
-        DataEdgeHelper& operator=(const DataEdgeHelper&) = delete;
-        DataEdgeHelper& operator=(DataEdgeHelper&&) = delete;
+        DataToDataEdgeHelper(const DataToDataEdgeHelper&) = delete;
+        DataToDataEdgeHelper& operator=(const DataToDataEdgeHelper&) = delete;
+        DataToDataEdgeHelper& operator=(DataToDataEdgeHelper&&) = delete;
 
-        ~DataEdgeHelper();
+        ~DataToDataEdgeHelper();
 
-        DataEdgeHelper& parent(const Data& parent);
-        DataEdgeHelper& child(const Data& child);
+        DataToDataEdgeHelper& parent(const Data& parent);
+        DataToDataEdgeHelper& child(const Data& child);
 
-        DataEdgeHelper& mode(SharedDataMode mode);
-        DataEdgeHelper& order(SharedDataOrder order);
+        DataToDataEdgeHelper& mode(SharedDataMode mode);
+        DataToDataEdgeHelper& order(SharedDataOrder order);
 
-        DataEdgeHelper& offset(const DimValues& offset);
+        DataToDataEdgeHelper& offset(const DimValues& offset);
 
-        DataEdgeHelper& connectionMode(SharedConnectionMode);
+        DataToDataEdgeHelper& connectionMode(SharedConnectionMode);
 
-        SharedAllocation done();
+        DataToDataAllocation done();
 
     private:
-        inline explicit DataEdgeHelper(const Model& model) : _model(model) {}
+        inline explicit DataToDataEdgeHelper(const Model& model) : _model(model) {}
 
     private:
         Model _model;
@@ -237,18 +253,30 @@ public:
         friend ModelObj;
     };
 
-    inline DataEdgeHelper connectDatas() {
-        return DataEdgeHelper(this);
-    }
+    DataToShapeAllocation connectDataWithShape(
+            const Data& parent,
+            const Data& child);
 
-    void replaceParentData(
-            const SharedAllocation& edge,
+    void replaceDataToShapeParent(
+            const DataToShapeAllocation& edge,
             const Data& newParent);
-    void replaceChildData(
-            const SharedAllocation& edge,
+    void replaceDataToShapeChild(
+            const DataToShapeAllocation& edge,
             const Data& newChild);
 
-    void disconnectDatas(const SharedAllocation& edge);
+    inline DataToDataEdgeHelper connectDataWithData() {
+        return DataToDataEdgeHelper(this);
+    }
+
+    void replaceDataToDataParent(
+            const DataToDataAllocation& edge,
+            const Data& newParent);
+    void replaceDataToDataChild(
+            const DataToDataAllocation& edge,
+            const Data& newChild);
+
+    void disconnectDatas(const DataToDataAllocation& edge);
+    void disconnectDatas(const DataToShapeAllocation& edge);
 
     //
     // Nodes removal
@@ -272,16 +300,20 @@ public:
 
     void reorderStages(const StageComparator& comparator = {});
 
+    void setStagesOrder(const Stage& parent, const Stage& child);
+
+    void removeStagesOrder(const Stage& parent, const Stage& child);
+
     //
     // Nodes accessors
     //
 
-    inline int numDatas() const { return _dataPtrList.size(); }
+    inline int numDatas() const { return static_cast<int>(_dataPtrList.size()); }
     inline auto datas() const -> decltype(_dataList | asRange()) {
         return _dataList | asRange();
     }
 
-    inline int numStages() const { return _stagePtrList.size(); }
+    inline int numStages() const { return static_cast<int>(_stagePtrList.size()); }
     inline auto initialStages() const -> decltype(_initialStages | asRange()) {
         return _initialStages | asRange();
     }
@@ -296,15 +328,6 @@ public:
 
     inline Allocator& getAllocator() { return _allocator; }
 
-    template<class Functor>
-    void setOnNewStageCallback(Functor&& functor) {
-        onNewStageCallback = std::forward<Functor>(functor);
-    }
-
-    void unsetOnNewStageCallback() {
-        setOnNewStageCallback(nullptr);
-    }
-
 private:
     Stage addNewStageImpl(
         const std::string& name,
@@ -318,7 +341,7 @@ private:
             const Stage& parent,
             const Stage& child);
 
-    SharedAllocation connectDatasImpl(
+    DataToDataAllocation connectDataWithDataImpl(
             const Data& parent,
             const Data& child,
             SharedDataMode mode,
@@ -337,7 +360,9 @@ private:
     StageInputPtrList _inEdgePtrList;
     StageOutputPtrList _outEdgePtrList;
     StageTempBufferPtrList _tempBufferEdgePtrList;
-    SharedAllocationPtrList _dataEdgePtrList;
+    DataToDataAllocationPtrList _dataEdgePtrList;
+    DataToShapeAllocationPtrList _shapeEdgePtrList;
+    StageDependencyPtrList _stageDependencyEdgePtrList;
     InjectionPtrList _stageEdgePtrList;
 
     Allocator _allocator;
@@ -348,7 +373,7 @@ private:
     std::function<void(Stage&)> onNewStageCallback = nullptr;
 
     friend class InjectStageHelper;
-    friend class DataEdgeHelper;
+    friend class DataToDataEdgeHelper;
 };
 
 template <class StageImpl>
@@ -369,8 +394,17 @@ inline Stage ModelObj::addNewStage(
 // runAllocator
 //
 
+VPU_DECLARE_ENUM(EnableShapeAllocation,
+                 YES,
+                 NO)
+
+VPU_DECLARE_ENUM(CheckOnlyCMX,
+                 YES,
+                 NO)
+
 AllocationResult runAllocator(
         const Model& model,
-        bool onlyCheckCMX = false);
+        EnableShapeAllocation = EnableShapeAllocation::NO,
+        CheckOnlyCMX = CheckOnlyCMX::NO);
 
 }  // namespace vpu

@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "inference_engine.hpp"
+#include "ie_layouts.h"
 #include "mkldnn_dims.h"
 #include <mkldnn.hpp>
 #include <string>
@@ -87,6 +87,7 @@ public:
     }
 
     size_t GetSize() const;
+    size_t GetElementsCount() const;
 
     mkldnn::memory::format GetFormat() const {
         return static_cast<mkldnn::memory::format>(prim->get_primitive_desc().desc().data.format);
@@ -114,6 +115,7 @@ public:
     static InferenceEngine::Layout GetPlainLayout(mkldnn::memory::dims dims);
     static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format format);
     static mkldnn::memory::format Convert(const InferenceEngine::Layout layout);
+    static InferenceEngine::Precision convertToIePrec(mkldnn::memory::data_type dataType);
 
     static std::string formatToString(mkldnn::memory::format fmt);
 

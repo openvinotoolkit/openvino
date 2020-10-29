@@ -28,12 +28,7 @@ class FuseTransposesSequence(BackReplacementPattern):
          This pass finds sequence of Transpose operations and merge them to single Transpose operation
          In case if resulting Permutation do nothing, we just remove it
     """
-
     enabled = True
-
-    def run_before(self):
-        from extensions.back.TransposeToPermute import TransposeToPermute
-        return [TransposeToPermute]
 
     def find_and_replace_pattern(self, graph: Graph):
         for permute_node in graph.get_op_nodes(type='Transpose'):

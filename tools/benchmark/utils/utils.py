@@ -13,15 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
+from openvino.inference_engine import IENetwork,IECore
 
-from openvino.inference_engine import IENetwork
-
-from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, DEVICE_NIREQ_ASYNC, BIN_EXTENSION, \
+from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
 from .inputs_filling import is_image
 from .logging import logger
 
+import json
+import re
 
 def static_vars(**kwargs):
     def decorate(func):
@@ -33,22 +33,25 @@ def static_vars(**kwargs):
 
 
 @static_vars(step_id=0)
-def next_step(additional_info=''):
+def next_step(additional_info='', step_id=0):
     step_names = {
         1: "Parsing and validating input arguments",
         2: "Loading Inference Engine",
-        3: "Reading the Intermediate Representation network",
-        4: "Resizing network to match image sizes and given batch",
-        5: "Configuring input of the model",
-        6: "Setting device configuration",
+        3: "Setting device configuration",
+        4: "Reading network files",
+        5: "Resizing network to match image sizes and given batch",
+        6: "Configuring input of the model",
         7: "Loading the model to the device",
         8: "Setting optimal runtime parameters",
         9: "Creating infer requests and filling input blobs with images",
         10: "Measuring performance",
         11: "Dumping statistics report",
     }
+    if step_id != 0:
+        next_step.step_id = step_id
+    else:
+        next_step.step_id += 1
 
-    next_step.step_id += 1
     if next_step.step_id not in step_names.keys():
         raise Exception('Step ID {} is out of total steps number '.format(next_step.step_id, str(len(step_names))))
 
@@ -58,26 +61,11 @@ def next_step(additional_info=''):
     print(step_info_template)
 
 
-def read_network(path_to_model: str):
-    xml_filename = os.path.abspath(path_to_model)
-    head, tail = os.path.splitext(xml_filename)
-    bin_filename = os.path.abspath(head + BIN_EXTENSION)
-
-    ie_network = IENetwork(xml_filename, bin_filename)
-
-    input_info = ie_network.inputs
-
-    if not input_info:
-        raise AttributeError('No inputs info is provided')
-
-    return ie_network
-
-
 def config_network_inputs(ie_network: IENetwork):
-    input_info = ie_network.inputs
+    input_info = ie_network.input_info
 
     for key in input_info.keys():
-        if is_image(input_info[key]):
+        if is_image(input_info[key].input_data):
             # Set the precision of input data provided by the user
             # Should be called before load of the network to the plugin
             input_info[key].precision = 'U8'
@@ -122,44 +110,36 @@ def get_duration_in_secs(target_device):
     return duration
 
 
-def get_nireq(target_device):
-    nireq = 0
-    for device in DEVICE_NIREQ_ASYNC:
-        if device in target_device:
-            nireq = max(nireq, DEVICE_NIREQ_ASYNC[device])
-
-    if nireq == 0:
-        nireq = DEVICE_NIREQ_ASYNC[UNKNOWN_DEVICE_TYPE]
-        logger.warn('Default number of requests {} is used for unknown device {}'.format(nireq, target_device))
-
-    return nireq
-
-
 def parse_devices(device_string):
+    if device_string in ['MULTI', 'HETERO']:
+        return list()
     devices = device_string
     if ':' in devices:
         devices = devices.partition(':')[2]
-    return [d[:d.index('(')] if '(' in d else d for d in devices.split(',')]
+    return [d[:d.index('(')] if '(' in d else
+            d[:d.index('.')] if '.' in d else d for d in devices.split(',')]
 
 
-def parse_value_per_device(devices, values_string):
+def parse_nstreams_value_per_device(devices, values_string):
     # Format: <device1>:<value1>,<device2>:<value2> or just <value>
     result = {}
     if not values_string:
         return result
-    device_value_strings = values_string.upper().split(',')
+    device_value_strings = values_string.split(',')
     for device_value_string in device_value_strings:
         device_value_vec = device_value_string.split(':')
         if len(device_value_vec) == 2:
-            for device in devices:
-                if device == device_value_vec[0]:
-                    value = int(device_value_vec[1])
-                    result[device_value_vec[0]] = value
-                    break
+            device_name = device_value_vec[0]
+            nstreams = device_value_vec[1]
+            if device_name in devices:
+                result[device_name] = nstreams
+            else:
+                raise Exception("Can't set nstreams value " + str(nstreams) +
+                                " for device '" + device_name + "'! Incorrect device name!");
         elif len(device_value_vec) == 1:
-            value = int(device_value_vec[0])
+            nstreams = device_value_vec[0]
             for device in devices:
-                result[device] = value
+                result[device] = nstreams
         elif not device_value_vec:
             raise Exception('Unknown string format: ' + values_string)
     return result
@@ -246,3 +226,43 @@ def get_command_line_arguments(argv):
     if arg_name is not '':
         parameters.append((arg_name, arg_value))
     return parameters
+
+def update_shapes(shapes, shapes_string: str, inputs_info):
+    updated = False
+    matches = re.findall(r'(.*?)\[(.*?)\],?', shapes_string)
+    if matches:
+        for match in matches:
+            input_name = match[0]
+            parsed_shape = [int(dim) for dim in match[1].split(',')]
+            if input_name != '':
+                shapes[input_name] = parsed_shape
+                updated = True
+            else:
+                shapes.update({ k:parsed_shape for k in shapes.keys() })
+                updated = True
+                break
+    else:
+        raise Exception("Can't parse `shape` parameter: {}".format(shapes_string))
+    return updated
+
+def adjust_shapes_batch(shapes, batch_size: int, inputs_info):
+    updated = False
+    for name, data in inputs_info.items():
+        layout = data.input_data.layout
+        batch_index = layout.index('N') if 'N' in layout else -1
+        if batch_index != -1 and shapes[name][batch_index] != batch_size:
+            shapes[name][batch_index] = batch_size
+            updated = True
+    return updated
+
+def show_available_devices():
+    ie = IECore()
+    print("\nAvailable target devices:  ", ("  ".join(ie.available_devices)))
+
+def dump_config(filename, config):
+    with open(filename, 'w') as f:
+        json.dump(config, f, indent=4)
+
+def load_config(filename, config):
+    with open(filename) as f:
+        config.update(json.load(f))

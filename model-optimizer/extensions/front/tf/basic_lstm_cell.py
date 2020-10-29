@@ -23,12 +23,6 @@ from mo.ops.result import Result
 class BasicLSTMCell(FrontReplacementSubgraph):
     enabled = True
 
-    # When the deprecated IR version was requested, we configure only those phases that can lead
-    # to functional regressions in the version 2. BasicLSTMCell is one such transformation;
-    # when it is turned off, the body of TF basic_lstm_cell is converted as-is in a decomposed form,
-    # and should work in version 2.
-    graph_condition = [lambda graph: graph.graph['ir_version'] != 2]
-
     # list of names of all original nodes that are supported by IE
     # this list is collected gradually by a separate transformation
     # original name in this case is a selected node in the pattern

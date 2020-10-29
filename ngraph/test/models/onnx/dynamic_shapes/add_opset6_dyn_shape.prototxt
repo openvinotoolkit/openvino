@@ -1,0 +1,38 @@
+ir_version: 3
+producer_name: "nGraph ONNX Importer"
+graph {
+  node {
+    input: "x"
+    input: "y"
+    output: "sum"
+    op_type: "Add"
+  }
+  name: "test_add_dyn_shapes"
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  input {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "sum"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}

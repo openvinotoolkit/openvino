@@ -8,7 +8,7 @@
 #include <string>
 
 #include <ie_common.h>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include "gna_graph_compiler.hpp"
 
 namespace GNAPluginNS {

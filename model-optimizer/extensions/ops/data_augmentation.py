@@ -18,8 +18,6 @@
 #                axis - dimension number for tensors concatenation
 import copy
 
-import networkx as nx
-
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -31,6 +29,7 @@ class DataAugmentationOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'extension',
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': DataAugmentationOp.data_augmentation_infer

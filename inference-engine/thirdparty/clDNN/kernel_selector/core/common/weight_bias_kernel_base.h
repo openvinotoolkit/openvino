@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "weight_bias_params.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // WeightsBiasKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class WeightBiasKernelBase : public common_kernel_base {
+class WeightBiasKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~WeightBiasKernelBase() {}
 
 protected:

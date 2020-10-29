@@ -25,5 +25,14 @@ public:
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+    JitConstants GetJitConstants(const resample_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
+
+protected:
+    DispatchData SetDefault(const resample_params& arg) const override;
 };
 }  // namespace kernel_selector

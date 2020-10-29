@@ -16,7 +16,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNGenericNode : public MKLDNNNode {
 public:
-    MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNGenericNode() = default;
 
     void getSupportedDescriptors() override;
@@ -37,8 +37,7 @@ public:
 
 protected:
     InferenceEngine::ILayerImplFactory::Ptr extFactory;
-    InferenceEngine::IShapeInferImpl::Ptr extShapeInference;
-    std::vector<InferenceEngine::ILayerImpl::Ptr> impls;
+    std::vector<InferenceEngine::ILayerExecImpl::Ptr> impls;
     std::map<std::string, std::string> params;
     std::map<std::string, InferenceEngine::Blob::Ptr> blobs;
 };

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -60,7 +59,9 @@ public:
             srcStrides = layer->insData[REVERSESEQUENCE_DATA].lock()->getTensorDesc().getBlockingDesc().getStrides();
             work_amount_dst = srcStrides[0] * src_dims[0];
 
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+            addConfig(layer,
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
@@ -172,7 +173,7 @@ private:
     size_t work_amount_dst;
 };
 
-REG_FACTORY_FOR(ImplFactory<ReverseSequenceImpl>, ReverseSequence);
+REG_FACTORY_FOR(ReverseSequenceImpl, ReverseSequence);
 
 }  // namespace Cpu
 }  // namespace Extensions

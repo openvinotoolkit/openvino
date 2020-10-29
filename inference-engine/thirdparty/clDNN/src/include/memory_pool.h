@@ -18,7 +18,7 @@
 #pragma once
 #include "api/layout.hpp"
 #include "api/primitive.hpp"
-
+#include "device_impl.h"
 #include "refcounted_obj.h"
 
 #include <vector>
@@ -62,8 +62,8 @@ struct memory_record {
     memory_set _users;  // list of primitives that already use this memory object
     refcounted_obj_ptr<memory_impl> _memory;
     uint32_t _network_id;
-
-    memory_record(memory_set users, refcounted_obj_ptr<memory_impl>& memory, uint32_t net_id);
+    allocation_type _type;
+    memory_record(memory_set users, refcounted_obj_ptr<memory_impl>& memory, uint32_t net_id, allocation_type type);
 };
 
 struct padded_pool_comparer {
@@ -103,7 +103,7 @@ struct padded_pool_comparer {
 class memory_pool {
     memory_pool();
 
-    refcounted_obj_ptr<memory_impl> alloc_memory(const layout& layout, uint32_t net_id);
+    refcounted_obj_ptr<memory_impl> alloc_memory(const layout& layout, allocation_type type, uint32_t network_id, bool reset = true);
     static bool has_conflict(const memory_set&, const std::set<primitive_id>&, uint32_t network_id);
 
     std::multimap<uint64_t, memory_record> _non_padded_pool;
@@ -111,7 +111,7 @@ class memory_pool {
     std::multimap<uint64_t, memory_record> _no_reusable_pool;
     engine_impl* _engine;
     std::atomic<uint64_t> _temp_memory_used;
-    uint64_t _max_peak_memory_used;
+    std::atomic<uint64_t> _max_peak_memory_used;
 
 public:
     explicit memory_pool(engine_impl& engine);
@@ -120,21 +120,28 @@ public:
                                                const primitive_id& id,
                                                uint32_t network_id,
                                                const std::set<primitive_id>& restrictions,
+                                               allocation_type type,
                                                bool reusable = true);  // get from pool or create memory allocation
-    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, uint32_t net_id);
-    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, const shared_mem_params* params, uint32_t net_id);
+    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, allocation_type type, uint32_t network_id, bool reset = true);
+    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, const shared_mem_params* params, uint32_t network_id);
     refcounted_obj_ptr<memory_impl> get_from_non_padded_pool(const layout& layout,
                                                              const primitive_id& id,
                                                              uint32_t network_id,
-                                                             const std::set<primitive_id>&);
+                                                             const std::set<primitive_id>&,
+                                                             allocation_type type);
     refcounted_obj_ptr<memory_impl> get_from_padded_pool(const layout& layout,
                                                          const primitive_id& id,
                                                          uint32_t network_id,
-                                                         const std::set<primitive_id>& restrictions);
+                                                         const std::set<primitive_id>& restrictions,
+                                                         allocation_type type);
     refcounted_obj_ptr<memory_impl> get_from_across_networks_pool(const layout& layout,
                                                                   const primitive_id& id,
-                                                                  uint32_t network_id);
+                                                                  uint32_t network_id,
+                                                                  allocation_type type);
     void clear_pool();
+    void clear_pool_for_network(uint32_t network_id);
+    void release_memory(memory_impl* memory,
+                        const primitive_id& id);
     void color_graph(const program_impl&);
     void dump_memory_pool(const program_impl&, std::string&, std::string&);
 

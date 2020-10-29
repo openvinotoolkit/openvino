@@ -1,64 +1,65 @@
 // Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-#define MIN(v1, v2) ((v1) < (v2) ? (v1) : (v2))
 
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
+#pragma OPENCL EXTENSION cl_khr_extended_async_copies : enable
 
-__kernel void reorg(__global half* restrict src,
-                    __global half* restrict out,
-                    int h,
-                    int w,
-                    int stride)
+__kernel void reorg_hwc(
+    __global half const *restrict src,
+    __global half *restrict dst,
+    int W,
+    int H,
+    int C,
+    int stride)
 {
-    int j = MIN(get_global_id(0), h-1);
+    __local half local_src[8 * 1024];
+    __local half local_dst[8 * 1024];
 
-    int k = get_global_id(1);
-    int c = get_global_size(1);
+    event_t e1 = async_work_group_copy_2D2D(
+        local_src, // dst
+        src + get_group_id(0) * stride + get_group_id(1) * C, // src
+        stride, // num_elements_per_line
+        H * W / stride, // num_lines
+        (C - 1) * stride, // src_line_stride
+        0, // dst_line_stride
+        0);
+    wait_group_events(1, &e1);
 
-    int out_c = c / (stride * stride);
-    int oc    = c * (stride * stride);
-    int oh    = h / stride;
-    int ow    = w / stride;
+    const int stride_y = get_local_id(1);
+    const int blocks   = get_local_size(0);
+    const int b        = get_local_id(0);
 
-    int in_index = w * (j + h*k);
+    const int OC = stride * stride;
+    const int OH = H / stride;
+    const int OW = W / stride;
+    const int IC = stride;
+    const int IH = H;
+    const int IW = W / stride;
 
-    int new_z = in_index / (oh*ow);
-    int new_y = (in_index %(oh*ow)) / ow;
-    int new_x = (in_index %(oh*ow)) % ow;
-    int new_index = new_z + new_x * oc + new_y * oc * ow;
+    for (int block_h = 0; block_h < stride; block_h++) {
+        const int src_line = b * stride * stride + stride_y * stride + block_h;
+        const int c        = src_line / IH;
+        const int h        = src_line % IH;
 
-    in_index++;
+        const int dst_line = b * stride + stride_y * blocks * stride + block_h;
+        const int oc       = dst_line / OH;
+        const int oh       = dst_line % OH;
 
-    int c2 = k % out_c;
-    int offset = k / out_c;
-    int w2 = 0 * stride + offset % stride;
-    int h2 = j * stride + offset / stride;
-    int out_index = w2 + w * stride * (h2 + h * stride * c2);
-
-    for (int i = 0; i < w; ++i, out_index+=stride, in_index++)
-    {
-        // repacking coordinates
-        int k0 =  out_index / (h*w);
-        int j0 = (out_index % (h*w)) / w;
-        int i0 = (out_index % (h*w)) % w;
-        int out_index_repack = k0 + c * i0 + c * w * j0;
-        out[new_index] = src[out_index_repack];
-
-        int new_z =  in_index / (oh*ow);
-        int new_y = (in_index %(oh*ow)) / ow;
-        int new_x = (in_index %(oh*ow)) % ow;
-        new_index = new_z + new_x * oc + new_y * oc * ow;
+        for (int w = 0; w < W / stride; w++) {
+            local_dst[oh * OW * OC + w * OC + oc] = local_src[h * IW * IC + w * IC + c];
+        }
     }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    event_t e2 = async_work_group_copy_2D2D(
+        dst + get_group_id(1) * C + get_group_id(0) * stride, // dst
+        local_dst, // src
+        stride, // num_elements_per_line
+        W * H / stride, // num_lines
+        0, // src_line_stride
+        C * stride - stride, // dst_line_stride
+        0);
+    wait_group_events(1, &e2);
 }

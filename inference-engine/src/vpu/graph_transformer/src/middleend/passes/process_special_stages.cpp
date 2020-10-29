@@ -105,7 +105,7 @@ void PassImpl::run(const Model& model) {
             continue;
         }
 
-        if (stage->type() == StageType::Concat) {
+        if (stage->type() == StageType::StubConcat) {
             _processor.processConcat(model, stage);
         } else if (stage->type() == StageType::Split) {
             _processor.processSplit(model, stage);
@@ -113,8 +113,8 @@ void PassImpl::run(const Model& model) {
             _processor.processReshape(model, stage);
         } else if (stage->type() == StageType::Expand) {
             _processor.processExpand(model, stage);
-        } else if (stage->type() == StageType::Shrink) {
-            _processor.processShrink(model, stage);
+        } else if (stage->type() == StageType::Crop) {
+            _processor.processCrop(model, stage);
         } else if (stage->type() == StageType::LoopStart) {
             _processor.processLoopStart(model, stage);
         } else if (stage->type() == StageType::LoopEnd) {

@@ -37,8 +37,31 @@ class Policy {
     enum class ConcatAlignment {
         DISABLED,
         DISABLED_FOR_FP32,
-        ENABLED
-    } ConcatAlignmentPolicy = ConcatAlignment::ENABLED;
+        ENABLED,
+        FAST
+    } ConcatAlignmentPolicy = ConcatAlignment::FAST;
+
+    /**
+    * Policy to support --disable_nhwc_to_nchw option in MO
+    */
+    enum class NHWCToNCHW {
+        DISABLED,
+        REMOVE_LAST,
+        REMOVE_ALL
+    } NHWCToNCHWPolicy = NHWCToNCHW::REMOVE_ALL;
+
+ /**
+ * @brief trim of gna diagonal affine layer maximum elements number
+ */
+    class GNAAffineDiagonal {
+    public:
+        enum : uint32_t {
+            UNLIMIT,
+            // gna limit this to be OxFFFF
+            LIMITED_TO_DEFAULT_GNA2_65536 = 65536 - 64
+        };
+        uint32_t limitedTo = LIMITED_TO_DEFAULT_GNA2_65536;
+    } GNAAffineDiagonalPolicy;
 };
 
 inline std::ostream& operator<<(std::ostream& os, Policy::ScaleShift policy) {
@@ -50,5 +73,17 @@ inline std::ostream& operator<<(std::ostream& os, Policy::ScaleShift policy) {
     }
     return os;
 }
+
+inline std::ostream& operator<<(std::ostream& os, Policy::ConcatAlignment policy) {
+    switch (policy) {
+        case Policy::ConcatAlignment::DISABLED   : os << "DISABLED";    break;
+        case Policy::ConcatAlignment::DISABLED_FOR_FP32   : os << "DISABLED_FOR_FP32";    break;
+        case Policy::ConcatAlignment::ENABLED   : os << "ENABLED";    break;
+        case Policy::ConcatAlignment::FAST   : os << "FAST";    break;
+        default    : os.setstate(std::ios_base::failbit);
+    }
+    return os;
+}
+
 
 }  // namespace GNAPluginNS

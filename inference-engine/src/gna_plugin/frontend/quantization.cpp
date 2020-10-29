@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iostream>
 #include <details/ie_exception.hpp>
+#include "backend/gna_types.h"
 #include "quantization.h"
 
 void QuantizeAffine16(float *ptr_float_weights,
@@ -149,7 +150,7 @@ void QuantizeVector16(float *ptr_float_memory, int16_t *ptr_int_memory, uint32_t
 }
 
 void QuantizeAffine8(float *ptr_float_weights, float *ptr_float_biases,
-                     int8_t *ptr_int_weights, intel_compound_bias_t *ptr_int_biases,
+                     int8_t *ptr_int_weights, gna_compound_bias_t *ptr_int_biases,
                      float input_scale_factor, float *ptr_weight_scale_factor,
                      float *ptr_output_scale_factor, uint32_t num_rows, uint32_t num_columns,
                      uint32_t num_rows_padded, uint32_t num_columns_padded) {

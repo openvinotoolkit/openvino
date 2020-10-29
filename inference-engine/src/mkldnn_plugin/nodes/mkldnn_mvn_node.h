@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <tuple>
 
 namespace MKLDNNPlugin {
 
@@ -67,7 +68,7 @@ struct jit_uni_mvn_kernel {
 
 class MKLDNNMVNNode : public MKLDNNNode {
 public:
-    MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNMVNNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -86,6 +87,8 @@ private:
     void mvn_blk(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
+
+    std::tuple<size_t, size_t, size_t, size_t, size_t> get5dShapes(const InferenceEngine::SizeVector& dims);
 
     bool across_channels = false;
     bool normalize_variance = true;

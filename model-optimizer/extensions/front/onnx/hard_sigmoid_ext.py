@@ -20,7 +20,7 @@ from extensions.ops.hard_sigmoid import HardSigmoid
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Node, Graph
-from mo.ops.const import Const
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 
 
 class HardSigmoidFrontExtractor(FrontReplacementOp):
@@ -30,11 +30,9 @@ class HardSigmoidFrontExtractor(FrontReplacementOp):
     def replace_op(self, graph: Graph, node: Node):
         alpha = onnx_attr(node, 'alpha', 'f', default=0.2)
         beta = onnx_attr(node, 'beta', 'f', default=0.5)
-        alpha_node = Const(graph, {'value': np.array(alpha)}).create_node()
-        beta_node = Const(graph, {'value': np.array(beta)}).create_node()
 
-        hard_sigmoid = HardSigmoid(graph, {'name': node.name + '/HardSigmoid_'}).create_node()
+        hard_sigmoid = create_op_with_const_inputs(graph, HardSigmoid, {1: np.array(alpha), 2: np.array(beta)},
+                                                   {'name': node.name + '/HardSigmoid_'})
+
         node.in_port(0).get_connection().set_destination(hard_sigmoid.in_port(0))
-        alpha_node.out_port(0).connect(hard_sigmoid.in_port(1))
-        beta_node.out_port(0).connect(hard_sigmoid.in_port(2))
         return [hard_sigmoid.id]

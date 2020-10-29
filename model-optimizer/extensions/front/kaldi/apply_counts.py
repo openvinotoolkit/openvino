@@ -63,7 +63,7 @@ def apply_biases_to_last_layer(graph, counts):
     outputs_ids = find_outputs(graph)
     for output in outputs_ids.copy():
         node = Node(graph, output)
-        if node.op != 'Memory':
+        if node.op != 'Assign':
             continue
         outputs_ids.remove(output)
 

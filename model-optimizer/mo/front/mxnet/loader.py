@@ -14,15 +14,15 @@
  limitations under the License.
 """
 
-import os
 import json
-
-import numpy as np
-import mxnet as mx
 import logging as log
+import os
 
-from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states
+import mxnet as mx
+import numpy as np
+
 from mo.front.mxnet.extractor import common_mxnet_fields
+from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states
 from mo.front.mxnet.nd_to_params import build_params_file
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
@@ -97,7 +97,7 @@ def symbol_attrs(symbol_node):
     return {'symbol_dict': symbol_node}
 
 
-def symbol2nx(model_nodes, model_params, input_names: str = ''):
+def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
     if not input_names:
         input_names = ('data',)
     else:
@@ -106,7 +106,6 @@ def symbol2nx(model_nodes, model_params, input_names: str = ''):
     rnn_states = init_rnn_states(model_nodes)
     names_rnn_states = list(rnn_states.keys())
 
-    graph = Graph()
     # as mxnet contain input layers as index of layer, for correct set up edges, we need provide index of layer with name of  graph node
     index_node_keys = {}
     for i, node in enumerate(model_nodes):

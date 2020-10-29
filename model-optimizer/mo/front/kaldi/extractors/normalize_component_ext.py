@@ -16,11 +16,11 @@
 
 import numpy as np
 
+from extensions.ops.normalize import NormalizeOp
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
 from mo.front.kaldi.loader.utils import collect_until_token, read_binary_bool_token, read_binary_integer32_token, \
-                                        read_binary_float_token
-from extensions.ops.normalize import NormalizeOp
+    read_binary_float_token
 from mo.utils.error import Error
 
 

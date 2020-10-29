@@ -54,14 +54,6 @@ protected:
 
         args.weights = (memory_impl::cptr) &instance.weights_memory(split);
         args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory(split) : nullptr);
-        args.weights_quantization_factors = (memory_impl::cptr) (instance.weights_quantization_factors_term()
-                                                ? &instance.weights_quantization_factors_memory(split)
-                                                : nullptr);
-        args.output_calibration_factors = (memory_impl::cptr) (instance.conv_output_calibration_factors_term()
-                                              ? &instance.output_calibration_factors_memory(split)
-                                              : nullptr);
-        if (instance.eltw_output_calibration_factors_term())
-            args.fused_op_calibration_factors.push_back((memory_impl::cptr) &instance.eltw_output_calibration_factors_memory());
         return args;
     }
 
@@ -79,12 +71,12 @@ public:
         const auto& dilation = primitive->conv.dilation;
         const auto& input_offset = primitive->conv.input_offset;
 
-        const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
-        const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
+        const auto actual_split = split;
 
         const auto transposed = arg.get_transposed();
 
-        assert(arg.get_output_layout().size.feature[0] / primitive->split() == weights_layout.size.batch[0]);
+        if (arg.get_fused_primitives().empty() || !(arg.get_fused_primitives().begin()->node->is_type<depth_to_space>()))
+            assert(arg.get_output_layout().size.feature[0] == weights_layout.size.batch[0] * weights_layout.size.group[0]);
 
         // conv params
         auto fused_params =
@@ -110,11 +102,10 @@ public:
             convert_activation_func_params(&primitive->conv, fused_params.conv.activations);
         }
 
-        fused_params.conv.depthwise_separable_opt = depthwise_separable_opt;
         fused_params.conv.transposed = transposed;
 
-        fused_params.non_conv_scale = primitive->non_conv_scale;
         fused_params.second_input_in_output = primitive->second_input_in_output;
+        fused_params.depth_to_space_already_fused = primitive->depth_to_space_already_fused;
 
         conv_params.local_convolution = weights_size.local[0] > 1 || weights_size.local[1] > 1;
         conv_params.split = split;
@@ -131,38 +122,6 @@ public:
         conv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
         conv_params.dilation = {(uint32_t)dilation.spatial[0], (uint32_t)dilation.spatial[1], (uint32_t)dilation.spatial[2] };
 
-        if (primitive->conv.weights_quantization_factors.size() > 0) {
-            conv_params.int8_quantization = true;
-            conv_params.weights_quantization_factors.push_back(
-                convert_data_tensor(arg.weights_quantization_factors().get_output_layout())
-                    .FlattenFeatureAndSpatials());
-            conv_params.input_quantization_factor = arg.get_conv_input_qf();
-
-            if (primitive->conv.output_calibration_factors.size() > 0) {
-                conv_params.output_calibration = true;
-                conv_params.output_calibration_factors.push_back(
-                    convert_data_tensor(arg.conv_output_calibration_factors().get_output_layout())
-                        .FlattenFeatureAndSpatials());
-            } else {
-                conv_params.output_quantization_factor = arg.get_conv_output_qf();
-            }
-        }
-
-        // eltw params
-        if (primitive->eltw.output_calibration_factors.size() > 0 ||
-            primitive->eltw.output_quantization_factor != 1.0f) {
-            eltw_params.int8_quantization = true;
-
-            if (primitive->eltw.output_calibration_factors.size() > 0) {
-                eltw_params.output_calibration = true;
-                eltw_params.output_calibration_factors.push_back(
-                    convert_data_tensor(arg.eltw_output_calibration_factors().get_output_layout())
-                        .FlattenFeatureAndSpatials());
-            } else {
-                eltw_params.output_quantization_factor = arg.get_eltw_output_qf();
-            }
-        }
-
         // stride
         if (!primitive->eltw.stride.empty()) {
             const auto& eltw_stride = primitive->eltw.stride;
@@ -176,9 +135,10 @@ public:
 
         const auto& tuning_config = arg.get_program().get_options().get<build_option_type::tuning_config>();
 
-        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache) {
+        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
+            tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
             conv_optional_params.tuningParams.runner =
-                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), true);
+                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
         }
 
         kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(fused_params, conv_optional_params);
@@ -215,28 +175,20 @@ attach_fused_conv_eltwise_gpu::attach_fused_conv_eltwise_gpu() {
                                                 fused_conv_eltwise_gpu::create);
     implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
                                                 fused_conv_eltwise_gpu::create);
-    // MMAD
-    implementation_map<fused_conv_eltwise>::add(
-        std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32),
-        fused_conv_eltwise_gpu::create);
     // IMAD
-    implementation_map<fused_conv_eltwise>::add(
-        std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4),
-        fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(
-        std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4),
-        fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4),
+                                                fused_conv_eltwise_gpu::create);
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::image_2d_rgba),
                                                 fused_conv_eltwise_gpu::create);
 }
 

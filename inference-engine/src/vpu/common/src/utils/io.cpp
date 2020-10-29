@@ -6,38 +6,25 @@
 
 #include <iostream>
 
-#include <vpu/utils/any.hpp>
-#include <vpu/utils/attributes_map.hpp>
-
 namespace vpu {
 
-void printTo(std::ostream& os, const Any& any) noexcept {
-    any.printImpl(os);
-}
-
-void printTo(std::ostream& os, const AttributesMap& attrs) noexcept {
-    attrs.printImpl(os);
-}
-
-void formatPrint(std::ostream& os, const char* str) noexcept {
-    try {
-        while (*str) {
-            if (*str == '%') {
-                if (*(str + 1) == '%') {
-                    ++str;
-                } else {
-                    throw std::invalid_argument("[VPU] Invalid format string : missing arguments");
-                }
+void formatPrint(std::ostream& os, const char* str) {
+    while (*str) {
+        if (*str == '%') {
+            if (*(str + 1) == '%') {
+                ++str;
+            } else {
+                std::cerr << "[VPU] Invalid format string : missing arguments" << std::endl;
+                return;
             }
-
-            os << *str++;
+        } else if (*str == '{') {
+            if (*(str + 1) == '}') {
+                std::cerr << "[VPU] Invalid format string : missing arguments" << std::endl;
+                return;
+            }
         }
-    } catch (std::invalid_argument e) {
-        std::cerr << e.what() << '\n';
-        std::abort();
-    } catch (...) {
-        std::cerr << "[VPU] Unknown error in formatPrint\n";
-        std::abort();
+
+        os << *str++;
     }
 }
 

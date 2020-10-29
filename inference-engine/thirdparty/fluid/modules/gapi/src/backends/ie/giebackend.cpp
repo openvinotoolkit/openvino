@@ -2,13 +2,17 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 #include "precomp.hpp"
 
+// needs to be included regardless if IE is present or not
+// (cv::gapi::ie::backend() is still there and is defined always)
+#include "backends/ie/giebackend.hpp"
+
 #ifdef HAVE_INF_ENGINE
 
-#if INF_ENGINE_RELEASE <= 2018050000
+#if INF_ENGINE_RELEASE <= 2019010000
 #   error G-API IE module supports only OpenVINO IE >= 2019 R1
 #endif
 
@@ -22,18 +26,22 @@
 #include <ade/util/chain_range.hpp>
 #include <ade/typed_graph.hpp>
 
+#include <opencv2/core/utility.hpp>
+#include <opencv2/core/utils/logger.hpp>
+
 #include <opencv2/gapi/gcommon.hpp>
 #include <opencv2/gapi/garray.hpp>
+#include <opencv2/gapi/gopaque.hpp>
 #include <opencv2/gapi/util/any.hpp>
 #include <opencv2/gapi/gtype_traits.hpp>
-
 #include <opencv2/gapi/infer.hpp>
-#include <opencv2/gapi/infer/ie/util.hpp>
+#include <opencv2/gapi/own/convert.hpp>
 
 #include "compiler/gobjref.hpp"
 #include "compiler/gmodel.hpp"
 
-#include "backends/ie/giebackend.hpp"
+#include "backends/ie/util.hpp"
+#include "backends/ie/giebackend/giewrapper.hpp"
 
 #include "api/gbackend_priv.hpp" // FIXME: Make it part of Backend SDK!
 
@@ -63,6 +71,21 @@ inline std::vector<int> toCV(const IE::SizeVector &vsz) {
     return result;
 }
 
+inline IE::Layout toIELayout(const std::size_t ndims) {
+    static const IE::Layout lts[] = {
+        IE::Layout::SCALAR,
+        IE::Layout::C,
+        IE::Layout::NC,
+        IE::Layout::CHW,
+        IE::Layout::NCHW,
+        IE::Layout::NCDHW,
+    };
+    // FIXME: This is not really a good conversion,
+    // since it may also stand for NHWC/HW/CN/NDHWC data
+    CV_Assert(ndims < sizeof(lts) / sizeof(lts[0]));
+    return lts[ndims];
+}
+
 inline IE::Precision toIE(int depth) {
     switch (depth) {
     case CV_8U:  return IE::Precision::U8;
@@ -80,13 +103,16 @@ inline int toCV(IE::Precision prec) {
     return -1;
 }
 
-inline IE::TensorDesc toIE(const cv::Mat &mat) {
+inline IE::TensorDesc toIE(const cv::Mat &mat, cv::gapi::ie::TraitAs hint) {
     const auto &sz = mat.size;
 
     // NB: For some reason RGB image is 2D image
     // (since channel component is not counted here).
-    if (sz.dims() == 2) {
+    // Note: regular 2D vectors also fall into this category
+    if (sz.dims() == 2 && hint == cv::gapi::ie::TraitAs::IMAGE)
+    {
         // NB: This logic is mainly taken from IE samples
+        const size_t pixsz    = CV_ELEM_SIZE1(mat.type());
         const size_t channels = mat.channels();
         const size_t height   = mat.size().height;
         const size_t width    = mat.size().width;
@@ -95,8 +121,8 @@ inline IE::TensorDesc toIE(const cv::Mat &mat) {
         const size_t strideW  = mat.step.buf[1];
 
         const bool is_dense =
-            strideW == channels &&
-            strideH == channels * width;
+            strideW == pixsz * channels &&
+            strideH == strideW * width;
 
         if (!is_dense)
             cv::util::throw_error(std::logic_error("Doesn't support conversion"
@@ -107,12 +133,11 @@ inline IE::TensorDesc toIE(const cv::Mat &mat) {
                               IE::Layout::NHWC);
     }
 
-    GAPI_Assert(sz.dims() == 4); // NB: Will relax when needed (to known use)
-    return IE::TensorDesc(toIE(mat.depth()), toIE(sz), IE::Layout::NCHW);
+    return IE::TensorDesc(toIE(mat.depth()), toIE(sz), toIELayout(sz.dims()));
 }
 
-inline IE::Blob::Ptr wrapIE(const cv::Mat &mat) {
-    const auto tDesc = toIE(mat);
+inline IE::Blob::Ptr wrapIE(const cv::Mat &mat, cv::gapi::ie::TraitAs hint) {
+    const auto tDesc = toIE(mat, hint);
     switch (mat.depth()) {
         // NB: Seems there's no way to create an untyped (T-less) Blob::Ptr
         // in IE given only precision via TensorDesc. So we have to do this:
@@ -152,18 +177,13 @@ struct IEUnit {
 
     explicit IEUnit(const cv::gapi::ie::detail::ParamDesc &pp)
         : params(pp) {
-
-        IE::CNNNetReader reader;
-        reader.ReadNetwork(params.model_path);
-        reader.ReadWeights(params.weights_path);
-        net = reader.getNetwork();
-        inputs = net.getInputsInfo();
+        net = cv::gimpl::ie::wrap::readNetwork(params);
+        inputs  = net.getInputsInfo();
         outputs = net.getOutputsInfo();
-
         // The practice shows that not all inputs and not all outputs
         // are mandatory to specify in IE model.
         // So what we're concerned here about is:
-        // if opeation's (not topology's) input/output number is
+        // if operation's (not topology's) input/output number is
         // greater than 1, then we do care about input/output layer
         // names. Otherwise, names are picked up automatically.
         // TODO: Probably this check could be done at the API entry point? (gnet)
@@ -185,17 +205,19 @@ struct IEUnit {
 
     // This method is [supposed to be] called at Island compilation stage
     cv::gimpl::ie::IECompiled compile() const {
-        auto this_plugin = IE::PluginDispatcher().getPluginByDevice(params.device_id);
-        auto this_network = this_plugin.LoadNetwork(net, {}); // FIXME: 2nd parameter to be
-                                                              // configurable via the API
+        auto plugin       = cv::gimpl::ie::wrap::getPlugin(params);
+        auto this_network = cv::gimpl::ie::wrap::loadNetwork(plugin, net, params);
         auto this_request = this_network.CreateInferRequest();
 
         // Bind const data to infer request
         for (auto &&p : params.const_inputs) {
-            this_request.SetBlob(p.first, wrapIE(p.second));
+            // FIXME: SetBlob is known to be inefficient,
+            // it is worth to make a customizable "initializer" and pass the
+            // cv::Mat-wrapped blob there to support IE's optimal "GetBlob idiom"
+            // Still, constant data is to set only once.
+            this_request.SetBlob(p.first, wrapIE(p.second.first, p.second.second));
         }
-
-        return {this_plugin, this_network, this_request};
+        return {plugin, this_network, this_request};
     }
 };
 
@@ -204,7 +226,7 @@ struct IECallContext
     // Input parameters passed to an inference operation.
     std::vector<cv::GArg> args;
 
-    //FIXME: avoid conversion of arguments from internal representaion to OpenCV one on each call
+    //FIXME: avoid conversion of arguments from internal representation to OpenCV one on each call
     //to OCV kernel. (This can be achieved by a two single time conversions in GCPUExecutable::run,
     //once on enter for input and output arguments, and once before return for output arguments only
     //FIXME: check if the above applies to this backend (taken from CPU)
@@ -215,11 +237,11 @@ struct IECallContext
     const T& inArg(std::size_t input) { return args.at(input).get<T>(); }
 
     // Syntax sugar
-    const cv::gapi::own::Mat&   inMat(std::size_t input) {
-        return inArg<cv::gapi::own::Mat>(input);
+    const cv::Mat&   inMat(std::size_t input) {
+        return inArg<cv::Mat>(input);
     }
-    cv::gapi::own::Mat&         outMatR(std::size_t output) {
-        return *cv::util::get<cv::gapi::own::Mat*>(results.at(output));
+    cv::Mat&         outMatR(std::size_t output) {
+        return *cv::util::get<cv::Mat*>(results.at(output));
     }
 
     template<typename T> std::vector<T>& outVecR(std::size_t output) { // FIXME: the same issue
@@ -321,11 +343,15 @@ cv::GArg cv::gimpl::ie::GIEExecutable::packArg(const cv::GArg &arg) {
     const cv::gimpl::RcDesc &ref = arg.get<cv::gimpl::RcDesc>();
     switch (ref.shape)
     {
-    case GShape::GMAT:    return GArg(m_res.slot<cv::gapi::own::Mat>()[ref.id]);
+    case GShape::GMAT:    return GArg(m_res.slot<cv::Mat>()[ref.id]);
 
     // Note: .at() is intentional for GArray as object MUST be already there
     //   (and constructed by either bindIn/Out or resetInternal)
     case GShape::GARRAY:  return GArg(m_res.slot<cv::detail::VectorRef>().at(ref.id));
+
+    // Note: .at() is intentional for GOpaque as object MUST be already there
+    //   (and constructed by either bindIn/Out or resetInternal)
+    case GShape::GOPAQUE:  return GArg(m_res.slot<cv::detail::OpaqueRef>().at(ref.id));
 
     default:
         util::throw_error(std::logic_error("Unsupported GShape type"));
@@ -412,7 +438,6 @@ struct Infer: public cv::detail::KernelTag {
 
             const auto &meta = util::get<cv::GMatDesc>(mm);
             ii->setPrecision(toIE(meta.depth));
-            ii->setLayout(meta.isND() ? IE::Layout::NCHW : IE::Layout::NHWC);
             ii->getPreProcess().setResizeAlgorithm(IE::RESIZE_BILINEAR);
         }
 
@@ -440,8 +465,10 @@ struct Infer: public cv::detail::KernelTag {
             // and redirect our data producers to this memory
             // (A memory dialog comes to the picture again)
 
-            const cv::Mat this_mat = to_ocv(ctx.inMat(i));
-            IE::Blob::Ptr this_blob = wrapIE(this_mat);
+            const cv::Mat this_mat = ctx.inMat(i);
+            // FIXME: By default here we trait our inputs as images.
+            // May be we need to make some more intelligence here about it
+            IE::Blob::Ptr this_blob = wrapIE(this_mat, cv::gapi::ie::TraitAs::IMAGE);
             iec.this_request.SetBlob(uu.params.input_names[i], this_blob);
         }
         iec.this_request.Infer();
@@ -452,7 +479,7 @@ struct Infer: public cv::detail::KernelTag {
             // Not a <very> big deal for classifiers and detectors,
             // but may be critical to segmentation.
 
-            cv::gapi::own::Mat& out_mat = ctx.outMatR(i);
+            cv::Mat& out_mat = ctx.outMatR(i);
             IE::Blob::Ptr this_blob = iec.this_request.GetBlob(uu.params.output_names[i]);
             copyFromIE(this_blob, out_mat);
         }
@@ -491,7 +518,6 @@ struct InferList: public cv::detail::KernelTag {
 
             const auto &meta = util::get<cv::GMatDesc>(mm);
             ii->setPrecision(toIE(meta.depth));
-            ii->setLayout(meta.isND() ? IE::Layout::NCHW : IE::Layout::NHWC);
             ii->getPreProcess().setResizeAlgorithm(IE::RESIZE_BILINEAR);
         }
 
@@ -510,8 +536,9 @@ struct InferList: public cv::detail::KernelTag {
         GAPI_Assert(uu.params.num_in == 1); // roi list is not counted in net's inputs
 
         const auto& in_roi_vec = ctx.inArg<cv::detail::VectorRef>(0u).rref<cv::Rect>();
-        const cv::Mat this_mat = to_ocv(ctx.inMat(1u));
-        IE::Blob::Ptr this_blob = wrapIE(this_mat);
+        const cv::Mat this_mat = ctx.inMat(1u);
+        // Since we do a ROI list inference, always assume our input buffer is image
+        IE::Blob::Ptr this_blob = wrapIE(this_mat, cv::gapi::ie::TraitAs::IMAGE);
 
         // FIXME: This could be done ONCE at graph compile stage!
         std::vector< std::vector<int> > cached_dims(uu.params.num_out);
@@ -541,6 +568,137 @@ struct InferList: public cv::detail::KernelTag {
                 out_vec.push_back(std::move(out_mat));
             }
         }
+    }
+};
+
+struct InferList2: public cv::detail::KernelTag {
+    using API = cv::GInferList2Base;
+    static cv::gapi::GBackend backend()  { return cv::gapi::ie::backend(); }
+    static KImpl kernel()                { return KImpl{outMeta, run}; }
+
+    static cv::GMetaArgs outMeta(const ade::Graph      &gr,
+                                 const ade::NodeHandle &nh,
+                                 const cv::GMetaArgs   &in_metas,
+                                 const cv::GArgs       &/*in_args*/) {
+        // Specify the input information to the IE from the framework
+        // NB: Have no clue if network's input [dimensions] may ever define
+        // its output dimensions. It seems possible with OpenCV DNN APIs
+
+        GConstGIEModel gm(gr);
+        const auto &uu = gm.metadata(nh).get<IEUnit>();
+
+        // Initialize input information
+        // Note our input layers list order matches the API order and so
+        // meta order.
+        GAPI_Assert(uu.params.input_names.size() == (in_metas.size() - 1u)
+                    && "Known input layers count doesn't match input meta count");
+
+        const auto &op = gm.metadata(nh).get<Op>();
+
+        // In contrast to InferList, the InferList2 has only one
+        // "full-frame" image argument, and all the rest are arrays of
+        // ether ROI or blobs. So here we set the 0th arg image format
+        // to all inputs which are ROI-based (skipping the
+        // "blob"-based ones)
+        // FIXME: this is filtering not done, actually! GArrayDesc has
+        // no hint for its underlying type!
+        const auto &mm_0   = in_metas[0u];
+        const auto &meta_0 = util::get<cv::GMatDesc>(mm_0);
+        GAPI_Assert(   !meta_0.isND()
+                    && !meta_0.planar
+                    && "Only images are supported as the 0th argument");
+        std::size_t idx = 1u;
+        for (auto &&input_name : uu.params.input_names) {
+                  auto &ii = uu.inputs.at(input_name);
+            const auto &mm = in_metas[idx];
+            GAPI_Assert(util::holds_alternative<cv::GArrayDesc>(mm)
+                        && "Non-array inputs are not supported");
+
+            if (op.k.inKinds[idx] == cv::detail::OpaqueKind::CV_RECT) {
+                // This is a cv::Rect -- configure the IE preprocessing
+                ii->setPrecision(toIE(meta_0.depth));
+                ii->getPreProcess().setResizeAlgorithm(IE::RESIZE_BILINEAR);
+            } else {
+                // This is a cv::GMat (equals to: cv::Mat)
+                // Just validate that it is really the type
+                // (other types are prohibited here)
+                GAPI_Assert(op.k.inKinds[idx] == cv::detail::OpaqueKind::CV_MAT);
+            }
+            idx++; // NB: Never forget to increment the counter
+        }
+
+        // roi-list version is much easier at the moment.
+        // All our outputs are vectors which don't have
+        // metadata at the moment - so just create a vector of
+        // "empty" array metadatas of the required size.
+        return cv::GMetaArgs(uu.params.output_names.size(),
+                             cv::GMetaArg{cv::empty_array_desc()});
+    }
+
+    static void run(IECompiled &iec, const IEUnit &uu, IECallContext &ctx) {
+        GAPI_Assert(ctx.args.size() > 1u
+                    && "This operation must have at least two arguments");
+
+        // Since we do a ROI list inference, always assume our input buffer is image
+        const cv::Mat mat_0  = ctx.inMat(0u);
+        IE::Blob::Ptr blob_0 = wrapIE(mat_0, cv::gapi::ie::TraitAs::IMAGE);
+
+        // Take the next argument, which must be vector (of any kind).
+        // Use it only to obtain the ROI list size (sizes of all other
+        // vectors must be equal to this one)
+        const auto list_size = ctx.inArg<cv::detail::VectorRef>(1u).size();
+
+        // FIXME: This could be done ONCE at graph compile stage!
+        std::vector< std::vector<int> > cached_dims(uu.params.num_out);
+        for (auto i : ade::util::iota(uu.params.num_out)) {
+            const IE::DataPtr& ie_out = uu.outputs.at(uu.params.output_names[i]);
+            cached_dims[i] = toCV(ie_out->getTensorDesc().getDims());
+            ctx.outVecR<cv::Mat>(i).clear();
+            // FIXME: Isn't this should be done automatically
+            // by some resetInternalData(), etc? (Probably at the GExecutor level)
+        }
+
+        // For every ROI in the list {{{
+        for (const auto &list_idx : ade::util::iota(list_size)) {
+            // For every input of the net {{{
+            for (auto in_idx : ade::util::iota(uu.params.num_in)) {
+                const auto &this_vec = ctx.inArg<cv::detail::VectorRef>(in_idx+1u);
+                GAPI_Assert(this_vec.size() == list_size);
+                // Prepare input {{{
+                IE::Blob::Ptr this_blob;
+                if (this_vec.getKind() == cv::detail::OpaqueKind::CV_RECT) {
+                    // ROI case - create an ROI blob
+                    const auto &vec = this_vec.rref<cv::Rect>();
+                    this_blob = IE::make_shared_blob(blob_0, toIE(vec[list_idx]));
+                } else if (this_vec.getKind() == cv::detail::OpaqueKind::CV_MAT) {
+                    // Mat case - create a regular blob
+                    // FIXME: NOW Assume Mats are always BLOBS (not
+                    // images)
+                    const auto &vec = this_vec.rref<cv::Mat>();
+                    const auto &mat = vec[list_idx];
+                    this_blob = wrapIE(mat, cv::gapi::ie::TraitAs::TENSOR);
+                } else {
+                    GAPI_Assert(false && "Only Rect and Mat types are supported for infer list 2!");
+                }
+                iec.this_request.SetBlob(uu.params.input_names[in_idx], this_blob);
+                // }}} (Preapre input)
+            } // }}} (For every input of the net)
+
+            // Run infer request {{{
+            iec.this_request.Infer();
+            // }}} (Run infer request)
+
+            // For every output of the net {{{
+            for (auto i : ade::util::iota(uu.params.num_out)) {
+                // Push results to the list {{{
+                std::vector<cv::Mat> &out_vec = ctx.outVecR<cv::Mat>(i);
+                IE::Blob::Ptr out_blob = iec.this_request.GetBlob(uu.params.output_names[i]);
+                cv::Mat out_mat(cached_dims[i], toCV(out_blob->getTensorDesc().getPrecision()));
+                copyFromIE(out_blob, out_mat);  // FIXME: Avoid data copy. Not sure if it is possible though
+                out_vec.push_back(std::move(out_mat));
+                // }}} (Push results to the list)
+            } // }}} (For every output of the net)
+        } // }}} (For every ROI in the list)
     }
 };
 
@@ -576,6 +734,7 @@ namespace {
         virtual cv::gapi::GKernelPackage auxiliaryKernels() const override {
             return cv::gapi::kernels< cv::gimpl::ie::Infer
                                     , cv::gimpl::ie::InferList
+                                    , cv::gimpl::ie::InferList2
                                     >();
         }
     };
@@ -586,19 +745,25 @@ cv::gapi::GBackend cv::gapi::ie::backend() {
     return this_backend;
 }
 
-cv::Mat cv::gapi::ie::util::to_ocv(InferenceEngine::Blob::Ptr blob) {
+cv::Mat cv::gapi::ie::util::to_ocv(IE::Blob::Ptr blob) {
     const auto& tdesc = blob->getTensorDesc();
     return cv::Mat(toCV(tdesc.getDims()),
                    toCV(tdesc.getPrecision()),
                    blob->buffer().as<uint8_t*>());
 }
 
-std::vector<int> cv::gapi::ie::util::to_ocv(const InferenceEngine::SizeVector &dims) {
+std::vector<int> cv::gapi::ie::util::to_ocv(const IE::SizeVector &dims) {
     return toCV(dims);
 }
 
-InferenceEngine::Blob::Ptr cv::gapi::ie::util::to_ie(cv::Mat &blob) {
-    return wrapIE(blob);
+IE::Blob::Ptr cv::gapi::ie::util::to_ie(cv::Mat &blob) {
+    return wrapIE(blob, cv::gapi::ie::TraitAs::IMAGE);
 }
 
+#else // HAVE_INF_ENGINE
+
+cv::gapi::GBackend cv::gapi::ie::backend() {
+    // Still provide this symbol to avoid linking issues
+    util::throw_error(std::runtime_error("G-API has been compiled without OpenVINO IE support"));
+}
 #endif // HAVE_INF_ENGINE

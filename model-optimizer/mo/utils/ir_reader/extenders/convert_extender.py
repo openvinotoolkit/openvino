@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-from mo.utils.ir_reader.extender import Extender
-from mo.utils.graph import Node
-
 from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
+from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
 class Convert_extender(Extender):
@@ -26,3 +25,8 @@ class Convert_extender(Extender):
     @staticmethod
     def extend(op: Node):
         op['dst_type'] = destination_type_to_np_data_type(op.destination_type)
+        # CompressQuantizeWeights generates IR with constant sub-graph, that should not be ConstFolded:
+        #   Const(u8) -> Convert(to fp) -> FakeQuantize
+        if op.in_node().in_node().soft_get('type') == 'Const':
+            if op.out_node().out_node().soft_get('type') == 'FakeQuantize':
+                op['stop_value_propagation'] = True

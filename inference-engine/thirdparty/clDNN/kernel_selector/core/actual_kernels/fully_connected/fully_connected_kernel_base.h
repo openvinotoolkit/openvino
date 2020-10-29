@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ namespace kernel_selector {
 class FullyConnectedKernelBase : public WeightBiasKernelBase {
 public:
     using WeightBiasKernelBase::WeightBiasKernelBase;
-    using FusedOpDesc = base_params::fused_operation_desc;
+    using FusedOpDesc = fused_operation_desc;
     virtual ~FullyConnectedKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
@@ -43,30 +43,38 @@ public:
 
         uint32_t last_rg_size = 0;
         uint32_t rg_count = 0;
+
+        // Gemm style params
+        uint32_t tile_m = 0;
+        uint32_t tile_n = 0;
+        uint32_t tile_mk = 0;
+        uint32_t tile_nk = 0;
+        uint32_t tile_ms = 0;
+        uint32_t tile_ns = 0;
     };
 
     std::string GetAutoTuneOptions(int autoTuneIndex) const;
     std::vector<std::string> autoTuneOptions = {DEFAULT, NO_PRERA_SCH, AGE_BASED};
-    virtual KernelsData GetTunedKernelsDataByIndex(const Params& params,
-                                                   const optional_params& options,
+    virtual KernelsData GetTunedKernelsDataByIndex(const Params &params,
+                                                   const optional_params &options,
                                                    DataLayout dl,
-                                                   std::vector<WeightsLayout> wl,
+                                                   WeightsLayout wl,
                                                    float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
-                                                   int autoTuneIndex = -1) const;
+                                                   const int autoTuneIndex = -1) const;
 
 protected:
-    virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const;
-    KernelsData GetCommonKernelsData(const Params& params,
-                                     const optional_params& optParams,
+    KernelsData GetCommonKernelsData(const Params &params,
+                                     const optional_params &options,
                                      DataLayout dl,
-                                     std::vector<WeightsLayout> wl,
+                                     WeightsLayout wl,
                                      float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                      const std::string exeMode = DEFAULT,
                                      int autoTuneIndex = -1) const;
 
     // Fused ops
-    virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
     Datatype GetActivationType(const fully_connected_params& params) const;
     // --Fused ops
 

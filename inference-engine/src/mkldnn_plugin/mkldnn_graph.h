@@ -5,13 +5,13 @@
 #pragma once
 
 #include "ie_parallel.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "mkldnn_memory.h"
 #include "mean_image.h"
 #include "mkldnn_node.h"
 #include "mkldnn_edge.h"
-#include "mkldnn_streams.h"
-
+#include "threading/ie_thread_local.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -22,14 +22,14 @@ namespace MKLDNNPlugin {
 class MKLDNNGraph {
 public:
     typedef std::shared_ptr<MKLDNNGraph> Ptr;
-    int socket;
+    MKLDNNWeightsSharing::Ptr weightsCache;
 
     enum Status {
         NotReady = 0,
         Ready = 1,
     };
 
-    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)), socket(0) {}
+    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)) {}
 
     Status GetStatus() {
         return status;
@@ -49,7 +49,7 @@ public:
     template<typename NET>
     void CreateGraph(const NET &network,
                      const MKLDNNExtensionManager::Ptr& extMgr,
-                     int socket = 0);
+                     MKLDNNWeightsSharing::Ptr &w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
         return _meanImages.find(name) != _meanImages.end();
@@ -62,6 +62,10 @@ public:
 
     std::vector<MKLDNNNodePtr>& GetNodes() {
         return graphNodes;
+    }
+
+    std::string GetName() {
+        return _name;
     }
 
     std::vector<MKLDNNEdgePtr>& GetEdges() {
@@ -83,40 +87,7 @@ public:
     void DropNode(const MKLDNNNodePtr& node);
     void DropDWConvNode(const MKLDNNNodePtr& node);
 
-    void CreateArenaWithObserverAndLoadGraph(int threads_per_stream, int numa_node, int stream_id,
-                                             Config::InferenceThreadsBinding  pinning,
-            std::shared_ptr<ICNNNetwork> clonedNetwork, const MKLDNNExtensionManager::Ptr& extensionManager) {
-        auto load = [clonedNetwork, extensionManager, numa_node, this](){
-            CreateGraph(static_cast<const ICNNNetwork&>(*clonedNetwork), extensionManager, numa_node);
-        };
-        #if(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        if (Config::InferenceThreadsBinding::NUMA == pinning) {
-            ptrArena = std::unique_ptr<tbb::task_arena>(
-            new tbb::task_arena(tbb::task_arena::constraints(numa_node, threads_per_stream)));
-            // the (pre-pinned) arena will load the graph (so that blobs memory is first touched by the right threads)
-        } else {
-            //  regular arena
-            ptrArena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena(threads_per_stream));
-            if (Config::InferenceThreadsBinding::CORES == pinning) {
-                 // custom observer (that pins threads to cores)
-                 CreateObserver(stream_id, threads_per_stream);
-            }
-        }
-        ptrArena->execute([&load](){
-            load();
-        });
-        #else
-        #if IE_THREAD == IE_THREAD_OMP
-            omp_set_num_threads(threads_per_stream);
-        #endif
-        // check that no (affinity-related) OMP envs are set, so user doesn't do a custom pinning
-        if (!check_env_variables() && (Config::InferenceThreadsBinding::NONE != pinning))
-            CreateObserver(stream_id, threads_per_stream);
-        load();
-        #endif
-    }
-
-    InferenceEngine::ICNNNetwork::Ptr dump() const;
+    InferenceEngine::CNNNetwork dump() const;
 
     template<typename NET>
     static void ApplyUnrollPasses(NET &net);
@@ -126,28 +97,6 @@ public:
     void SortTopologically();
 
 protected:
-    void CreateObserver(int _stream_id, int _threads_per_stream, int _pinning_step = 1) {
-        // Notice that custom pinning/observer work (via sched_setaffinity) ONLY on Linux,
-        // in all other cases the below code is actually just a stub
-        #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        ptrObserver
-                = std::unique_ptr<tbb::task_scheduler_observer>(
-                new pinning_observer(*ptrArena, _stream_id, _threads_per_stream, _pinning_step));
-        #else
-        cpu_set_t *process_mask = nullptr;
-        int ncpus = 0;
-        get_process_mask(ncpus, process_mask);
-            #if IE_THREAD == IE_THREAD_OMP
-            #pragma omp parallel for
-                    for (int thread_index = 0; thread_index < _threads_per_stream; thread_index++) {
-                        pin_thread_to_vacant_core(_stream_id * _threads_per_stream + thread_index, 1, ncpus, process_mask);
-                    }
-            #elif IE_THREAD == IE_THREAD_SEQ
-            pin_thread_to_vacant_core(_stream_id * _threads_per_stream, 1, ncpus, process_mask);
-            #endif
-        CPU_FREE(process_mask);
-        #endif
-    }
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
 
     void ForgetGraphData() {
@@ -179,16 +128,13 @@ protected:
     std::map<std::string, MeanImage> _meanImages;
     std::string _name;
 
-    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    std::unique_ptr<tbb::task_arena> ptrArena;
-    std::unique_ptr<tbb::task_scheduler_observer> ptrObserver;
-    #endif
     mkldnn::engine eng;
 
-    void Replicate(const ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-    void Replicate(const TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
+    void InitDescriptors();
     void InitEdges();
     void Allocate();
     void AllocateWithReuse();
@@ -199,7 +145,8 @@ protected:
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend std::shared_ptr<InferenceEngine::ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph);
+    friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);
+    friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
     void dumpToDotFile(std::string file) const;

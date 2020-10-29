@@ -87,6 +87,18 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // initial dump pass must be the first dump
     ADD_DUMP_PASS("initial");
 
+    //
+    // Decompose swish layer to Sigmoid + Multiply
+    //
+    ADD_PASS(decomposeSwish);
+    ADD_DUMP_PASS("decomposeSwish");
+
+    //
+    // Convert shape notation
+    //
+    ADD_PASS(convertShapeNotation);
+    ADD_DUMP_PASS("convertShapeNotation");
+
     if (!env.config.disableReorder && !env.config.hwOptimization) {
         ADD_PASS(reorderInputsToChannelMinor);
         ADD_DUMP_PASS("reorderInputsToChannelMinor");
@@ -105,10 +117,21 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("replacePriorBoxWithConst");
 
     //
+    // 3D layers adaptation
+    // (do this before `analyzeWeightableLayers`)
+    //
+
+    ADD_PASS(splitConv3DInto2D);
+    ADD_DUMP_PASS("splitConv3DInto2D");
+
+    ADD_PASS(splitPool3DInto2D);
+    ADD_DUMP_PASS("splitPool3DInto2D");
+
+    //
     // To overcome fp16 limitations
     //
 
-    if (env.config.hwOptimization) {
+    if (env.config.hwOptimization && env.config.enableWeightsAnalysis) {
         ADD_PASS(analyzeWeightableLayers);
         ADD_DUMP_PASS("analyzeWeightableLayers");
     }
@@ -117,26 +140,17 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("mergeParallelFC");
 
     //
-    // Replace Global AvgPooling with ReduceMean
-    //
-
-    if (env.config.enableReplaceWithReduceMean) {
-        ADD_PASS(replaceWithReduceMean);
-        ADD_DUMP_PASS("replaceWithReduceMean");
-    }
-
-    //
     // Model common adaptation
     //
-
-    ADD_PASS(removeUnusedStagesOutputs);
-    ADD_DUMP_PASS("removeUnusedStagesOutputs");
 
     ADD_PASS(eliminateConstConcat);
     ADD_DUMP_PASS("eliminateConstConcat");
 
     ADD_PASS(splitGroupedConv);
     ADD_DUMP_PASS("splitGroupedConv");
+
+    ADD_PASS(eliminateRedundantConversions);
+    ADD_DUMP_PASS("eliminateRedundantConversions");
 
     //
     // Model HW-specific optimizations
@@ -145,6 +159,10 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     if (env.config.hwOptimization) {
         ADD_PASS(replaceFCbyConv);
         ADD_DUMP_PASS("replaceFCbyConv");
+
+        // TODO: enable this pass after Permute optimization
+        // ADD_PASS(replaceGemmByConv);
+        // ADD_DUMP_PASS("replaceGemmByConv");
 
         ADD_PASS(replaceDeconvByConv);
         ADD_DUMP_PASS("replaceDeconvByConv");
@@ -173,6 +191,11 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(hwPadding);
     ADD_DUMP_PASS("hwPadding");
 
+    if (env.config.hwOptimization) {
+        ADD_PASS(splitLargeKernelConv);
+        ADD_DUMP_PASS("splitLargeKernelConv");
+    }
+
     //
     // Batch support
     //
@@ -186,13 +209,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     }
 
     //
-    // Replace StridedSlice to other stages
-    //
-
-    ADD_PASS(stridedSlice);
-    ADD_DUMP_PASS("stridedSlice");
-
-    //
     // HW stages tiling
     //
 
@@ -201,6 +217,11 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         ADD_PASS(hwPoolTiling);
         ADD_PASS(hwFullyConnectedTiling);
         ADD_DUMP_PASS("hwTiling");
+
+        if (env.config.hwExtraSplit) {
+            ADD_PASS(hwExtraSplit);
+            ADD_DUMP_PASS("hwExtraSplit");
+        }
     }
 
     //
@@ -209,7 +230,18 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(swConvAdaptation);
     ADD_PASS(swDeconvAdaptation);
+
+    //
+    // Replace Global AvgPooling with ReduceMean
+    //
+    // this stage should be executed after "hwPoolTiling"
+    // and before "swPoolAdaptation"
+    if (env.config.enableReplaceWithReduceMean) {
+        ADD_PASS(replaceWithReduceMean);
+        ADD_DUMP_PASS("replaceWithReduceMean");
+    }
     ADD_PASS(swPoolAdaptation);
+
     ADD_PASS(swFullyConnectedAdaptation);
     ADD_DUMP_PASS("swAdaptation");
 
@@ -256,6 +288,23 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("processSpecialStages");
 
     //
+    // Propagation dynamism from input to output and from output to input
+    // for inserted stages at frontend and middleend.
+    //
+
+    // propagateDynamism must be applied after convertShapeNotation
+    // and addCopyForOutputsInsideNetwork to mark shape in IE notation, not MDK notation as output
+    // and it is processed after all passes include specialStageProcessor to
+    // propagate dynamism for copy stages which are added in passes above.
+    // Also it is needed allocateResources after propagation to connect datas with shapes
+
+    // In cases of dynamic network output MyriadInferRequest::GetResult expects output shape data
+    // object to be in IE notation in case of dynamic data object.
+
+    ADD_PASS(propagateDynamism);
+    ADD_DUMP_PASS("propagateDynamism");
+
+    //
     // Data location adjustment
     //
 
@@ -297,6 +346,14 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(countStagesInLoops);
     ADD_DUMP_PASS("countStagesInLoops");
+
+    ADD_PASS(markFastStages);
+    ADD_DUMP_PASS("markFastStages");
+
+    if (env.config.enableMemoryTypesAnnotation) {
+        ADD_PASS(annotateMemoryTypes);
+        ADD_DUMP_PASS("annotateMemoryTypes");
+    }
 
     //
     // Final check

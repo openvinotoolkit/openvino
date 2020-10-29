@@ -26,6 +26,7 @@ class ExperimentalDetectronGenerateProposalsSingleImage(Op):
         mandatory_props = dict(
             type=__class__.op,
             op=__class__.op,
+            version='experimental',
             infer=__class__.infer
         )
 

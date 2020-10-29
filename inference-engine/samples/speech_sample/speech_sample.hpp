@@ -61,7 +61,8 @@ static const char quantization_message[] = "Input quantization mode:  static (de
 static const char quantization_bits_message[] = "Weight bits for quantization:  8 or 16 (default)";
 
 /// @brief message for scale factor argument
-static const char scale_factor_message[] = "Optional user-specified input scale factor for quantization (use with -q user).";
+static const char scale_factor_message[] = "Optional user-specified input scale factor for quantization (use with -q user). "
+                                           "If the network contains multiple inputs, provide scale factors by separating them with commas.";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Batch size 1-8 (default 1)";
@@ -79,6 +80,16 @@ static const char context_window_message_l[] = "Optional. Number of frames for l
 static const char context_window_message_r[] = "Optional. Number of frames for right context windows (default is 0). " \
                                                "Works only with context window networks."
                                                " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
+
+/// @brief message for output layer names
+static const char output_layer_names_message[] = "Optional. Layer names for output blobs. " \
+                                          "The names are separated with \",\" " \
+                                          "Example: input1:port,input2:port ";
+
+/// @brief message for inputs layer names
+static const char input_layer_names_message[] = "Optional. Layer names for input blobs. " \
+                                          "The names are separated with \",\" " \
+                                          "Example: Input1,Input2 ";
 
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -130,7 +141,7 @@ DEFINE_string(q, "static", quantization_message);
 DEFINE_int32(qb, 16, quantization_bits_message);
 
 /// @brief Scale factor for quantization (default 1.0)
-DEFINE_double(sf, 1.0, scale_factor_message);
+DEFINE_string(sf, "", scale_factor_message);
 
 /// @brief Batch size (default 1)
 DEFINE_int32(bs, 1, batch_size_message);
@@ -143,6 +154,12 @@ DEFINE_int32(cw_r, 0, context_window_message_r);
 
 /// @brief Left context window size (default 0)
 DEFINE_int32(cw_l, 0, context_window_message_l);
+
+/// @brief Output layer name
+DEFINE_string(oname, "", output_layer_names_message);
+
+/// @brief Input layer name
+DEFINE_string(iname, "", input_layer_names_message);
 
 /**
  * \brief This function show a help message
@@ -172,5 +189,7 @@ static void showUsage() {
     std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
     std::cout << "    -cw_l \"<integer>\"       " << context_window_message_l << std::endl;
     std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;
+    std::cout << "    -oname \"<string>\"       " << output_layer_names_message << std::endl;
+    std::cout << "    -iname \"<string>\"       " << input_layer_names_message << std::endl;
 }
 

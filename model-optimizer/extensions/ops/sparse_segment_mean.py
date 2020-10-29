@@ -14,9 +14,6 @@
  limitations under the License.
 """
 
-import logging as log
-
-import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph
@@ -43,6 +40,7 @@ class SparseSegmentMean(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'experimental',
             'infer': __class__.infer,
             'in_ports_count': 3,
             'out_ports_count': 1,

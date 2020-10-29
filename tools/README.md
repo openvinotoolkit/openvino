@@ -2,7 +2,6 @@
 
 ## General
 `openvino.tools` package includes:
-* openvino.tools.accuracy_checker
 * openvino.tools.benchmark
 
 Please, refer to https://docs.openvinotoolkit.org for details.

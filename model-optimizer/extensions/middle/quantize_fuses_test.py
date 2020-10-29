@@ -20,8 +20,8 @@ import numpy as np
 
 from extensions.middle.quantize_fuses import FakeQuantizeFuse
 from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes = {
     'placeholder': {'kind': 'op', 'op': 'Placeholder'},
@@ -36,7 +36,7 @@ nodes = {
     'ma_o': {'kind': 'op', 'op': 'Const'},
     'ma_o_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224]), 'value': None},
 
-    'quantize': {'kind': 'op', 'op': 'FakeQuantize', 'keep_in_IR': True},
+    'quantize': {'kind': 'op', 'op': 'FakeQuantize'},
     'quantize_d': {'kind': 'data', 'shape': None},
 
     'mul_val': {'kind': 'op', 'op': 'Const'},

@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.shape import Shape
@@ -24,5 +25,5 @@ class ShapeFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        Shape.update_node_stat(node)
+        Shape.update_node_stat(node, {'output_type': np.int64})
         return cls.enabled

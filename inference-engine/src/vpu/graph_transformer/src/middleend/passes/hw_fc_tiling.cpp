@@ -4,8 +4,17 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
-#include <cmath>
+#include <vpu/compile_env.hpp>
+#include <vpu/stages/stub_stage.hpp>
+#include <vpu/stages/mx_stage.hpp>
+#include <vpu/middleend/hw/tiling.hpp>
+#include <vpu/middleend/hw/utility.hpp>
+#include <vpu/model/data_contents/hw_weights_content.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
 
+#include <precision_utils.h>
+
+#include <cmath>
 #include <tuple>
 #include <vector>
 #include <limits>
@@ -16,14 +25,6 @@
 #include <utility>
 #include <set>
 #include <array>
-
-#include <precision_utils.h>
-
-#include <vpu/compile_env.hpp>
-#include <vpu/stages/stub_stage.hpp>
-#include <vpu/stages/mx_stage.hpp>
-#include <vpu/middleend/hw/tiling.hpp>
-#include <vpu/middleend/hw/utility.hpp>
 
 namespace vpu {
 
@@ -150,8 +151,8 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
     }
 };
 
@@ -190,6 +191,7 @@ Data createHWWeights(const Model& model, const Stage& original, int hwInputDimC,
 
         const auto& content = std::make_shared<HwWeightsContent>(
             origWeights->content(),
+            dataDescriptor,
             contentDescriptor,
             extendedHWInputDimC);
 
@@ -290,6 +292,7 @@ public:
         VPU_PROFILE(hwFullyConnectedTiling);
 
         const auto& env = CompileEnv::get();
+        const auto cmxLimit = env.resources.tilingCMXLimit;
 
         for (const auto& origStage : model->getStages()) {
             if (origStage->type() != StageType::StubFullyConnected) {
@@ -312,7 +315,7 @@ public:
 
             const auto& withReLU = origStage->attrs().getOrDefault<bool>("withReLU", false);
             const auto& tiles = std::get<2>(split);
-            if (tiles.numOutTiles == 0 || calculateHwBufferSize(hwOutputDesc.dims()) > env.resources.cmxLimit) {
+            if (tiles.numOutTiles == 0 || calculateHwBufferSize(hwOutputDesc.dims()) > cmxLimit) {
                 fallbackToSW(model, origStage, relayoutStage, withReLU);
                 continue;
             }

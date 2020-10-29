@@ -29,6 +29,7 @@ class PriorBoxClusteredOp(Op):
         mandatory_props = {
             'type': self.op,
             'op': self.op,
+            'version': 'opset1',
             'in_ports_count': 2,
             'out_ports_count': 1,
             'infer': self.priorbox_clustered_infer,

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,8 +25,6 @@ enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
     AVERAGE_UNPOOLING,
-    BATCH_NORM_GRAD,
-    LOOKUP_TABLE,
     CONVOLUTION,
     DECONVOLUTION,
     LRN,
@@ -38,9 +36,7 @@ enum class KernelType {
     SOFT_MAX,
     ELTWISE,
     SCALE,
-    FUSED_CONV_BN_SCALE,
     FUSED_CONV_ELTWISE,
-    TABLE_LOOKUP,
     REORDER,
     RESHAPE,
     PERMUTE,
@@ -49,27 +45,21 @@ enum class KernelType {
     REGION_YOLO,
     REORG_YOLO,
     MAX_UNPOOLING,
-    CONVOLUTION_GRAD_WEIGHTS,
-    SCALE_GRAD_WEIGHTS,
     MVN,
-    FULLY_CONNECTED_GRAD_INPUT,
-    FULLY_CONNECTED_GRAD_WEIGHTS,
     LSTM_GEMM,
     LSTM_ELT,
-    EMBED,
-    SOFT_MAX_LOSS_GRAD,
     BORDER,
     TILE,
     SELECT,
     BROADCAST,
     GEMM,
-    INDEX_SELECT,
     PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
-    DETECTION_OUTPUT,
     GATHER,
+    SCATTER_UPDATE,
     DEPTH_TO_SPACE,
+    BATCH_TO_SPACE,
     SHUFFLE_CHANNELS,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
@@ -78,7 +68,14 @@ enum class KernelType {
     LSTM_DYNAMIC_INPUT,
     LSTM_DYNAMIC_TIMELOOP,
     REDUCE,
-    GATHER_TREE
+    GATHER_TREE,
+    SPACE_TO_DEPTH,
+    SPACE_TO_BATCH,
+    GRN,
+    CTC_GREEDY_DECODER,
+    CUM_SUM,
+    EMBEDDING_BAG,
+    EXTRACT_IMAGE_PATCHES
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,8 +122,6 @@ enum class ActivationFunction {
     SQRT,
     LINEAR,
     ELU,
-    RELU_GRAD,
-    RELU_NEGATIVE_SLOPE_GRAD,
     SIN,
     ASIN,
     SINH,
@@ -147,14 +142,20 @@ enum class ActivationFunction {
     NEGATIVE,
     NOT,
     POW,
-    NONE_GRAD,
     ERF,
     HARD_SIGMOID,
+    HSIGMOID,
     RECIPROCAL,
     SELU,
     SIGN,
     SOFTPLUS,
-    SOFTSIGN
+    SOFTSIGN,
+    SWISH,
+    HSWISH,
+    MISH,
+    GELU,
+    ROUND_HALF_TO_EVEN,
+    ROUND_HALF_AWAY_FROM_ZERO
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -354,14 +355,11 @@ enum class ConcatAxis {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// TileAxis
+// DepthToSpaceMode
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class TileAxis {
-    X,
-    Y,
-    Z,
-    FEATURE,
-    BATCH,
+enum class DepthToSpaceMode {
+    BLOCKS_FIRST,
+    DEPTH_FIRST,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -371,6 +369,38 @@ enum class ResampleType {
     NEAREST_NEIGHBOR,
     BILINEAR_INTERP,
     CAFFE_BILINEAR_INTERP,
+    CUBIC,
+    LINEAR_ONNX,
+};
+
+enum class CoordinateTransformationMode {
+    HALF_PIXEL,
+    PYTORCH_HALF_PIXEL,
+    ASYMMETRIC,
+    TF_HALF_PIXEL_FOR_NN,
+    ALIGN_CORNERS,
+};
+
+enum class NearestMode {
+    ROUND_PREFER_FLOOR,
+    ROUND_PREFER_CEIL,
+    FLOOR,
+    CEIL,
+    SIMPLE,
+};
+
+enum class ShapeCalculationMode {
+    SIZES,
+    SCALES,
+};
+
+enum class InterpolateAxis {
+    X,
+    Y,
+    Z,
+    W,
+    FEATURE,
+    BATCH
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -426,10 +456,31 @@ struct DimTensor {
 // AutoTunerMode
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class TuningMode {
-    TUNING_DISABLED,       // Tuning is disabled.
-    TUNING_USE_CACHE,      // Tuning using the cached data (no on-line tuning for non-existing data).
-    TUNING_TUNE_AND_CACHE  // Tuning using the cached data if exist, tune and update cache otherwise.attention_params
+    TUNING_DISABLED,         // Tuning is disabled.
+    TUNING_USE_CACHE,        // Tuning using the cached data (no on-line tuning for non-existing data).
+    TUNING_TUNE_AND_CACHE,   // Tuning using the cached data if exist, tune and update cache otherwise.attention_params
+    TUNING_USE_AND_UPDATE,   // Tuning using the cached data and other updating tasks.
+                             // Performs updating tasks like removal of invalid caches, promoting to new formats, etc.
+                             // No tuning for non-existing data.
+    TUNING_RETUNE_AND_CACHE  // Perform tuning even if the cached data exists.
 };
+
+inline bool UseCached(const TuningMode& mode) {
+    return mode == TuningMode::TUNING_USE_CACHE
+        || mode == TuningMode::TUNING_TUNE_AND_CACHE
+        || mode == TuningMode::TUNING_USE_AND_UPDATE;
+}
+
+inline bool PerformTuning(const TuningMode& mode) {
+    return mode == TuningMode::TUNING_TUNE_AND_CACHE
+        || mode == TuningMode::TUNING_RETUNE_AND_CACHE;
+}
+
+inline bool PerformUpdates(const TuningMode& mode) {
+    return mode == TuningMode::TUNING_TUNE_AND_CACHE
+        || mode == TuningMode::TUNING_USE_AND_UPDATE
+        || mode == TuningMode::TUNING_RETUNE_AND_CACHE;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Aliases:
@@ -454,6 +505,20 @@ enum class ContractMode {
 enum class GatherAxis {
     X,
     Y,
+    Z,
+    W,
+    FEATURE,
+    BATCH,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ScatterUpdateAxis
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class ScatterUpdateAxis {
+    X,
+    Y,
+    Z,
+    W,
     FEATURE,
     BATCH,
 };
@@ -475,6 +540,7 @@ enum class ReduceMode {
     LOG_SUM,
     LOG_SUM_EXP
 };
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // QuantizationType
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,5 +550,33 @@ enum class QuantizationType {
     ASYMMETRIC_WEIGHTS,
     ASYMMETRIC_DATA,
     ASYMMETRIC_DATA_AND_WEIGHTS
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// SpaceToDepthMode
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class SpaceToDepthMode {
+    DEPTH_FIRST,
+    BLOCKS_FIRST
+};
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CumSumAxis
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class CumSumAxis {
+    X,
+    Y,
+    Z,
+    W,
+    FEATURE,
+    BATCH
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// EmbeddingBagType
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class EmbeddingBagType {
+    PACKED_SUM,
+    OFFSETS_SUM,
+    SEGMENTS_SUM
 };
 }  // namespace kernel_selector

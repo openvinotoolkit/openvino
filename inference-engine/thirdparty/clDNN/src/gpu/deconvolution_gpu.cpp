@@ -32,7 +32,7 @@ struct deconvolution_gpu : typed_primitive_gpu_impl<deconvolution> {
 
 protected:
     // TODO: share it with convolution and fully connected
-    bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
+    bool validate_impl(const typed_primitive_inst<deconvolution>&) const override {
         bool res = true;
 
         CLDNN_ERROR_NOT_EQUAL(_outer.id(),
@@ -41,23 +41,6 @@ protected:
                               "padding mode",
                               0.0f,
                               "Unknown padding mode in deconvolution.");
-        // Check whether all memory elements use the same unit type (FP16 or FP32).
-        auto input_count = instance.inputs_memory_count();
-        auto input_data_type = 0 == input_count ?
-            instance.node.input().get_output_layout().data_type :
-            instance.input_memory().get_layout().data_type;
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(),
-                                        "Input memory",
-                                        input_data_type,
-                                        "output memory",
-                                        instance.output_memory().get_layout().data_type,
-                                        "");
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(),
-                                        "Input memory",
-                                        input_data_type,
-                                        "filter memory",
-                                        instance.weights_memory(0).get_layout().data_type,
-                                        "");
 
         return res;
     }
@@ -65,14 +48,9 @@ protected:
     kernel::kernel_arguments_data get_arguments(typed_primitive_inst<deconvolution>& instance,
                                                         int32_t split) const override {
         kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
-        auto* desc = static_cast<const deconvolution*>(instance.desc().get());
-        int dep_size = static_cast<int>((desc->weights.size() + desc->bias.size() + 1));
 
         args.weights = (memory_impl::cptr) &instance.weights_memory(split);
         args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory(split) : nullptr);
-
-        if (static_cast<int>(instance.dependencies().size()) > dep_size)
-            args.inputs.emplace_back(&instance.dep_memory(dep_size));
 
         return args;
     }
@@ -86,19 +64,6 @@ public:
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout();
 
-        switch (weights_layout.fused_format()) {
-                // FP32 (float)
-            case fuse(data_types::f32, format::bfyx):
-            case fuse(data_types::f32, format::yxfb):
-            case fuse(data_types::f32, format::bfzyx):
-            case fuse(data_types::f16, format::bfyx):
-            case fuse(data_types::f16, format::yxfb):
-            case fuse(data_types::f16, format::bfzyx):
-                break;
-            default:
-                throw std::runtime_error("deconvolution weights format unsupported");
-        }
-
         const auto& weights_size = weights_layout.size;
 
         const auto& split = primitive->split();
@@ -108,20 +73,17 @@ public:
 #else
         const tensor dilation = {0, 0, 1, 1, 1};
 #endif
-        const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
-        const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
+        const auto actual_split = split;
 
         const auto& input_offset = primitive->input_offset;
         const auto& groups = primitive->groups;
 
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
             arg,
-            (groups > 1 && !depthwise_separable_opt) ? groups : actual_split,
-            groups);
+            (groups > 1) ? 1 : actual_split,
+            1);
         auto deconv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::deconvolution_optional_params>(arg.get_program());
-
-        deconv_params.depthwise_separable_opt = depthwise_separable_opt;
 
         deconv_params.split = split;
         deconv_params.groups = groups;
@@ -138,13 +100,6 @@ public:
         deconv_params.dilation = {(uint32_t)dilation.spatial[0],
                                   (uint32_t)dilation.spatial[1],
                                   (uint32_t)dilation.spatial[2]};
-
-        deconv_params.gradient = primitive->gradient();
-
-        if (arg.get_dependencies().size() > primitive->weights.size() + primitive->bias.size() + 1) {
-            deconv_params.fused_eltwise = true;
-            deconv_params.inputs.push_back(convert_data_tensor(arg.fused_sum().get_output_layout()));
-        }
 
         auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);
@@ -168,9 +123,13 @@ attach_deconvolution_gpu::attach_deconvolution_gpu() {
                                            deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx),
                                            deconvolution_gpu::create);
-    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16),
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16),
                                            deconvolution_gpu::create);
-    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16),
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16),
                                            deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
                                            deconvolution_gpu::create);
@@ -178,13 +137,39 @@ attach_deconvolution_gpu::attach_deconvolution_gpu() {
                                            deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
                                            deconvolution_gpu::create);
-    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16),
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16),
                                            deconvolution_gpu::create);
-    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16),
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16),
                                            deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
                                            deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
                                            deconvolution_gpu::create);
 }
 

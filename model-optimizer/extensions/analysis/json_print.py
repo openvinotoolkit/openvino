@@ -13,9 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import logging as log
-
 import json
+import logging as log
 import sys
 
 import numpy as np
@@ -29,10 +28,19 @@ from mo.utils.model_analysis import AnalyzeAction, AnalysisCollectorAnchor, Anal
 def prepare_obj_for_dump(obj: object):
     if isinstance(obj, dict):
         return {k: prepare_obj_for_dump(v) for k, v in obj.items()}
-    elif isinstance(obj, np.ndarray) or isinstance(obj, list):
+    elif isinstance(obj, np.ndarray):
+        if obj.ndim == 0:
+            return obj.item()
+        else:
+            return [prepare_obj_for_dump(elem) for elem in obj]
+    elif isinstance(obj, list):
         return [prepare_obj_for_dump(elem) for elem in obj]
     elif isinstance(obj, type):
-        return np_data_type_to_precision(obj)
+        try:
+            return np_data_type_to_precision(obj)
+        except:
+            log.error('Unsupported data type: {}'.format(str(obj)))
+            return str(obj)
     elif isinstance(obj, np.generic):
         return obj.item()
     else:

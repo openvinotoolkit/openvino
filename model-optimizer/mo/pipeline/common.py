@@ -110,7 +110,7 @@ def collect_sub_graphs(graph: Graph):
 def relabel_nodes_inplace_safe(graph: Graph, new_labels: dict):
     """ Safely relabels graph in-place without graph copy.
         
-        Safety in this place means that it is guarantied that
+        Safety in this place means that it is guaranteed that
         there won't be collisions during relabeling process.
     """
     # Relabel nodes in two stages
@@ -184,22 +184,6 @@ def convert_inputs_of_specific_ops(graph: Graph):
                         in_port.get_connection().insert_node(Cast(graph, {'dst_type': np_type}).create_node())
 
 
-def convert_outputs_of_specific_ops(graph: Graph):
-    type_port = {'ShapeOf': {0: 'int32'},
-                 'NonMaxSuppression': {0: 'int32'},
-                 }
-
-    for node in graph.get_op_nodes():
-        if node.soft_get('type') in type_port:
-            ports_to_update = type_port[node.soft_get('type')]
-            for port_id, precision in ports_to_update.items():
-                if port_id in node.out_ports():
-                    log.debug('Insert Convert after op "{}" to type "{}"'.format(node.soft_get('name', node.id),
-                                                                                 precision))
-                    node.out_port(port_id).get_connection().insert_node(
-                        Cast(graph, {'dst_type': data_type_str_to_np(precision)}).create_node())
-
-
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
                     mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None):
     if input_names is None:
@@ -215,12 +199,9 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
         convert_data_type.convert_blobs(sub_graph, data_type)
 
     # restore data type for specific inputs/outputs of specific ops to the data types required by nGraph
-    if not graph.graph['cmd_params'].generate_deprecated_IR_V7:
-        for_graph_and_each_sub_graph_recursively(graph, convert_inputs_of_specific_ops)
-        for_graph_and_each_sub_graph_recursively(graph, convert_outputs_of_specific_ops)
+    for_graph_and_each_sub_graph_recursively(graph, convert_inputs_of_specific_ops)
 
-    if graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_graph_and_each_sub_graph_recursively(graph, OpVersioning().find_and_replace_pattern)
+    for_graph_and_each_sub_graph_recursively(graph, OpVersioning().find_and_replace_pattern)
 
     # do not run the type inference in sub-graphs. It will be called automatically as part of the type inference of
     # the TensorIterator nodes
@@ -259,10 +240,4 @@ def get_ir_version(argv: argparse.Namespace):
     :param argv: the parsed command line arguments
     :return: the IR version
     """
-    if argv.generate_experimental_IR_V10:
-        version = 10
-    elif argv.generate_deprecated_IR_V2:
-        version = 2
-    else:
-        version = 7
-    return version
+    return 10

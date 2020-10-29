@@ -4,6 +4,8 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
 #include <vector>
 #include <map>
 #include <unordered_set>
@@ -63,9 +65,9 @@ private:
         auto scales = inputEdge(1)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
-        scales->serializeNewBuffer(serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
+        scales->serializeBuffer(serializer);
     }
 };
 

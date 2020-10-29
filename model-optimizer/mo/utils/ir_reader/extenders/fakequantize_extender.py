@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
-from mo.utils.ir_reader.extender import Extender
 from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
 class FakeQuantize_extender(Extender):
@@ -23,5 +23,4 @@ class FakeQuantize_extender(Extender):
 
     @staticmethod
     def extend(op: Node):
-        op['keep_in_IR'] = True
         op['stop_value_propagation'] = True

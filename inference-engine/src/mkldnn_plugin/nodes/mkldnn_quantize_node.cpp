@@ -4,24 +4,27 @@
 
 #include "mkldnn_quantize_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_memcpy.h>
 #include <algorithm>
-#include "details/caseless.hpp"
+#include <set>
+#include <cmath>
+
+// Quantization ranges validation is switched off by default in order to avoid regressions on user side
+// #define VALIDATE_QUANTIZATION_RANGES
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-MKLDNNQuantizeNode::MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {}
+MKLDNNQuantizeNode::MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {}
 
-void MKLDNNQuantizeNode::initValues() {
+void MKLDNNQuantizeNode::init() {
     auto* quantizeLayer = dynamic_cast<QuantizeLayer*>(getCnnLayer().get());
     if (quantizeLayer == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert Quantize layer " << getName();
@@ -40,16 +43,12 @@ void MKLDNNQuantizeNode::initValues() {
             THROW_IE_EXCEPTION << "Quantize layer " << getName() << " has unsupported number of parent edges at port " << i;
     }
 
-    if (getParentEdgesAtPort(0)[0]->getDims().ndims() < 1ul || getParentEdgesAtPort(0)[0]->getDims().ndims() > 5ul) {
-        THROW_IE_EXCEPTION << "Unsupported number of dimensions for input at edge 0 in Quantize layer " << getName();
-    }
-
     auto initAxisIdx = [&](size_t edgeIdx) {
         auto edge = getParentEdgesAtPort(edgeIdx)[0];
 
         size_t axisIdx = 0;
         int numberOfNonUnit = 0;
-        if (edge->getDims().size() > 0) {
+        if (edge->getDims().ndims() > 0) {
             if (edge->getDims()[0] > 1) {
                 numberOfNonUnit++;
             }
@@ -68,79 +67,98 @@ void MKLDNNQuantizeNode::initValues() {
         return axisIdx;
     };
 
-    inputLowAxis = initAxisIdx(1);
-    inputHighAxis = initAxisIdx(2);
-    outputLowAxis = initAxisIdx(3);
-    outputHighAxis = initAxisIdx(4);
+    axis = getParentEdgesAtPort(0)[0]->getDims().ndims() == 1 ? 0 : 1;
 
-    auto findCorrespondingAxisIdx = [&](ptrdiff_t dim) -> size_t {
-        if (dim == 1)
-            return 0;
+    std::set<size_t> quantizationParamsAxisesIdxs;
+    std::set<size_t> quantizationParamsAxisesSizes;
 
-        auto edge = getParentEdgesAtPort(0)[0];
-
-        for (int i = 0; i < edge->getDims().ndims(); i++) {
-            if (edge->getDims()[i] == dim) {
-                return i;
-            }
-        }
-
-        THROW_IE_EXCEPTION << "Quantize layer " << getName() << " has inconsistent input dims";
-    };
-
-    axis = std::max(std::max(std::max(findCorrespondingAxisIdx(getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis]),
-                                      findCorrespondingAxisIdx(getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis])),
-                                      findCorrespondingAxisIdx(getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis])),
-                                      findCorrespondingAxisIdx(getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis]));
-
-    if ((inputLowAxis != 0 && inputLowAxis != axis) ||
-        (inputHighAxis != 0 && inputHighAxis != axis) ||
-        (outputLowAxis != 0 && outputLowAxis != axis) ||
-        (outputHighAxis != 0 && outputHighAxis != axis)) {
-        THROW_IE_EXCEPTION << "Quantize layer " << getName() << " has inconsistent input dims";
+    auto inputLowAxis = initAxisIdx(1);
+    isInputLowBroadcasted = getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis] == 1;
+    if (!isInputLowBroadcasted) {
+        quantizationParamsAxisesIdxs.insert(inputLowAxis);
+        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis]);
     }
 
-    // WA to enable jit implementation
-    if ((axis == 0) && (getChildEdgeAt(0)->getDims().ndims() > 1ul)) {
-        if (getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis] == 1 &&
-            getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis] == 1 &&
-            getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis] == 1 &&
-            getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis] == 1) {
-            axis = 1;
-        }
+    auto inputHighAxis = initAxisIdx(2);
+    isInputHighBroadcasted = getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis] == 1;
+    if (!isInputHighBroadcasted) {
+        quantizationParamsAxisesIdxs.insert(inputHighAxis);
+        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis]);
     }
 
-    size_t axisRealSize = getParentEdgesAtPort(0)[0]->getDims()[axis];
-    size_t axisPaddedSize = rnd_up(getParentEdgesAtPort(0)[0]->getDims()[axis], 16);
+    auto outputLowAxis = initAxisIdx(3);
+    isOutputLowBroadcasted = getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis] == 1;
+    if (!isOutputLowBroadcasted) {
+        quantizationParamsAxisesIdxs.insert(outputLowAxis);
+        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis]);
+    }
+
+    auto outputHighAxis = initAxisIdx(4);
+    isOutputHighBroadcasted = getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis] == 1;
+    if (!isOutputHighBroadcasted) {
+        quantizationParamsAxisesIdxs.insert(outputHighAxis);
+        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis]);
+    }
+
+    if (quantizationParamsAxisesIdxs.size() > 1 || quantizationParamsAxisesSizes.size() > 1)
+        THROW_IE_EXCEPTION << "Unsupported input sizes for Quantize layer with name " << getName();
+
+    if (quantizationParamsAxisesIdxs.size() == 1) {
+        axis = *quantizationParamsAxisesIdxs.begin();
+    }
+
+    auto inputLowAxisSize = getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis];
+    auto inputHighAxisSize = getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis];
+    auto outputLowAxisSize = getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis];
+    auto outputHighAxisSize = getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis];
+
+    size_t axisRealSize = static_cast<size_t>(getParentEdgesAtPort(0)[0]->getDims()[axis]);
+    size_t axisPaddedSize = static_cast<size_t>(rnd_up(getParentEdgesAtPort(0)[0]->getDims()[axis], 16));
+
+    if (quantizationParamsAxisesSizes.size() == 1) {
+        if (*quantizationParamsAxisesSizes.begin() != axisRealSize)
+            THROW_IE_EXCEPTION << "Unsupported input sizes for Quantize layer with name " << getName();
+    }
+
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant())
+            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has non const input on " << i << " port";
+        auto prec = getCnnLayer()->insData[i].lock()->getPrecision();
+        if (prec != Precision::FP32)
+            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has unsupported precision " << prec << " on " << i << " port";
+    }
 
     auto inputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
     auto inputLowData = inputLowBlob->buffer().as<float*>();
-    bool isInputLowBroadcasted = getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis] != axisRealSize;
 
     auto inputHighBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(2)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
     auto inputHighData = inputHighBlob->buffer().as<float*>();
-    bool isInputHighBroadcasted = getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis] != axisRealSize;
 
     auto outputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(3)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
     auto outputLowData = outputLowBlob->buffer().as<float*>();
-    bool isOutputLowBroadcasted = getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis] != axisRealSize;
 
     auto outputHighBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(4)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
     auto outputHighData = outputHighBlob->buffer().as<float*>();
-    bool isOutputHighBroadcasted = getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis] != axisRealSize;
 
     bool binarization = levels == 2;
 
     if (binarization) {
-        for (int i = 0; i < getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis]; i++) {
+        for (int i = 0; i < outputLowAxisSize; i++) {
             if (outputLowData[i] != 1.f && outputLowData[i] != 0.f) {
                 binarization = false;
                 break;
             }
         }
 
-        for (int i = 0; i < getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis]; i++) {
+        for (int i = 0; i < outputHighAxisSize; i++) {
             if (outputHighData[i] != 1.f && outputHighData[i] != 0.f) {
+                binarization = false;
+                break;
+            }
+        }
+
+        for (ptrdiff_t i = 0; i < std::max(inputLowAxisSize, inputHighAxisSize); i++) {
+            if (inputLowData[isInputLowBroadcasted ? 0 : i] != inputHighData[isInputHighBroadcasted ? 0 : i]) {
                 binarization = false;
                 break;
             }
@@ -158,31 +176,99 @@ void MKLDNNQuantizeNode::initValues() {
             binarizationOutputMask[i] = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
         }
     } else {
-        cropLow.resize(axisPaddedSize);
-        cropHigh.resize(axisPaddedSize);
-        inputScale.resize(axisPaddedSize);
-        inputShift.resize(axisPaddedSize);
-        outputScale.resize(axisPaddedSize);
-        outputShift.resize(axisPaddedSize);
+        auto allElementsAreEqual = [&](const float* data, size_t size) {
+            if (size == 0)
+                return true;
+
+            auto first = data[0];
+            for (int i = 1; i < size; i++) {
+                if (data[i] != first)
+                    return false;
+            }
+
+            return true;
+        };
+
+        if (allElementsAreEqual(inputLowData, inputLowAxisSize)) {
+            inputLowAxisSize = 1;
+            isInputLowBroadcasted = true;
+        }
+
+        if (allElementsAreEqual(inputHighData, inputHighAxisSize)) {
+            inputHighAxisSize = 1;
+            isInputHighBroadcasted = true;
+        }
+
+        if (allElementsAreEqual(outputLowData, outputLowAxisSize)) {
+            outputLowAxisSize = 1;
+            isOutputLowBroadcasted = true;
+        }
+
+        if (allElementsAreEqual(outputHighData, outputHighAxisSize)) {
+            outputHighAxisSize = 1;
+            isOutputHighBroadcasted = true;
+        }
+
+        cropLow.resize(inputLowAxisSize);
+        cropHigh.resize(inputHighAxisSize);
+        inputScale.resize(std::max(inputLowAxisSize, inputHighAxisSize));
+        inputShift.resize(std::max(inputLowAxisSize, inputHighAxisSize));
+        outputScale.resize(std::max(outputLowAxisSize, outputHighAxisSize));
+        outputShift.resize(outputLowAxisSize);
 
         bool quantizationOnly = true;
 
-        for (int i = 0; i < axisRealSize; i++) {
+        for (int i = 0; i < cropLow.size(); i++) {
+            float il = inputLowData[isInputLowBroadcasted ? 0 : i];
+
+            cropLow[i] = il;
+        }
+
+        for (int i = 0; i < cropHigh.size(); i++) {
+            float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+
+            cropHigh[i] = ih;
+        }
+
+        for (int i = 0; i < inputScale.size(); i++) {
             float il = inputLowData[isInputLowBroadcasted ? 0 : i];
             float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+
+#if defined(VALIDATE_QUANTIZATION_RANGES)
+            if ((il == ih && levels != 2) || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
+                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
+                                   << "inputLow = " << il << ", inputHigh = " << ih;
+            }
+#endif
+
+            inputScale[i] = (levels - 1) / (ih - il);
+            inputShift[i] = -il * (levels - 1) / (ih - il);
+        }
+
+        for (int i = 0; i < outputScale.size(); i++) {
             float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
             float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
 
-            cropLow[i] = il;
-            cropHigh[i] = ih;
-            inputScale[i] = (levels - 1) / (ih - il);
-            inputShift[i] = -il * (levels - 1) / (ih - il);
+#if defined(VALIDATE_QUANTIZATION_RANGES)
+            if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
+                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
+                                   << "outputLow = " << ol << ", outputHigh = " << oh;
+            }
+#endif
+
             outputScale[i] = (oh - ol) / (levels - 1);
+
+            if (outputScale[i] != 1.f)
+                quantizationOnly = false;
+        }
+
+        for (int i = 0; i < outputShift.size(); i++) {
+            float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+
             outputShift[i] = ol;
 
-            if (outputScale[i] != 1.f || outputShift[i] != 0.f) {
+            if (outputShift[i] != 0.f)
                 quantizationOnly = false;
-            }
         }
 
         quantizeAlgorithm = quantizationOnly ? algorithm::quantization_quantize : algorithm::quantization_quantize_dequantize;
@@ -194,12 +280,16 @@ void MKLDNNQuantizeNode::initValues() {
     } else {
         inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
         outputPrecision = getCnnLayer()->outData[0]->getPrecision();
-    }
 
-    initialized = true;
+        if (inputPrecision != Precision::FP32 && inputPrecision != Precision::U8 && inputPrecision != Precision::I8)
+            inputPrecision = Precision::FP32;
+
+        if (outputPrecision != Precision::FP32 && outputPrecision != Precision::U8 && outputPrecision != Precision::I8)
+            outputPrecision = Precision::FP32;
+    }
 }
 
-std::vector<mkldnn::memory::format> MKLDNNQuantizeNode::getDataFormats() {
+std::vector<mkldnn::memory::format> MKLDNNQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
     if (getParentEdgesAtPort(0)[0]->getDims()[getAxis()] == 3) {
         return { MKLDNNMemory::GetPlainFormat(getParentEdgesAtPort(0)[0]->getDims()) };
@@ -225,6 +315,10 @@ std::vector<mkldnn::memory::format> MKLDNNQuantizeNode::getDataFormats() {
 }
 
 void MKLDNNQuantizeNode::getSupportedDescriptors() {
+    if (getParentEdgesAtPort(0)[0]->getDims().ndims() < 1ul || getParentEdgesAtPort(0)[0]->getDims().ndims() > 5ul) {
+        THROW_IE_EXCEPTION << "Unsupported number of dimensions for input at edge 0 in Quantize layer " << getName();
+    }
+
     mkldnn::memory::data_type idt = MKLDNNExtensionUtils::IEPrecisionToDataType(getInputPrecision());
     mkldnn::memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
     mkldnn::memory::data_type ddt = MKLDNNExtensionUtils::IEPrecisionToDataType(getOutputPrecision());
@@ -321,7 +415,8 @@ void MKLDNNQuantizeNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_IE_EXCEPTION << "Preferable primitive descriptor isn't set.";
 
-    size_t axisPaddedSize = rnd_up(getParentEdgeAt(0)->getDims()[getAxis()], 16);
+    size_t axisSize = getParentEdgeAt(0)->getDims()[getAxis()];
+    size_t axisPaddedSize = rnd_up(axisSize, 16);
     MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)axisPaddedSize}, memory::f32, memory::x};
 
     if (isBinarization()) {
@@ -342,29 +437,22 @@ void MKLDNNQuantizeNode::createPrimitive() {
     } else if (levels != 2) {
         auto prim_desc = createPrimitiveDescriptor<quantization_forward::primitive_desc, quantization_forward::desc>();
 
-        auto cropLowDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        cropLowDataMem->Create(weightsDataDesc, getCropLowPtr());
-        internalBlobMemory.push_back(cropLowDataMem);
+        auto pushInternalBlob = [&](std::vector<float>& data) {
+            if (data.size() == 1)
+                data.resize(axisPaddedSize, data[0]);
+            else
+                data.resize(axisPaddedSize);
+            auto memory = std::make_shared<MKLDNNMemory>(getEngine());
+            memory->Create(weightsDataDesc, &data[0]);
+            internalBlobMemory.push_back(memory);
+        };
 
-        auto cropHighDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        cropHighDataMem->Create(weightsDataDesc, getCropHighPtr());
-        internalBlobMemory.push_back(cropHighDataMem);
-
-        auto inputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        inputScaleDataMem->Create(weightsDataDesc, getInputScalePtr());
-        internalBlobMemory.push_back(inputScaleDataMem);
-
-        auto inputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        inputShiftDataMem->Create(weightsDataDesc, getInputShiftPtr());
-        internalBlobMemory.push_back(inputShiftDataMem);
-
-        auto outputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        outputScaleDataMem->Create(weightsDataDesc, getOutputScalePtr());
-        internalBlobMemory.push_back(outputScaleDataMem);
-
-        auto outputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        outputShiftDataMem->Create(weightsDataDesc, getOutputShiftPtr());
-        internalBlobMemory.push_back(outputShiftDataMem);
+        pushInternalBlob(cropLow);
+        pushInternalBlob(cropHigh);
+        pushInternalBlob(inputScale);
+        pushInternalBlob(inputShift);
+        pushInternalBlob(outputScale);
+        pushInternalBlob(outputShift);
 
         prim.reset(new quantization_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
                                             internalBlobMemory[0]->GetPrimitive(),
@@ -420,11 +508,6 @@ void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
         size_t outerOffset = axisSize * innerSize;
         size_t axisOffset = innerSize;
 
-        bool isInputLowBroadcasted = inputLowMemory->GetDims().empty() || inputLowMemory->GetDims()[inputLowAxis] == 1;
-        bool isInputHighBroadcasted = inputHighMemory->GetDims().empty() || inputHighMemory->GetDims()[inputHighAxis] == 1;
-        bool isOutputLowBroadcasted = outputLowMemory->GetDims().empty() || outputLowMemory->GetDims()[outputLowAxis] == 1;
-        bool isOutputHighBroadcasted = outputHighMemory->GetDims().empty() || outputHighMemory->GetDims()[outputHighAxis] == 1;
-
         for (size_t ou = 0; ou < outerSize; ou++) {
             for (size_t ax = 0; ax < axisSize; ax++) {
                 float inputLow = inputLowData[isInputLowBroadcasted ? 0 : ax];
@@ -446,6 +529,20 @@ void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
             }
         }
     }
+}
+
+void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
+    if (!isPostOpDataInitialized) {
+        isPostOpDataInitialized = true;
+        cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
+        cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
+        inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
+        inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
+        outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
+        outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+    }
+
+    ops.append_quantization(quantizeAlgorithm, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
 }
 
 bool MKLDNNQuantizeNode::created() const {

@@ -14,8 +14,9 @@
 #include <set>
 #include <utility>
 
+#include <ie_icore.hpp>
 #include <ie_icnn_network.hpp>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/perf_report.hpp>
@@ -31,9 +32,8 @@ namespace ie = InferenceEngine;
 //
 
 VPU_DECLARE_ENUM(Platform,
-    UNKNOWN = 0,
     MYRIAD_2 = 2450,
-    MYRIAD_X = 2480
+    MYRIAD_X = 2480,
 )
 
 struct CompilationConfig final {
@@ -43,10 +43,11 @@ struct CompilationConfig final {
 
     int numSHAVEs = -1;
     int numCMXSlices = -1;
+    int numExecutors = -1;
+    int tilingCMXLimitKB = -1;
 
     bool hwOptimization = true;
-
-    bool ignoreIRStatistic = false;
+    bool hwExtraSplit = false;
 
     std::string irWithVpuScalesDir;
 
@@ -102,9 +103,14 @@ struct CompilationConfig final {
     bool dumpAllPasses;
 
     bool disableReorder = false;  // TODO: rename to enableReorder and switch logic.
+    bool disableConvertStages = false;
     bool enablePermuteMerging = true;
     bool enableReplWithSCRelu = false;
     bool enableReplaceWithReduceMean = true;
+    bool enableTensorIteratorUnrolling = false;
+    bool forcePureTensorIterator = false;
+    bool enableMemoryTypesAnnotation = false;
+    bool enableWeightsAnalysis = true;
 
     //
     // Deprecated options
@@ -121,6 +127,7 @@ struct CompilationConfig final {
 
 struct DataInfo final {
     std::unordered_map<std::string, int> offset;
+    std::unordered_map<std::string, ie::TensorDesc> descFromPlugin;
     int totalSize = 0;
 };
 
@@ -149,38 +156,31 @@ struct CompiledGraph final {
 
     std::uint32_t numShaves = 0;
     std::uint32_t numSlices = 0;
+    std::uint32_t numExecutors = 0;
 };
 
 //
 // compileNetwork
 //
 
-CompiledGraph::Ptr compileNetwork(
-        ie::ICNNNetwork& network,
-        Platform platform,
-        const CompilationConfig& config,
-        const Logger::Ptr& log);
+CompiledGraph::Ptr compileNetwork(const ie::ICNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+    const ie::ICore* core);
 
-CompiledGraph::Ptr compileSubNetwork(
-        ie::ICNNNetwork& network,
-        const CompilationConfig& subConfig);
+CompiledGraph::Ptr compileSubNetwork(const ie::ICNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core);
 
 //
 // getSupportedLayers
 //
 
-std::set<std::string> getSupportedLayers(
-        const ie::ICNNNetwork& network,
-        Platform platform,
-        const CompilationConfig& config,
-        const Logger::Ptr& log);
+std::set<std::string> getSupportedLayers(const ie::ICNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+    const ie::ICore* core);
 
 //
 // Blob version and checks
 //
 
 const uint32_t BLOB_MAGIC_NUMBER  = 9709;
-const uint32_t BLOB_VERSION_MAJOR = 5;
+const uint32_t BLOB_VERSION_MAJOR = 6;
 const uint32_t BLOB_VERSION_MINOR = 0;
 
 }  // namespace vpu

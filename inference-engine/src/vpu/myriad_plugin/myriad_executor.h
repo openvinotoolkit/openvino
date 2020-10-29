@@ -62,6 +62,11 @@ struct DeviceDesc {
                 ((config.platform() == NC_ANY_PLATFORM) || (_platform == config.platform())) &&
                 ((config.protocol() == NC_ANY_PROTOCOL) || (_protocol == config.protocol()));
     }
+
+    Platform revision() const {
+        VPU_THROW_UNLESS(_platform != NC_ANY_PLATFORM, "Cannot get a revision from not booted device");
+        return _platform == NC_MYRIAD_2 ? Platform::MYRIAD_2 : Platform::MYRIAD_X;
+    }
 };
 
 typedef std::shared_ptr<DeviceDesc> DevicePtr;
@@ -73,7 +78,8 @@ class MyriadExecutor {
     unsigned int _numStages = 0;
 
 public:
-    MyriadExecutor(bool forceReset, const LogLevel& vpuLogLevel, const Logger::Ptr& log);
+    MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
+                        const LogLevel& vpuLogLevel, const Logger::Ptr& log);
     ~MyriadExecutor() = default;
 
     /**
@@ -82,14 +88,14 @@ public:
      */
     DevicePtr openDevice(std::vector<DevicePtr> &devicePool, const MyriadConfig& config);
 
-    static void closeDevices(std::vector<DevicePtr> &devicePool);
+    static void closeDevices(std::vector<DevicePtr> &devicePool, std::shared_ptr<IMvnc> mvnc);
 
     void allocateGraph(DevicePtr &device,
                        GraphDesc &graphDesc,
                        const std::vector<char> &graphFileContent,
                        const std::pair<const char*, size_t> &graphHeaderDesc,
                        size_t numStages,
-                       const char* networkName,
+                       const std::string & networkName,
                        int executors);
 
     void deallocateGraph(DevicePtr &device, GraphDesc &graphDesc);

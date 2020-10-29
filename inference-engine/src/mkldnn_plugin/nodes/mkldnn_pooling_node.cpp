@@ -7,20 +7,21 @@
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_conv_node.h"
 #include "mkldnn_concat_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNPoolingNode::MKLDNNPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket) {}
+MKLDNNPoolingNode::MKLDNNPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+        MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNPoolingNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -41,13 +42,17 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
     outputPrecision = getCnnLayer()->outData[0]->getPrecision();
     // Dirty WA to support stat based quantization approach
-    if (this->getCnnLayer()->precision != Precision::I8) {
+    if (this->getCnnLayer()->precision != Precision::I8
+        && inputPrecision != Precision::BF16) {
         if (type == PoolingLayer::MAX) {
             // MKLDNN supports only equal precisions for input and output
             outputPrecision = inputPrecision;
         } else if (type == PoolingLayer::AVG) {
             outputPrecision = Precision::FP32;
         }
+    }
+    if (inputPrecision == Precision::BF16) {
+        outputPrecision = inputPrecision;
     }
 
     if (!fusedWith.empty()) {
@@ -63,26 +68,32 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     invertVectorCopyUtoI(poolingLayer->_stride, stride);
     invertVectorCopyUtoI(poolingLayer->_kernel, kernel);
     auto allPads = getPaddings(*poolingLayer);
-    invertVectorCopyUtoI(allPads.begin, paddingL);
-    invertVectorCopyUtoI(allPads.end, paddingR);
+    invertVectorCopyUtoI(allPads.begin, data_pad_begin);
+    invertVectorCopyUtoI(allPads.end, data_pad_end);
+    effective_pad_begin = data_pad_begin;
+    effective_pad_end.resize(data_pad_end.size());
 
     auto parentDims = getParentEdgeAt(0)->getDims();
     auto childDims = getChildEdgeAt(0)->getDims();
     if ((parentDims.ndims() < 4) || (parentDims.ndims() > 5))
         THROW_IE_EXCEPTION << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
 
-    for (int i = 0; i < paddingR.size(); i++) {
+    for (int i = 0; i < effective_pad_end.size(); i++) {
         int krn = kernel[i];
         int src = getParentEdgeAt(0)->getDims()[2 + i];
         int dst = getChildEdgeAt(0)->getDims()[2 + i];
 
-        int calc_dst = (src - krn + paddingL[i]) / stride[i] + 1;
-        paddingR[i] = (dst - calc_dst) * stride[i];
+        int calc_dst = (src - krn + data_pad_begin[i]) / stride[i] + 1;
+        effective_pad_end[i] = (dst - calc_dst) * stride[i];
     }
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
         // i8 layers supports only ndhwc and nhwc layouts
         MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
+        createDescriptor({ in_candidate }, { out_candidate });
+    } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && (inputDataType == memory::bf16 || outputDataType == memory::bf16)) {
+        MKLDNNMemoryDesc in_candidate{ parentDims, memory::bf16, parentDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c};
+        MKLDNNMemoryDesc out_candidate{ childDims, memory::bf16, parentDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c};
         createDescriptor({ in_candidate }, { out_candidate });
     } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && parentDims[1] == 1) {
         inputDataType = memory::f32;
@@ -92,8 +103,10 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
-        inputDataType = memory::f32;
-        outputDataType = memory::f32;
+        if (inputDataType != memory::bf16) {
+            inputDataType = memory::f32;
+            outputDataType = memory::f32;
+        }
         // It doesn't support any format
         for (auto format : getAvailableFormatsForDims(parentDims)) {
             MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, format};
@@ -128,13 +141,20 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
     algorithm alg;
     if (type == PoolingLayer::PoolType::AVG) {
         bool not_zero_l = false;
-        for (auto lr : paddingL) {
+        for (auto lr : data_pad_begin) {
             if (lr) {
                 not_zero_l = true;
                 break;
             }
         }
-        if (!exclude_pad && not_zero_l)
+        bool not_zero_r = false;
+        for (auto pr : data_pad_end) {
+            if (pr) {
+                not_zero_r = true;
+                break;
+            }
+        }
+        if (!exclude_pad && (not_zero_l || not_zero_r))
             alg = pooling_avg_include_padding;
         else
             alg = pooling_avg_exclude_padding;
@@ -148,24 +168,20 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
     std::shared_ptr<pooling_forward::desc> desc_ptr(
             new pooling_forward::desc(prop_kind::forward_scoring, alg,
                                       in_candidate, out_candidate,
-                                      stride, kernel, paddingL, paddingR,
+                                      stride, kernel, effective_pad_begin, effective_pad_end,
                                       mkldnn::padding_kind::zero));
 
-    bool not_zero_r = false;
-    for (auto pr : paddingR) {
-        if (pr) {
-            not_zero_r = true;
-            break;
-        }
-    }
-    if (alg == pooling_avg_include_padding && not_zero_r) {
+    if (alg == pooling_avg_include_padding) {
         // In case of AVG including paddings the norm coeff should be calculated
         // with tacking into account original pads. So we need to restore
-        // original values (R_padding = L_padding).
+        // original values for end paddings.
         //
         // WA. Because mkldnn uses different formula to calculate AVG norm coeff
         //     in compare with Caffe. In mkldnn coeff is always 1/(KH*KW)
-        for (int i = 0; i < paddingL.size(); i++) desc_ptr->data.padding[1][i] = paddingL[i];
+        for (int i = 0; i < data_pad_end.size(); i++) {
+            if (data_pad_end[i] != effective_pad_end[i])
+            desc_ptr->data.padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
+        }
     }
 
     descs.emplace_back(desc_ptr);
@@ -301,50 +317,16 @@ void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &confi
 }
 
 void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
-    int blob_idx = 0;
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
         if (quantizeNode) {
-            if (initWeights) {
-                MKLDNNDims weightsDims({static_cast<ptrdiff_t>(rnd_up(getParentEdgeAt(0)->getDims()[1], 16))});
-                MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)weightsDims[0]}, memory::f32, memory::x};
-
-                auto cropLowDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                cropLowDataMem->Create(weightsDataDesc, quantizeNode->getCropLowPtr());
-
-                auto cropHighDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                cropHighDataMem->Create(weightsDataDesc, quantizeNode->getCropHighPtr());
-
-                auto inputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                inputScaleDataMem->Create(weightsDataDesc, quantizeNode->getInputScalePtr());
-
-                auto inputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                inputShiftDataMem->Create(weightsDataDesc, quantizeNode->getInputShiftPtr());
-
-                auto outputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                outputScaleDataMem->Create(weightsDataDesc, quantizeNode->getOutputScalePtr());
-
-                auto outputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                outputShiftDataMem->Create(weightsDataDesc, quantizeNode->getOutputShiftPtr());
-
-                PostOpsIntBlobMemory.push_back(cropLowDataMem);
-                PostOpsIntBlobMemory.push_back(cropHighDataMem);
-                PostOpsIntBlobMemory.push_back(inputScaleDataMem);
-                PostOpsIntBlobMemory.push_back(inputShiftDataMem);
-                PostOpsIntBlobMemory.push_back(outputScaleDataMem);
-                PostOpsIntBlobMemory.push_back(outputShiftDataMem);
-
-                ops.append_quantization(quantizeNode->getAlgorithm(), quantizeNode->getCropLowPtr(), quantizeNode->getCropHighPtr(),
-                                                                      quantizeNode->getInputScalePtr(), quantizeNode->getInputShiftPtr(),
-                                                                      quantizeNode->getOutputScalePtr(), quantizeNode->getOutputShiftPtr());
-
-                blob_idx += 6;
-            } else {
-                ops.append_quantization(quantizeNode->getAlgorithm(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-            }
+            quantizeNode->appendPostOps(ops);
+            continue;
         }
+
+        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);

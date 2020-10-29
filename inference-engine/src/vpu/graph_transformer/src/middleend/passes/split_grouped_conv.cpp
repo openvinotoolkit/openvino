@@ -4,13 +4,14 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
-#include <vector>
-#include <set>
-#include <memory>
+#include <vpu/utils/numeric.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
 
 #include <precision_utils.h>
 
-#include <vpu/utils/numeric.hpp>
+#include <vector>
+#include <set>
+#include <memory>
 
 namespace vpu {
 
@@ -136,7 +137,7 @@ void PassImpl::run(const Model& model) {
                 if (stage->type() == StageType::StubDeconv) {
                     deconvolutionRelayout(
                         origWeights, weights->desc().totalDimSize(),
-                        newWeightsPtr, newWeightsSize,
+                        newWeightsPtr, static_cast<int>(newWeightsSize),
                         kernelSizeX, kernelSizeY,
                         input->desc().dim(Dim::C),
                         output->desc().dim(Dim::C),

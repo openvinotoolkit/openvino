@@ -14,11 +14,20 @@
  limitations under the License.
 """
 
+import logging as log
+
 import numpy as np
 
-from mo.graph.graph import Graph
+from mo.front.common.partial_infer.utils import int64_array
+from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
+
+
+def delete_out_port(idx, node: Node):
+    for k in range(idx + 1, node.out_ports_count):
+        node.out_port(k).get_connection().set_source(node.out_port(k - 1))
+    node.out_ports_count -= 1
 
 
 class VariadicSplitBase(Op):
@@ -67,6 +76,23 @@ class VariadicSplitBase(Op):
         assert len(split_lengths) >= len([port for i, port in node.out_ports().items() if not port.disconnected()]), \
             'Number of split_lengths=`{}` is less than connected output ports. Node: {}'.format(split_lengths, name)
 
+        # in split_lengths some value can be 0, in this case we will ignore it:
+        #     * remove according branch
+        #     * remove 0 from split_lengths
+        for i in reversed(range(len(split_lengths))):
+            if split_lengths[i] == 0:
+                if node.out_port(i).disconnected():
+                    size_splits = list(split_lengths)
+                    split_lengths = np.delete(int64_array(split_lengths), i)
+                    if op == 'VariadicSplit':
+                        node.in_port(2).data.set_value(split_lengths)
+                    else:
+                        node['split_lengths'] = split_lengths
+                    delete_out_port(i, node)
+                else:
+                    log.error("Zero dimension on {} branch after Split node {}".format(i, node.id))
+                    return
+
         # shape propagation
         idxs, curr_pos = [], 0
         for i, piece in enumerate(split_lengths):
@@ -84,10 +110,10 @@ class VariadicSplitBase(Op):
         # value propagation
         input_value = node.in_port(0).data.get_value()
         if input_value is not None:
-            splitted = np.split(input_value, idxs[:-1], axis)
+            split = np.split(input_value, idxs[:-1], axis)
             for i, port in node.out_ports().items():
                 if not port.disconnected():
-                    port.data.set_value(splitted[i])
+                    port.data.set_value(split[i])
 
         if op == 'VariadicSplit':
             PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
@@ -138,6 +164,7 @@ class AttributedVariadicSplit(VariadicSplitBase):
         super().__init__(graph, {
             'op': self.op,
             'type': 'VariadicSplit',
+            'version': 'opset1',
 
             'infer': self.infer,
 
@@ -210,6 +237,7 @@ class Split(SplitBase):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
 
             'infer': self.infer,
 
@@ -235,6 +263,7 @@ class AttributedSplit(SplitBase):
         super().__init__(graph, {
             'op': self.op,
             'type': 'Split',
+            'version': 'opset1',
 
             'axis': 1,
 

@@ -230,13 +230,6 @@ layout fused_conv_eltwise_inst::calc_output_layout(fused_conv_eltwise_node const
                        output_range.spatial[1],
                        output_range.spatial[2]);
 
-    // due to performance reason for using fs_bs_yx_bsv4_fsv32 first convolution have 3 features, so first conv layer
-    // will take byxf and return fs_bs_yx_bsv4_fsv32
-    if (input_layout.data_type == data_types::i8 && input_layout.format == format::byx8_f4 &&
-        input_layout.size.batch[0] % 4 == 0 && input_layout.size.feature[0] == 3) {
-        return layout{output_type, cldnn::format::fs_bs_yx_bsv4_fsv32, output_size};
-    }
-
     return {output_type, input_layout.format, output_size};
 }
 
@@ -301,12 +294,15 @@ fused_conv_eltwise_inst::typed_primitive_inst(network_impl& network, fused_conv_
                                   "expected size of batch",
                                   1,
                                   "Biases isn't 1D vector.");
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias feature[0]",
-                                  bias_inst.size.feature[0],
-                                  "expected feature map number",
-                                  output_size.feature[0] / split,
-                                  "Bias/fm mismatch");
+
+            if (node.get_output_layout().format != format::image_2d_rgba) {
+                CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                      "Bias feature[0]",
+                                      bias_inst.size.feature[0],
+                                      "expected feature map number",
+                                      output_size.feature[0] / split,
+                                      "Bias/fm mismatch");
+            }
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[1]",
                                   bias_inst.size.spatial[1],
@@ -359,21 +355,6 @@ fused_conv_eltwise_inst::typed_primitive_inst(network_impl& network, fused_conv_
                               "input feature maps number",
                               filter_inst.size.feature[0],
                               "Weights/ifm mismatch");
-        if (filter_inst.format == format::bf_lyx_yx) {  // local convolution
-            auto local = filter_inst.size.local;
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Number of local x dimension",
-                                  local[0],
-                                  "output x dimension",
-                                  output_inst.size.spatial[0],
-                                  "Weights/output dims mismatch");
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Number of local y dimension",
-                                  local[1],
-                                  "output y dimension",
-                                  output_inst.size.spatial[1],
-                                  "Weights/output dims mismatch");
-        }
     }
 }
 }  // namespace cldnn

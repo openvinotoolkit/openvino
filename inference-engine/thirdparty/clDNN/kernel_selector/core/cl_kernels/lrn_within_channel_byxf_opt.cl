@@ -14,16 +14,20 @@
 // limitations under the License.
 */
 
-
-
 #include "include/include_all.cl"
 
-#define VECTOR_TYPE MAKE_VECTOR_TYPE(UNIT_TYPE,8)
-#define ACCUMULATOR_VECTOR_TYPE MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 8)
+#define VECTOR_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
+#define ACCUMULATOR_VECTOR_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
 #define FEATURE_PER_ITEM 8
 #define FEATURE_BLOCK_NUM (OUTPUT_FEATURE_NUM / 8)
 
-KERNEL(lrn_within_channel_byxf_opt)(__global const INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(lrn_within_channel_byxf_opt)(
+    __global const INPUT0_TYPE* input, 
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif        
+    )
 {
     const uint b = get_global_id(GWS_BATCH);
     const uint f = (uint)get_global_id(GWS_FEATURE)*FEATURE_PER_ITEM;
@@ -56,7 +60,7 @@ KERNEL(lrn_within_channel_byxf_opt)(__global const INPUT0_TYPE* input, __global 
             zero = input_offset_x >= INPUT0_SIZE_X ? true : zero;
             zero = input_offset_y >= INPUT0_SIZE_Y ? true : zero;
 
-            VECTOR_TYPE val = zero ? UNIT_VAL_ZERO : vload8(input_offset+FEATURE_BLOCK_NUM*i, input);
+            VECTOR_TYPE val = zero ? INPUT0_VAL_ZERO : vload8(input_offset+FEATURE_BLOCK_NUM*i, input);
             
             sum = mad(val,val,sum);
 #ifdef DYNAMIC_KERNEL_DIVIDER
@@ -67,19 +71,28 @@ KERNEL(lrn_within_channel_byxf_opt)(__global const INPUT0_TYPE* input, __global 
     }
 
 #ifdef DYNAMIC_KERNEL_DIVIDER 
-    const UNIT_TYPE num_elementes_div = UNIT_VAL_ONE / TO_UNIT_TYPE(num_elementes);
+    const INPUT0_TYPE num_elementes_div = INPUT0_VAL_ONE / TO_INPUT0_TYPE(num_elementes);
 #else
-    const UNIT_TYPE num_elementes_div = NUM_ELEMENTS_DIV;
+    const INPUT0_TYPE num_elementes_div = NUM_ELEMENTS_DIV;
 #endif
     
-    const VECTOR_TYPE base = mad((ACCUMULATOR_TYPE)ALPHA*num_elementes_div, sum, TO_UNIT_TYPE(K));
-    const VECTOR_TYPE normalization_factor = native_powr(base, TO_UNIT_TYPE(-BETA));
+    const VECTOR_TYPE base = mad((ACCUMULATOR_TYPE)ALPHA*num_elementes_div, sum, TO_INPUT0_TYPE(K));
+    const VECTOR_TYPE normalization_factor = native_powr(base, TO_INPUT0_TYPE(-BETA));
     const VECTOR_TYPE val = vload8(input_index/FEATURE_PER_ITEM, input);
-    const VECTOR_TYPE normres = val*normalization_factor;
+    const VECTOR_TYPE normes = val*normalization_factor;
+
+    INPUT0_TYPE lrn_result;
 
     for(uint i = 0; i < FEATURE_PER_ITEM; i++)
     {
-        output[output_index+i] = ACTIVATION(normres[i], ACTIVATION_PARAMS);
+        lrn_result = normes[i];
+        #if HAS_FUSED_OPS
+            FUSED_OPS;
+            OUTPUT_TYPE res = FUSED_OPS_RESULT;
+            output[output_index+i] = res;
+        #else
+            output[output_index+i] = ACTIVATION(lrn_result, ACTIVATION_PARAMS);
+        #endif
     }
 }
 

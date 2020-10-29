@@ -197,7 +197,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(softmax("softmax", "input"));
 
-    set_values(input, {  //bfyx    
+    set_values(input, {  //bfyx
              //y0x0  y0x1   y1x0    y1x1
         /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
         /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
@@ -229,10 +229,10 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
 
     float sum = 0;
     float expected_sum = 1.0f;
-    
+
     float temp_max = 0;
     int max_value_buffer_index = 0;
-    
+
     for (uint32_t i = 0; i < batch_num; i++) //this for loops will sum results in a batch per feature, we expect that: sum = 1.0f
     {
         for (uint32_t j = 0; j < y_size; j++)
@@ -453,7 +453,7 @@ TEST(softmax_gpu_yxfb_f32, normalize_f) {
     topology.add(softmax("softmax", "input", softmax::normalize_fyx));
 
     set_values(input, {  //yxfb
-                //f0b0  f0b1  f0b2  f0b3  f0b4    f0b5    f0b6   f0b7   f0b8    f0b9   f0b10  f0b11 
+                //f0b0  f0b1  f0b2  f0b3  f0b4    f0b5    f0b6   f0b7   f0b8    f0b9   f0b10  f0b11
         /*y0x0*/ 0.1f, -0.1f, 0.9f, 1.5f, 0.15f, -0.01f, 0.19f,  0.45f, 0.41f, -0.12f, 0.39f, 0.65f,
         /*y1x0*/ 0.2f, 0.2f, -10.f, 5.2f, 0.01f, 0.015f, 0.29f,  0.05f, 0.41f, -0.31f, 0.29f, 1.35f
     });
@@ -870,12 +870,8 @@ public:
 
     static void TearDownTestCase()
     {
-        for (auto generic_params : all_generic_params)
-        {
-            delete generic_params;
-        }
-
         all_layer_params.clear();
+        all_generic_params.clear();
     }
 
     static std::vector<std::shared_ptr<cldnn::primitive>> generate_specific_test_params()
@@ -888,7 +884,7 @@ public:
         return all_layer_params;
     }
 
-    static std::vector<tests::test_params*> generate_generic_test_params()
+    static std::vector<std::shared_ptr<tests::test_params>> generate_generic_test_params()
     {
         return generic_test::generate_generic_test_params(all_generic_params);
     }
@@ -980,7 +976,7 @@ public:
         }
     }
 
-    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>& info)
+    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>>& info)
     {
         std::stringstream res;
 
@@ -1008,13 +1004,13 @@ public:
 
 private:
 
-    static std::vector<tests::test_params*> all_generic_params;
+    static std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
     static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 
 };
 
 std::vector<std::shared_ptr<cldnn::primitive>> softmax_test::all_layer_params = {};
-std::vector<tests::test_params*> softmax_test::all_generic_params = {};
+std::vector<std::shared_ptr<tests::test_params>> softmax_test::all_generic_params = {};
 
 TEST_P(softmax_test, SOFTMAX)
 {

@@ -12,30 +12,78 @@ from libc.stdint cimport int64_t, uint8_t
 cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
     ctypedef vector[size_t] SizeVector
 
+    cdef cppclass TBlob[T]:
+        ctypedef shared_ptr[TBlob[T]] Ptr
 
-    cdef cppclass TensorDesc:
-        SizeVector& getDims()
-        const Precision& getPrecision() const
+    cdef cppclass CBlob "InferenceEngine::Blob":
+        ctypedef shared_ptr[CBlob] Ptr
+        const CTensorDesc& getTensorDesc()  except +
+        size_t element_size()  except +
+        void allocate()
+
+    cdef TBlob[Type].Ptr make_shared_blob[Type](const CTensorDesc& tensorDesc)
+
+    cdef TBlob[Type].Ptr make_shared_blob[Type](const CTensorDesc& tensorDesc, Type* ptr, size_t size)
+
+    cdef cppclass CTensorDesc "InferenceEngine::TensorDesc":
+        CTensorDesc() except +
+        CTensorDesc(const Precision& precision, SizeVector dims, Layout layout) except +
+        SizeVector& getDims() except +
+        void setDims(const SizeVector& dims) except +
+        Layout getLayout() except +
+        void setLayout(Layout l) except +
+        const Precision& getPrecision() except +
+        void setPrecision(const Precision& p) except +
+
 
     cdef cppclass Data:
         const Precision getPrecision() const
         void setPrecision(const Precision& precision) const
-        const SizeVector getDims()
-        const string& getName() const
-        const Layout getLayout() const
-        void setLayout(Layout layout) const
-        const bool isInitialized() const
-        weak_ptr[CNNLayer] & getCreatorLayer()
-        map[string, shared_ptr[CNNLayer]] & getInputTo()
+        const SizeVector getDims() except +
+        const string& getName() except +
+        const Layout getLayout() except +
+        void setLayout(Layout layout) except +
+        const bool isInitialized() except +
 
     ctypedef shared_ptr[Data] DataPtr
     ctypedef weak_ptr[Data] DataWeakPtr
     ctypedef shared_ptr[const Data] CDataPtr
 
-    cdef cppclass Blob:
-        ctypedef shared_ptr[Blob] Ptr
-        const TensorDesc& getTensorDesc() const
-        size_t element_size()  const
+    cdef cppclass InputInfo:
+        ctypedef shared_ptr[InputInfo] Ptr
+        ctypedef shared_ptr[const InputInfo] CPtr
+        Precision getPrecision() const
+        void setPrecision(Precision p)
+        Layout getLayout()
+        void setLayout(Layout l)
+        const string& name() const
+        DataPtr getInputData() const
+        CPreProcessInfo& getPreProcess()
+        const CTensorDesc& getTensorDesc() const
+        void setInputData(DataPtr inputPtr)
+
+
+    cdef cppclass CPreProcessChannel "InferenceEngine::PreProcessChannel":
+        ctypedef shared_ptr[CPreProcessChannel] Ptr
+        CBlob.Ptr meanData
+        float stdScale
+        float meanValue
+
+    cdef cppclass CPreProcessInfo "InferenceEngine::PreProcessInfo":
+        CPreProcessChannel.Ptr& operator[](size_t index)
+        size_t getNumberOfChannels() const
+        void init(const size_t numberOfChannels)
+        void setMeanImage(const CBlob.Ptr& meanImage)
+        void setMeanImageForChannel(const CBlob.Ptr& meanImage, const size_t channel)
+        vector[CPreProcessChannel.Ptr] _channelsInfo
+        ColorFormat getColorFormat() const
+        void setColorFormat(ColorFormat fmt)
+        ResizeAlgorithm getResizeAlgorithm() const
+        void setResizeAlgorithm(const ResizeAlgorithm& alg)
+        MeanVariant getMeanVariant() const
+        void setVariant(const MeanVariant& variant)
+
+    ctypedef map[string, InputInfo.CPtr] InputsDataMap
 
     cdef cppclass Precision:
         const char*name() const
@@ -50,7 +98,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         vector[DataWeakPtr] insData
         string affinity
         map[string, string] params
-        map[string, Blob.Ptr] blobs
+        map[string, CBlob.Ptr] blobs
 
     ctypedef weak_ptr[CNNLayer] CNNLayerWeakPtr
     ctypedef shared_ptr[CNNLayer] CNNLayerPtr
@@ -64,6 +112,15 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const char *buildNumber
         const char *description
         apiVersion apiVersion
+
+    cpdef enum MeanVariant:
+        pass
+
+    cpdef enum ResizeAlgorithm:
+        pass
+
+    cpdef enum ColorFormat:
+        pass
 
     cdef enum Layout:
         ANY
@@ -83,18 +140,12 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         CN
         BLOCKED
 
+
+cdef extern from "<legacy/ie_layers.h>" namespace "InferenceEngine":
+    cdef weak_ptr[CNNLayer] getCreatorLayer(const shared_ptr[Data] & data)
+    map[string, shared_ptr[CNNLayer]] & getInputTo(const shared_ptr[Data] & data)
+
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
-
-#    cdef cppclass IENetLayer:
-#        string layout
-#        vector[string] children
-#        vector[string] parents
-#        void setAffinity(const string & target_affinity) except +
-#        void setParams(const map[string, string] & params_map) except +
-#        map[string, Blob.Ptr] getWeights() except +
-#        void setPrecision(string precision) except +
-#        vector[DataPtr] getOutData() except +
-
 
     cdef cppclass ProfileInfo:
         string status
@@ -105,18 +156,21 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         unsigned int execution_index
 
     cdef cppclass WeightsInfo:
-        Blob.Ptr & weights;
-        Blob.Ptr & biases;
-        map[string, Blob.Ptr] custom_blobs;
+        CBlob.Ptr & weights;
+        CBlob.Ptr & biases;
+        map[string, CBlob.Ptr] custom_blobs;
 
     cdef cppclass IEExecNetwork:
         vector[InferRequestWrap] infer_requests
         IENetwork GetExecGraphInfo() except +
-        map[string, DataPtr] getInputs()
-        map[string, CDataPtr] getOutputs()
+        map[string, DataPtr] getInputs() except +
+        map[string, CDataPtr] getOutputs() except +
+        map[string, InputInfo.CPtr] getInputsInfo()
         void exportNetwork(const string & model_file) except +
-        object getMetric(const string & metric_name)
-        object getConfig(const string & metric_name)
+        object getMetric(const string & metric_name) except +
+        object getConfig(const string & metric_name) except +
+        int wait(int num_requests, int64_t timeout)
+        int getIdleRequestId()
 
     cdef cppclass IENetwork:
         IENetwork() except +
@@ -127,33 +181,27 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         string precision
         map[string, vector[size_t]] inputs
         const vector[CNNLayerPtr] getLayers() except +
-        map[string, DataPtr] getInputs() except +
+        const map[string, InputInfo.Ptr] getInputsInfo() except +
+        const map[string, DataPtr] getInputs() except +
         map[string, DataPtr] getOutputs() except +
         void addOutput(string &, size_t) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
         void setBatch(size_t size) except +
+        size_t getBatch() except +
         void setLayerParams(map[string, map[string, string]] params_map) except +
         void serialize(const string& path_to_xml, const string& path_to_bin) except +
         void reshape(map[string, vector[size_t]] input_shapes) except +
-        void setStats(map[string, map[string, vector[float]]] & stats) except +
-        map[string, map[string, vector[float]]] getStats() except +
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
         object getFunction() except +
-
-    cdef cppclass IEPlugin:
-        IEPlugin() except +
-        IEPlugin(const string &, const vector[string] &) except +
-        unique_ptr[IEExecNetwork] load(IENetwork & net, int num_requests, const map[string, string]& config) except +
-        void addCpuExtension(const string &) except +
-        void setConfig(const map[string, string] &) except +
-        void setInitialAffinity(IENetwork & net) except +
-        set[string] queryNetwork(const IENetwork & net) except +
-        string device_name
-        string version
+        void convertToOldRepresentation() except +
 
     cdef cppclass InferRequestWrap:
         double exec_time;
-        void getBlobPtr(const string & blob_name, Blob.Ptr & blob_ptr) except +
+        int index;
+        void getBlobPtr(const string & blob_name, CBlob.Ptr & blob_ptr) except +
+        void setBlob(const string & blob_name, const CBlob.Ptr & blob_ptr) except +
+        void setBlob(const string &blob_name, const CBlob.Ptr &blob_ptr, CPreProcessInfo& info) except +
+        void getPreProcess(const string& blob_name, const CPreProcessInfo** info) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
         void infer_async() except +
@@ -165,6 +213,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         IECore() except +
         IECore(const string & xml_config_file) except +
         map[string, Version] getVersions(const string & deviceName) except +
+        IENetwork readNetwork(const string& modelPath, const string& binPath) except +
+        IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) except +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
                                               const map[string, string] & config, int num_requests) except +
         unique_ptr[IEExecNetwork] importNetwork(const string & modelFIle, const string & deviceName,
@@ -180,6 +230,6 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         object getMetric(const string & deviceName, const string & name) except +
         object getConfig(const string & deviceName, const string & name) except +
 
-    cdef T*get_buffer[T](Blob &)
+    cdef T*get_buffer[T](CBlob &)
 
     cdef string get_version()

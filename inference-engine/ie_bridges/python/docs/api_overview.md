@@ -1,4 +1,4 @@
-# Overview of Inference Engine Python* API
+# Overview of Inference Engine Python* API {#openvino_inference_engine_ie_bridges_python_docs_api_overview}
 
 This API provides a simplified interface for Inference Engine functionality that allows you to:
 
@@ -29,11 +29,11 @@ To configure the environment for the Inference Engine Python\* API, run:
  * On CentOS\* 7.4: `source <INSTALL_DIR>/bin/setupvars.sh .`
  * On macOS\* 10.x: `source <INSTALL_DIR>/bin/setupvars.sh .`
  * On Raspbian\* 9,: `source <INSTALL_DIR>/bin/setupvars.sh .`
- * On Windows\* 10: `call <INSTALL_DIR>\deployment_tools\inference_engine\python_api\setenv.bat`
+ * On Windows\* 10: `call <INSTALL_DIR>\bin\setupvars.bat`
 
 The script automatically detects latest installed Python\* version and configures required environment if the version is supported.  
-If you want to use certain version of Python\*, set the environment variable `PYTHONPATH=<INSTALL_DIR>/deployment_tools/inference_engine/python_api/<desired_python_version>`
+If you want to use certain version of Python\*, set the environment variable `PYTHONPATH=<INSTALL_DIR>/python/<desired_python_version>`
 after running the environment configuration script.
 
 ## API Reference
-For the complete API Reference, see  [Inference Engine Python* API Reference](ie_python_api.html)
+For the complete API Reference, see  [Inference Engine Python* API Reference](ie_python_api/annotated.html)

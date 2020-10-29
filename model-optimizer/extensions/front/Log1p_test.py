@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.front.Log1p import Log1p
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'placeholder': {'shape': np.array([4, 5, 6]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

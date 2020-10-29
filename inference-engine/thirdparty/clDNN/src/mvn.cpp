@@ -29,7 +29,9 @@ layout mvn_inst::calc_output_layout(mvn_node const& node) {
     auto input_node_layout = node.input().get_non_padded_output_layout();
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_node_layout.data_type;
 
-    if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    } else if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
         output_type = data_types::f32;
     }
 

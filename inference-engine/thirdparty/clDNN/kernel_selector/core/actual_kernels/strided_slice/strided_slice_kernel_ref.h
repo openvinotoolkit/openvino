@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include <vector>
 
 namespace kernel_selector {
@@ -41,13 +41,16 @@ struct strided_slice_optional_params : optional_params {
     strided_slice_optional_params() : optional_params(KernelType::STRIDED_SLICE) {}
 };
 
-class StridedSliceKernelRef : public common_kernel_base {
+class StridedSliceKernelRef : public KernelBaseOpenCL {
 public:
-    StridedSliceKernelRef() : common_kernel_base("strided_slice_ref") {}
+    StridedSliceKernelRef() : KernelBaseOpenCL("strided_slice_ref") {}
     virtual ~StridedSliceKernelRef() {}
     virtual JitConstants GetJitConstants(const strided_slice_params& params) const;
     virtual CommonDispatchData SetDefault(const strided_slice_params& params, const optional_params&) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+
+protected:
+    bool Validate(const Params& p, const optional_params& o) const override;
 };
 }  // namespace kernel_selector

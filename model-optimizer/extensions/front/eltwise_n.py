@@ -15,9 +15,9 @@
 """
 
 
+from extensions.ops.elementwise import Add, Maximum, Minimum, Mul
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
-from extensions.ops.elementwise import Add, Maximum, Mul
 
 
 class EltwiseNReplacement(FrontReplacementOp):
@@ -30,6 +30,7 @@ class EltwiseNReplacement(FrontReplacementOp):
 
     op_to_class_map = {
         'sum': Add,
+        'min': Minimum,
         'max': Maximum,
         'mul': Mul,
     }

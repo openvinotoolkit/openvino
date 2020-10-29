@@ -25,6 +25,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     ${IE_MAIN_SOURCE_DIR}/include
     ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
     ${IE_MAIN_SOURCE_DIR}/src/vpu/common/include
+    ${IE_MAIN_SOURCE_DIR}/src/plugin_api
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -39,8 +40,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES
-    COMPILE_PDB_NAME
-    ${TARGET_NAME}
+    COMPILE_PDB_NAME ${TARGET_NAME}
+    FOLDER tools
 )
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
@@ -48,5 +49,9 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 # install
 
 install(TARGETS compile_tool
-        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        RUNTIME DESTINATION deployment_tools/tools/compile_tool
+        COMPONENT core)
+
+install(FILES README.md
+        DESTINATION deployment_tools/tools/compile_tool
         COMPONENT core)

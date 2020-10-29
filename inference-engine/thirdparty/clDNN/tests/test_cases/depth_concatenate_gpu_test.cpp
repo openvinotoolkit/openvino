@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -428,6 +428,211 @@ TEST(depth_concatenate_f32_gpu, test05_different_formats) {
     int cntr = 0;
     for (float val : output_ptr) {
         EXPECT_EQ(val, out_ref[cntr++]);
+    }
+}
+
+TEST(depth_concatenate_f32_gpu, test06_padded_input) {
+    // input1 - activation - concatenation - concatenation - reorder
+    //                     /                /
+    // input2 - activation -  convolution* /
+    //
+    // *Convolution has input offset so it should be propagated, both back to reorders and to second concatenation.
+    // As a result both concatenations should be optimized out and convolution should use optimized implementation.
+    const int32_t input_f = 32;
+    const int32_t output_f = 3 * input_f;
+
+    const auto& engine = get_test_engine();
+    auto input1 = memory::allocate(engine, { data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
+    auto input2 = memory::allocate(engine, { data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
+
+    auto input1_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    auto input2_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    set_values(input1, flatten_4d(format::bfyx, input1_data));
+    set_values(input2, flatten_4d(format::bfyx, input2_data));
+
+    auto weights = memory::allocate(engine, { data_types::f16, format::oiyx, {input_f, input_f, 3, 3} });
+    // Construct weights for convolution that just double input values.
+    VVVVF<FLOAT16> weights_data;
+    weights_data.resize(input_f);
+    for (size_t oi = 0; oi < input_f; ++oi) {
+        weights_data[oi].resize(input_f, VVF<FLOAT16>(3, VF<FLOAT16>(3, FLOAT16(0.f))));
+        weights_data[oi][oi][1][1] = 2.f;
+    }
+    set_values(weights, flatten_4d(format::bfyx, weights_data));
+
+    topology topology;
+    topology.add(input_layout("input1", input1.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f }));
+    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f }));
+    topology.add(data("weights", weights));
+    topology.add(convolution("conv", "actv2", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(-1, -1, 0, 0))));
+    topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
+    topology.add(concatenation("depth2", { "depth1", "conv" }, concatenation::along_f));
+    topology.add(reorder("output", "depth2", format::bfyx, data_types::f32));
+
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(true));
+     options.set_option(cldnn::build_option::force_implementations({ {"conv", implementation_desc{format::fs_b_yx_fsv32, ""} } }));
+    network network(engine, topology, options);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute({});
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "output");
+    // Check that all concatenations have been optimized out.
+    auto executed_primitives = network.get_executed_primitives();
+    EXPECT_TRUE(executed_primitives.count("depth1") == 0);
+    EXPECT_TRUE(executed_primitives.count("depth2") == 0);
+    // Check that convolution was able to use optimzed kernel.
+    for (auto& info : network.get_primitives_info()) {
+        if (info.original_id == "conv") {
+            EXPECT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
+        }
+    }
+
+    auto output = outputs.at("output").get_memory();
+    auto output_ptr = output.pointer<float>();
+    ASSERT_EQ(output.count(), output_f);
+    for (size_t i = 0; i < output_f; ++i) {
+        auto& val = output_ptr[i];
+        float ref;
+        if (i < input_f)
+            ref = 0.75f * static_cast<float>(input1_data[0][i % input_f][0][0]);
+        else if (i < 2 * input_f)
+            ref = 0.5f * static_cast<float>(input2_data[0][i % input_f][0][0]);
+        else
+            ref = static_cast<float>(input2_data[0][i % input_f][0][0]);
+
+        EXPECT_EQ(val, ref) << " at i=" << i;
+    }
+}
+
+TEST(depth_concatenate_f32_gpu, test07_padded_output) {
+    // input1 - activation - concatenation - convolution - reorder
+    // input2 - activation /
+    //
+    // *Convolution has input offset so it should be propagated back to activations.
+    const int32_t input_f = 32;
+    const int32_t output_f = 2 * input_f;
+
+    const auto& engine = get_test_engine();
+    auto input1 = memory::allocate(engine, { data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
+    auto input2 = memory::allocate(engine, { data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
+
+    auto input1_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    auto input2_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    set_values(input1, flatten_4d(format::bfyx, input1_data));
+    set_values(input2, flatten_4d(format::bfyx, input2_data));
+
+    auto weights = memory::allocate(engine, { data_types::f16, format::oiyx, {output_f, output_f, 3, 3} });
+    // Construct weights for convolution that just double input values.
+    VVVVF<FLOAT16> weights_data;
+    weights_data.resize(output_f);
+    for (size_t oi = 0; oi < output_f; ++oi) {
+        weights_data[oi].resize(output_f, VVF<FLOAT16>(3, VF<FLOAT16>(3, FLOAT16(0.f))));
+        weights_data[oi][oi][1][1] = 2.f;
+    }
+    set_values(weights, flatten_4d(format::bfyx, weights_data));
+
+    topology topology;
+    topology.add(input_layout("input1", input1.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f }));
+    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f }));
+    topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
+    topology.add(data("weights", weights));
+    topology.add(convolution("conv", "depth1", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(-1, -1, 0, 0))));
+    topology.add(reorder("output", "conv", format::bfyx, data_types::f32));
+
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::force_implementations({ {"conv", implementation_desc{format::fs_b_yx_fsv32, ""} } }));
+    network network(engine, topology, options);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute({});
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "output");
+    // Check that all concatenations have been optimized out.
+    auto executed_primitives = network.get_executed_primitives();
+    EXPECT_TRUE(executed_primitives.count("depth1") == 0);
+    // Check that convolution was able to use optimzed kernel.
+    for (auto& info : network.get_primitives_info()) {
+        if (info.original_id == "conv") {
+            EXPECT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
+        }
+    }
+
+    auto output = outputs.at("output").get_memory();
+    auto output_ptr = output.pointer<float>();
+    ASSERT_EQ(output.count(), output_f);
+    for (size_t i = 0; i < output_f; ++i) {
+        auto& val = output_ptr[i];
+        float ref;
+        if (i < input_f)
+            ref = 1.5f * static_cast<float>(input1_data[0][i % input_f][0][0]);
+        else
+            ref = static_cast<float>(input2_data[0][i % input_f][0][0]);
+
+        EXPECT_EQ(val, ref) << " at i=" << i;
+    }
+}
+
+TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
+    // input1 - activation - concatenation
+    // input2 - activation /
+    //
+    // As concatenation is output it should not be optimizex out.
+    const int32_t input_f = 16;
+    const int32_t output_f = 2 * input_f;
+
+    const auto& engine = get_test_engine();
+    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx, {1, input_f, 1, 1} });
+    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, {1, input_f, 1, 1} });
+
+    auto input1_data = generate_random_4d<float>(1, input_f, 1, 1, -1, 1);
+    auto input2_data = generate_random_4d<float>(1, input_f, 1, 1, -1, 1);
+    set_values(input1, flatten_4d(format::bfyx, input1_data));
+    set_values(input2, flatten_4d(format::bfyx, input2_data));
+
+    topology topology;
+    topology.add(input_layout("input1", input1.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f }));
+    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f }));
+    topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
+
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(true));
+    network network(engine, topology, options);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute({});
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "depth1");
+    // Check that concatenation haven't been optimized out.
+    auto executed_primitives = network.get_executed_primitives();
+    EXPECT_TRUE(executed_primitives.count("depth1") == 1);
+
+    auto output = outputs.at("depth1").get_memory();
+    auto output_ptr = output.pointer<float>();
+    ASSERT_EQ(output.count(), output_f);
+    for (size_t i = 0; i < output_f; ++i) {
+        auto& val = output_ptr[i];
+        float ref;
+        if (i < input_f)
+            ref = 0.75f * input1_data[0][i % input_f][0][0];
+        else
+            ref = 0.5f * input2_data[0][i % input_f][0][0];
+
+        EXPECT_EQ(val, ref) << " at i=" << i;
     }
 }
 
@@ -888,10 +1093,7 @@ using namespace cldnn;
 class depth_concatenate_test : public tests::generic_test {
 public:
     static void TearDownTestCase() {
-        for (auto generic_params : all_generic_params) {
-            delete generic_params;
-        }
-
+        all_generic_params.clear();
         all_layer_params.clear();
     }
 
@@ -915,8 +1117,8 @@ public:
         return all_layer_params;
     }
 
-    static std::vector<tests::test_params*> generate_generic_test_params(int input_count) {
-        std::vector<tests::test_params*> all_generic_params;
+    static std::vector<std::shared_ptr<tests::test_params>> generate_generic_test_params(int input_count) {
+        std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
 
         auto data_types = test_data_types();
 
@@ -929,7 +1131,7 @@ public:
                     switch (input_count) {
                         case 1:
                             for (auto f0 : test_feature_sizes) {
-                                test_params* tp = new test_params();
+                                std::shared_ptr<tests::test_params> tp = std::make_shared<test_params>();
                                 tp->data_type = dt;
 
                                 tp->input_layouts.push_back(cldnn::layout(tp->data_type, tp->fmt, cldnn::tensor(b, f0, w, h)));
@@ -940,7 +1142,7 @@ public:
                         case 2:
                             for (auto f0 : test_feature_sizes)
                                 for (auto f1 : test_feature_sizes) {
-                                    test_params* tp = new test_params();
+                                    std::shared_ptr<tests::test_params> tp = std::make_shared<test_params>();
                                     tp->data_type = dt;
 
                                     tp->input_layouts.push_back(cldnn::layout(tp->data_type, tp->fmt, cldnn::tensor(b, f0, w, h)));
@@ -953,7 +1155,7 @@ public:
                             for (auto f0 : test_feature_sizes)
                                 for (auto f1 : test_feature_sizes)
                                     for (auto f2 : test_feature_sizes) {
-                                        test_params* tp = new test_params();
+                                        std::shared_ptr<tests::test_params> tp = std::make_shared<test_params>();
                                         tp->data_type = dt;
 
                                         tp->input_layouts.push_back(cldnn::layout(tp->data_type, tp->fmt, cldnn::tensor(b, f0, w, h)));
@@ -971,8 +1173,8 @@ public:
         return all_generic_params;
     }
 
-    static std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> generate_all_test_params() {
-        std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> res;
+    static std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> generate_all_test_params() {
+        std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> res;
 
         for (int i = 1; i <= 3; ++i) {
             auto tpv = generate_generic_test_params(i);
@@ -1060,7 +1262,7 @@ public:
         }
     }
 
-    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>& info) {
+    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>>& info) {
         std::stringstream res;
 
         const auto& p = std::get<0>(info.param);
@@ -1085,12 +1287,12 @@ public:
     }
 
 private:
-    static std::vector<tests::test_params*> all_generic_params;
+    static std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
     static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 };
 
 std::vector<std::shared_ptr<cldnn::primitive>> depth_concatenate_test::all_layer_params = {};
-std::vector<tests::test_params*> depth_concatenate_test::all_generic_params = {};
+std::vector<std::shared_ptr<tests::test_params>> depth_concatenate_test::all_generic_params = {};
 
 TEST_P(depth_concatenate_test, DEPTHCONCATENATE) {
     run_single_test();

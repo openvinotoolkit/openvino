@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -13,7 +12,6 @@
 #include <algorithm>
 #include <limits>
 #include "ie_parallel.hpp"
-#include "common/simple_copy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -225,7 +223,7 @@ private:
     size_t outMaxNumValues = 0;
 };
 
-REG_FACTORY_FOR(ImplFactory<SparseFillEmptyRowsImpl>, SparseFillEmptyRows);
+REG_FACTORY_FOR(SparseFillEmptyRowsImpl, SparseFillEmptyRows);
 
 }  // namespace Cpu
 }  // namespace Extensions

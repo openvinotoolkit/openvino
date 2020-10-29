@@ -8,7 +8,7 @@
 #endif
 
 #include <sys/stat.h>
-#include <w_dirent.h>
+#include <os/windows/w_dirent.h>
 
 #include <algorithm>
 #include <map>
@@ -25,15 +25,7 @@
 #include "precision_utils.h"
 
 InferenceEngine::CNNNetwork readNetwork(const std::string &xmlFileName) {
-    std::string binFileName = fileNameNoExt(xmlFileName) + ".bin";
-
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNNetReader reader;
-    reader.ReadNetwork(xmlFileName);
-    reader.ReadWeights(binFileName);
-
-    return reader.getNetwork();
-    IE_SUPPRESS_DEPRECATED_END
+    return InferenceEngine::Core().ReadNetwork(xmlFileName);
 }
 
 bool isFP16(InferenceEngine::Precision precision) {
@@ -310,8 +302,8 @@ void loadBinaryTensor(const std::string &binaryFileName, InferenceEngine::Blob::
         throw std::invalid_argument("Can not read \"" + binaryFileName + "\"");
     }
 
-    auto expected_size = blob->size();
-    if (fileSize != 4 * expected_size) {
+    auto expected_size = blob->byteSize();
+    if (fileSize != expected_size) {
         throw std::invalid_argument("File \"" + binaryFileName + "\" contains " + std::to_string(fileSize) + " bytes "
                                     "but network expects " + std::to_string(expected_size));
     }

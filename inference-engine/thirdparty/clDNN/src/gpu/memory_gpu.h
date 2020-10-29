@@ -92,8 +92,11 @@ struct gpu_buffer : public lockable_gpu_mem, public memory_impl {
         return _buffer;
     }
 
+    void zero_buffer();
+
 protected:
-    gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint32_t net_id);
+    gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint32_t net_id,
+               bool reset = true);
     cl::Buffer _buffer;
 };
 
@@ -113,8 +116,11 @@ struct gpu_image2d : public lockable_gpu_mem, public memory_impl {
         return _buffer;
     }
 
+    void zero_image();
+
 protected:
-    gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint32_t net_id);
+    gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint32_t net_id,
+                bool reset = true);
 
     cl::Image2D _buffer;
     size_t _width;
@@ -156,5 +162,27 @@ private:
 };
 #endif
 
+struct gpu_usm : public lockable_gpu_mem, public memory_impl {
+    friend cldnn::memory_pool;
+
+    gpu_usm(const refcounted_obj_ptr<engine_impl>& engine,
+        const layout& new_layout,
+        const cl::UsmMemory& usm_buffer,
+        allocation_type type,
+        uint32_t net_id);
+
+    void* lock() override;
+    void unlock() override;
+    const cl::UsmMemory& get_buffer() const { return _buffer; }
+    cl::UsmMemory& get_buffer() { return _buffer; }
+
+    void fill(unsigned char pattern, event_impl::ptr ev) override;
+    void zero_buffer();
+    void copy_from_other(const gpu_usm& other);
+    shared_mem_params get_internal_params() const override;
+protected:
+    gpu_usm(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint32_t net_id, allocation_type type, bool reset = true);
+    cl::UsmMemory _buffer;
+};
 }  // namespace gpu
 }  // namespace cldnn

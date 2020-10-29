@@ -26,7 +26,7 @@ class FuzedLayersIterator {
     explicit FuzedLayersIterator(InferenceEngine::CNNLayer* origin) {
         bool hasActivation = false;
         for (auto && data : origin->outData) {
-            auto & inputTo = data->getInputTo();
+            auto & inputTo = getInputTo(data);
             for (auto i = inputTo.begin(); i != inputTo.end(); i++) {
                 LayerInfo info(i->second);
                 if (info.isActivation()) {

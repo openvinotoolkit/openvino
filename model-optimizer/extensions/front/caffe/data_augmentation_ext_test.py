@@ -21,9 +21,9 @@ import numpy as np
 
 from extensions.front.caffe.data_augmentation_ext import DataAugmentationFrontExtractor
 from extensions.ops.data_augmentation import DataAugmentationOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeDAProtoLayer:

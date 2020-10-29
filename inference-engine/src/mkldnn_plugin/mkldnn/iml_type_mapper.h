@@ -41,6 +41,8 @@ enum impl_desc_type {
     gemm_avx            = gemm | avx,
     gemm_sse42          = gemm | sse42,
 
+    jit_gemm            = jit | gemm,
+
     jit_avx512_winograd = jit  | avx512 | winograd,
     jit_avx512          = jit  | avx512,
     jit_avx2            = jit  | avx2,

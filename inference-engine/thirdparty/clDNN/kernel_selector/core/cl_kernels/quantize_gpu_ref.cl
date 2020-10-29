@@ -16,7 +16,10 @@
 #include "include/data_types.cl"
 #include "include/fetch.cl"
 
-__attribute__((intel_reqd_sub_group_size(16)))
+#ifdef SUB_GROUP_SIZE
+__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+#endif
+__attribute__((reqd_work_group_size(LWS_0, LWS_1, LWS_2)))
 KERNEL(quantize_ref)(const __global INPUT0_TYPE* input,
                      const __global INPUT1_TYPE* input_low,
                      const __global INPUT2_TYPE* input_high,
@@ -110,10 +113,15 @@ KERNEL(quantize_ref)(const __global INPUT0_TYPE* input,
     const int output_high_offset = INPUT4_GET_INDEX_SAFE(b, of, y, x);
 #endif
 
-
     INPUT0_TYPE val = input[input_offset];
+
+#if OUTPUT_LAYOUT_B_FS_YX_FSV16
+    if (of >= OUTPUT_FEATURE_NUM)
+        return;
+#else
     if (x >= OUTPUT_SIZE_X || y >= OUTPUT_SIZE_Y || z >= OUTPUT_SIZE_Z)
         return;
+#endif
 
     INPUT0_TYPE input_low_val  = input_low[input_low_offset];
     INPUT0_TYPE input_high_val  = input_high[input_high_offset];

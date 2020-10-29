@@ -19,7 +19,7 @@ from typing import Dict
 
 from extensions.middle.MulFakeQuantizeFuse import resolve_shared_inputs
 from mo.graph.graph import Graph, Node
-from mo.middle.passes.conv import get_tensor_in_port, get_value_in_port
+from mo.middle.passes.fusing.helpers import get_tensor_in_port, get_value_in_port
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -37,9 +37,9 @@ class AddFakeQuantizeFuse(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('preop', dict(op='Add')),
+                ('preop', dict(op='Add', can_be_fused=True)),
                 ('preoped', dict()),
-                ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
+                ('quantize', dict(op='FakeQuantize')),
             ],
             edges=[
                 ('preop', 'preoped'),

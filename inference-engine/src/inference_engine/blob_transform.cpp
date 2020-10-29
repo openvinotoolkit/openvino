@@ -4,9 +4,9 @@
 
 #include "blob_transform.hpp"
 
-#include "cpu_detector.hpp"
+#include "ie_system_conf.h"
 #ifdef HAVE_SSE
-#include "blob_transform_sse42.hpp"
+#include "cpu_x86_sse42/blob_transform_sse42.hpp"
 #endif
 
 #include <cstdint>
@@ -126,6 +126,7 @@ static inline void blob_copy_4d(Blob::Ptr src, Blob::Ptr dst) {
     switch (src->getTensorDesc().getPrecision()) {
     case Precision::FP32:
     case Precision::I32:
+    case Precision::U32:
         blob_copy_4d_t<Precision::FP32>(src, dst);
         break;
 
@@ -263,6 +264,7 @@ static inline void blob_copy_5d(Blob::Ptr src, Blob::Ptr dst) {
     switch (src->getTensorDesc().getPrecision()) {
     case Precision::FP32:
     case Precision::I32:
+    case Precision::U32:
         blob_copy_5d_t<Precision::FP32>(src, dst);
         break;
 

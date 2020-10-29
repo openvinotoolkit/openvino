@@ -16,9 +16,9 @@
 
 import numpy as np
 
-from extensions.ops.mxslice import MXSlice
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from mo.ops.slice import MXSlice
 
 
 class SliceFrontExtractor(FrontExtractorOp):

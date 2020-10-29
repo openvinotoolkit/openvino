@@ -31,10 +31,10 @@ public:
 
 protected:
     bool Validate(const Params&, const optional_params&) const override;
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {WeightsLayout::oiyx};
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::goiyx;
     }
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
 };
 }  // namespace kernel_selector

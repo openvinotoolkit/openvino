@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,19 @@ std::string fused_conv_eltwise_params::to_string() const {
     return s.str();
 }
 
+std::string fused_conv_eltwise_params::to_cache_string_v2() const {
+    std::stringstream s;
+
+    s << weight_bias_params::to_cache_string_v2() << ";";
+    s << conv.filterSize.x << "_" << conv.filterSize.y << "_" << conv.filterSize.z << ";";
+    s << conv.stride.x << "_" << conv.stride.y << "_" << conv.stride.z << ";";
+    s << conv.dilation.x << "_" << conv.dilation.y << "_" << conv.dilation.z << ";";
+    s << conv.padding.x << "_" << conv.padding.y << "_" << conv.padding.z << ";";
+    s << conv.split;
+
+    return s.str();
+}
+
 ParamsKey fused_conv_eltwise_params::GetParamsKey() const {
     ParamsKey k = weight_bias_params::GetParamsKey();
 
@@ -61,20 +74,16 @@ ParamsKey fused_conv_eltwise_params::GetParamsKey() const {
         k.EnableFusedConvEltwTranspose();
     }
 
-    if (conv.int8_quantization) {
-        k.EnableFusedConvEltwInt8Quantization();
-    }
-
-    if (conv.output_calibration) {
-        k.EnableFusedConvEltwOutputCalibration();
-    }
-
     if (conv.local_convolution) {
         k.EnableFusedConvEltwLocalConvolution();
     }
 
     if (second_input_in_output) {
         k.EnableFusedConvEltwiseRWOutOpt();
+    }
+
+    if (depth_to_space_already_fused) {
+        k.EnableFusedConvEltwDepthToSpaceFusing();
     }
 
     return k;
@@ -88,11 +97,7 @@ bool fused_conv_eltwise_kernel_base::Validate(const Params& p, const optional_pa
     const fused_conv_eltwise_params& params = static_cast<const fused_conv_eltwise_params&>(p);
     const fused_conv_eltwise_optional_params& optParams = static_cast<const fused_conv_eltwise_optional_params&>(o);
 
-    bool bSupportedWeightsLayout = false;
-
-    for (WeightsLayout l : GetSupportedWeightLayouts(params)) {
-        bSupportedWeightsLayout |= params.weights.GetLayout() == l;
-    }
+    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferreddWeightsLayout(params);
 
     const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
 
@@ -104,7 +109,7 @@ bool fused_conv_eltwise_kernel_base::Validate(const Params& p, const optional_pa
 }
 
 JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_eltwise_params& params,
-                                                             const DispatchData& kd) const {
+                                                             const DispatchData& dispatchData) const {
     JitConstants mem_consts = WeightBiasKernelBase::GetJitConstants(params);
     const auto& padding = params.conv.padding;
     const auto& input = params.inputs[0];
@@ -120,21 +125,7 @@ JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_el
         MakeJitConstant("FILTER_ARRAY_NUM", params.conv.split),
         MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
         MakeJitConstant("DEPTHWISE_SEPARABLE_OPT", params.conv.depthwise_separable_opt),
-        MakeJitConstant("QUANTIZATION_TERM", params.conv.int8_quantization),
     });
-
-    if (params.conv.int8_quantization) {
-        mem_consts.AddConstants({MakeJitConstant("W_QF", params.conv.weights_quantization_factors[0])});
-        mem_consts.AddConstants({MakeJitConstant("I_QF", params.conv.input_quantization_factor)});
-
-        if (params.conv.output_calibration) {
-            mem_consts.AddConstant(MakeJitConstant("CALIBRATION_TERM", params.conv.output_calibration));
-            mem_consts.AddConstant(MakeJitConstant("O_QF", params.conv.output_calibration_factors[0]));
-
-        } else {
-            mem_consts.AddConstants({MakeJitConstant("O_QF", params.conv.output_quantization_factor)});
-        }
-    }
 
     if (params.conv.local_convolution) {
         mem_consts.AddConstants({MakeJitConstant("LOCAL_CONVOLUTION", params.conv.local_convolution)});
@@ -144,7 +135,6 @@ JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_el
     mem_consts.Merge(eltw_activations);
     JitConstants conv_activations = MakeActivationJitConstants(params.conv.activations, GetUnitType(params), "_CONV");
     mem_consts.Merge(conv_activations);
-    mem_consts.AddConstant(MakeJitConstant("ELTW_CALIBRATION_TERM", params.eltw.output_calibration));
 
     if (!params.eltw.stride.empty()) {
         mem_consts.AddConstant(MakeJitConstant("ELTW_STRIDE_X", params.eltw.stride[0].x));
@@ -161,12 +151,12 @@ JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_el
     std::vector<uint32_t> unrollLoopParams{params.conv.filterSize.x,
                                            params.conv.filterSize.y,
                                            params.conv.filterSize.z,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDX,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDY,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDZ,
-                                           (uint32_t)kd.gemmStyle.subBlockDimM,
-                                           (uint32_t)kd.gemmStyle.subBlockDimK,
-                                           (uint32_t)kd.gemmStyle.subBlockDimN};
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimM,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimK,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimN};
 
     auto loopCount = *std::max_element(unrollLoopParams.begin(), unrollLoopParams.end());
 
@@ -176,13 +166,15 @@ JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_el
     return mem_consts;
 }
 
-bool fused_conv_eltwise_kernel_base::CheckWorkGroups(const fused_conv_eltwise_kernel_base::DispatchData& kd) {
-    if (kd.gws0 == 0 || kd.gws1 == 0 || kd.gws2 == 0 || kd.lws0 == 0 || kd.lws1 == 0 || kd.lws2 == 0) {
+bool fused_conv_eltwise_kernel_base::CheckWorkGroups(const fused_conv_eltwise_kernel_base::DispatchData& dispatchData) {
+    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
         return false;
-    }
 
-    if ((kd.gws0 % kd.lws0) != 0 || (kd.gws1 % kd.lws1) != 0 || (kd.gws2 % kd.lws2) != 0) {
-        return false;
+    for (size_t i = 0; i < dispatchData.gws.size(); i++) {
+        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
+            return false;
+        if ((dispatchData.gws[i] % dispatchData.lws[i]) != 0)
+            return false;
     }
 
     return true;
@@ -226,43 +218,34 @@ bool fused_conv_eltwise_kernel_base::CheckPitchForSplitOnly(const fused_conv_elt
 fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_base::SetDefault(
     const fused_conv_eltwise_params& params,
     int) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& out = params.output;
-    kd.fp16UnitUsed = out.GetDType() == Datatype::F16;
-    std::vector<size_t> global;
+
     if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf ||
-        params.output.GetLayout() == DataLayout::bfzyx || params.output.GetLayout() == DataLayout::bfzyx_f16 ||
-        params.output.GetLayout() == DataLayout::bfzyx_b16f16) {
-        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        params.output.GetLayout() == DataLayout::bfzyx || params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+        params.output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
+        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
     } else {
-        global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v * out.Z().v };
+        dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v * out.Z().v };
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.cldnnStyle.blockWidth = 1;
+    dispatchData.cldnnStyle.blockHeight = 1;
+    dispatchData.cldnnStyle.prefetch = 0;
+    dispatchData.cldnnStyle.inputBlockArraySize = 0;
+    dispatchData.cldnnStyle.inputBlockWidth = 0;
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    kd.cldnnStyle.blockWidth = 1;
-    kd.cldnnStyle.blockHeight = 1;
-    kd.cldnnStyle.prefetch = 0;
-    kd.cldnnStyle.inputBlockArraySize = 0;
-    kd.cldnnStyle.inputBlockWidth = 0;
-
-    kd.gemmStyle.globalWorkSizeDX = 1;
-    kd.gemmStyle.globalWorkSizeDY = 1;
-    kd.gemmStyle.globalWorkSizeDZ = 1;
-    kd.gemmStyle.subBlockDimK = 1;
-    kd.gemmStyle.subBlockDimM = 0;
-    kd.gemmStyle.subBlockDimN = 0;
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    return kd;
+    dispatchData.gemmStyle.globalWorkSizeDX = 1;
+    dispatchData.gemmStyle.globalWorkSizeDY = 1;
+    dispatchData.gemmStyle.globalWorkSizeDZ = 1;
+    dispatchData.gemmStyle.subBlockDimK = 1;
+    dispatchData.gemmStyle.subBlockDimM = 0;
+    dispatchData.gemmStyle.subBlockDimN = 0;
+    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    return dispatchData;
 }
 
 KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& params,
@@ -279,16 +262,16 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
     if (NeedPaddedInput()) {
         kd.reorderInput = CovolutionUpdateInputParams(newParams);
     }
-    DispatchData runInfo = SetDefault(newParams, autoTuneIndex);
+    DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
 
-    if (!CheckWorkGroups(runInfo)) {
+    if (!CheckWorkGroups(dispatchData)) {
         // Internal Error - wrong calculation of global/local work group sizes
         return {};
     }
 
     bool succeed = UpdateWeightsParams(newParams,
                                        options,
-                                       GetSupportedWeightLayouts(newParams),
+                                       GetPreferreddWeightsLayout(newParams),
                                        kd.weightsReorderParams,
                                        GetSupportedKey());
 
@@ -297,13 +280,13 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
     }
 
     auto finalKernelName = GetKernelName(newParams);
-    auto cldnnJit = GetJitConstants(newParams, runInfo);
+    auto cldnnJit = GetJitConstants(newParams, dispatchData);
     auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      finalKernelName,
                      jit,
@@ -319,10 +302,8 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
     } else {
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
-    if (!newParams.eltw.output_calibration_factors.empty())
-        kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT_CALIBRATION_FACTORS, 1});
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};
@@ -361,7 +342,11 @@ KernelsData fused_conv_eltwise_kernel_base::GetKernelsDataForAutoTune(const Para
 }
 
 static DataTensor GetConvolutionBFYXPaddedTensor(const fused_conv_eltwise_params& cp) {
-    DataTensor t = cp.inputs[0];
+    DataTensor t;
+    if (cp.inputs.size() > 1 && (cp.inputs[0].X().v <= cp.inputs[1].X().v))
+        t = cp.inputs[1];
+    else
+        t = cp.inputs[0];
     std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}, { 0, 0 } };
 
     auto& conv = cp.conv;

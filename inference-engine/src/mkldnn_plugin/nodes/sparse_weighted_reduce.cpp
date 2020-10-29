@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -13,7 +12,6 @@
 #include <algorithm>
 #include <limits>
 #include "ie_parallel.hpp"
-#include "common/simple_copy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -226,7 +224,7 @@ private:
     Precision input_default_value_precision;
 };
 
-REG_FACTORY_FOR(ImplFactory<ExperimentalSparseWeightedReduceImpl>, ExperimentalSparseWeightedSum);
+REG_FACTORY_FOR(ExperimentalSparseWeightedReduceImpl, ExperimentalSparseWeightedSum);
 
 }  // namespace Cpu
 }  // namespace Extensions

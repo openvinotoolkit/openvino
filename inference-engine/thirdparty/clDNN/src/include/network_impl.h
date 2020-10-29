@@ -76,6 +76,7 @@ public:
     const program_impl::graph_optimizer_info& get_optimizer_passes_info() const;
     void execute(const std::vector<event_impl::ptr>& events);
     void validate_primitives();
+    void set_arguments();
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::string get_primitive_info(const primitive_id& id) const;
@@ -97,6 +98,7 @@ private:
     const program_impl::cptr _program;
     uint16_t _stream_id;
     bool _internal;
+    bool _reset_arguments;
     float _learning_rate = static_cast<float>(0.00001);
 
     std::map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
@@ -108,6 +110,7 @@ private:
     std::unordered_map<primitive_id, event_impl::ptr> _events;
 
     void allocate_primitive_instance(program_node const& node);
+    void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void allocate_mutable_data_for_streams(std::vector<std::shared_ptr<program_node>>& mutable_data_nodes);
     void add_to_exec_order(const primitive_id& id);
     std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id);

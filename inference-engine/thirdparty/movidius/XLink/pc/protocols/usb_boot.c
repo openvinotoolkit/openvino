@@ -33,6 +33,9 @@
 #define DEFAULT_SEND_FILE_TIMEOUT   10000
 #define USB1_CHUNKSZ                64
 
+#define MVLOG_UNIT_NAME xLinkUsb
+#include "XLinkLog.h"
+
 /*
  * ADDRESS_BUFF_SIZE 35 = 4*7+7.
  * '255-' x 7 (also gives us nul-terminator for last entry)
@@ -53,10 +56,12 @@ typedef struct {
 } deviceBootInfo_t;
 
 static deviceBootInfo_t supportedDevices[] = {
+#if 0 // Myriad 2 device has been deprecated since 2020.4 release
     {
         .pid = 0x2150,
         .name = "ma2450"
     },
+#endif
     {
         .pid = 0x2485,
         .name = "ma2480"
@@ -70,7 +75,6 @@ static deviceBootInfo_t supportedDevices[] = {
 // for now we'll only use the loglevel for usb boot. can bring it into
 // the rest of usblink later
 // use same levels as mvnc_loglevel for now
-int usb_loglevel = 0;
 #if (defined(_WIN32) || defined(_WIN64) )
 void initialize_usb_boot()
 {
@@ -123,9 +127,6 @@ static const char *get_pid_name(int pid)
             return supportedDevices[i].name;
     }
 
-    if(usb_loglevel)
-        fprintf(stderr, "%s(): Error pid:=%i not supported\n", __func__, pid);
-
     return NULL;
 }
 
@@ -138,10 +139,7 @@ int get_pid_by_name(const char* name)
 {
     char* p = strchr(name, '-');
     if (p == NULL) {
-        if (usb_loglevel) {
-            fprintf(stderr, "%s(): Error name (%s) not supported\n", __func__, name);
-        }
-
+        mvLog(MVLOG_DEBUG, "Device name (%s) not supported", name);
         return -1;
     }
     p++; //advance to point to the name
@@ -253,7 +251,7 @@ static pthread_mutex_t globalMutex = PTHREAD_MUTEX_INITIALIZER;
 usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
                                         unsigned addrsize, void **device, int vid, int pid, uint16_t* bcdusb) {
     if (pthread_mutex_lock(&globalMutex)) {
-        fprintf(stderr, "Mutex lock failed\n");
+        mvLog(MVLOG_ERROR, "globalMutex lock failed");
         return USB_BOOT_ERROR;
     }
     int searchByName = 0;
@@ -265,10 +263,9 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
     int res;
 
     if (!initialized) {
-        if (usb_loglevel)
-            fprintf(stderr, "Library has not been initialized when loaded\n");
+        mvLog(MVLOG_ERROR, "Library has not been initialized when loaded");
         if (pthread_mutex_unlock(&globalMutex)) {
-            fprintf(stderr, "Mutex unlock failed\n");
+            mvLog(MVLOG_ERROR, "globalMutex unlock failed");
         }
         return USB_BOOT_ERROR;
     }
@@ -284,10 +281,9 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
             devs = 0;
         }
         if ((res = libusb_get_device_list(NULL, &devs)) < 0) {
-            if (usb_loglevel)
-                fprintf(stderr, "Unable to get USB device list: %s\n", libusb_strerror(res));
+            mvLog(MVLOG_DEBUG, "Unable to get USB device list: %s", libusb_strerror(res));
             if (pthread_mutex_unlock(&globalMutex)) {
-                fprintf(stderr, "Mutex unlock failed\n");
+                mvLog(MVLOG_ERROR, "globalMutex unlock failed");
             }
             return USB_BOOT_ERROR;
         }
@@ -297,8 +293,7 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
     i = 0;
     while ((dev = devs[i++]) != NULL) {
         if ((res = libusb_get_device_descriptor(dev, &desc)) < 0) {
-            if (usb_loglevel)
-                fprintf(stderr, "Unable to get USB device descriptor: %s\n", libusb_strerror(res));
+            mvLog(MVLOG_DEBUG, "Unable to get USB device descriptor: %s", libusb_strerror(res));
             continue;
         }
 
@@ -320,10 +315,10 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
             if (device) {
                 const char *dev_addr = gen_addr(dev, get_pid_by_name(input_addr));
                 if (!strcmp(dev_addr, input_addr)) {
-                    if (usb_loglevel > 1) {
-                        fprintf(stderr, "Found Address: %s - VID/PID %04x:%04x\n",
-                                input_addr, desc.idVendor, desc.idProduct);
-                    }
+#if 0 // To avoid spam in Debug mode
+                    mvLog(MVLOG_DEBUG, "Found Address: %s - VID/PID %04x:%04x",
+                          input_addr, desc.idVendor, desc.idProduct);
+#endif
 
                     libusb_ref_device(dev);
                     libusb_free_device_list(devs, 1);
@@ -333,7 +328,7 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
                     devs = 0;
 
                     if (pthread_mutex_unlock(&globalMutex)) {
-                        fprintf(stderr, "Mutex unlock failed\n");
+                        mvLog(MVLOG_ERROR, "globalMutex unlock failed");
                     }
                     return USB_BOOT_SUCCESS;
                 }
@@ -341,24 +336,25 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
                 const char *dev_addr = gen_addr(dev, desc.idProduct);
                 // If the same add as input
                 if (!strcmp(dev_addr, input_addr)) {
-                    if (usb_loglevel > 1) {
-                        fprintf(stderr, "Found Address: %s - VID/PID %04x:%04x\n",
-                                input_addr, desc.idVendor, desc.idProduct);
-                    }
+#if 0 // To avoid spam in Debug mode
+                    mvLog(MVLOG_DEBUG, "Found Address: %s - VID/PID %04x:%04x",
+                          input_addr, desc.idVendor, desc.idProduct);
+#endif
 
                     if (pthread_mutex_unlock(&globalMutex)) {
-                        fprintf(stderr, "Mutex unlock failed\n");
+                        mvLog(MVLOG_ERROR, "globalMutex unlock failed");
                     }
                     return USB_BOOT_SUCCESS;
                 }
             } else if (idx == count) {
                 const char *caddr = gen_addr(dev, desc.idProduct);
-                if (usb_loglevel > 1)
-                    fprintf(stderr, "Device %d Address: %s - VID/PID %04x:%04x\n",
-                            idx, caddr, desc.idVendor, desc.idProduct);
+#if 0 // To avoid spam in Debug mode
+                mvLog(MVLOG_DEBUG, "Device %d Address: %s - VID/PID %04x:%04x",
+                      idx, caddr, desc.idVendor, desc.idProduct);
+#endif
                 mv_strncpy(input_addr, addrsize, caddr, addrsize - 1);
                 if (pthread_mutex_unlock(&globalMutex)) {
-                    fprintf(stderr, "Mutex unlock failed\n");
+                    mvLog(MVLOG_ERROR, "globalMutex unlock failed");
                 }
                 return USB_BOOT_SUCCESS;
             }
@@ -368,7 +364,7 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
     libusb_free_device_list(devs, 1);
     devs = 0;
     if (pthread_mutex_unlock(&globalMutex)) {
-        fprintf(stderr, "Mutex unlock failed\n");
+        mvLog(MVLOG_ERROR, "globalMutex unlock failed");
     }
     return USB_BOOT_DEVICE_NOT_FOUND;
 }
@@ -396,15 +392,13 @@ usbBootError_t usb_find_device(unsigned idx, char *addr, unsigned addrsize, void
 
     if(!initialized)
     {
-        if(usb_loglevel)
-            fprintf(stderr, "Library has not been initialized when loaded\n");
+        mvLog(MVLOG_ERROR, "Library has not been initialized when loaded");
         return USB_BOOT_ERROR;
     }
     if (devs_cnt == 0 || idx == 0) {
         devs_cnt = 0;
         if (((res = usb_list_devices(vid, pid, devs)) < 0)) {
-            if (usb_loglevel)
-                fprintf(stderr, "Unable to get USB device list: %s\n", libusb_strerror(res));
+            mvLog(MVLOG_DEBUG, "Unable to get USB device list: %s", libusb_strerror(res));
             return USB_BOOT_ERROR;
         }
         devs_cnt = res;
@@ -436,8 +430,7 @@ usbBootError_t usb_find_device(unsigned idx, char *addr, unsigned addrsize, void
                 const char *caddr = &devs[res][4];
                 if (strncmp(addr, caddr, XLINK_MAX_NAME_SIZE) == 0)
                 {
-                    if (usb_loglevel > 1)
-                        fprintf(stderr, "Found Address: %s - VID/PID %04x:%04x\n", caddr, (int)(devs[res][0] << 8 | devs[res][1]), (int)(devs[res][2] << 8 | devs[res][3]));
+                    mvLog(MVLOG_DEBUG, "Found Address: %s - VID/PID %04x:%04x", caddr, (int)(devs[res][0] << 8 | devs[res][1]), (int)(devs[res][2] << 8 | devs[res][3]));
                     *device = enumerate_usb_device(vid, pid, caddr, 0);
                     devs_cnt = 0;
                     return USB_BOOT_SUCCESS;
@@ -447,16 +440,14 @@ usbBootError_t usb_find_device(unsigned idx, char *addr, unsigned addrsize, void
                 const char *caddr = &devs[res][4];
                 if (strncmp(addr, caddr, XLINK_MAX_NAME_SIZE) == 0)
                 {
-                    if (usb_loglevel > 1)
-                        fprintf(stderr, "Found Address: %s - VID/PID %04x:%04x\n", caddr, (int)(devs[res][0] << 8 | devs[res][1]), (int)(devs[res][2] << 8 | devs[res][3]));
+                    mvLog(MVLOG_DEBUG, "Found Address: %s - VID/PID %04x:%04x", caddr, (int)(devs[res][0] << 8 | devs[res][1]), (int)(devs[res][2] << 8 | devs[res][3]));
                     return USB_BOOT_SUCCESS;
                 }
             }
             else if (idx == count)
             {
                 const char *caddr = &devs[res][4];
-                if (usb_loglevel > 1)
-                    fprintf(stderr, "Device %d Address: %s - VID/PID %04x:%04x\n", idx, caddr, (int)(devs[res][0] << 8 | devs[res][1]), (int)(devs[res][2] << 8 | devs[res][3]));
+                mvLog(MVLOG_DEBUG, "Device %d Address: %s - VID/PID %04x:%04x", idx, caddr, (int)(devs[res][0] << 8 | devs[res][1]), (int)(devs[res][2] << 8 | devs[res][3]));
                 mv_strncpy(addr, addrsize, caddr, addrsize - 1);
                 return USB_BOOT_SUCCESS;
             }
@@ -503,9 +494,8 @@ static libusb_device_handle *usb_open_device(libusb_device *dev, uint8_t *endpoi
     ifdesc = cdesc->interface->altsetting;
     for(i=0; i<ifdesc->bNumEndpoints; i++)
     {
-        if(usb_loglevel > 1)
-            fprintf(stderr, "Found EP 0x%02x : max packet size is %u bytes\n",
-                    ifdesc->endpoint[i].bEndpointAddress, ifdesc->endpoint[i].wMaxPacketSize);
+        mvLog(MVLOG_DEBUG, "Found EP 0x%02x : max packet size is %u bytes",
+              ifdesc->endpoint[i].bEndpointAddress, ifdesc->endpoint[i].wMaxPacketSize);
         if((ifdesc->endpoint[i].bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) != LIBUSB_TRANSFER_TYPE_BULK)
             continue;
         if( !(ifdesc->endpoint[i].bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) )
@@ -542,20 +532,19 @@ static int wait_findopen(const char *device_address, int timeout, libusb_device 
     }
 
     usleep(100000);
-    if(usb_loglevel > 1)
-    {
-        if(timeout == -1)
-            fprintf(stderr, "Starting wait for connect, no timeout\n");
-        else if(timeout == 0)
-            fprintf(stderr, "Trying to connect\n");
-        else fprintf(stderr, "Starting wait for connect with %ums timeout\n", timeout);
-    }
+
+    if(timeout == -1)
+        mvLog(MVLOG_DEBUG, "Starting wait for connect, no timeout");
+    else if(timeout == 0)
+        mvLog(MVLOG_DEBUG, "Trying to connect");
+    else mvLog(MVLOG_DEBUG, "Starting wait for connect with %ums timeout", timeout);
+
     last_open_dev_err[0] = 0;
     i = 0;
     for(;;)
     {
         highres_gettime(&t1);
-        int addr_size = strlen(device_address);
+        int addr_size = (int)strlen(device_address);
 #if (!defined(_WIN32) && !defined(_WIN64) )
         rc = usb_find_device_with_bcd(0, (char*)device_address, addr_size, (void**)dev,
                                       DEFAULT_VID, get_pid_by_name(device_address), bcdusb);
@@ -574,12 +563,12 @@ static int wait_findopen(const char *device_address, int timeout, libusb_device 
 #endif
             if(*devh != NULL)
             {
-                if(usb_loglevel > 1)
-                    fprintf(stderr, "Found and opened device\n");
+                mvLog(MVLOG_DEBUG, "Found and opened device");
                 return 0;
             }
 #if (!defined(_WIN32) && !defined(_WIN64) )
             libusb_unref_device(*dev);
+            *dev = NULL;
 #endif
         }
         highres_gettime(&t2);
@@ -587,12 +576,9 @@ static int wait_findopen(const char *device_address, int timeout, libusb_device 
 
         if(timeout != -1)
         {
-            if(usb_loglevel)
-            {
-                if(last_open_dev_err[0])
-                    fprintf(stderr, "%s", last_open_dev_err);
-                fprintf(stderr, "error: device not found!\n");
-            }
+            if(last_open_dev_err[0])
+                mvLog(MVLOG_DEBUG, "Last opened device name: %s", last_open_dev_err);
+
             return rc ? USB_BOOT_DEVICE_NOT_FOUND : USB_BOOT_TIMEOUT;
         } else if (elapsedTime > (double)timeout) {
             return rc ? USB_BOOT_DEVICE_NOT_FOUND : USB_BOOT_TIMEOUT;
@@ -624,8 +610,7 @@ static int send_file(libusb_device_handle *h, uint8_t endpoint, const uint8_t *t
         bulk_chunklen = USB1_CHUNKSZ;
     }
 #endif
-    if(usb_loglevel > 1)
-        fprintf(stderr, "Performing bulk write of %u bytes...\n", filesize);
+    mvLog(MVLOG_DEBUG, "Performing bulk write of %u bytes...", filesize);
     while((unsigned)twb < filesize)
     {
         highres_gettime(&t1);
@@ -642,8 +627,7 @@ static int send_file(libusb_device_handle *h, uint8_t endpoint, const uint8_t *t
         {
             if(rc == LIBUSB_ERROR_NO_DEVICE)
                 break;
-            if(usb_loglevel)
-                fprintf(stderr, "bulk write: %s (%d bytes written, %d bytes to write)\n", libusb_strerror(rc), wbr, wb);
+            mvLog(MVLOG_WARN, "bulk write: %s (%d bytes written, %d bytes to write)", libusb_strerror(rc), wbr, wb);
             if(rc == LIBUSB_ERROR_TIMEOUT)
                 return USB_BOOT_TIMEOUT;
             else return USB_BOOT_ERROR;
@@ -656,11 +640,12 @@ static int send_file(libusb_device_handle *h, uint8_t endpoint, const uint8_t *t
         twb += wbr;
         p += wbr;
     }
-    if(usb_loglevel > 1)
-    {
-        double MBpS = ((double)filesize / 1048576.) / (elapsedTime * 0.001);
-        fprintf(stderr, "Successfully sent %u bytes of data in %lf ms (%lf MB/s)\n", filesize, elapsedTime, MBpS);
-    }
+
+#ifndef NDEBUG
+    double MBpS = ((double)filesize / 1048576.) / (elapsedTime * 0.001);
+    mvLog(MVLOG_DEBUG, "Successfully sent %u bytes of data in %lf ms (%lf MB/s)", filesize, elapsedTime, MBpS);
+#endif
+
     return 0;
 }
 
@@ -693,9 +678,14 @@ int usb_boot(const char *addr, const void *mvcmd, unsigned size)
         return rc;
     }
     rc = send_file(h, endpoint, mvcmd, size,bcdusb);
-    libusb_release_interface(h, 0);
-    libusb_close(h);
-    libusb_unref_device(dev);
+    if (h) {
+        libusb_release_interface(h, 0);
+        libusb_close(h);
+    }
+    if (dev) {
+        libusb_unref_device(dev);
+    }
+
 #endif
     return rc;
 }

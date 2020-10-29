@@ -5,13 +5,12 @@
 /**
  * @brief This is a header file with common inference engine definitions
  * 
- * @file
+ * @file ie_unicode.hpp
  */
 #pragma once
 
 #include <algorithm>
 #include <cstdlib>
-#include <details/ie_exception.hpp>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -28,8 +27,10 @@ typedef std::string file_name_t;
 namespace InferenceEngine {
 
 /**
+ * @deprecated Use OS-native conversion utilities
  * @brief Conversion from possibly-wide character string to a single-byte chain.
  */
+INFERENCE_ENGINE_DEPRECATED("Use OS-native conversion utilities")
 inline std::string fileNameToString(const file_name_t& str) {
 #ifdef UNICODE
     size_t maxlen = (str.length() + 1) * sizeof(wchar_t) / sizeof(char);
@@ -44,8 +45,10 @@ inline std::string fileNameToString(const file_name_t& str) {
 }
 
 /**
+ * @deprecated Use OS-native conversion utilities
  * @brief Conversion from single-byte character string to a possibly-wide one
  */
+INFERENCE_ENGINE_DEPRECATED("Use OS-native conversion utilities")
 inline file_name_t stringToFileName(const std::string& str) {
 #ifdef UNICODE
     size_t maxlen = str.length() + 1;

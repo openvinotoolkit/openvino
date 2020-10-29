@@ -19,9 +19,9 @@ import logging as log
 # Concat infer : N - number of inputs to concat
 #                axis - dimension number for tensors concatenation
 import numpy as np
-from mo.front.common.partial_infer.utils import int64_array
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.op import PermuteAttrs
 
 
@@ -59,7 +59,7 @@ def concat_infer(node):
 
     node.out_node(0).shape = shape
     if len(shape) != 4:
-        # exclude it from NHWC to NCHW convertion
+        # exclude it from NHWC to NCHW conversion
         if 'axis' in node.dim_attrs:
             node.dim_attrs.remove('axis')
 
@@ -69,7 +69,7 @@ def concat_infer(node):
     if any(v is None for v in values):
         return
 
-    node.out_node(0).value = np.array(np.concatenate(values, axis=node.axis), dtype=values[0].dtype)
+    node.out_node(0).value = np.concatenate(values, axis=node.axis).astype(values[0].dtype, copy=False)
     node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
 
 

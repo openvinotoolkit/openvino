@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -48,19 +48,19 @@ struct gemm_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BorderKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class GemmKernelBase : public common_kernel_base {
+class GemmKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
-    using FusedOpDesc = base_params::fused_operation_desc;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
+    using FusedOpDesc = fused_operation_desc;
     using DispatchData = CommonDispatchData;
     virtual ~GemmKernelBase() {}
 
 protected:
     virtual JitConstants GetJitConstants(const gemm_params& params) const;
-    DispatchData SetDefault(const gemm_params& params) const;
+    virtual DispatchData SetDefault(const gemm_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
     // Fused ops
-    virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& dispatchData) const;
     Datatype GetActivationType(const gemm_params& params) const;
     // --Fused ops
 

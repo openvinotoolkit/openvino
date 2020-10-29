@@ -8,6 +8,7 @@
  * @file ie_precision.hpp
  */
 #pragma once
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -26,14 +27,17 @@ public:
         UNSPECIFIED = 255, /**< Unspecified value. Used by default */
         MIXED = 0,         /**< Mixed value. Can be received from network. No applicable for tensors */
         FP32 = 10,         /**< 32bit floating point value */
-        FP16 = 11,         /**< 16bit floating point value */
+        FP16 = 11,         /**< 16bit floating point value, 5 bit for exponent, 10 bit for mantisa */
+        BF16 = 12,         /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
         Q78 = 20,          /**< 16bit specific signed fixed point precision */
         I16 = 30,          /**< 16bit signed integer value */
         U8 = 40,           /**< 8bit unsigned integer value */
         I8 = 50,           /**< 8bit signed integer value */
         U16 = 60,          /**< 16bit unsigned integer value */
         I32 = 70,          /**< 32bit signed integer value */
+        U32 = 74,          /**< 32bit unsigned integer value */
         I64 = 72,          /**< 64bit signed integer value */
+        U64 = 73,          /**< 64bit unsigned integer value */
         BIN = 71,          /**< 1bit integer value */
         BOOL = 41,         /**< 8bit bool type */
         CUSTOM = 80        /**< custom precision has it's own name and size of elements */
@@ -105,12 +109,15 @@ public:
             switch (precisionInfo.value) {
                 CASE(FP32, float);
                 CASE2(FP16, int16_t, uint16_t);
+                CASE2(BF16, int16_t, uint16_t);
+                CASE(I8, int8_t);
                 CASE(I16, int16_t);
                 CASE(I32, int32_t);
                 CASE(I64, int64_t);
-                CASE(U16, uint16_t);
                 CASE(U8, uint8_t);
-                CASE(I8, int8_t);
+                CASE(U16, uint16_t);
+                CASE(U32, uint32_t);
+                CASE(U64, uint64_t);
                 CASE(BOOL, uint8_t);
                 CASE2(Q78, int16_t, uint16_t);
                 CASE2(BIN, int8_t, uint8_t);
@@ -160,6 +167,11 @@ public:
     operator Precision::ePrecision() const noexcept {
         return precisionInfo.value;
     }
+
+    /**
+     * @brief Gets the precision value of type ePrecision.
+     * @return The preccision value.
+     */
     constexpr uint8_t getPrecVal() const noexcept {
         return precisionInfo.value;
     }
@@ -173,9 +185,10 @@ public:
     static Precision FromStr(const std::string& str) {
         static std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
-            PRECISION_NAME(Q78),  PRECISION_NAME(U8),    PRECISION_NAME(I8),  PRECISION_NAME(I16),
-            PRECISION_NAME(I32),  PRECISION_NAME(I64),   PRECISION_NAME(U16), PRECISION_NAME(FP32),
-            PRECISION_NAME(FP16), PRECISION_NAME(MIXED), PRECISION_NAME(BIN), PRECISION_NAME(BOOL),
+            PRECISION_NAME(Q78),  PRECISION_NAME(BOOL),  PRECISION_NAME(BF16),
+            PRECISION_NAME(I8),   PRECISION_NAME(I16),   PRECISION_NAME(I32),  PRECISION_NAME(I64),
+            PRECISION_NAME(U8),   PRECISION_NAME(U16),   PRECISION_NAME(U32),  PRECISION_NAME(U64),
+            PRECISION_NAME(FP32), PRECISION_NAME(FP16),  PRECISION_NAME(MIXED), PRECISION_NAME(BIN),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -184,7 +197,6 @@ public:
 
     /**
      * @brief Returns size of single element of that precision in bits
-     *
      * @returns Number of bytes per element
      */
     size_t size() const {
@@ -194,25 +206,33 @@ public:
         return precisionInfo.bitsSize >> 3;
     }
 
-    /** @brief Checks if it is a floating point */
+    /**
+     * @brief Checks if it is a floating point value
+     * @return True if precision is float point, `false` otherwise
+     */
     bool is_float() const noexcept {
         return precisionInfo.isFloat;
     }
 
+    /**
+     * @brief Checks if it is a signed value
+     * @return True if precision is signed, `false` otherwise
+     */
     bool isSigned() const noexcept {
         return (precisionInfo.value == Precision::UNSPECIFIED) || (precisionInfo.value == Precision::MIXED) ||
                (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP16) ||
                (precisionInfo.value == Precision::Q78) || (precisionInfo.value == Precision::I16) ||
                (precisionInfo.value == Precision::I8) || (precisionInfo.value == Precision::I32) ||
                (precisionInfo.value == Precision::I64) || (precisionInfo.value == Precision::BIN) ||
-               (precisionInfo.value == Precision::CUSTOM);
+               (precisionInfo.value == Precision::BF16) || (precisionInfo.value == Precision::CUSTOM);
     }
 
 protected:
     /**
-     * @brief Returns PrecisionInfo by its name
-     *
+     * @brief Creates PrecisionInfo by @p precision with a specified name
+     * @tparam precision A precision to create PrecisionInfo for
      * @param name Name of precision
+     * @return A PrecisionInfo object
      */
     template <Precision::ePrecision precision>
     static PrecisionInfo makePrecisionInfo(const char* name);
@@ -245,12 +265,15 @@ protected:
         switch (v) {
             CASE(FP32);
             CASE(FP16);
+            CASE(BF16);
+            CASE(I8);
             CASE(I16);
             CASE(I32);
             CASE(I64);
-            CASE(U16);
             CASE(U8);
-            CASE(I8);
+            CASE(U16);
+            CASE(U32);
+            CASE(U64);
             CASE(Q78);
             CASE(MIXED);
             CASE(BIN);
@@ -279,6 +302,10 @@ struct PrecisionTrait<Precision::FP16> {
     using value_type = int16_t;
 };
 template <>
+struct PrecisionTrait<Precision::BF16> {
+    using value_type = int16_t;
+};
+template<>
 struct PrecisionTrait<Precision::Q78> {
     using value_type = uint16_t;
 };
@@ -307,8 +334,16 @@ struct PrecisionTrait<Precision::I32> {
     using value_type = int32_t;
 };
 template <>
+struct PrecisionTrait<Precision::U32> {
+    using value_type = uint32_t;
+};
+template <>
 struct PrecisionTrait<Precision::I64> {
     using value_type = int64_t;
+};
+template <>
+struct PrecisionTrait<Precision::U64> {
+    using value_type = uint64_t;
 };
 template <>
 struct PrecisionTrait<Precision::BIN> {

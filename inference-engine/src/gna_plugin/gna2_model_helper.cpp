@@ -4,7 +4,7 @@
 
 #if GNA_LIB_VER == 2
 
-#ifdef _WIN32
+#if defined __INTEL_COMPILER || defined _MSC_VER
 #include <malloc.h>
 #else
 #include <mm_malloc.h>
@@ -60,12 +60,22 @@ Gna2Tensor HelperGna2TensorInit3D(uint32_t x, uint32_t y, uint32_t z, Gna2DataTy
 
 Gna2Tensor * createGna2Tensor1D(uint32_t x, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
+    IE_ASSERT(input != nullptr);
     *input = HelperGna2TensorInit1D(x, Gna2DataTypeFromBytes(byteSize), data);
     return input;
 }
 
+Gna2Tensor * createGna2TensorPwl(uint32_t x, void* data) {
+    auto ret = createGna2Tensor1D(x, 1, data);
+    ret->Type = Gna2DataTypePwlSegment;
+    if (data == nullptr)
+        ret->Mode = Gna2TensorModeDisabled;
+    return ret;
+}
+
 Gna2Tensor * createGna2BiasTensor1D(uint32_t x, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
+    IE_ASSERT(input != nullptr);
     if (byteSize == 8) {
         *input = HelperGna2TensorInit1D(x, Gna2DataTypeCompoundBias, data);
     } else {
@@ -76,24 +86,28 @@ Gna2Tensor * createGna2BiasTensor1D(uint32_t x, uint32_t byteSize, void* data) {
 
 Gna2Tensor * createGna2Tensor2D(uint32_t x, uint32_t y, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
+    IE_ASSERT(input != nullptr);
     *input = HelperGna2TensorInit2D(x, y, Gna2DataTypeFromBytes(byteSize), data);
     return input;
 }
 
 Gna2Tensor * createGna2Tensor3D(uint32_t x, uint32_t y, uint32_t z, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
+    IE_ASSERT(input != nullptr);
     *input = HelperGna2TensorInit3D(x, y, z, Gna2DataTypeFromBytes(byteSize), data);
     return input;
 }
 
 uint32_t* create_uint32_parameter(uint32_t value) {
     const auto param = reinterpret_cast<uint32_t*>(gnaUserAllocator(sizeof(uint32_t)));
+    IE_ASSERT(param != nullptr);
     *param = value;
     return param;
 }
 
 Gna2Shape* create_shape1D_parameter(uint32_t x) {
     const auto shp = reinterpret_cast<Gna2Shape*>(gnaUserAllocator(sizeof(Gna2Shape)));
+    IE_ASSERT(shp != nullptr);
     shp->NumberOfDimensions = 1;
     shp->Dimensions[0] = x;
     return shp;

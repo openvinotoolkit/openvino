@@ -13,9 +13,13 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
 from extensions.middle.BinarizeWeightsM1P1 import BinarizeWeightsM1P1
 from extensions.middle.DeleteControlFlowEdges import DeleteControlFlowEdges
+from extensions.middle.EltwiseChecker import EltwiseChecker
 from mo.graph.graph import Graph
+from mo.middle.passes.fusing.helpers import get_value_in_port
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -34,8 +38,30 @@ class MarkNodesToFuseUpToFakeQuantize(MiddleReplacementPattern):
     def run_before(self):
         return []
 
+    @staticmethod
+    def mark_fusable_muls_on_weights(graph):
+        for node in graph.get_op_nodes(op='Mul'):
+            children = node.out_port(0).get_destinations()
+            if len(children) > 1 or children[0].node.soft_get('type') not in ['Convolution', 'Deconvolution', 'MatMul']:
+                continue
+            value_in_port = get_value_in_port(node)
+            if value_in_port is None:
+                continue
+            value_shape = value_in_port.data.get_shape()
+            non_one_axis = np.argwhere(value_shape != 1)
+            if non_one_axis.size != 1:
+                continue
+            non_one_axis = non_one_axis.item(0)
+            node['can_be_fused'] = True
+            EltwiseChecker().mark_eltwise_node(node, non_one_axis)
+
     def find_and_replace_pattern(self, graph: Graph):
-        eltwise_nodes = graph.get_op_nodes(op='Mul') + graph.get_op_nodes(op='Sub') + graph.get_op_nodes(op='Add')
+        # to prevent fusing of non per channel lin ops, we run EltwiseChecker to mark nodes with can_be_fused attribute
+        EltwiseChecker().find_and_replace_pattern(graph)
+        self.mark_fusable_muls_on_weights(graph)
+        eltwise_nodes = graph.get_op_nodes(op='Mul', can_be_fused=True) + \
+                        graph.get_op_nodes(op='Sub', can_be_fused=True) + \
+                        graph.get_op_nodes(op='Add', can_be_fused=True)
         for elt in eltwise_nodes:
             if elt.in_port(0).data.get_value() is not None or elt.in_port(1).data.get_value() is not None:
                 elt['fuse_up_to_quantize_ports'] = [3, 4]
@@ -65,7 +91,7 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
         return [BinarizeWeightsM1P1]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for quantize_node in graph.get_op_nodes(op='FakeQuantize', keep_in_IR=True):
+        for quantize_node in graph.get_op_nodes(op='FakeQuantize'):
             while len(quantize_node.out_port(0).get_destinations()) == 1:
                 if not quantize_node.out_port(0).get_destination().node.has_valid('fuse_up_to_quantize_ports'):
                     break
@@ -99,16 +125,3 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
                     fuse_node_duplicate.infer(fuse_node_duplicate)
 
                     first_port_fusion = False
-
-            if 'permutation' in quantize_node.in_edge(0):
-                permutation = quantize_node.in_edge(0)['permutation']
-                if permutation is None:
-                    continue
-
-                perm_rank = permutation.perm.size
-
-                if not all([quantize_node.in_port(i).data.get_shape().size == perm_rank for i in range(1, 5)]):
-                    continue
-
-                for i in range(1, 5):
-                    quantize_node.in_edge(i)['permutation'] = permutation

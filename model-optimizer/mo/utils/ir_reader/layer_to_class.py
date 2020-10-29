@@ -15,39 +15,51 @@
 """
 
 import logging as log
-import numpy as np
 import os
 
-from extensions.ops.activation_ops import Activation
+import numpy as np
+
+from extensions.back.TopKNormalizer import TopKNormalizer
 from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Elementwise, LogicalElementwise, Div, Mul, Pow, Sub
 from extensions.ops.ReduceOps import ReduceOp
+from extensions.ops.activation_ops import Activation
+from extensions.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
+from extensions.ops.embedding_bag import EmbeddingBagBase
+from extensions.ops.loop import Loop
+from extensions.ops.psroipooling import DeformablePSROIPoolingOp
+from extensions.ops.scatter import Scatter
+from extensions.ops.scatternd import ScatterNDBase
 from extensions.ops.split import Split, VariadicSplit
-
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
-from mo.ops.op import Op
+from mo.ops.clamp import AttributedClamp
 from mo.ops.convolution import Convolution
+from mo.ops.deconvolution import Deconvolution
+from mo.ops.op import Op
 from mo.ops.pooling import Pooling
-from mo.ops.reshape import Reshape
-
+from mo.ops.result import Result
 from mo.utils.class_registration import update_registration
 from mo.utils.import_extensions import import_by_path
 from mo.utils.ir_reader.extender import Extender
 
-
+# Operations not registered in collect_ops() function
 custom_ops = {
     'AvgPool': Pooling,
+    'BiasAdd': BiasAdd,
     'Convert': Cast,
+    'ConvolutionBackpropData': Deconvolution,
+    'DeformablePSROIPooling': DeformablePSROIPoolingOp,
     'Divide': Div,
     'GroupConvolution': Convolution,
+    'GroupConvolutionBackpropData': Deconvolution,
+    'Loop': Loop,
     'MaxPool': Pooling,
     'Multiply': Mul,
     'Power': Pow,
     'Split': Split,
     'Subtract': Sub,
     'VariadicSplit': VariadicSplit,
+    'Clamp': AttributedClamp,
 }
 
 
@@ -59,7 +71,8 @@ def collect_ops(path: str):
     """
     import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'])
     import_by_path(os.path.join(path, 'extensions', 'ops'), ['extensions', 'ops'])
-    update_registration(classes=[Op, Activation, Elementwise, LogicalElementwise, ReduceOp],
+    update_registration(classes=[Op, Activation, Elementwise, UnaryElementwise, LogicalElementwise,
+                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase],
                         enabled_transforms=[], disabled_transforms=[])
 
 
@@ -128,9 +141,24 @@ def propagate_const_values(op: Node):
 
     in_data_node = op.in_node()
     out_data_node = op.out_node()
+
+    value = in_data_node.value
+    assert len(op.out_node(0).out_nodes()) > 0, 'Const node {} have no consumers.'.format(op.soft_get('name'))
+    if op.out_node(0).out_node(0).type == 'BinaryConvolution':
+        # Unpack binary weights for binary convolution (revert PackBinaryWeights transformation)
+        weights_rounded = np.unpackbits(value)
+        weights_rounded.dtype = np.int8
+        for elem in range(len(weights_rounded)):
+            if weights_rounded[elem] == 0:
+                weights_rounded[elem] -= 1  # pylint: disable=unsupported-assignment-operation
+        assert len(weights_rounded) % 8 == 0
+        weights_rounded = weights_rounded.reshape([len(weights_rounded) // 8, 8])  # pylint: disable=no-member
+        weights_rounded = np.flip(weights_rounded, axis=1)
+        value = weights_rounded.flatten()
+
     op['shape'] = out_data_node.shape
     # Reshape data node value for correct shape
-    op['value'] = np.reshape(in_data_node.value, op.shape)
+    op['value'] = np.reshape(value, op.shape)
 
 
 def groupconv_to_conv(op: Node):
@@ -139,19 +167,26 @@ def groupconv_to_conv(op: Node):
     :param op:
     :return:
     """
-    assert op.soft_get('type') == 'GroupConvolution', 'Wrong operation type, {} instead of GroupConvolution!' \
-                                                      ''.format(op.soft_get('type'))
+    assert op.soft_get('type') == 'GroupConvolution', \
+        'Wrong operation type, {} instead of GroupConvolution!'.format(op.soft_get('type'))
 
     weights_shape = op.in_port(1).data.get_shape()
     group = weights_shape[0]
     new_shape = [weights_shape[1] * group, *weights_shape[2:]]
-    # TODO reshaping the value of node with weights?
-    reshape = create_op_node_with_second_input(op.graph, Reshape, int64_array(new_shape),
-                                               {'override_output_shape': True},
-                                               op.in_port(1).get_source().node)
 
-    op.in_port(1).get_connection().set_source(reshape.out_port(0))
-
+    weights_node = op.in_port(1).get_source().node
+    if weights_node.type == 'Const':
+        weights_node.value = np.reshape(weights_node.value, new_shape)
+    elif weights_node.type == 'Reshape':
+        # we remove reshape node added in ConvolutionWithGroupsResolver pass
+        assert weights_node.in_port(0).get_source().data.get_shape() == new_shape, \
+            'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
+        op.in_port(1).disconnect()
+        weights_node.in_port(0).get_source().get_connection().set_destination(op.in_port(1))
+    else:
+        assert op.in_port(1).get_source().data.get_shape() == new_shape, \
+            'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
+    # we need to set this attrs for correct shape infer as convolution
     op['group'] = group
     op.type = 'Convolution'
 
@@ -162,14 +197,13 @@ def backprop_to_deconv(op: Node):
     :param op:
     :return:
     """
-    assert op.soft_get('type') in ('ConvolutionBackpropData', 'GroupConvolutionBackpropData'),\
+    assert op.soft_get('type') in ('ConvolutionBackpropData', 'GroupConvolutionBackpropData'), \
         'Wrong operation type, {} instead of ConvolutionBackpropData/GroupConvolutionBackpropData!' \
         ''.format(op.soft_get('type'))
 
-    op['old_type'] = op.type
-    if len(op.in_nodes()) == 2:
+    if op.has_valid('output_padding'):
+        # In this case we need to create Deconvolution as Convolution
         op['type_to_create'] = 'Convolution'
-    op.type = 'Deconvolution'
     op['old_input_shapes'] = list()
     for n in op.in_nodes():
         op.old_input_shapes.append(int64_array(op.in_node(n).shape))
@@ -193,6 +227,32 @@ def ti_add_edge_attrs(op: Node):
         i += 1
 
 
+def assign_add_output_result(op: Node):
+    """
+    Function adds necessary output result node for Assign node
+    :param op:
+    :return:
+    """
+    assert op.soft_get('type') == 'Assign', 'Wrong operation type, {} instead of Assign!' \
+                                            ''.format(op.soft_get('type'))
+    tmp_result = Result(op.graph, {'name': op.soft_get('name', op.id) + '/Result'}).create_node()
+    op.out_port(0).connect(tmp_result.in_port(0))
+
+
+def copy_input_blobs(op: Node, copy_op: Node):
+    """
+    Function copy input blob data nodes from restored graph to copied one
+    :param op: Node from restored graph
+    :param copy_op: Node from copied graph
+    :return:
+    """
+    for u, d in op.get_sorted_inputs():
+        if 'bin' in d:
+            Op.create_and_connect_input_data_node(copy_op.graph, copy_op,
+                                                  {'value': op.in_node(d['in']).value,
+                                                   'shape': op.in_node(d['in']).shape}, d)
+
+
 # Map with preprocessing functions
 preprocessing_op_nodes = {
     'Const': propagate_const_values,
@@ -204,7 +264,9 @@ preprocessing_op_nodes = {
 
 # Map with postprocessing functions for nodes
 postprocessing_op_nodes = {
+    'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
+    'TopK': TopKNormalizer.normalize_outputs,
 }
 
 
@@ -212,7 +274,7 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     """
     Function to copy graph and apply extenders to appropriate nodes
     :param graph: Graph to copy
-    :return:Copied graph with applyed extenders
+    :return:Copied graph with applied extenders
     """
     new_graph = Graph()
     new_graph.stage = 'back'
@@ -224,8 +286,13 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     restore_correct_ports(graph)
 
     # Nodes preprocessing stage in source graph
+    # Firstly propagate values only for Const nodes, because other preprocessings
+    # assumes Const nodes are already preprocessed.
+    for op in graph.get_op_nodes(type='Const'):
+        preprocessing_op_nodes[op.type](op)
+
     for op in graph.get_op_nodes():
-        if op.soft_get('type') in preprocessing_op_nodes:
+        if op.soft_get('type') != 'Const' and op.soft_get('type') in preprocessing_op_nodes:
             preprocessing_op_nodes[op.type](op)
 
     # Create a new copy of graph with correct attributes (shape & type infer, backend attrs etc.)
@@ -246,6 +313,9 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
             assert op_type in Op.registered_ops, 'Operation {} not found in MO operations, ' \
                                                  'please check it!'.format(op_type)
             node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
+
+        if op.has_and_set('need_copy_input_blobs'):
+            copy_input_blobs(op, node)
 
         # Collect node connections
         mapping_of_old_idx_into_new[op.id] = node.id

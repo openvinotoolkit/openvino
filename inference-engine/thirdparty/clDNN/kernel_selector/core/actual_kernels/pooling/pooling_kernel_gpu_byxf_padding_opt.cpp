@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ ParamsKey PoolingKernelGPUByxfPaddingOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::byxf);
     k.EnableTensorOffset();
@@ -32,23 +34,31 @@ ParamsKey PoolingKernelGPUByxfPaddingOpt::GetSupportedKey() const {
     k.EnablePoolRemainder(PoolRemainder::FLOOR);
     k.EnablePoolRemainder(PoolRemainder::CEIL);
     k.EnablePoolKernelDividerMode(KernelDividerMode::FIXED);
+    k.EnableDifferentTypes();
     return k;
 }
 
 PoolingKernelBase::DispatchData PoolingKernelGPUByxfPaddingOpt::SetDefault(const pooling_params& params) const {
     const auto& output = params.output;
 
-    DispatchData runInfo = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    runInfo.gws2 = output.Batch().v * (CeilDiv(output.Feature().v, 8));
+    dispatchData.gws[2] = output.Batch().v * (CeilDiv(output.Feature().v, 8));
 
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants PoolingKernelGPUByxfPaddingOpt::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    auto mem_consts = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants PoolingKernelGPUByxfPaddingOpt::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
-    return mem_consts;
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = {"", {"b", "f + i", "y", "x"}, "pool_result", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+    return jit;
 }
 
 bool PoolingKernelGPUByxfPaddingOpt::Validate(const Params& p, const optional_params& o) const {

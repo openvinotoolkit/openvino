@@ -22,6 +22,7 @@ from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.ops.squeeze import Squeeze
+from mo.utils.error import Error
 
 
 class SqueezeAxis(FrontReplacementOp):
@@ -40,11 +41,17 @@ class SqueezeAxis(FrontReplacementOp):
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(squeeze_axis=True):
             name = node.soft_get('name', node.id)
-            assert node.has_valid('axis'), 'Unknown axis to squeeze for node {}'.format(name)
             for out_port in node.out_ports().values():
-                squeeze_node = create_op_with_const_inputs(graph, Squeeze, {1: np.array(node.axis)},
-                                                           {'name': name + '/Squeeze_'})
-                out_port.get_connection().insert_node(squeeze_node)
+                if node.has_valid('axis'):
+                    squeeze_node = create_op_with_const_inputs(graph, Squeeze, {1: np.array(node.axis)},
+                                                               {'name': name + '/Squeeze_'})
+                    out_port.get_connection().insert_node(squeeze_node)
+                elif node.is_in_port_connected(1):
+                    squeeze_node = Squeeze(graph, {'name': name + '/Squeeze_'}).create_node()
+                    out_port.get_connection().insert_node(squeeze_node)
+                    node.in_port(1).get_connection().add_destination(squeeze_node.in_port(1))
+                else:
+                    raise Error('Unknown axis to squeeze for node {}'.format(name))
 
 
 class SplitInputsReconnect(FrontReplacementSubgraph):

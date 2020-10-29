@@ -16,10 +16,10 @@
 import unittest
 
 from extensions.front.tf.mvn_unrolled import MVNUnrolled
-from mo.ops.op import Op
-from mo.utils.unittest.graph import build_graph_with_attrs
-from mo.utils.ir_engine.compare_graphs import compare_graphs
 from extensions.ops.mvn import MVN
+from mo.ops.op import Op
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph_with_attrs
 
 
 class MVNUnrolledMatchingTests(unittest.TestCase):

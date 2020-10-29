@@ -5,14 +5,14 @@
 #include <ie_parameter.hpp>
 #include <memory>
 
-#if defined(ENABLE_NGRAPH)
-
 #include <ngraph/variant.hpp>
 
 namespace ngraph {
 
+template class INFERENCE_ENGINE_API_CLASS(VariantImpl<InferenceEngine::Parameter>);
+
 template <>
-class VariantWrapper<InferenceEngine::Parameter> : public VariantImpl<InferenceEngine::Parameter> {
+class INFERENCE_ENGINE_API_CLASS(VariantWrapper<InferenceEngine::Parameter>) : public VariantImpl<InferenceEngine::Parameter> {
 public:
     static constexpr VariantTypeInfo type_info {"Variant::InferenceEngine::Parameter", 0};
     const VariantTypeInfo& get_type_info() const override {
@@ -43,11 +43,3 @@ InferenceEngine::Parameter::Parameter(std::shared_ptr<ngraph::Variant>& var) {
 std::shared_ptr<ngraph::Variant> InferenceEngine::Parameter::asVariant() const {
     return std::make_shared<ngraph::VariantWrapper<InferenceEngine::Parameter>>(*this);
 }
-#else
-InferenceEngine::Parameter::Parameter(const std::shared_ptr<ngraph::Variant>& var) {}
-InferenceEngine::Parameter::Parameter(std::shared_ptr<ngraph::Variant>& var) {}
-
-std::shared_ptr<ngraph::Variant> InferenceEngine::Parameter::asVariant() const {
-    return nullptr;
-}
-#endif

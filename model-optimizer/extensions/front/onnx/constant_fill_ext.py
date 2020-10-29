@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from extensions.ops.constant_fill import ConstantFill
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr

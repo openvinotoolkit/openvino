@@ -15,7 +15,6 @@
 """
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat

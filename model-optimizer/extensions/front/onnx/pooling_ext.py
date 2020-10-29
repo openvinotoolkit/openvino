@@ -79,13 +79,17 @@ class GlobalMaxPoolFrontExtractor(FrontExtractorOp):
 
 
 def common_onnx_pool_extractor(node):
+    kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
+    final_kernel_shape = np.array([1, 1, *[x for x in kernel_shape]], dtype=np.int64) if kernel_shape is not None else None
+
     pads = onnx_attr(node, 'pads', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
 
-    # Try to convert slightly incorrect models with insufficient pad parameters
-    if pads is not None and (pads.size == 2 or pads.size % 2 != 0):
-        log.warning(
-            'Node {} has pad = {} which is ill-formed -- it should consist of N%2==0 elements.'.format(node.name,
-                                                                                                       pads))
+    if kernel_shape is not None and pads is not None and kernel_shape.size * 2 != pads.size:
+        log.warning('Node {} has pad = {} which is ill-formed -- it should have even amount of elements.'.format(
+            node.soft_get('name', node.id), pads))
+
+        # Try to convert slightly incorrect models with insufficient pad parameters
+        assert pads.size == kernel_shape.size
         pads = np.concatenate([pads, pads])
         log.warning('Extended pads to {}'.format(pads))
 
@@ -96,13 +100,14 @@ def common_onnx_pool_extractor(node):
         pads = np.transpose(pads)
         final_pads = np.array([[0, 0], [0, 0], *[p for p in pads]], dtype=np.int64)
 
-    # Extract dilations attribute
-    # In case if dilations is not specified it will be set in default (1) in infer function
+    # Extract strides attribute
+    # In case if strides is not specified it will be set in default (1) in infer function
     strides = onnx_attr(node, 'strides', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
     final_strides = np.array([1, 1, *[x for x in strides]], dtype=np.int64) if strides is not None else None
 
-    kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
-    final_kernel_shape = np.array([1, 1, *[x for x in kernel_shape]], dtype=np.int64) if kernel_shape is not None else None
+    dilations = onnx_attr(node, 'dilations', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
+    assert dilations is None or np.all(dilations == 1),\
+        'Node {} has "dilations" attribute with values not equal to 1s which is not supported'.format(node.id)
 
     # exclude_pad = True only when count_include_pad == 0
     exclude_pad = onnx_attr(node, 'count_include_pad', 'i', default=0) == 0
@@ -117,7 +122,7 @@ def common_onnx_pool_extractor(node):
 
     # TODO check if it is a correct choice for ONNX
     pooling_convention = 'valid'  # for Caffe rounding type should be ceil
-    rt = 'floor'
+    rt = 'floor' if onnx_attr(node, 'ceil_mode', 'i', default=0) == 0 else 'ceil'
 
     auto_pad = onnx_attr(node, 'auto_pad', 's', default=None, dst_type=get_onnx_autopad)
     if auto_pad:

@@ -6,10 +6,13 @@ set(TARGET_NAME "myriadPlugin")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
-ie_add_plugin(NAME ${TARGET_NAME}
-              DEVICE_NAME "MYRIAD"
-              SOURCES ${SOURCES}
-              VERSION_DEFINES_FOR api/myriad_api.cpp)
+ie_add_plugin(
+    NAME ${TARGET_NAME}
+    DEVICE_NAME "MYRIAD"
+    SOURCES ${SOURCES}
+    VERSION_DEFINES_FOR api/myriad_api.cpp
+    CPPLINT_FILTERS "+runtime/explicit"
+)
 
 add_dependencies(${TARGET_NAME} vpu_copy_firmware)
 if(TARGET vpu_compile_custom_kernels)
@@ -36,10 +39,14 @@ endif()
 # "mvnc" must be the first library in the link list
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        mvnc ${INTEL_ITT_LIBS} ${NGRAPH_LIBRARIES} inference_engine vpu_graph_transformer)
+        mvnc inference_engine inference_engine_legacy vpu_graph_transformer)
+
+# LTO
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # install
 
 install(FILES ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/src/97-myriad-usbboot.rules
-        DESTINATION deployment_tools/inference_engine/external
+        DESTINATION ${IE_CPACK_IE_DIR}/external
         COMPONENT myriad)

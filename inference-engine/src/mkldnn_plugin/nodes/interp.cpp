@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 #include <string>
 #include <vector>
@@ -62,20 +61,34 @@ struct jit_uni_interp_kernel_f32 : public jit_uni_interp_kernel, public jit_gene
         uni_vmovups(vmm_src01, ptr[reg_src01]);
         uni_vmovups(vmm_src10, ptr[reg_src10]);
         uni_vmovups(vmm_src11, ptr[reg_src11]);
+
         uni_vbroadcastss(vmm_h_lambda0, ptr[reg_h_lambda0]);
         uni_vbroadcastss(vmm_h_lambda1, ptr[reg_h_lambda1]);
         uni_vbroadcastss(vmm_w_lambda0, ptr[reg_w_lambda0]);
         uni_vbroadcastss(vmm_w_lambda1, ptr[reg_w_lambda1]);
 
-        uni_vmulps(vmm_src01, vmm_src01, vmm_w_lambda0);
-        uni_vmulps(vmm_src11, vmm_src11, vmm_w_lambda0);
-        uni_vfmadd231ps(vmm_src01, vmm_w_lambda1, vmm_src00);
-        uni_vfmadd231ps(vmm_src11, vmm_w_lambda1, vmm_src10);
-        uni_vmulps(vmm_src01, vmm_src01, vmm_h_lambda1);
-        uni_vfmadd231ps(vmm_src01, vmm_h_lambda0, vmm_src11);
-        uni_vmovups(ptr[reg_dst], vmm_src01);
-        if (isa == sse42) {
-            int stride = 4*sizeof(float);  //  block is also 8 when sse42
+        if (isa != sse42) {
+            uni_vmulps(vmm_src01, vmm_src01, vmm_w_lambda0);
+            uni_vmulps(vmm_src11, vmm_src11, vmm_w_lambda0);
+            uni_vfmadd231ps(vmm_src01, vmm_w_lambda1, vmm_src00);
+            uni_vfmadd231ps(vmm_src11, vmm_w_lambda1, vmm_src10);
+            uni_vmulps(vmm_src01, vmm_src01, vmm_h_lambda1);
+            uni_vfmadd231ps(vmm_src01, vmm_h_lambda0, vmm_src11);
+            uni_vmovups(ptr[reg_dst], vmm_src01);
+        } else {
+            uni_vmulps(vmm_src01, vmm_src01, vmm_w_lambda0);
+            uni_vmulps(vmm_src11, vmm_src11, vmm_w_lambda0);
+            uni_vfmadd231ps(vmm_src01, vmm_w_lambda1, vmm_src00);
+            // uni_vfmadd231ps affects XMM (vmm_w_lambda1) register. Need to initialize again.
+            uni_vbroadcastss(vmm_w_lambda1, ptr[reg_w_lambda1]);
+            uni_vfmadd231ps(vmm_src11, vmm_w_lambda1, vmm_src10);
+            uni_vmulps(vmm_src01, vmm_src01, vmm_h_lambda1);
+            uni_vfmadd231ps(vmm_src01, vmm_h_lambda0, vmm_src11);
+            uni_vmovups(ptr[reg_dst], vmm_src01);
+
+            // Next 4 elements
+            size_t stride = 4 * sizeof(float);
+
             add(reg_src00, stride);
             add(reg_src01, stride);
             add(reg_src10, stride);
@@ -87,9 +100,13 @@ struct jit_uni_interp_kernel_f32 : public jit_uni_interp_kernel, public jit_gene
             uni_vmovups(vmm_src10, ptr[reg_src10]);
             uni_vmovups(vmm_src11, ptr[reg_src11]);
 
+            uni_vbroadcastss(vmm_h_lambda0, ptr[reg_h_lambda0]);
+            uni_vbroadcastss(vmm_w_lambda1, ptr[reg_w_lambda1]);
+
             uni_vmulps(vmm_src01, vmm_src01, vmm_w_lambda0);
             uni_vmulps(vmm_src11, vmm_src11, vmm_w_lambda0);
             uni_vfmadd231ps(vmm_src01, vmm_w_lambda1, vmm_src00);
+            uni_vbroadcastss(vmm_w_lambda1, ptr[reg_w_lambda1]);
             uni_vfmadd231ps(vmm_src11, vmm_w_lambda1, vmm_src10);
             uni_vmulps(vmm_src01, vmm_src01, vmm_h_lambda1);
             uni_vfmadd231ps(vmm_src01, vmm_h_lambda0, vmm_src11);
@@ -133,15 +150,20 @@ public:
             if (layer->insData.size() != 1 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
-            if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4)
+            auto inData = layer->insData[0].lock();
+            if (inData == nullptr) {
+                THROW_IE_EXCEPTION << "Layer '" << layer->name << "' has nullable input data.";
+            }
+            if (inData->getTensorDesc().getDims().size() != 4)
                 THROW_IE_EXCEPTION << "Interp supports only 4d blobs!";
 
-            auto src_precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
-            if (src_precision != Precision::FP32 && src_precision != Precision::U8)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only U8 or FP32 are supported!";
+            auto src_precision = inData->getTensorDesc().getPrecision();
+            if (src_precision != Precision::FP32 && src_precision != Precision::U8 && src_precision != Precision::BF16)
+                THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only U8 or FP32 or BF16 are supported!";
 
-            if (layer->outData[0]->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect output data tensor precision. Only FP32 is supported!";
+            auto dst_precision = layer->outData[0]->getTensorDesc().getPrecision();
+            if (dst_precision != Precision::FP32 && dst_precision != Precision::BF16)
+                THROW_IE_EXCEPTION << layer->name << " Incorrect output data tensor precision. Only FP32 or BF16 are supported!";
 
             // We don't read other parameters since they are needed only for dst reshape in caffe
             pad_beg = layer->GetParamAsInt("pad_beg");
@@ -152,7 +174,7 @@ public:
             if (src_precision == Precision::U8) {
                 LayerConfig config;
                 DataConfig dataConfigDct;
-                dataConfigDct.desc = TensorDesc(Precision::U8, layer->insData[0].lock()->getTensorDesc().getDims(), Layout::NCHW);
+                dataConfigDct.desc = TensorDesc(Precision::U8, inData->getTensorDesc().getDims(), Layout::NCHW);
                 config.inConfs.push_back(dataConfigDct);
 
                 DataConfig dataConfigOut;
@@ -175,18 +197,47 @@ public:
                 if (mayiuse(avx512_common)) {
                     blk_layout = ConfLayout::BLK16;
                     interp_kernel.reset(new jit_uni_interp_kernel_f32<avx512_common>());
+                    addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
                 } else if (mayiuse(avx2)) {
                     blk_layout = ConfLayout::BLK8;
                     interp_kernel.reset(new jit_uni_interp_kernel_f32<avx2>());
+                    addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
                 } else {
                     blk_layout = ConfLayout::BLK8;
                     interp_kernel.reset(new jit_uni_interp_kernel_f32<sse42>());
+                    addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
                 }
-                addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
             }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
+    }
+
+    StatusCode init(LayerConfig& config, ResponseDesc *resp) noexcept override {
+        if (config.inConfs.size() != 1 || config.outConfs.size() != 1) {
+            strncpy(resp->msg, "Interp layer has invalid configs", sizeof(resp->msg));
+            return GENERAL_ERROR;
+        }
+
+        if (config.inConfs[0].desc.getDims().size() != 4) {
+            std::ostringstream result;
+            result << "Interp layer has invalid layout: " << config.inConfs[0].desc.getLayout();
+            strncpy(resp->msg, result.str().c_str(), sizeof(resp->msg) - 1);
+            return GENERAL_ERROR;
+        }
+
+        auto inPrecision = config.inConfs[0].desc.getPrecision();
+        if (inPrecision != Precision::U8 && inPrecision != Precision::FP32)  {
+            strncpy(resp->msg, "Interp layer has unsupported input precision", sizeof(resp->msg));
+            return GENERAL_ERROR;
+        }
+
+        if (config.outConfs[0].desc.getPrecision() != Precision::FP32)  {
+            strncpy(resp->msg, "Interp layer has unsupported output precision", sizeof(resp->msg));
+            return GENERAL_ERROR;
+        }
+
+        return OK;
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
@@ -203,21 +254,25 @@ public:
         size_t IH_pad = IH + pad_beg + pad_end;
         size_t IW_pad = IW + pad_beg + pad_end;
 
-        auto *dst_data = outputs[0]->buffer().as<float *>();
+        auto *dst_data = outputs[0]->buffer().as<float *>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         switch (inputs[0]->getTensorDesc().getPrecision()) {
         case Precision::FP32:
         {
-            size_t IC = inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[1] *
-                        inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[4];
-            interpolate(IN, IC, inputs[0]->buffer().as<const float *>(),
+            const float* src_data = inputs[0]->cbuffer().as<const float *>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+            size_t IC = (inputs[0]->getTensorDesc().getLayout() == Layout::BLOCKED)
+                ? inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[1] *
+                inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[4]
+                : IC = inputs[0]->getTensorDesc().getDims()[1];
+            interpolate(IN, IC, src_data,
                 -pad_beg, -pad_beg, IH_pad, IW_pad, IH, IW, dst_data, 0, 0, OH, OW, OH, OW);
         }
         break;
         case Precision::U8:
         {
+            const uint8_t* src_data = inputs[0]->cbuffer().as<const uint8_t *>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             size_t IC = inputs[0]->getTensorDesc().getDims()[1];
-            interpolate_8u(inputs[0]->getTensorDesc().getLayout(), IN, IC, inputs[0]->buffer().as<const uint8_t *>(),
+            interpolate_8u(inputs[0]->getTensorDesc().getLayout(), IN, IC, src_data,
                 -pad_beg, -pad_beg, IH_pad, IW_pad, IH, IW, dst_data, 0, 0, OH, OW, OH, OW);
         }
         break;
@@ -261,10 +316,12 @@ private:
         }
 
         int block_size = 1;
-        if (mayiuse(avx512_common)) {
-            block_size = 16;
-        } else {
-            block_size = 8;
+        if (interp_kernel) {
+            if (mayiuse(avx512_common)) {
+                block_size = 16;
+            } else {
+                block_size = 8;
+            }
         }
 
         // Align channel number to block size to deal with channels padding in IE with multiple blobs
@@ -307,14 +364,21 @@ private:
 
                         float *pdst = pdst_h + w * block_size;
 
-                        arg.src00 = psrc00;
-                        arg.src01 = psrc01;
-                        arg.src10 = psrc10;
-                        arg.src11 = psrc11;
-                        arg.dst = pdst;
-                        arg.w_lambda0 = static_cast<float*>(&w_lambda0);
-                        arg.w_lambda1 = static_cast<float*>(&w_lambda1);
-                        (*interp_kernel)(&arg);
+                        if (interp_kernel) {
+                            arg.src00 = psrc00;
+                            arg.src01 = psrc01;
+                            arg.src10 = psrc10;
+                            arg.src11 = psrc11;
+                            arg.dst = pdst;
+                            arg.w_lambda0 = static_cast<float*>(&w_lambda0);
+                            arg.w_lambda1 = static_cast<float*>(&w_lambda1);
+                            (*interp_kernel)(&arg);
+                        } else {
+                            for (int c = 0; c < block_size; ++c) {
+                                pdst[c] = h_lambda1 * (w_lambda1 * psrc00[c] + w_lambda0 * psrc01[c]) +
+                                    h_lambda0 * (w_lambda1 * psrc10[c] + w_lambda0 * psrc11[c]);
+                            }
+                        }
                     }
         });
     }
@@ -369,7 +433,7 @@ private:
     }
 };
 
-REG_FACTORY_FOR(ImplFactory<InterpImpl>, Interp);
+REG_FACTORY_FOR(InterpImpl, Interp);
 
 }  // namespace Cpu
 }  // namespace Extensions

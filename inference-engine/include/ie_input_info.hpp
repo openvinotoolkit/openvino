@@ -37,10 +37,6 @@ public:
      * By default it matches the layers precision, but there are exceptions of this rule
      * For Q78 precision networks the input is expected in I16 by default
      * For FP16 precision networks the input is expected in FP32 by default
-     *
-     * @details By default it matches the layers precision, but there are exceptions of this rule.
-     * For Q78 precision networks the input is expected in I16 by default.
-     * For FP16 precision networks the input is expected in FP32 by default.
      * The default input precision might be changed preferred one using InputInfo::setPrecision()
      * function.
      * For example, for a Q78 precision network you can pass FP32 input data
@@ -88,7 +84,7 @@ public:
      * @brief Changes the layout of the input data provided by the user.
      *
      * This function should be called before loading the network to the plugin
-     * @param p A new layout of the input data to set
+     * @param l A new layout of the input data to set
      */
     void setLayout(Layout l) {
         if (!_inputData) {
@@ -116,7 +112,7 @@ public:
     }
 
     /**
-     * @brief Initializes the pointer to the input data that stores the main input parameters like dims, etc.
+     * @brief Initializes the pointer to the input data that stores the main input parameters like dims, etc
      *
      * This method initializes the precision with the information from the inputPtr if it was not set
      * explicitly through InputInfo::setPrecision. If InputInfo::setPrecision is called, this method does not overwrite

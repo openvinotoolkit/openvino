@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from mo.graph.graph import Graph
 from mo.ops.op import Op
@@ -23,9 +24,12 @@ class Rank(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': __class__.op,
             'type': None,
+            'op': self.op,
+
+            'output_type': np.int64,
             'infer': None,
+
             'in_ports_count': 1,
             'out_ports_count': 1,
         }

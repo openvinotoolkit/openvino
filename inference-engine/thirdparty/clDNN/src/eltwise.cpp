@@ -39,10 +39,10 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
     for (size_t i = 1; i < node.inputs_count(); i++) {
         auto l = node.input(i).get_non_padded_output_layout();
         size = tensor::max(size, l.size);
-        if (l.format == format::bfzyx_f16)  // use optimized 5D
-            format = format::bfzyx_f16;
-        else if (l.format == format::bfzyx_b16f16)
-            format = format::bfzyx_b16f16;
+        if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
+            format = format::b_fs_zyx_fsv16;
+        else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
+            format = format::bs_fs_zyx_bsv16_fsv16;
     }
     auto output_layout = layout(output_type, format, size);
 
@@ -258,42 +258,6 @@ eltwise_inst::typed_primitive_inst(network_impl& network, eltwise_node const& no
                                  "Invalid input shapes");
             }
         }
-    }
-
-    // Check inputs calibration factors
-    if (prim->inputs_calibration_factors.size() != 0) {
-        auto icf_size = prim->inputs_calibration_factors.size();
-
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Eltwise inputs calibration factors number",
-                              icf_size,
-                              "Eltwise inputs count",
-                              inputs_count,
-                              "");
-
-        for (size_t i = 0; i < icf_size; ++i) {
-            auto icf_size_local = node.input_calibration_factors(i).get_output_layout().size;
-            auto input_size = node.input(i).get_output_layout().size;
-
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Input feature number",
-                                  input_size.feature[0],
-                                  "Input calibration factors number",
-                                  icf_size_local.count(),
-                                  "");
-        }
-    }
-
-    // Check inputs quantization factors
-    if (!prim->input_quantization_factors.empty()) {
-        auto iqf_size = prim->input_quantization_factors.size();
-
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Eltwise inputs quantization factors number",
-                              iqf_size,
-                              "Eltwise inputs count",
-                              inputs_count,
-                              "");
     }
 }
 

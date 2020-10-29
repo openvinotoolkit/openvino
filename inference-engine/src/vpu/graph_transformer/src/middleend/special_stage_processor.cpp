@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "vpu/middleend/special_stage_processor.hpp"
+
 #include <vector>
 #include <set>
-
-#include <vpu/middleend/special_stage_processor.hpp>
+#include <utility>
 
 namespace vpu {
 
@@ -40,7 +41,7 @@ void SpecialStageProcessor::processSplit(
         bool needCopy = false;
         if (output->usage() != DataUsage::Intermediate) {
             needCopy = true;
-        } else if (output->parentDataEdge() != nullptr) {
+        } else if (output->parentDataToDataEdge() != nullptr) {
             needCopy = true;
         } else {
             //
@@ -103,7 +104,7 @@ void SpecialStageProcessor::processSplit(
         // Add Data<->Data edge
         //
 
-        model->connectDatas()
+        model->connectDataWithData()
             .parent(input)
             .child(output)
             .mode(SharedDataMode::ROI)
@@ -144,7 +145,7 @@ void SpecialStageProcessor::processConcat(
         if (input->usage() != DataUsage::Intermediate) {
             needCopy = true;
             optionalCopy = false;
-        } else if (input->parentDataEdge() != nullptr) {
+        } else if (input->parentDataToDataEdge() != nullptr) {
             needCopy = true;
             optionalCopy = false;
         } else {
@@ -248,7 +249,7 @@ void SpecialStageProcessor::processConcat(
         // Add Data<->Data edge
         //
 
-        model->connectDatas()
+        model->connectDataWithData()
             .parent(output)
             .child(input)
             .mode(SharedDataMode::ROI)
@@ -279,8 +280,8 @@ void SpecialStageProcessor::processReshape(
     if (input->usage() != DataUsage::Intermediate &&
         output->usage() != DataUsage::Intermediate) {
         needCopy = true;
-    } else if (input->parentDataEdge() != nullptr &&
-               output->parentDataEdge() != nullptr) {
+    } else if (input->parentDataToDataEdge() != nullptr &&
+               output->parentDataToDataEdge() != nullptr) {
         needCopy = true;
     }
 
@@ -322,8 +323,8 @@ void SpecialStageProcessor::processReshape(
     //
 
     if (input->usage() == DataUsage::Intermediate &&
-        input->parentDataEdge() == nullptr) {
-        model->connectDatas()
+        input->parentDataToDataEdge() == nullptr) {
+        model->connectDataWithData()
             .parent(output)
             .child(input)
             .mode(SharedDataMode::Reshape)
@@ -331,9 +332,9 @@ void SpecialStageProcessor::processReshape(
             .done();
     } else {
         IE_ASSERT(output->usage() == DataUsage::Intermediate);
-        IE_ASSERT(output->parentDataEdge() == nullptr);
+        IE_ASSERT(output->parentDataToDataEdge() == nullptr);
 
-        model->connectDatas()
+        model->connectDataWithData()
             .parent(input)
             .child(output)
             .mode(SharedDataMode::Reshape)
@@ -367,7 +368,7 @@ void SpecialStageProcessor::processExpand(
     if (input->usage() != DataUsage::Intermediate) {
         needCopy = true;
         optionalCopy = false;
-    } else if (input->parentDataEdge() != nullptr) {
+    } else if (input->parentDataToDataEdge() != nullptr) {
         needCopy = true;
         optionalCopy = false;
     } else {
@@ -471,7 +472,7 @@ void SpecialStageProcessor::processExpand(
     // Add Data<->Data edge
     //
 
-    model->connectDatas()
+    model->connectDataWithData()
         .parent(output)
         .child(input)
         .mode(SharedDataMode::ROI)
@@ -480,7 +481,7 @@ void SpecialStageProcessor::processExpand(
         .done();
 }
 
-void SpecialStageProcessor::processShrink(
+void SpecialStageProcessor::processCrop(
         const Model& model,
         const Stage& stage) {
     auto input = stage->input(0);
@@ -503,7 +504,7 @@ void SpecialStageProcessor::processShrink(
     bool needCopy = false;
     if (output->usage() != DataUsage::Intermediate) {
         needCopy = true;
-    } else if (output->parentDataEdge() != nullptr) {
+    } else if (output->parentDataToDataEdge() != nullptr) {
         needCopy = true;
     } else {
         //
@@ -550,11 +551,11 @@ void SpecialStageProcessor::processShrink(
 
         auto copyStage = _stageBuilder->addCopyStage(
             model,
-            formatString("%s@copy-output-for-shrink", stage->name()),
+            formatString("%s@copy-output-for-crop", stage->name()),
             stage->origLayer(),
             outputCopy,
             output,
-            "special::shrink");
+            "special::crop");
         if (stage->attrs().has("batchInd")) {
             copyStage->attrs().set("batchInd", stage->attrs().get<int>("batchInd"));
         }
@@ -566,7 +567,7 @@ void SpecialStageProcessor::processShrink(
     // Add Data<->Data edge
     //
 
-    model->connectDatas()
+    model->connectDataWithData()
         .parent(input)
         .child(output)
         .mode(SharedDataMode::ROI)
@@ -583,11 +584,19 @@ void SpecialStageProcessor::processLoopStart(const Model& model, const Stage& st
 
             VPU_THROW_UNLESS(src->canHaveAParent() || dst->canHaveAParent(), "for all back-edge connections required copy stages must be already introduced");
 
-            model->connectDatas()
-                .parent(src->canHaveAParent() ? dst : src)
-                .child(src->canHaveAParent() ? src : dst)
+            auto parent = dst;
+            auto child  = src;
+            auto order  = SharedDataOrder::ChildWritesToParent;
+            if (!src->canHaveAParent()) {
+                std::swap(parent, child);
+                order = SharedDataOrder::ParentWritesToChild;
+            }
+
+            model->connectDataWithData()
+                .parent(parent)
+                .child(child)
                 .mode(SharedDataMode::ROI)
-                .order(SharedDataOrder::ChildWritesToParent)
+                .order(order)
                 .connectionMode(SharedConnectionMode::SUBGRAPH)
                 .done();
         }
@@ -597,8 +606,8 @@ void SpecialStageProcessor::processLoopStart(const Model& model, const Stage& st
         const auto& src = backedge.first;
         const auto& dst = backedge.second;
 
-        model->connectDatas()
-            // Tensor Iterator's body output data object must be a parent since it's not processed yet and don't have neither parent or child
+        // Tensor Iterator's body output data object must be a parent since it's not processed yet and don't have neither parent or child
+        model->connectDataWithData()
             .parent(dst)
             .child(src)
             .mode(SharedDataMode::ROI)
@@ -609,15 +618,27 @@ void SpecialStageProcessor::processLoopStart(const Model& model, const Stage& st
 }
 
 void SpecialStageProcessor::processLoopEnd(const Model& model, const Stage& stage) {
-    for (const auto& input : stage->inputs()) {
-        if (input->attrs().has("end-shared-allocation")) {
-            const auto& src = input;
-            const auto& dst = input->attrs().get<Data>("end-shared-allocation");
-            model->connectDatas()
-                .parent(src)
-                .child(dst)
+    for (const auto& output : stage->outputs()) {
+        if (output->attrs().has("end-shared-allocation")) {
+            const auto& src = output->attrs().get<Data>("end-shared-allocation");
+            const auto& dst = output;
+
+            VPU_THROW_UNLESS(src->canHaveAParent() || dst->canHaveAParent(),
+                "for all shared allocation connections required copy stages must be already introduced");
+
+            auto parent = dst;
+            auto child  = src;
+            auto order  = SharedDataOrder::ChildWritesToParent;
+            if (!src->canHaveAParent()) {
+                std::swap(parent, child);
+                order = SharedDataOrder::ParentWritesToChild;
+            }
+
+            model->connectDataWithData()
+                .parent(parent)
+                .child(child)
                 .mode(SharedDataMode::ROI)
-                .order(SharedDataOrder::ChildWritesToParent)
+                .order(order)
                 .connectionMode(SharedConnectionMode::SUBGRAPH)
                 .done();
         }

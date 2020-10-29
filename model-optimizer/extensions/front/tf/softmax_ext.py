@@ -18,7 +18,7 @@ from mo.front.extractor import FrontExtractorOp
 from mo.ops.softmax import Softmax
 
 
-class SoftmaxFrontExtractor(FrontExtractorOp):
+class SoftmaxExtractor(FrontExtractorOp):
     op = 'Softmax'
     enabled = True
 

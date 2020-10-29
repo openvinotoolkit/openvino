@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ ParamsKey LRNKernelWithinChannel::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -31,21 +33,42 @@ ParamsKey LRNKernelWithinChannel::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableLRNMode(LRNMode::WITHIN_CHANNEL);
     k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
+    k.EnableDifferentTypes();
     return k;
 }
 
 CommonDispatchData LRNKernelWithinChannel::SetDefault(const lrn_params& params) const {
-    CommonDispatchData runInfo = LRNKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
 
-    runInfo.gws0 = 128 * 128;
-    runInfo.gws1 = 1;
-    runInfo.gws2 = 1;
+    dispatchData.gws[0] = 128 * 128;
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
 
-    runInfo.lws0 = 128;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 128;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
+}
+
+JitConstants LRNKernelWithinChannel::GetJitConstants(const lrn_params& params,
+                                                     const LRNKernelWithinChannel::Parent::DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
+    const auto& input_dt = params.inputs[0].GetDType();
+
+    if (!params.fused_ops.empty()) {
+        FusedOpsConfiguration conf = {"", {"batch_id", "feature_id", "y", "x"}, "lrn_result", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    return jit;
+}
+
+bool LRNKernelWithinChannel::Validate(const Params& p, const optional_params& o) const {
+    if (!LRNKernelBase::Validate(p, o)) {
+        return false;
+    }
+    return true;
 }
 
 KernelsData LRNKernelWithinChannel::GetKernelsData(const Params& params, const optional_params& options) const {

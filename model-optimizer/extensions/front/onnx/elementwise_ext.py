@@ -15,11 +15,12 @@
 """
 import numpy as np
 
-from extensions.ops.elementwise import Add, Mul, Div, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr, LogicalXor
+from extensions.ops.elementwise import Add, Sub, Mul, Div, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr, LogicalXor, \
+    Round
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Node
-from mo.ops.eltwise_n import EltwiseNAdd, EltwiseNMax
+from mo.ops.eltwise_n import EltwiseNAdd, EltwiseNMax, EltwiseNMin
 from mo.ops.power import AttributedPower
 
 
@@ -31,6 +32,17 @@ class AddFrontExtractor(FrontExtractorOp):
     def extract(cls, node: Node):
         axis = onnx_attr(node, 'axis', 'i', default=None)
         Add.update_node_stat(node, {'axis': axis})
+        return cls.enabled
+
+
+class SubFrontExtractor(FrontExtractorOp):
+    op = 'Sub'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        axis = onnx_attr(node, 'axis', 'i', default=None)
+        Sub.update_node_stat(node, {'axis': axis})
         return cls.enabled
 
 
@@ -49,11 +61,11 @@ class DivFrontExtractor(FrontExtractorOp):
     op = 'Div'
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         axis = onnx_attr(node, 'axis', 'i', default=None)
         Div.update_node_stat(node, {'axis': axis})
-        return __class__.enabled
+        return cls.enabled
 
 
 class SumFrontExtractor(FrontExtractorOp):
@@ -118,6 +130,15 @@ class MaxExtractor(FrontExtractorOp):
         return cls.enabled
 
 
+class MinExtractor(FrontExtractorOp):
+    op = 'Min'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        EltwiseNMin.update_node_stat(node)
+        return cls.enabled
+
 class EqualExtractor(FrontExtractorOp):
     op = 'Equal'
     enabled = True
@@ -175,4 +196,14 @@ class XorExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         LogicalXor.update_node_stat(node)
+        return cls.enabled
+
+
+class RoundFrontExtractor(FrontExtractorOp):
+    op = 'Round'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        Round.update_node_stat(node, {'mode': 'half_to_even'})
         return cls.enabled

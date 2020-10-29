@@ -15,12 +15,12 @@
 """
 
 import unittest
-
-import numpy as np
 from argparse import Namespace
 
-from mo.graph.graph import Node
+import numpy as np
+
 from extensions.front.mxnet.add_input_data_to_prior_boxes import AddInputDataToPriorBoxes
+from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
 

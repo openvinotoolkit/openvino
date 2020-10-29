@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from extensions.ops.elementwise import Add
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
-from extensions.ops.elementwise import Add
 from mo.ops.scale_shift import ScaleShiftOp
 
 

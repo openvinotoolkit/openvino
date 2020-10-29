@@ -29,7 +29,6 @@
 #undef TO_ACCUMULATOR_TYPE
 #endif
 
-#if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
 #define TO_ACCUMULATOR_TYPE(x) convert_int(x)
 #define ACTIVATION_TYPE float
@@ -53,10 +52,6 @@
     #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
 #else
 #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported block size"
-#endif
-
-#else // QUANTIZATION_TERM
-#error "convolution_gpu_mmad_b_fs_yx_fsv32: invalid parameters: quantization term is expected to be true"
 #endif
 
 __attribute__((reqd_work_group_size(8, OW_GROUP, 1)))
@@ -244,10 +239,10 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 #endif  // ASYMMETRIC_DATA_QUANTIZATION
 
 #if HAS_FUSED_OPS
-        { FUSED_OPS_0; dst[0][i] = FINAL_NAME_0; };
-        { FUSED_OPS_1; dst[1][i] = FINAL_NAME_1; };
-        { FUSED_OPS_2; dst[2][i] = FINAL_NAME_2; };
-        { FUSED_OPS_3; dst[3][i] = FINAL_NAME_3; };
+        { FUSED_OPS_0; dst[0][i] = FUSED_OPS_RESULT_0; };
+        { FUSED_OPS_1; dst[1][i] = FUSED_OPS_RESULT_1; };
+        { FUSED_OPS_2; dst[2][i] = FUSED_OPS_RESULT_2; };
+        { FUSED_OPS_3; dst[3][i] = FUSED_OPS_RESULT_3; };
 #else
         dst[0][i] = TO_OUTPUT_TYPE(res0);
         dst[1][i] = TO_OUTPUT_TYPE(res1);
@@ -264,7 +259,9 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 #elif OUTPUT_DIMS <= 4
             const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, y, x+i) + out_split_offset;
 #endif
-            if (x + i < OUTPUT_SIZE_X) {
+            bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
+            bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid + ofm < OUTPUT_FEATURE_NUM;
+            if (full_x && full_f) {
                 output[dst_index] = dst[ofm][i];
             }
         }
@@ -307,10 +304,10 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) pack;
 #if HAS_FUSED_OPS
-        { FUSED_OPS_0; pack[0] = FINAL_NAME_0; };
-        { FUSED_OPS_1; pack[1] = FINAL_NAME_1; };
-        { FUSED_OPS_2; pack[2] = FINAL_NAME_2; };
-        { FUSED_OPS_3; pack[3] = FINAL_NAME_3; };
+        { FUSED_OPS_0; pack[0] = FUSED_OPS_RESULT_0; };
+        { FUSED_OPS_1; pack[1] = FUSED_OPS_RESULT_1; };
+        { FUSED_OPS_2; pack[2] = FUSED_OPS_RESULT_2; };
+        { FUSED_OPS_3; pack[3] = FUSED_OPS_RESULT_3; };
 #else
         pack[0] = TO_OUTPUT_TYPE(res0);
         pack[1] = TO_OUTPUT_TYPE(res1);
@@ -331,18 +328,35 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 #endif
         BLOCK_WRITE(output + dst_index, dst);
     } else {
+#if OUTPUT_FEATURE_NUM % 4 == 0
         for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
             const bool full_it_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
             const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid < OUTPUT_FEATURE_NUM;
             if (full_it_x && full_sgl_f) {
-#if OUTPUT_DIMS == 5
+#   if OUTPUT_DIMS == 5
                 const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, z, y, x+i) + out_split_offset;
-#elif OUTPUT_DIMS <= 4
+#   elif OUTPUT_DIMS <= 4
                 const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, y, x+i) + out_split_offset;
-#endif
+#   endif
                 output[dst_index/4] = dst[i];
             }
         }
+#else  // OUTPUT_FEATURE_NUM % 4 == 0
+        for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
+            for (int ofm = 0; ofm < 4; ++ofm) {
+                const bool full_it_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
+                const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid + ofm < OUTPUT_FEATURE_NUM;
+                if (full_it_x && full_sgl_f) {
+#   if OUTPUT_DIMS == 5
+                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, z, y, x+i) + out_split_offset;
+#   elif OUTPUT_DIMS <= 4
+                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, y, x+i) + out_split_offset;
+#   endif
+                    ((__global uchar*)output)[dst_index] = as_uchar4(dst[i])[ofm];
+                }
+            }
+        }
+#endif  // OUTPUT_FEATURE_NUM % 4 == 0
     }
 #endif  // OUTPUT_IS_FP
 }

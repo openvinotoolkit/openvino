@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,11 +24,13 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
     k.EnableInputLayout(DataLayout::bfyx);
@@ -43,10 +45,12 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfwzyx);
     k.EnableOutputLayout(DataLayout::bfwzyx);
-    k.EnableInputLayout(DataLayout::bfzyx_f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_f16);
-    k.EnableInputLayout(DataLayout::bfzyx_b16f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_b16f16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -57,6 +61,7 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableConcatAxis(ConcatAxis::FEATURE);
     k.EnableConcatAxis(ConcatAxis::BATCH);
     k.EnableConcatKernelPerInput();
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -67,12 +72,12 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p, const optional_pa
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
 
-    // all inputs have to have same layout (exept 3D: bfzyx, bfzyx_f16, and bfzyx_b16f16)
+    // all inputs have to have same layout (exept 3D: bfzyx, b_fs_zyx_fsv16, and bs_fs_zyx_bsv16_fsv16)
     auto same_layout = params.inputs[0].GetLayout();
     for (const auto& lt : params.inputs) {
         auto cur_layout = lt.GetLayout();
-        if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::bfzyx_f16 || cur_layout == DataLayout::bfzyx_b16f16) &&
-            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::bfzyx_f16 || same_layout == DataLayout::bfzyx_b16f16)) {
+        if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::b_fs_zyx_fsv16 || cur_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
+            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::b_fs_zyx_fsv16 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16)) {
             continue;
         } else if (cur_layout != same_layout) {
             return false;
@@ -83,27 +88,17 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p, const optional_pa
 }
 
 ConcatenationKernelBase::DispatchData ConcatenationKernel_simple_Ref::SetDefault(const concatenation_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
     const auto& input = params.inputs[0];
 
-    std::vector<size_t> global;
-    global = {
-        input.X().v * input.Y().v,
-        input.Z().v * input.W().v,
-        input.Feature().v * input.Batch().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.gws = { input.X().v * input.Y().v,
+                         input.Z().v * input.W().v,
+                         input.Feature().v * input.Batch().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];  // X * Y
-    kd.gws1 = global[1];  // Z * W
-    kd.gws2 = global[2];  // F * B
+    dispatchData.efficiency = FORCE_PRIORITY_9;
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    kd.effiency = FORCE_PRIORITY_9;
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ConcatenationKernel_simple_Ref::GetKernelsData(const Params& params, const optional_params& optParams) const {

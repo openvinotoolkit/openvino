@@ -7,7 +7,7 @@ if(CMAKE_CL_64)
   set(MSVC64 ON)
 endif()
 
-if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpmachine
                   OUTPUT_VARIABLE OPENVINO_GCC_TARGET_MACHINE
                   OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -28,4 +28,15 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
   set(ARM ON)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)")
   set(AARCH64 ON)
+endif()
+
+# in case of cross-compilation (or -m32) CMAKE_SYSTEM_PROCESSOR is equal to
+# CMAKE_HOST_SYSTEM_PROCESSOR which is X86_64; patch this until a better solution
+if(CMAKE_SIZEOF_VOID_P EQUAL 4 AND X86_64)
+  unset(X86_64)
+  set(X86 ON)
+endif()
+
+if(UNIX AND NOT APPLE)
+    set(LINUX ON)
 endif()

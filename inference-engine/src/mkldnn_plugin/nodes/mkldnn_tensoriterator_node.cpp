@@ -4,25 +4,24 @@
 
 #include "mkldnn_tensoriterator_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers.h>
+#include <legacy/ie_layers_internal.hpp>
 #include <string>
 #include <vector>
 #include <map>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_memcpy.h>
-#include "details/caseless.hpp"
-#include "graph_transformer.h"
+#include <legacy/graph_transformer.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
-using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace MKLDNNPlugin {
 
-static LayerConfig make_plain_config(const CNNLayerPtr &layer) {
+static InferenceEngine::LayerConfig make_plain_config(const InferenceEngine::CNNLayerPtr &layer) {
+    using namespace InferenceEngine;
+
     LayerConfig config;
 
     for (const auto &in_w : layer->insData) {
@@ -52,7 +51,7 @@ static LayerConfig make_plain_config(const CNNLayerPtr &layer) {
 class PortIteratorHelper : public PortMapHelper {
 public:
     PortIteratorHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to,
-            bool as_input, const TensorIterator::PortMap &port_map, const mkldnn::engine& eng, int n_iter) : as_input(as_input) {
+            bool as_input, const InferenceEngine::TensorIterator::PortMap &port_map, const mkldnn::engine& eng, int n_iter) : as_input(as_input) {
         const auto &full_blob = as_input ? from : to;
         const auto &part_blob = !as_input ? from : to;
 
@@ -62,7 +61,6 @@ public:
         auto full_dims = full_blob->GetDims();
         auto part_dims = part_blob->GetDims();
 
-        bool simple_copy = port_map.axis == -1;
         if (port_map.axis == -1) {
             // simple copy mode. No iteration through this tensor
             reorders.emplace_back(from->GetPrimitive(), to->GetPrimitive());
@@ -80,8 +78,8 @@ public:
 
             // make chunk view
             auto chunk_desc =  full_blob->GetDescriptor();
-            chunk_desc.data.dims[axis] = 1;
-            chunk_desc.data.layout_desc.blocking.padding_dims[axis] = 1;  // TODO: asamption that plain tensor
+            chunk_desc.data.dims[axis] = abs_stride;
+            chunk_desc.data.layout_desc.blocking.padding_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
             mem_holder.push_back(full_blob->GetPrimitive());
             auto full_mem_handler = full_blob->GetPrimitive().get_data_handle();
@@ -90,8 +88,7 @@ public:
 
             auto elem_size = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(chunk_desc.data.data_type));
 
-            // TODO: only stride 1
-            chunk_stride_in_byte = chunk_desc.data.layout_desc.blocking.strides[0][axis] * elem_size;
+            chunk_stride_in_byte = chunk_desc.data.layout_desc.blocking.strides[0][axis] * elem_size * abs_stride;
             chunk_offset_in_byte = sign_of_stride < 0 ? (iter_count - 1) * chunk_stride_in_byte : 0;
             chunk_stride_in_byte *= sign_of_stride;
 
@@ -133,13 +130,8 @@ class BackEdgePortHelper : public PortMapHelper {
 public:
     BackEdgePortHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng, int n_iter) {
         auto mem_desc =  from->GetDescriptor();
-
-
         mem_holder.emplace_back(mkldnn::memory::primitive_desc(mem_desc, eng));
-        auto &temp_mem = mem_holder.back();
-
         reorders.emplace_back(from->GetPrimitive(), to->GetPrimitive());
-
         iter_count = n_iter;
     }
 
@@ -152,17 +144,17 @@ public:
 
 }  // namespace MKLDNNPlugin
 
-MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {}
+MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
-    auto *ti = dynamic_cast<class TensorIterator*>(getCnnLayer().get());
+    auto *ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());
     if (ti == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert to TensorIterator layer.";
 
     n_iter = getNumIteration(*ti);
     MKLDNNGraph::ApplyUnrollPasses(ti->body);
-    sub_graph.CreateGraph(ti->body, ext_mng, this->whichSocket());
+    sub_graph.CreateGraph(ti->body, ext_mng, weightCache);
 
     // Try to detect inputs and outputs by indexes
     std::map<std::string, MKLDNNNodePtr> in_map, out_map;
@@ -198,7 +190,7 @@ void MKLDNNTensorIteratorNode::initSupportedPrimitiveDescriptors() {
 
 
 void MKLDNNTensorIteratorNode::createPrimitive() {
-    auto ti = dynamic_cast<class TensorIterator*>(getCnnLayer().get());
+    auto ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());
     if (ti == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert to TensorIterator layer.";
 

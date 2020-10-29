@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 #ifndef OPENCV_GAPI_TESTS_COMMON_HPP
 #define OPENCV_GAPI_TESTS_COMMON_HPP
@@ -10,12 +10,14 @@
 #include <iostream>
 #include <tuple>
 #include <type_traits>
+#include <time.h>
 
 #include <opencv2/ts.hpp>
 #include <opencv2/gapi.hpp>
 #include <opencv2/gapi/util/util.hpp>
 
 #include "gapi_tests_helpers.hpp"
+#include <opencv2/gapi/render/render.hpp>
 
 namespace
 {
@@ -23,7 +25,56 @@ namespace
     {
         return o << (arg.tag.empty() ? "empty" : arg.tag);
     }
-}
+
+    inline std::ostream& operator<<(std::ostream& o, const cv::gapi::wip::draw::Prim& p)
+    {
+        using namespace cv::gapi::wip::draw;
+        switch (p.index())
+        {
+            case Prim::index_of<Rect>():
+                o << "cv::gapi::draw::Rect";
+                break;
+            case Prim::index_of<Text>():
+                o << "cv::gapi::draw::Text";
+                break;
+            case Prim::index_of<Circle>():
+                o << "cv::gapi::draw::Circle";
+                break;
+            case Prim::index_of<Line>():
+                o << "cv::gapi::draw::Line";
+                break;
+            case Prim::index_of<Mosaic>():
+                o << "cv::gapi::draw::Mosaic";
+                break;
+            case Prim::index_of<Image>():
+                o << "cv::gapi::draw::Image";
+                break;
+            case Prim::index_of<Poly>():
+                o << "cv::gapi::draw::Poly";
+                break;
+            default: o << "Unrecognized primitive";
+        }
+
+        return o;
+    }
+
+    inline void initTestDataPath()
+    {
+#ifndef WINRT
+        static bool initialized = false;
+        if (!initialized)
+        {
+            // Since G-API has no own test data (yet), it is taken from the common space
+            const char* testDataPath = getenv("OPENCV_TEST_DATA_PATH");
+            GAPI_Assert(testDataPath != nullptr &&
+            "OPENCV_TEST_DATA_PATH environment variable is either not set or set incorrectly.");
+
+            cvtest::addDataSearchPath(testDataPath);
+            initialized = true;
+        }
+#endif // WINRT
+    }
+} // namespace
 
 namespace opencv_test
 {
@@ -38,13 +89,25 @@ public:
 
     cv::Scalar sc;
 
+    // integral Scalar initialization
     cv::Scalar initScalarRandU(unsigned upper)
     {
-        auto& rng = cv::theRNG();
+        cv::RNG rng(time(nullptr));
         double s1 = rng(upper);
         double s2 = rng(upper);
         double s3 = rng(upper);
         double s4 = rng(upper);
+        return cv::Scalar(s1, s2, s3, s4);
+    }
+
+    // floating-point Scalar initialization (cv::core)
+    cv::Scalar initScalarRandU()
+    {
+        cv::RNG rng(time(nullptr));
+        double s1 = exp(rng.uniform(-1, 6) * 3.0 * CV_LOG2) * (rng.uniform(0, 2) ? 1. : -1.);
+        double s2 = exp(rng.uniform(-1, 6) * 3.0 * CV_LOG2) * (rng.uniform(0, 2) ? 1. : -1.);
+        double s3 = exp(rng.uniform(-1, 6) * 3.0 * CV_LOG2) * (rng.uniform(0, 2) ? 1. : -1.);
+        double s4 = exp(rng.uniform(-1, 6) * 3.0 * CV_LOG2) * (rng.uniform(0, 2) ? 1. : -1.);
         return cv::Scalar(s1, s2, s3, s4);
     }
 
@@ -62,9 +125,50 @@ public:
         in_mat1 = cv::Mat(sz_in, type);
         in_mat2 = cv::Mat(sz_in, type);
 
-        sc = initScalarRandU(100);
-        cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
-        cv::randu(in_mat2, cv::Scalar::all(0), cv::Scalar::all(255));
+        int sdepth = CV_MAT_DEPTH(type);
+        int ddepth = (dtype >= 0) ? CV_MAT_DEPTH(dtype)
+                                  : sdepth;             // dtype == -1 <=> dtype == SAME_TYPE
+
+        if ((sdepth >= CV_32F) || (ddepth >= CV_32F))
+        {
+            sc = initScalarRandU(); // initializing by floating-points
+        }
+        else
+        {
+            switch (sdepth)
+            {
+            case CV_8U:
+                sc = initScalarRandU(UCHAR_MAX + 1U);
+                break;
+            case CV_16U:
+                sc = initScalarRandU(USHRT_MAX + 1U);
+                break;
+            case CV_16S:
+                sc = initScalarRandU(SHRT_MAX + 1U);
+                break;
+            default:
+                sc = initScalarRandU(SCHAR_MAX + 1U);
+                break;
+            }
+        }
+
+        // Details: https://github.com/opencv/opencv/pull/16083
+        //if (CV_MAT_DEPTH(type) < CV_32F)
+        if (1)
+        {
+            cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
+            cv::randu(in_mat2, cv::Scalar::all(0), cv::Scalar::all(255));
+        }
+        else
+        {
+            const int fscale = 256;  // avoid bits near ULP, generate stable test input
+            Mat in_mat32s(in_mat1.size(), CV_MAKE_TYPE(CV_32S, CV_MAT_CN(type)));
+            cv::randu(in_mat32s, cv::Scalar::all(0), cv::Scalar::all(255 * fscale));
+            in_mat32s.convertTo(in_mat1, type, 1.0f / fscale, 0);
+
+            cv::randu(in_mat32s, cv::Scalar::all(0), cv::Scalar::all(255 * fscale));
+            in_mat32s.convertTo(in_mat2, type, 1.0f / fscale, 0);
+        }
 
         if (createOutputMatrices)
         {
@@ -76,8 +180,44 @@ public:
     {
         in_mat1 = cv::Mat(sz_in, type);
 
-        sc = initScalarRandU(100);
-        cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
+        int sdepth = CV_MAT_DEPTH(type);
+        int ddepth = (dtype >= 0) ? CV_MAT_DEPTH(dtype)
+                                  : sdepth;             // dtype == -1 <=> dtype == SAME_TYPE
+
+        if ((sdepth >= CV_32F) || (ddepth >= CV_32F))
+        {
+            sc = initScalarRandU();
+        }
+        else
+        {
+            switch (sdepth)
+            {
+            case CV_8U:
+                sc = initScalarRandU(UCHAR_MAX + 1U);
+                break;
+            case CV_16U:
+                sc = initScalarRandU(USHRT_MAX + 1U);
+                break;
+            case CV_16S:
+                sc = initScalarRandU(SHRT_MAX + 1U);
+                break;
+            default:
+                sc = initScalarRandU(SCHAR_MAX + 1U);
+                break;
+            }
+        }
+
+        if (CV_MAT_DEPTH(type) < CV_32F)
+        {
+            cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
+        }
+        else
+        {
+            const int fscale = 256;  // avoid bits near ULP, generate stable test input
+            Mat in_mat32s(in_mat1.size(), CV_MAKE_TYPE(CV_32S, CV_MAT_CN(type)));
+            cv::randu(in_mat32s, cv::Scalar::all(0), cv::Scalar::all(255 * fscale));
+            in_mat32s.convertTo(in_mat1, type, 1.0f / fscale, 0);
+        }
 
         if (createOutputMatrices)
         {
@@ -96,41 +236,55 @@ public:
         }
     }
 
+    void initMatFromImage(int type, const std::string& fileName)
+    {
+        initTestDataPath();
+
+        int channels = (type >> CV_CN_SHIFT) + 1;
+        GAPI_Assert(channels == 1 || channels == 3 || channels == 4);
+        const int readFlags = (channels == 1) ? cv::IMREAD_GRAYSCALE : cv::IMREAD_COLOR;
+        cv::Mat mat = cv::imread(findDataFile(fileName), readFlags);
+        if (channels == 4)
+        {
+            cv::cvtColor(mat, in_mat1, cv::COLOR_BGR2BGRA);
+        }
+        else
+        {
+            in_mat1 = mat;
+        }
+
+        int depth = CV_MAT_DEPTH(type);
+        if (in_mat1.depth() != depth)
+        {
+            in_mat1.convertTo(in_mat1, depth);
+        }
+    }
+
+    void initMatsFromImages(int channels, const std::string& pattern, int imgNum)
+    {
+        initTestDataPath();
+        GAPI_Assert(channels == 1 || channels == 3 || channels == 4);
+        const int flags = (channels == 1) ? cv::IMREAD_GRAYSCALE : cv::IMREAD_COLOR;
+
+        cv::Mat m1 = cv::imread(findDataFile(cv::format(pattern.c_str(), imgNum)), flags);
+        cv::Mat m2 = cv::imread(findDataFile(cv::format(pattern.c_str(), imgNum + 1)), flags);
+        if (channels == 4)
+        {
+            cvtColor(m1, in_mat1, cv::COLOR_BGR2BGRA);
+            cvtColor(m2, in_mat2, cv::COLOR_BGR2BGRA);
+        }
+        else
+        {
+            std::tie(in_mat1, in_mat2) = std::make_tuple(m1, m2);
+        }
+    }
+
     // empty function intended to show that nothing is to be initialized via TestFunctional methods
     void initNothing(int, cv::Size, int, bool = true) {}
-
-    static cv::Mat nonZeroPixels(const cv::Mat& mat)
-    {
-        int channels = mat.channels();
-        std::vector<cv::Mat> split(channels);
-        cv::split(mat, split);
-        cv::Mat result;
-        for (int c=0; c < channels; c++)
-        {
-            if (c == 0)
-                result = split[c] != 0;
-            else
-                result = result | (split[c] != 0);
-        }
-        return result;
-    }
-
-    static int countNonZeroPixels(const cv::Mat& mat)
-    {
-        return cv::countNonZero( nonZeroPixels(mat) );
-    }
-
 };
 
 template<class T>
-class TestParams: public TestFunctional, public TestWithParam<T>{};
-
-template<class T>
 class TestPerfParams: public TestFunctional, public perf::TestBaseWithParam<T>{};
-
-using compare_f = std::function<bool(const cv::Mat &a, const cv::Mat &b)>;
-
-using compare_scalar_f = std::function<bool(const cv::Scalar &a, const cv::Scalar &b)>;
 
 // FIXME: re-use MatType. current problem: "special values" interpreted incorrectly (-1 is printed
 //        as 16FC512)
@@ -152,14 +306,16 @@ private:
 };
 
 // Universal parameter wrapper for common (pre-defined) and specific (user-defined) parameters
-template<typename ...SpecificParams>
-struct Params
+template<typename CommonParams, typename SpecificParams>
+struct ParamsBase;
+
+template<typename... CommonParams, typename... SpecificParams>
+struct ParamsBase<std::tuple<CommonParams...>, std::tuple<SpecificParams...>>
 {
-    using gcomp_args_function_t = cv::GCompileArgs(*)();
-    using common_params_t = std::tuple<MatType2, cv::Size, MatType2, gcomp_args_function_t>;
+    using common_params_t   = std::tuple<CommonParams...>;
     using specific_params_t = std::tuple<SpecificParams...>;
-    using params_t = std::tuple<MatType2, cv::Size, MatType2, gcomp_args_function_t, SpecificParams...>;
-    static constexpr const size_t common_params_size = std::tuple_size<common_params_t>::value;
+    using params_t          = std::tuple<CommonParams..., SpecificParams...>;
+    static constexpr const size_t common_params_size   = std::tuple_size<common_params_t>::value;
     static constexpr const size_t specific_params_size = std::tuple_size<specific_params_t>::value;
 
     template<size_t I>
@@ -181,17 +337,24 @@ struct Params
     }
 };
 
-// Base class for test fixtures
-template<typename ...SpecificParams>
-struct TestWithParamBase : TestFunctional,
-    TestWithParam<typename Params<SpecificParams...>::params_t>
+template<typename... SpecificParams>
+struct Params : public ParamsBase<std::tuple<MatType2,cv::Size,MatType2,cv::GCompileArgs(*)()>,
+                                  std::tuple<SpecificParams...>>
 {
-    using AllParams = Params<SpecificParams...>;
+    static constexpr const size_t compile_args_num = 3;
+};
 
-    MatType2 type = getCommonParam<0>();
-    cv::Size sz = getCommonParam<1>();
-    MatType2 dtype = getCommonParam<2>();
+template<typename ...SpecificParams>
+struct ParamsSpecific : public ParamsBase<std::tuple<cv::GCompileArgs(*)()>,
+                                          std::tuple<SpecificParams...>>
+{
+    static constexpr const size_t compile_args_num = 0;
+};
 
+// Base class for test fixtures
+template<typename AllParams>
+struct TestWithParamsBase : TestFunctional, TestWithParam<typename AllParams::params_t>
+{
     // Get common (pre-defined) parameter value by index
     template<size_t I>
     inline auto getCommonParam() const
@@ -211,13 +374,30 @@ struct TestWithParamBase : TestFunctional,
     // Return G-API compile arguments specified for test fixture
     inline cv::GCompileArgs getCompileArgs() const
     {
-        return getCommonParam<3>()();
+        return getCommonParam<AllParams::compile_args_num>()();
     }
 };
 
+template<typename... SpecificParams>
+struct TestWithParams : public TestWithParamsBase<Params<SpecificParams...>>
+{
+    using AllParams = Params<SpecificParams...>;
+
+    MatType2 type  = this->template getCommonParam<0>();
+    cv::Size sz    = this->template getCommonParam<1>();
+    MatType2 dtype = this->template getCommonParam<2>();
+};
+
+template<typename... SpecificParams>
+struct TestWithParamsSpecific : public TestWithParamsBase<ParamsSpecific<SpecificParams...>>
+{
+    using AllParams = ParamsSpecific<SpecificParams...>;
+};
+
+
 /**
  * @private
- * @brief Create G-API test fixture with TestWithParamBase base class
+ * @brief Create G-API test fixture with TestWithParams base class
  * @param Fixture   test fixture name
  * @param InitF     callable that will initialize default available members (from TestFunctional)
  * @param API       base class API. Specifies types of user-defined parameters. If there are no such
@@ -228,16 +408,65 @@ struct TestWithParamBase : TestFunctional,
  *                  must be empty.
  */
 #define GAPI_TEST_FIXTURE(Fixture, InitF, API, Number, ...) \
-    struct Fixture : public TestWithParamBase API { \
+    struct Fixture : public TestWithParams API { \
         static_assert(Number == AllParams::specific_params_size, \
             "Number of user-defined parameters doesn't match size of __VA_ARGS__"); \
         __WRAP_VAARGS(DEFINE_SPECIFIC_PARAMS_##Number(__VA_ARGS__)) \
         Fixture() { InitF(type, sz, dtype); } \
     };
 
+/**
+ * @private
+ * @brief Create G-API test fixture with TestWithParams base class and additional base class.
+ * @param Fixture   test fixture name.
+   @param ExtBase   additional base class.
+ * @param InitF     callable that will initialize default available members (from TestFunctional)
+ * @param API       base class API. Specifies types of user-defined parameters. If there are no such
+ *                  parameters, empty angle brackets ("<>") must be specified.
+ * @param Number    number of user-defined parameters (corresponds to the number of types in API).
+ *                  if there are no such parameters, 0 must be specified.
+ * @param ...       list of names of user-defined parameters. if there are no parameters, the list
+ *                  must be empty.
+ */
+#define GAPI_TEST_EXT_BASE_FIXTURE(Fixture, ExtBase, InitF, API, Number, ...) \
+    struct Fixture : public TestWithParams API, public ExtBase { \
+        static_assert(Number == AllParams::specific_params_size, \
+            "Number of user-defined parameters doesn't match size of __VA_ARGS__"); \
+        __WRAP_VAARGS(DEFINE_SPECIFIC_PARAMS_##Number(__VA_ARGS__)) \
+        Fixture() { InitF(type, sz, dtype); } \
+    };
+
+/**
+ * @private
+ * @brief Create G-API test fixture with TestWithParamsSpecific base class
+ *        This fixture has reduced number of common parameters and no initialization;
+ *        it should be used if you don't need common parameters of GAPI_TEST_FIXTURE.
+ * @param Fixture   test fixture name
+ * @param API       base class API. Specifies types of user-defined parameters. If there are no such
+ *                  parameters, empty angle brackets ("<>") must be specified.
+ * @param Number    number of user-defined parameters (corresponds to the number of types in API).
+ *                  if there are no such parameters, 0 must be specified.
+ * @param ...       list of names of user-defined parameters. if there are no parameters, the list
+ *                  must be empty.
+ */
+#define GAPI_TEST_FIXTURE_SPEC_PARAMS(Fixture, API, Number, ...) \
+    struct Fixture : public TestWithParamsSpecific API { \
+        static_assert(Number == AllParams::specific_params_size, \
+            "Number of user-defined parameters doesn't match size of __VA_ARGS__"); \
+        __WRAP_VAARGS(DEFINE_SPECIFIC_PARAMS_##Number(__VA_ARGS__)) \
+    };
+
 // Wrapper for test fixture API. Use to specify multiple types.
 // Example: FIXTURE_API(int, bool) expands to <int, bool>
 #define FIXTURE_API(...) <__VA_ARGS__>
+
+
+using compare_f = std::function<bool(const cv::Mat &a, const cv::Mat &b)>;
+using compare_scalar_f = std::function<bool(const cv::Scalar &a, const cv::Scalar &b)>;
+
+template<typename Elem>
+using compare_vector_f = std::function<bool(const std::vector<Elem> &a,
+                                            const std::vector<Elem> &b)>;
 
 template<typename T1, typename T2>
 struct CompareF
@@ -260,6 +489,9 @@ private:
 
 using CompareMats = CompareF<cv::Mat, cv::Mat>;
 using CompareScalars = CompareF<cv::Scalar, cv::Scalar>;
+
+template<typename Elem>
+using CompareVectors = CompareF<std::vector<Elem>, std::vector<Elem>>;
 
 template<typename T>
 struct Wrappable
@@ -300,6 +532,28 @@ struct WrappableScalar
         std::stringstream ss;
         ss << t;
         return CompareScalars(to_compare_f(), ss.str());
+    }
+};
+
+template<typename T, typename Elem>
+struct WrappableVector
+{
+    compare_vector_f<Elem> to_compare_f()
+    {
+        T t = *static_cast<T* const>(this);
+        return [t](const std::vector<Elem>& a,
+                   const std::vector<Elem>& b)
+        {
+            return t(a, b);
+        };
+    }
+
+    CompareVectors<Elem> to_compare_obj()
+    {
+        T t = *static_cast<T* const>(this);
+        std::stringstream ss;
+        ss << t;
+        return CompareVectors<Elem>(to_compare_f(), ss.str());
     }
 };
 
@@ -394,7 +648,7 @@ public:
         Mat diff;
         cv::absdiff(in1, in2, diff);
         Mat err_mask = diff > _tol;
-        int err_points = cv::countNonZero(err_mask.reshape(1));
+        int err_points = (cv::countNonZero)(err_mask.reshape(1));
         double max_err_points = _percent * std::max((size_t)1000, in1.total());
         if (err_points > max_err_points)
         {
@@ -510,6 +764,31 @@ public:
 private:
     double _tol;
 };
+
+template<typename Elem>
+class AbsExactVector : public WrappableVector<AbsExactVector<Elem>, Elem>
+{
+public:
+    AbsExactVector() {}
+    bool operator() (const std::vector<Elem>& in1,
+                     const std::vector<Elem>& in2) const
+    {
+        if (cv::norm(in1, in2, NORM_INF, cv::noArray()) != 0)
+        {
+            std::cout << "AbsExact error: G-API output and reference output vectors are not"
+                         " bitexact equal." << std::endl;
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+    friend std::ostream& operator<<(std::ostream& os, const AbsExactVector<Elem>&)
+    {
+        return os << "AbsExactVector()";
+    }
+};
 } // namespace opencv_test
 
 namespace
@@ -522,6 +801,12 @@ inline std::ostream& operator<<(std::ostream& os, const opencv_test::compare_f&)
 inline std::ostream& operator<<(std::ostream& os, const opencv_test::compare_scalar_f&)
 {
     return os << "compare_scalar_f";
+}
+
+template<typename Elem>
+inline std::ostream& operator<<(std::ostream& os, const opencv_test::compare_vector_f<Elem>&)
+{
+    return os << "compare_vector_f";
 }
 }  // anonymous namespace
 

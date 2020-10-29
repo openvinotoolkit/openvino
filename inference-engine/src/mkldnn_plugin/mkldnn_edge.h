@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ie_api.h>
+#include <ie_blob.h>
 #include <memory>
 #include "mkldnn_memory.h"
 #include "mkldnn_dims.h"

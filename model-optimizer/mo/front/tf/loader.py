@@ -23,11 +23,15 @@ from mo.utils.utils import refer_to_faq_msg
 
 try:
     import tensorflow.compat.v1 as tf_v1
+    # disable eager execution of TensorFlow 2 environment immediately
+    tf_v1.disable_eager_execution()
+    import tensorflow as tf
+    from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 except ImportError:
     import tensorflow as tf_v1
 
 from google.protobuf import text_format
-from mo.graph.graph import create_graph_with_nodes, Graph
+from mo.graph.graph import fill_graph_with_nodes, Graph
 from mo.utils.summarize_graph import summarize_graph
 
 
@@ -92,7 +96,7 @@ def freeze_checkpoint(graph_def, checkpoint, output_node_names):
 
     with tf_v1.Session() as sess:
         var_list = {}
-        var_to_shape_map = tf_v1.pywrap_tensorflow.NewCheckpointReader(checkpoint).get_variable_to_shape_map()
+        var_to_shape_map = tf_v1.train.NewCheckpointReader(checkpoint).get_variable_to_shape_map()
         for key in var_to_shape_map:
             try:
                 tensor = sess.graph.get_operation_by_name(key).outputs[0]
@@ -221,12 +225,31 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 return graph_def, variables_values
         if model_dir:
             # saved model directory
-            tags = saved_model_tags if saved_model_tags is not None else [tf_v1.saved_model.tag_constants.SERVING]
-            with tf_v1.Session() as sess:
-                meta_graph_def = tf_v1.saved_model.loader.load(sess, tags, model_dir)
-                outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
-                graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
+            try:
+                # enable eager execution temporarily while TensorFlow 2 model is being loaded
+                tf_v1.enable_eager_execution()
+                # code to extract GraphDef for TF 2.0 SavedModel format
+                # tf.saved_model.load function throws TypeError for TF 1.x SavedModel format in case TF 1.x installed
+                imported = tf.saved_model.load(model_dir, saved_model_tags) # pylint: disable=E1120
+                # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
+                concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+                frozen_func = convert_variables_to_constants_v2(concrete_func, lower_control_flow=False) # pylint: disable=E1123
+                graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
+                # disable eager execution since next steps are executed with a graph in non-eager mode
+                tf_v1.disable_eager_execution()
                 return graph_def, variables_values
+            except (TypeError, KeyError):
+                # disable eager execution since TensorFlow 1 model is handled
+                tf_v1.disable_eager_execution()
+                # code to extract GraphDef for TF 1.0 SavedModel format
+                tags = saved_model_tags if saved_model_tags is not None else [tf_v1.saved_model.tag_constants.SERVING]
+                with tf_v1.Session() as sess:
+                    meta_graph_def = tf_v1.saved_model.loader.load(sess, tags, model_dir)
+                    outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
+                    graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
+                    return graph_def, variables_values
+            except Exception as e:
+                raise FrameworkError('SavedModel format load failure: {}', e) from e
     except Exception as e:
         raise FrameworkError('Cannot load input model: {}', e) from e
     raise Error("Unknown configuration of input model parameters")
@@ -236,8 +259,8 @@ def protobuf_attrs(pb:tf_v1.NodeDef):
     return {'pb': pb}
 
 
-def protobuf2nx(pb: tf_v1.GraphDef):
-    graph = create_graph_with_nodes(pb.node, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
+def protobuf2nx(graph, pb: tf_v1.GraphDef):
+    fill_graph_with_nodes(graph, pb.node, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
     # initial order of nodes in the GraphDef. It is used to specify order in
     # which merged nodes are added to the generated sub-graph GraphDef for the TensorFlow offload feature.
     graph.graph['initial_nodes_order'] = [node.name for node in pb.node]
@@ -252,8 +275,6 @@ def protobuf2nx(pb: tf_v1.GraphDef):
                     del pb.attr['_class'].list.s[index]
                 else:
                     index = index + 1
-
-    return graph
 
 
 def variables_to_constants(graph: Graph, variables_values: dict):

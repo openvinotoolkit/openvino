@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.middle.ReluQuantizeFuse import ReluQuantizeFuse, ReluFakeQuantizeMark
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes = {
     # input
@@ -41,10 +41,10 @@ nodes = {
     'const_4': {'op': 'Const', 'kind': 'op'},
     'const_4_d': {'kind': 'data', 'value': None},
 
-    'quantize': {'kind': 'op', 'op': 'FakeQuantize', 'keep_in_IR': True},
+    'quantize': {'kind': 'op', 'op': 'FakeQuantize'},
     'quantize_d': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'quantize_1': {'kind': 'op', 'op': 'FakeQuantize', 'keep_in_IR': True},
+    'quantize_1': {'kind': 'op', 'op': 'FakeQuantize'},
     'quantize_1_d': {'value': None, 'shape': None, 'kind': 'data'},
 
     # Result

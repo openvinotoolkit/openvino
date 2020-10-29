@@ -107,7 +107,9 @@ protected:
     }
 
     static int parseInt(const std::string& src) {
-        return std::stoi(src);
+        const auto val = std::stoi(src);
+
+        return val;
     }
 
     static float parseFloat(const std::string& src) {

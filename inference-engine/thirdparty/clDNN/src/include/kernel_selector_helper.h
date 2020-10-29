@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,12 +73,18 @@ using softmax_dim = kernel_selector::SoftmaxDim;
 using mean_subtruct_mode = kernel_selector::MeanSubtractMode;
 using mean_op = kernel_selector::MeanOp;
 using concat_axis = kernel_selector::ConcatAxis;
-using tile_axis = kernel_selector::TileAxis;
 using tuning_mode = kernel_selector::TuningMode;
 using sample_type = kernel_selector::ResampleType;
+using coordinate_transformation_mode = kernel_selector::CoordinateTransformationMode;
+using nearest_mode = kernel_selector::NearestMode;
+using shape_calculation_mode = kernel_selector::ShapeCalculationMode;
+using interpolate_axis = kernel_selector::InterpolateAxis;
 using border_type = kernel_selector::BorderType;
 using gather_axis = kernel_selector::GatherAxis;
+using scatter_update_axis = kernel_selector::ScatterUpdateAxis;
 using reduce_mode = kernel_selector::ReduceMode;
+using cum_sum_axis = kernel_selector::CumSumAxis;
+using depth_to_space_mode = kernel_selector::DepthToSpaceMode;
 
 using data_tensor = kernel_selector::DataTensor;
 using weights_tensor = kernel_selector::WeightsTensor;
@@ -92,7 +98,6 @@ using params = kernel_selector::Params;
 using weights_reorder_params = kernel_selector::WeightsReorderParams;
 using generic_kernel_params = kernel_selector::GenericKernelParams;
 
-struct training_params;
 }  // namespace kernel_selector
 
 kernel_selector::data_type to_data_type(data_types dt);
@@ -109,8 +114,6 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
-kernel_selector::activation_function get_kernel_selector_activation_grad_param(
-    activation_grad_func activation_grad_func);
 
 template <typename T = std::uint32_t>
 kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
@@ -149,14 +152,6 @@ inline void convert_new_activation_func(const p_type primitive, std::vector<kern
                                    primitive->additional_params.b});
 }
 
-template <typename p_type>
-inline void convert_new_activation_grad_func(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
-    params.insert(params.begin(), {get_kernel_selector_activation_grad_param(primitive->activation_grad_function),
-                                   primitive->additional_params.a,
-                                   primitive->additional_params.b,
-                                   true});
-}
-
 void set_params(const program_node& node, kernel_selector::params& params);
 
 template <typename params_t, typename arg_t>
@@ -176,7 +171,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
     convert_fused_activation_func_params(arg, params.activations);
     size_t op_id = 0;
     for (auto& fused_prim : arg.get_fused_primitives()) {
-        kernel_selector::base_params::fused_operation_desc desc;
+        kernel_selector::fused_operation_desc desc;
         desc.op_params = fused_prim.node->get_fuse_params();
         if (!desc.op_params) {
             CLDNN_ERROR_MESSAGE(arg.id(), "Invalid fused operation (" + fused_prim.node->id() + ") of type " +
@@ -200,10 +195,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
 template <typename params_t, typename arg_t>
 inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
     params_t params = get_default_params<params_t>(arg, split);
-    auto weights_layout = arg.weights().get_output_layout();
-    if (groups != 1) {
-        weights_layout.size.batch[0] /= static_cast<int>(groups);
-    }
+    const auto& weights_layout = arg.weights().get_output_layout();
     params.weights = convert_weights_tensor(weights_layout);
 
     if (arg.bias_term()) {
@@ -218,12 +210,27 @@ inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split
     return params;
 }
 
-void set_learning_params(const program_node& node, kernel_selector::training_params& params, bool use_momentum);
-
 template <typename params_t, typename arg_t>
-inline params_t get_default_learning_params(const arg_t& arg, uint32_t split = 1) {
-    params_t params = get_weights_bias_default_params<params_t>(arg, split);
-    set_learning_params(arg, params, arg.use_momentum());
+params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
+    params_t params = get_weights_bias_default_params<params_t>(arg, split, groups);
+
+    if (arg.weights_zero_points_term()) {
+        params.weights_zero_points.push_back(
+            convert_data_tensor(arg.weights_zero_points().get_output_layout())
+            .FlattenFeatureAndSpatials());
+    }
+
+    if (arg.activations_zero_points_term()) {
+        params.activations_zero_points.push_back(
+            convert_data_tensor(arg.activations_zero_points().get_output_layout())
+            .FlattenFeatureAndSpatials());
+    }
+
+    if (arg.compensation_term()) {
+        params.compensation.push_back(
+            convert_data_tensor(arg.compensation().get_output_layout()).FlattenFeatureAndSpatials());
+    }
+
     return params;
 }
 
@@ -239,9 +246,4 @@ inline optional_params_t get_default_optional_params(const program_impl& program
 template <typename optional_params_t>
 inline optional_params_t get_default_weights_bias_optional_params(const program_impl& program) {
     return get_default_optional_params<optional_params_t>(program);
-}
-
-template <typename optional_params_t>
-inline optional_params_t get_default_learning_optional_params(const program_impl& program) {
-    return get_default_weights_bias_optional_params<optional_params_t>(program);
 }

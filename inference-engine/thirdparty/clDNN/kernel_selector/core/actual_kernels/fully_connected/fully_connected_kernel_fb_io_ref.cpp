@@ -32,8 +32,8 @@ ParamsKey FullyConnected_fb_io_ref::GetSupportedKey() const {
     return k;
 }
 
-JitConstants FullyConnected_fb_io_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+JitConstants FullyConnected_fb_io_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
@@ -54,7 +54,7 @@ KernelsData FullyConnected_fb_io_ref::GetKernelsData(const Params& params, const
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     optParams,
                                                     DataLayout::yxfb,
-                                                    {WeightsLayout::yxio},
+                                                    WeightsLayout::yxio,
                                                     FORCE_PRIORITY_6,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

@@ -16,8 +16,6 @@
 
 import collections
 
-import networkx as nx
-
 from mo.graph.graph import Node, Graph
 
 

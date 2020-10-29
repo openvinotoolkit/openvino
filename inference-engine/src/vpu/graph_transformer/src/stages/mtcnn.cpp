@@ -4,18 +4,17 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/graph_transformer.hpp>
+#include <vpu/compile_env.hpp>
+#include <vpu/utils/file_system.hpp>
+#include <vpu/model/data_contents/mtcnn_blob_content.hpp>
+
 #include <vector>
 #include <fstream>
 #include <string>
 #include <utility>
 #include <memory>
 #include <set>
-
-#include <cpp/ie_cnn_net_reader.h>
-
-#include <vpu/graph_transformer.hpp>
-#include <vpu/compile_env.hpp>
-#include <vpu/utils/file_system.hpp>
 
 namespace vpu {
 
@@ -86,30 +85,12 @@ private:
         auto input1 = inputEdge(1)->input();
         auto output = outputEdge(0)->output();
 
-        input0->serializeOldBuffer(this, serializer);
-        output->serializeOldBuffer(this, serializer);
+        input0->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
 
-        input1->serializeOldBuffer(
-            this,
-            serializer,
-            DimsOrder::HWC,
-            {{Dim::W, {Dim::C}}});
+        IE_ASSERT(inputEdge(1)->input()->desc().dimsOrder() == DimsOrder::C);
+        input1->serializeBuffer(serializer);
     }
-};
-
-class MTCNNBlobContent final : public DataContent {
-public:
-    explicit MTCNNBlobContent(std::vector<char>&& blob) : _blob(std::forward<std::vector<char>>(blob)) {
-        IE_ASSERT(!_blob.empty());
-    }
-
-    const void* getRaw() const override {
-        IE_ASSERT(desc().totalDimSize() * desc().elemSize() == _blob.size());
-        return _blob.data();
-    }
-
-private:
-    std::vector<char> _blob;
 };
 
 std::pair<int, int> getResolution(const std::string& str) {
@@ -124,20 +105,14 @@ std::pair<int, int> getResolution(const std::string& str) {
 
 ie::CNNNetwork loadSubNetwork(
         const std::string& fileName,
-        const std::pair<int, int>& imgSize, int* zdir_batchsize = nullptr) {
+        const std::pair<int, int>& imgSize,
+        const ie::ICore* core,
+        int* zdir_batchsize = nullptr) {
     //
     // Load network
     //
 
-    auto binFileName = fileNameNoExt(fileName) + ".bin";
-
-    IE_SUPPRESS_DEPRECATED_START
-    ie::CNNNetReader networkReader;
-    networkReader.ReadNetwork(fileName);
-    networkReader.ReadWeights(binFileName);
-
-    auto network = networkReader.getNetwork();
-    IE_SUPPRESS_DEPRECATED_END
+    auto network = core->ReadNetwork(fileName, std::string());
 
     //
     // Set precision of input/output
@@ -166,7 +141,7 @@ ie::CNNNetwork loadSubNetwork(
     ie::SizeVector inputShape;
     std::tie(inputName, inputShape) = *inputShapes.begin();
     if (zdir_batchsize != nullptr)
-        *zdir_batchsize = inputShape[1]/3;
+        *zdir_batchsize = static_cast<int>(inputShape[1]/3);
     inputShape[0] = 1;                // set batch size to the first input dimension
     inputShape[2] = imgSize.second;   // changes input height to the image one
     inputShape[3] = imgSize.first;    // changes input width to the image one
@@ -229,8 +204,8 @@ void FrontEnd::parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, cons
 
     // Convert p-nets
     for (const auto& p_net_input : pyramid) {
-        auto pNet = loadSubNetwork(pnet_ir_name, p_net_input);
-        auto res = compileSubNetwork(pNet, env.config);
+        auto pNet = loadSubNetwork(pnet_ir_name, p_net_input, _core);
+        auto res = compileSubNetwork(pNet, env.config, _core);
         mergedBlobSize += res->blob.size();
         compiledSubNetworks.emplace_back(std::move(res));
     }
@@ -238,16 +213,16 @@ void FrontEnd::parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, cons
     int stage2_zdir_batchsize = 1;
     // Convert r-net
     {
-        auto rNet = loadSubNetwork(rnet_ir_name, r_net_input, &stage2_zdir_batchsize);
-        auto res = compileSubNetwork(rNet, env.config);
+        auto rNet = loadSubNetwork(rnet_ir_name, r_net_input, _core, &stage2_zdir_batchsize);
+        auto res = compileSubNetwork(rNet, env.config, _core);
         mergedBlobSize += res->blob.size();
         compiledSubNetworks.emplace_back(std::move(res));
     }
 
     // Convert o-net
     {
-        auto oNet = loadSubNetwork(onet_ir_name, o_net_input);
-        auto res = compileSubNetwork(oNet, env.config);
+        auto oNet = loadSubNetwork(onet_ir_name, o_net_input, _core);
+        auto res = compileSubNetwork(oNet, env.config, _core);
         mergedBlobSize += res->blob.size();
         compiledSubNetworks.emplace_back(std::move(res));
     }
@@ -267,7 +242,7 @@ void FrontEnd::parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, cons
     auto innerGraphsDesc = DataDesc({mergedBlob.size()});
     innerGraphsDesc.setType(DataType::U8);
 
-    auto innerGraphs = model->addConstData(layer->name + "@innerGraphs", innerGraphsDesc, std::make_shared<MTCNNBlobContent>(std::move(mergedBlob)));
+    auto innerGraphs = model->addConstData(layer->name + "@innerGraphs", innerGraphsDesc, std::make_shared<MTCNNBlobContent>(mergedBlob));
 
     auto stage = model->addNewStage<MTCNNStage>(layer->name, StageType::MTCNN, layer, {input, innerGraphs}, {output});
     stage->attrs().set("pyramid", pyramid);

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,11 +30,7 @@ bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) 
     const convolution_params& params = static_cast<const convolution_params&>(p);
     const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
 
-    bool bSupportedWeightsLayout = false;
-
-    for (WeightsLayout l : GetSupportedWeightLayouts(params)) {
-        bSupportedWeightsLayout |= params.weights.GetLayout() == l;
-    }
+    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightsLayout(params);
 
     const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
 
@@ -50,9 +46,9 @@ bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) 
     return true;
 }
 
-JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& params, const DispatchData& kd) const {
+JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     JitConstants mem_consts = WeightBiasKernelBase::GetJitConstants(params);
-    mem_consts.Merge(GetFusedPrimitivesJitConstants(params, kd));
+    mem_consts.Merge(GetFusedPrimitivesJitConstants(params, dispatchData));
     const auto& padding = params.padding;
     const auto& input = params.inputs[0];
 
@@ -79,9 +75,9 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         if (!params.activations_zero_points.empty()) {
             mem_consts.AddConstants({MakeJitConstant("ACTIVATIONS_ZERO_POINTS", params.activations_zero_points[0])});
         }
-        if (params.has_compensation) {
+        if (params.HasCompensation()) {
             mem_consts.AddConstants({MakeJitConstant("COMPENSATION_TERM", 1)});
-            mem_consts.AddConstants({MakeJitConstant("COMPENSATION", params.compenstaion[0])});
+            mem_consts.AddConstants({MakeJitConstant("COMPENSATION", params.compensation[0])});
         }
     }
     if (params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS || params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
@@ -105,12 +101,12 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
 
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
                                            params.filterSize.y,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDX,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDY,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDZ,
-                                           (uint32_t)kd.gemmStyle.subBlockDimM,
-                                           (uint32_t)kd.gemmStyle.subBlockDimK,
-                                           (uint32_t)kd.gemmStyle.subBlockDimN};
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimM,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimK,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimN};
 
     auto loopCount = *std::max_element(unrollLoopParams.begin(), unrollLoopParams.end());
 
@@ -120,13 +116,15 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
     return mem_consts;
 }
 
-bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::DispatchData& kd) {
-    if (kd.gws0 == 0 || kd.gws1 == 0 || kd.gws2 == 0 || kd.lws0 == 0 || kd.lws1 == 0 || kd.lws2 == 0) {
+bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::DispatchData& dispatchData) {
+    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
         return false;
-    }
 
-    if ((kd.gws0 % kd.lws0) != 0 || (kd.gws1 % kd.lws1) != 0 || (kd.gws2 % kd.lws2) != 0) {
-        return false;
+    for (size_t i = 0; i < dispatchData.gws.size(); i++) {
+        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
+            return false;
+        if ((dispatchData.gws[i] % dispatchData.lws[i]) != 0)
+            return false;
     }
 
     return true;
@@ -168,84 +166,79 @@ bool ConvolutionKernelBase::CheckPitchForSplitOnly(const convolution_params& par
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, int) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& out = params.output;
-    kd.fp16UnitUsed = out.GetDType() == Datatype::F16;
-    std::vector<size_t> global;
     if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf) {
-        global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
+        dispatchData.gws = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
     } else if (params.output.GetLayout() == DataLayout::bfzyx) {
-        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
     } else {
-        global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
+        dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.cldnnStyle.blockWidth = 1;
+    dispatchData.cldnnStyle.blockHeight = 1;
+    dispatchData.cldnnStyle.prefetch = 0;
+    dispatchData.cldnnStyle.inputBlockArraySize = 0;
+    dispatchData.cldnnStyle.inputBlockWidth = 0;
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    kd.cldnnStyle.blockWidth = 1;
-    kd.cldnnStyle.blockHeight = 1;
-    kd.cldnnStyle.prefetch = 0;
-    kd.cldnnStyle.inputBlockArraySize = 0;
-    kd.cldnnStyle.inputBlockWidth = 0;
-
-    kd.gemmStyle.globalWorkSizeDX = 1;
-    kd.gemmStyle.globalWorkSizeDY = 1;
-    kd.gemmStyle.globalWorkSizeDZ = 1;
-    kd.gemmStyle.subBlockDimK = 1;
-    kd.gemmStyle.subBlockDimM = 0;
-    kd.gemmStyle.subBlockDimN = 0;
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    return kd;
+    dispatchData.gemmStyle.globalWorkSizeDX = 1;
+    dispatchData.gemmStyle.globalWorkSizeDY = 1;
+    dispatchData.gemmStyle.globalWorkSizeDZ = 1;
+    dispatchData.gemmStyle.subBlockDimK = 1;
+    dispatchData.gemmStyle.subBlockDimM = 0;
+    dispatchData.gemmStyle.subBlockDimN = 0;
+    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    return dispatchData;
 }
 
 KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                                         const optional_params& options,
                                                         const std::string exeMode,
                                                         int autoTuneIndex) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
-    if (NeedPaddedInput()) {
-        kd.reorderInput = CovolutionUpdateInputParams(newParams);
-    }
-    DispatchData runInfo = SetDefault(newParams, autoTuneIndex);
-
-    if (!CheckWorkGroups(runInfo)) {
-        // Internal Error - wrong calculation of global/local work group sizes
-        return {};
-    }
-
     bool succeed = UpdateWeightsParams(newParams,
                                        options,
-                                       GetSupportedWeightLayouts(newParams),
+                                       GetPreferredWeightsLayout(newParams),
                                        kd.weightsReorderParams,
-                                       GetSupportedKey());
+                                       GetSupportedKey(),
+                                       newParams.groups,
+                                       newParams.transposed);
 
     if (!succeed) {
         return {};
     }
 
+    if (!Validate(params, options)) {
+        return {};
+    }
+
+    if (NeedPaddedInput()) {
+        kd.reorderInput = CovolutionUpdateInputParams(newParams);
+
+        if (kd.reorderInput && !options.allowInputReordering)
+            return {};
+    }
+    DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
+
+    if (!CheckWorkGroups(dispatchData)) {
+        // Internal Error - wrong calculation of global/local work group sizes
+        return {};
+    }
+
     auto finalKernelName = GetKernelName(newParams);
-    auto cldnnJit = GetJitConstants(newParams, runInfo);
+    auto cldnnJit = GetJitConstants(newParams, dispatchData);
     auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      finalKernelName,
                      jit,
@@ -263,7 +256,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
         kernel.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
     if (!newParams.activations_zero_points.empty())
         kernel.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
-    if (!newParams.compenstaion.empty())
+    if (!newParams.compensation.empty())
         kernel.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
 
     uint32_t fused_deps_total = 0;
@@ -275,7 +268,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};
@@ -430,6 +423,15 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
 
     if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights)
         return Datatype::F32;
+
+    if (params.output.GetDType() == Datatype::UINT8 ||
+        params.output.GetDType() == Datatype::INT8) {
+        if (params.inputs[0].GetDType() == Datatype::F32) {
+            return Datatype::F32;
+        } else if (params.inputs[0].GetDType() == Datatype::F16) {
+            return Datatype::F16;
+        }
+    }
 
     return GetUnitType(params);
 }

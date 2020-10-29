@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ ParamsKey PoolingKerneGPU_b_fs_yx_fsv4::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -43,42 +42,39 @@ ParamsKey PoolingKerneGPU_b_fs_yx_fsv4::GetSupportedKey() const {
 }
 
 PoolingKernelBase::DispatchData PoolingKerneGPU_b_fs_yx_fsv4::SetDefault(const pooling_params& params) const {
-    DispatchData runInfo = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    runInfo.gws0 = params.output.X().v;  // X
-    runInfo.gws1 = params.output.Y().v;  // Y
+    dispatchData.gws[0] = params.output.X().v;  // X
+    dispatchData.gws[1] = params.output.Y().v;  // Y
     // we got b_fs_yx_fsv4 format, we process 4 features per workitem
-    runInfo.gws2 = CeilDiv(params.output.Feature().v, 4) * params.output.Batch().v;
+    dispatchData.gws[2] = CeilDiv(params.output.Feature().v, 4) * params.output.Batch().v;
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    auto local = GetOptimalLocalWorkGroupSizes({ runInfo.gws0, runInfo.gws1, runInfo.gws2 }, params.engineInfo);
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants PoolingKerneGPU_b_fs_yx_fsv4::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants PoolingKerneGPU_b_fs_yx_fsv4::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     const size_t in_x_pitch = 4;
     const size_t in_y_pitch = 4 * params.inputs[0].X().LogicalDimPadded();
     jit.AddConstant(MakeJitConstant("IN_X_PITCH", in_x_pitch));
     jit.AddConstant(MakeJitConstant("IN_Y_PITCH", in_y_pitch));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
-        FusedOpsConfiguration conf = { "",
-                                       {"b", "f", "y", "x"},
-                                       "pool_result",
-                                       input_dt,
-                                       4,
-                                       LoadType::LT_UNALIGNED,
-                                       BoundaryCheck::ENABLED,
-                                       IndexType::TENSOR_COORD,
-                                       Tensor::DataChannelName::FEATURE };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = {"",
+                                     {"b", "f", "y", "x"},
+                                     "pool_result",
+                                     input_dt,
+                                     4,
+                                     LoadType::LT_UNALIGNED,
+                                     BoundaryCheck::ENABLED,
+                                     IndexType::TENSOR_COORD,
+                                     Tensor::DataChannelName::FEATURE};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;

@@ -29,6 +29,7 @@ class PriorBoxOp(Op):
         mandatory_props = {
             'type': self.op,
             'op': self.op,
+            'version': 'opset1',
             'flip': 1,
             'max_size': np.array([]),
             'min_size': np.array([]),

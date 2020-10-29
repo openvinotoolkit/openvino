@@ -13,6 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
+import numpy as np
+
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.ops.op import Op
 
@@ -47,3 +51,6 @@ class Reverse(Op):
 
         assert len(node.out_nodes()) == 1
         node.out_node().shape = input_data_shape.copy()
+        if node.in_node().value is not None:
+            node.out_node().value = np.flip(node.in_node().value, node['axis'])
+            assert np.array_equal(int64_array(node.out_node().value.shape), input_data_shape)

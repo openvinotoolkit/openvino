@@ -131,28 +131,6 @@ HwPaddingInfo getHwPaddingInfo(
 void printTo(std::ostream& os, const HwPaddingInfo& hwPad);
 void printTo(DotLabel& lbl, const HwPaddingInfo& hwPad);
 
-
-//
-// HwWeightsContent
-//
-
-class HwWeightsContent final : public CalculatedDataContent {
-public:
-    HwWeightsContent(
-            const DataContent::Ptr& origContent,
-            const DataDesc& origWeightsDesc,
-            int numInputChannels,
-            int channelStartIndex = 0);
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override;
-
-private:
-    DataDesc _origWeightsDesc;
-    int _numInputChannels = 0;
-    int _channelStartIndex = 0;
-};
-
 //
 // calculateHwBufferSize
 //

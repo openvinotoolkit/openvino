@@ -92,6 +92,15 @@ class IREngine(object):
                                 self.meta_data[det.tag] = value
                             else:
                                 self.meta_data[det.tag] = det.attrib['unset_cli_parameters'].split(',_')
+            elif child.tag == 'quantization_parameters':
+                # Section with Post Optimization Toolkit parameters
+                self.meta_data['quantization_parameters'] = dict()
+                for elem in child:
+                    if elem.tag == 'config':
+                        self.meta_data['quantization_parameters']['config'] = elem.text
+                    elif elem.tag in ['version', 'cli_params']:
+                        self.meta_data['quantization_parameters'][elem.tag] = elem.attrib['value']
+
 
         self.graph.graph['cmd_params'] = Namespace(**self.meta_data)  # TODO check what we need all this attrs
 
@@ -297,7 +306,7 @@ class IREngine(object):
             'I8': (1, np.int8),
             'U8': (1, np.uint8),
             'U1': (1, np.uint8),
-            'BOOL': (1, np.uint8),
+            'BOOL': (1, np.bool),
             'BIN': (1, np.uint8),
         }
         type_size, dtype = precision_map[precision]

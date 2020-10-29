@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <iomanip>
 
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/file_system.hpp>
@@ -26,6 +27,7 @@ void BackEnd::extractDataInfo(
             auto ioBufferOffset = data->attrs().get<int>("ioBufferOffset");
             IE_ASSERT(ioBufferOffset + data->totalByteSize() <= inputInfo.totalSize);
 
+            inputInfo.descFromPlugin[data->name()] = data->desc().toTensorDesc();
             inputInfo.offset[data->name()] = ioBufferOffset;
         } else if (DataUsage::Output == data->usage()) {
             IE_ASSERT(outputInfo.offset.count(data->name()) == 0);
@@ -33,6 +35,7 @@ void BackEnd::extractDataInfo(
             auto ioBufferOffset = data->attrs().get<int>("ioBufferOffset");
             IE_ASSERT(ioBufferOffset + data->totalByteSize() <= outputInfo.totalSize);
 
+            outputInfo.descFromPlugin[data->name()] = data->desc().toTensorDesc();
             outputInfo.offset[data->name()] = ioBufferOffset;
         }
     }
@@ -50,8 +53,10 @@ CompiledGraph::Ptr BackEnd::build(
     compiledGraph->inputBufSize = usedMemory.input;
     compiledGraph->outputBufSize = usedMemory.output;
 
-    compiledGraph->numShaves = checked_cast<std::uint32_t>(model->attrs().get<Resources>("resources").numSHAVEs);
-    compiledGraph->numSlices = checked_cast<std::uint32_t>(model->attrs().get<Resources>("resources").numCMXSlices);
+    const auto& resources = model->attrs().get<Resources>("resources");
+    compiledGraph->numShaves = checked_cast<std::uint32_t>(resources.numSHAVEs);
+    compiledGraph->numSlices = checked_cast<std::uint32_t>(resources.numCMXSlices);
+    compiledGraph->numExecutors = checked_cast<std::uint32_t>(resources.numExecutors);
 
     compiledGraph->inputInfo.totalSize  = usedMemory.input;
     compiledGraph->outputInfo.totalSize = usedMemory.output;

@@ -26,16 +26,13 @@
 
 // TODO: move it from layout based to memory based
 KERNEL(activation)(
-#if GRADIENT
-    __global UNIT_TYPE* input_grad,
-    __global UNIT_TYPE* output_grad,
-    __global UNIT_TYPE* input
-#else
-    __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output
-#endif
+    __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
 #ifdef PARAMETERIZED
     , __global ADDITIONAL_PARAMS_TYPE* params
+#endif
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
     )
 {
@@ -45,7 +42,7 @@ KERNEL(activation)(
     #define ORDER batch,feature,y,x
 #endif
 
-#if defined OUTPUT_LAYOUT_BFZYX
+#if OUTPUT_DIMS == 5
     const unsigned x = get_global_id(0);
     const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
     const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
@@ -57,7 +54,7 @@ KERNEL(activation)(
     const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
 #endif
 #else
-#if defined OUTPUT_LAYOUT_YXFB || defined OUTPUT_LAYOUT_BFYX_F16
+#if defined OUTPUT_LAYOUT_YXFB || defined OUTPUT_LAYOUT_B_FS_YX_FSV16
     const unsigned x = (uint)get_global_id(1);
     const unsigned y = (uint)get_global_id(2);
 #define z 0
@@ -82,12 +79,13 @@ KERNEL(activation)(
 #endif
 #endif
 
-#if GRADIENT
-    const unsigned src_grad_index = GET_INDEX(INPUT,0,ORDER);
-    const unsigned src_index = GET_INDEX(INPUT,1,ORDER);
-#else
-    const unsigned src_index = GET_INDEX(INPUT,0,ORDER);
+#if defined(OUTPUT_LAYOUT_B_FS_YX_FSV16) && OUTPUT_FEATURE_NUM % 16 != 0
+    // b_fs_yx_fsv16 has dispatch features aligned to multiple of 16
+    if (feature >= OUTPUT_FEATURE_NUM)
+        return;
 #endif
+
+    const unsigned src_index = GET_INDEX(INPUT,0,ORDER);
     const unsigned dst_index = GET_INDEX(OUTPUT,,ORDER);
 
 #if defined PARAMETERIZED
@@ -105,16 +103,20 @@ KERNEL(activation)(
     #endif
     #define PARAMETERIZED_ACTIVATION_PARAMS NL_M_PARAMETERIZED, NL_N_PARAMETERIZED
 
-    #if GRADIENT
-        output_grad[dst_index] = ACTIVATION(input_grad[src_grad_index], input[src_index], PARAMETERIZED_ACTIVATION_PARAMS);
+    INPUT0_TYPE dst = ACTIVATION_KERNEL(input[src_index], PARAMETERIZED_ACTIVATION_PARAMS);
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[dst_index] = FUSED_OPS_RESULT;
     #else
-        output[dst_index] = ACTIVATION(input[src_index], PARAMETERIZED_ACTIVATION_PARAMS);
+        output[dst_index] = dst;
     #endif
 #else
-    #if GRADIENT
-        output_grad[dst_index] = ACTIVATION(input_grad[src_grad_index], input[src_index], ACTIVATION_PARAMS);
+    INPUT0_TYPE dst = ACTIVATION_KERNEL(input[src_index], ACTIVATION_PARAMS);
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[dst_index] = FUSED_OPS_RESULT;
     #else
-        output[dst_index] = ACTIVATION(input[src_index], ACTIVATION_PARAMS);
+        output[dst_index] = dst;
     #endif
 #endif
 }

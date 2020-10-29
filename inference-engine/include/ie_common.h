@@ -11,13 +11,11 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <details/ie_exception.hpp>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
-
-#include "ie_unicode.hpp"
+#include <map>
 
 namespace InferenceEngine {
 /**
@@ -27,20 +25,6 @@ namespace InferenceEngine {
  * first.
  */
 using SizeVector = std::vector<size_t>;
-
-/**
- * @brief This class represents the generic layer.
- */
-class CNNLayer;
-
-/**
- * @brief A smart pointer to the CNNLayer
- */
-using CNNLayerPtr = std::shared_ptr<CNNLayer>;
-/**
- * @brief A smart weak pointer to the CNNLayer
- */
-using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
 
 /**
  * @brief The main data representation node
@@ -67,9 +51,9 @@ using DataWeakPtr = std::weak_ptr<Data>;
  * @brief The method holds the user values to enable binding of data per graph node.
  */
 union UserValue {
-    int v_int;
-    float v_float;
-    void* v_ptr;
+    int v_int;  //!< An integer value
+    float v_float;  //!< A floating point value
+    void* v_ptr;  //!< A pointer to a void
 };
 
 /**
@@ -77,35 +61,35 @@ union UserValue {
  * @brief Layouts that the inference engine supports
  */
 enum Layout : uint8_t {
-    ANY = 0,  // "any" layout
+    ANY = 0,  //!< "any" layout
 
     // I/O data layouts
-    NCHW = 1,
-    NHWC = 2,
-    NCDHW = 3,
-    NDHWC = 4,
+    NCHW = 1,  //!< NCHW layout for input / output blobs
+    NHWC = 2,  //!< NHWC layout for input / output blobs
+    NCDHW = 3,  //!< NCDHW layout for input / output blobs
+    NDHWC = 4,  //!< NDHWC layout for input / output blobs
 
     // weight layouts
-    OIHW = 64,
-    GOIHW = 65,
-    OIDHW = 66,
-    GOIDHW = 67,
+    OIHW = 64,  //!< NDHWC layout for operation weights
+    GOIHW = 65,  //!< NDHWC layout for operation weights
+    OIDHW = 66,  //!< NDHWC layout for operation weights
+    GOIDHW = 67,  //!< NDHWC layout for operation weights
 
     // Scalar
-    SCALAR = 95,
+    SCALAR = 95,  //!< A scalar layout
 
     // bias layouts
-    C = 96,
+    C = 96,  //!< A bias layout for operation
 
-    // Single image layout (for mean image)
-    CHW = 128,
+    // Single image layouts
+    CHW = 128,  //!< A single image layout (e.g. for mean image)
 
     // 2D
-    HW = 192,
-    NC = 193,
-    CN = 194,
+    HW = 192,  //!< HW 2D layout
+    NC = 193,  //!< HC 2D layout
+    CN = 194,  //!< CN 2D layout
 
-    BLOCKED = 200,
+    BLOCKED = 200,  //!< A blocked layout
 };
 inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
     switch (p) {
@@ -181,9 +165,17 @@ struct InferenceEngineProfileInfo {
     /**
      * @brief Defines the general status of the layer
      */
-    enum LayerStatus { NOT_RUN, OPTIMIZED_OUT, EXECUTED };
+    enum LayerStatus {
+        NOT_RUN,  //!< A layer is not executed
+        OPTIMIZED_OUT,  //!< A layer is optimized out during graph optimization phase
+        EXECUTED  //!< A layer is executed
+    };
 
+    /**
+     * @brief Defines a layer status
+     */
     LayerStatus status;
+
     /**
      * @brief The absolute time in microseconds that the layer ran (in total)
      */
@@ -241,6 +233,29 @@ struct ResponseDesc {
      * @brief A character buffer that holds the detailed information for an error.
      */
     char msg[4096] = {};
+};
+
+
+/**
+ * @brief Response structure encapsulating information about supported layer
+ */
+struct QueryNetworkResult {
+    /**
+     * @brief A map of supported layers:
+     * - key - a layer name
+     * - value - a device name on which layer is assigned
+     */
+    std::map<std::string, std::string> supportedLayersMap;
+
+    /**
+     * @brief A status code
+     */
+    StatusCode rc = OK;
+
+    /**
+     * @brief Response message
+     */
+    ResponseDesc resp;
 };
 
 /** @brief This class represents StatusCode::GENERIC_ERROR exception */

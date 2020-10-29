@@ -15,10 +15,9 @@
 """
 
 import logging as log
+from typing import Iterable
 
 import numpy as np
-
-from typing import Iterable
 
 
 def int64_array(l: Iterable):
@@ -45,7 +44,7 @@ def assign_dims_to_weights(node, spatial, input_channel, output_channel=None, di
         node['spatial_dims'] = np.array(spatial, dtype=np.int64)
     node['input_channel_dim'] = np.array(input_channel, dtype=np.int64)
     node['output_channel_dim'] = np.array(output_channel, dtype=np.int64)
-    if 'input_channel_dim' not in node['dim_attrs']:
+    if 'dim_attrs' in node and 'input_channel_dim' not in node['dim_attrs']:
         node['dim_attrs'].append('input_channel_dim')
     node['dims_number'] = dims_number
 
@@ -55,8 +54,16 @@ def copy_or_none(x):
 
 
 def convert_tf_padding_to_str(padding):
-    mapping = {b'SAME': 'same_upper', b'VALID': 'valid'}
-    return mapping[padding.s]
+    mapping = {'SAME': 'same_upper', 'VALID': 'valid'}
+    return mapping[padding]
+
+
+def convert_deconv_tf_padding_to_str(padding):
+    # according to the formulas for calculating "auto_pad" values of the
+    # ConvBackpropData layer in the Operation Specification,
+    # the "same_lower" value matches to the "same" value for conv_transpose layer in TensorFlow
+    mapping = {'SAME': 'same_lower', 'VALID': 'valid'}
+    return mapping[padding]
 
 
 # TODO eliminate this dependency and pass necessary function as an argument
@@ -69,10 +76,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
         normalized_stride = 1 / stride
 
     if auto_pad in ['same_lower', 'same_upper']:
-        if auto_pad == 'same_upper':
-            output = np.int64(np.ceil(input / normalized_stride))
-        else:
-            output = np.int64(np.floor(input / normalized_stride))
+        output = np.int64(np.ceil(input / normalized_stride))
         residual = input % stride
         mask = residual == 0
         full_pad = window.copy()
@@ -91,3 +95,18 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
         pad = None
         output = None
     return (pad, output)
+
+
+def broadcast_shape(first_shape, second_shape):
+    """
+    Perform broadcasting of one shape to another for different shapes
+    """
+    shape = first_shape if len(first_shape) > len(second_shape) else second_shape
+    new_shape = int64_array(shape)
+    for i in range(len(shape)):
+        a_val = first_shape[-i - 1] if i < len(first_shape) else 1
+        b_val = second_shape[-i - 1] if i < len(second_shape) else 1
+        assert a_val == 1 or b_val == 1 or a_val == b_val, "Input shape do not broadcast"
+        new_val = b_val if a_val == 1 else a_val
+        new_shape[-i - 1] = new_val
+    return int64_array(new_shape)

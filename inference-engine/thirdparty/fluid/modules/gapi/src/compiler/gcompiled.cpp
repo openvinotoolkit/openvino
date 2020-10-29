@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -56,6 +56,7 @@ void cv::GCompiled::Priv::checkArgs(const cv::gimpl::GRuntimeArgs &args) const
                                            "for different metadata!"));
         // FIXME: Add details on what is actually wrong
     }
+    validate_input_args(args.inObjs);
 }
 
 bool cv::GCompiled::Priv::canReshape() const
@@ -69,6 +70,12 @@ void cv::GCompiled::Priv::reshape(const GMetaArgs& inMetas, const GCompileArgs& 
     GAPI_Assert(m_exec);
     m_exec->reshape(inMetas, args);
     m_metas = inMetas;
+}
+
+void cv::GCompiled::Priv::prepareForNewStream()
+{
+    GAPI_Assert(m_exec);
+    m_exec->prepareForNewStream();
 }
 
 const cv::gimpl::GModel::Graph& cv::GCompiled::Priv::model() const
@@ -153,4 +160,9 @@ bool cv::GCompiled::canReshape() const
 void cv::GCompiled::reshape(const GMetaArgs& inMetas, const GCompileArgs& args)
 {
     m_priv->reshape(inMetas, args);
+}
+
+void cv::GCompiled::prepareForNewStream()
+{
+    m_priv->prepareForNewStream();
 }

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "inference_engine.hpp"
 #include "desc_layer.h"
 #include "desc_tensor.h"
 #include "desc_tensor_comb.h"

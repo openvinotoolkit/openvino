@@ -14,9 +14,6 @@
  limitations under the License.
 """
 
-import logging as log
-
-import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph
@@ -31,7 +28,7 @@ class SparseSegmentSqrtN(Op):
             - [0, required] Data tensor from which rows are selected for the sum divided by sqrt of N (ND),
             - [1, required] Tensor of indices of selected rows from the first input tensor along 0 dimension (1D),
             - [2, required] Tensor of segment IDs to which selected rows belong.
-                            Selected rows beloging to the same segment are summed up. The tensor has the same size as the second input.
+                            Selected rows belonging to the same segment are summed up. The tensor has the same size as the second input.
                             Values must be sorted and can be repeated. (1D).
         
         One output:
@@ -43,6 +40,7 @@ class SparseSegmentSqrtN(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'experimental',
             'infer': __class__.infer,
             'in_ports_count': 3,
             'out_ports_count': 1,

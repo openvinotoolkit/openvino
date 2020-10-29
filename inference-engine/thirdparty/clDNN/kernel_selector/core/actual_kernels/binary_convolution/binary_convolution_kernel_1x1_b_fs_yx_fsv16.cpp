@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ ParamsKey BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableInputLayout(DataLayout::b_fs_yx_32fp);
-    k.EnableOutputLayout(DataLayout::bfyx_f16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableNonBiasTerm();
@@ -46,7 +46,7 @@ ParamsKey BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetSupportedKey() const {
 BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1_b_fs_yx_fsv16::SetDefault(
     const binary_convolution_params& params,
     int) const {
-    DispatchData kd = BinaryConvolutionKernelBase::SetDefault(params);
+    DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -55,17 +55,15 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1_b_fs_yx_fsv
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = Align(x * y, sub_group_size);
-    kd.gws1 = CeilDiv(f, sub_group_size);  // 1 WI calcs 16 OC
-    kd.gws2 = b;
+    dispatchData.gws[0] = Align(x * y, sub_group_size);
+    dispatchData.gws[1] = CeilDiv(f, sub_group_size);  // 1 WI calcs 16 OC
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = sub_group_size;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws = { static_cast<size_t>(sub_group_size), 1, 1 };
 
-    kd.effiency = FORCE_PRIORITY_1;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    return kd;
+    return dispatchData;
 }
 
 bool BinaryConvolutionKernel1x1_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
@@ -89,8 +87,8 @@ bool BinaryConvolutionKernel1x1_b_fs_yx_fsv16::Validate(const Params& p, const o
 }
 
 JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetJitConstants(const binary_convolution_params& params,
-                                                         const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                                       const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_NUM_PACKED", CeilDiv(params.inputs[0].Feature().v, ic_pack_size)));
@@ -128,6 +126,8 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetFusedPrimitivesJitCons
     std::string eltwise_fused_ops = "";
     std::string prepare_data = "";
     for (auto& fused_dep : params.fused_ops) {
+        auto fused_dep_codegen = FusedOpsCodeGenerator(fused_dep);
+
         auto get_aligned_load = [&](std::string ptr, std::string byte_offset) -> std::string {
             if (fused_dep.tensors[0].GetDType() == Datatype::F32)
                 return "(intel_sub_group_block_read((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
@@ -140,25 +140,25 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetFusedPrimitivesJitCons
             return "(intel_sub_group_shuffle(" + var + ", " + lid + "))";
         };
 
-        std::string data_type = fused_dep.GetInputTypeName(0, 1);
-        std::string vec_data_type = fused_dep.GetInputTypeName(0, 1);
+        std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);
+        std::string vec_data_type = fused_dep_codegen.GetInputTypeName(0, 1);
         std::string sc = "sc" + std::to_string(op_id);
         switch (fused_dep.GetType()) {
             case KernelType::SCALE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float" : "as_half";
                 if (fused_dep.tensors.size() == 1) {
-                    std::string var_name = fused_dep.GetInputVarName(0);
+                    std::string var_name = fused_dep_codegen.GetInputVarName(0);
                     prepare_data += "\\\n\t" + vec_data_type + " " + var_name + " = " + cast_type +
-                                    get_aligned_load(fused_dep.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+                                    get_aligned_load(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
                     eltwise_fused_ops += "\\\n\t" + data_type + " " + sc + " = " + get_shuffle(var_name, "oc") + ";";
                     eltwise_fused_ops += "\\\n\tres = res*" + var_name + ";";
                 } else {
-                    std::string var0_name = fused_dep.GetInputVarName(0);
-                    std::string var1_name = fused_dep.GetInputVarName(1);
+                    std::string var0_name = fused_dep_codegen.GetInputVarName(0);
+                    std::string var1_name = fused_dep_codegen.GetInputVarName(1);
                     prepare_data += "\\\n\t" + vec_data_type + " " + var0_name + " = " + cast_type +
-                                    get_aligned_load(fused_dep.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+                                    get_aligned_load(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
                     prepare_data += "\\\n\t" + vec_data_type + " " + var1_name + " = " + cast_type +
-                                    get_aligned_load(fused_dep.GetInputPtrName(1), "f_block*OC_BLOCK_SIZE") + ";";
+                                    get_aligned_load(fused_dep_codegen.GetInputPtrName(1), "f_block*OC_BLOCK_SIZE") + ";";
                     eltwise_fused_ops += "\\\n\tres = res*" + var0_name + " + " + var1_name + ";";
                 }
 

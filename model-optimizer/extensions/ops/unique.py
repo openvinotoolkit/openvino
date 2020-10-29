@@ -14,9 +14,6 @@
  limitations under the License.
 """
 
-import logging as log
-
-import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph
@@ -41,7 +38,7 @@ class Unique(Op):
                             and sorted in the same order as in the input (1D)
             - [1, optional] tensor of indices for each value of the input
                             in the tensor of unique elements (1D)
-            - [2, optional] tensor with a number of occurences for each unique element
+            - [2, optional] tensor with a number of occurrences for each unique element
                             in the input (1D)
     '''
     op = 'Unique'
@@ -50,6 +47,7 @@ class Unique(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'experimental',
             'infer': __class__.infer,
             'in_ports_count': 1,
             'out_ports_count': 3

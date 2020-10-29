@@ -17,7 +17,6 @@
 import logging as log
 import os
 
-import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph

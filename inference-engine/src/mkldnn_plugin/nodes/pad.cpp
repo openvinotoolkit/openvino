@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -251,7 +250,7 @@ void PadImpl::pad_symmetric(const float *src_data, float* dst_data) {
     });
 }
 
-REG_FACTORY_FOR(ImplFactory<PadImpl>, Pad);
+REG_FACTORY_FOR(PadImpl, Pad);
 
 }  // namespace Cpu
 }  // namespace Extensions

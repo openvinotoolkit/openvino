@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     std::unique_ptr<json_composite> node_info = std::unique_ptr<json_composite>(new json_composite());
     node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
     node_info->add("id", id());
-    node_info->add("type", get_extr_type(typeid(*this).name()));
+    node_info->add("type", desc->type_string());
     node_info->add("internal", bool_to_str(this->is_type<internal_primitive>()));
     node_info->add("valid output layout", bool_to_str(valid_output_layout));
 
@@ -257,7 +257,7 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     auto fmt = output_layout.format;
 
     // WA for known cases of padding not supported in implementations
-    if (fmt == format::bfyx_f16) {
+    if (fmt == format::b_fs_yx_fsv16) {
         if (axis == 0 || (axis == 1 && padding % 16 != 0))
             return false;
     }
@@ -277,6 +277,14 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     }
 
     return true;
+}
+
+bool program_node::need_lockable_memory() const {
+    bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
+        return n->get_selected_impl()->is_cpu();
+    });
+
+    return need_lockable_mem;
 }
 
 primitive_id details::internal_program_node_base::get_next_internal_id() {

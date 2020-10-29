@@ -71,8 +71,8 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        input(0)->serializeNewBuffer(serializer);
-        output(0)->serializeNewBuffer(serializer);
+        input(0)->serializeBuffer(serializer);
+        output(0)->serializeBuffer(serializer);
     }
 };
 

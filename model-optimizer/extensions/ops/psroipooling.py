@@ -25,8 +25,9 @@ class PSROIPoolingOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset2',
             'mode': 'average',
             'in_ports_count': 2,
             'out_ports_count': 1,
@@ -37,7 +38,7 @@ class PSROIPoolingOp(Op):
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
-        attrs = [
+        return [
             'spatial_scale',
             'output_dim',
             ('group_size', lambda node: int(node.group_size)),
@@ -47,9 +48,6 @@ class PSROIPoolingOp(Op):
             'pooled_width',
             'pooled_height',
         ]
-        if not self.graph.graph['cmd_params'].generate_experimental_IR_V10:
-            attrs.extend(['no_trans', 'trans_std', 'part_size'])
-        return attrs
 
     @staticmethod
     def psroipooling_infer(node: Node):
@@ -81,8 +79,9 @@ class DeformablePSROIPoolingOp(PSROIPoolingOp):
 
     def __init__(self, graph: Graph, attrs: dict):
         updated_attrs = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset1',
             'mode': 'bilinear_deformable',
             'in_ports_count': 3,
             'trans_std': 0,

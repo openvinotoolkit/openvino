@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
 from extensions.ops.space_to_depth import SpaceToDepth
+from mo.front.extractor import FrontExtractorOp
 
 
 class SpaceToDepthFrontExtractor(FrontExtractorOp):

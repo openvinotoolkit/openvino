@@ -11,10 +11,6 @@ if (LINUX)
     endif()
 endif()
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
@@ -25,27 +21,27 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${INTEL_ITT_LIBS} inference_engine clDNN_lib pugixml)
+target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
+                                             inference_engine inference_engine_legacy
+                                             inference_engine_transformations)
 
-set (CLDNN_TOP_FOLDER ${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN)
+if(USE_CNNNETWORK_LPT)
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations)
+endif()
+
+set(CLDNN_TOP_FOLDER "${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN")
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
+        $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
         ${CLDNN__IOCL_ICD_INCDIRS}
-        ${CLDNN_TOP_FOLDER}
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
+        ${CLDNN_TOP_FOLDER})
 
-# copy default global xml file describing the custom kernels and the *.cl files
-
-add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/cldnn_global_custom_kernels
-                                                 $<TARGET_FILE_DIR:${TARGET_NAME}>/cldnn_global_custom_kernels)
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # install
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cldnn_global_custom_kernels
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
-        COMPONENT gpu)
-
 install(FILES "${clDNN_SOURCE_DIR}/kernel_selector/core/cache/cache.json"
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gpu)

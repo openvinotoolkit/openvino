@@ -4,6 +4,12 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
+#include <vpu/middleend/hw/tiling.hpp>
+#include <vpu/middleend/hw/utility.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
+#include <precision_utils.h>
+
 #include <memory>
 #include <array>
 #include <string>
@@ -13,11 +19,6 @@
 #include <set>
 #include <tuple>
 #include <limits>
-
-#include <precision_utils.h>
-
-#include <vpu/middleend/hw/tiling.hpp>
-#include <vpu/middleend/hw/utility.hpp>
 
 namespace vpu {
 

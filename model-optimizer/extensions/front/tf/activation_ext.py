@@ -14,7 +14,7 @@
  limitations under the License.
 """
 from extensions.ops.activation_ops import Abs, Elu, Erf, Exp, ReLU, LeakyReLU, LogicalNot, ReLU6, Sigmoid, \
-    Sin, Sinh, Cos, Cosh, Tan, Tanh
+    Sin, Sinh, Cos, Cosh, Tan, Tanh, Ceiling, Atanh, Acosh, Asinh, Mish
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -132,6 +132,16 @@ class CoshFrontExtractor(FrontExtractorOp):
         return cls.enabled
 
 
+class AcoshFrontExtractor(FrontExtractorOp):
+    op = 'Acosh'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Acosh.update_node_stat(node)
+        return cls.enabled
+
+
 class SinFrontExtractor(FrontExtractorOp):
     op = 'Sin'
     enabled = True
@@ -152,6 +162,16 @@ class SinhFrontExtractor(FrontExtractorOp):
         return cls.enabled
 
 
+class AsinhFrontExtractor(FrontExtractorOp):
+    op = 'Asinh'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Asinh.update_node_stat(node)
+        return cls.enabled
+
+
 class TanFrontExtractor(FrontExtractorOp):
     op = 'Tan'
     enabled = True
@@ -169,4 +189,34 @@ class TanhFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         Tanh.update_node_stat(node)
+        return cls.enabled
+
+
+class AtanhFrontExtractor(FrontExtractorOp):
+    op = 'Atanh'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Atanh.update_node_stat(node)
+        return cls.enabled
+
+
+class CeilExtractor(FrontExtractorOp):
+    op = 'Ceil'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Ceiling.update_node_stat(node)
+        return cls.enabled
+
+
+class MishExtractor(FrontExtractorOp):
+    op = 'Mish'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Mish.update_node_stat(node)
         return cls.enabled

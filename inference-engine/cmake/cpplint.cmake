@@ -3,16 +3,17 @@
 #
 
 if(ENABLE_CPPLINT)
-    find_package(PythonInterp 2.7 EXACT)
+    find_package(Python3 COMPONENTS Interpreter)
 
-    if(NOT PYTHONINTERP_FOUND OR NOT PYTHON_VERSION_MAJOR EQUAL 2)
-        message(WARNING "Python 2.7 was not found (required for cpplint check)")
+    if(NOT Python3_Interpreter_FOUND)
+        message(WARNING "Python3 interpreter was not found (required for cpplint check)")
         set(ENABLE_CPPLINT OFF)
     endif()
 endif()
 
 if(ENABLE_CPPLINT)
     add_custom_target(cpplint_all ALL)
+    set_target_properties(cpplint_all PROPERTIES FOLDER cpplint)
     set(CPPLINT_ALL_OUTPUT_FILES "" CACHE INTERNAL "All cpplint output files")
 endif()
 
@@ -23,7 +24,7 @@ function(add_cpplint_target TARGET_NAME)
 
     set(options "")
     set(oneValueArgs "")
-    set(multiValueArgs "FOR_TARGETS" "FOR_SOURCES" "EXCLUDE_PATTERNS")
+    set(multiValueArgs FOR_TARGETS FOR_SOURCES EXCLUDE_PATTERNS CUSTOM_FILTERS)
     cmake_parse_arguments(CPPLINT "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     foreach(target IN LISTS CPPLINT_FOR_TARGETS)
@@ -31,6 +32,11 @@ function(add_cpplint_target TARGET_NAME)
         list(APPEND CPPLINT_FOR_SOURCES ${target_sources})
     endforeach()
     list(REMOVE_DUPLICATES CPPLINT_FOR_SOURCES)
+
+    set(custom_filter "")
+    foreach(filter IN LISTS CPPLINT_CUSTOM_FILTERS)
+        string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
+    endforeach()
 
     set(all_output_files "")
     foreach(source_file IN LISTS CPPLINT_FOR_SOURCES)
@@ -62,12 +68,12 @@ function(add_cpplint_target TARGET_NAME)
                 "${output_file}"
             COMMAND
                 "${CMAKE_COMMAND}"
-                -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
                 -D "CPPLINT_SCRIPT=${IE_MAIN_SOURCE_DIR}/scripts/cpplint.py"
                 -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "WORKING_DIRECTORY=${CMAKE_CURRENT_SOURCE_DIR}"
                 -D "SKIP_RETURN_CODE=${ENABLE_CPPLINT_REPORT}"
+                -D "CUSTOM_FILTER=${custom_filter}"
                 -P "${IE_MAIN_SOURCE_DIR}/cmake/cpplint_run.cmake"
             DEPENDS
                 "${source_file}"
@@ -88,6 +94,7 @@ function(add_cpplint_target TARGET_NAME)
     add_custom_target(${TARGET_NAME} ALL
         DEPENDS ${all_output_files}
         COMMENT "[cpplint] ${TARGET_NAME}")
+    set_target_properties(${TARGET_NAME} PROPERTIES FOLDER cpplint)
 
     if(CPPLINT_FOR_TARGETS)
         foreach(target IN LISTS CPPLINT_FOR_TARGETS)
@@ -163,4 +170,5 @@ function(add_cpplint_report_target)
     add_custom_target(cpplint_report
         DEPENDS "${html_output_file}"
         COMMENT "[cpplint] Generate report")
+    set_target_properties(cpplint_report PROPERTIES FOLDER cpplint)
 endfunction()

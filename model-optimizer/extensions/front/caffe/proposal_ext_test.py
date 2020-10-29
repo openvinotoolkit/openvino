@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.proposal_ext import ProposalFrontExtractor
 from extensions.ops.proposal import ProposalOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode, FakeAttr
-from mo.ops.op import Op
 
 
 class FakeProposalProtoLayer:
@@ -55,7 +55,6 @@ class TestProposalExt(unittest.TestCase):
 
         fake_pl = FakeProposalProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
-        fake_node.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=False)
 
         ProposalFrontExtractor.extract(fake_node)
 

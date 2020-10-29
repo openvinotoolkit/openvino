@@ -27,7 +27,7 @@ void PassImpl::run(const Model& model) {
         if (concatStage == nullptr)
             continue;
 
-        if (concatStage->type() != StageType::Concat)
+        if (concatStage->type() != StageType::StubConcat)
             continue;
 
         IE_ASSERT(concatStage->numInputs() > 0);

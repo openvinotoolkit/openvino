@@ -30,6 +30,7 @@ class RegionYoloOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': RegionYoloOp.regionyolo_infer

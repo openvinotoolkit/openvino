@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,8 @@ ParamsKey ConcatenationKernel_fs_b_yx_fsv32::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableConcatAxis(ConcatAxis::FEATURE);
     k.EnableConcatKernelPerInput();
+    k.EnableSubGroup();
+    k.EnableSubGroupShort();
     return k;
 }
 
@@ -60,20 +62,20 @@ bool ConcatenationKernel_fs_b_yx_fsv32::Validate(const Params& p, const optional
 }
 
 ConcatenationKernelBase::DispatchData ConcatenationKernel_fs_b_yx_fsv32::SetDefault(const concatenation_params& params) const {
-    DispatchData runInfo = ConcatenationKernelBase::SetDefault(params);
+    DispatchData dispatchData = ConcatenationKernelBase::SetDefault(params);
     const auto& input = params.inputs[0];
 
-    runInfo.gws0 = input.X().v;
-    runInfo.gws1 = input.Y().v;
-    runInfo.gws2 = CeilDiv(input.Feature().v, fsv) * subGroupSize * input.Batch().v;
+    dispatchData.gws[0] = input.X().v;
+    dispatchData.gws[1] = input.Y().v;
+    dispatchData.gws[2] = CeilDiv(input.Feature().v, fsv) * subGroupSize * input.Batch().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = subGroupSize;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = subGroupSize;
 
-    runInfo.effiency = FORCE_PRIORITY_1;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConcatenationKernel_fs_b_yx_fsv32::GetJitConstants(const concatenation_params& params) const {
@@ -98,7 +100,7 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
 
     uint32_t lastOffset = 0;
     const auto concatChannelIndex = GetConcatChannelIndex(orgParams);
-    float effiency = FORCE_PRIORITY_1;
+    float efficiency = FORCE_PRIORITY_1;
     size_t ifm_offset = 0;
     for (size_t i = 0; i < orgParams.inputs.size(); i++) {
         const auto& input = orgParams.inputs[i];
@@ -111,13 +113,13 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         ifm_offset += ifm;
 
         auto& kernel = kd.kernels[i];
-        DispatchData runInfo = SetDefault(newParams);
+        DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
         auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, optParams);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
-        kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-        kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+        kernel.workGroups.global = dispatchData.gws;
+        kernel.workGroups.local = dispatchData.lws;
         kernel.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i});
         kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -129,10 +131,10 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         kernel.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
-        effiency = std::max(effiency, runInfo.effiency);
+        efficiency = std::max(efficiency, dispatchData.efficiency);
     }
 
-    kd.estimatedTime = effiency;
+    kd.estimatedTime = efficiency;
 
     return {kd};
 }

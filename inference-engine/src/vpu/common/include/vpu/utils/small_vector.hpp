@@ -148,7 +148,7 @@ public:
             }
         }
 
-        return _baseAllocator.allocate(n, hint);
+        return std::allocator_traits<BaseAllocator>::allocate(_baseAllocator, n, hint);
     }
 
     void deallocate(pointer ptr, size_type n) {
@@ -305,7 +305,11 @@ public:
     const_reverse_iterator crend() const noexcept { return _base.crend(); }
 
     bool empty() const noexcept { return _base.empty(); }
-    size_type size() const noexcept { return _base.size(); }
+#ifdef ENABLE_MYRIAD
+    int size() const noexcept { return static_cast<int>(_base.size()); }
+#else
+    size_t size() const noexcept { return _base.size(); }
+#endif
 
     void reserve(size_type cap) { _base.reserve(cap); }
 

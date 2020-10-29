@@ -4,12 +4,13 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/utils/numeric.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
 #include <vector>
 #include <string>
 #include <memory>
 #include <set>
-
-#include <vpu/utils/numeric.hpp>
 
 namespace vpu {
 
@@ -60,16 +61,20 @@ private:
     void initialCheckImpl() const override {
         IE_ASSERT(numInputs() == 5);
         IE_ASSERT(numOutputs() > 0);
+        IE_ASSERT(numOutputs() < 4);
         assertAllInputsOutputsTypes(this, DataType::FP16, DataType::FP16);
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto RNNForward = attrs().get<bool>("RNNForward");
-        auto nCells = attrs().get<int>("nCells");
-        auto nBatches = attrs().get<int>("nBatches");
+        const auto RNNForward = attrs().get<bool>("RNNForward");
+        const auto nCells     = attrs().get<int>("nCells");
+        const auto nBatches   = attrs().get<int>("nBatches");
+        const bool useCellState = outputEdges().size() >= 2;
         serializer.append(static_cast<int>(RNNForward));
-        serializer.append(static_cast<int>(nCells));
-        serializer.append(static_cast<int>(nBatches));
+        serializer.append(nCells);
+        serializer.append(nBatches);
+        serializer.append(static_cast<int>(useCellState));
+        serializer.append(static_cast<int>(outputEdges().size()));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -78,15 +83,29 @@ private:
         bool useTempBuffer = (nCells > 1);
         IE_ASSERT((numTempBuffers() == 1 && useTempBuffer) || !useTempBuffer);
 
+        VPU_THROW_UNLESS(inputEdges().size() == 5,
+                         "LSTMCell: input edges: {}, but expected: 5",
+                         inputEdges().size());
+
+        // check number of outputs, without temp buffer
+        const int outputsNumber = static_cast<int>(outputEdges().size());
+        const int useCellState = outputsNumber >= 2;
+        const int outputEdgesExpected = 1
+                                      + (useCellState ? 1 : 0)
+                                      + (outputsNumber == 3 ? 1 : 0);
+        VPU_THROW_UNLESS(outputEdges().size() == outputEdgesExpected,
+                         "LSTMCell: number of output edges: {}, but expected: {}",
+                         outputEdges().size(), outputEdgesExpected);
+
         for (const auto& inEdge : inputEdges()) {
-            inEdge->input()->serializeNewBuffer(serializer);
+            inEdge->input()->serializeBuffer(serializer);
         }
         for (const auto& outEdge : outputEdges()) {
-            outEdge->output()->serializeNewBuffer(serializer);
+            outEdge->output()->serializeBuffer(serializer);
         }
 
         if (useTempBuffer) {
-            tempBuffer(0)->serializeNewBuffer(serializer);
+            tempBuffer(0)->serializeBuffer(serializer);
         }
     }
 };
@@ -115,7 +134,7 @@ static void RNNRelayout(
 
 void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) const {
     IE_ASSERT(inputs.size() == 3);
-    IE_ASSERT(outputs.size() == 1);
+    IE_ASSERT(outputs.size() <= 3);
 
     auto layer = std::dynamic_pointer_cast<ie::RNNSequenceLayer>(_layer);
     IE_ASSERT(layer != nullptr);
@@ -125,63 +144,79 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     Data weights, biases;
     std::tie(weights, biases) = getWeightsAndBiases(model, layer);
 
-    size_t nCells = inputs[0]->desc().dim(Dim::H);
-    size_t nBatches = inputs[0]->desc().dim(Dim::C);
+    size_t nCells = 0;
+    size_t nBatches = 0;
+    size_t inputSize = inputs[0]->desc().dim(Dim::W);
+
+    if (layer->axis == 1) {
+        nCells = inputs[0]->desc().dim(Dim::H);
+        nBatches = inputs[0]->desc().dim(Dim::C);
+    } else if (layer->axis == 0) {
+        nCells = inputs[0]->desc().dim(Dim::C);
+        nBatches = inputs[0]->desc().dim(Dim::H);
+    } else if (layer->axis == 2) {
+        nCells = inputs[0]->desc().dim(Dim::W);
+        nBatches = inputs[0]->desc().dim(Dim::C);
+        inputSize = inputs[0]->desc().dim(Dim::H);
+    }
+
     IE_ASSERT(nCells >= 1);
     IE_ASSERT(nBatches >= 1);
 
-    size_t input_size = inputs[0]->desc().dim(Dim::W);
-    IE_ASSERT(input_size == inputs[0]->desc().totalDimSize() / nCells / nBatches);
+    IE_ASSERT(inputSize == inputs[0]->desc().totalDimSize() / nCells / nBatches);
 
-    size_t state_size = outputs[0]->desc().totalDimSize() / nCells / nBatches;
-    size_t cell_state_size = inputs[2]->desc().totalDimSize() / nBatches;
-    IE_ASSERT(state_size == cell_state_size);
+    size_t stateSize = outputs[0]->desc().totalDimSize() / nCells / nBatches;
+    size_t cellStateSize = inputs[2]->desc().totalDimSize() / nBatches;
+
+    IE_ASSERT(stateSize == cellStateSize);
 
     size_t weightsSize = weights->desc().totalDimSize();
-    IE_ASSERT(state_size * (input_size + state_size) * ngates == weightsSize);
+    IE_ASSERT(stateSize * (inputSize + stateSize) * ngates == weightsSize);
 
     size_t biasesSize = biases->desc().totalDimSize();
-    IE_ASSERT(state_size * ngates == biasesSize);
+    IE_ASSERT(stateSize * ngates == biasesSize);
 
     /* weights repacking */
-    auto newWeightsBlob = ie::make_shared_blob<fp16_t>(ie::TensorDesc(
-        ie::Precision::FP16,
-        {weightsSize},
-        ie::Layout::C));
-    newWeightsBlob->allocate();
-    auto newWeightsPtr = newWeightsBlob->buffer().as<fp16_t*>();
-    auto content = weights->content();
-    IE_ASSERT(content != nullptr);
-    auto origWeights = content->get<fp16_t>();
-    IE_ASSERT(origWeights != nullptr);
-    RNNRelayout(origWeights,
-                newWeightsPtr,
-                newWeightsPtr + ngates * state_size * input_size,
+    const auto generator = [&weights, stateSize, inputSize, ngates, outputs](const ie::Blob::Ptr& blob) {
+        auto newWeightsPtr = blob->buffer().as<fp16_t*>();
 
-                ngates,
-                state_size,
-                input_size);
+        auto content = weights->content();
+        IE_ASSERT(content != nullptr);
 
-    auto newWeights = model->addConstData(
-        _layer->name + "@weights",
-        weights->desc(),
-        ieBlobContent(newWeightsBlob));
+        auto origWeights = content->get<fp16_t>();
+        IE_ASSERT(origWeights != nullptr);
 
-    auto stateCellFinal = model->addFakeData();
+        RNNRelayout(
+            origWeights,
+
+            newWeightsPtr,
+            newWeightsPtr + ngates * stateSize * inputSize,
+
+            ngates,
+            static_cast<int>(stateSize),
+            static_cast<int>(inputSize));
+    };
+
+    auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
+    auto outputData = outputs;
+    if (outputs.size() == 1) {
+        outputData.push_back(model->addFakeData());
+    }
+
     auto stage = model->addNewStage<LSTMCellStage>(
         layer->name,
         StageType::LSTMCell,
         layer,
         {inputs[0], inputs[1], inputs[2], newWeights, biases},
-        {outputs[0], stateCellFinal});
+        outputData);
 
     if (nCells > 1)
-        model->addTempBuffer(stage, DataDesc({state_size}));
+        model->addTempBuffer(stage, sizeof(uint16_t) * stateSize);
 
     bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
     stage->attrs().set<bool>("RNNForward", RNNForward);
-    stage->attrs().set<int>("nCells", nCells);
-    stage->attrs().set<int>("nBatches", nBatches);
+    stage->attrs().set<int>("nCells", static_cast<int>(nCells));
+    stage->attrs().set<int>("nBatches", static_cast<int>(nBatches));
 }
 
 void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) {
@@ -201,35 +236,37 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
     const std::size_t nBatches = src.dim(Dim::N);
     IE_ASSERT(nBatches >= 1);
 
-    const std::size_t state_size = outputs[0]->desc().totalDimSize() / nBatches;
+    const std::size_t stateSize = outputs[0]->desc().totalDimSize() / nBatches;
     IE_ASSERT(src.numDims() == 2);
-    const std::size_t input_size = src.dim(Dim::C);
+    const std::size_t inputSize = src.dim(Dim::C);
 
-    const std::size_t cell_state_size = inputs[2]->desc().totalDimSize() / nBatches;
+    const std::size_t cellStateSize = inputs[2]->desc().totalDimSize() / nBatches;
 
-    IE_ASSERT(input_size == src.totalDimSize() / nBatches);
-    IE_ASSERT(state_size == cell_state_size);
+    IE_ASSERT(inputSize == src.totalDimSize() / nBatches);
+    IE_ASSERT(stateSize == cellStateSize);
 
     const std::size_t weightsSize = weights->desc().totalDimSize();
-    IE_ASSERT(state_size * (input_size + state_size) * ngates == weightsSize);
-    auto newWeightsBlob = ie::make_shared_blob<fp16_t>(ie::TensorDesc(ie::Precision::FP16, {weightsSize}, ie::Layout::C));
-    newWeightsBlob->allocate();
+    IE_ASSERT(stateSize * (inputSize + stateSize) * ngates == weightsSize);
 
-    auto newWeightsPtr = newWeightsBlob->buffer().as<fp16_t*>();
-    auto content = weights->content();
-    IE_ASSERT(content != nullptr);
-    auto origWeights0 = content->get<fp16_t>();
-    IE_ASSERT(origWeights0 != nullptr);
-    RNNRelayout(origWeights0,
-                newWeightsPtr,
-                newWeightsPtr + ngates * state_size * input_size,
+    const auto generator = [&weights, stateSize, inputSize, ngates](const ie::Blob::Ptr& blob) {
+        auto newWeightsPtr = blob->buffer().as<fp16_t*>();
 
-                ngates,
-                state_size,
-                input_size);
+        auto content = weights->content();
+        IE_ASSERT(content != nullptr);
 
-    auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), ieBlobContent(newWeightsBlob));
+        auto origWeights = content->get<fp16_t>();
+        IE_ASSERT(origWeights != nullptr);
 
+        RNNRelayout(
+            origWeights,
+            newWeightsPtr,
+            newWeightsPtr + ngates * stateSize * inputSize,
+            ngates,
+            static_cast<int>(stateSize),
+            static_cast<int>(inputSize));
+    };
+
+    auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
 
     DataVector stageInputs = inputs;
     auto origWeights = layer->_weights;
@@ -262,10 +299,14 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
 
     stageInputs.emplace_back(biases);
 
-    auto stage = model->addNewStage<LSTMCellStage>(layer->name, StageType::LSTMCell, layer, stageInputs, outputs);
+    // Filter out handles to data which are nullptr (they are excluded in FrontEnd::getInputAndOutputData)
+    DataVector realOutputs;
+    std::copy_if(outputs.cbegin(), outputs.cend(), std::back_inserter(realOutputs), [](const Data& handle) { return !!handle;});
+
+    auto stage = model->addNewStage<LSTMCellStage>(layer->name, StageType::LSTMCell, layer, stageInputs, realOutputs);
     stage->attrs().set<bool>("RNNForward", true);
     stage->attrs().set<int>("nCells", 1);
-    stage->attrs().set<int>("nBatches", nBatches);
+    stage->attrs().set<int>("nBatches", static_cast<int>(nBatches));
 }
 
 }  // namespace vpu

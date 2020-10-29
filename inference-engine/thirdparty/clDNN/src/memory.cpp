@@ -21,12 +21,13 @@
 
 namespace cldnn {
 
-memory memory::allocate(const engine& engine, const layout& layout, uint32_t net_id) {
+memory memory::allocate(const engine& engine, const layout& layout, uint32_t net_id, bool reset) {
     size_t size = layout.bytes_count();
     if (size == 0)
         throw std::invalid_argument("size should be more than 0");
 
-    return memory(engine.get()->allocate_memory(layout, net_id).detach());
+    allocation_type type = engine.get()->get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    return memory(engine.get()->allocate_memory(layout, type, net_id, reset).detach());
 }
 
 memory memory::share_buffer(const engine& engine, const layout& layout, shared_handle buf, uint32_t net_id) {
@@ -71,26 +72,34 @@ memory memory::share_surface(const engine& engine, const layout& layout, shared_
 #endif
 
 size_t memory::count() const {
-    return get_layout().count();
+    if (_impl)  return get_layout().count();
+    else return 0;
 }
 
 size_t memory::size() const {
-    return _impl->size();
+    if (_impl)  return _impl->size();
+    else return 0;
 }
 
 const layout& memory::get_layout() const {
-    return _impl->get_layout();
+    if (_impl)  return _impl->get_layout();
+    else throw std::runtime_error("empty memory object");
 }
 
 int memory::get_net_id() const {
-    return _impl->get_net_id();
+    if (_impl)  return _impl->get_net_id();
+    else throw std::runtime_error("empty memory object");
 }
 
 bool memory::is_allocated_by(const engine& engine) const {
-    return _impl->is_allocated_by(*engine.get());
+    if (_impl)  return _impl->is_allocated_by(*engine.get());
+    else return false;
 }
 
 bool memory::is_the_same_buffer(const memory& other) const {
+    if (_impl == nullptr)
+        return false;
+
     if (_impl == other.get())
         return true;
 
@@ -106,7 +115,8 @@ bool memory::is_the_same_buffer(const memory& other) const {
 }
 
 shared_mem_params memory::get_internal_params() const {
-    return _impl->get_internal_params();
+    if (_impl)  return _impl->get_internal_params();
+    else throw std::runtime_error("empty memory object");
 }
 
 memory memory::attach_impl(const cldnn::layout& layout, void* ptr, uint32_t net_id) {
@@ -114,18 +124,24 @@ memory memory::attach_impl(const cldnn::layout& layout, void* ptr, uint32_t net_
 }
 
 void* memory::lock_impl() const {
-    return _impl->lock();
+    if (_impl)  return _impl->lock();
+    else return nullptr;
 }
 
 void memory::unlock() const {
-    _impl->unlock();
+    if (_impl)  _impl->unlock();
 }
 
 void memory::retain() {
-    _impl->add_ref();
+    if (_impl)  _impl->add_ref();
 }
 void memory::release() {
-    _impl->release();
+    if (_impl)  _impl->release();
+}
+
+void memory::reset() {
+    release();
+    _impl = nullptr;
 }
 
 }  // namespace cldnn

@@ -45,6 +45,9 @@ set(CLDNN__PROJ_NAME "clDNN")
 # Default languages: C, C++.
 project("${CLDNN__PROJ_NAME}")
 
+if(POLICY CMP0063)
+    cmake_policy(SET CMP0063 NEW)
+endif()
 
 # ======================================================================================================
 # ==================================== BUILD CONFIGURATIONS (part 2) ===================================

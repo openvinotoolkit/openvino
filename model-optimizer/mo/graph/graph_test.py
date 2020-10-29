@@ -17,14 +17,13 @@
 import unittest
 
 import numpy as np
-
 from generator import generator, generate
 
 from mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs
 from mo.ops.const import Const
 from mo.utils.error import Error
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes = {
     '0': {'name': 'input1', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},

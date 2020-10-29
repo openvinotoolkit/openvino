@@ -31,12 +31,12 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {WeightsLayout::yxio};
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &params) const override {
+        return (params.groups > 1) ? WeightsLayout::gyxio : WeightsLayout::yxio;
     }
     std::string GetKernelName(const convolution_params&) const override;
     bool Validate(const Params& p, const optional_params& o) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
 };
 }  // namespace kernel_selector

@@ -53,14 +53,21 @@ struct typed_primitive_gpu_impl : public typed_primitive_impl<PType> {
           _outer(arg),
           _device_info(arg.get_program().get_engine().get_context()->get_device_info()),
           _kernel_data(kd) {
+        // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
+        _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
+        _kernel_data.weightsReorderParams.cpuKernel = nullptr;
+        _kernel_data.weightsReorderParams.clKernel = nullptr;
+
         _kernels.reserve(kd.kernels.size());
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            gpu::kernel kernel(_outer.get_program().get_engine().get_context(), kd.kernels[i].kernelString);
+            gpu::kernel kernel(_outer.get_program().get_engine().get_context(),
+                               kd.kernels[i].kernelString,
+                               _outer.get_program().get_id());
             _kernels.emplace_back(std::move(kernel));
         }
 
         for (auto size : kd.internalBufferSizes) {
-            auto dtype = from_data_type(kd.intenralBufferDataType);
+            auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
             layout expected_layout = {dtype,
                                       format::bfyx,  // simple linear format (flatten to x channel)
@@ -111,24 +118,16 @@ protected:
         return events_waiter(_outer.get_program().get_engine().get_context()).run(net_id, events);
     }
 
-    event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,
-                                         typed_primitive_inst<PType>& instance) override {
+    void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         uint32_t net_id = instance.get_network().get_id();
-        if (optimized_out(instance)) {
-            return aggregate_events(events, net_id);
+        if (optimized_out(instance) || is_cpu()) {
+            return;
         }
 
-        std::vector<event_impl::ptr> tmp_events(events);
-
-        // TODO - split should be handle in kernel selector by providing multiple kernels.
         auto split = get_split();
-        auto groups = get_groups();
-        if (split == 1 && !get_depthwise_sep_opt())
-            split = groups;
 
         // we iterate over split first in order to be able parallelism with OOOQ mechanism.
         for (size_t k = 0; k < _kernels.size(); ++k) {
-            std::vector<event_impl::ptr> new_events;
             for (decltype(split) i = 0; i < split; i++) {
                 auto args = get_arguments(instance, i);
                 args.scalars = &_kernel_data.kernels[k].scalars;
@@ -138,6 +137,39 @@ protected:
                     args.intermediates.push_back(m);
                 }
 
+                _kernels[k].set_arguments(net_id, _kernel_data.kernels[k], args);
+            }
+        }
+    }
+
+    void cleanup_impl(typed_primitive_inst<PType>& instance) override {
+        uint32_t net_id = instance.get_network().get_id();
+        if (optimized_out(instance) || is_cpu()) {
+            return;
+        }
+
+        for (size_t k = 0; k < _kernels.size(); ++k) {
+            _kernels[k].cleanup(net_id);
+        }
+    }
+
+    event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,
+                                 typed_primitive_inst<PType>& instance) override {
+        uint32_t net_id = instance.get_network().get_id();
+        if (optimized_out(instance)) {
+            return aggregate_events(events, net_id);
+        }
+
+        std::vector<event_impl::ptr> tmp_events(events);
+        std::vector<event_impl::ptr> all_events;
+
+        // TODO - split should be handle in kernel selector by providing multiple kernels.
+        auto split = get_split();
+
+        // we iterate over split first in order to be able parallelism with OOOQ mechanism.
+        for (size_t k = 0; k < _kernels.size(); ++k) {
+            std::vector<event_impl::ptr> new_events;
+            for (decltype(split) i = 0; i < split; i++) {
                 // is any user of the prim's users is an detecion output, set prim as a output event (event won't be
                 // nullptr)
                 auto users = instance.node.get_users();
@@ -148,15 +180,19 @@ protected:
                     _kernels[k].set_output_event(net_id, instance.node.is_output());
                 }
 
-                auto event = _kernels[k].run(net_id, _kernel_data.kernels[k], tmp_events, args);
+                auto event = _kernels[k].run(net_id, _kernel_data.kernels[k], tmp_events);
                 new_events.push_back(event);
+                all_events.push_back(event);
             }
 
             tmp_events = new_events;
         }
 
-        bool group_events = split > 1 ? true : false;
-        return aggregate_events(tmp_events, net_id, group_events);
+        if ((all_events.size() == 0) && (tmp_events.size() > 0))
+            return aggregate_events(tmp_events, net_id);
+
+        bool group_events = (all_events.size() > 1);
+        return aggregate_events(all_events, net_id, group_events);
     }
 };
 

@@ -26,6 +26,7 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
         mandatory_props = dict(
             type=__class__.op,
             op=__class__.op,
+            version='experimental',
             infer=__class__.infer,
             in_ports_count=5,
             out_ports_count=2,
@@ -40,7 +41,8 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
             'image_id',
             'output_size',
             'sampling_ratio',
-            'preserve_rois_order']
+            'preserve_rois_order',
+            'aligned']
 
     @staticmethod
     def infer(node):

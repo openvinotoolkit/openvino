@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -17,7 +16,7 @@ namespace Cpu {
 struct simpler_nms_roi_t {
     float x0, y0, x1, y1;
 
-    static inline const float clamp_v(const float v, const float v_min, const float v_max) {
+    static inline float clamp_v(const float v, const float v_min, const float v_max) {
         return (std::max)(v_min, (std::min)(v, v_max));
     }
 
@@ -332,7 +331,7 @@ private:
     std::vector<simpler_nms_anchor> anchors_;
 };
 
-REG_FACTORY_FOR(ImplFactory<SimplerNMSImpl>, SimplerNMS);
+REG_FACTORY_FOR(SimplerNMSImpl, SimplerNMS);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -34,6 +34,12 @@ For asynchronous mode, the primary metric is throughput in frames per second (FP
 The infer requests are executed asynchronously. Callback is used to wait for previous execution to complete. The application measures all infer requests executions and reports the throughput metric based on batch size and total execution duration.
 
 ## Running
+
+Before running the Benchmark tool, install the requirements:
+```sh
+pip install -r  requirements.txt
+```
+
 Notice that the benchmark_app usually produces optimal performance for any device out of the box.
 
 **So in most cases you don't need to play the app options explicitly and the plain device name is enough**, e.g.:
@@ -59,17 +65,19 @@ usage: benchmark_app.py [-h] [-i PATH_TO_INPUT] -m PATH_TO_MODEL
 
 Options:
   -h, --help            Show this help message and exit.
-  -i PATH_TO_INPUT, --path_to_input PATH_TO_INPUT
+  -i PATHS_TO_INPUT [PATHS_TO_INPUT ...], --paths_to_input PATHS_TO_INPUT [PATHS_TO_INPUT ...]
                         Optional. Path to a folder with images and/or binaries
                         or to specific image or binary file.
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
                         Required. Path to an .xml file with a trained model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
-                        Optional. Specify a target device to infer on: CPU,
-                        GPU, FPGA, HDDL or MYRIAD.
-                        Use "-d HETERO:<comma separated devices list>" format to specify HETERO plugin.
-                        Use "-d MULTI:<comma separated devices list>" format to specify MULTI plugin.
-                        The application looks for a suitable plugin for the specified device.
+                        Optional. Specify a target device to infer on (the
+                        list of available devices is shown below). Default
+                        value is CPU. Use '-d HETERO:<comma separated devices
+                        list>' format to specify HETERO plugin. Use '-d
+                        MULTI:<comma separated devices list>' format to
+                        specify MULTI plugin. The application looks for a
+                        suitable plugin for the specified device.
   -l PATH_TO_EXTENSION, --path_to_extension PATH_TO_EXTENSION
                         Optional. Required for CPU custom layers. Absolute
                         path to a shared library with the kernels
@@ -94,24 +102,39 @@ Options:
   -t TIME, --time TIME  Optional. Time in seconds to execute topology.
   -progress [PROGRESS]  Optional. Show progress bar (can affect performance
                         measurement). Default values is "False".
+  -shape SHAPE          Optional. Set shape for input. For example,
+                        "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in
+                        case of one input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
                        Optional. Number of streams to use for inference on the CPU/GPU in throughput mode
                        (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
                        Default value is determined automatically for a device. 
                        Please note that although the automatic selection usually provides a reasonable performance, 
                        it still may be non-optimal for some cases, especially for very small networks.
+  -enforcebf16 [ENFORCE_BFLOAT16], --enforce_bfloat16 [ENFORCE_BFLOAT16]
+                        Optional. Enforcing of floating point operations
+                        execution in bfloat16 precision where it is acceptable.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU
                         (including HETERO  and MULTI cases).
-  -pin {YES,NO}, --infer_threads_pinning {YES,NO}
-                        Optional. Enable ("YES" is default value) or disable
-                        ("NO")CPU threads pinning for CPU-involved inference.
+  -pin {YES,NO,NUMA}, --infer_threads_pinning {YES,NO,NUMA}
+                        Optional. Enable threads->cores ('YES' is default
+                        value), threads->(NUMA)nodes ('NUMA') or completely
+                        disable ('NO')CPU threads pinning for CPU-involved
+                        inference.
   --exec_graph_path EXEC_GRAPH_PATH
                         Optional. Path to a file where to store executable
                         graph information serialized.
   -pc [PERF_COUNTS], --perf_counts [PERF_COUNTS]
                         Optional. Report performance counters.
-
+  -dump_config DUMP_CONFIG
+                        Optional. Path to JSON file to dump IE parameters,
+                        which were set by application.
+  -load_config LOAD_CONFIG
+                        Optional. Path to JSON file to load custom IE
+                        parameters. Please note, command line parameters have
+                        higher priority then parameters from configuration
+                        file.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

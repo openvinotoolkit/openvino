@@ -4,8 +4,11 @@
 
 #include <vpu/frontend/frontend.hpp>
 
-#include <vector>
+#include <algorithm>
 #include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
 namespace vpu {
 
@@ -15,91 +18,170 @@ class CropStage final : public StageNode {
 public:
     using StageNode::StageNode;
 
-private:
+protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<CropStage>(*this);
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
-        auto input = inputEdge(0)->input();
-
-        auto inOrder = input->desc().dimsOrder();
-
-        // HWC only
-        orderInfo.setInput(inputEdge(0), inOrder.createMovedDim(Dim::C, 0));
-        orderInfo.setOutput(outputEdge(0), inOrder.createMovedDim(Dim::C, 0));
+        orderInfo.setOutput(outputEdge(0), input(0)->desc().dimsOrder());
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
-        stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
-        stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
+        const auto inputData  = input(0);
+        const auto outputData = output(0);
+
+        const auto dimsOrder = inputData->desc().dimsOrder();
+
+        //
+        // Get smallest Dim over which Crop is done.
+        //
+
+        auto minCroppedDimInd = dimsOrder.numDims();
+
+        for (const auto& p : inputData->desc().dims()) {
+            if (outputData->desc().dim(p.first) != p.second) {
+                minCroppedDimInd = std::min(minCroppedDimInd, dimsOrder.dimInd(p.first));
+            }
+        }
+
+        //
+        // Initial StridesRequirement for inputs and output.
+        //
+
+        auto inputReqs  = inputData->requiredStrides();
+        auto outputReqs = inputReqs;
+
+        //
+        // Merge output consumers StridesRequirement.
+        //
+
+        for (const auto& consumerEdge : outputData->consumerEdges()) {
+            const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
+
+            if (!consumerInfo.hasInput(consumerEdge)) {
+                continue;
+            }
+
+            const auto& consumerReqs = consumerInfo.getInput(consumerEdge);
+
+            for (int i = 0; i < dimsOrder.numDims(); ++i) {
+                if (inputReqs.get(i) == DimStride::Any) {
+                    const auto consumerReq = consumerReqs.get(i);
+                    if (consumerReq != DimStride::Any) {
+                        inputReqs.add(i, consumerReq);
+                        outputReqs.add(i, consumerReq);
+                    }
+                }
+            }
+        }
+
+        //
+        // Remove extra output StridesRequirement.
+        //
+
+        for (int i = minCroppedDimInd + 1; i < dimsOrder.numDims(); ++i) {
+            outputReqs.remove(i);
+        }
+
+        //
+        // Return merged StridesRequirements.
+        //
+
+        stridesInfo.setInput(inputEdge(0), inputReqs);
+        stridesInfo.setOutput(outputEdge(0), outputReqs);
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
     void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
-        for (const auto& inEdge : inputEdges()) {
-            batchInfo.setInput(inEdge, BatchSupport::Split);
-        }
-        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
-    }
-
-    StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        return StageSHAVEsRequirements::NotNeeded;
     }
 
     void initialCheckImpl() const override {
         IE_ASSERT(numInputs() == 1 || numInputs() == 2);
         IE_ASSERT(numOutputs() == 1);
-        assertAllInputsOutputsTypes(this, DataType::FP16, DataType::FP16);
+        const auto& firstInputPrecision = input(0)->desc().type();
+        assertAllInputsOutputsTypes(this, firstInputPrecision, firstInputPrecision);
     }
 
-    void serializeParamsImpl(BlobSerializer& serializer) const override {
-        const auto& offset = attrs().get<DimValues>("offset");
-
-        serializer.append(static_cast<int32_t>(offset.get(Dim::W, 0)));
-        serializer.append(static_cast<int32_t>(offset.get(Dim::H, 0)));
-        serializer.append(static_cast<int32_t>(offset.get(Dim::C, 0)));
+    void serializeParamsImpl(BlobSerializer&) const override {
+        VPU_THROW_FORMAT("Must never be called");
     }
 
-    void serializeDataImpl(BlobSerializer& serializer) const override {
-        auto input = inputEdge(0)->input();
-        auto output = outputEdge(0)->output();
-
-        input->serializeOldBuffer(this, serializer);
-        output->serializeOldBuffer(this, serializer);
+    void serializeDataImpl(BlobSerializer&) const override {
+        VPU_THROW_FORMAT("Must never be called");
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseCrop(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    // TODO : Crop layer in IR might have 1 or 2 inputs
-    IE_ASSERT(inputs.size() >= 1);
-    IE_ASSERT(outputs.size() == 1);
+Stage StageBuilder::addCropStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input,
+        const Data& output,
+        const DimValues& offset) {
+    auto stage = model->addNewStage<CropStage>(
+        name,
+        StageType::Crop,
+        layer,
+        {input},
+        {output});
 
-    auto layer = std::dynamic_pointer_cast<ie::CropLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-    IE_ASSERT(layer->axis.size() == layer->offset.size());
+    stage->attrs().set<DimValues>("offset", offset);
 
-    auto cropAxis = layer->axis[0];
-    if (cropAxis < 0) {
-        cropAxis += 4;
-    }
+    return stage;
+}
 
-    if (cropAxis < 0 || cropAxis > 3) {
-        VPU_THROW_EXCEPTION
-            << "Layer " << layer->name << " [" << layer->type
-            << "] has invalid axis value. Expected: 0 <= axis < 4, Actual: " << cropAxis;
-    }
+void FrontEnd::parseCrop(
+        const Model& model,
+        const ie::CNNLayerPtr& layer,
+        const DataVector& inputs,
+        const DataVector& outputs) const {
+    VPU_THROW_UNLESS(inputs.size() == 1 || inputs.size() == 2,
+                     "Crop: number of inputs must be 1 or 2, actually provided: %u", inputs.size());
+    VPU_THROW_UNLESS(outputs.size() == 1,
+                     "Crop: number of outputs must be 1, actually provided: %u", outputs.size());
 
-    auto stage = model->addNewStage<CropStage>(layer->name, StageType::Crop, layer, inputs, outputs);
+    auto axisParam   = layer->GetParamAsInts("axis");
+    auto offsetParam = layer->GetParamAsInts("offset");
+    VPU_THROW_UNLESS(axisParam.size() == offsetParam.size(),
+                     "Crop: sizes of `axis` and `offset` must be equal");
+
+    //
+    // Parse offset attribute as DimValues
+    //
 
     DimValues offset;
-    for (int i = 0; i < layer->offset.size(); i++) {
-        offset.set(static_cast<Dim>(3 - cropAxis - i), layer->offset[i]);
+    const auto ndims = inputs[0]->desc().numDims();
+    const auto perm = DimsOrder::fromNumDims(ndims).toPermutation();
+
+    for (int i = 0; i < axisParam.size(); ++i) {
+        auto axisVal   = axisParam[i];
+        auto offsetVal = offsetParam[i];
+
+        if (axisVal < 0) {
+            axisVal += ndims;
+        }
+        VPU_THROW_UNLESS(axisVal >= 0 && axisVal < ndims,
+                         "Layer %s [%s] has invalid axis value. "
+                         "Expected: 0 <= axis < %d, Actual: %d",
+                         layer->name, layer->type, ndims, axisVal);
+
+        offset.set(perm[ndims - 1 - axisVal], offsetVal);
     }
+
+    VPU_THROW_UNLESS(offset.get(Dim::N, 0) == 0 || model->batchSize() == 1,
+                     "Crop: batch cropping is not supported");
+
+    auto stage = model->addNewStage<CropStage>(
+            layer->name,
+            StageType::Crop,
+            layer,
+            inputs,
+            outputs);
 
     stage->attrs().set("offset", offset);
 }

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,39 +20,49 @@
 #include <vector>
 
 namespace kernel_selector {
+
 ParamsKey ShuffleChannelsKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
     return k;
 }
 
+bool ShuffleChannelsKernelRef::Validate(const Params& p, const optional_params& o) const {
+    if (p.GetType() != KernelType::SHUFFLE_CHANNELS ||
+        o.GetType() != KernelType::SHUFFLE_CHANNELS) {
+        return false;
+    }
+
+    const shuffle_channels_params& params = static_cast<const shuffle_channels_params&>(p);
+
+    if (params.inputs[0].Dimentions() > 4)
+        return false;
+
+    return true;
+}
+
 CommonDispatchData ShuffleChannelsKernelRef::SetDefault(const shuffle_channels_params& params,
                                                         const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
-    std::vector<size_t> global = {params.output.Batch().v,
-                                  params.output.Feature().v,
-                                  params.output.Y().v * params.output.X().v};
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Y().v * params.output.X().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ShuffleChannelsKernelRef::GetJitConstants(const shuffle_channels_params& params) const {
@@ -81,19 +91,23 @@ JitConstants ShuffleChannelsKernelRef::GetJitConstants(const shuffle_channels_pa
 }
 
 KernelsData ShuffleChannelsKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    if (!Validate(params, options)) {
+        return {};
+    }
+
     KernelData kd = KernelData::Default<shuffle_channels_params>(params);
     shuffle_channels_params& newParams = *static_cast<shuffle_channels_params*>(kd.params.get());
 
     assert(params.GetType() == KernelType::SHUFFLE_CHANNELS);
 
-    auto runInfo = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams, options);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

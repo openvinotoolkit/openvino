@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from extensions.ops.unique import Unique
 from mo.front.extractor import FrontExtractorOp
 

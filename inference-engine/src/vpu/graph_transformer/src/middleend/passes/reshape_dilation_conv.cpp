@@ -108,7 +108,7 @@ void PassImpl::run(const Model& model) {
         }
 
         const bool Use_pixel_alignment = true;
-        int pixel_stride_alignment = STRIDE_ALIGNMENT
+        int pixel_stride_alignment = HW_STRIDE_ALIGNMENT
                 / input->desc().elemSize();
         int InputExtended_width = input->desc().dim(Dim::W);
         int InputExtended_height = input->desc().dim(Dim::H);
@@ -133,7 +133,7 @@ void PassImpl::run(const Model& model) {
                 static_cast<float>(InputExtended_height)
                         / static_cast<float>(input->desc().dim(Dim::H)));
 
-        const float MAX_INPUTEXTENDED_SCALE = 1.8;
+        const float MAX_INPUTEXTENDED_SCALE = 1.8f;
         const float MIN_INPUTEXTENDED_SCALE = 1;
 
         if (InputExtended_scale >= MAX_INPUTEXTENDED_SCALE) {
@@ -305,16 +305,8 @@ void PassImpl::run(const Model& model) {
         DataVector V_Sub_outputdata;
         std::vector<DimValues> V_Sub_outputdatasOffsets;
 
-        DataVector V_newWeights;
-        DataVector V_newbiases;
-        DataVector V_newscales;
-
         V_Sub_inputdata.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
         V_Sub_inputdatasOffsets.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
-
-        V_newWeights.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
-        V_newbiases.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
-        V_newscales.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
 
         V_Sub_outputdata.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
         V_Sub_outputdatasOffsets.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
@@ -346,18 +338,6 @@ void PassImpl::run(const Model& model) {
 
                 V_Sub_outputdata.emplace_back(Real_sub_outputdata);
                 V_Sub_outputdatasOffsets.emplace_back(Sub_outputdatasOffsets);
-
-                // reuse weights and biases and scales
-                auto newWeights = model->duplicateData(weights, "@NewWeights",
-                        weights->desc());
-                auto newbiases = model->duplicateData(biases, "@Newbiases",
-                        biases->desc());
-                auto newscales = model->duplicateData(scales, "@Newscales",
-                        scales->desc());
-
-                V_newWeights.emplace_back(newWeights);
-                V_newbiases.emplace_back(newbiases);
-                V_newscales.emplace_back(newscales);
             }
         }
 
@@ -382,9 +362,9 @@ void PassImpl::run(const Model& model) {
                     stage->origLayerName() + "@SubDataConv",
                     StageType::StubConv, stage->origLayer(), {
                             V_Sub_inputdata[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd],
-                            V_newWeights[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd],
-                            V_newbiases[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd],
-                            V_newscales[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd] }, { Sub_outputdata });
+                            weights,
+                            biases,
+                            scales }, { Sub_outputdata });
 
             newStage->attrs().set<int>("kernelSizeX", kernelSizeX);
             newStage->attrs().set<int>("kernelSizeY", kernelSizeY);
@@ -405,7 +385,7 @@ void PassImpl::run(const Model& model) {
             newStage->attrs().set<float>("scaleFactor", scaleFactor);
 
             if (Sub_outputdata_expand) {
-                _stageBuilder->addShrinkStage(model,
+                _stageBuilder->addCropStage(model,
                         stage->name() + "@SubConvOutputData",
                         stage->origLayer(), Sub_outputdata,
                         V_Sub_outputdata[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd]);
@@ -485,8 +465,8 @@ void PassImpl::run(const Model& model) {
                     stage->origLayer(), permute_outputdata,
                     Reinterpret_outputdata);
 
-            auto ShrinkToOutputDataStage = _stageBuilder->addShrinkStage(model,
-                    stage->name() + "@shrink-to-OutputData", stage->origLayer(),
+            auto CropToOutputDataStage = _stageBuilder->addCropStage(model,
+                    stage->name() + "@crop-to-OutputData", stage->origLayer(),
                     Reinterpret_outputdata, output);
 
         } else {

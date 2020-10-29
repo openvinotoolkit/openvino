@@ -93,9 +93,12 @@ public:
     // Model common adaptation
     //
 
-    Pass::Ptr removeUnusedStagesOutputs();
+    Pass::Ptr decomposeSwish();
     Pass::Ptr eliminateConstConcat();
     Pass::Ptr splitGroupedConv();
+    Pass::Ptr splitConv3DInto2D();
+    Pass::Ptr splitPool3DInto2D();
+    Pass::Ptr eliminateRedundantConversions();
 
     //
     // Model HW-specific optimizations
@@ -108,6 +111,7 @@ public:
     Pass::Ptr splitHwDepthConv();
     Pass::Ptr splitHwConvAndPool();
     Pass::Ptr hwPadding();
+    Pass::Ptr splitLargeKernelConv();
 
     //
     // Batch support
@@ -116,12 +120,19 @@ public:
     Pass::Ptr adjustDataBatch();
 
     //
+    // Dynamic shape adaptation
+    //
+
+    Pass::Ptr convertShapeNotation();
+
+    //
     // HW stages tiling
     //
 
     Pass::Ptr hwConvTiling();
     Pass::Ptr hwPoolTiling();
     Pass::Ptr hwFullyConnectedTiling();
+    Pass::Ptr hwExtraSplit();
 
     //
     // Model SW-specific adaptation
@@ -208,6 +219,7 @@ public:
     //
 
     Pass::Ptr dumpModel(const std::string& postfix);
+    Pass::Ptr markFastStages();
 
     //
     // Dilation Conv NCE  passes
@@ -230,6 +242,12 @@ public:
     Pass::Ptr gemmTranspose();
 
     Pass::Ptr countStagesInLoops();
+
+    Pass::Ptr replaceGemmByConv();
+
+    Pass::Ptr propagateDynamism();
+
+    Pass::Ptr annotateMemoryTypes();
 
 protected:
     StageBuilder::Ptr _stageBuilder;

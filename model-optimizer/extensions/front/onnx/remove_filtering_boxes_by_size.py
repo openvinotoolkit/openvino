@@ -14,7 +14,6 @@
  limitations under the License.
 """
 from extensions.front.split_normalizer import AttributedVariadicSplitToVariadicSplit
-from extensions.front.sub import Sub
 from extensions.ops.range import Range
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
@@ -42,9 +41,6 @@ class RemoveFilteringBoxesBySize(FrontReplacementSubgraph):
     """
     enabled = True
     force_clean_up = True
-
-    def run_before(self):
-        return [Sub]
 
     def run_after(self):
         return [AttributedVariadicSplitToVariadicSplit]

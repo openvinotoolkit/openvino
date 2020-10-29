@@ -27,7 +27,7 @@ class AxpyOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'infer': None
         }, attrs)

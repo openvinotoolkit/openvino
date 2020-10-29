@@ -23,10 +23,9 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
-
 nodes_attributes = {'input_tensor': {'shape': None, 'value': None, 'kind': 'data'},
                     'input_buckets': {'shape': None, 'value': None, 'kind': 'data'},
-                    'bucketize_node': {'op': 'Bucketize', 'kind': 'op', 'with_right_bound': False},
+                    'bucketize_node': {'op': 'Bucketize', 'kind': 'op', 'with_right_bound': False, 'output_type': np.int32},
                     'output': {'shape': None, 'value': None, 'kind': 'data'}}
 
 # graph 1

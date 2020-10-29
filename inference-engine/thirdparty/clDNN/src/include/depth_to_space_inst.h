@@ -18,7 +18,9 @@
 #pragma once
 #include "api/depth_to_space.hpp"
 #include "primitive_inst.h"
+#include "kernel_selector/core/actual_kernels/depth_to_space/depth_to_space_kernel_base.h"
 #include <string>
+#include <memory>
 
 namespace cldnn {
 template <>
@@ -29,6 +31,9 @@ public:
     using parent::parent;
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
+    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
+        return std::make_shared<kernel_selector::depth_to_space_fuse_params>();
+    }
 };
 
 using depth_to_space_node = typed_program_node<depth_to_space>;

@@ -28,7 +28,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     ${IE_MAIN_SOURCE_DIR}/samples/common
     ${IE_MAIN_SOURCE_DIR}/tools/vpu/common
 )
@@ -41,8 +40,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 add_dependencies(${TARGET_NAME} myriadPlugin)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
-    COMPILE_PDB_NAME
-    ${TARGET_NAME}
+    COMPILE_PDB_NAME ${TARGET_NAME}
+    FOLDER tools
 )
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
@@ -50,5 +49,5 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 # install
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT myriad)

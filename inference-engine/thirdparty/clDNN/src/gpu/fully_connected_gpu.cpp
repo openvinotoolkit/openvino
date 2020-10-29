@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ public:
         }
 
         fc_optional_params.tuningParams.runner =
-            std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), true);
+            std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
 
         auto& kernel_selector = kernel_selector::fully_connected_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(fc_params, fc_optional_params);
@@ -100,14 +100,16 @@ attach_fully_connected_gpu::attach_fully_connected_gpu() {
         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw},
         // MMAD
-        {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), val_fw},
-        {std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv32), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv32), val_fw},
         // IMAD
         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv4), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_yx_bsv16_fsv16), val_fw},
         // fs_b_yx_fsv32
         {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw},
     });

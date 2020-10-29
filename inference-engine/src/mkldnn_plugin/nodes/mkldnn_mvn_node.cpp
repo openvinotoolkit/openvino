@@ -5,21 +5,21 @@
 #include "mkldnn_mvn_node.h"
 #include "desc_iterator.hpp"
 #include "mkldnn_quantize_node.h"
-#include "mkldnn_depthwise_node.h"
-#include "mkldnn_activation_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
+#include "mkldnn_eltwise_node.h"
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include <algorithm>
 
 #include "jit_generator.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
+#include "jit_uni_quantization.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -215,15 +215,14 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         for (int i = 0; i < p.len_; i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(new jit_uni_eltwise_injector_f32<isa>(
-                        this,
-                        post_op.eltwise.alg,
-                        post_op.eltwise.alpha,
-                        post_op.eltwise.beta));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
+                        this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta));
             } else if (post_op.is_depthwise()) {
-                depthwise_injectors.push_back(new jit_uni_depthwise_injector_f32<isa>(
-                        this,
-                        post_op.depthwise.alg));
+                depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
+                        this, post_op.depthwise.alg));
+            } else if (post_op.is_quantization()) {
+                quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
+                        this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
 
@@ -333,8 +332,9 @@ private:
 
     Xbyak::Label l_table;
 
-    nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
-    nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
@@ -398,6 +398,7 @@ private:
         const auto &p = attr_.post_ops_;
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
+        int quantization_inj_idx = 0;
         for (int i = 0; i < p.len_; i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
@@ -413,47 +414,34 @@ private:
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
+                int s_idx = vmm_val.getIdx();
 
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data));
-                add(reg_d_weights, reg_oc_off);
-                add(reg_d_bias, reg_oc_off);
-                uni_vmovups(vmm_d_weights, ptr[reg_d_weights]);
-                uni_vmovups(vmm_d_bias, ptr[reg_d_bias]);
-                uni_vmaxps(vmm_val, vmm_val, vmm_d_weights);
-                uni_vminps(vmm_val, vmm_val, vmm_d_bias);
+                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0);
 
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data));
-                add(reg_d_weights, reg_oc_off);
-                add(reg_d_bias, reg_oc_off);
-                uni_vmovups(vmm_d_weights, ptr[reg_d_weights]);
-                uni_vmovups(vmm_d_bias, ptr[reg_d_bias]);
-                uni_vfmadd213ps(vmm_val, vmm_d_weights, vmm_d_bias);
-                if (do_rounding)
-                    uni_vroundps(vmm_val, vmm_val, 0);
+                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding);
 
-                if (do_dequantization) {
-                    mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data));
-                    mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data));
-                    add(reg_d_weights, reg_oc_off);
-                    add(reg_d_bias, reg_oc_off);
-                    uni_vmovups(vmm_d_weights, ptr[reg_d_weights]);
-                    uni_vmovups(vmm_d_bias, ptr[reg_d_bias]);
-                    uni_vfmadd213ps(vmm_val, vmm_d_weights, vmm_d_bias);
-                }
+                quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0);
+
+                quantization_inj_idx++;
             }
         }
     }
 };
 //////////////////////////////////////////////////////////////////////////////////
 
-MKLDNNMVNNode::MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket) {}
+MKLDNNMVNNode::MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNMVNNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
+
+    const auto& numOfDims = getParentEdgeAt(0)->getDims().ndims();
+    if (numOfDims < 1 || numOfDims > 5)
+        THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support input with size of dimensions: " << numOfDims;
 
     auto * mvnLayer = dynamic_cast<MVNLayer*>(getCnnLayer().get());
     if (mvnLayer == nullptr)
@@ -604,105 +592,17 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
     for (auto &node : fusedWith) {
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
         if (quantizeNode) {
-            if (initWeights) {
-                MKLDNNDims weightsDims({static_cast<ptrdiff_t>(rnd_up(getParentEdgeAt(0)->getDims()[1], 16))});
-                MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)weightsDims[0]}, memory::f32, memory::x};
-
-                auto cropLowDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                cropLowDataMem->Create(weightsDataDesc, quantizeNode->getCropLowPtr());
-
-                auto cropHighDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                cropHighDataMem->Create(weightsDataDesc, quantizeNode->getCropHighPtr());
-
-                auto inputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                inputScaleDataMem->Create(weightsDataDesc, quantizeNode->getInputScalePtr());
-
-                auto inputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                inputShiftDataMem->Create(weightsDataDesc, quantizeNode->getInputShiftPtr());
-
-                auto outputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                outputScaleDataMem->Create(weightsDataDesc, quantizeNode->getOutputScalePtr());
-
-                auto outputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                outputShiftDataMem->Create(weightsDataDesc, quantizeNode->getOutputShiftPtr());
-
-                PostOpsIntBlobMemory.push_back(cropLowDataMem);
-                PostOpsIntBlobMemory.push_back(cropHighDataMem);
-                PostOpsIntBlobMemory.push_back(inputScaleDataMem);
-                PostOpsIntBlobMemory.push_back(inputShiftDataMem);
-                PostOpsIntBlobMemory.push_back(outputScaleDataMem);
-                PostOpsIntBlobMemory.push_back(outputShiftDataMem);
-
-                ops.append_quantization(quantizeNode->getAlgorithm(), quantizeNode->getCropLowPtr(), quantizeNode->getCropHighPtr(),
-                                        quantizeNode->getInputScalePtr(), quantizeNode->getInputShiftPtr(),
-                                        quantizeNode->getOutputScalePtr(), quantizeNode->getOutputShiftPtr());
-
-                blob_idx += 6;
-            } else {
-                ops.append_quantization(quantizeNode->getAlgorithm(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-            }
-
+            quantizeNode->appendPostOps(ops);
             continue;
         }
 
-        auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
-        if (depthwiseNode) {
-            if (initWeights) {
-                auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
-                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(getParentEdgeAt(0)->getDims()[1], 16))});
-
-                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
-
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
-                                                        depthwiseLayer->_weights->buffer(),
-                                                        depthwiseLayer->_weights->size() *
-                                                        MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                if (depthwiseNode->isBroadcast()) {
-                    float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
-                    for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                        static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
-                    }
-                }
-
-                if (depthwiseNode->getAlgorithm() == depthwise_scale_shift) {
-                    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
-                                                               memory::format::x);
-                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
-                                                                depthwiseLayer->_biases->buffer(),
-                                                                depthwiseLayer->_biases->size() *
-                                                                MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                    if (depthwiseNode->isBroadcast()) {
-                        float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
-                        for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                            static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
-                        }
-                    }
-
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
-
-                    blob_idx += 2;
-                }
-            } else {
-                ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                     nullptr,
-                                     nullptr);
-            }
-
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode) {
+            eltwiseNode->appendPostOps(ops);
             continue;
         }
 
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-        if (activationNode) {
-            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(), activationNode->getBeta());
-
-            continue;
-        }
+        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);
@@ -717,7 +617,7 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
     auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
     auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
 
-    if (layout == NCHW || layout == NCDHW) {
+    if (layout == C || layout == NC || layout == CHW || layout == NCHW || layout == NCDHW) {
         mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
     } else {
         if (output_prec == Precision::U8) {
@@ -760,6 +660,19 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
     }
 }
 
+std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(const SizeVector& dims) {
+    std::tuple<size_t, size_t, size_t, size_t, size_t> shapes;
+    switch (dims.size()) {
+        case 1 : { shapes = std::make_tuple(1, dims[0], 1, 1, 1); break; }
+        case 2 : { shapes = std::make_tuple(dims[0], dims[1], 1, 1, 1); break; }
+        case 3 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], 1); break; }
+        case 4 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], dims[3]); break; }
+        case 5 : { shapes = std::make_tuple(dims[0], dims[1], dims[2], dims[3], dims[4]); break; }
+        default : { THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support planar layout with rank: " << dims.size(); }
+    }
+    return shapes;
+}
+
 void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVector& dims) {
     size_t blk_size = 1;  // blk size in vmm
     if (mayiuse(cpu::avx512_common)) {
@@ -770,12 +683,8 @@ void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVe
         blk_size = 4;
     }
 
-    size_t dims_size = dims.size();
-    size_t N = (dims_size > 0) ? dims[0] : 1lu;
-    size_t C = (dims_size > 1) ? dims[1] : 1lu;
-    size_t D = (dims_size > 4) ? dims[dims_size - 3] : 1lu;
-    size_t H = (dims_size > 3) ? dims[dims_size - 2] : 1lu;
-    size_t W = (dims_size > 2) ? dims[dims_size - 1] : 1lu;
+    size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
+    std::tie(N, C, D, H, W) = get5dShapes(dims);
 
     size_t C1 = H * W;
     size_t C2 = C1 * D;
@@ -1160,11 +1069,10 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                 for (int i = 0; i < mean_buffer.size(); i++)
                     mean_buffer[i] = 0.f;
 
-                parallel_for2d(D, H, [&](size_t d, size_t h) {
+                parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_off = is_nhwc ? ccb + d * H * W * C + h * W * C + cb * blk_size
                                                  : ccb + d * H * W * blk_size + h * W * blk_size + cb * D * H * W * blk_size;
-                        auto thr_idx = mkldnn_get_thread_num();
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
                         auto arg = jit_mvn_call_args();
@@ -1214,11 +1122,10 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                     for (int i = 0; i < variance_buffer.size(); i++)
                         variance_buffer[i] = 0.f;
 
-                    parallel_for2d(D, H, [&](size_t d, size_t h) {
+                    parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
                         for (size_t cb = 0; cb < CB; cb++) {
                             size_t src_off = is_nhwc ? ccb + d * H * W * C + h * W * C + cb * blk_size
                                                      : ccb + d * H * W * blk_size + h * W * blk_size + cb * D * H * W * blk_size;
-                            auto thr_idx = mkldnn_get_thread_num();
                             auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
                             auto variance_buffer_ptr = &variance_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
@@ -1323,26 +1230,23 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                                                 bool do_rounding = do_dequantization || output_prec == Precision::FP32 ||
                                                                    i != p.len_ - 1;
 
-                                                float crop_low = post_op.quantization.crop_low_data[cb * blk_size + c];
-                                                float crop_high = post_op.quantization.crop_high_data[cb * blk_size + c];
-                                                float input_scale = post_op.quantization.input_scale_data[cb * blk_size +
-                                                                                                          c];
-                                                float input_shift = post_op.quantization.input_shift_data[cb * blk_size +
-                                                                                                          c];
-                                                float output_scale = post_op.quantization.output_scale_data[cb * blk_size +
-                                                                                                            c];
-                                                float output_shift = post_op.quantization.output_shift_data[cb * blk_size +
-                                                                                                            c];
+                                                auto quant = post_op.quantization;
+                                                float crl = quant.crop_low_data->shifts_[quant.crop_low_data->count_ == 1 ? 0 : cb * blk_size + c];
+                                                float crh = quant.crop_high_data->shifts_[quant.crop_high_data->count_ == 1 ? 0 : cb * blk_size + c];
+                                                float isc = quant.input_scale_data->scales_[quant.input_scale_data->count_ == 1 ? 0 : cb * blk_size + c];
+                                                float ish = quant.input_shift_data->shifts_[quant.input_shift_data->count_ == 1 ? 0 : cb * blk_size + c];
+                                                float osc = quant.output_scale_data->scales_[quant.output_scale_data->count_ == 1 ? 0 : cb * blk_size + c];
+                                                float osh = quant.output_shift_data->shifts_[quant.output_shift_data->count_ == 1 ? 0 : cb * blk_size + c];
 
-                                                dst_value = nstl::min(crop_high, nstl::max(crop_low, dst_value));
-                                                dst_value = dst_value * input_scale + input_shift;
+                                                dst_value = nstl::min(crh, nstl::max(crl, dst_value));
+                                                dst_value = dst_value * isc + ish;
 
                                                 if (do_rounding) {
                                                     dst_value = roundf(dst_value);
                                                 }
 
                                                 if (do_dequantization) {
-                                                    dst_value = dst_value * output_scale + output_shift;
+                                                    dst_value = dst_value * osc + osh;
                                                 }
                                             }
                                         }

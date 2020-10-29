@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // y ou may not use this file except in compliance with the License.
@@ -38,7 +38,6 @@ ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableInt8Quantization();
     k.EnableEltwiseStride();
     k.EnableEltwiseBroadcast();
     return k;
@@ -54,5 +53,32 @@ bool EltwiseKernelRef::Validate(const Params& p, const optional_params& o) const
 
 KernelsData EltwiseKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
+}
+
+JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) const {
+    auto jit = EltwiseKernelBase::GetJitConstants(params);
+
+    if (!params.fused_ops.empty()) {
+        kernel_selector::Datatype input_dt = GetAccumulatorType(params);
+
+        std::vector<std::string> idx_order;
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+            idx_order = {"d4", "d3", "d2", "d1"};
+        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            idx_order = {"d5", "d4", "d3", "d2", "d1"};
+        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 6) {
+            idx_order = {"d6", "d5", "d4", "d3", "d2", "d1"};
+        }
+
+        if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params)) {
+            FusedOpsConfiguration conf = {"", {"d1"}, "res", input_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::ENABLED, IndexType::LINEAR_OFFSET};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        } else {
+            FusedOpsConfiguration conf =  {"", idx_order, "res", input_dt, 1};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        }
+    }
+
+    return jit;
 }
 }  // namespace kernel_selector

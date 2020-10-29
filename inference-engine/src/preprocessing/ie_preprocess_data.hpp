@@ -10,8 +10,8 @@
 
 #include <ie_blob.h>
 #include <ie_profiling.hpp>
-#include <ie_util_internal.hpp>
 #include <file_utils.h>
+#include <ie_preprocess.hpp>
 
 #include <details/ie_so_pointer.hpp>
 

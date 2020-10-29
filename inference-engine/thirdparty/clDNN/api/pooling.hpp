@@ -188,6 +188,8 @@ struct pooling : public primitive_base<pooling> {
     bool with_output_size;
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
+    /// @brief Defines a shift, relative to the end of padding shape.
+    tensor pad_end;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

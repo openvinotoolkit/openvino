@@ -13,12 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
 from mo.front.common.partial_infer.utils import convert_tf_padding_to_str
 from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_data_format_spatial, tf_data_format_channel, tf_data_format_batch, \
-    tf_int_list
+from mo.front.tf.extractors.utils import tf_data_format_spatial, tf_int_list
 from mo.ops.pooling import Pooling
 
 
@@ -78,7 +76,7 @@ def create_pooling_attrs(node, pool_method):
     data_format = node.pb.attr["data_format"]
 
     attrs = {
-        'auto_pad': convert_tf_padding_to_str(node.pb.attr['padding']),
+        'auto_pad': convert_tf_padding_to_str(node.pb.attr['padding'].s.decode()),
         'window': tf_int_list(node.pb.attr["ksize"].list),
         'spatial_dims': tf_data_format_spatial(data_format),
         'pad': None,  # will be inferred when input shape is known

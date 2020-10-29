@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNBinaryConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNBinaryConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -50,6 +50,8 @@ private:
     std::vector<ptrdiff_t> dw_conv_strides;
     mkldnn::memory::data_type dw_conv_in_dt = mkldnn::memory::data_type::data_undef;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
+
+    int baseInputsNumber;
 
     float pad_value = 0.f;
 };

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@
 namespace cldnn {
 
 struct memory_impl : refcounted_obj<memory_impl> {
-    memory_impl(const engine_impl::ptr& engine, const layout& layout, uint32_t net_id, bool reused = false)
-        : _engine(engine.get()), _layout(layout), _net_id(net_id), _reused(reused), _bytes_count(_layout.bytes_count()) {}
+    memory_impl(const engine_impl::ptr& engine, const layout& layout, uint32_t net_id,  allocation_type type, bool reused = false)
+        : _engine(engine.get()), _layout(layout), _net_id(net_id), _bytes_count(_layout.bytes_count()), _type(type), _reused(reused) {}
 
     virtual ~memory_impl() {
         if (_engine != nullptr && !_reused) {
@@ -42,22 +42,43 @@ struct memory_impl : refcounted_obj<memory_impl> {
     const layout& get_layout() const { return _layout; }
     uint32_t get_net_id() const { return _net_id; }
     void set_net(uint32_t id) { _net_id = id; }
+    allocation_type get_allocation_type() const { return _type; }
+    virtual bool is_memory_reset_needed(layout l) {
+        // To avoid memory reset, output memory must meet the following requirements:
+        // - To be Weights format (Data memory can be reused by memory_pool, which can lead to errors)
+        // - To have zero paddings
+        // - To be completely filled with data
+        if (!format::is_weights_format(l.format) || format::is_winograd(l.format) || format::is_image_2d(l.format)) {
+            return true;
+        }
+
+        if (l.data_padding.lower_size() != tensor(0) || l.data_padding.upper_size() != tensor(0)) {
+            return true;
+        }
+
+        if (_bytes_count == (l.data_type == data_types::bin ? ceil_div(l.count(), 32) : l.count()) * data_type_traits::size_of(l.data_type)) {
+            return false;
+        }
+
+        return true;
+    }
 
 protected:
     engine_impl *const _engine;
     const layout _layout;
     uint32_t _net_id;
+    size_t _bytes_count;
 
 private:
-    bool _reused;
     // layout bytes count, needed because of traits static map destruction
     // before run of memory_impl destructor, when engine is static
-    size_t _bytes_count;
+    allocation_type _type;
+    bool _reused;
 };
 
 struct simple_attached_memory : memory_impl {
     simple_attached_memory(const layout& layout, void* pointer, uint32_t net_id)
-        : memory_impl((engine_impl::ptr) nullptr, layout, net_id), _pointer(pointer) {}
+        : memory_impl((engine_impl::ptr) nullptr, layout, net_id, allocation_type::unknown), _pointer(pointer) {}
 
     void* lock() override { return _pointer; }
     void unlock() override {}

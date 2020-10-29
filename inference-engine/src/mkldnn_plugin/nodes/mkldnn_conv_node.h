@@ -12,9 +12,11 @@
 
 namespace MKLDNNPlugin {
 
+class MKLDNNEltwiseNode;
+
 class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -23,6 +25,9 @@ public:
     void initDescriptor(const InferenceEngine::LayerConfig& config) override;
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
+    void filterSupportedPrimitiveDescriptors() override;
+    void filterSupportedDescriptors();
+    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc);
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -50,13 +55,13 @@ public:
 
 protected:
     void addScaleToPrimitiveAttr(mkldnn::primitive_attr attr) const;
+    InferenceEngine::Precision fusedEltwisePrecision(MKLDNNEltwiseNode *eltwiseNode, int findex);
 
 private:
     mkldnn::memory::data_type precisionToDataType(InferenceEngine::Precision prec);
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
 
     bool withBiases;
-    bool withActivation;
     bool withSum;
     bool withDWConv;
     bool isDW;

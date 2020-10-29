@@ -14,10 +14,11 @@
  limitations under the License.
 """
 
-from mo.utils.graph import Node
-from mo.utils import class_registration
+import logging as log
 
 from mo.front.common.partial_infer.utils import int64_array
+from mo.utils import class_registration
+from mo.utils.graph import Node
 
 
 class Extender(object):
@@ -40,7 +41,10 @@ class Extender(object):
 
     @staticmethod
     def attr_to_list(node: Node, attribute: str):
-        if not isinstance(node[attribute], list):
+        if not node.has_valid(attribute):
+            log.warning('Attribute {} missed in node {} with type {}!'.format(attribute, node.soft_get('name'),
+                                                                              node.soft_get('type')))
+        elif not isinstance(node[attribute], list):
             node[attribute] = [node[attribute]]
 
     @staticmethod

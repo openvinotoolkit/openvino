@@ -46,7 +46,7 @@ void MyriadXHwStage::propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo)
         auto biases = inputEdge(2)->input();
         auto scales = inputEdge(3)->input();
 
-        IE_ASSERT(weights->usage() == DataUsage::Const);
+        IE_ASSERT(weights->usage() == DataUsage::Const || weights->usage() == DataUsage::Intermediate);
         IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
         IE_ASSERT(scales->usage() == DataUsage::Const || scales->usage() == DataUsage::Fake);
     }
@@ -75,7 +75,7 @@ void MyriadXHwStage::getDataStridesRequirementsImpl(StageDataInfo<StridesRequire
         auto biases = inputEdge(2)->input();
         auto scales = inputEdge(3)->input();
 
-        IE_ASSERT(weights->usage() == DataUsage::Const);
+        IE_ASSERT(weights->usage() == DataUsage::Const || weights->usage() == DataUsage::Intermediate);
         IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
         IE_ASSERT(scales->usage() == DataUsage::Const || scales->usage() == DataUsage::Fake);
     }
@@ -98,17 +98,21 @@ void MyriadXHwStage::getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchI
 }
 
 void MyriadXHwStage::finalCheckImpl() const {
-    auto input = inputEdge(0)->input();
-    auto weights = inputEdge(1)->input();
-    auto biases = inputEdge(2)->input();
-    auto scales = inputEdge(3)->input();
-    auto output = outputEdge(0)->output();
+    const auto input = inputEdge(0)->input();
+    const auto output = outputEdge(0)->output();
 
-    IE_ASSERT(input->memoryOffset() % 16 == 0);
-    IE_ASSERT(weights->memoryOffset() % 16 == 0);
-    IE_ASSERT(biases->memoryOffset() % 16 == 0);
-    IE_ASSERT(scales->memoryOffset() % 16 == 0);
-    IE_ASSERT(output->memoryOffset() % 16 == 0);
+    IE_ASSERT(input->dataLocation().offset % 16 == 0);
+    IE_ASSERT(output->dataLocation().offset % 16 == 0);
+
+    if (attrs().get<HwOpType>("hwOpType") != HwOpType::POOL) {
+        const auto weights = inputEdge(1)->input();
+        const auto biases = inputEdge(2)->input();
+        const auto scales = inputEdge(3)->input();
+
+        IE_ASSERT(weights->dataLocation().offset % 16 == 0);
+        IE_ASSERT(biases->dataLocation().offset % 16 == 0);
+        IE_ASSERT(scales->dataLocation().offset % 16 == 0);
+    }
 }
 
 void MyriadXHwStage::serializeParamsImpl(BlobSerializer& serializer) const {
@@ -124,7 +128,7 @@ void MyriadXHwStage::serializeParamsImpl(BlobSerializer& serializer) const {
 
         serializer.append(checked_cast<uint32_t>(hwOpParams.opMode));
 
-        serializer.append(checked_cast<uint32_t>(hwOpParams.withPad));
+        serializer.append(static_cast<uint32_t>(hwOpParams.withPad));
         if (hwOpParams.withPad) {
             serializer.append(checked_cast<uint32_t>(hwOpParams.padMode));
         }
@@ -143,7 +147,7 @@ void MyriadXHwStage::serializeParamsImpl(BlobSerializer& serializer) const {
             serializer.append(checked_cast<uint32_t>(hwOpParams.fcInputNum));
             serializer.append(checked_cast<uint32_t>(hwOpParams.fcOutputOffset));
             serializer.append(checked_cast<uint32_t>(hwOpParams.fcOutputNum));
-            serializer.append(checked_cast<uint32_t>(hwOpParams.fcAccum));
+            serializer.append(static_cast<uint32_t>(hwOpParams.fcAccum));
         }
 
         if (hwOpParams.opType != HwOpType::FC) {
@@ -157,20 +161,20 @@ void MyriadXHwStage::serializeParamsImpl(BlobSerializer& serializer) const {
             serializer.append(checked_cast<uint32_t>(hwOpParams.poolKernelHeight));
         }
 
-        serializer.append(checked_cast<uint32_t>(hwOpParams.withReLU));
+        serializer.append(static_cast<uint32_t>(hwOpParams.withReLU));
         if (hwOpParams.withReLU) {
             serializer.append(checked_cast<uint32_t>(hwOpParams.t0));
             serializer.append(checked_cast<uint32_t>(hwOpParams.a0));
             serializer.append(checked_cast<uint32_t>(hwOpParams.a1));
         }
 
-        serializer.append(checked_cast<uint32_t>(hwOpParams.withClamp));
+        serializer.append(static_cast<uint32_t>(hwOpParams.withClamp));
         if (hwOpParams.withClamp) {
             serializer.append(checked_cast<float>(hwOpParams.clampMaxVal));
         }
 
-        serializer.append(checked_cast<uint32_t>(hwOpParams.reuseData));
-        serializer.append(checked_cast<uint32_t>(hwOpParams.reuseCoeff));
+        serializer.append(static_cast<uint32_t>(hwOpParams.reuseData));
+        serializer.append(static_cast<uint32_t>(hwOpParams.reuseCoeff));
     }
 
     serializer.append(checked_cast<uint32_t>(injectedStage() == nullptr ? 0 : 1));
@@ -191,7 +195,7 @@ void MyriadXHwStage::serializeDataImpl(BlobSerializer& serializer) const {
         if (inEdge->input()->usage() == DataUsage::Fake)
             continue;
 
-        inEdge->input()->serializeNewBuffer(serializer);
+        inEdge->input()->serializeBuffer(serializer);
 
         ++numBuffers;
     }
@@ -203,7 +207,7 @@ void MyriadXHwStage::serializeDataImpl(BlobSerializer& serializer) const {
         if (outEdge->output()->usage() == DataUsage::Fake)
             continue;
 
-        outEdge->output()->serializeNewBuffer(serializer);
+        outEdge->output()->serializeBuffer(serializer);
 
         ++numBuffers;
     }

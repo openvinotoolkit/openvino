@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#include <iostream>
 #include "quantize_kernel_ref.h"
 #include "kernel_selector_utils.h"
 #include <string>
+
+static const size_t sub_group_size = 32;
 
 namespace kernel_selector {
 ParamsKey QuantizeKernelRef::GetSupportedKey() const {
@@ -28,21 +28,8 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::BINARY);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::yxfb);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfyx_f16);
-    k.EnableInputLayout(DataLayout::bfzyx_f16);
-    k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::yxfb);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfyx_f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_f16);
-    k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_32fp);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -52,25 +39,36 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
 }
 
 CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
     auto output = params.output;
 
-    runInfo.gws0 = output.Batch().v;
-    runInfo.gws1 = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
-    runInfo.gws2 = Align(output.X().v * output.Y().v * output.Z().v, 16);
+    if (output.GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
+        dispatchData.gws[0] = output.Batch().v;
+        dispatchData.gws[1] = Align(output.Feature().v, sub_group_size);
+        dispatchData.gws[2] = output.Y().v * output.X().v * output.Z().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 16;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = sub_group_size;
+        dispatchData.lws[2] = 1;
+    } else {
+        dispatchData.gws[0] = output.Batch().v;
+        dispatchData.gws[1] = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
+        dispatchData.gws[2] = Align(output.X().v * output.Y().v * output.Z().v, 16);
 
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 16;
+    }
 
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params) const {
-    JitConstants jit = Parent::GetJitConstants(params);
+JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
+    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
+        jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
+    }
     return jit;
 }
 
@@ -84,8 +82,8 @@ bool QuantizeKernelRef::Validate(const Params& p, const optional_params&) const 
         (params.output.GetLayout() != DataLayout::b_fs_yx_32fp ||
         (params.inputs[0].GetLayout() != DataLayout::bfyx &&
          params.inputs[0].GetLayout() != DataLayout::bfzyx &&
-         params.inputs[0].GetLayout() != DataLayout::bfzyx_f16 &&
-         params.inputs[0].GetLayout() != DataLayout::bfyx_f16 &&
+         params.inputs[0].GetLayout() != DataLayout::b_fs_zyx_fsv16 &&
+         params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16 &&
          params.inputs[0].GetLayout() != DataLayout::fs_b_yx_fsv32)))
         return false;
     return true;

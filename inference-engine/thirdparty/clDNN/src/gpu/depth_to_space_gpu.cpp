@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include "depth_to_space/depth_to_space_kernel_selector.h"
 #include "depth_to_space/depth_to_space_kernel_ref.h"
 #include "error_handler.h"
+#include "common_types.h"
 
 using namespace cldnn;
 
@@ -37,6 +38,8 @@ public:
             get_default_optional_params<kernel_selector::depth_to_space_optional_params>(arg.get_program());
 
         depth_to_space_params.block_size = arg.get_primitive()->block_size;
+        depth_to_space_params.mode = arg.get_primitive()->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
+                                                                                                    : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
 
         auto& kernel_selector = kernel_selector::depth_to_space_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(depth_to_space_params, depth_to_space_optional_params);
@@ -56,10 +59,18 @@ namespace detail {
 
 attach_depth_to_space_gpu::attach_depth_to_space_gpu() {
     auto val_fw = depth_to_space_gpu::create;
-    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                            val_fw);
-    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                            val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw);
 }
 
 }  // namespace detail

@@ -24,16 +24,16 @@ from collections import OrderedDict
 
 import numpy as np
 
-from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, RemoveOutputOps, \
-    NormalizeTI
+from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
+from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
+from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
-    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, \
-    append_exp_keys_to_namespace, get_meta_info
+    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
 from mo.utils.error import Error, FrameworkError
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
@@ -90,7 +90,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
                         continue
                 lines.append('\t{}: \t{}'.format(desc, getattr(argv, op, 'NONE')))
     lines.append('Model Optimizer version: \t{}'.format(get_version()))
-    print('\n'.join(lines))
+    print('\n'.join(lines), flush=True)
 
 
 def prepare_ir(argv: argparse.Namespace):
@@ -110,9 +110,6 @@ def prepare_ir(argv: argparse.Namespace):
         raise Error('Path to input model or input proto is required: use --input_model or --input_proto')
     elif (is_kaldi or is_onnx) and not argv.input_model:
         raise Error('Path to input model is required: use --input_model.')
-
-    if is_kaldi:
-        argv.generate_experimental_IR_V10 = False
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
@@ -218,32 +215,22 @@ def prepare_ir(argv: argparse.Namespace):
 
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
-    graph = None
     if is_tf:
-        import mo.pipeline.tf as mo_tf
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_tf.driver(argv)
     elif is_caffe:
-        import mo.pipeline.caffe as mo_caffe
         from mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_caffe.driver(argv)
     elif is_mxnet:
-        import mo.pipeline.mx as mo_mxnet
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_mxnet.driver(argv)
     elif is_kaldi:
-        import mo.pipeline.kaldi as mo_kaldi
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_kaldi.driver(argv)
     elif is_onnx:
-        import mo.pipeline.onnx as mo_onnx
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_onnx.driver(argv)
+    graph = unified_pipeline(argv)
     return graph
 
 
@@ -251,10 +238,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
-    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
-    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_graph_and_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
 
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
@@ -289,6 +272,8 @@ def driver(argv: argparse.Namespace):
     try:
         import resource
         mem_usage = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
+        if sys.platform == 'darwin':
+            mem_usage = round(mem_usage / 1024)
         print('[ SUCCESS ] Memory consumed: {} MB. '.format(mem_usage))
     except ImportError:
         pass
@@ -305,13 +290,14 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         argv = cli_parser.parse_args()
         if framework:
             argv.framework = framework
-        append_exp_keys_to_namespace(argv)
 
-        # set output precision for operations producing bool values to be I32 as it was for the IRv7
-        if argv.generate_deprecated_IR_V7:
-            from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
-            SUPPORTED_DATA_TYPES['bool'] = (np.bool, 'I32', 'boolean')
-        return driver(argv)
+        ov_update_message = None
+        if not hasattr(argv, 'silent') or not argv.silent:
+            ov_update_message = get_ov_update_message()
+        ret_code = driver(argv)
+        if ov_update_message:
+            print(ov_update_message)
+        return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
         log.debug(traceback.format_exc())

@@ -30,6 +30,7 @@ class Tile(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
 
             'infer': self.infer,
 
@@ -73,6 +74,7 @@ class AttributedTile(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': 'Tile',
+            'version': 'opset1',
 
             'infer': self.infer,
 

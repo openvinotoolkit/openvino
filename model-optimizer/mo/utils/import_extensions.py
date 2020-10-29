@@ -20,6 +20,7 @@ import os
 import pkgutil
 import sys
 
+from extensions.load.loader import Loader
 from mo.back.replacement import BackReplacementPattern
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import Op
@@ -75,6 +76,7 @@ def load_dir(framework: str, path: str, get_front_classes: callable):
     internal_dirs = {
                          ('ops', ): [Op],
                          ('analysis',): [AnalyzeAction],
+                         ('load', framework): [Loader],
                          ('front', ): front_classes,
                          ('front', framework): front_classes,
                          ('middle', ): [MiddleReplacementPattern],

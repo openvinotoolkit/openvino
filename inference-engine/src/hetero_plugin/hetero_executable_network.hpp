@@ -16,12 +16,11 @@
 #include <unordered_set>
 
 #include <ie_common.h>
-#include <cpp/ie_plugin_cpp.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 
 #include "hetero_infer_request.hpp"
 #include "ie_icore.hpp"
-#include "cnn_network_impl.hpp"
+#include <legacy/cnn_network_impl.hpp>
 #include "hetero_async_infer_request.hpp"
 
 namespace HeteroPlugin {
@@ -39,10 +38,9 @@ public:
     /**
     * @brief constructor
     */
-    HeteroExecutableNetwork(InferenceEngine::ICNNNetwork&               network,
+    HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&         network,
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
-
     /**
     * @brief Import from opened file constructor
     */
@@ -50,20 +48,24 @@ public:
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
 
-    virtual ~HeteroExecutableNetwork() = default;
+    ~HeteroExecutableNetwork() override = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
     void ExportImpl(std::ostream& modelFile) override;
 
 private:
+    void InitCNNImpl(const InferenceEngine::ICNNNetwork&    network);
+
+    void InitNgraph(const InferenceEngine::ICNNNetwork&     network);
+
     struct NetworkDesc {
         std::string                                 _device;
         InferenceEngine::CNNNetwork                 _clonedNetwork;
@@ -71,10 +73,10 @@ private:
     };
     std::vector<NetworkDesc> networks;
 
-    Engine*                             _plugin;
+    Engine*                             _heteroPlugin;
     std::string                         _name;
-    std::vector<std::string>            _affinities;
     std::map<std::string, std::string>  _config;
+    std::unordered_map<std::string, std::string> _blobNameMap;
 };
 
 }  // namespace HeteroPlugin

@@ -16,9 +16,6 @@ using C3 = std::integral_constant<int, 3>;
 using C4 = std::integral_constant<int, 4>;
 //----------------------------------------------------------------------
 
-typedef MapperUnit<float,   int> MapperUnit32F;
-typedef MapperUnit<Q0_16, short> MapperUnit8U;
-
 void calcRowArea_8U(uchar dst[], const uchar *src[], const Size &inSz, const Size &outSz,
     Q0_16 yalpha, const MapperUnit8U& ymap, int xmaxdf, const short xindex[], const Q0_16 xalpha[],
     Q8_8 vbuf[]);
@@ -45,17 +42,17 @@ void calcRowArea_CVKL_U8_SSE42(const uchar  * src[],
 //----------------------------------------------------------------------
 
 // Resize (bi-linear, 8U)
-void calcRowLinear_8U(uint8_t *dst[],
-                const uint8_t *src0[],
-                const uint8_t *src1[],
-                const short    alpha[],
-                const short    clone[],
-                const short    mapsx[],
-                const short    beta[],
-                      uint8_t  tmp[],
-                const Size   & inSz,
-                const Size   & outSz,
-                      int      lpi);
+void calcRowLinear_8UC1(uint8_t *dst[],
+                        const uint8_t *src0[],
+                        const uint8_t *src1[],
+                        const short    alpha[],
+                        const short    clone[],
+                        const short    mapsx[],
+                        const short    beta[],
+                            uint8_t  tmp[],
+                        const Size&  inSz,
+                        const Size&  outSz,
+                              int    lpi);
 
 // Resize (bi-linear, 8UC3)
 void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,

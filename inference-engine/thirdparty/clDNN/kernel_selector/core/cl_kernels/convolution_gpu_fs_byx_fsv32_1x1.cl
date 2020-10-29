@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,13 +21,17 @@
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
+#define INPUT0_SIZE_B_WITH_PADDING (INPUT0_PAD_BEFORE_BATCH_NUM + INPUT0_BATCH_NUM + INPUT0_PAD_AFTER_BATCH_NUM)
 
 #define OUTPUT_SIZE_X_WITH_PADDING (OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X)
 #define OUTPUT_SIZE_Y_WITH_PADDING (OUTPUT_PAD_BEFORE_SIZE_Y + OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y)
+#define OUTPUT_SIZE_B_WITH_PADDING (OUTPUT_PAD_BEFORE_BATCH_NUM + OUTPUT_BATCH_NUM + OUTPUT_PAD_AFTER_BATCH_NUM)
 
 // In some cases input padding may be bigger than needed, those variables describe the offset into padding.
 #define INPUT0_PADDING_OFFSET_SIZE_X (INPUT0_PAD_BEFORE_SIZE_X - PADDING_SIZE_X)
 #define INPUT0_PADDING_OFFSET_SIZE_Y (INPUT0_PAD_BEFORE_SIZE_Y - PADDING_SIZE_Y)
+
+#define ALIGNED_IFM_NUM (((FILTER_IFM_NUM + FSV - 1) / FSV) * FSV)
 
 // ======================================================================================
 // Required JIT definitions:
@@ -58,26 +62,33 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
     uint or = (uint)get_global_id(1) * OUTPUT_BLOCK_HEIGHT;
     uint fs_b_id = get_group_id(2);
     uint sglid = get_sub_group_local_id();
-    
+
     uint fs = fs_b_id / INPUT0_BATCH_NUM;
     uint b = fs_b_id - fs * INPUT0_BATCH_NUM;
-    
+
     UNIT_TYPE in[FSV_PER_THREAD];
     UNIT_TYPE w[FSV * FSV_PER_THREAD];
     UNIT_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT * FSV_PER_THREAD];
-    
+
     for (uint out_i = 0; out_i < OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT * FSV_PER_THREAD; ++out_i)
     {
         out[out_i] = UNIT_VAL_ZERO;
     }
-    
+
+    // Calculate offset to first input data element
+    const uint in_pitch_x = FSV;
+    const uint in_pitch_y = in_pitch_x * INPUT0_SIZE_X_WITH_PADDING;
+    const uint in_pitch_b = in_pitch_y * INPUT0_SIZE_Y_WITH_PADDING;
+    const uint in_pitch_fs = in_pitch_b * INPUT0_SIZE_B_WITH_PADDING;
+
     uint input_offset = 0;
-    input_offset += (oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X) * FSV;
-    input_offset += (or * STRIDE_SIZE_Y + INPUT0_PADDING_OFFSET_SIZE_Y) * INPUT0_SIZE_X_WITH_PADDING * FSV;
-    input_offset += b * INPUT0_SIZE_X_WITH_PADDING * INPUT0_SIZE_Y_WITH_PADDING * FSV;
-    
+    input_offset += (oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X) * in_pitch_x;
+    input_offset += (or * STRIDE_SIZE_Y + INPUT0_PADDING_OFFSET_SIZE_Y) * in_pitch_y;
+    input_offset += (b + INPUT0_PAD_BEFORE_BATCH_NUM) * in_pitch_b;
+    input_offset += (INPUT0_PAD_BEFORE_FEATURE_NUM / FSV) * in_pitch_fs;
+
     uint weight_offset = 0;
-    weight_offset += fs * FILTER_IFM_NUM * FSV;
+    weight_offset += fs * ALIGNED_IFM_NUM * FSV;
 
     for (uint ifi_32 = 0; ifi_32 < (FILTER_IFM_NUM + FSV - 1) / FSV; ++ifi_32)
     {
@@ -94,7 +105,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
         // Move weight offset by FSV output features x FSV input features
         weight_offset += FSV * FSV;
         // ========================================================================
-        
+
         uint tmp_input_offset = input_offset;
         // ========================================================================
         // Convolution across output block
@@ -104,7 +115,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
             {
                 // Load input
                 UNIT_TYPE2 input_read = UNIT_BLOCK_READ2(input, tmp_input_offset + out_x * STRIDE_SIZE_X * FSV);
-               
+
                 unroll_for (uint in_f = 0; in_f < FSV; ++in_f)
                 {
                     unroll_for (uint out_f = 0; out_f < FSV_PER_THREAD; ++out_f)
@@ -117,12 +128,12 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
                 }
             }
             // Move temporary input offset to next strided row
-            tmp_input_offset += INPUT0_SIZE_X_WITH_PADDING * FSV * STRIDE_SIZE_Y;
+            tmp_input_offset += in_pitch_y * STRIDE_SIZE_Y;
         }
         // ========================================================================
         // Move input offset to next input feature slice
-        input_offset += INPUT0_BATCH_NUM * INPUT0_SIZE_X_WITH_PADDING * INPUT0_SIZE_Y_WITH_PADDING * FSV;
-        
+        input_offset += in_pitch_fs;
+
     }
     // ========================================================================
     // Bias
@@ -168,17 +179,24 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
 
     // ========================================================================
     // Store results:
+    // Calculate offset to first output element
+    const uint out_pitch_x = FSV;
+    const uint out_pitch_y = out_pitch_x * OUTPUT_SIZE_X_WITH_PADDING;
+    const uint out_pitch_b = out_pitch_y * OUTPUT_SIZE_Y_WITH_PADDING;
+    const uint out_pitch_fs = out_pitch_b * OUTPUT_SIZE_B_WITH_PADDING;
+
     const uint pad_before_fs = (OUTPUT_PAD_BEFORE_FEATURE_NUM / FSV);
+
     uint output_offset = 0;
-    output_offset += (oc + OUTPUT_PAD_BEFORE_SIZE_X) * FSV;
-    output_offset += (or + OUTPUT_PAD_BEFORE_SIZE_Y) * FSV * OUTPUT_SIZE_X_WITH_PADDING;
-    output_offset += b  * FSV * OUTPUT_SIZE_X_WITH_PADDING * OUTPUT_SIZE_Y_WITH_PADDING;
-    output_offset += (pad_before_fs + fs) * FSV * OUTPUT_SIZE_X_WITH_PADDING * OUTPUT_SIZE_Y_WITH_PADDING * OUTPUT_BATCH_NUM;
-    
+    output_offset += (oc + OUTPUT_PAD_BEFORE_SIZE_X) * out_pitch_x;
+    output_offset += (or + OUTPUT_PAD_BEFORE_SIZE_Y) * out_pitch_y;
+    output_offset += (b + OUTPUT_PAD_BEFORE_BATCH_NUM)  * out_pitch_b;
+    output_offset += (pad_before_fs + fs) * out_pitch_fs;
+
     const bool full_f = OUTPUT_FEATURE_NUM % FSV == 0 || fs * FSV + FSV <= OUTPUT_FEATURE_NUM;
     const bool full_x = OUTPUT_SIZE_X % OUTPUT_BLOCK_WIDTH == 0 || oc + OUTPUT_BLOCK_WIDTH <= OUTPUT_SIZE_X;
     const bool full_y = OUTPUT_SIZE_Y % OUTPUT_BLOCK_HEIGHT == 0 || or + OUTPUT_BLOCK_HEIGHT <= OUTPUT_SIZE_Y;
-    
+
     if (full_f && full_x && full_y)
     {
         // Case without bounds checking
@@ -192,14 +210,14 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
 #if HAS_FUSED_OPS
                 unroll_for (uint out_f = 0; out_f < 2; ++out_f)
                 {
-                    { FUSED_OPS_VEC_ELEM; tmp_write[out_f] = FINAL_NAME_VEC_ELEM; }
+                    { FUSED_OPS_VEC_ELEM; tmp_write[out_f] = FUSED_OPS_RESULT_VEC_ELEM; }
                 }
 #endif
 
                 UNIT_BLOCK_WRITE2(output, output_offset + out_x * FSV, tmp_write);
             }
             // Move output offset to next row
-            output_offset += FSV * OUTPUT_SIZE_X_WITH_PADDING;
+            output_offset += out_pitch_y;
         }
     }
     else
@@ -216,14 +234,14 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
                     {
                         const uint out_idx = out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + out_f;
 #if HAS_FUSED_OPS
-                        { FUSED_OPS_SCALAR; out[out_idx] = FINAL_NAME_SCALAR; }
+                        { FUSED_OPS_SCALAR; out[out_idx] = FUSED_OPS_RESULT_SCALAR; }
 #endif
                         output[output_offset + out_x * FSV + out_f * SUB_GROUP_SIZE + sglid] = out[out_idx];
                     }
                 }
             }
             // Move output offset to next row
-            output_offset += FSV * OUTPUT_SIZE_X_WITH_PADDING;
+            output_offset += out_pitch_y;
         }
     }
     // ========================================================================
@@ -233,6 +251,8 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
 
 #undef INPUT0_SIZE_X_WITH_PADDING
 #undef INPUT0_SIZE_Y_WITH_PADDING
+#undef INPUT0_SIZE_B_WITH_PADDING
 
 #undef OUTPUT_SIZE_X_WITH_PADDING
 #undef OUTPUT_SIZE_Y_WITH_PADDING
+#undef OUTPUT_SIZE_B_WITH_PADDING

@@ -39,9 +39,13 @@ class GRUCell(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'experimental',
             'infer': __class__.infer,
             'in_ports_count': 4,
             'out_ports_count': 1,
+            'version': 'opset3',
+            'wr_input_id': 2,
+            'gates_count': 3
         }
         super().__init__(graph, mandatory_props, attrs)
 

@@ -32,9 +32,9 @@ class Unsqueeze(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'op': __class__.op,
             'type': __class__.op,
+            'version': 'opset1',
             'unsqueeze_dims': None,
             'reinterp_shape': True,
             'in_ports_count': 2,

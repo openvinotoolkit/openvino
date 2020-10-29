@@ -5,14 +5,39 @@
 #pragma once
 
 #include <ie_iextension.h>
+#include <legacy/ie_layers.h>
 
 #include <string>
 #include <map>
 #include <memory>
 #include <algorithm>
-#include <cpu_isa_traits.hpp>
 
 namespace InferenceEngine {
+
+class ILayerImplFactory {
+public:
+    /**
+     * @brief A shared pointer to the ILayerImplFactory interface
+     */
+    using Ptr = std::shared_ptr<ILayerImplFactory>;
+
+    using ImplCreator = std::function<ILayerImpl*()>;
+
+    /**
+     * @brief Destructor
+     */
+    virtual ~ILayerImplFactory() = default;
+
+    /**
+     * @brief Gets all possible implementations for the given cnn Layer
+     *
+     * @param impls the vector with implementations which is ordered by priority
+     * @param resp response descriptor
+     * @return status code
+     */
+    virtual StatusCode getImplementations(std::vector<ILayerImpl::Ptr>& impls, ResponseDesc* resp) noexcept = 0;
+};
+
 namespace Extensions {
 namespace Cpu {
 
@@ -20,37 +45,27 @@ using ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const Infe
 
 struct ExtensionsHolder {
     std::map<std::string, ext_factory> list;
-    std::map<std::string, IShapeInferImpl::Ptr> si_list;
 };
 
-template <mkldnn::impl::cpu::cpu_isa_t T>
-class TExtensionsHolder : public ExtensionsHolder {};
-
-template<mkldnn::impl::cpu::cpu_isa_t Type>
 class MKLDNNExtensions : public IExtension {
 public:
-    StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
-        collectTypes(types, size, MKLDNNExtensions::GetExtensionsHolder()->list);
+    MKLDNNExtensions();
+
+    virtual StatusCode
+    getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
+        collectTypes(types, size, extensionsHolder->list);
         return OK;
     }
 
-    StatusCode
-    getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer, ResponseDesc* resp) noexcept override {
-        auto& factories = MKLDNNExtensions::GetExtensionsHolder()->list;
+    virtual StatusCode
+    getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer, ResponseDesc* resp) noexcept {
+        auto& factories = extensionsHolder->list;
         if (factories.find(cnnLayer->type) == factories.end()) {
             std::string errorMsg = std::string("Factory for ") + cnnLayer->type + " wasn't found!";
             errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
             return NOT_FOUND;
         }
         factory = factories[cnnLayer->type](cnnLayer);
-        return OK;
-    }
-
-    StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
-        return OK;
-    }
-
-    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept override {
         return OK;
     }
 
@@ -64,29 +79,19 @@ public:
         versionInfo = &ExtensionDescription;
     }
 
-    void SetLogCallback(InferenceEngine::IErrorListener& /*listener*/) noexcept override {}
-
     void Unload() noexcept override {}
 
     void Release() noexcept override {
         delete this;
     }
 
-    static void AddExt(std::string name, ext_factory factory) {
-        auto extensionsHolder = GetExtensionsHolder();
-        if (extensionsHolder != nullptr)
-            extensionsHolder->list[name] = factory;
-    }
-
-    static std::shared_ptr<ExtensionsHolder> GetExtensionsHolder() {
-        static std::shared_ptr<TExtensionsHolder<Type>> localHolder;
-        if (localHolder == nullptr) {
-            localHolder = std::make_shared<TExtensionsHolder<Type>>();
-        }
-        return std::dynamic_pointer_cast<ExtensionsHolder>(localHolder);
+    void AddExt(std::string name, ext_factory factory) {
+        extensionsHolder->list[name] = factory;
     }
 
 private:
+    std::shared_ptr<ExtensionsHolder> extensionsHolder = std::make_shared<ExtensionsHolder>();
+
     template<class T>
     void collectTypes(char**& types, unsigned int& size, const std::map<std::string, T> &factories) {
         types = new char *[factories.size()];
@@ -99,26 +104,6 @@ private:
         size = count;
     }
 };
-
-template<mkldnn::impl::cpu::cpu_isa_t T, typename Ext>
-class ExtRegisterBase {
-public:
-    explicit ExtRegisterBase(const std::string& type, mkldnn::impl::cpu::cpu_isa_t cpu_id) {
-        if (!mkldnn::impl::cpu::mayiuse(cpu_id))
-            return;
-
-        MKLDNNExtensions<T>::AddExt(type,
-                              [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                  return new Ext(layer);
-                              });
-    }
-};
-
-#define REG_FACTORY_FOR(__prim, __type) \
-static ExtRegisterBase<mkldnn::impl::cpu::cpu_isa_t::isa_any, __prim> __reg__##__type(#__type, mkldnn::impl::cpu::cpu_isa_t::isa_any)
-
-#define REG_FACTORY_FOR_TYPE(__platform, __prim, __type) \
-static ExtRegisterBase<mkldnn::impl::cpu::cpu_isa_t::__platform, __prim> __reg__##__type(#__type, mkldnn::impl::cpu::cpu_isa_t::__platform)
 
 }  // namespace Cpu
 }  // namespace Extensions

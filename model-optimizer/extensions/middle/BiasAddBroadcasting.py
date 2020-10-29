@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
 from extensions.middle.EltwiseChecker import EltwiseChecker
 from extensions.ops.elementwise import Add
 from mo.front.common.layout import get_features_dim
@@ -20,7 +22,6 @@ from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.unsqueeze import Unsqueeze
-import numpy as np
 
 
 class BiasAddInputBroadcasting(MiddleReplacementPattern):

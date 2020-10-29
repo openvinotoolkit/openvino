@@ -5,6 +5,7 @@
 #pragma once
 
 #include "mkldnn_graph.h"
+#include "nodes/mkldnn_eltwise_node.h"
 #include <vector>
 
 namespace MKLDNNPlugin {
@@ -18,16 +19,12 @@ public:
     void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
 
 private:
-    void SLTMTransform(MKLDNNGraph& graph);
     void MergeConversions(MKLDNNGraph& graph);
     void MergeGroupConvolution(MKLDNNGraph& graph);
-#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
+    void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
     void FuseConvolutionAndActivation(MKLDNNGraph &graph);
-    void FuseFullyConnectedAndActivation(MKLDNNGraph &graph);
-#endif
-#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
+    void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
-#endif
     void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
 #if defined(COMPILED_CPU_MKLDNN_QUANTIZE_NODE)
@@ -40,6 +37,9 @@ private:
     void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
 #endif
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseResampleAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph);
     void RemoveIdentityOperator(MKLDNNGraph& graph);
 
     void RemoveIOScaleShifts(MKLDNNGraph& graph);
@@ -50,9 +50,13 @@ private:
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);
-
+    void FuseScaleShiftAndQuantize(MKLDNNGraph &graph);
+    void FuseClampAndQuantize(MKLDNNGraph &graph);
 
     bool IsOneOf(Type type, std::vector<Type> types);
+    bool IsOneOf(EltwiseOpType alg, std::vector<EltwiseOpType> algs);
+
+    void removeEdge(MKLDNNGraph &graph, MKLDNNEdgePtr& edge);
 };
 
 }  // namespace MKLDNNPlugin

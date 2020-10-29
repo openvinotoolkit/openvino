@@ -30,6 +30,7 @@ class Gather(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
 
             'infer': self.infer,
 
@@ -59,7 +60,7 @@ class Gather(Op):
         assert axis is not None
         axis = get_canonical_axis_index(data_shape, axis)
 
-        # we import PermuteInputs because it uses Gather inside and we have recursive imports
+        # we import PermuteInputs locally because it uses Gather inside and we have recursive imports
         from mo.graph.perm_inputs import PermuteInputs
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
 

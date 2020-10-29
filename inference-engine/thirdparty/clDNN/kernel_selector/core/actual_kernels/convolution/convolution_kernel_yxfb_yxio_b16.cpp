@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
+    k.EnableGroupedConvolution();
     k.EnableDilation();
     k.EnableSubGroup();
     return k;
@@ -76,9 +77,9 @@ size_t GetOfmPerWorkitem(Datatype dataType) {
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(const convolution_params& arg,
                                                                                 int) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
 
-    const auto filter_ofm_num = arg.weights.OFM().v;
+    const auto filter_ofm_num = arg.weights.OFM().v * arg.weights.G().v;
     const auto batch_size = arg.output.Batch().v;
     const uint32_t min_lws = 16;
 
@@ -86,15 +87,15 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(arg.inputs[0].GetDType());
 
     if (arg.inputs[0].GetDType() == Datatype::F16) {
-        runInfo.effiency = FORCE_PRIORITY_7;
+        dispatchData.efficiency = FORCE_PRIORITY_7;
     } else {
-        runInfo.effiency = FORCE_PRIORITY_9;
+        dispatchData.efficiency = FORCE_PRIORITY_9;
     }
 
-    runInfo.lws0 = min_lws;
-    runInfo.gws0 = filter_ofm_num * batch_size / (ofmPerWorkItem * batchesPerWorkItem);
+    dispatchData.lws[0] = min_lws;
+    dispatchData.gws[0] = filter_ofm_num * batch_size / (ofmPerWorkItem * batchesPerWorkItem);
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p, const optional_params& o) const {
@@ -104,11 +105,12 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p, const optional_p
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
     const auto filter_ofm_num = params.weights.OFM().v;
+    const auto filter_groups_num = params.weights.G().v;
     const auto batch_size = params.output.Batch().v;
     const uint32_t min_lws = 16;
 
     const bool bInputValidated =
-        (filter_ofm_num > 0) && (batch_size > 0) && (params.output.Feature().v == filter_ofm_num);
+        (filter_ofm_num > 0) && (batch_size > 0) && (params.output.Feature().v == filter_ofm_num * filter_groups_num);
 
     if (!bInputValidated) {
         return false;
@@ -138,10 +140,10 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p, const optional_p
 }
 
 JitConstants ConvolutionKernel_yxfb_yxio_b16::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& kd) const {
-    auto jit = Parent::GetJitConstants(params, kd);
+                                                              const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    const auto local_work_group_size = kd.lws0;
+    const auto local_work_group_size = dispatchData.lws[0];
     const auto batch_size = params.output.Batch().v;
 
     if (params.inputs[0].GetDType() == Datatype::F32) {
@@ -166,7 +168,7 @@ JitConstants ConvolutionKernel_yxfb_yxio_b16::GetJitConstants(const convolution_
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(params.inputs[0].GetDType());
 
     jit.AddConstants({
-        MakeJitConstant("LOCAL_WORK_GROUP_SIZE", kd.lws0),
+        MakeJitConstant("LOCAL_WORK_GROUP_SIZE", dispatchData.lws[0]),
         MakeJitConstant("OFM_PER_WORK_ITEM", ofmPerWorkItem),
         MakeJitConstant("BATCHES_PER_WORK_ITEM",
                         batchesPerWorkItem),  // how many batches will a single work item compute

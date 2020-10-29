@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph
@@ -28,6 +27,7 @@ class ReorgYoloOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset2',
             'infer': ReorgYoloOp.reorgyolo_infer
         }
         super().__init__(graph, mandatory_props, attrs)

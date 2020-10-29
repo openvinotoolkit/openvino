@@ -13,8 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from extensions.ops.identity import Identity
 from mo.front.extractor import FrontExtractorOp
-from extensions.ops.identity import IdentityOp
 
 
 class ClipGradientComponentFrontExtractor(FrontExtractorOp):
@@ -23,5 +23,5 @@ class ClipGradientComponentFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        IdentityOp.update_node_stat(node, {})
+        Identity.update_node_stat(node, {})
         return cls.enabled

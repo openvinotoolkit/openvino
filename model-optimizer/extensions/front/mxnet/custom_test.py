@@ -17,9 +17,9 @@
 import unittest
 
 from extensions.front.mxnet.custom import CustomFrontExtractorOp
-from mo.utils.unittest.graph import build_graph
 from mo.front.extractor import FrontExtractorOp, MXNetCustomFrontExtractorOp
 from mo.graph.graph import Node
+from mo.utils.unittest.graph import build_graph
 
 attrs = {'test_attr': 1}
 

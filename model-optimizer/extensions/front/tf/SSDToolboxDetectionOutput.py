@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.ops.DetectionOutput import DetectionOutput
 from mo.front.common.partial_infer.utils import int64_array

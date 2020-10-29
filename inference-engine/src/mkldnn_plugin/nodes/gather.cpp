@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -12,7 +11,7 @@
 #include <algorithm>
 #include <limits>
 #include "ie_parallel.hpp"
-#include "common/simple_copy.h"
+#include "common/cpu_memcpy.h"
 #include "common/fp16_utils.h"
 
 namespace InferenceEngine {
@@ -126,7 +125,7 @@ private:
             if (idx < indexRange) {
                 //  Copying data to destination from Dictionary
                 for (size_t j = 0; j < numDictionaries; j++) {
-                    simple_copy(&dst_data[len * (i + j * src_indexSize)],
+                    cpu_memcpy_s(&dst_data[len * (i + j * src_indexSize)],
                                 output->byteSize() - (len * (i + j * src_indexSize)),
                                 &src_dataDict[len * (idx + j * indexRange)],
                                 len);
@@ -148,7 +147,7 @@ private:
 };
 
 
-REG_FACTORY_FOR(ImplFactory<GatherImpl>, Gather);
+REG_FACTORY_FOR(GatherImpl, Gather);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph
@@ -26,7 +25,7 @@ class TensorArrayReader(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'infer': TensorArrayReader.array_infer,
         }

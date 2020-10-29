@@ -32,12 +32,12 @@ private:
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        return StageSHAVEsRequirements::NotNeeded;
+        return StageSHAVEsRequirements::CanBeLimited;
     }
 
     void initialCheckImpl() const override {
         assertInputsOutputsTypes(this,
-                                 {{DataType::FP16}},
+                                 {{DataType::S32}},
                                  {{DataType::FP16}});
     }
 
@@ -63,8 +63,8 @@ private:
         auto input = inputEdges()[0]->input();
         auto output = outputEdges()[0]->output();
 
-        input->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
     }
 };
 
@@ -80,20 +80,7 @@ void FrontEnd::parseOneHot(const Model& model, const ie::CNNLayerPtr& layer, con
 
     auto axis = oneHot->axis == -1 ? 0 : inputs[0]->desc().numDims() - oneHot->axis;
 
-    auto newInputs = inputs;
-    if (newInputs[0]->desc().type() == DataType::S32) {
-        auto fp16Desc = newInputs[0]->desc();
-        fp16Desc.setType(DataType::FP16);
-
-        const auto inputFP16 = model->duplicateData(
-                newInputs[0],
-                "@FP16",
-                fp16Desc);
-        _stageBuilder->createConvertStage(model, inputFP16->name(), newInputs[0], inputFP16);
-        newInputs[0] = inputFP16;
-    }
-
-    auto stage = model->addNewStage<OneHot>(layer->name, StageType::OneHot, layer, newInputs, outputs);
+    auto stage = model->addNewStage<OneHot>(layer->name, StageType::OneHot, layer, inputs, outputs);
 
     stage->attrs().set<int>("axis", axis);
     stage->attrs().set<unsigned int>("depth", oneHot->depth);

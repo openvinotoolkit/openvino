@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
 from mo.front.common.partial_infer.elemental import single_output_infer
+from mo.front.extractor import FrontExtractorOp
 
 
 class LoopCondFrontExtractor(FrontExtractorOp):

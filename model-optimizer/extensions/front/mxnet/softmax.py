@@ -16,10 +16,10 @@
 
 import numpy as np
 
-from mo.graph.graph import Graph
 from extensions.ops.elementwise import Mul
-from mo.ops.const import Const
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.graph.graph import Graph
+from mo.ops.const import Const
 
 
 class SoftmaxFrontReplacementSubgraph(FrontReplacementSubgraph):

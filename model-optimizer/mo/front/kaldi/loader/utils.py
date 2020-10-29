@@ -13,11 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import io
 
-import numpy as np
+import io
 import os
 import struct
+
+import numpy as np
 
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
@@ -38,6 +39,9 @@ supported_components = [
     'copy',
     'elementwiseproductcomponent',
     'fixedaffinecomponent',
+    'fixedscalecomponent',
+    'fixedbiascomponent',
+    'generaldropoutcomponent',
     'linearcomponent',
     'logsoftmaxcomponent',
     'lstmnonlinearitycomponent',
@@ -56,9 +60,11 @@ supported_components = [
     'sigmoidcomponent',
     'softmax',
     'softmaxcomponent',
+    'specaugmenttimemaskcomponent',
     'splicecomponent',
     'sumgroupcomponent',
     'tanhcomponent',
+    'tdnncomponent',
 ]
 
 

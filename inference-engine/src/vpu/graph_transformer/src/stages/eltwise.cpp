@@ -53,7 +53,7 @@ StageType onlyThreeInputs(ie::EltwiseLayer::eOperation op, size_t input_size) {
     return T;
 }
 
-const std::map<ie::EltwiseLayer::eOperation, std::function<StageType(ie::EltwiseLayer::eOperation, size_t)>> eltwise_map = {
+static const std::map<ie::EltwiseLayer::eOperation, std::function<StageType(ie::EltwiseLayer::eOperation, size_t)>> eltwise_map = {
         MAP_ELEMENTS(Sum,           moreThanOneInput),
         MAP_ELEMENTS(Prod,          moreThanOneInput),
         MAP_ELEMENTS(Max,           moreThanOneInput),
@@ -137,10 +137,23 @@ private:
     void initialCheckImpl() const override {
         const auto& operation = type();
         const auto& dataTypeInput0 = input(0)->desc().type();
+        const auto& dataTypeOutput = output(0)->desc().type();
 
         {
+            static const std::set<StageType> stageTypesWhichSupportS32 = {
+                    StageType::Sum,
+                    StageType::Greater_equal,
+                    StageType::Equal,
+                    StageType::Select,
+                    StageType::Prod,
+                    StageType::Max,
+                    StageType::Div,
+                    StageType::Min,
+                    StageType::Logical_NOT,
+                    StageType::Logical_AND
+            };
             auto supportedDataTypesInput0 = EnumSet<DataType>{DataType::FP16};
-            if (operation == StageType::Sum || operation == StageType::Greater_equal || operation == StageType::Select || operation == StageType::Prod) {
+            if (stageTypesWhichSupportS32.count(operation)) {
                 supportedDataTypesInput0.insert(DataType::S32);
             }
 
@@ -149,16 +162,19 @@ private:
                 static_cast<Handle<StageNode>>(this), dataTypeInput0, supportedDataTypesInput0);
         }
 
-        if (operation != StageType::Select || dataTypeInput0 == DataType::FP16) {
-            assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput0}, {dataTypeInput0}}, {{dataTypeInput0}});
-        } else {
+        if (operation == StageType::Select && dataTypeInput0 == DataType::S32) {
             auto supportedDataTypesInput1 = EnumSet<DataType>{DataType::FP16, DataType::S32};
             const auto& dataTypeInput1 = input(1)->desc().type();
             VPU_THROW_UNLESS(supportedDataTypesInput1.count(dataTypeInput1) != 0,
-                "Stage node %v types check error: input #1 has type %v, but one of %v is expected",
-                static_cast<Handle<StageNode>>(this), dataTypeInput1, supportedDataTypesInput1);
+                             "Stage node %v types check error: input #1 has type %v, but one of %v is expected",
+                             static_cast<Handle<StageNode>>(this), dataTypeInput1, supportedDataTypesInput1);
 
             assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput1}, {dataTypeInput1}}, {{dataTypeInput1}});
+        } else if ((operation == StageType::Greater || operation == StageType::Less || operation == StageType::Equal)
+                        && dataTypeInput0 != dataTypeOutput) {
+            assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::S32}});
+        } else {
+            assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput0}, {dataTypeInput0}}, {{dataTypeInput0}});
         }
     }
 
@@ -195,10 +211,10 @@ private:
         auto input2 = inputEdge(2)->input();
         auto output = outputEdge(0)->output();
 
-        input0->serializeNewBuffer(serializer, output->desc().dimsOrder());
-        output->serializeNewBuffer(serializer);
-        input1->serializeNewBuffer(serializer, output->desc().dimsOrder());
-        input2->serializeNewBuffer(serializer, output->desc().dimsOrder());
+        input0->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
+        input1->serializeBuffer(serializer);
+        input2->serializeBuffer(serializer);
     }
 };
 
@@ -270,14 +286,14 @@ void FrontEnd::parseEltwise(const Model& model, const ie::CNNLayerPtr& _layer, c
             if (type == DataType::FP16) {
                 stage->attrs().set<float>("coeff1", layer->coeff[0]);
             } else {
-                stage->attrs().set<std::int32_t>("coeff1", layer->coeff[0]);
+                stage->attrs().set<std::int32_t>("coeff1", static_cast<int32_t>(layer->coeff[0]));
             }
         }
         if (layer->coeff.size() > 1 || subCoefficient != 1) {
             if (type == DataType::FP16) {
                 stage->attrs().set<float>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1.0f));
             } else {
-                stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1));
+                stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? static_cast<int32_t>(layer->coeff[1]) : 1));
             }
         }
     }
@@ -333,6 +349,38 @@ Stage StageBuilder::addSumStage(
     return model->addNewStage<EltwiseStage>(
         name,
         StageType::Sum,
+        layer,
+        {input0, input1, fakeInput2},
+        {output});
+}
+
+Stage StageBuilder::addProdStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input0,
+        const Data& input1,
+        const Data& output) {
+    const Data& fakeInput2 = model->addFakeData();
+    return model->addNewStage<EltwiseStage>(
+            name,
+            StageType::Prod,
+            layer,
+            {input0, input1, fakeInput2},
+            {output});
+}
+
+Stage StageBuilder::addMaxStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input0,
+        const Data& input1,
+        const Data& output) {
+    const Data& fakeInput2 = model->addFakeData();
+    return model->addNewStage<EltwiseStage>(
+        name,
+        StageType::Max,
         layer,
         {input0, input1, fakeInput2},
         {output});

@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,6 @@ public:
     }
 
 protected:
-    JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const override;
+    JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
 };
 }  // namespace kernel_selector

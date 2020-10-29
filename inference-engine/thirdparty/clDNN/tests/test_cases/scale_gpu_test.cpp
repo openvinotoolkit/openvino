@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017-2019 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,11 +24,153 @@
 #include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 #include "api/reorder.hpp"
+#include "api/data.hpp"
 
 #include <iostream>
 
 using namespace cldnn;
 using namespace tests;
+
+TEST(scale_gpu, basic_in2x3x2x2_mixed_types_in_fp32_out_fp16) {
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
+    auto scale_input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto shift_input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+
+    std::vector<float> input_vec = { 1.0f, 0.0f,   5.0f,   1.5f,   2.0f,   0.0f,
+                                     6.0f, 5.0f, -10.0f, -11.0f, -12.0f, -13.0f,
+
+                                     3.0f, 0.5f,   7.0f,  12.0f,   4.0f,  -0.5f,
+                                     8.0f, 8.0f, -14.0f, -15.0f, -16.0f, -17.0f };
+    set_values(input, input_vec);
+    set_values(scale_input, { 2.0f, -1.0f });
+    set_values(shift_input, { -5.0f, 10.0f });
+
+    std::vector<float> result_vec = { -3.0f, -5.0f,  5.0f, -2.0f, -1.0f, -5.0f,
+                                       4.0f,  5.0f, 20.0f, 21.0f, 22.0f, 23.0f,
+
+                                       1.0f, -4.0f,  9.0f, 19.0f , 3.0f, -6.0f,
+                                       2.0f,  2.0f, 24.0f, 25.0f, 26.0f, 27.0f };
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(data("scale_input", scale_input));
+    topology.add(data("shift_input", shift_input));
+    topology.add(scale("scale", "input", "scale_input", "shift_input", optional_data_type{data_types::f16}));
+    topology.add(reorder("reorder", "scale", format::bfyx, data_types::f32));
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    ASSERT_EQ(result_vec.size(), output.count());
+
+    for (unsigned int i = 0; i < result_vec.size(); ++i) {
+        EXPECT_NEAR(output_ptr[i], result_vec[i], 1e-05F);
+    }
+}
+
+TEST(scale_gpu, basic_in2x3x2x2_mixed_types_in_fp16_out_fp32) {
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 3, 2 } });
+    auto scale_input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+    auto shift_input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+
+    std::vector<half_t> input_vec = { half_t(1.0f), half_t(0.0f), half_t(5.0f),   half_t(1.5f),   half_t(2.0f),   half_t(0.0f),
+                                      half_t(6.0f), half_t(5.0f), half_t(-10.0f), half_t(-11.0f), half_t(-12.0f), half_t(-13.0f),
+
+                                      half_t(3.0f), half_t(0.5f), half_t(  7.0f), half_t(12.0f),  half_t(4.0f),   half_t(-0.5f),
+                                      half_t(8.0f), half_t(8.0f), half_t(-14.0f), half_t(-15.0f), half_t(-16.0f), half_t(-17.0f) };
+    set_values(input, input_vec);
+    set_values(scale_input, { half_t(2.0f), half_t(-1.0f) });
+    set_values(shift_input, { half_t(-5.0f), half_t(10.0f) });
+
+    std::vector<float> result_vec = { -3.0f, -5.0f,  5.0f, -2.0f, -1.0f, -5.0f,
+                                       4.0f,  5.0f, 20.0f, 21.0f, 22.0f, 23.0f,
+
+                                       1.0f, -4.0f,  9.0f, 19.0f , 3.0f, -6.0f,
+                                       2.0f,  2.0f, 24.0f, 25.0f, 26.0f, 27.0f };
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(data("scale_input", scale_input));
+    topology.add(data("shift_input", shift_input));
+    topology.add(scale("scale", "input", "scale_input", "shift_input", optional_data_type{data_types::f32}));
+    topology.add(reorder("reorder", "scale", format::bfyx, data_types::f32));
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    ASSERT_EQ(result_vec.size(), output.count());
+
+    for (unsigned int i = 0; i < result_vec.size(); ++i) {
+        EXPECT_NEAR(output_ptr[i], result_vec[i], 1e-05F);
+    }
+}
+
+TEST(scale_gpu, basic_in2x3x2x2_mixed_types_in_fp32_scale_fp16_out_fp16) {
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
+    auto scale_input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+    auto shift_input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+
+    std::vector<float> input_vec = { 1.0f, 0.0f,   5.0f,   1.5f,   2.0f,   0.0f,
+                                     6.0f, 5.0f, -10.0f, -11.0f, -12.0f, -13.0f,
+
+                                     3.0f, 0.5f,   7.0f,  12.0f,   4.0f,  -0.5f,
+                                     8.0f, 8.0f, -14.0f, -15.0f, -16.0f, -17.0f };
+    set_values(input, input_vec);
+    set_values(scale_input, { half_t(2.0f), half_t(-1.0f) });
+    set_values(shift_input, { half_t(-5.0f), half_t(10.0f) });
+
+    std::vector<float> result_vec = { -3.0f, -5.0f,  5.0f, -2.0f, -1.0f, -5.0f,
+                                       4.0f,  5.0f, 20.0f, 21.0f, 22.0f, 23.0f,
+
+                                       1.0f, -4.0f,  9.0f, 19.0f , 3.0f, -6.0f,
+                                       2.0f,  2.0f, 24.0f, 25.0f, 26.0f, 27.0f };
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(data("scale_input", scale_input));
+    topology.add(data("shift_input", shift_input));
+    topology.add(scale("scale", "input", "scale_input", "shift_input", optional_data_type{data_types::f16}));
+    topology.add(reorder("reorder", "scale", format::bfyx, data_types::f32));
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    ASSERT_EQ(result_vec.size(), output.count());
+
+    for (unsigned int i = 0; i < result_vec.size(); ++i) {
+        EXPECT_NEAR(output_ptr[i], result_vec[i], 1e-05F);
+    }
+}
 
 TEST(scale_gpu, basic_in2x3x2x2_scale_same_size) {
     //  Scale  : 2x3x2x2
@@ -37,14 +179,14 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_same_size) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale:
     //  f0: b0:  0.1    0.2  0.25   b1:   0.3   0.4   0.5
-    //  f0: b0:  0.6    0.7  0.75   b1:   0.8   0.9   1  
-    //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5     
+    //  f0: b0:  0.6    0.7  0.75   b1:   0.8   0.9   1
+    //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5
     //  f1: b0:  1.6    1.7  1.75   b1:   1.8   1.9   2
 
     const auto& engine = get_test_engine();
@@ -97,14 +239,14 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_same_size_bfyx) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale:
     //  f0: b0:  0.1    0.2  0.25   b1:   0.3   0.4   0.5
-    //  f0: b0:  0.6    0.7  0.75   b1:   0.8   0.9   1  
-    //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5     
+    //  f0: b0:  0.6    0.7  0.75   b1:   0.8   0.9   1
+    //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5
     //  f1: b0:  1.6    1.7  1.75   b1:   1.8   1.9   2
 
     const auto& engine = get_test_engine();
@@ -155,14 +297,14 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_same_size_scale_bfyx) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale:
     //  f0: b0:  0.1    0.2  0.25   b1:   0.3   0.4   0.5
-    //  f0: b0:  0.6    0.7  0.75   b1:   0.8   0.9   1  
-    //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5     
+    //  f0: b0:  0.6    0.7  0.75   b1:   0.8   0.9   1
+    //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5
     //  f1: b0:  1.6    1.7  1.75   b1:   1.8   1.9   2
 
     const auto& engine = get_test_engine();
@@ -227,20 +369,20 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_same_size_bias_term) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale:
     //  f0: b0:  0.1    0.2  0.25   b1:   0.3   0.4   0.5
-    //  f0: b0:  0.6    0.7  0.75   b1:   0.8   0.9   1  
-    //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5     
+    //  f0: b0:  0.6    0.7  0.75   b1:   0.8   0.9   1
+    //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5
     //  f1: b0:  1.6    1.7  1.75   b1:   1.8   1.9   2
     //
     //  Bias:
     //  f0: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5
-    //  f0: b0:  2.6    2.7  2.75   b1:   2.8   2.9   2  
-    //  f1: b0:  3.1    3.2  3.25   b1:   3.3   3.4   3.5     
+    //  f0: b0:  2.6    2.7  2.75   b1:   2.8   2.9   2
+    //  f1: b0:  3.1    3.2  3.25   b1:   3.3   3.4   3.5
     //  f1: b0:  4.6    4.7  4.75   b1:   4.8   4.9   4
 
     const auto& engine = get_test_engine();
@@ -306,8 +448,8 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_scalar) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale:
@@ -371,8 +513,8 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_y) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale:
@@ -437,8 +579,8 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_fb) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale: per feature per batch
@@ -504,8 +646,8 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_f) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale: per feature
@@ -571,8 +713,8 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_x) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale:
@@ -638,8 +780,8 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_xy) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale:
@@ -709,14 +851,14 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_batch1) {
 
     //  Input:
     //  f0: b0:  1    2  -10   b1:   0    0    -11
-    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15  
-    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13     
+    //  f0: b0:  3    4  -14   b1:   0.5 -0.5  -15
+    //  f1: b0:  5    6  -12   b1:   1.5  5.2  -13
     //  f1: b0:  7    8  -16   b1:   12   8    -17
     //
     //  Scale:
     //  f0: b0:  0.1    0.2  0.25
     //  f0: b0:  0.6    0.7  0.75
-    //  f1: b0:  1.1    1.2  1.25    
+    //  f1: b0:  1.1    1.2  1.25
     //  f1: b0:  1.6    1.7  1.75
 
     const auto& engine = get_test_engine();
@@ -1138,7 +1280,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_yxfb_bfyx_same_size_padding) {
     //  Scale:
     //  0.1    0.2
     //  0.6    0.5
-     
+
     const auto& engine = get_test_engine();
     std::vector<format> formats_to_test = { format::yxfb , format::bfyx };
 
@@ -1155,7 +1297,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_yxfb_bfyx_same_size_padding) {
         topology.add(input_layout("input", input.get_layout()));
         topology.add(reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })));
         topology.add(input_layout("scale_input", scale_input.get_layout()));
-        topology.add(scale("scale", "reorder", "scale_input", padding( { 0, 0, 2, 2 }, 0 )));
+        topology.add(scale("scale", "reorder", "scale_input", {}, padding( { 0, 0, 2, 2 }, 0 )));
 
         std::vector<float> input_vec = { 1.f, 2.f, 3.f, 4.f };
         set_values(input, input_vec);
@@ -1388,6 +1530,122 @@ TEST(scale_gpu, basic_in2x2x2x2x3_scale_xyz) {
     }
 }
 
+TEST(scale_gpu, basic_in2x2x2x2x2x3_scale_4d) {
+    //  Scale  : 1x2x1x1
+    //  Input  : 2x2x2x2x2x3
+    //  Output : 2x2x2x2x2x3
+
+    const auto& engine = get_test_engine();
+
+    auto batch_num = 2;
+    auto feature_num = 2;
+    auto w_size = 2;
+    auto z_size = 2;
+    auto y_size = 2;
+    auto x_size = 3;
+
+    tensor in_size = tensor(format::bfwzyx, { batch_num, feature_num, x_size, y_size, z_size, w_size });
+    tensor scale_size = tensor(format::bfyx, { 1, feature_num, 1, 1 });
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfwzyx,  in_size});
+    auto scale_input = memory::allocate(engine, { data_types::f32, format::bfyx, scale_size });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("scale_input", scale_input.get_layout()));
+    topology.add(scale("scale", "input", "scale_input"));
+
+    std::vector<float> input_vec = generate_random_1d<float>(in_size.count(), -10, 10);
+    set_values(input, input_vec);
+
+    std::vector<float> scale_input_vec = generate_random_1d<float>(scale_input.count(), -10, 10);
+    set_values(scale_input, scale_input_vec);
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("scale_input", scale_input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("scale").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    for (int b = 0; b < batch_num; ++b) {
+        for (int f = 0; f < feature_num; ++f) {
+            for (int w = 0; w < w_size; ++w) {
+                for (int z = 0; z < z_size; ++z) {
+                    for (int y = 0; y < y_size; ++y) {
+                        for (int x = 0; x < x_size; ++x) {
+                            int linear_id = x + x_size * (y + y_size * (z + z_size * (w + w_size * (f + feature_num * b))));
+                            int linear_id_scale = f;
+                            EXPECT_NEAR(output_ptr[linear_id], input_vec[linear_id] * scale_input_vec[linear_id_scale], 1e-05f);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(scale_gpu, basic_in2x2x2x2x2x3_scale_6d) {
+    //  Scale  : 1x2x1x1x1x1
+    //  Input  : 2x2x2x2x2x3
+    //  Output : 2x2x2x2x2x3
+
+    const auto& engine = get_test_engine();
+
+    auto batch_num = 2;
+    auto feature_num = 2;
+    auto w_size = 2;
+    auto z_size = 2;
+    auto y_size = 2;
+    auto x_size = 3;
+
+    tensor in_size = tensor(format::bfwzyx, { batch_num, feature_num, x_size, y_size, z_size, w_size });
+    tensor scale_size = tensor(format::bfwzyx, { 1, feature_num, 1, 1, 1, 1 });
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfwzyx,  in_size});
+    auto scale_input = memory::allocate(engine, { data_types::f32, format::bfwzyx, scale_size });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("scale_input", scale_input.get_layout()));
+    topology.add(scale("scale", "input", "scale_input"));
+
+    std::vector<float> input_vec = generate_random_1d<float>(in_size.count(), -10, 10);
+    set_values(input, input_vec);
+
+    std::vector<float> scale_input_vec = generate_random_1d<float>(scale_input.count(), -10, 10);
+    set_values(scale_input, scale_input_vec);
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("scale_input", scale_input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("scale").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    for (int b = 0; b < batch_num; ++b) {
+        for (int f = 0; f < feature_num; ++f) {
+            for (int w = 0; w < w_size; ++w) {
+                for (int z = 0; z < z_size; ++z) {
+                    for (int y = 0; y < y_size; ++y) {
+                        for (int x = 0; x < x_size; ++x) {
+                            int linear_id = x + x_size * (y + y_size * (z + z_size * (w + w_size * (f + feature_num * b))));
+                            int linear_id_scale = f;
+                            EXPECT_NEAR(output_ptr[linear_id], input_vec[linear_id] * scale_input_vec[linear_id_scale], 1e-05f);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                                                                          //
 //                      Exhaustive Negative Matrix tests                    //
@@ -1465,7 +1723,7 @@ TEST(NegativeScaleTest, TestAll) {
         ASSERT_ANY_THROW(setup_scale_network(d, tensor(good), tensor(t), tensor(t), f, of, true));
     }
 
-    // sizes must either be equal to input or at most have 
+    // sizes must either be equal to input or at most have
     for (const auto & bad : bad_ts)
     {
         ASSERT_ANY_THROW(setup_scale_network(d, tensor(t), tensor(bad), tensor(t), f, of, true));
@@ -1522,11 +1780,11 @@ public:
         return all_layer_params;
     }
 
-    static std::vector<tests::test_params*> generate_generic_test_params(int variant)
+    static std::vector<std::shared_ptr<tests::test_params>> generate_generic_test_params(int variant)
     {
         assert(!variant || variant == 1);
 
-        std::vector<tests::test_params*> all_generic_params;
+        std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
 
         auto data_types = test_data_types();
 
@@ -1553,7 +1811,7 @@ public:
                     std::vector<int> tmp { mb, mf, mh, mw };
                     attempted_dims.push_back(tmp);
 
-                    test_params * tp = new test_params();
+                    std::shared_ptr<test_params> tp = std::make_shared<test_params>();
                     tp->data_type = dt;
 
                     tp->input_layouts.push_back(cldnn::layout(tp->data_type, tp->fmt, cldnn::tensor(  b, f, w, h  )));
@@ -1569,13 +1827,13 @@ public:
         return all_generic_params;
     }
 
-    static std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> generate_all_test_params()
+    static std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> generate_all_test_params()
     {
-        std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> res;
+        std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> res;
 
         for (int variant = 0; variant <= 1; ++variant)
         {
-            auto tpv = generate_generic_test_params(variant); 
+            auto tpv = generate_generic_test_params(variant);
             auto pv = generate_specific_test_params(variant);
 
             for (auto & tp : tpv)
@@ -1701,7 +1959,7 @@ public:
         }
     }
 
-    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>& info)
+    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>>& info)
     {
         std::stringstream res;
 
@@ -1730,12 +1988,12 @@ public:
     }
 
 private:
-    static std::vector<std::unique_ptr<tests::test_params>> all_generic_params;
+    static std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
     static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 };
 
 std::vector<std::shared_ptr<cldnn::primitive>> scale_test::all_layer_params = {};
-std::vector<std::unique_ptr<tests::test_params>> scale_test::all_generic_params = {};
+std::vector<std::shared_ptr<tests::test_params>> scale_test::all_generic_params = {};
 
 TEST_P(scale_test, SCALE)
 {

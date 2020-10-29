@@ -32,30 +32,48 @@ pass_manager::pass_manager(program_impl& p) {
         graph_opt_log.open(path + std::to_string(p.get_prog_id()) + "_cldnn_graph_optimizer.log");
         if (graph_opt_log.is_open()) {
             graph_opt_log.setf(std::ios::fixed, std::ios::floatfield);
-            graph_opt_log << std::setprecision(2);
+            graph_opt_log << std::setprecision(4);
             // print graph_opt_log header
-            graph_opt_log << "program number: " << std::setw(4) << p.get_prog_id() << "\n"
-                << "opt_pass \t"
-                << "Proc. order size \t"
-                << "primitives optimized out \t"
-                << "opt_pass_time \t" << "opt_pass_name\n";
+            graph_opt_log << "program number: " << p.get_prog_id() << "\n"
+                << "Pass\t"
+                << "Proc.\t"
+                << "primitives\t"
+                << "Pass\t\t"
+                << "Pass\n"
+
+                << "ID  \t"
+                << "order\t\t"
+                << "optimized\t"
+                << "time,\t\t"
+                << "name\n"
+
+                << "   \t"
+                << "size\t"
+                << "out\t\t\t"
+                << "millisec\t"
+                << "   \n";
         }
     }
 }
 
 void pass_manager::run(program_impl& p, base_pass& pass) {
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+    using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
+    using Time = std::chrono::high_resolution_clock;
+
+    auto start = Time::now();
     pass.run(p);
-    std::chrono::high_resolution_clock::time_point stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> opt_pass_time = std::chrono::duration_cast<std::chrono::duration<double>>(stop - start);
+    auto stop = Time::now();
+    std::chrono::duration<float> fs = stop - start;
+    ms opt_pass_time = std::chrono::duration_cast<ms>(fs);
+
     p.save_pass_info(pass.get_name());
 
     if (graph_opt_log.is_open()) {
-        graph_opt_log << std::setw(4) << get_pass_count() << " \t"
-            << std::setw(5) << p.get_processing_order().size() << " \t"
-            << std::setw(4) << p.get_optimized_out().size() << " \t"
-            << std::setw(6) << opt_pass_time.count() << " \t"
-            << pass.get_name() << " completed.\n";
+        graph_opt_log << std::setw(4) << get_pass_count() << "\t"
+            << std::setw(5) << p.get_processing_order().size() << "\t"
+            << std::setw(4) << p.get_optimized_out().size() << "\t\t"
+            << std::setw(8) << opt_pass_time.count() << "\t"
+            << pass.get_name() << "\n";
     }
 
     std::string dump_file_name;

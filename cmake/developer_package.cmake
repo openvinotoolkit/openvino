@@ -2,11 +2,36 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+cmake_minimum_required(VERSION 3.13)
+
+list(APPEND CMAKE_MODULE_PATH
+        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download"
+        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile"
+        )
+
 include(CPackComponent)
 unset(IE_CPACK_COMPONENTS_ALL CACHE)
 
 set(IE_CPACK_IE_DIR       deployment_tools/inference_engine)
 
+# Search packages for the host system instead of packages for the target system
+# in case of cross compilation these macros should be defined by the toolchain file
+if(NOT COMMAND find_host_package)
+    macro(find_host_package)
+        find_package(${ARGN})
+    endmacro()
+endif()
+if(NOT COMMAND find_host_program)
+    macro(find_host_program)
+        find_program(${ARGN})
+    endmacro()
+endif()
+
+#
+# ie_cpack_set_library_dir()
+#
+# Set library directory for cpack
+#
 function(ie_cpack_set_library_dir)
     string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
     if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
@@ -16,9 +41,13 @@ function(ie_cpack_set_library_dir)
     endif()
 
     if(WIN32)
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/$<CONFIG>/${ARCH} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/bin/${ARCH}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
     else()
         set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -37,8 +66,9 @@ endmacro()
 
 macro(ie_cpack)
     set(CPACK_GENERATOR "TGZ")
+    string(REPLACE "/" "_" CPACK_PACKAGE_VERSION "${CI_BUILD_NUMBER}")
     if(WIN32)
-        set(CPACK_PACKAGE_NAME inference-engine_$<CONFIG>)
+        set(CPACK_PACKAGE_NAME inference-engine_${CMAKE_BUILD_TYPE})
     else()
         set(CPACK_PACKAGE_NAME inference-engine)
     endif()
@@ -46,6 +76,7 @@ macro(ie_cpack)
     set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
     set(CPACK_PACKAGE_VENDOR "Intel")
     set(CPACK_COMPONENTS_ALL ${ARGN})
+    set(CPACK_STRIP_FILES ON)
 
     if(OS_FOLDER)
         set(CPACK_SYSTEM_NAME "${OS_FOLDER}")
@@ -53,6 +84,33 @@ macro(ie_cpack)
 
     include(CPack)
 endmacro()
+
+# prepare temporary folder
+function(set_temp_directory temp_variable source_tree_dir)
+    if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
+        message(STATUS "DL_SDK_TEMP environment is set : $ENV{DL_SDK_TEMP}")
+
+        if (WIN32)
+            string(REPLACE "\\" "\\\\" temp $ENV{DL_SDK_TEMP})
+        else()
+            set(temp $ENV{DL_SDK_TEMP})
+        endif()
+
+        if (ENABLE_ALTERNATIVE_TEMP)
+            set(ALTERNATIVE_PATH ${source_tree_dir}/temp)
+        endif()
+    else ()
+        set(temp ${source_tree_dir}/temp)
+    endif()
+
+    set("${temp_variable}" "${temp}" CACHE PATH "Path to temp directory")
+    if(ALTERNATIVE_PATH)
+        set(ALTERNATIVE_PATH "${ALTERNATIVE_PATH}" PARENT_SCOPE)
+    endif()
+endfunction()
+
+include(coverage/coverage)
+include(shellcheck/shellcheck)
 
 # External dependencies
 find_package(Threads)
@@ -63,25 +121,24 @@ include(target_flags)
 # printing debug messages
 include(debug)
 
-if(UNIX AND NOT APPLE)
-    set(LINUX ON)
-endif()
+# linking libraries without discarding symbols
+include(whole_archive)
 
 string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
-if(ARCH_FOLDER STREQUAL "x86_64" OR ARCH_FOLDER STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
+if(X86_64)
     set(ARCH_FOLDER intel64)
-elseif(ARCH_FOLDER STREQUAL "i386")
+elseif(X86)
     set(ARCH_FOLDER ia32)
 endif()
 
 if(OS_FOLDER)
-	message ("**** OS FOLDER IS: [${OS_FOLDER}]")
-	if("${OS_FOLDER}" STREQUAL "ON")
-		message ("**** USING OS FOLDER: [${CMAKE_SYSTEM_NAME}]")
-		set(BIN_FOLDER "bin/${CMAKE_SYSTEM_NAME}/${ARCH_FOLDER}")
-	else()
-		set(BIN_FOLDER "bin/${OS_FOLDER}/${ARCH_FOLDER}")
-	endif()
+    message ("**** OS FOLDER IS: [${OS_FOLDER}]")
+    if("${OS_FOLDER}" STREQUAL "ON")
+        message ("**** USING OS FOLDER: [${CMAKE_SYSTEM_NAME}]")
+        set(BIN_FOLDER "bin/${CMAKE_SYSTEM_NAME}/${ARCH_FOLDER}")
+    else()
+        set(BIN_FOLDER "bin/${OS_FOLDER}/${ARCH_FOLDER}")
+    endif()
 else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
@@ -91,15 +148,10 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-if(COVERAGE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -O0")
+# allow to override default OUTPUT_ROOT root
+if(NOT DEFINED OUTPUT_ROOT)
+    set(OUTPUT_ROOT ${OpenVINO_MAIN_SOURCE_DIR})
 endif()
-
-if(UNIX)
-    SET(LIB_DL ${CMAKE_DL_LIBS})
-endif()
-
-set(OUTPUT_ROOT ${OpenVINO_MAIN_SOURCE_DIR})
 
 # Enable postfixes for Debug/Release builds
 set(IE_DEBUG_POSTFIX_WIN "d")
@@ -123,8 +175,8 @@ endif()
 set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
 set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
 
-if (WIN32)
-    # Support CMake multiconfiguration for Visual Studio build
+if (WIN32 OR CMAKE_GENERATOR STREQUAL "Xcode")
+    # Support CMake multiconfiguration for Visual Studio or Xcode build
     set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
 else ()
     if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" )
@@ -138,10 +190,6 @@ message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
 if(NOT UNIX)
-    if (WIN32)
-        # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-        # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-    endif()
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
@@ -156,15 +204,40 @@ else()
 endif()
 
 if(APPLE)
-	set(CMAKE_MACOSX_RPATH 1)
-endif(APPLE)
+    # WA for Xcode generator + object libraries issue:
+    # https://gitlab.kitware.com/cmake/cmake/issues/20260
+    # http://cmake.3232098.n2.nabble.com/XCODE-DEPEND-HELPER-make-Deletes-Targets-Before-and-While-They-re-Built-td7598277.html
+    set(CMAKE_XCODE_GENERATE_TOP_LEVEL_PROJECT_ONLY ON)
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
 
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
+
+# LTO
+
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+include(CheckIPOSupported)
+
+check_ipo_supported(RESULT IPO_SUPPORTED
+                    OUTPUT OUTPUT_MESSAGE
+                    LANGUAGES C CXX)
+
+if(NOT IPO_SUPPORTED)
+    set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optmization" FORCE)
+    message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
+endif()
+
+# General flags
+
 include(sdl)
 include(os_flags)
 include(sanitizer)
+include(cross_compiled_func)
+include(faster_build)
+include(api_validator/api_validator)
 
 function(set_ci_build_number)
     set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_SOURCE_DIR}")

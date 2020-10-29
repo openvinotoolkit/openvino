@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 #include <api/data.hpp>
+#include <api/depth_to_space.hpp>
 
 #include <api_extension/fused_conv_eltwise.hpp>
 
@@ -74,6 +75,75 @@ TEST(fused_conv_eltwise, basic_0)
     EXPECT_EQ(out_layout.size.feature[0], 1);
     EXPECT_EQ(out_layout.size.spatial[0], 4);
     EXPECT_EQ(out_layout.size.spatial[1], 5);
+}
+
+TEST(fused_conv_eltwise, basic_image2d)
+{
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 4, 128, 2 } });
+    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 3, 256, 4 } });
+    auto weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 12, 4, 1, 1 } });
+
+    auto input_data1 = generate_random_4d<FLOAT16>(1, 4, 2, 128, -1, 1);
+    auto input_data1_bfyx = flatten_4d(format::bfyx, input_data1);
+    set_values(input, input_data1_bfyx);
+
+    auto input_data2 = generate_random_4d<FLOAT16>(1, 3, 4, 256, -1, 1);
+    auto input_data2_bfyx = flatten_4d(format::bfyx, input_data2);
+    set_values(input2, input_data2_bfyx);
+
+    auto weights_data= generate_random_4d<FLOAT16>(12, 4, 1, 1, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    set_values(weights, weights_data_bfyx);
+
+    topology topology_act(
+        input_layout("input", input.get_layout()),
+        input_layout("input2", input2.get_layout()),
+        data("weights", weights),
+        convolution("conv", "input", { "weights" }),
+        depth_to_space("depth_to_space", "conv", 2, depth_to_space_mode::blocks_first),
+        eltwise("eltwise", "input2", "depth_to_space", eltwise_mode::sum)
+    );
+
+    build_options opt_act;
+    opt_act.set_option(build_option::optimize_data(true));
+    network network_act(engine, topology_act, opt_act);
+    network_act.set_input_data("input", input);
+    network_act.set_input_data("input2", input2);
+
+    auto outputs_act = network_act.execute();
+    EXPECT_EQ(outputs_act.size(), size_t(1));
+    EXPECT_EQ(outputs_act.begin()->first, "eltwise");
+
+    auto output_act = outputs_act.begin()->second.get_memory();
+    auto out_act_ptr = output_act.pointer<uint8_t>();
+
+    topology topology_ref(
+        input_layout("input", input.get_layout()),
+        input_layout("input2", input2.get_layout()),
+        data("weights", weights),
+        convolution("conv", "input", { "weights" }),
+        depth_to_space("depth_to_space", "conv", 2, depth_to_space_mode::blocks_first),
+        eltwise("eltwise", "input2", "depth_to_space", eltwise_mode::sum),
+        reorder("out", "eltwise", format::image_2d_rgba, data_types::u8));
+
+    build_options opt_ref;
+    opt_ref.set_option(build_option::optimize_data(false));
+    network network_ref(engine, topology_ref, opt_ref);
+    network_ref.set_input_data("input", input);
+    network_ref.set_input_data("input2", input2);
+
+    auto outputs_ref = network_ref.execute();
+    EXPECT_EQ(outputs_ref.size(), size_t(1));
+    EXPECT_EQ(outputs_ref.begin()->first, "out");
+
+    auto output_ref = outputs_ref.begin()->second.get_memory();
+    auto out_ref_ptr = output_ref.pointer<uint8_t>();
+
+    for (int i = 0;i < 3 * 256 * 4;i++) {
+        EXPECT_EQ(out_act_ptr[i], out_ref_ptr[i]);
+    }
 }
 
 TEST(fused_conv_eltwise, dont_fuse_if_conv_elt_are_outputs)
@@ -128,10 +198,6 @@ protected:
     std::vector<InputTy> input_values;
     std::vector<WeightsTy> weights_values;
     std::vector<BiasesTy> biases_values;
-    // Note, not all of the quantization/calibration factors are used in all the
-    // tests. However, I didn't come up with a way to correctly reflect that
-    // while unifying the boileplate testing code.
-    static constexpr float ignore = std::numeric_limits<float>::quiet_NaN();
 
     // Eltw part.
     std::vector<InputTy> non_conv_input_values;
@@ -286,57 +352,6 @@ TEST_F(FusedConvTest_all_float, DISABLED_basic) {
                                eltwise_mode::sum,
                                {"weights"},
                                {"biases"},
-                               {},
-                               {},
-                               1.0f, // conv_i_quantization_factor
-                               1.0f, // non_conv_scale
-                               "",
-                               {{1, 1, 1, 1}}, // eltw_stride
-                               {1, 1, 1, 1},   // stride
-                               {0, 0, 0, 0},   // input_offset
-                               {1, 1, 1, 1},   // dilation
-                               false,          // conv_with_activation
-                               0.0f,           // con_activation_slp
-                               true,           // eltw_activation
-                               0.0f));         // eltw_activation_slp
-}
-
-class FusedConvTest_no_conv_calibration : public FusedConvTest<float, float>
-{};
-
-TEST_F(FusedConvTest_no_conv_calibration, DISABLED_basic) {
-    // That might happen if both conv output and non-conv input happen to be
-    // normalized to the same dynamic range of if tensor-wise (instead of
-    // per-channel) calibration is used. Also, a similar thing might happen for
-    // a convolution with calibration without quantization (which is the real
-    // target of this test, needed for the Inference Engine).
-
-    // add_feature contains data for conv quantization/calibration, but the
-    // primitive won't use it. It's just much easier to unify different tests
-    // this way.
-    add_feature({125.0f, 125.0f, 0.0f, 1.0f}, // input
-                {2.0f, 0.0f, 1.0f},           // weights
-                1.0f,                         // bias
-                {-10.0f, -10.0f},             // non_conv_input
-                {241.0f, 242.0f});            // output_pre_relu
-
-    add_feature({125.0f, 125.0f, 0.0f, 1.0f}, // input
-                {2.0f, 0.0f, 1.0f},           // weights
-                0.0f,                         // bias
-                {-10.0f, -11.0f},             // non_conv_input
-                {480.0f, 480.0f});            // output_pre_relu
-
-    do_test(fused_conv_eltwise("fused_conv",
-                               "input",
-                               "sum_input",
-                               eltwise_mode::sum,
-                               {"weights"},
-                               {"biases"},
-                               {},
-                               {},   // conv_output_calibration
-                               1.0f, // conv_i_quantization_factor
-                               1.0f, // non_conv_scale
-                               "",
                                {{1, 1, 1, 1}}, // eltw_stride
                                {1, 1, 1, 1},   // stride
                                {0, 0, 0, 0},   // input_offset

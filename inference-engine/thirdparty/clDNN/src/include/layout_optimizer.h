@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@
 #include "fully_connected_inst.h"
 #include "detection_output_inst.h"
 #include "binary_convolution_inst.h"
-#include "embed_inst.h"
 #include "lstm_gemm_inst.h"
 #include "generic_layer.hpp"
 
@@ -99,8 +98,9 @@ public:
         bfyx_only_layer,
         fs_b_yx_fsv32_network,
         b_fs_zyx_fsv32_network,
-        bfyx_f16_network,
-        bfzyx_f16_network
+        b_fs_yx_fsv16_network,
+        b_fs_zyx_fsv16_network,
+        bs_fs_yx_bsv16_fsv16_network
     };
 
     struct optimization_attributes {
@@ -110,8 +110,9 @@ public:
         int32_t bfyx_only_layer = 0;
         int32_t fs_b_yx_fsv32_network = 0;
         int32_t b_fs_zyx_fsv32_network = 0;
-        int32_t bfyx_f16_network = 0;
-        int32_t bfzyx_f16_network = 0;
+        int32_t b_fs_yx_fsv16_network = 0;
+        int32_t b_fs_zyx_fsv16_network = 0;
+        int32_t bs_fs_yx_bsv16_fsv16_network = 0;
     };
 
 private:
@@ -120,6 +121,9 @@ private:
     bool _output_size_handling_enabled;
 
     std::map<primitive_id, format::type> _format_forcing;
+    static const std::vector<std::pair<format::type, bool>> optimized_formats;  // pair of format type and allowed weak restriction
+    size_t _total_conv;
+    std::map<std::pair<format::type, bool>, size_t> _optimized_conv_count;
 
     layout get_expected_layout(layout const& current_layout,
                                convolution_node const& node,
@@ -144,20 +148,26 @@ private:
                               const layout& output_layout,
                               const layout& weights_layout,
                               const convolution_node& node);
-    bool convolution_bfyx_f16_opt(const layout& output_layout,
-                                  const layout& weights_layout,
-                                  std::shared_ptr<const convolution> conv);
-    bool convolution_bfzyx_f16_opt(const layout& output_layout,
-                                   const layout& weights_layout,
-                                   std::shared_ptr<const convolution> conv);
-    bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
-                                       const layout& weights_layout,
-                                       const layout& output_layout,
+    bool convolution_b_fs_yx_fsv16_opt(const layout &output_layout,
+                                       const layout &weights_layout,
                                        std::shared_ptr<const convolution> conv,
                                        bool weak_restrictions = false);
-    bool deconvolution_bfzyx_f16_opt(const layout& output_layout,
-                                     const layout& weights_layout,
-                                     std::shared_ptr<const deconvolution> conv);
+    bool convolution_b_fs_zyx_fsv16_opt(const layout &output_layout,
+                                        const layout &weights_layout,
+                                        std::shared_ptr<const convolution> conv);
+    bool convolution_bs_fs_yx_bsv16_fsv16_opt(const layout &input_layout,
+                                              const layout& weights_layout,
+                                              std::shared_ptr<const convolution> conv);
+    bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
+                                       const layout& weights_layout,
+                                       std::shared_ptr<const convolution> conv,
+                                       bool weak_restrictions = false);
+    bool deconvolution_b_fs_zyx_fsv16_opt(const layout &output_layout,
+                                          const layout &weights_layout,
+                                          std::shared_ptr<const deconvolution> conv);
+    bool deconvolution_b_fs_yx_fsv16_opt(const layout &output_layout,
+                                         const layout &weights_layout,
+                                         std::shared_ptr<const deconvolution> conv);
     bool users_for_convolution_byxf_opt(program_node const& node, uint32_t depth);
     bool deps_for_convolution_byxf_opt(program_node const& node, uint32_t depth);
 
@@ -178,7 +188,12 @@ public:
 
     void set_implementation_forcing(const implementation_forcing_map& map);
 
-    bool is_format_optimized(const convolution_node& node, const format& format);
+    void update_formats_map(const convolution_node& node);
+    bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);
     bool is_format_optimized(const deconvolution_node& node, const format& format);
+    size_t get_optimized_conv_count(const std::pair<format::type, bool>& format);
+    size_t get_total_conv_count();
+
+    bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
 };
 }  // namespace cldnn

@@ -27,8 +27,13 @@ class RepeatExt(FrontExtractorOp):
     @classmethod
     def extract(cls, node: Node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        axis = attrs.int('axis', 0)
+        repeats = attrs.int('repeats', None)
+        assert repeats is not None and repeats > 0, \
+            '`repeat` op requires positive `repeats` attribute, but it is {} for node {}'.format(repeats, node.name)
+
         MXRepeat.update_node_stat(node, {
-            "axis": attrs.int('axis', 0),
-            "repeats": attrs.int('repeats', 0),
+            'axis': axis,
+            'repeats': repeats,
         })
         return cls.enabled

@@ -4,13 +4,14 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
+#include <vpu/compile_env.hpp>
+#include <vpu/middleend/hw/utility.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
 #include <vector>
 #include <set>
 #include <memory>
 #include <array>
-
-#include <vpu/compile_env.hpp>
-#include <vpu/middleend/hw/utility.hpp>
 
 namespace vpu {
 
@@ -30,6 +31,7 @@ void PassImpl::run(const Model& model) {
     VPU_PROFILE(splitHwConvAndPool);
 
     const auto& env = CompileEnv::get();
+    const auto cmxLimit = env.resources.tilingCMXLimit;
 
     for (const auto& convStage : model->getStages()) {
         if (convStage == nullptr) {
@@ -57,7 +59,7 @@ void PassImpl::run(const Model& model) {
 
         // TODO : better estimation?
         auto outBufSize = calculateHwBufferSize(convOutput->desc().dims());
-        if (outBufSize <= env.resources.cmxLimit) {
+        if (outBufSize <= cmxLimit) {
             continue;
         }
 
@@ -93,7 +95,7 @@ void PassImpl::run(const Model& model) {
                 curOutDims.set(Dim::C, curTileSize);
 
                 auto curOutBufSize = calculateHwBufferSize(curOutDims);
-                if (curOutBufSize <= env.resources.cmxLimit) {
+                if (curOutBufSize <= cmxLimit) {
                     tileSize = curTileSize;
                     break;
                 }

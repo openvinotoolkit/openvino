@@ -22,35 +22,51 @@ ParamsKey LRNKernelAcrossChannelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::byxf);
+    k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableLRNMode(LRNMode::ACROSS_CHANNEL);
+    k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableLRNMode(LRNMode::ACROSS_CHANNEL);
-    k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
+    k.EnableDifferentTypes();
     return k;
 }
 
 CommonDispatchData LRNKernelAcrossChannelRef::SetDefault(const lrn_params& params) const {
-    CommonDispatchData runInfo = LRNKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
 
     if (params.inputs[0].GetLayout() == DataLayout::bfyx) {
         const auto& out = params.output;
-        runInfo.gws0 = Align(out.X().v, 32);
-        runInfo.gws1 = out.Y().v;
-        runInfo.gws2 = out.Feature().v * out.Batch().v;
+        dispatchData.gws[0] = Align(out.X().v, 32);
+        dispatchData.gws[1] = out.Y().v;
+        dispatchData.gws[2] = out.Feature().v * out.Batch().v;
 
-        runInfo.lws0 = 32;
-        runInfo.lws1 = 1;
-        runInfo.lws2 = 1;
+        dispatchData.lws[0] = 32;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
 
-    return runInfo;
+    return dispatchData;
+}
+
+JitConstants LRNKernelAcrossChannelRef::GetJitConstants(const lrn_params& params,
+                                                        const LRNKernelBase::DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
+    const auto& input_dt = params.inputs[0].GetDType();
+
+    if (!params.fused_ops.empty()) {
+        FusedOpsConfiguration conf = {"", {"batch_id", "feature_id", "y", "x"}, "lrn_result", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    return jit;
 }
 
 KernelsData LRNKernelAcrossChannelRef::GetKernelsData(const Params& params, const optional_params& options) const {

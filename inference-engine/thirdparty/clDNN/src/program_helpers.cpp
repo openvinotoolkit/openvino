@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include "data_inst.h"
 #include <algorithm>
 #include <utility>
+#include <vector>
 
 namespace cldnn {
 // helper function for merging the weights/biases buffers on cpu side for depthwise separable convolution optimization
@@ -29,7 +30,7 @@ void program_helpers::merge_buffers(engine_impl& engine,
                                     const layout& target_layout,
                                     size_t begin_offset,
                                     size_t end_offset) {
-    memory_impl::ptr data_to_allocate = engine.allocate_memory(target_layout, 0);
+    memory_impl::ptr data_to_allocate = engine.allocate_memory(target_layout, 0, false);
 
     for (size_t i = begin_offset; i < end_offset; i++) {
         auto& weights = node.get_dependency(i).as<data>();
@@ -42,6 +43,67 @@ void program_helpers::merge_buffers(engine_impl& engine,
 
     auto& data_node = node.get_dependency(begin_offset).as<data>();
     data_node.attach_memory(*data_to_allocate, false);
+}
+
+void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
+    const int channels,
+    const int kernel_width,
+    const int kernel_height,
+    const int scale_factor,
+    std::vector<std::vector<std::vector<float> > >& subpixel_weights) {
+
+    std::vector<std::vector<float> > weights(channels);
+
+    int pad_zero_x = kernel_width % 2 == 0 ? 0 : 1;
+    int pad_zero_y = kernel_height % 2 == 0 ? 0 : 1;
+
+    // reshape 9x9 deconv weights, for example 32 9x9 deconv weights to 32 10x10 conv weights
+    for (int f = 0; f < channels; ++f) {
+        for (int kernel_y = 0; kernel_y < kernel_height; ++kernel_y) {
+            for (int kernel_x = 0; kernel_x < kernel_width; ++kernel_x) {
+                int index = f * kernel_width * kernel_height + kernel_y * kernel_width + kernel_x;
+                weights[f].push_back(deconv_weights[index]);
+            }
+            if (pad_zero_x == 1) {    // pad with zero on x axis
+                weights[f].push_back(0.f);
+            }
+        }
+        if (pad_zero_y == 1) {    // pad a line on y axis with zero
+            for (int kernel_x = 0; kernel_x < kernel_width + pad_zero_x; ++kernel_x) {
+                weights[f].push_back(0.f);
+            }
+        }
+    }
+
+    // reshape 32 10x10 weights to 4 32 5x5 weights
+    for (int s = 0; s < scale_factor*scale_factor; ++s) {
+        subpixel_weights[s].resize(channels);
+    }
+
+    const int kernel_sz = kernel_width + pad_zero_x;
+
+    auto get_row_index = [](int index, const int kernel_sz)->int {
+        bool isRowEven = (index / (kernel_sz)) % 2 == 0 ? true : false;
+        bool isColEven = (index % 2) == 0 ? true : false;
+        int kernel_num = isRowEven ? (isColEven ? 0 : 1) : isColEven ? 2 : 3;
+        return kernel_num;
+    };
+
+    int feature_num = static_cast<int>(weights.size());
+    for (int f = 0; f < feature_num; ++f) {
+        for (int i = 0; i < static_cast<int>(weights[f].size()); ++i) {
+            int row = get_row_index(i, kernel_sz);
+            subpixel_weights[row][f].push_back(weights[f][i]);
+        }
+    }
+
+    // dump the weights for the shuffled kernel
+    int subpixel_conv_num = static_cast<int>(subpixel_weights.size());
+    for (int s = 0; s < subpixel_conv_num; ++s) {
+        for (int row = 0; row < static_cast<int>(subpixel_weights[s].size()); ++row) {
+            std::reverse(std::begin(subpixel_weights[s][row]), std::end(subpixel_weights[s][row]));
+        }
+    }
 }
 
 // helper function for getting target layout used in depthwise sep optimization
@@ -80,22 +142,22 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         return {false, false};
     if (l1.get_linear_size() != l2.get_linear_size())
         return {false, false};
-    if ((l1.format == format::bf8_xy16 && l2.format != format::bf8_xy16) ||
-        (l2.format == format::bf8_xy16 && l1.format != format::bf8_xy16) ||
-        (l1.format == format::b_fs_yx_fsv4 && l2.format != format::b_fs_yx_fsv4) ||
+    if ((l1.format == format::b_fs_yx_fsv4 && l2.format != format::b_fs_yx_fsv4) ||
         (l2.format == format::b_fs_yx_fsv4 && l1.format != format::b_fs_yx_fsv4) ||
         (l1.format == format::fs_b_yx_fsv32 && l2.format != format::fs_b_yx_fsv32) ||
         (l2.format == format::fs_b_yx_fsv32 && l1.format != format::fs_b_yx_fsv32) ||
-        (l1.format == format::bfyx_f16 && l2.format != format::bfyx_f16) ||
-        (l2.format == format::bfyx_f16 && l1.format != format::bfyx_f16) ||
+        (l1.format == format::b_fs_yx_fsv16 && l2.format != format::b_fs_yx_fsv16) ||
+        (l2.format == format::b_fs_yx_fsv16 && l1.format != format::b_fs_yx_fsv16) ||
         (l1.format == format::b_fs_yx_fsv32 && l2.format != format::b_fs_yx_fsv32) ||
         (l2.format == format::b_fs_yx_fsv32 && l1.format != format::b_fs_yx_fsv32) ||
         (l1.format == format::b_fs_zyx_fsv32 && l2.format != format::b_fs_zyx_fsv32) ||
         (l2.format == format::b_fs_zyx_fsv32 && l1.format != format::b_fs_zyx_fsv32) ||
-        (l1.format == format::bfzyx_f16 && l2.format != format::bfzyx_f16) ||
-        (l2.format == format::bfzyx_f16 && l1.format != format::bfzyx_f16) ||
-        (l1.format == format::bfzyx_b16f16 && l2.format != format::bfzyx_b16f16) ||
-        (l2.format == format::bfzyx_b16f16 && l1.format != format::bfzyx_b16f16))
+        (l1.format == format::b_fs_zyx_fsv16 && l2.format != format::b_fs_zyx_fsv16) ||
+        (l2.format == format::b_fs_zyx_fsv16 && l1.format != format::b_fs_zyx_fsv16) ||
+        (l1.format == format::bs_fs_yx_bsv16_fsv16 && l2.format != format::bs_fs_yx_bsv16_fsv16) ||
+        (l2.format == format::bs_fs_yx_bsv16_fsv16 && l1.format != format::bs_fs_yx_bsv16_fsv16) ||
+        (l1.format == format::bs_fs_zyx_bsv16_fsv16 && l2.format != format::bs_fs_zyx_bsv16_fsv16) ||
+        (l2.format == format::bs_fs_zyx_bsv16_fsv16 && l1.format != format::bs_fs_zyx_bsv16_fsv16))
         return {false, false};
 
     auto l1_pitch = l1.get_pitches();

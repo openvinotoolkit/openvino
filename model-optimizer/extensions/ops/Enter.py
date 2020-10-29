@@ -14,12 +14,10 @@
  limitations under the License.
 """
 
-
-import networkx as nx
 import numpy as np
+
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class Enter(Op):
@@ -27,7 +25,7 @@ class Enter(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'in_ports_count': 1,
             'infer': Enter.enter_infer,

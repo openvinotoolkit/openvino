@@ -36,9 +36,10 @@ using namespace vpu;
 
 static std::mutex device_mutex;
 
-MyriadExecutor::MyriadExecutor(bool forceReset, const LogLevel& vpuLogLevel, const Logger::Ptr& log) : _log(log) {
+MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
+    const LogLevel& vpuLogLevel, const Logger::Ptr& log) : _log(log), _mvnc(std::move(mvnc)) {
     VPU_PROFILE(MyriadExecutor);
-    _mvnc = std::make_shared<Mvnc>();
+    VPU_THROW_UNLESS(_mvnc, "mvnc is null");
     int ncResetAll = forceReset;
     auto status = ncGlobalSetOption(NC_RW_RESET_ALL, &ncResetAll, sizeof(ncResetAll));
     if (status != NC_OK) {
@@ -131,17 +132,23 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
         configDevName.copy(in_deviceDesc.name, NC_MAX_NAME_SIZE - 1);
     }
 
-    statusOpen = ncSetDeviceConnectTimeout(config.deviceConnectTimeout().count());
+    statusOpen = ncSetDeviceConnectTimeout(static_cast<int>(config.deviceConnectTimeout().count()));
     if (statusOpen) {
         return statusOpen;
     }
 
+    ncDeviceOpenParams_t deviceOpenParams = {};
+    deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
+    deviceOpenParams.watchdogInterval = static_cast<int>(config.watchdogInterval().count());
+    deviceOpenParams.memoryType = checked_cast<char>(config.memoryType());
+    deviceOpenParams.customFirmwareDirectory = dirName.c_str();
+
     // Open new device with specific path to FW folder
     statusOpen = ncDeviceOpen(&device._deviceHandle,
-        in_deviceDesc, config.watchdogInterval().count(), dirName.c_str());
+        in_deviceDesc, deviceOpenParams);
 
     if (statusOpen != NC_OK) {
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return statusOpen;
     }
 
@@ -154,7 +161,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
                                           reinterpret_cast<void*>(&device._platform), &dataLength);
     if (status != NC_OK || dataLength != sizeof(device._platform)) {
         _log->warning("Failed to get device platform");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     }
 
@@ -163,7 +170,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
                                reinterpret_cast<void*>(&device._protocol), &dataLength);
     if (status != NC_OK || dataLength != sizeof(device._protocol)) {
         _log->warning("Failed to get device protocol");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     }
 
@@ -173,7 +180,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
                                reinterpret_cast<void*>(&device._maxGraphNum), &dataLength);
     if (status != NC_OK || dataLength != sizeof(device._maxGraphNum)) {
         _log->warning("Failed to get maximum supported number of graphs");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     }
 
@@ -184,7 +191,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
                                reinterpret_cast<void*>(&deviceName), &dataLength);
     if (status != NC_OK || dataLength > NC_MAX_NAME_SIZE) {
         _log->warning("Failed to get name of booted device");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     } else {
         device._name = deviceName;
@@ -194,7 +201,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
 
     if (status != NC_OK) {
         _log->warning("Failed to set configuration for Power Manager");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status;
     }
 
@@ -283,12 +290,12 @@ VPU_PACKED(bin_header {
     uint32_t frequency;
 };)
 
-void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool) {
+void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool, std::shared_ptr<IMvnc> mvnc) {
     VPU_PROFILE(closeDevices);
     std::lock_guard<std::mutex> lock(device_mutex);
     for (auto &device : devicePool) {
         if (device->_deviceHandle != nullptr) {
-            auto res = ncDeviceClose(&(device->_deviceHandle));
+            auto res = ncDeviceClose(&(device->_deviceHandle), mvnc->watchdogHndl());
             if (res != NC_OK)
                 printf("ncDeviceClose failed (%d)\n", static_cast<int>(res));
             device->_deviceHandle = nullptr;
@@ -299,9 +306,9 @@ void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool) {
 void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                                    const std::vector<char> &graphFileContent,
                                    const std::pair<const char*, size_t> &graphHeaderDesc,
-                                   size_t numStages, const char* networkName, int executors) {
+                                   size_t numStages, const std::string & networkName, int executors) {
     VPU_PROFILE(allocateGraph);
-    _numStages = numStages;
+    _numStages = static_cast<int>(numStages);
     graphDesc._name = networkName;
     if (device->_deviceHandle == nullptr) {
         THROW_IE_EXCEPTION << "Failed to allocate graph: MYRIAD device is not opened.";
@@ -309,7 +316,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
 
     ncStatus_t status;
 
-    status = ncGraphCreate(networkName, &graphDesc._graphHandle);
+    status = ncGraphCreate(networkName.c_str(), &graphDesc._graphHandle);
     if (status != NC_OK) {
         THROW_IE_EXCEPTION << "Failed to init graph: " << ncStatusToStr(nullptr, status);
     }
@@ -324,7 +331,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                              graphFileContent.data(),
                              static_cast<unsigned int>(graphFileContent.size()),
                              graphHeaderDesc.first,
-                             graphHeaderDesc.second);
+                             static_cast<unsigned>(graphHeaderDesc.second));
     if (status != NC_OK) {
         THROW_IE_EXCEPTION << "Failed to allocate graph: " << ncStatusToStr(nullptr, status);
     }
@@ -411,7 +418,7 @@ void MyriadExecutor::queueInference(GraphDesc &graphDesc, void *input_data, size
     }
 
     if (result_data != nullptr && result_bytes != 0) {
-        getResult(graphDesc, result_data, result_bytes);
+        getResult(graphDesc, result_data, static_cast<unsigned>(result_bytes));
     }
 }
 

@@ -9,12 +9,14 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <utility>
+#include <primitive_attr.hpp>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNQuantizeNode : public MKLDNNNode {
 public:
-    MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket);
+    MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNQuantizeNode() override = default;
 
     void initSupportedPrimitiveDescriptors() override;
@@ -23,99 +25,44 @@ public:
     bool created() const override;
     void execute(mkldnn::stream strm) override;
 
-    const float* getBinarizationTresholdsPtr() {
-        if (!initialized)
-            initValues();
-        return &binarizationThresholds[0];
-    }
+    size_t getAxis() const { return axis; }
 
-    size_t getBinarizationTresholdsSize() {
-        if (!initialized)
-            initValues();
-        return binarizationThresholds.size();
-    }
+    bool isBinarization() const { return quantizeAlgorithm == mkldnn::algorithm::binarization_depthwise; }
+    mkldnn::algorithm getAlgorithm() const { return quantizeAlgorithm; }
 
-    const float* getBinarizationOutputMaskPtr() {
-        if (!initialized)
-            initValues();
-        return reinterpret_cast<float*>(&binarizationOutputMask[0]);
-    }
+    const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
+    const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
+    size_t getBinarizationTresholdsSize() const { return binarizationThresholds.size(); }
+    size_t getBinarizationOutputMaskSize() const { return binarizationOutputMask.size(); }
 
-    size_t getBinarizationOutputMaskSize() {
-        if (!initialized)
-            initValues();
-        return binarizationOutputMask.size();
-    }
+    const std::vector<float>& getCropLow() const { return cropLow; }
+    const std::vector<float>& getCropHigh() const { return cropHigh; }
+    const std::vector<float>& getInputScale() const { return inputScale; }
+    const std::vector<float>& getInputShift() const { return inputShift; }
+    const std::vector<float>& getOutputScale() const { return outputScale; }
+    const std::vector<float>& getOutputShift() const { return outputShift; }
 
-    bool isBinarization() {
-        if (!initialized)
-            initValues();
-        return quantizeAlgorithm == mkldnn::algorithm::binarization_depthwise;
-    }
+    void setCropLow(std::vector<float> newCropLow) { cropLow = std::move(newCropLow); isPostOpDataInitialized = false; }
+    void setCropHigh(std::vector<float> newCropHigh) { cropHigh = std::move(newCropHigh); isPostOpDataInitialized = false; }
+    void setInputScale(std::vector<float> newInputScale) { inputScale = std::move(newInputScale); isPostOpDataInitialized = false; }
+    void setInputShift(std::vector<float> newInputShift) { inputShift = std::move(newInputShift); isPostOpDataInitialized = false; }
+    void setOutputScale(std::vector<float> newOutputScale) { outputScale = std::move(newOutputScale); isPostOpDataInitialized = false;}
+    void setOutputShift(std::vector<float> newOutputShift) { outputShift = std::move(newOutputShift); isPostOpDataInitialized = false; }
 
-    size_t getAxis() {
-        if (!initialized)
-            initValues();
-        return axis;
-    }
+    bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
+    bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
+    bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
+    bool isOutputHighBroadcast() const { return isOutputHighBroadcasted; }
 
-    const float* getCropLowPtr() {
-        if (!initialized)
-            initValues();
-        return &cropLow[0];
-    }
+    InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
+    InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    const float* getCropHighPtr() {
-        if (!initialized)
-            initValues();
-        return &cropHigh[0];
-    }
-
-    const float* getInputScalePtr() {
-        if (!initialized)
-            initValues();
-        return &inputScale[0];
-    }
-
-    const float* getInputShiftPtr() {
-        if (!initialized)
-            initValues();
-        return &inputShift[0];
-    }
-
-    const float* getOutputScalePtr() {
-        if (!initialized)
-            initValues();
-        return &outputScale[0];
-    }
-
-    const float* getOutputShiftPtr() {
-        if (!initialized)
-            initValues();
-        return &outputShift[0];
-    }
-
-    InferenceEngine::Precision getInputPrecision() {
-        if (!initialized)
-            initValues();
-        return inputPrecision;
-    }
-
-    InferenceEngine::Precision getOutputPrecision() {
-        if (!initialized)
-            initValues();
-        return outputPrecision;
-    }
-
-    mkldnn::algorithm getAlgorithm() {
-        return quantizeAlgorithm;
-    }
+    void appendPostOps(mkldnn::post_ops& ops) override;
 
 private:
-    void initValues();
-    std::vector<mkldnn::memory::format> getDataFormats();
+    void init() override;
+    std::vector<mkldnn::memory::format> getDataFormats() const;
 
-    bool initialized = false;
     int levels = -1;
 
     std::vector<float> binarizationThresholds;
@@ -128,10 +75,19 @@ private:
     std::vector<float> outputScale;
     std::vector<float> outputShift;
 
-    size_t inputLowAxis = 0;
-    size_t inputHighAxis = 0;
-    size_t outputLowAxis = 0;
-    size_t outputHighAxis = 0;
+    // mkldnn style post ops data representation
+    bool isPostOpDataInitialized = false;
+    mkldnn::impl::shifts_t<float> cropLowData;
+    mkldnn::impl::shifts_t<float> cropHighData;
+    mkldnn::impl::scales_t inputScaleData;
+    mkldnn::impl::shifts_t<float> inputShiftData;
+    mkldnn::impl::scales_t outputScaleData;
+    mkldnn::impl::shifts_t<float> outputShiftData;
+
+    bool isInputLowBroadcasted = false;
+    bool isInputHighBroadcasted = false;
+    bool isOutputLowBroadcasted = false;
+    bool isOutputHighBroadcasted = false;
 
     size_t axis = 0;
 

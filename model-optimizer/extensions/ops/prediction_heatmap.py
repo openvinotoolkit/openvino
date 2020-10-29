@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph
@@ -28,6 +27,7 @@ class PredictionHeatmapOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'extension',
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': PredictionHeatmapOp.infer

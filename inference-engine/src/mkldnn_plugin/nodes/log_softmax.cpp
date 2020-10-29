@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -105,7 +104,7 @@ private:
     bool is_last_dim = false;
 };
 
-REG_FACTORY_FOR(ImplFactory<LogSoftmaxImpl>, LogSoftmax);
+REG_FACTORY_FOR(LogSoftmaxImpl, LogSoftmax);
 
 }  // namespace Cpu
 }  // namespace Extensions

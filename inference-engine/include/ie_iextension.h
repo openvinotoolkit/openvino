@@ -14,11 +14,12 @@
 #include <string>
 #include <vector>
 
-#include "details/ie_no_copy.hpp"
 #include "ie_api.h"
-#include "ie_error.hpp"
-#include "ie_layers.h"
+#include "ie_common.h"
+#include "ie_layouts.h"
+#include "ie_blob.h"
 #include "ie_version.hpp"
+#include "details/ie_no_copy.hpp"
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)
@@ -34,6 +35,7 @@
 namespace ngraph {
 
 class OpSet;
+class Node;
 
 }  // namespace ngraph
 
@@ -79,16 +81,37 @@ struct LayerConfig {
 };
 
 /**
+ * @interface ILayerImpl
  * @brief This class provides interface for extension implementations
  */
-class ILayerImpl {
+class INFERENCE_ENGINE_API_CLASS(ILayerImpl) {
 public:
+    /**
+     * @brief A shared pointer to the ILayerImpl interface
+     */
     using Ptr = std::shared_ptr<ILayerImpl>;
 
     /**
      * @brief Destructor
      */
-    virtual ~ILayerImpl() = default;
+    virtual ~ILayerImpl();
+};
+
+/**
+ * @interface ILayerExecImpl
+ * @brief This class provides interface for the implementation with the custom execution code
+ */
+class INFERENCE_ENGINE_API_CLASS(ILayerExecImpl) : public ILayerImpl {
+public:
+    /**
+     * @brief A shared pointer to the ILayerExecImpl interface
+     */
+    using Ptr = std::shared_ptr<ILayerExecImpl>;
+
+    /**
+     * @brief Destructor
+     */
+    virtual ~ILayerExecImpl();
 
     /**
      * @brief Gets all supported configurations for the current layer
@@ -107,13 +130,7 @@ public:
      * @return Status code
      */
     virtual StatusCode init(LayerConfig& config, ResponseDesc* resp) noexcept = 0;
-};
 
-/**
- * @brief This class provides interface for the implementation with the custom execution code
- */
-class ILayerExecImpl : public ILayerImpl {
-public:
     /**
      * @brief Execute method
      *
@@ -127,70 +144,38 @@ public:
 };
 
 /**
- * @brief This class provides interface for extension factories
+ * @brief This class is the main extension interface
  */
-class ILayerImplFactory {
-public:
-    using Ptr = std::shared_ptr<ILayerImplFactory>;
-    using ImplCreator = std::function<ILayerImpl*()>;
-
-    /**
-     * @brief Destructor
-     */
-    virtual ~ILayerImplFactory() = default;
-
-    /**
-     * @brief Gets all possible implementations for the given cnn Layer
-     *
-     * @param impls the vector with implementations which is ordered by priority
-     * @param resp response descriptor
-     * @return status code
-     */
-    virtual StatusCode getImplementations(std::vector<ILayerImpl::Ptr>& impls, ResponseDesc* resp) noexcept = 0;
-};
-
-/**
- * @class IShapeInferImpl
- * @brief This class provides interface for the implementation with the custom execution code
- */
-class IShapeInferImpl {
-public:
-    using Ptr = std::shared_ptr<IShapeInferImpl>;
-
-    virtual ~IShapeInferImpl() = default;
-
-    /**
-     * @brief check that reshape can be applied, that parameters and shapes are valid
-     */
-    virtual StatusCode inferShapes(const std::vector<Blob::CPtr>& /*inBlobs*/,
-                                   const std::map<std::string, std::string>& /*params*/,
-                                   const std::map<std::string, Blob::Ptr>& /*blobs*/,
-                                   std::vector<SizeVector>& /*outShapes*/, ResponseDesc* /*resp*/) noexcept {
-        return NOT_IMPLEMENTED;
-    }  // For backward-compatibility
-};
-
-/**
- * @class IShapeInferExtension
- * @brief This class is the reader extension interface to provide implementation for shape propagation
- */
-class IShapeInferExtension : public InferenceEngine::details::IRelease {
+class INFERENCE_ENGINE_API_CLASS(IExtension) : public InferenceEngine::details::IRelease {
 public:
     /**
-     * @brief Sets logging callback.
-     *
-     * Logging is used to track what is going on inside.
-     *
-     * @param listener Logging sink
+     * @brief Returns operation sets
+     * This method throws an exception if it was not implemented
+     * @return map of opset name to opset
      */
-    virtual void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept = 0;
+    virtual std::map<std::string, ngraph::OpSet> getOpSets();
 
     /**
-     * @brief Gets extension version information and stores in versionInfo
-     *
-     * @param versionInfo Pointer to version info, will be set by plugin
+     * @brief Returns vector of implementation types
+     * @param node shared pointer to nGraph op
+     * @return vector of strings
      */
-    virtual void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept = 0;
+    virtual std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) {
+        (void)node;
+        return {};
+    }
+
+    /**
+     * @brief Returns implementation for specific nGraph op
+     * @param node shared pointer to nGraph op
+     * @param implType implementation type
+     * @return shared pointer to implementation
+     */
+    virtual ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
+        (void)node;
+        (void)implType;
+        return nullptr;
+    }
 
     /**
      * @brief Cleans resources up
@@ -198,63 +183,16 @@ public:
     virtual void Unload() noexcept = 0;
 
     /**
-     * @brief Fills passed array with types of layers which shape infer implementations are included in the extension
-     *
-     * @param types Array to store the layer types
-     * @param size Size of the layer types array
-     * @param resp Response descriptor
-     * @return Status code
+     * @brief Gets extension version information and stores in versionInfo
+     * @param versionInfo Pointer to version info, will be set by plugin
      */
-    virtual StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept = 0;
-
-    /**
-     * @brief Gets shape propagation implementation for the given string-type of cnn Layer
-     *
-     * @param impl the vector with implementations which is ordered by priority
-     * @param resp response descriptor
-     * @return status code
-     */
-    virtual StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept = 0;
+    virtual void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept = 0;
 };
 
 /**
- * @brief This class is the main extension interface
+ * @brief A shared pointer to a IExtension interface
  */
-class IExtension : public IShapeInferExtension {
-public:
-    virtual StatusCode getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer,
-                                     ResponseDesc* resp) noexcept = 0;
-
-    /**
-     * @brief Fills passed array with types of layers which kernel implementations are included in the extension
-     *
-     * @param types Array to store the layer types
-     * @param size Size of the layer types array
-     * @param resp Response descriptor
-     * @return Status code
-     */
-    virtual StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept = 0;
-
-    StatusCode getShapeInferTypes(char**&, unsigned int&, ResponseDesc*) noexcept override {
-        return NOT_IMPLEMENTED;
-    };
-
-    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr&, const char*, ResponseDesc*) noexcept override {
-        return NOT_IMPLEMENTED;
-    };
-
-    /**
-     * @brief Returns operation sets
-     * This method throws an exception if it was not implemented
-     * @return map of opset name to opset
-     */
-    virtual std::map<std::string, ngraph::OpSet> getOpSets() {
-        THROW_IE_EXCEPTION << "Method is not implemented!";
-    }
-};
-
 using IExtensionPtr = std::shared_ptr<IExtension>;
-using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
 
 /**
  * @brief Creates the default instance of the extension
@@ -264,14 +202,5 @@ using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
  * @return Status code
  */
 INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
-
-/**
- * @brief Creates the default instance of the shape infer extension
- *
- * @param ext Shape Infer Extension interface
- * @param resp Response description
- * @return Status code
- */
-INFERENCE_EXTENSION_API(StatusCode) CreateShapeInferExtension(IShapeInferExtension*& ext, ResponseDesc* resp) noexcept;
 
 }  // namespace InferenceEngine

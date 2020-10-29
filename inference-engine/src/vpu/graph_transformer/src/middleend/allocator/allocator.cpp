@@ -61,11 +61,11 @@ Allocator::Allocator(): _allocatorOfShaves(_cmxMemoryPool) {
 namespace {
 
 void updateChildDataAllocation(const Data& data, int offsetLimitation) {
-    for (const auto& edge : data->childDataEdges()) {
+    for (const auto& edge : data->childDataToDataEdges()) {
         auto parent = edge->parent();
         auto child = edge->child();
 
-        auto memoryOffset = parent->memoryOffset();
+        auto memoryOffset = parent->dataLocation().offset;
 
         if (edge->mode() == SharedDataMode::ROI) {
             auto parentStrides = parent->strides();
@@ -86,11 +86,32 @@ void updateChildDataAllocation(const Data& data, int offsetLimitation) {
             IE_ASSERT(false) << "Unsupported enum value";
         }
 
-        child->setAllocationInfo(parent->location(), memoryOffset);
+        child->setDataAllocationInfo({parent->dataLocation().location, memoryOffset});
 
         updateChildDataAllocation(child, offsetLimitation);
     }
 }
+
+int getInUse(const Data& data) {
+    int inUse = 0;
+    inUse += data->numConsumers();
+    for (const auto& childData : data->childDatas()) {
+        inUse += getInUse(childData);
+    }
+    for (const auto& childEdge : data->childDataToShapeEdges()) {
+        auto const& child = childEdge->child();
+        if (child->usage() == DataUsage::Output) {
+            VPU_THROW_UNLESS(child->parentData() == nullptr, "Output data object must not have parent");
+            inUse++;
+        } else if (child->getTopParentData() == child) {
+            inUse += getInUse(child);
+        } else {
+            inUse += child->numConsumers();
+        }
+    }
+    return inUse;
+}
+
 
 }  // namespace
 
@@ -107,7 +128,7 @@ bool Allocator::allocateData(const Data& data) {
 
     if (data->usage() == DataUsage::Fake) {
         if (_allocatedData.count(data) == 0) {
-            IE_ASSERT(data->parentDataEdge() == nullptr);
+            IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
             updateChildDataAllocation(data, 0);
 
@@ -123,11 +144,11 @@ bool Allocator::allocateData(const Data& data) {
 
     if (data->usage() == DataUsage::Input) {
         if (_allocatedData.count(data) == 0) {
-            IE_ASSERT(data->parentDataEdge() == nullptr);
+            IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
             auto finalByteSize = data->totalByteSize() * _modelBatchSize;
 
-            data->setIOInfo(DataLocation::Input, alignVal(_inputMemOffset, DATA_ALIGNMENT));
+            data->setIOInfo(Location::Input, alignVal(_inputMemOffset, DATA_ALIGNMENT));
             _inputMemOffset = alignVal(_inputMemOffset, DATA_ALIGNMENT) + finalByteSize;
 
             updateChildDataAllocation(data, DDR_MAX_SIZE);
@@ -144,7 +165,7 @@ bool Allocator::allocateData(const Data& data) {
 
     if (data->usage() == DataUsage::Output) {
         if (_allocatedData.count(data) == 0) {
-            IE_ASSERT(data->parentDataEdge() == nullptr);
+            IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
             int finalByteSize = 0;
             if (data->attrs().getOrDefault<bool>("unbatched", false)) {
@@ -153,7 +174,7 @@ bool Allocator::allocateData(const Data& data) {
                 finalByteSize = data->totalByteSize() * _modelBatchSize;
             }
 
-            data->setIOInfo(DataLocation::Output, alignVal(_outputMemOffset, DATA_ALIGNMENT));
+            data->setIOInfo(Location::Output, alignVal(_outputMemOffset, DATA_ALIGNMENT));
             _outputMemOffset = alignVal(_outputMemOffset, DATA_ALIGNMENT) + finalByteSize;
 
             updateChildDataAllocation(data, DDR_MAX_SIZE);
@@ -170,13 +191,13 @@ bool Allocator::allocateData(const Data& data) {
 
     if (data->usage() == DataUsage::Const) {
         if (_allocatedData.count(data) == 0) {
-            IE_ASSERT(data->parentDataEdge() == nullptr);
+            IE_ASSERT(data->parentDataToDataEdge() == nullptr);
             IE_ASSERT(data->checkStrides(StridesRequirement::compact()));
             IE_ASSERT(data->content() != nullptr);
 
             auto finalByteSize = calcAllocationSize(data);
 
-            data->setAllocationInfo(DataLocation::Blob, _blobMemOffset);
+            data->setDataAllocationInfo({Location::Blob, _blobMemOffset});
             _blobMemOffset += finalByteSize;
 
             updateChildDataAllocation(data, DDR_MAX_SIZE);
@@ -192,15 +213,21 @@ bool Allocator::allocateData(const Data& data) {
     //
 
     if (data->usage() == DataUsage::Intermediate) {
-        IE_ASSERT(data->producerEdge() != nullptr);
-        IE_ASSERT(data->numConsumers() > 0);
+        VPU_INTERNAL_CHECK(data->producerEdge() != nullptr,
+            "Allocation check failed: data {} with usage {} must have producer, but actually it doesn't",
+            data->name(), data->usage());
+        VPU_INTERNAL_CHECK(!data->consumers().empty() || !data->childDataToShapeEdges().empty() ||
+            !data->dependentStagesEdges().empty(),
+            "Allocation check failed: data {} with usage {} must have at least one data/stage "
+            "depending on it, but it doesn't have either",
+            data->name(), data->usage());
     }
 
     //
     // Allocate parent data if any
     //
 
-    if (auto parentEdge = data->parentDataEdge()) {
+    if (auto parentEdge = data->parentDataToDataEdge()) {
         auto parent = parentEdge->parent();
 
         auto parentMemType = parent->memReqs();
@@ -210,7 +237,7 @@ bool Allocator::allocateData(const Data& data) {
         return allocateData(parent);
     }
 
-    IE_ASSERT(data->parentDataEdge() == nullptr);
+    IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
     //
     // Check if the data is already allocated
@@ -237,15 +264,16 @@ bool Allocator::allocateData(const Data& data) {
     //
 
     int inUse = 0;
+
     if (data->usage() == DataUsage::Temp) {
         inUse = 1;
     } else {
-        loopOverData(data, [&inUse](const Data& subData) {
-            inUse += subData->numConsumers();
-            return DataLoopStatus::NextChild;
-        });
+        inUse = getInUse(data);
     }
-    IE_ASSERT(inUse >= 1);
+
+    VPU_INTERNAL_CHECK(inUse >= 1,
+        "allocateData failed: data {} with usage {} isn't used by anything",
+        data->name(), data->usage());
 
     auto chunk = allocateMem(memoryType, finalByteSize, inUse);
 
@@ -257,9 +285,9 @@ bool Allocator::allocateData(const Data& data) {
     // Update data allocation info
     //
 
-    data->setAllocationInfo(chunk->memType == MemoryType::CMX ? DataLocation::CMX : DataLocation::BSS, chunk->pointer);
+    data->setDataAllocationInfo({chunk->memType == MemoryType::CMX ? Location::CMX : Location::BSS, chunk->pointer});
 
-    auto offsetLimitation = (data->location() == DataLocation::CMX) ? _maxCmxSize : DDR_MAX_SIZE;
+    auto offsetLimitation = (data->dataLocation().location == Location::CMX) ? _maxCmxSize : DDR_MAX_SIZE;
     updateChildDataAllocation(data, offsetLimitation);
 
     _memChunksPerData.emplace(data, chunk);
@@ -268,35 +296,112 @@ bool Allocator::allocateData(const Data& data) {
     return chunk->memType == memoryType;
 }
 
+ShapeLocation Allocator::allocateShape(const Data& data) {
+    ShapeLocation shapeLocation;
+
+    const auto dimsByteSize = data->desc().dimsByteSize();
+
+    if (data->parentDataToShapeEdge()) {
+        // Dims for this data is already allocated, so reuse it
+        const auto& dataLocation = data->parentDataToShapeEdge()->parent()->dataLocation();
+
+        shapeLocation.dimsLocation = dataLocation.location;
+        shapeLocation.dimsOffset = dataLocation.offset;
+
+        if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Input) {
+            // We need to allocate memory for maximum dims values also
+            data->attrs().set<int>("ioDimsUpperBoundOffset", _blobMemOffset);
+            _blobMemOffset += dimsByteSize;
+        }
+    } else {
+        // Static allocation
+        shapeLocation.dimsLocation = Location::Blob;
+        shapeLocation.dimsOffset = _blobMemOffset;
+        _blobMemOffset += dimsByteSize;
+    }
+
+
+    // Allocate strides always statically, as dynamically we can get only dims
+    shapeLocation.stridesLocation = Location::Blob;
+    shapeLocation.stridesOffset = _blobMemOffset;
+    _blobMemOffset += dimsByteSize;
+
+    return shapeLocation;
+}
+
 void Allocator::freeData(const Data& data, DeallocationMode mode) {
+    const auto getChunk = [this, &data](const Data& parent) {
+        VPU_THROW_UNLESS(_allocatedIntermData.count(parent) > 0,
+            "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} is not allocated",
+             data->name(), data->usage(), parent->name(), parent->usage());
+
+        auto it = _memChunksPerData.find(parent);
+
+        VPU_INTERNAL_CHECK(it != _memChunksPerData.end(),
+            "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} "
+            "containing shape for current data wasn't yet allocated",
+            data->name(), data->usage(), parent->name(), parent->usage());
+
+        auto chunk = it->second;
+
+        VPU_INTERNAL_CHECK(chunk != nullptr,
+            "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} "
+            "containing shape for current data has no memory chunk",
+            data->name(), data->usage(), parent->name(), parent->usage());
+
+        VPU_INTERNAL_CHECK(chunk->inUse > 0,
+            "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} "
+            "containing shape for this data has zero usages, but it is using at least by current data",
+            data->name(), data->usage(), parent->name(), parent->usage());
+
+        return chunk;
+    };
+
+    const auto decreaseChunkUsage = [this](allocator::MemChunk* chunk, const Data& parent) {
+        --chunk->inUse;
+
+        if (chunk->inUse == 0) {
+            freeMem(chunk);
+
+            _memChunksPerData.erase(parent);
+            _allocatedIntermData.erase(parent);
+        }
+    };
+
     //
     // Release the chunk
     //
 
     auto topParent = data->getTopParentData();
+    if (topParent != data) {
+        if (const auto& parentDataToShapeEdge = data->parentDataToShapeEdge()) {
+            const auto& parent = parentDataToShapeEdge->parent();
+
+            if (parent->usage() == DataUsage::Intermediate || parent->usage() == DataUsage::Temp) {
+                const auto dtopParent = parent->getTopParentData();
+                const auto chunk = getChunk(dtopParent);
+                decreaseChunkUsage(chunk, dtopParent);
+            }
+        }
+    }
 
     if (topParent->usage() == DataUsage::Intermediate ||
         topParent->usage() == DataUsage::Temp) {
-        IE_ASSERT(_allocatedIntermData.count(topParent) > 0);
-
-        auto it = _memChunksPerData.find(topParent);
-        IE_ASSERT(it != _memChunksPerData.end());
-
-        auto chunk = it->second;
-        IE_ASSERT(chunk != nullptr);
-        IE_ASSERT(chunk->inUse > 0);
+        auto chunk = getChunk(topParent);
 
         switch (mode) {
         case DeallocationMode::JustFree: {
-            --chunk->inUse;
+            if (const auto& parentDataToShapeEdge = topParent->parentDataToShapeEdge()) {
+                const auto& parent = parentDataToShapeEdge->parent();
 
-            if (chunk->inUse == 0) {
-                freeMem(chunk);
-
-                _memChunksPerData.erase(topParent);
-                _allocatedIntermData.erase(topParent);
+                if (parent->usage() == DataUsage::Intermediate || parent->usage() == DataUsage::Temp) {
+                    const auto dtopParent = parent->getTopParentData();
+                    const auto dchunk = getChunk(dtopParent);
+                    decreaseChunkUsage(dchunk, dtopParent);
+                }
             }
 
+            decreaseChunkUsage(chunk, topParent);
             break;
         }
 
@@ -313,7 +418,7 @@ void Allocator::freeData(const Data& data, DeallocationMode mode) {
 
             _memChunksPerData[data] = ddrChunk;
 
-            data->setAllocationInfo(DataLocation::BSS, ddrChunk->pointer);
+            data->setDataAllocationInfo({Location::BSS, ddrChunk->pointer});
             updateChildDataAllocation(data, DDR_MAX_SIZE);
 
             break;
@@ -335,7 +440,7 @@ void Allocator::selfCheck() {
     }
 }
 
-UsedMemory Allocator::usedMemory() const {
+UsedMemory Allocator::usedMemoryAmount() const {
     UsedMemory stats;
 
     stats.BSS = _ddrMemoryPool.memUsed;
@@ -345,6 +450,27 @@ UsedMemory Allocator::usedMemory() const {
     stats.output = _outputMemOffset;
 
     return stats;
+}
+
+std::size_t Allocator::freeDDRMemoryAmount() const {
+    const auto& pool = _memPools.at(MemoryType::DDR);
+    const auto offset = pool->curMemOffset;
+    VPU_THROW_UNLESS(offset <= DDR_MAX_SIZE, "Out of bound offset for next free data in DDR: size = {}, while offset = {}", DDR_MAX_SIZE, offset);
+
+    return DDR_MAX_SIZE - offset;
+}
+
+std::size_t Allocator::freeCMXMemoryAmount() const {
+    const auto& pool = _memPools.at(MemoryType::CMX);
+    const auto shavesCMX = _allocatorOfShaves.getLockedSHAVEs() * CMX_SLICE_SIZE;
+    const auto offset = pool->curMemOffset + shavesCMX;
+    VPU_THROW_UNLESS(offset <= _maxCmxSize, "Out of bound offset for next free data in CMX: size = {}, while offset = {}", _maxCmxSize, offset);
+
+    return _maxCmxSize - offset;
+}
+
+std::size_t Allocator::freeMemoryAmount(const MemoryType& type) const {
+    return type == MemoryType::CMX ? freeCMXMemoryAmount() : freeDDRMemoryAmount();
 }
 
 void Allocator::extractDatas(MemoryType memType, const DataSet& from, DataVector& out) const {
@@ -381,6 +507,11 @@ DataVector Allocator::getAllocatedDatas(MemoryType memType) const {
 }
 
 allocator::MemChunk* Allocator::allocateMem(MemoryType memType, int size, int inUse) {
+    VPU_THROW_UNLESS(size >= 0, "{} bytes to allocate have been requested, but only non-negative amount is supported", size);
+    if (size == 0) {
+        return nullptr;
+    }
+
     auto& memPool =  _memPools.at(memType);
 
     //
@@ -396,20 +527,8 @@ allocator::MemChunk* Allocator::allocateMem(MemoryType memType, int size, int in
     // Check free space
     //
 
-    int freeSpace = 0;
-    if (memType == MemoryType::CMX) {
-        auto shavesCMX = _allocatorOfShaves.getLockedSHAVEs() * CMX_SLICE_SIZE;
-
-        IE_ASSERT(memPool->curMemOffset + shavesCMX <= _maxCmxSize);
-
-        freeSpace = _maxCmxSize - (memPool->curMemOffset + shavesCMX);
-    } else {
-        IE_ASSERT(memPool->curMemOffset <= DDR_MAX_SIZE);
-
-        freeSpace = DDR_MAX_SIZE - memPool->curMemOffset;
-    }
-
-    if (size > freeSpace) {
+    const auto freeSpace = freeMemoryAmount(memType);
+    if (static_cast<std::size_t>(size) > freeSpace) {
         return nullptr;
     }
 
@@ -598,7 +717,7 @@ bool Allocator::removeCMXCandidates(const vpu::Data& data) {
     auto it = _candidatesForCMX.find(data);
 
     if (it != _candidatesForCMX.end()) {
-        IE_ASSERT(data->parentDataEdge() == nullptr);
+        IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
         if (_allocatedIntermData.count(data) != 0) {
             if (auto producerEdge = data->producerEdge()) {
@@ -623,7 +742,7 @@ bool Allocator::removeCMXCandidates(const vpu::Data& data) {
         auto cmxDatas = getAllocatedDatas(MemoryType::CMX);
 
         for (const auto& cmxData : cmxDatas) {
-            IE_ASSERT(cmxData->parentDataEdge() == nullptr);
+            IE_ASSERT(cmxData->parentDataToDataEdge() == nullptr);
 
             it = _candidatesForCMX.find(cmxData);
 

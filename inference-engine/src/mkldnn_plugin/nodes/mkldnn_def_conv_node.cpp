@@ -5,24 +5,22 @@
 #include "mkldnn_def_conv_node.h"
 #include "mkldnn_reorder_node.h"
 #include "mkldnn_input_node.h"
-#include "mkldnn_activation_node.h"
 #include "desc_iterator.hpp"
 #include "mkldnn_eltwise_node.h"
-#include "mkldnn_depthwise_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const InferenceEngine::CNNLayerPtr& layer,
-                                                                 const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket) {
+                                                                 const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });

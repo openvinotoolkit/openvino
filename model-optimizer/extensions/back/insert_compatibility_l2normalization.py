@@ -15,12 +15,10 @@
 """
 
 import numpy as np
-import networkx as nx
 
-from mo.ops.const import Const
-from mo.ops.op import Op
-from mo.graph.graph import Graph
 from mo.back.replacement import BackReplacementPattern
+from mo.graph.graph import Graph
+from mo.ops.const import Const
 
 
 class CompatibilityL2NormalizationPattern(BackReplacementPattern):

@@ -13,9 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
-from mo.front.common.partial_infer.utils import convert_tf_padding_to_str, int64_array
+from mo.front.common.partial_infer.utils import convert_deconv_tf_padding_to_str, int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.tf.extractors.utils import tf_data_format_spatial, tf_data_format_channel, tf_data_format_batch, \
     tf_int_list
@@ -65,7 +64,7 @@ def tf_create_attrs(node, input_feature_channel, output_feature_channel):
     data_format = node.pb.attr["data_format"]
 
     return {
-        'auto_pad': convert_tf_padding_to_str(node.pb.attr['padding']),
+        'auto_pad': convert_deconv_tf_padding_to_str(node.pb.attr['padding'].s.decode()),
         'bias_addable': True,
         'bias_term': False,
         'spatial_dims': tf_data_format_spatial(data_format),

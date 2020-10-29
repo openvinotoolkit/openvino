@@ -46,6 +46,10 @@ layout activation_inst::calc_output_layout(activation_node const& node) {
             CLDNN_ERROR_MESSAGE(node.id(), "Requested activation is not supported for integer type.");
     }
 
+    if (node.has_fused_primitives()) {
+        input_node_layout.data_type = node.get_fused_output_layout().data_type;
+    }
+
     return input_node_layout;
 }
 

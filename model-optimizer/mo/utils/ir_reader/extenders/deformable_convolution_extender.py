@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from mo.utils.graph import Node
 from mo.utils.ir_reader.extender import Extender
 from mo.utils.ir_reader.extenders.conv_extender import Conv_extender
-from mo.utils.graph import Node
 
 
 class DeformableConv_extender(Extender):

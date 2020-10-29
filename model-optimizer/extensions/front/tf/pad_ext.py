@@ -15,7 +15,7 @@
 """
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.pad import Pad
+from mo.ops.pad import TFPad
 
 
 class PadFrontExtractor(FrontExtractorOp):
@@ -24,7 +24,7 @@ class PadFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        Pad.update_node_stat(node)
+        TFPad.update_node_stat(node)
         return cls.enabled
 
 
@@ -34,6 +34,7 @@ class PadV2FrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
+        TFPad.update_node_stat(node)
         return cls.enabled
 
 
@@ -43,5 +44,5 @@ class MirrorPadFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        Pad.update_node_stat(node, {'mode': node.pb.attr['mode'].s.decode('utf-8').lower()})
+        TFPad.update_node_stat(node, {'mode': node.pb.attr['mode'].s.decode('utf-8').lower()})
         return cls.enabled

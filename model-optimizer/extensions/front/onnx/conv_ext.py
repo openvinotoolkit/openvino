@@ -16,12 +16,11 @@
 
 import numpy as np
 
-from mo.front.common.extractors.utils import layout_attrs
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_autopad
 from mo.ops.convolution import Convolution
 from mo.utils.error import Error
-from mo.front.common.partial_infer.utils import int64_array
 
 
 class ConvFrontExtractor(FrontExtractorOp):
@@ -153,6 +152,7 @@ class ConvTransposeFrontExtractor(FrontExtractorOp):
             'pad': final_pads,
             'dilation': final_dilations,
             'output_spatial_shape': output_shape,
+            'original_output_spatial_shape': output_shape,
             'output_shape': None,
             'output_padding': final_output_padding,
             'stride': final_strides,

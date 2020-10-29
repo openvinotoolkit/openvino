@@ -17,12 +17,11 @@
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 from extensions.front.Pack import Pack
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-
-from generator import generator, generate
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'placeholder_0': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

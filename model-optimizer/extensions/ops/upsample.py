@@ -15,6 +15,7 @@
 """
 
 import math
+import numpy as np
 
 from mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
 from mo.graph.graph import Node, Graph
@@ -62,5 +63,6 @@ class UpsampleOp(Op):
                                                      width=out_width)
         else:
             assert node.in_node(1).value is not None
+            eps = 1e-5  # This is to make rounding in case of very close number to round to closest instead of down
             # generic output shape calculation to support 5D input shape case
-            node.out_node().shape = input_shape * node.in_node(1).value
+            node.out_node().shape = np.array((input_shape + eps) * node.in_node(1).value).astype(np.int64)

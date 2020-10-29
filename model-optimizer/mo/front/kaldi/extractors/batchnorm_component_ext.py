@@ -18,7 +18,8 @@ import numpy as np
 
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.loader.utils import read_binary_bool_token, read_binary_integer32_token, collect_until_token, read_binary_float_token
+from mo.front.kaldi.loader.utils import read_binary_bool_token, read_binary_integer32_token, collect_until_token, \
+    read_binary_float_token
 from mo.front.kaldi.utils import read_binary_vector
 from mo.ops.scale_shift import ScaleShiftOp
 from mo.utils.error import Error
@@ -49,9 +50,6 @@ class BatchNormComponentFrontExtractor(FrontExtractorOp):
 
         collect_until_token(pb, b'<TestMode>')
         test_mode = read_binary_bool_token(pb)
-
-        if test_mode is not False:
-            raise Error("Test mode True for BatchNorm is not supported")
 
         collect_until_token(pb, b'<StatsMean>')
         mean = read_binary_vector(pb)

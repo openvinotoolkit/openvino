@@ -8,7 +8,7 @@
 #include <string>
 
 #include <ie_icnn_network.hpp>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include "backend/dnn_types.h"
 
@@ -20,12 +20,14 @@ enum LayerType {
     LeakyReLU,
     Sigmoid,
     TanH,
+    Abs,
     Activation,
     Pooling,
     FullyConnected,
     InnerProduct,
     Reshape,
     Squeeze,
+    Unsqueeze,
     Split,
     Slice,
     Eltwise,
@@ -38,8 +40,15 @@ enum LayerType {
     Memory,
     Power,
     Crop,
+    Exp,
+    Log,
+    Sign,
+    NegLog,
+    NegHalfLog,
     LSTMCell,
     TensorIterator,
+    SoftSign,
+    FakeQuantize,
     NO_TYPE
 };
 
@@ -58,6 +67,7 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         { "Const" , Const },
         { "Reshape" , Reshape },
         { "Squeeze" , Squeeze },
+        { "Unsqueeze" , Unsqueeze },
         { "ScaleShift" , ScaleShift },
         { "Clamp" , Clamp },
         { "Concat" , Concat },
@@ -66,8 +76,17 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         { "Power" , Power},
         { "Memory" , Memory },
         { "Crop" , Crop },
+        { "Exp", Exp},
+        { "Log", Log},
+        { "Sign", Sign},
+        { "Abs", Abs},
+        { "NegLog" , NegLog },
+        { "NegHalfLog" , NegHalfLog },
         { "LSTMCell", LSTMCell },
-        { "TensorIterator", TensorIterator }
+        { "TensorIterator", TensorIterator },
+        { "Abs", Abs },
+        { "SoftSign", SoftSign },
+        { "FakeQuantize", FakeQuantize },
 };
 
 GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);

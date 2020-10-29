@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-from mo.utils.ir_reader.extender import Extender
-from mo.utils.graph import Node
-
 from mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
+from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
 class PriorBox_extender(Extender):
@@ -27,7 +26,7 @@ class PriorBox_extender(Extender):
     def extend(op: Node):
         op['V10_infer'] = True
 
-        attrs = ['min_size', 'max_size', 'aspect_ratio']
+        attrs = ['min_size', 'max_size', 'aspect_ratio', 'variance', 'fixed_ratio', 'fixed_size', 'density']
         for attr in attrs:
             PriorBox_extender.attr_restore(op, attr)
 

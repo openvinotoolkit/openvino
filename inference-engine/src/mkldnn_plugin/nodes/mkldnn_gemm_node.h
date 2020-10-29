@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNGemmNode : public MKLDNNNode {
 public:
-    MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNGemmNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -38,6 +38,8 @@ private:
     std::vector<int> aOffsets;
     std::vector<int> bOffsets;
     std::vector<int> cOffsets;
+
+    template<typename T0, typename T1> void process_data();
 };
 
 }  // namespace MKLDNNPlugin

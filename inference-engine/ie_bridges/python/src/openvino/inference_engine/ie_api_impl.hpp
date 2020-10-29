@@ -12,15 +12,18 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <list>
 #include <iostream>
 #include <algorithm>
 #include <sstream>
 #include <chrono>
+#include <queue>
+#include <condition_variable>
+#include <mutex>
 
 #include <ie_extension.h>
-#include "inference_engine.hpp"
-#include "../../../../../src/inference_engine/ie_ir_reader.hpp"
-
+#include <legacy/ie_layers.h>
+#include <ie_core.hpp>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -40,14 +43,17 @@ struct IENetwork {
     std::shared_ptr<InferenceEngine::CNNNetwork> actual;
     std::string name;
     std::size_t batch_size;
-    std::string precision;
     PyObject* getFunction();
 
     void setBatch(const size_t size);
 
+    size_t getBatch();
+
     void addOutput(const std::string &out_layer, size_t port_id);
 
     const std::vector <InferenceEngine::CNNLayerPtr> getLayers();
+
+    const std::map<std::string, InferenceEngine::InputInfo::Ptr> getInputsInfo();
 
     const std::map<std::string, InferenceEngine::DataPtr> getInputs();
 
@@ -56,10 +62,6 @@ struct IENetwork {
     void reshape(const std::map<std::string, std::vector<size_t>> &input_shapes);
 
     void serialize(const std::string &path_to_xml, const std::string &path_to_bin);
-
-    void setStats(const std::map<std::string, std::map<std::string, std::vector<float>>> &stats);
-
-    const std::map<std::string, std::map<std::string, std::vector<float>>> getStats();
 
     void load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size);
 
@@ -70,9 +72,29 @@ struct IENetwork {
     IENetwork(PyObject* network);
 
     IENetwork() = default;
+
+    void convertToOldRepresentation();
 };
 
+
+struct IdleInferRequestQueue {
+    std::list<size_t> idle_ids;
+    std::mutex mutex;
+    std::condition_variable cv;
+
+    void setRequestIdle(int index);
+    void setRequestBusy(int index);
+
+    int wait(int num_requests, int64_t timeout);
+
+    int getIdleRequestId();
+
+    using Ptr = std::shared_ptr<IdleInferRequestQueue>;
+};
+
+
 struct InferRequestWrap {
+    int index;
     using cy_callback = void (*)(void*, int);
 
     InferenceEngine::IInferRequest::Ptr request_ptr;
@@ -80,7 +102,7 @@ struct InferRequestWrap {
     double exec_time;
     cy_callback user_callback;
     void *user_data;
-    int status;
+    IdleInferRequestQueue::Ptr  request_queue_ptr;
 
     void infer();
 
@@ -92,7 +114,14 @@ struct InferRequestWrap {
 
     void getBlobPtr(const std::string &blob_name, InferenceEngine::Blob::Ptr &blob_ptr);
 
+    void setBlob(const std::string &blob_name, const InferenceEngine::Blob::Ptr &blob_ptr);
+
+    void setBlob(const std::string &name, const InferenceEngine::Blob::Ptr &data,
+                 const InferenceEngine::PreProcessInfo& info);
+
     void setBatch(int size);
+
+    void getPreProcess(const std::string& blob_name, const InferenceEngine::PreProcessInfo** info);
 
     std::map<std::string, InferenceEnginePython::ProfileInfo> getPerformanceCounts();
 };
@@ -102,6 +131,7 @@ struct IEExecNetwork {
     InferenceEngine::IExecutableNetwork::Ptr actual;
     std::vector<InferRequestWrap> infer_requests;
     std::string name;
+    IdleInferRequestQueue::Ptr  request_queue_ptr;
 
     IEExecNetwork(const std::string &name, size_t num_requests);
 
@@ -110,43 +140,26 @@ struct IEExecNetwork {
     void infer();
     void exportNetwork(const std::string & model_file);
 
+    std::map<std::string, InferenceEngine::InputInfo::CPtr> getInputsInfo();
     std::map<std::string, InferenceEngine::DataPtr> getInputs();
     std::map<std::string, InferenceEngine::CDataPtr> getOutputs();
 
     PyObject* getMetric(const std::string & metric_name);
-    PyObject* getConfig(const std::string & metric_name);
+    PyObject* getConfig(const std::string & name);
+
+    int wait(int num_requests, int64_t timeout);
+    int getIdleRequestId();
+
+    void createInferRequests(int num_requests);
 };
 
-
-struct IEPlugin {
-    std::unique_ptr<InferenceEnginePython::IEExecNetwork> load(const InferenceEnginePython::IENetwork &net,
-                                                               int num_requests,
-                                                               const std::map<std::string, std::string> &config);
-
-    std::string device_name;
-    std::string version;
-
-    void setConfig(const std::map<std::string, std::string> &);
-
-    void addCpuExtension(const std::string &extension_path);
-
-    void setInitialAffinity(const InferenceEnginePython::IENetwork &net);
-
-    IEPlugin(const std::string &device, const std::vector<std::string> &plugin_dirs);
-
-    IEPlugin() = default;
-
-    std::set<std::string> queryNetwork(const InferenceEnginePython::IENetwork &net);
-
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::InferencePlugin actual;
-    IE_SUPPRESS_DEPRECATED_END
-};
 
 struct IECore {
     InferenceEngine::Core actual;
     explicit IECore(const std::string & xmlConfigFile = std::string());
     std::map<std::string, InferenceEngine::Version> getVersions(const std::string & deviceName);
+    InferenceEnginePython::IENetwork readNetwork(const std::string& modelPath, const std::string& binPath);
+    InferenceEnginePython::IENetwork readNetwork(const std::string& model, uint8_t *bin, size_t bin_size);
     std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network, const std::string & deviceName,
             const std::map<std::string, std::string> & config, int num_requests);
     std::unique_ptr<InferenceEnginePython::IEExecNetwork> importNetwork(const std::string & modelFIle, const std::string & deviceName,

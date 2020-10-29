@@ -18,9 +18,9 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
 #include "cpp/ie_memory_state.hpp"
-#include "details/ie_exception_conversion.hpp"
 #include "ie_iexecutable_network.hpp"
-#include "ie_plugin_ptr.hpp"
+#include "details/ie_exception_conversion.hpp"
+#include "details/ie_so_loader.h"
 
 namespace InferenceEngine {
 
@@ -29,7 +29,7 @@ namespace InferenceEngine {
  */
 class ExecutableNetwork {
     IExecutableNetwork::Ptr actual;
-    InferenceEnginePluginPtr plg;
+    details::SharedObjectLoader::Ptr plg;
 
 public:
     /**
@@ -50,8 +50,13 @@ public:
      * @param actual Initialized shared pointer
      * @param plg Plugin to use
      */
-    explicit ExecutableNetwork(IExecutableNetwork::Ptr actual, InferenceEnginePluginPtr plg = {})
-        : actual(actual), plg(plg) {}
+    explicit ExecutableNetwork(IExecutableNetwork::Ptr actual, details::SharedObjectLoader::Ptr plg = {})
+        : actual(actual), plg(plg) {
+        //  plg can be null, but not the actual
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
+        }
+    }
 
     /**
      * @copybrief IExecutableNetwork::GetOutputsInfo
@@ -84,6 +89,12 @@ public:
      * @param newActual actual pointed object
      */
     void reset(IExecutableNetwork::Ptr newActual) {
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
+        }
+        if (newActual == nullptr) {
+            THROW_IE_EXCEPTION << "ExecutableNetwork wrapper used for reset was not initialized.";
+        }
         this->actual.swap(newActual);
     }
 
@@ -118,7 +129,6 @@ public:
      * Wraps IExecutableNetwork::Export.
      *
      * @see Core::ImportNetwork
-     * @see InferencePlugin::ImportNetwork
      *
      * @param modelFileName Full path to the location of the exported file
      */
@@ -132,7 +142,6 @@ public:
      * Wraps IExecutableNetwork::Export.
      *
      * @see Core::ImportNetwork
-     * @see InferencePlugin::ImportNetwork
      *
      * @param networkModel network model output stream
      */
@@ -141,18 +150,8 @@ public:
     }
 
     /**
-     * @copybrief IExecutableNetwork::GetMappedTopology
-     *
-     * Wraps IExecutableNetwork::GetMappedTopology.
-     * @param deployedTopology Map of PrimitiveInfo objects that represent the deployed topology
-     */
-    void GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>>& deployedTopology) {
-        CALL_STATUS_FNC(GetMappedTopology, deployedTopology);
-    }
-
-    /**
-     * cast operator is used when this wrapper initialized by LoadNetwork
-     * @return
+     * @brief cast operator is used when this wrapper initialized by LoadNetwork
+     * @return A shared pointer to IExecutableNetwork interface. 
      */
     operator IExecutableNetwork::Ptr&() {
         return actual;
@@ -177,6 +176,7 @@ public:
      * @return A vector of Memory State objects
      */
     std::vector<MemoryState> QueryState() {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
         IMemoryState::Ptr pState = nullptr;
         auto res = OK;
         std::vector<MemoryState> controller;
@@ -204,11 +204,12 @@ public:
         CALL_STATUS_FNC(SetConfig, config);
     }
 
-    /** @copybrief IExecutableNetwork::GetConfig
+    /**
+     * @copybrief IExecutableNetwork::GetConfig
      *
      * Wraps IExecutableNetwork::GetConfig
      * @param name - config key, can be found in ie_plugin_config.hpp
-     * @return Configuration paramater value
+     * @return Configuration parameter value
      */
     Parameter GetConfig(const std::string& name) const {
         Parameter configValue;
@@ -221,7 +222,7 @@ public:
      *
      * Wraps IExecutableNetwork::GetMetric
      * @param name  - metric name to request
-     * @return Metric paramater value
+     * @return Metric parameter value
      */
     Parameter GetMetric(const std::string& name) const {
         Parameter metricValue;
@@ -232,6 +233,7 @@ public:
     /**
      * @brief Returns pointer to plugin-specific shared context
      * on remote accelerator device that was used to create this ExecutableNetwork
+     * @return A context
      */
     RemoteContext::Ptr GetContext() const {
         RemoteContext::Ptr pContext;

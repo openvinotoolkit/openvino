@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,16 @@ public:
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::QUANTIZE,
+            FusedOpType::ACTIVATION,
+            FusedOpType::SCALE,
+            FusedOpType::ELTWISE
+        };
+    }
+
+    JitConstants GetJitConstants(const eltwise_params& params) const;
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;

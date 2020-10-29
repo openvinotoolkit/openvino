@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,34 +36,36 @@ ParamsKey FullyConnected_fs_byx_fsv32::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableSubGroup();
+    k.EnableSubGroupShort();
     return k;
 }
 
 FullyConnected_fs_byx_fsv32::Parent::DispatchData FullyConnected_fs_byx_fsv32::SetDefault(
     const fully_connected_params& params,
     int autoTuneIndex) const {
-    auto runInfo = Parent::SetDefault(params, autoTuneIndex);
+    auto dispatchData = Parent::SetDefault(params, autoTuneIndex);
 
     auto blockSizeB = std::min(outputBlockSizeB, params.output.Batch().v);
     auto blockNumB = CeilDiv(params.output.Batch().v, blockSizeB);
     auto wgHeight = std::min(preferredWGHeight, blockNumB);
 
-    runInfo.gws0 = CeilDiv(params.output.Feature().v, outputBlockSizeF);
-    runInfo.gws1 = RoundUp(blockNumB, wgHeight);
-    runInfo.gws2 = subGroupSize;
+    dispatchData.gws[0] = CeilDiv(params.output.Feature().v, outputBlockSizeF);
+    dispatchData.gws[1] = RoundUp(blockNumB, wgHeight);
+    dispatchData.gws[2] = subGroupSize;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = wgHeight;
-    runInfo.lws2 = subGroupSize;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = wgHeight;
+    dispatchData.lws[2] = subGroupSize;
 
-    runInfo.effiency = FORCE_PRIORITY_5;
+    dispatchData.efficiency = FORCE_PRIORITY_5;
 
-    return std::move(runInfo);
+    return dispatchData;
 }
 
 JitConstants FullyConnected_fs_byx_fsv32::GetJitConstants(const fully_connected_params& params,
-                                                          const DispatchData& kd) const {
-    auto jit = Parent::GetJitConstants(params, kd);
+                                                          const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto blockSizeB = std::min(outputBlockSizeB, params.output.Batch().v);
     auto blockNumB = CeilDiv(params.output.Batch().v, blockSizeB);
@@ -82,7 +84,7 @@ KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params, co
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
                                                     DataLayout::fs_b_yx_fsv32,
-                                                    {WeightsLayout::os_iyx_osv32},
+                                                    WeightsLayout::os_iyx_osv32__ai32,
                                                     FORCE_PRIORITY_5,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

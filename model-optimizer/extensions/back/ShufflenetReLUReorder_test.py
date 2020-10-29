@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.back.ShufflenetReLUReorder import ShufflenetReLUReorder
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 # The dictionary with nodes attributes used to build various graphs. A key is the name of the node and the value is the
 # dictionary with node attributes.

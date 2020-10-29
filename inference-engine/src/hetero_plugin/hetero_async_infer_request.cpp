@@ -5,17 +5,15 @@
 #include <utility>
 #include <memory>
 #include "hetero_async_infer_request.hpp"
-#include <ie_util_internal.hpp>
-#include <ie_profiling.hpp>
 
 using namespace HeteroPlugin;
 using namespace InferenceEngine;
 
-HeteroAsyncInferRequest::HeteroAsyncInferRequest(const HeteroInferRequest::Ptr& request,
-                                                 const ITaskExecutor::Ptr&      taskExecutor,
-                                                 const ITaskExecutor::Ptr&      callbackExecutor) :
+HeteroAsyncInferRequest::HeteroAsyncInferRequest(const InferRequestInternal::Ptr& request,
+                                                 const ITaskExecutor::Ptr&        taskExecutor,
+                                                 const ITaskExecutor::Ptr&        callbackExecutor) :
     AsyncInferRequestThreadSafeDefault(request, taskExecutor, callbackExecutor),
-    _heteroInferRequest(request),
+    _heteroInferRequest(std::static_pointer_cast<HeteroInferRequest>(request)),
     _statusCodes{_heteroInferRequest->_inferRequests.size(), StatusCode::OK} {
     _pipeline.clear();
     for (std::size_t requestId = 0; requestId < _heteroInferRequest->_inferRequests.size(); ++requestId) {
@@ -48,7 +46,7 @@ HeteroAsyncInferRequest::HeteroAsyncInferRequest(const HeteroInferRequest::Ptr& 
 
 void HeteroAsyncInferRequest::StartAsync_ThreadUnsafe() {
     _heteroInferRequest->updateInOutIfNeeded();
-    RunFirstStage();
+    RunFirstStage(_pipeline.begin(), _pipeline.end());
 }
 
 StatusCode HeteroAsyncInferRequest::Wait(int64_t millis_timeout) {

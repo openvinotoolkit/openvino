@@ -8,35 +8,24 @@
  * @file ie_exception_conversion.hpp
  */
 #pragma once
-#include <ie_common.h>
+
+#include "ie_common.h"
+#include "details/ie_exception.hpp"
 
 #define CALL_STATUS_FNC(function, ...)               \
+    if (!actual)    THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATUS_FNC was not initialized."; \
     ResponseDesc resp;                               \
     auto res = actual->function(__VA_ARGS__, &resp); \
     if (res != OK) InferenceEngine::details::extract_exception(res, resp.msg);
 
 #define CALL_STATUS_FNC_NO_ARGS(function) \
+    if (!actual)  THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATUS_FNC_NO_ARGS was not initialized."; \
     ResponseDesc resp;                    \
     auto res = actual->function(&resp);   \
     if (res != OK) InferenceEngine::details::extract_exception(res, resp.msg);
 
-#define CALL_FNC(function, ...)                         \
-    ResponseDesc resp;                                  \
-    auto result = actual->function(__VA_ARGS__, &resp); \
-    if (resp.msg[0] != '\0') {                          \
-        THROW_IE_EXCEPTION << resp.msg;                 \
-    }                                                   \
-    return result;
-
-#define CALL_FNC_REF(function, ...)                      \
-    ResponseDesc resp;                                   \
-    auto& result = actual->function(__VA_ARGS__, &resp); \
-    if (resp.msg[0] != '\0') {                           \
-        THROW_IE_EXCEPTION << resp.msg;                  \
-    }                                                    \
-    return result;
-
 #define CALL_FNC_NO_ARGS(function)         \
+    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_FNC_NO_ARGS was not initialized."; \
     ResponseDesc resp;                     \
     auto result = actual->function(&resp); \
     if (resp.msg[0] != '\0') {             \
@@ -44,18 +33,10 @@
     }                                      \
     return result;
 
-#define CALL_FNC_NO_ARGS_REF(function)      \
-    ResponseDesc resp;                      \
-    auto& result = actual->function(&resp); \
-    if (resp.msg[0] != '\0') {              \
-        THROW_IE_EXCEPTION << resp.msg;     \
-    }                                       \
-    return result;
-
 namespace InferenceEngine {
 namespace details {
 
-inline void extract_exception(StatusCode status, char* msg) {
+inline void extract_exception(StatusCode status, const char* msg) {
     switch (status) {
     case NOT_IMPLEMENTED:
         throw NotImplemented(msg);

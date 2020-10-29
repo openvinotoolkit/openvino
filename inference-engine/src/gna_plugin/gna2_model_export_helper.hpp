@@ -6,6 +6,7 @@
 
 #if GNA_LIB_VER == 2
 
+#include "gna2-common-api.h"
 #include "gna2-model-suecreek-header.h"
 
 #include <cstdint>
@@ -15,7 +16,11 @@ void * ExportSueLegacyUsingGnaApi2(
     uint32_t modelId,
     Gna2ModelSueCreekHeader* modelHeader);
 
-void ExportLdForNoMmu(uint32_t modelId, std::ostream & outStream);
+void ExportLdForDeviceVersion(
+    uint32_t modelId,
+    std::ostream & outStream,
+    Gna2DeviceVersion deviceVersionToExport);
+
 void ExportGnaDescriptorPartiallyFilled(uint32_t numberOfLayers, std::ostream & outStream);
 
 #endif

@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "XLinkPlatform.h"
-#include "XLinkPlatformTool.h"
+#include "XLinkPlatformErrorUtils.h"
 #include "usb_boot.h"
 #include "pcie_host.h"
 #include "XLinkStringUtils.h"
@@ -260,8 +260,8 @@ xLinkPlatformErrorCode_t getUSBDeviceName(int index,
                                                  XLinkDeviceState_t state,
                                                  const deviceDesc_t in_deviceRequirements,
                                                  deviceDesc_t* out_foundDevice) {
-    ASSERT_X_LINK_PLATFORM(index >= 0);
-    ASSERT_X_LINK_PLATFORM(out_foundDevice);
+    ASSERT_XLINK_PLATFORM(index >= 0);
+    ASSERT_XLINK_PLATFORM(out_foundDevice);
 
     int vid = AUTO_VID;
     int pid = AUTO_PID;
@@ -311,9 +311,15 @@ xLinkPlatformErrorCode_t getPCIeDeviceName(int index,
                                                   XLinkDeviceState_t state,
                                                   const deviceDesc_t in_deviceRequirements,
                                                   deviceDesc_t* out_foundDevice) {
-    ASSERT_X_LINK_PLATFORM(index >= 0);
-    ASSERT_X_LINK_PLATFORM(out_foundDevice);
-    ASSERT_X_LINK_PLATFORM(in_deviceRequirements.platform != X_LINK_MYRIAD_2);
+    ASSERT_XLINK_PLATFORM(index >= 0);
+    ASSERT_XLINK_PLATFORM(out_foundDevice);
+    if (in_deviceRequirements.platform == X_LINK_MYRIAD_2) {
+        /**
+         * There is no PCIe on Myriad 2. Asserting that check
+         * produces enormous amount of logs in tests.
+         */
+        return X_LINK_PLATFORM_ERROR;
+    }
 
     char name[XLINK_MAX_NAME_SIZE] = { 0 };
 

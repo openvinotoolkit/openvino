@@ -9,20 +9,17 @@
  */
 #pragma once
 
-#include <ie_icnn_net_reader.h>
-
-#include <details/ie_cnn_network_iterator.hpp>
-#include <details/ie_exception_conversion.hpp>
-#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "ie_icnn_network.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
+#include "details/ie_exception_conversion.hpp"
 
 namespace ngraph {
 
@@ -49,45 +46,21 @@ public:
      */
     explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network): network(network) {
         actual = network.get();
-        if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        }
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
     }
 
     /**
      * @brief A constructor from ngraph::Function object
+     * This constructor wraps existing ngraph::Function
+     * If you want to avoid modification of original Function, please create a copy
      * @param network Pointer to the ngraph::Function object
      */
     explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network);
 
     /**
-     * @brief A constructor from ICNNNetReader object
-     *
-     * @param reader Pointer to the ICNNNetReader object
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    explicit CNNNetwork(std::shared_ptr<ICNNNetReader> reader): reader(reader), actual(reader->getNetwork(nullptr)) {
-        if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        }
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    /**
      * @brief A destructor
      */
     virtual ~CNNNetwork() {}
-
-    /**
-     * @copybrief ICNNNetwork::getPrecision
-     *
-     * Wraps ICNNNetwork::getPrecision
-     *
-     * @return A precision type
-     */
-    virtual Precision getPrecision() const {
-        return actual->getPrecision();
-    }
 
     /**
      * @copybrief ICNNNetwork::getOutputsInfo
@@ -97,6 +70,7 @@ public:
      * @return outputs Reference to the OutputsDataMap object
      */
     virtual OutputsDataMap getOutputsInfo() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         OutputsDataMap outputs;
         actual->getOutputsInfo(outputs);
         return outputs;
@@ -110,6 +84,7 @@ public:
      * @return inputs Reference to InputsDataMap object
      */
     virtual InputsDataMap getInputsInfo() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         InputsDataMap inputs;
         actual->getInputsInfo(inputs);
         return inputs;
@@ -123,6 +98,7 @@ public:
      * @return The number of layers as an integer value
      */
     size_t layerCount() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return actual->layerCount();
     }
 
@@ -133,7 +109,8 @@ public:
      *
      * @return Network name
      */
-    const std::string& getName() const noexcept {
+    const std::string& getName() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return actual->getName();
     }
 
@@ -157,7 +134,17 @@ public:
      * @return The size of batch as a size_t value
      */
     virtual size_t getBatchSize() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return actual->getBatchSize();
+    }
+
+    /**
+     * @brief An overloaded operator cast to get pointer on current network
+     *
+     * @return A shared pointer of the current network
+     */
+    operator ICNNNetwork::Ptr() {
+        return network;
     }
 
     /**
@@ -165,7 +152,18 @@ public:
      *
      * @return An instance of the current network
      */
-    operator ICNNNetwork&() const {
+    operator ICNNNetwork&() {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
+        return *actual;
+    }
+
+    /**
+     * @brief An overloaded operator & to get current network
+     *
+     * @return A const reference of the current network
+     */
+    operator const ICNNNetwork&() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return *actual;
     }
 
@@ -174,7 +172,18 @@ public:
      *
      * @return constant nGraph function
      */
-    const std::shared_ptr<const ngraph::Function> getFunction() const noexcept {
+    std::shared_ptr<ngraph::Function> getFunction() {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
+        return actual->getFunction();
+    }
+
+    /**
+     * @brief Returns constant nGraph function
+     *
+     * @return constant nGraph function
+     */
+    std::shared_ptr<const ngraph::Function> getFunction() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return actual->getFunction();
     }
 
@@ -191,62 +200,12 @@ public:
     }
 
     /**
-     * @copybrief ICNNNetwork::getLayerByName
-     *
-     * Wraps ICNNNetwork::getLayerByName
-     *
-     * @param layerName Given name of the layer
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    CNNLayerPtr getLayerByName(const char* layerName) const {
-        CNNLayerPtr layer;
-        CALL_STATUS_FNC(getLayerByName, layerName, layer);
-        return layer;
-    }
-
-    /**
-     * @brief Begin layer iterator
-     *
-     * Order of layers is implementation specific,
-     * and can be changed in future
-     *
-     * @return Iterator pointing to a layer
-     */
-    details::CNNNetworkIterator begin() const {
-        return details::CNNNetworkIterator(actual);
-    }
-
-    /**
-     * @brief End layer iterator
-     */
-    details::CNNNetworkIterator end() const {
-        return details::CNNNetworkIterator();
-    }
-
-    /**
-     * @brief Number of layers in network object
-     *
-     * @return
-     */
-    size_t size() const {
-        return std::distance(std::begin(*this), std::end(*this));
-    }
-
-    /**
-     * @brief Registers extension within the plugin
-     *
-     * @param extension Pointer to already loaded reader extension with shape propagation implementations
-     */
-    void AddExtension(InferenceEngine::IShapeInferExtensionPtr extension) {
-        CALL_STATUS_FNC(AddExtension, extension);
-    }
-
-    /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects
      *
      * @return Map of pairs: input name and its dimension.
      */
     virtual ICNNNetwork::InputShapes getInputShapes() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         ICNNNetwork::InputShapes shapes;
         InputsDataMap inputs;
         actual->getInputsInfo(inputs);
@@ -283,12 +242,6 @@ public:
     }
 
 protected:
-    /**
-     * @brief Reader extra reference, might be nullptr
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ICNNNetReader> reader;
-    IE_SUPPRESS_DEPRECATED_END
     /**
      * @brief Network extra interface, might be nullptr
      */

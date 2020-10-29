@@ -13,15 +13,11 @@
 #include <memory>
 #include <string>
 
-#include "details/ie_irelease.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "ie_icnn_network_stats.hpp"
-#include "ie_iextension.h"
 #include "ie_input_info.hpp"
-#include "ie_layers.h"
-#include "ie_preprocess.hpp"
+#include "details/ie_irelease.hpp"
 
 namespace ngraph {
 
@@ -37,31 +33,36 @@ namespace InferenceEngine {
 using OutputsDataMap = std::map<std::string, DataPtr>;
 
 /**
+ * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology
  */
 class INFERENCE_ENGINE_API_CLASS(ICNNNetwork): public details::IRelease {
 public:
+    /**
+     * @brief A shared pointer to a ICNNNetwork interface
+     */
     using Ptr = std::shared_ptr<ICNNNetwork>;
+
+    /**
+     * @brief Returns nGraph function
+     * @return nGraph function
+     */
+    virtual std::shared_ptr<ngraph::Function> getFunction() noexcept = 0;
 
     /**
      * @brief Returns constant nGraph function
      * @return constant nGraph function
      */
-    virtual const std::shared_ptr<const ngraph::Function> getFunction() const noexcept = 0;
-
-    /**
-     * @brief Returns the main network operating precision.
-     *
-     * This may be MIXED if not homogeneous.
-     *
-     * @return A precision type
-     */
-    virtual Precision getPrecision() const noexcept = 0;
+    virtual std::shared_ptr<const ngraph::Function> getFunction() const noexcept = 0;
 
     /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.
      *
      * For single and multiple outputs networks.
+     *
+     * This method need to be called to find output names for using them later
+     * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
+     *
      *
      * @param out Reference to the OutputsDataMap object
      */
@@ -72,8 +73,8 @@ public:
      * object.
      *
      * For single and multiple inputs networks.
-     * This method must be called to find out input names for using them later during filling of a map
-     * of blobs passed later to InferenceEngine::IInferencePlugin::Infer()
+     * This method need to be called to find out input names for using them later
+     * when calling InferenceEngine::InferRequest::SetBlob
      *
      * @param inputs Reference to InputsDataMap object.
      */
@@ -86,15 +87,6 @@ public:
      * @return A smart pointer to the input information
      */
     virtual InputInfo::Ptr getInput(const std::string& inputName) const noexcept = 0;
-
-    /**
-     * @brief Gets the network name. The name is stored in the given pName string.
-     *
-     * @param pName - will receive actual network name, specified in IR file,
-     *     pName should point to valid memory address before invoking this function
-     * @param len - size in bytes of pName buffer, actual name is trimmed by this size
-     */
-    virtual void getName(char* pName, size_t len) const noexcept = 0;
 
     /**
      * @brief Returns the network name.
@@ -111,23 +103,6 @@ public:
     virtual size_t layerCount() const noexcept = 0;
 
     /**
-     * @brief Returns a smart pointer reference to a Data node given its name.
-     *
-     * If the Data node is missing, returns reference to a default initialized new empty data pointer with given name.
-     *
-     * @param dname Name of the Data node
-     * @return Data node smart pointer
-     */
-    virtual DataPtr& getData(const char* dname) noexcept = 0;
-
-    /**
-     * @brief Insert a layer into the network. A user is responsible to connect it to other data elements.
-     *
-     * @param layer Const reference to a layer smart pointer
-     */
-    virtual void addLayer(const CNNLayerPtr& layer) noexcept = 0;
-
-    /**
      * @brief Adds output to the layer
      *
      * @param layerName Name of the layer
@@ -139,29 +114,20 @@ public:
                                  ResponseDesc* resp = nullptr) noexcept = 0;
 
     /**
-     * @brief Gets network layer with the given name
-     *
-     * @param layerName Given name of the layer
-     * @param out Pointer to the found CNNLayer object with the given name
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    virtual StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept = 0;
-
-    /**
      * @brief Changes the inference batch size.
      *
      * @note There are several limitations and it's not recommended to use it. Set batch to the input shape and call
      * ICNNNetwork::reshape.
      *
      * @param size Size of batch to set
+     * @param responseDesc Pointer to the response message that holds a description of an error if any occurred
      * @return Status code of the operation
-     * @note: Current implementation of the function sets batch size to the first dimension of all layers in the
+     * @note Current implementation of the function sets batch size to the first dimension of all layers in the
      * networks. Before calling it make sure that all your layers have batch in the first dimension, otherwise the
      * method works incorrectly. This limitation is resolved via shape inference feature by using
      * InferenceEngine::ICNNNetwork::reshape method. To read more refer to the Shape Inference section in documentation
      *
-     * @note: Current implementation of the function sets batch size to the first dimension of all layers in the
+     * @note Current implementation of the function sets batch size to the first dimension of all layers in the
      * networks. Before calling it make sure that all your layers have batch in the first dimension, otherwise the
      * method works incorrectly. This limitation is resolved via shape inference feature by using
      * InferenceEngine::ICNNNetwork::reshape method. To read more refer to the Shape Inference section in documentation
@@ -187,22 +153,9 @@ public:
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return Status code of the operation
      */
-    virtual StatusCode reshape(const InputShapes& /*inputShapes*/, ResponseDesc* /*resp*/) noexcept {
-        return NOT_IMPLEMENTED;
-    };
-
-    /**
-     * @brief Registers extension within the plugin
-     *
-     * @param extension Pointer to already loaded reader extension with shape propagation implementations
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    virtual StatusCode AddExtension(const IShapeInferExtensionPtr& /*extension*/, ResponseDesc* /*resp*/) noexcept {
-        return NOT_IMPLEMENTED;
-    };
-
-    virtual StatusCode getStats(ICNNNetworkStats** /*stats*/, ResponseDesc* /*resp*/) const noexcept {
+    virtual StatusCode reshape(const InputShapes& inputShapes, ResponseDesc* resp) noexcept {
+        (void)inputShapes;
+        (void)resp;
         return NOT_IMPLEMENTED;
     };
 
@@ -211,11 +164,15 @@ public:
      *
      * @param xmlPath Path to output IR file.
      * @param binPath Path to output weights file.
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return Status code of the operation
      */
     virtual StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept = 0;
 
+    /**
+     * @brief A virtual destructor.
+     */
     virtual ~ICNNNetwork();
 };
 }  // namespace InferenceEngine

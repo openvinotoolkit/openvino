@@ -27,7 +27,6 @@ class GroupedConvWeightsNormalize(BackReplacementPattern):
     It requires that weights layout will be next: G*O*I,1,H,W
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
     force_clean_up = True
 
     def pattern(self):
@@ -45,6 +44,7 @@ class GroupedConvWeightsNormalize(BackReplacementPattern):
         weights = match['weights']
         input_shape = conv.in_port(0).data.get_shape()
         new_weights_shape = int64_array([(weights.value.shape[0] * weights.value.shape[1]) / (input_shape[1] / conv.group), input_shape[1] / conv.group, *weights.value.shape[2:]])
-        new_weights = Const(graph, {'value': np.reshape(weights.value, new_weights_shape)}).create_node()
+        new_weights = Const(graph, {'value': np.reshape(weights.value, new_weights_shape),
+                                    'name':  weights.soft_get('name', weights.id) + '_new'}).create_node()
         weights.out_port(0).get_connection().set_source(new_weights.out_port(0))
         new_weights.infer(new_weights)

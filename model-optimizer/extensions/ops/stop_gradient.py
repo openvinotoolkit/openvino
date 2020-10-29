@@ -17,7 +17,6 @@
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph
 from mo.ops.op import Op
-from mo.front.common.partial_infer.utils import mark_input_bins
 
 
 class StopGradientOp(Op):
@@ -26,7 +25,7 @@ class StopGradientOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'identity': True,
             'in_ports_count': 1,

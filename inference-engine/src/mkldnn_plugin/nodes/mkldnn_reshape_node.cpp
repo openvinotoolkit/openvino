@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_reshape_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -12,8 +12,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNReshapeNode::MKLDNNReshapeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {}
+MKLDNNReshapeNode::MKLDNNReshapeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNReshapeNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
@@ -27,15 +27,15 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    auto& inDims = getParentEdgeAt(0)->getDims();
+    // Current reshape implementation is simple memory reinterpret,
+    // same precision on input and output is required
+    if (inputDataType != outputDataType)
+        inputDataType = outputDataType;
+
     auto& outDims = getChildEdgeAt(0)->getDims();
     memory::format outFormat = MKLDNNMemory::GetPlainFormat(outDims);
     InferenceEngine::LayerConfig config;
@@ -69,3 +69,4 @@ bool MKLDNNReshapeNode::created() const {
     return getType() == Reshape || getType() == Flatten;
 }
 REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Reshape);
+REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Flatten);

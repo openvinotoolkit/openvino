@@ -19,8 +19,6 @@ import logging as log
 import os
 from re import compile, match
 
-import networkx as nx
-
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes

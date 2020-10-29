@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.front.binary_quantize_normalization import BinaryFakeQuantizeNormalization
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 graph_nodes = {
     '0': {'name': 'input', 'kind': 'op', 'op': 'Parameter'},

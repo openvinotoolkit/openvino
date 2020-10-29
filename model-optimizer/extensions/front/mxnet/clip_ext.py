@@ -16,7 +16,7 @@
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.graph.graph import Node
-from mo.ops.clamp import Clamp
+from mo.ops.clamp import AttributedClamp
 
 
 class ClipExt(FrontExtractorOp):
@@ -27,5 +27,5 @@ class ClipExt(FrontExtractorOp):
     def extract(cls, node: Node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
-        Clamp.update_node_stat(node, {'min': attrs.float('a_min', None), 'max': attrs.float('a_max', None),})
+        AttributedClamp.update_node_stat(node, {'min': attrs.float('a_min', None), 'max': attrs.float('a_max', None)})
         return cls.enabled

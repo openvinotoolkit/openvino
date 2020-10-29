@@ -19,8 +19,8 @@ from argparse import Namespace
 import numpy as np
 
 from extensions.middle.ScaleInput import ScaleInput
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_1_data': {'value': None, 'kind': 'data', 'data_type': None},

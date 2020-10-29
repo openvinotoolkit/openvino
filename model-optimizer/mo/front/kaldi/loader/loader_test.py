@@ -14,14 +14,15 @@
  limitations under the License.
 """
 import io
-import numpy as np
 import struct
 import unittest
 
+import numpy as np
+
 from mo.front.kaldi.loader.loader import load_topology_map, load_components
 from mo.graph.graph import Graph, Node
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 
 class TestKaldiModelsLoading(unittest.TestCase):

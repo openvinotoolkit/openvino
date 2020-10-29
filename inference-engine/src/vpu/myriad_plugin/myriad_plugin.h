@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "inference_engine.hpp"
 #include "description_buffer.hpp"
 #include "myriad_executable_network.h"
 #include "myriad_mvnc_wraper.h"
@@ -23,22 +22,22 @@ public:
     explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
     ~Engine() override {
-        MyriadExecutor::closeDevices(_devicePool);
+        MyriadExecutor::closeDevices(_devicePool, _mvnc);
     }
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
     ie::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-            const ie::ICore* core,
-            ie::ICNNNetwork& network,
+            const ie::ICNNNetwork& network,
             const std::map<std::string, std::string>& config) override;
 
-    void QueryNetwork(
+    ie::QueryNetworkResult QueryNetwork(
             const ie::ICNNNetwork& network,
-            const std::map<std::string, std::string>& config,
-            ie::QueryNetworkResult& res) const override;
+            const std::map<std::string, std::string>& config) const override;
 
-    ie::IExecutableNetwork::Ptr ImportNetwork(
+    using ie::InferencePluginInternal::ImportNetwork;
+
+    ie::ExecutableNetwork ImportNetwork(
             const std::string& modelFileName,
             const std::map<std::string, std::string>& config) override;
 
@@ -53,12 +52,6 @@ public:
     ie::Parameter GetMetric(
             const std::string& name,
             const std::map<std::string, ie::Parameter>& options) const override;
-
-    // Myriad plugin runs reshape internally so it needs reshapable network
-    ie::ICNNNetwork& RemoveConstLayers(ie::ICNNNetwork& network) override {
-        return network;
-    }
-    std::shared_ptr<ICNNNetwork> ConvertAndCloneNetwork(ICNNNetwork& network) override;
 
 private:
     MyriadConfig _parsedConfig;

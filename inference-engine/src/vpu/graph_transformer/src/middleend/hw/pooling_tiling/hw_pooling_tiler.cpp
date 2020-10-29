@@ -315,6 +315,7 @@ std::vector<TilingOption> HWPoolingTilingSearcher::selectBetterTiling() const {
 
     const auto& splitOver = dirTiling.splitOverTensorDims();
     const auto direction = dirTiling.getDirection();
+    const auto cmxLimit = env.resources.tilingCMXLimit;
 
     for (int numBatchTiles = 1; numBatchTiles <= maxNumBatchTiles; numBatchTiles++) {
         //
@@ -406,7 +407,7 @@ std::vector<TilingOption> HWPoolingTilingSearcher::selectBetterTiling() const {
                         fullOutputTileDims.set(Dim::N, dirTiling.getOutputTileDims()[Dim::N]);
 
                         // TODO: support HCW
-                        if (calculateHwBufferSize(fullOutputTileDims) > env.resources.cmxLimit) {
+                        if (calculateHwBufferSize(fullOutputTileDims) > cmxLimit) {
                             isOK = false;
                             break;
                         }

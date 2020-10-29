@@ -32,9 +32,13 @@ class LSTMNonlinearityFrontExtractor(FrontExtractorOp):
 
         mapping_rule = {}
 
-        embed_input(mapping_rule, 1, 'i_weights', ifo_x_weights[0:1024])
-        embed_input(mapping_rule, 2, 'f_weights', ifo_x_weights[1024:2048])
-        embed_input(mapping_rule, 3, 'o_weights', ifo_x_weights[2048:])
+        assert len(ifo_x_weights_shape) == 2, "Unexpected shape of weights in LSTMNonLinearityComponent"
+        assert ifo_x_weights_shape[0] == 3, "Unexpected shape of weights in LSTMNonLinearityComponent"
+
+        ifo_x_weights = ifo_x_weights.reshape(ifo_x_weights_shape)
+        embed_input(mapping_rule, 1, 'i_weights', ifo_x_weights[0][:])
+        embed_input(mapping_rule, 2, 'f_weights', ifo_x_weights[1][:])
+        embed_input(mapping_rule, 3, 'o_weights', ifo_x_weights[2][:])
 
         LstmNonLinearity.update_node_stat(node, mapping_rule)
         return cls.enabled

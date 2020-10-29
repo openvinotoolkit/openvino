@@ -11,7 +11,7 @@
 
 namespace CLDNNPlugin {
 
-class CLDNNAsyncInferRequest : virtual public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class CLDNNAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     CLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr &inferRequest,
                            const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,

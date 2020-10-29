@@ -25,10 +25,16 @@ VPU_DECLARE_ENUM(PowerConfig,
     STAGE_NCES   = 4,
 )
 
-class MyriadConfig final : public ParsedConfig {
-public:
-    static constexpr int UNDEFINED_THROUGHPUT_STREAMS = -1;
+// Must be synchronized with firmware side.
+VPU_DECLARE_ENUM(MovidiusDdrType,
+    AUTO        = 0,
+    MICRON_2GB  = 1,
+    SAMSUNG_2GB = 2,
+    HYNIX_2GB   = 3,
+    MICRON_1GB  = 4,
+)
 
+class MyriadConfig final : public ParsedConfig {
 public:
     const std::string& pluginLogFilePath() const {
         return _pluginLogFilePath;
@@ -58,12 +64,12 @@ public:
         return _deviceConnectTimeout;
     }
 
-    int numExecutors() const {
-        return _numExecutors;
-    }
-
     const std::string& deviceName() const {
         return _deviceName;
+    }
+
+    MovidiusDdrType memoryType() const {
+        return _memoryType;
     }
 
 protected:
@@ -80,8 +86,8 @@ private:
     ncDeviceProtocol_t _protocol = NC_ANY_PROTOCOL;
     std::chrono::milliseconds _watchdogInterval = std::chrono::milliseconds(1000);
     std::chrono::seconds _deviceConnectTimeout = std::chrono::seconds(15);
-    int _numExecutors = UNDEFINED_THROUGHPUT_STREAMS;
     std::string _deviceName;
+    MovidiusDdrType _memoryType = MovidiusDdrType::AUTO;
 };
 
 }  // namespace MyriadPlugin
