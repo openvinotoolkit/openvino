@@ -151,12 +151,70 @@ bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     AxisSet axes{};
+    size_t axes_rank = inputs[1]->get_element_count();
     if (get_mode() == op::v1::Reverse::Mode::INDEX)
     {
-        auto axes_indices = inputs[1]->get_data_ptr<int64_t>();
-        for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
+        switch (inputs[1]->get_element_type())
         {
-            axes.emplace(axes_indices[i]);
+        case element::Type_t::i8:
+        {
+            auto axes_indices = inputs[1]->get_data_ptr<int8_t>();
+            std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
+            break;
+        }
+        case element::Type_t::u8:
+        {
+            auto axes_indices = inputs[1]->get_data_ptr<uint8_t>();
+            std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
+            break;
+        }
+        case element::Type_t::i16:
+        {
+            auto axes_indices = inputs[1]->get_data_ptr<int16_t>();
+            std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
+            break;
+        }
+        case element::Type_t::u16:
+        {
+            auto axes_indices = inputs[1]->get_data_ptr<uint16_t>();
+            std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
+            break;
+        }
+        case element::Type_t::i32:
+        {
+            auto axes_indices = inputs[1]->get_data_ptr<int32_t>();
+            std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
+            break;
+        }
+        case element::Type_t::u32:
+        {
+            auto axes_indices = inputs[1]->get_data_ptr<uint32_t>();
+            std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
+            break;
+        }
+        case element::Type_t::i64:
+        {
+            auto axes_indices = inputs[1]->get_data_ptr<int64_t>();
+            std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
+            break;
+        }
+        case element::Type_t::u64:
+        {
+            auto axes_indices = inputs[1]->get_data_ptr<uint64_t>();
+            std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
+            break;
+        }
+        case element::Type_t::undefined:
+        case element::Type_t::dynamic:
+        case element::Type_t::boolean:
+        case element::Type_t::bf16:
+        case element::Type_t::f16:
+        case element::Type_t::f32:
+        case element::Type_t::f64:
+        case element::Type_t::u1:
+        default:
+            NGRAPH_CHECK(false, "Not supported axes type", inputs[1]->get_element_type());
+            break;
         }
     }
     else // Mode::MASK

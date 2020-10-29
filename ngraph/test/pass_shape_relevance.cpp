@@ -134,7 +134,7 @@ TEST(shape_relevance, param_shape_of_indirect_v0)
 
     auto s = make_shared<op::v0::ShapeOf>(param0);
     auto r = make_shared<op::v1::Reverse>(
-        s, op::Constant::create(element::i64, {}, {0}), op::v1::Reverse::Mode::INDEX);
+        s, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
     auto x = make_shared<op::v1::Reshape>(param0, r, true);
 
     auto f = make_shared<Function>(x, ParameterVector{param0});
@@ -152,7 +152,7 @@ TEST(shape_relevance, param_shape_of_indirect_v3)
 
     auto s = make_shared<op::v3::ShapeOf>(param0);
     auto r = make_shared<op::v1::Reverse>(
-        s, op::Constant::create(element::i64, {}, {0}), op::v1::Reverse::Mode::INDEX);
+        s, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
     auto x = make_shared<op::v1::Reshape>(param0, r, true);
 
     auto f = make_shared<Function>(x, ParameterVector{param0});
@@ -170,7 +170,7 @@ TEST(shape_relevance, param_shape_of_indirect_i32_v3)
 
     auto s = make_shared<op::v3::ShapeOf>(param0, element::i32);
     auto r = make_shared<op::v1::Reverse>(
-        s, op::Constant::create(element::i64, {}, {0}), op::v1::Reverse::Mode::INDEX);
+        s, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
     auto x = make_shared<op::v1::Reshape>(param0, r, true);
 
     auto f = make_shared<Function>(x, ParameterVector{param0});
