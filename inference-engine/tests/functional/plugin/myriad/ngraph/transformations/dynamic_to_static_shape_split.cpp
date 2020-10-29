@@ -65,12 +65,9 @@ std::shared_ptr<const ngraph::Function> transform(
     const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
     const auto node = std::make_shared<ngraph::opset5::Split>(dsr, axis, splitSetup.numSplits);
 
-    // tests are capable to compare functions with one result only
-    const auto testsWa = std::make_shared<ngraph::opset5::Concat>(node->outputs(), splitSetup.axis);
-
     auto outputShape = node->get_output_partial_shape(0);
     const auto function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{testsWa},
+            node->outputs(),
             ngraph::ParameterVector{data, dims},
             "Actual");
     node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(splitSetup.dataShape.size()));
@@ -108,11 +105,8 @@ std::shared_ptr<const ngraph::Function> reference(
         results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(i), newShape));
     }
 
-    // tests are capable to compare functions with one result only
-    const auto testsWa = std::make_shared<ngraph::opset5::Concat>(results, splitSetup.axis);
-
     return std::make_shared<ngraph::Function>(
-            testsWa,
+            results,
             ngraph::ParameterVector{data, dims},
             "Expected");
 }

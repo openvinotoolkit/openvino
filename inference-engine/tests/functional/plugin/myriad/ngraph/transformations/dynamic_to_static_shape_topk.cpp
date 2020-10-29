@@ -72,16 +72,9 @@ protected:
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
         const auto node = std::make_shared<ngraph::opset3::TopK>(dsr, k, topk_setup.axis, "max", "value");
 
-        // tests are capable to compare functions with one result only, but TopK has 2 of them  and they are of different types
-        ngraph::OutputVector converted;
-        for (const auto& result : {node->output(0), node->output(1)}) {
-            converted.push_back(std::make_shared<ngraph::opset3::Convert>(result, ngraph::element::f32));
-        }
-        const auto tests_wa = std::make_shared<ngraph::opset3::Concat>(converted, topk_setup.axis);
-
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{tests_wa},
+            node->outputs(),
             ngraph::ParameterVector{data, dims},
             "Actual");
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(topk_setup.data_shape.size()));
@@ -140,13 +133,8 @@ protected:
             results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(0), k_1D));
             results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(1), k_1D));
         }
-        // tests are capable to compare functions with one result only, but TopK has 2 of them  and they are of different types
-        for (const auto& result : results) {
-            converted.push_back(std::make_shared<ngraph::opset3::Convert>(result, ngraph::element::f32));
-        }
-        const auto tests_wa = std::make_shared<ngraph::opset3::Concat>(converted, topk_setup.axis);
         return std::make_shared<ngraph::Function>(
-            tests_wa,
+            results,
             ngraph::ParameterVector{data, dims},
             "Expected");
     }
@@ -189,16 +177,9 @@ protected:
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
         const auto node = std::make_shared<ngraph::opset3::TopK>(dsr, k, topk_setup.axis, "max", "value");
 
-        // tests are capable to compare functions with one result only, but TopK has 2 of them  and they are of different types
-        ngraph::OutputVector converted;
-        for (const auto& result : {node->output(0), node->output(1)}) {
-            converted.push_back(std::make_shared<ngraph::opset3::Convert>(result, ngraph::element::f32));
-        }
-        const auto tests_wa = std::make_shared<ngraph::opset3::Concat>(converted, topk_setup.axis);
-
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{tests_wa},
+            node->outputs(),
             ngraph::ParameterVector{data, dims},
             "Actual");
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(topk_setup.data_shape.size()));
@@ -263,12 +244,8 @@ protected:
             results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(1), k_1D));
         }
 
-        // tests are capable to compare functions with one result only, but TopK has 2 of them and they are of different types
-        for (const auto& result : results)
-            converted.push_back(std::make_shared<ngraph::opset3::Convert>(result, ngraph::element::f32));
-        const auto tests_wa = std::make_shared<ngraph::opset3::Concat>(converted, topk_setup.axis);
         return std::make_shared<ngraph::Function>(
-            tests_wa,
+            results,
             ngraph::ParameterVector{data, dims},
             "Expected");
     }
