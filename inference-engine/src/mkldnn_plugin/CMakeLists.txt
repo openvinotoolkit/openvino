@@ -57,6 +57,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/extract_image_patches.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/fill.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_nd.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_tree.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/grn.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/non_max_suppression.cpp
@@ -114,6 +115,7 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.cpp
         ${LAYERS}
         ${OS_SPECIFIC_SRC}
 )
@@ -168,7 +170,8 @@ set_ie_threading_interface_for(${TARGET_NAME})
 
 target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_transformations mkldnn)
+target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
+                                             inference_engine_transformations)
 
 if(USE_CNNNETWORK_LPT)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
@@ -200,6 +203,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
