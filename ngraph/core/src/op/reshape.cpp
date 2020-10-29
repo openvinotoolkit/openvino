@@ -43,7 +43,7 @@ namespace
     }
 
     template <element::Type_t ET>
-    void compute_output_shape(const HostTensorPtr& shape_pattern, Shape& output_shape)
+    void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_t>& output_shape)
     {
         using T = typename element_type_traits<ET>::value_type;
         T* shape_pattern_ptr = shape_pattern->get_data_ptr<ET>();
@@ -234,7 +234,7 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
     // infer and set output shape if the output shape contain -1
     // and zero value dimension
     size_t output_rank = inputs[1]->get_shape()[0];
-    Shape out_shape_val;
+    std::vector<int64_t> out_shape_val;
 
     switch (inputs[1]->get_element_type())
     {
@@ -277,9 +277,10 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
     NODE_VALIDATION_CHECK(
         this, negative_dims <= 1, "More than one dimension has size of -1 (", negative_dims, ")");
 
+    Shape output_shape;
+    std::copy(out_shape_val.begin(), out_shape_val.end(), std::back_inserter(output_shape));
     if (!(zero_dims && m_special_zero) && !negative_dims)
     {
-        auto output_shape = out_shape_val;
         if (get_input_partial_shape(0).is_static())
         {
             NODE_VALIDATION_CHECK(this,
@@ -293,7 +294,6 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
     }
     else
     {
-        Shape output_shape = out_shape_val;
         size_t output_elements = 1;
         int negative_dim = -1;
 
