@@ -4,9 +4,8 @@
 
 set(TARGET_NAME funcTestUtils)
 
-list(APPEND EXPORT_DEPENDENCIES commonTestUtils inference_engine inference_engine_legacy)
-
-list(APPEND EXPORT_DEPENDENCIES inference_engine_lp_transformations)
+list(APPEND EXPORT_DEPENDENCIES inference_engine_lp_transformations
+    commonTestUtils inference_engine inference_engine_legacy)
 
 addIeTarget(
     NAME ${TARGET_NAME}

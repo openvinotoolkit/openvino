@@ -20,7 +20,7 @@ graph {
           op_type: "Add"
         }
         node {
-          input: "cond"
+          input: "cond_in"
           output: "cond_out"
           name: "cond_identity"
           op_type: "Identity"
@@ -46,15 +46,12 @@ graph {
             tensor_type {
               elem_type: 7
               shape {
-                dim {
-                  dim_value: 1
-                }
               }
             }
           }
         }
         input {
-          name: "cond"
+          name: "cond_in"
           type {
             tensor_type {
               elem_type: 9
@@ -95,12 +92,6 @@ graph {
             tensor_type {
               elem_type: 1
               shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
               }
             }
           }
@@ -111,12 +102,6 @@ graph {
             tensor_type {
               elem_type: 1
               shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
               }
             }
           }
@@ -153,12 +138,6 @@ graph {
       tensor_type {
         elem_type: 1
         shape {
-          dim {
-            dim_value: 1
-          }
-          dim {
-            dim_value: 2
-          }
         }
       }
     }
@@ -169,12 +148,6 @@ graph {
       tensor_type {
         elem_type: 1
         shape {
-          dim {
-            dim_value: 3
-          }
-          dim {
-            dim_value: 2
-          }
         }
       }
     }
