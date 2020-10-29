@@ -15,17 +15,14 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolate1ToInterpolate4, "ConvertInterpolate1ToInterpolate4", 0);
 
 ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4() {
-    auto interpolate1 = ngraph::pattern::wrap_type<ngraph::opset1::Interpolate>();
-
+    auto interpolate1 = ngraph::pattern::wrap_type<ngraph::opset1::Interpolate>({pattern::any_input(pattern::has_static_rank()), pattern::any_input()});
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto interpolate1 = std::dynamic_pointer_cast<ngraph::opset1::Interpolate>(m.get_match_root());
         if (!interpolate1)
             return false;
 
-        auto data_node = interpolate1->input_value(0);
-        auto out_shape_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(interpolate1->input_value(1).get_node_shared_ptr());
         auto interpolate_attrs = interpolate1->get_attrs();
-        auto input_shape = data_node.get_shape();
+        auto input_shape_rank = interpolate1->input(0).get_partial_shape().rank().get_length();
 
         // attrs
         auto mode_v4 = ngraph::op::v4::Interpolate::InterpolateMode();
@@ -34,9 +31,9 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         } else if (interpolate_attrs.mode == "cubic") {
             mode_v4 = ngraph::op::v4::Interpolate::InterpolateMode::cubic;
         } else if (interpolate_attrs.mode == "linear") {
-            if (input_shape.size() < 5) {
+            if (input_shape_rank < 5) {
                 mode_v4 = ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx;
-            } else if (input_shape.size() == 5) {
+            } else if (input_shape_rank == 5) {
                 mode_v4 = ngraph::op::v4::Interpolate::InterpolateMode::linear;
             } else {
                 return false;
@@ -54,13 +51,12 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
 
         // input
         auto axes = interpolate_attrs.axes.to_vector();
-        auto axes_const = ngraph::opset4::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
-        auto axes_node = std::make_shared<ngraph::opset4::Constant>(axes_const);
+        auto axes_node = ngraph::opset4::Constant::create(element::i64, {axes.size()}, axes);
         auto default_scales = std::vector<float>(axes.size(), 1.f);
-        auto scales = ngraph::opset4::Constant(ngraph::element::Type_t::f32, {axes.size()}, default_scales);
-        auto scales_node = std::make_shared<ngraph::opset4::Constant>(scales);
+        auto scales_node = ngraph::opset4::Constant::create(element::f32, {axes.size()}, default_scales);
 
-        auto interpolate4 = std::make_shared<ngraph::opset4::Interpolate>(data_node, out_shape_node, scales_node, axes_node, interpolate4_attr);
+        auto interpolate4 = std::make_shared<ngraph::opset4::Interpolate>(interpolate1->input_value(0), interpolate1->input_value(1),
+            scales_node, axes_node, interpolate4_attr);
 
         interpolate4->set_friendly_name(interpolate1->get_friendly_name());
         ngraph::copy_runtime_info(interpolate1, interpolate4);

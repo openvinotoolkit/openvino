@@ -230,7 +230,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<DepthToSpaceTransformation, opset1::DepthToSpace>(params).
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
         add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
-        add<InterpolateTransformation, opset1::Interpolate>(params).
+        add<InterpolateTransformation, opset4::Interpolate>(params).
         add<MatMulTransformation, opset1::MatMul>(params).
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).

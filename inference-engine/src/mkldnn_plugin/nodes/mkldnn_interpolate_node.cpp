@@ -2935,7 +2935,9 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
         if (eltwiseNode == nullptr)
             THROW_IE_EXCEPTION << "Cannot get eltwise node " << node->getName();
         return isOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu, Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp,
-                                                  Tanh, Swish, Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt});
+                                                  Tanh, Swish, Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt}) ||
+                ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
+                 (eltwiseNode->getOpType() == Prelu));
     }
 
     return false;

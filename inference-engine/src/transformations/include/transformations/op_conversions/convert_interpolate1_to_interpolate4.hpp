@@ -20,6 +20,10 @@ class TRANSFORMATIONS_API ConvertInterpolate1ToInterpolate4;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ConvertInterpolate1ToInterpolate4 covert v0:interpolate into v4::Interpolate.
+ */
 class ngraph::pass::ConvertInterpolate1ToInterpolate4: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
