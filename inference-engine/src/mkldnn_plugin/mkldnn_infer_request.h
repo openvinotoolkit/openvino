@@ -46,6 +46,10 @@ public:
 private:
     template <typename T> void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob);
 
+    template <typename dst>
+    void copyConvert(InferenceEngine::Precision convertTo, const std::pair<std::string, InferenceEngine::Blob::Ptr> &input,
+                     std::vector<InferenceEngine::Blob::Ptr> &convertedInputs);
+
     void changeDefaultPtr();
     std::shared_ptr<MKLDNNExecNetwork>  execNetwork;
     MKLDNNGraph*                        graph = nullptr;

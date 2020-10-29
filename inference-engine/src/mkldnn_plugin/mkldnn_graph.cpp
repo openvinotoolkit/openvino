@@ -29,6 +29,7 @@
 #include <legacy/net_pass.h>
 #include <legacy/details/ie_cnn_network_tools.h>
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/cpu_convert.h"
 
 #include "precision_utils.h"
 #include <ie_plugin_config.hpp>
@@ -757,9 +758,14 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             ext_blob->allocate();
         }
 
-        if (ext_blob->byteSize() != intr_blob.GetSize())
-            THROW_IE_EXCEPTION << "Output blob size is not equal network output size ("
-                               << ext_blob->size() << "!=" << intr_blob.GetSize()/sizeof(float) << ").";
+        auto srcPrec = MKLDNNMemory::convertToIePrec(intr_blob.GetDataType());
+        auto dstPrec = ext_blob->getTensorDesc().getPrecision();
+        if (srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+                THROW_IE_EXCEPTION << "Output blob byte size is not equal network output byte size ("
+                                   << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
+        if (ext_blob->size() != intr_blob.GetElementsCount())
+            THROW_IE_EXCEPTION << "Output blob number of elements is not equal network output number of elements ("
+                               << ext_blob->size() << "!=" << intr_blob.GetElementsCount() << ").";
 
         void *ext_blob_ptr = ext_blob->buffer();
         void *intr_blob_ptr = intr_blob.GetData();
@@ -772,9 +778,9 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
         if (config.batchLimit)
             MB_to_process = std::min<int>(config.batchLimit, MB_to_process);
-        size_t size_to_copy = intr_blob.GetSize() * MB_to_process / MB;
+        size_t size_to_copy = intr_blob.GetElementsCount() * MB_to_process / MB;
 
-        cpu_memcpy_s(ext_blob_ptr, ext_blob->byteSize(), intr_blob_ptr, size_to_copy);
+        cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
     }
 }
 
