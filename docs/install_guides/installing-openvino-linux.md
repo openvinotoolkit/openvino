@@ -3,7 +3,6 @@
 > **NOTES**:
 > - These steps apply to Ubuntu\*, CentOS\*, and Yocto\*.
 > - If you are using Intel® Distribution of OpenVINO™ toolkit on Windows\* OS, see the [Installation Guide for Windows*](installing-openvino-windows.md).
-> - For the Intel Distribution of OpenVINO toolkit with FPGA support, see [Installation Guide for Linux* with FPGA support](installing-openvino-linux-fpga.md).
 > - CentOS and Yocto installations will require some modifications that are not covered in this guide.
 > - An internet connection is required to follow the steps in this guide.
 > - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
@@ -24,19 +23,18 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                                                              |
 | [Inference Engine](../IE_DG/inference_engine_intro.md)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
-| Drivers and runtimes for OpenCL™ version 2.1                                                        | Enables OpenCL on the GPU/CPU for Intel® processors                                                                                                                                                                                                                                                           |
 | Intel® Media SDK                                                                                    | Offers access to hardware accelerated video codecs and frame processing                                                                                                                                                                                                                                       |
 | [OpenCV](https://docs.opencv.org/master/)                                                           | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                                                                       |
 | [Inference Engine Code Samples](../IE_DG/Samples_Overview.md)           | A set of simple console applications demonstrating how to utilize specific OpenVINO capabilities in an application and how to perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more. |
 | [Demo Applications](@ref omz_demos_README)           | A set of simple console applications that provide robust application templates to help you implement specific deep learning scenarios. |
-| [Additional Tools](../IE_DG/Tools_Overview.md)                                   | A set of tools to work with your models  |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
 
 ## System Requirements
 
 **Hardware**
 
-* 6th to 10th generation Intel® Core™ processors and Intel® Xeon® processors 
+* 6th to 11th generation Intel® Core™ processors and Intel® Xeon® processors 
 * Intel® Xeon® processor E family (formerly code named Sandy Bridge, Ivy Bridge, Haswell, and Broadwell)
 * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
@@ -55,7 +53,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 **Operating Systems**
 
 - Ubuntu 18.04.x long-term support (LTS), 64-bit
-- CentOS 7.4, 64-bit (for target only)
+- CentOS 7.6, 64-bit (for target only)
 - Yocto Project v3.0, 64-bit (for target only and requires modifications)
 
 ## Overview
@@ -130,7 +128,7 @@ looks like this:
         ![](../img/openvino-install-linux-03.png)
     When installed as **root** the default installation directory for the Intel Distribution of OpenVINO is
     `/opt/intel/openvino_<version>/`.<br>
-    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino/`.
+    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/`.
    > **NOTE**: The Intel® Media SDK component is always installed in the `/opt/intel/mediasdk` directory regardless of the OpenVINO installation path chosen.
 
 8. A Complete screen indicates that the core components have been installed:
@@ -151,7 +149,7 @@ These dependencies are required for:
 
 1. Change to the `install_dependencies` directory:
 ```sh
-cd /opt/intel/openvino/install_dependencies
+cd /opt/intel/openvino_2021/install_dependencies
 ```
 2. Run a script to download and install the external software dependencies:
 ```sh
@@ -164,7 +162,7 @@ The dependencies are installed. Continue to the next section to set your environ
 You must update several environment variables before you can compile and run OpenVINO™ applications. Run the following script to temporarily set your environment variables:
 
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```  
 
 **Optional:** The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
@@ -176,7 +174,7 @@ vi <user_directory>/.bashrc
 
 2. Add this line to the end of the file:
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```
 
 3. Save and close the file: press the **Esc** key and type `:wq`.
@@ -212,7 +210,7 @@ You can choose to either configure all supported frameworks at once **OR** confi
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
+cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
 ```
 2.  Run the script to configure the Model Optimizer for Caffe,
     TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
@@ -226,7 +224,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
+cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
 ```
 2.  Run the script for your model framework. You can run more than one script:
 
@@ -273,7 +271,7 @@ To verify the installation and compile two samples, use the steps below to run t
 
 1. Go to the **Inference Engine demo** directory:
 ```sh
-cd /opt/intel/openvino/deployment_tools/demo
+cd /opt/intel/openvino_2021/deployment_tools/demo
 ```
 
 2. Run the **Image Classification verification script**:
@@ -298,7 +296,7 @@ This script downloads three pre-trained model IRs, builds the [Security Barrier
 4. Close the image viewer window to complete the verification script.
 
 
-To learn about the verification scripts, see the `README.txt` file in `/opt/intel/openvino/deployment_tools/demo`.
+To learn about the verification scripts, see the `README.txt` file in `/opt/intel/openvino_2021/deployment_tools/demo`.
 
 For a description of the Intel Distribution of OpenVINO™ pre-trained object detection and object recognition models, see [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index).
 
@@ -314,23 +312,30 @@ The steps in this section are required only if you want to enable the toolkit co
 
 1. Go to the install_dependencies directory:
 ```sh
-cd /opt/intel/openvino/install_dependencies/
+cd /opt/intel/openvino_2021/install_dependencies/
 ```
 2. Enter the super user mode:
 ```sh
 sudo -E su
 ```
-3. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics:
+3. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. Run the installation script:
 ```sh
 ./install_NEO_OCL_driver.sh
 ```
-You may see the following command line output:
+The drivers are not included in the package and the script downloads them. Make sure you have the 
+internet connection for this step.
 
-- Add OpenCL user to video group
-- Run script to install the 4.14 kernel script
-
-Ignore those suggestions and continue.
-
+The script compares the driver version on the system to the current version. 
+If the driver version on the system is higher or equal to the current version, the script does 
+not install a new driver. 
+If the version of the driver is lower than the current version, the script uninstalls the lower 
+and installs the current version with your permission:
+![](../img/NEO_check_agreement.png)
+Higher hardware versions require a higher driver version, namely 20.35 instead of 19.41.
+If the script fails to uninstall the driver, uninstall it manually.    
+During the script execution, you may see the following command line output:  
+   - Add OpenCL user to video group    
+Ignore this suggestion and continue.    
 4. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
 ## <a name="additional-NCS-steps"></a>Steps for Intel® Neural Compute Stick 2
@@ -345,7 +350,7 @@ Log out and log in for it to take effect.
 
 2. To perform inference on Intel® Neural Compute Stick 2, install the USB rules as follows:
 ```sh
-sudo cp /opt/intel/openvino/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/
+sudo cp /opt/intel/openvino_2021/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/
 ```
 ```sh
 sudo udevadm control --reload-rules
@@ -368,7 +373,7 @@ After configuration is done, you are ready to run the verification scripts with 
 
 1. Go to the **Inference Engine demo** directory:
 ```sh
-cd /opt/intel/openvino/deployment_tools/demo
+cd /opt/intel/openvino_2021/deployment_tools/demo
 ```
 
 2. Run the **Image Classification verification script**. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
@@ -398,7 +403,7 @@ To run the sample application:
 
 1. Set up environment variables:
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```
 2. Go to the samples build directory:
 ```sh
@@ -409,24 +414,24 @@ cd ~/inference_engine_samples_build/intel64/Release
 
    - **For CPU**:    
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d CPU
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d CPU
    ```
 
    - **For GPU**:
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d GPU
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d GPU
    ```
 
    - **For MYRIAD**:
    > **NOTE**: Running inference on Intel® Neural Compute Stick 2 with the MYRIAD plugin requires performing [additional hardware configuration steps](#additional-NCS-steps).
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d MYRIAD
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d MYRIAD
    ```
 
    - **For HDDL**:
    > **NOTE**: Running inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs with the HDDL plugin requires performing [additional hardware configuration steps](installing-openvino-linux-ivad-vpu.md)
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d HDDL
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d HDDL
    ```
 
 For information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).

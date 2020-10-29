@@ -9,6 +9,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
@@ -16,10 +17,10 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnected, "ReshapeFullyConnected", 0);
 
 ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
-    auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
-    auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
-    auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto fc = std::make_shared<ngraph::op::FullyConnected>(input0, input1, input2, Shape{1, 1});
+    auto fc = pattern::wrap_type<op::FullyConnected>({pattern::any_input(pattern::has_static_shape()),
+                                                      pattern::any_input(),
+                                                      pattern::any_input()},
+                                                      pattern::has_static_shape());
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto fc = std::dynamic_pointer_cast<ngraph::op::FullyConnected> (m.get_match_root());
@@ -52,7 +53,8 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
         auto fc_new = std::make_shared<op::FullyConnected>(reshape,
                                                            fc->input_value(1),
                                                            fc->input_value(2),
-                                                           output_shape_new);
+                                                           output_shape_new,
+                                                           fc->get_output_type());
         new_ops.push_back(fc_new);
 
         if (output_shape != output_shape_new) {

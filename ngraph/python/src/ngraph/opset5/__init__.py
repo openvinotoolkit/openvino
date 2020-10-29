@@ -26,7 +26,7 @@ from ngraph.opset3.ops import assign
 from ngraph.opset1.ops import atan
 from ngraph.opset4.ops import atanh
 from ngraph.opset1.ops import avg_pool
-from ngraph.opset1.ops import batch_norm_inference
+from ngraph.opset5.ops import batch_norm_inference
 from ngraph.opset2.ops import batch_to_space
 from ngraph.opset1.ops import binary_convolution
 from ngraph.opset3.ops import broadcast
@@ -72,7 +72,9 @@ from ngraph.opset1.ops import grn
 from ngraph.opset1.ops import group_convolution
 from ngraph.opset1.ops import group_convolution_backprop_data
 from ngraph.opset3.ops import gru_cell
+from ngraph.opset5.ops import gru_sequence
 from ngraph.opset1.ops import hard_sigmoid
+from ngraph.opset5.ops import hsigmoid
 from ngraph.opset4.ops import hswish
 from ngraph.opset1.ops import interpolate
 from ngraph.opset1.ops import less
@@ -83,6 +85,7 @@ from ngraph.opset1.ops import logical_not
 from ngraph.opset1.ops import logical_or
 from ngraph.opset1.ops import logical_xor
 from ngraph.opset5.ops import log_softmax
+from ngraph.opset5.ops import loop
 from ngraph.opset1.ops import lrn
 from ngraph.opset4.ops import lstm_cell
 from ngraph.opset1.ops import lstm_sequence
@@ -126,6 +129,7 @@ from ngraph.opset1.ops import reshape
 from ngraph.opset1.ops import result
 from ngraph.opset1.ops import reverse_sequence
 from ngraph.opset3.ops import rnn_cell
+from ngraph.opset5.ops import rnn_sequence
 from ngraph.opset3.ops import roi_align
 from ngraph.opset2.ops import roi_pooling
 from ngraph.opset5.ops import round

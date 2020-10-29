@@ -5,37 +5,84 @@
 #include <vector>
 
 #include "low_precision_transformations/convolution_transformation.hpp"
+#include "low_precision_transformations/convolution_with_incorrect_weights.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
-const std::vector<InferenceEngine::details::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(false),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
 
-const std::vector<bool> fqOnActivationsValues = { true, false };
+const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params = {
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        {},
+        false
+    },
+    {
+        {},
+        false,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false
+    },
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false
+    },
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.75f }, { 6.375f } },
+        true,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false
+    }
+};
 
-const std::vector<bool> fqOnWeightsValues = { true, false };
+const std::vector<ngraph::Shape> shapes = {
+    { 1, 3, 16, 16 },
+    { 4, 3, 16, 16 }
+};
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(fqOnActivationsValues),
-        ::testing::ValuesIn(fqOnWeightsValues)),
+        ::testing::ValuesIn(params)),
     ConvolutionTransformation::getTestCaseName);
+
+const std::vector<LayerTestsDefinitions::ConvolutionWIthIncorrectWeightsParam> incorrectWeightsParams = {
+    // incorrect weights
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        false
+    },
+    // correct weights
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true
+    }
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(incorrectWeightsParams)),
+    ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
 }  // namespace
-
-
-
-

@@ -114,7 +114,6 @@ set(SRC
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
-    type_prop/dequantize.cpp
     type_prop/dot.cpp
     type_prop/dyn_reshape.cpp
     type_prop/strided_slice.cpp
@@ -133,6 +132,7 @@ set(SRC
     type_prop/gru_cell.cpp
     type_prop/gru_sequence.cpp
     type_prop/hard_sigmoid.cpp
+    type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
     type_prop/interpolate.cpp
     type_prop/lrn.cpp
@@ -301,9 +301,7 @@ set(MULTI_TEST_SRC
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
-    backend/max.in.cpp
     backend/maximum.in.cpp
-    backend/min.in.cpp
     backend/minimum.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -318,7 +316,6 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
-    backend/product.in.cpp
     backend/quantize_dequantize.in.cpp
     backend/quantized_convolution.in.cpp
     backend/quantized_dot.in.cpp
@@ -365,13 +362,13 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_convpool.in.cpp
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
-            onnx/onnx_import_library.in.cpp
             onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
             onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
-            onnx/onnx_import_exceptions.cpp)
+            onnx/onnx_import_exceptions.cpp
+            onnx/onnx_import_library.cpp)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})

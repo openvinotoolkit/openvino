@@ -26,11 +26,13 @@ from tests.test_onnx.utils.model_importer import ModelImportRunner
 from tests import (
     xfail_issue_38701,
     xfail_issue_39682,
-    xfail_issue_37687,
+    xfail_issue_41813,
+    xfail_issue_41815,
+    xfail_issue_41814,
     xfail_issue_39683,
     xfail_issue_36533,
     xfail_issue_39684,
-    xfail_issue_35926,
+    xfail_issue_34323,
     xfail_issue_36537,
     xfail_issue_39685,
     xfail_issue_37957,
@@ -112,17 +114,12 @@ if len(zoo_models) > 0:
         import_xfail_list = [
             # ONNX Model Zoo
             (xfail_issue_38701, "test_onnx_model_zoo_text_machine_comprehension_bidirectional_attention_flow_model_bidaf_9_bidaf_bidaf_cpu"),
-            (xfail_issue_37687, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
-            (xfail_issue_37687, "test_onnx_model_zoo_vision_object_detection_segmentation_yolov3_model_yolov3_10_yolov3_yolov3_cpu"),
-            (xfail_issue_37687, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov3_model_tiny_yolov3_11_yolov3_tiny_cpu"),
+            (xfail_issue_41813, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
             (xfail_issue_38726, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
 
             # Model MSFT
-            (xfail_issue_37687, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
-            (xfail_issue_37687, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
-            (xfail_issue_37687, "test_MSFT_opset10_yolov3_yolov3_cpu"),
-            (xfail_issue_37687, "test_MSFT_opset11_tinyyolov3_yolov3_tiny_cpu"),
-            (xfail_issue_37687, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
+            (xfail_issue_41813, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
+            (xfail_issue_41814, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
             (xfail_issue_37957, "test_MSFT_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
             (xfail_issue_36465, "test_MSFT_opset9_LSTM_Seq_lens_unpacked_model_cpu"),
         ]
@@ -139,11 +136,11 @@ if len(zoo_models) > 0:
             (xfail_issue_36533, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
             (xfail_issue_36533, "test_onnx_model_zoo_vision_object_detection_segmentation_retinanet_model_retinanet_9_test_retinanet_resnet101_retinanet_9_cpu"),
             (xfail_issue_39684, "test_onnx_model_zoo_vision_object_detection_segmentation_yolov4_model_yolov4_yolov4_yolov4_cpu"),
-            (xfail_issue_35926, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_10_download_sample_10_bertsquad10_cpu"),
-            (xfail_issue_35926, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_10_GPT2_model_cpu"),
-            (xfail_issue_35926, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
-            (xfail_issue_35926, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
-            (xfail_issue_35926, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_lm_head_10_GPT_2_LM_HEAD_model_cpu"),
+            (xfail_issue_36533, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_10_GPT2_model_cpu"),
+            (xfail_issue_36533, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_lm_head_10_GPT_2_LM_HEAD_model_cpu"),
+            (xfail_issue_34323, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_10_download_sample_10_bertsquad10_cpu"),
+            (xfail_issue_34323, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
+            (xfail_issue_34323, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
             (xfail_issue_36537, "test_onnx_model_zoo_vision_classification_efficientnet_lite4_model_efficientnet_lite4_11_efficientnet_lite4_efficientnet_lite4_cpu"),
             (xfail_issue_39685, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_sequence_classification_9_roberta_sequence_classification_9_roberta_sequence_classification_9_cpu"),
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
@@ -162,6 +159,8 @@ if len(zoo_models) > 0:
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_38090, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_model_ssd_10_model_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
+            (xfail_issue_41815, "test_onnx_model_zoo_vision_object_detection_segmentation_yolov3_model_yolov3_10_yolov3_yolov3_cpu"),
+            (xfail_issue_41815, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov3_model_tiny_yolov3_11_yolov3_tiny_cpu"),
 
             # Model MSFT
             (xfail_issue_36533, "test_MSFT_opset10_tf_inception_v2_model_cpu"),
@@ -186,7 +185,10 @@ if len(zoo_models) > 0:
             (xfail_issue_38084, "test_MSFT_opset10_faster_rcnn_faster_rcnn_R_50_FPN_1x_cpu"),
 
             (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
-            (xfail_issue_35926, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
+            (xfail_issue_34323, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
+
+            (xfail_issue_41815, "test_MSFT_opset11_tinyyolov3_yolov3_tiny_cpu"),
+            (xfail_issue_41815, "test_MSFT_opset10_yolov3_yolov3_cpu")
         ]
         for test_case in import_xfail_list + execution_xfail_list:
             xfail, test_name = test_case
