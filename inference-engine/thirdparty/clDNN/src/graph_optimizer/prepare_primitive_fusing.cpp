@@ -378,6 +378,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             return false;
         };
 
+        auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
+            auto out_layout = node.get_output_layout();
+            if (out_layout.data_type == data_types::f16 && out_layout.size.batch[0] > 1 &&
+                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                return false;
+            }
+
+            return true;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto& input_data = activation_node.get_dependency(0);
             if (input_data.get_users().size() != 1 || activation_node.get_dependencies().size() >= 3)
@@ -425,7 +435,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<scale>();
 
-            should_fuse |= input_data.is_type<eltwise>();
+            should_fuse |= input_data.is_type<eltwise>() && eltwise_supports_fusings(input_data.as<eltwise>());
 
             if (!should_fuse)
                 return;
@@ -484,7 +494,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<scale>();
 
-            should_fuse |= input_data.is_type<eltwise>();
+            should_fuse |= input_data.is_type<eltwise>() && eltwise_supports_fusings(input_data.as<eltwise>());
 
             if (!should_fuse)
                 return;
@@ -574,7 +584,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                            reduce_supports_fusings(input_data.as<reduce>())
                            && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<eltwise>() && quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<eltwise>() && eltwise_supports_fusings(input_data.as<eltwise>()) && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<scale>() && quantize_node.get_scale_shift_opt();
 
@@ -610,7 +620,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                       (parents[i]->is_type<gemm>() && gemm_supports_fusings(parents[i]->as<gemm>())) ||
                                       (parents[i]->is_type<batch_to_space>()) ||
                                       (parents[i]->is_type<space_to_batch>()) ||
-                                      (parents[i]->is_type<eltwise>()) ||
+                                      (parents[i]->is_type<eltwise>() && eltwise_supports_fusings(parents[i]->as<eltwise>())) ||
                                       (parents[i]->is_type<scale>()) ||
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
                                       (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>()));
