@@ -26,8 +26,7 @@ from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_34323,
-                   xfail_issue_35929,
+from tests import (xfail_issue_35929,
                    xfail_issue_36476,
                    xfail_issue_36479,
                    xfail_issue_36480)
@@ -281,7 +280,6 @@ def test_backend_config():
     runtime.set_config(dummy_config)
 
 
-@xfail_issue_34323
 def test_result():
     node = np.array([[11, 10], [1, 8], [3, 4]])
     result = run_op_node([node], ng.result)
