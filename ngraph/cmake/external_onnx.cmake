@@ -42,7 +42,6 @@ FetchContent_Declare(
     GIT_TAG ${ONNX_GIT_BRANCH}
 )
 
-FetchContent_GetProperties(ext_onnx)
 if(NOT ext_onnx_POPULATED)
     FetchContent_Populate(ext_onnx)
     set(ONNX_NAMESPACE ${NGRAPH_ONNX_NAMESPACE})
