@@ -730,41 +730,6 @@ cdef class DataPtr:
     def initialized(self):
         return deref(self._ptr).isInitialized()
 
-    @property
-    def creator_layer(self):
-        warnings.warn("'creator_layer' property of DataPtr class is deprecated and is going to be removed in 2021.2.",
-                      DeprecationWarning)
-        cdef C.CNNLayerWeakPtr _l_ptr
-        cdef IENetLayer creator_layer
-
-        if self._ptr_network != NULL:
-            deref(self._ptr_network).convertToOldRepresentation()
-        _l_ptr = C.getCreatorLayer(self._ptr)
-
-        creator_layer = IENetLayer()
-        if _l_ptr.lock() != NULL:
-            creator_layer._ptr = _l_ptr.lock()
-        else:
-            raise RuntimeError("Creator IENetLayer of DataPtr object with name {} already released!".format(self.name))
-        return creator_layer
-
-    @property
-    def input_to(self):
-        warnings.warn("'input_to' property of DataPtr class is deprecated and is going to be removed in 2021.2.",
-                      DeprecationWarning)
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map
-        cdef IENetLayer input_to
-
-        if self._ptr_network != NULL:
-            deref(self._ptr_network).convertToOldRepresentation()
-        _l_ptr_map = C.getInputTo(self._ptr)
-
-        input_to_list = []
-        for layer in _l_ptr_map:
-            input_to = IENetLayer()
-            input_to._ptr = layer.second
-            input_to_list.append(input_to)
-        return input_to_list
 
 ## This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters
 cdef class CDataPtr:
@@ -1260,117 +1225,6 @@ cdef class InferRequest:
             self.input_blobs[k].buffer[:] = v
 
 
-## This class represents a main layer information and providing setters allowing to modify layer properties
-#
-#  \note This class is deprecated: for working with layers, please, use nGraph Python API.
-#        This class is going to be removed in 2021.2
-#
-cdef class IENetLayer:
-    ## Name of the layer
-    @property
-    def name(self):
-        return deref(self._ptr).name.decode()
-
-    ## Layer type
-    @property
-    def type(self):
-        return deref(self._ptr).type.decode()
-
-
-    ## Layer affinity set by user or a default affinity may be setted using `IECore.query_network() method`
-    #  which returns dictionary {layer_name : device}.
-    #  The affinity attribute provides getter and setter interfaces, so the layer affinity can be modified directly.
-    #  For example:\n
-    #  ```python
-    #  ie = IECore()
-    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-    #  layers_map = ie.query_network(network=net, device_name="HETERO:GPU,CPU")
-    #  layers = net.layers
-    #  for layer, device in layers_map.items():
-    #      layers[layer].affinity = device
-    #  ```
-    @property
-    def affinity(self):
-        return deref(self._ptr).affinity.decode()
-    @affinity.setter
-    def affinity(self, target_affinity):
-        deref(self._ptr).affinity = target_affinity.encode()
-
-    ## Layer specific parameters. Provides getter and setter interfaces to get and modify layer parameters.
-    #  Please note that some modifications can be ignored and/or overwritten by target plugin (e.g. modification of
-    #  convolution kernel size will be reflected in layer parameters but finally the plugin will ignore it and will
-    #  use initial kernel size)
-    @property
-    def params(self):
-        return {k.decode(): v.decode() for k, v in deref(self._ptr).params}
-    @params.setter
-    def params(self, new_params):
-        deref(self._ptr).params = dict_to_c_map(new_params)
-
-    ## Returns a list, which contains names of layers preceding this layer
-    @property
-    def parents(self):
-        cdef vector[C.DataWeakPtr] c_inputs = deref(self._ptr).insData
-        parents = []
-        for l in c_inputs:
-            if l.lock() != NULL:
-                parents.append(deref(l.lock()).getName().decode())
-            else:
-                raise RuntimeError("Input Data of layer {} already released!".format(self.name))
-        return parents
-    ## Returns a list, which contains names of layers following this layer
-    @property
-    def children(self):
-        cdef vector[C.DataPtr] c_outs = deref(self._ptr).outData
-        children = []
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map
-        input_to_list = []
-        for l in c_outs:
-            _l_ptr_map = C.getInputTo(l)
-            for layer in _l_ptr_map:
-                input_to_list.append(deref(layer.second).name.decode())
-        return input_to_list
-
-    ## Returns a list of DataPtr objects representing the output data of the layer on corresponding port
-    @property
-    def out_data(self):
-        cdef vector[C.DataPtr] c_outputs = deref(self._ptr).outData
-        cdef DataPtr data_ptr
-        out_data = []
-        for output in c_outputs:
-            data_ptr = DataPtr()
-            data_ptr._ptr = output
-            out_data.append(data_ptr)
-        return out_data
-    ## Returns a list of DataPtr objects representing the input data of the layer on corresponding port
-    @property
-    def in_data(self):
-        cdef vector[C.DataWeakPtr] c_inputs = deref(self._ptr).insData
-        cdef DataPtr data_ptr
-        in_data = []
-        for input in c_inputs:
-            data_ptr = DataPtr()
-            if input.lock() != NULL:
-                data_ptr._ptr = input.lock()
-            else:
-                raise RuntimeError("Input Data of layer {} already released!".format(self.name))
-            in_data.append(data_ptr)
-        return in_data
-
-    ## Dictionary with layer arbitrary layer blobs including weights and biases as any.
-    @property
-    def blobs(self):
-        cdef map[string, CBlob.Ptr] c_blobs_map
-        c_blobs_map = deref(self._ptr).blobs
-        blobs_map = {}
-        cdef BlobBuffer weights_buffer
-        for blob in c_blobs_map:
-            weights_buffer = BlobBuffer()
-            weights_buffer.reset(blob.second)
-            blobs_map[blob.first.decode()] = weights_buffer.to_numpy()
-        return blobs_map
-
-
 ## This class contains the information about the network model read from IR and allows you to manipulate with
 #  some model parameters such as layers affinity and output layers.
 cdef class IENetwork:
@@ -1512,26 +1366,6 @@ cdef class IENetwork:
             raise AttributeError("Invalid batch size {}! Batch size should be positive integer value".format(batch))
         self.impl.setBatch(batch)
 
-    ## \note The property is deprecated. Please use get_ops()/get_ordered_ops() methods
-    #  from nGraph Python API.
-    #  This property will be removed in 2021.2.
-    #
-    #  Return dictionary that maps network layer names in topological order to IENetLayer
-    #  objects containing layer properties
-    @property
-    def layers(self):
-        warnings.warn("'layers' property of IENetwork class is deprecated. "
-              "For iteration over network please use get_ops()/get_ordered_ops() methods "
-              "from nGraph Python API",
-              DeprecationWarning)
-        cdef vector[C.CNNLayerPtr] c_layers = self.impl.getLayers()
-        layers = OrderedDict()
-        cdef IENetLayer net_l
-        for l in c_layers:
-            net_l = IENetLayer()
-            net_l._ptr = l
-            layers[deref(l).name.decode()] = net_l
-        return layers
 
     ## Marks any intermediate layer as output layer to retrieve the inference results from the specified layers.
     #  @param outputs: List of layers to be set as model outputs. The list can contain strings with layer names to be set

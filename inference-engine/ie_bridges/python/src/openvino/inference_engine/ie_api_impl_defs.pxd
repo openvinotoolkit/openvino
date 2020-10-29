@@ -90,20 +90,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         @staticmethod
         const Precision FromStr(const string& str)
 
-    cdef cppclass CNNLayer:
-        string name
-        string type
-        Precision precision
-        vector[DataPtr] outData
-        vector[DataWeakPtr] insData
-        string affinity
-        map[string, string] params
-        map[string, CBlob.Ptr] blobs
-
-    ctypedef weak_ptr[CNNLayer] CNNLayerWeakPtr
-    ctypedef shared_ptr[CNNLayer] CNNLayerPtr
-
-
     cdef struct apiVersion:
         int minor
         int major
@@ -141,10 +127,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         BLOCKED
 
 
-cdef extern from "<legacy/ie_layers.h>" namespace "InferenceEngine":
-    cdef weak_ptr[CNNLayer] getCreatorLayer(const shared_ptr[Data] & data)
-    map[string, shared_ptr[CNNLayer]] & getInputTo(const shared_ptr[Data] & data)
-
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef cppclass ProfileInfo:
@@ -180,7 +162,6 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         size_t batch_size
         string precision
         map[string, vector[size_t]] inputs
-        const vector[CNNLayerPtr] getLayers() except +
         const map[string, InputInfo.Ptr] getInputsInfo() except +
         const map[string, DataPtr] getInputs() except +
         map[string, DataPtr] getOutputs() except +

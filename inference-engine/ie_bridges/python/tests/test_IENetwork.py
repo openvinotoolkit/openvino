@@ -3,8 +3,7 @@ import pytest
 import warnings
 import numpy as np
 
-from openvino.inference_engine import IECore, IENetwork, IENetLayer, DataPtr, \
-    InputInfoPtr, PreProcessInfo
+from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
 from conftest import model_path
 
 
@@ -181,30 +180,12 @@ def test_batch_size_after_reshape():
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 
-def test_layers(recwarn):
-    warnings.simplefilter("always")
-    ie = IECore()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    layers_name = [key for key in net.layers]
-    assert sorted(layers_name) == ['19/Fused_Add_', '21', '22', '23', '24/Fused_Add_',
-                                   '26', '27', '29', 'data', 'fc_out']
-    assert isinstance(net.layers['19/Fused_Add_'], IENetLayer)
-    assert len(recwarn) == 2
-    assert recwarn.pop(DeprecationWarning)
-
-
-@pytest.mark.skip(reason="Test is failed due-to ngraph conversion")
-def test_serialize(recwarn):
-    warnings.simplefilter("always")
-    ie = IECore()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    net.serialize("./serialized_net.xml", "./serialized_net.bin")
-    serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
-    assert net.layers.keys() == serialized_net.layers.keys()
-    os.remove("./serialized_net.xml")
-    os.remove("./serialized_net.bin")
-    assert len(recwarn) == 2
-    assert recwarn.pop(DeprecationWarning)
+def test_serialize():
+    with pytest.raises(RuntimeError) as excinfo:
+        ie = IECore()
+        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+        net.serialize("./serialized_net.xml", "./serialized_net.bin")
+    assert "The serialize for IR v10 is not implemented" in str(excinfo.value)
 
 
 def test_reshape():
@@ -228,18 +209,21 @@ def test_read_net_from_buffer_deprecated():
 
 
 def test_net_from_buffer_valid_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        with open(test_net_bin, 'rb') as f:
-            bin = f.read()
-        with open(test_net_xml, 'rb') as f:
-            xml = f.read()
-        net = IENetwork(model=xml, weights=bin, init_from_buffer=True)
-        net2 = IENetwork(model=test_net_xml, weights=test_net_bin)
-        for name, l in net.layers.items():
-            for blob, data in l.blobs.items():
-                assert np.allclose(data, net2.layers[name].blobs[blob]), \
-                    "Incorrect weights for layer {} and blob {}".format(name, blob)
-        assert len(w) == 11
+    ie = IECore()
+    with open(test_net_bin, 'rb') as f:
+        bin = f.read()
+    with open(model_path()[0], 'rb') as f:
+        xml = f.read()
+    net = ie.read_network(model=xml, weights=bin, init_from_buffer=True)
+    ref_net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.name == ref_net.name
+    assert net.batch_size == ref_net.batch_size
+    ii_net = net.input_info
+    ii_net2 = ref_net.input_info
+    o_net = net.outputs
+    o_net2 = ref_net.outputs
+    assert ii_net.keys() == ii_net2.keys()
+    assert o_net.keys() == o_net2.keys()
 
 
 def test_multi_out_data():
