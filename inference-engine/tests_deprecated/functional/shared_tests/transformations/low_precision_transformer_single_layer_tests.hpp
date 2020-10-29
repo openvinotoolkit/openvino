@@ -13,6 +13,7 @@
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 
 #include "common/low_precision_tests_utils.hpp"
+
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/network_helper.hpp"

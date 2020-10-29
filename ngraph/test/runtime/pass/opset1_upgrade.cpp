@@ -54,44 +54,6 @@ namespace opset1_upgrade
         return op_cast_binary_elementwise_node<op::v0::Multiply, op::v1::Multiply>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Broadcast> node)
-    {
-        auto replacement_node = ngraph::builder::opset1::make_broadcast(
-            node->input_value(0), node->get_broadcast_shape(), node->get_broadcast_axes());
-        replace_node(node, replacement_node.get_node_shared_ptr());
-        return replacement_node.get_node_shared_ptr();
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::BroadcastLike> node) { return nullptr; }
-    shared_ptr<Node> op_cast(shared_ptr<op::v0::Convolution> node)
-    {
-        auto strides = node->get_window_movement_strides();
-        auto dilations = node->get_window_dilation_strides();
-        auto pads_begin = node->get_padding_below();
-        auto pads_end = node->get_padding_above();
-        auto data_dilation_strides = node->get_data_dilation_strides();
-        auto auto_pad = node->get_pad_type();
-
-        bool is_dds_valid = all_of(data_dilation_strides.begin(),
-                                   data_dilation_strides.end(),
-                                   [](size_t value) { return value == 1; });
-
-        NGRAPH_CHECK(is_dds_valid,
-                     "Unable to convert Convolution:0 to Convolution:1 with data dilation strides "
-                     "other than `1`. Node: ",
-                     *node);
-
-        auto replacement_node = make_shared<op::v1::Convolution>(node->input_value(0),
-                                                                 node->input_value(1),
-                                                                 strides,
-                                                                 pads_begin,
-                                                                 pads_end,
-                                                                 dilations,
-                                                                 auto_pad);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v0::ConvolutionBackpropData> node)
     {
         auto data_batch_shape = node->get_data_batch_shape();
@@ -130,17 +92,6 @@ namespace opset1_upgrade
     {
         shared_ptr<Node> replacement_node =
             builder::opset1::reshape(node->input_value(0), node->get_reshape_output_shape());
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Gather> node)
-    {
-        int64_t axis = node->get_axis();
-
-        auto axis_node = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{axis});
-        auto replacement_node =
-            make_shared<op::v1::Gather>(node->input_value(0), node->input_value(1), axis_node);
         replace_node(node, replacement_node);
         return replacement_node;
     }
@@ -267,39 +218,9 @@ namespace opset1_upgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::OneHot> node)
-    {
-        const auto indices = node->input_value(0).get_node_shared_ptr();
-        const auto one_hot_axis = node->get_one_hot_axis();
-
-        const auto output_pshape = node->get_output_partial_shape(0);
-        NGRAPH_CHECK(output_pshape[one_hot_axis].is_static(),
-                     "OneHot:v0 one hot axis dimension must be static ",
-                     *node);
-        const auto depth = output_pshape[one_hot_axis].get_length();
-        const auto depth_node = op::Constant::create(element::i64, Shape{}, {depth});
-
-        const auto on_value = op::Constant::create(element::i64, Shape{}, {1});
-        const auto off_value = op::Constant::create(element::i64, Shape{}, {0});
-
-        auto replacement_node =
-            make_shared<op::v1::OneHot>(indices, depth_node, on_value, off_value, one_hot_axis);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Or> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Or, op::v1::LogicalOr>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Product> node)
-    {
-        bool keep_dims = false;
-        auto replacement_node =
-            make_shared<op::v1::ReduceProd>(node->input_value(0), node->input_value(1), keep_dims);
-        replace_node(node, replacement_node);
-        return replacement_node;
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::Reverse> node)
@@ -314,16 +235,6 @@ namespace opset1_upgrade
         const auto replacement_node = make_shared<op::v1::Reverse>(
             node->input_value(0), reversed_axes_constant, op::v1::Reverse::Mode::INDEX);
 
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Select> node)
-    {
-        auto replacement_node = make_shared<op::v1::Select>(node->input_value(0),
-                                                            node->input_value(1),
-                                                            node->input_value(2),
-                                                            op::AutoBroadcastSpec());
         replace_node(node, replacement_node);
         return replacement_node;
     }

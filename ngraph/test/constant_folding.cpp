@@ -263,35 +263,6 @@ TEST(constant_folding, DISABLED_constant_reshape_permute)
     ASSERT_TRUE(test::all_close_f(values_permute, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(constant_folding, constant_broadcast)
-{
-    Shape shape_in{2};
-    Shape shape_out{2, 4};
-
-    vector<int> values_in{0, 1};
-    auto constant = make_shared<op::Constant>(element::i32, shape_in, values_in);
-    auto broadcast = make_shared<op::Broadcast>(constant, shape_out, AxisSet{1});
-    broadcast->set_friendly_name("test");
-    auto f = make_shared<Function>(broadcast, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Broadcast>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-
-    auto values_out = new_const->get_vector<int>();
-
-    vector<int> values_expected{0, 0, 0, 0, 1, 1, 1, 1};
-    ASSERT_EQ(values_expected, values_out);
-}
-
 TEST(constant_folding, constant_broadcast_v1)
 {
     vector<int32_t> values_in{0, 1};
@@ -852,33 +823,6 @@ TEST(constant_folding, const_reverse)
     auto values_out = new_const->get_vector<int32_t>();
 
     vector<int32_t> values_expected{3, 2, 1, 6, 5, 4, 9, 8, 7};
-    ASSERT_EQ(values_expected, values_out);
-}
-
-TEST(constant_folding, const_product)
-{
-    Shape input_shape{3, 3};
-
-    vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
-    auto convert = make_shared<op::Product>(constant, AxisSet{1});
-    convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Product>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<int32_t>();
-
-    vector<int32_t> values_expected{6, 120, 504};
     ASSERT_EQ(values_expected, values_out);
 }
 
@@ -1857,37 +1801,6 @@ TEST(constant_folding, const_floor)
     ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(constant_folding, const_gather)
-{
-    auto constant_data = op::Constant::create(
-        element::f32,
-        Shape{2, 5},
-        vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
-    auto constant_indices =
-        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
-    size_t gather_axis = 1;
-    auto gather = make_shared<op::v0::Gather>(constant_data, constant_indices, gather_axis);
-    gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<float>();
-
-    vector<float> values_expected{1.0f, 4.0f, 3.0f, 3.0f, 6.0f, 9.0f, 8.0f, 8.0f};
-
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
-}
-
 TEST(constant_folding, const_gather_v1)
 {
     auto constant_data = op::Constant::create(
@@ -2340,7 +2253,7 @@ TEST(constant_folding, constant_select)
     auto constant_selection = make_shared<op::Constant>(element::boolean, shape, values_selection);
     auto constant_t = make_shared<op::Constant>(element::i64, shape, values_t);
     auto constant_f = make_shared<op::Constant>(element::i64, shape, values_f);
-    auto select = make_shared<op::Select>(constant_selection, constant_t, constant_f);
+    auto select = make_shared<op::v1::Select>(constant_selection, constant_t, constant_f);
     select->set_friendly_name("test");
     auto f = make_shared<Function>(select, ParameterVector{});
 
@@ -2348,7 +2261,7 @@ TEST(constant_folding, constant_select)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Select>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v1::Select>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -2380,7 +2293,7 @@ TEST(constant_folding, constant_v1_select)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Select>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v1::Select>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =

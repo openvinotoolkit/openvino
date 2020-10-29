@@ -15,6 +15,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/builder/autobroadcast.hpp>
 #include <transformations/common_optimizations/algebraic_simplification.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
@@ -80,8 +81,9 @@ TEST(algebraic_simplification, multiply_negative_tests) {
 
 TEST(algebraic_simplification, multiply_prod_negative) {
     auto fconst1 = ngraph::op::Constant::create(element::f64, Shape{2}, {1.0, 1.0});
-    auto broadcast = std::make_shared<op::Broadcast>(fconst1, Shape{2, 5}, AxisSet{1});
-    auto prod_fconst1 = std::make_shared<op::Product>(broadcast, AxisSet{0, 1});
+    auto broadcast = builder::opset1::make_broadcast(fconst1, Shape{2, 5}, AxisSet{1});
+    auto axes = op::Constant::create(element::i64, {2}, {0, 1});
+    auto prod_fconst1 = std::make_shared<op::v1::ReduceProd>(broadcast, axes);
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::AlgebraicSimplification>();
@@ -94,7 +96,7 @@ TEST(algebraic_simplification, multiply_prod_negative) {
 
 TEST(algebraic_simplification, multiply_sum_negative) {
     auto fconst1 = ngraph::op::Constant::create(element::f64, Shape{2}, {1.0, 1.0});
-    auto broadcast = std::make_shared<op::Broadcast>(fconst1, Shape{2, 5}, AxisSet{1});
+    auto broadcast = builder::opset1::make_broadcast(fconst1, Shape{2, 5}, AxisSet{1});
     auto sum_fconst1 = std::make_shared<op::Sum>(broadcast, AxisSet{0, 1});
 
     pass::Manager pass_manager;

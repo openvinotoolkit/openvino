@@ -836,39 +836,6 @@ namespace
         return true;
     }
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v0::OneHot>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-        switch (inputs[0]->get_element_type())
-        {
-        case element::Type_t::i32:
-            runtime::reference::one_hot<T>(inputs[0]->get_data_ptr<T>(),
-                                           outputs[0]->get_data_ptr<T>(),
-                                           inputs[0]->get_shape(),
-                                           outputs[0]->get_shape(),
-                                           op->get_one_hot_axis());
-            break;
-        case element::Type_t::i64:
-            runtime::reference::one_hot<T>(inputs[0]->get_data_ptr<T>(),
-                                           outputs[0]->get_data_ptr<T>(),
-                                           inputs[0]->get_shape(),
-                                           outputs[0]->get_shape(),
-                                           op->get_one_hot_axis());
-            break;
-        default:
-            std::stringstream ss;
-            ss << "Unhandled input precision " << inputs[0]->get_element_type().get_type_name()
-               << " in v0::OneHot evaluate call";
-            throw ngraph_error(ss.str());
-        }
-        return true;
-    }
-    NGRAPH_SUPPRESS_DEPRECATED_END
-
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::OneHot>& op,
                   const HostTensorVector& outputs,
@@ -878,22 +845,24 @@ namespace
         switch (inputs[0]->get_element_type())
         {
         case element::Type_t::i32:
-            runtime::reference::one_hot<T>(inputs[0]->get_data_ptr<T>(),
-                                           outputs[0]->get_data_ptr<T>(),
-                                           inputs[0]->get_shape(),
-                                           outputs[0]->get_shape(),
-                                           op->get_axis(),
-                                           inputs[2]->get_data_ptr<T>()[0],
-                                           inputs[3]->get_data_ptr<T>()[0]);
+            runtime::reference::one_hot<typename element_type_traits<element::Type_t::i32>::value_type, T>(
+                    inputs[0]->get_data_ptr<element::Type_t::i32>(),
+                    outputs[0]->get_data_ptr<T>(),
+                    inputs[0]->get_shape(),
+                    outputs[0]->get_shape(),
+                    op->get_axis(),
+                    inputs[2]->get_data_ptr<T>()[0],
+                    inputs[3]->get_data_ptr<T>()[0]);
             break;
         case element::Type_t::i64:
-            runtime::reference::one_hot<T>(inputs[0]->get_data_ptr<T>(),
-                                           outputs[0]->get_data_ptr<T>(),
-                                           inputs[0]->get_shape(),
-                                           outputs[0]->get_shape(),
-                                           op->get_axis(),
-                                           inputs[2]->get_data_ptr<T>()[0],
-                                           inputs[3]->get_data_ptr<T>()[0]);
+            runtime::reference::one_hot<typename element_type_traits<element::Type_t::i64>::value_type, T>(
+                    inputs[0]->get_data_ptr<element::Type_t::i64>(),
+                    outputs[0]->get_data_ptr<T>(),
+                    inputs[0]->get_shape(),
+                    outputs[0]->get_shape(),
+                    op->get_axis(),
+                    inputs[2]->get_data_ptr<T>()[0],
+                    inputs[3]->get_data_ptr<T>()[0]);
             break;
         default:
             std::stringstream ss;
@@ -1128,75 +1097,6 @@ namespace
                                         inputs[1]->get_element_type());
         return true;
     }
-
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    namespace gathernd_v0
-    {
-        template <element::Type_t t1, element::Type_t t2>
-        inline void evaluate(const shared_ptr<op::v0::GatherND>& op,
-                             const HostTensorVector& outputs,
-                             const HostTensorVector& inputs)
-        {
-            using T1 = typename element_type_traits<t1>::value_type;
-            using T2 = typename element_type_traits<t2>::value_type;
-            runtime::reference::gather_nd<T1, T2>(inputs[0]->get_data_ptr<T1>(),
-                                                  inputs[1]->get_data_ptr<T2>(),
-                                                  outputs[0]->get_data_ptr<T1>(),
-                                                  op->get_input_shape(0),
-                                                  op->get_input_shape(1),
-                                                  op->get_output_shape(0));
-        }
-    } // namespace gathernd_v0
-
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v0::GatherND>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-
-    {
-        switch (inputs[1]->get_element_type())
-        {
-        case element::Type_t::boolean:
-            gathernd_v0::evaluate<ET, element::Type_t::boolean>(op, outputs, inputs);
-            break;
-        case element::Type_t::i8:
-            gathernd_v0::evaluate<ET, element::Type_t::i8>(op, outputs, inputs);
-            break;
-        case element::Type_t::i16:
-            gathernd_v0::evaluate<ET, element::Type_t::i16>(op, outputs, inputs);
-            break;
-        case element::Type_t::i32:
-            gathernd_v0::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
-            break;
-        case element::Type_t::i64:
-            gathernd_v0::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
-            break;
-        case element::Type_t::u8:
-            gathernd_v0::evaluate<ET, element::Type_t::u8>(op, outputs, inputs);
-            break;
-        case element::Type_t::u16:
-            gathernd_v0::evaluate<ET, element::Type_t::u16>(op, outputs, inputs);
-            break;
-        case element::Type_t::u32:
-            gathernd_v0::evaluate<ET, element::Type_t::u32>(op, outputs, inputs);
-            break;
-        case element::Type_t::u64:
-            gathernd_v0::evaluate<ET, element::Type_t::u64>(op, outputs, inputs);
-            break;
-        case element::Type_t::f16:
-            gathernd_v0::evaluate<ET, element::Type_t::f16>(op, outputs, inputs);
-            break;
-        case element::Type_t::f32:
-            gathernd_v0::evaluate<ET, element::Type_t::f32>(op, outputs, inputs);
-            break;
-        case element::Type_t::f64:
-            gathernd_v0::evaluate<ET, element::Type_t::f64>(op, outputs, inputs);
-            break;
-        default: return false;
-        }
-        return true;
-    }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::FakeQuantize>& op,

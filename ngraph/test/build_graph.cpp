@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "util/test_tools.hpp"
@@ -34,8 +35,8 @@ TEST(build_graph, build_simple)
     auto arg1 = make_shared<op::Parameter>(element::f32, Shape{3});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{32, 7});
     auto arg3 = make_shared<op::Parameter>(element::f32, Shape{32, 7});
-    auto broadcast_1 = make_shared<op::Broadcast>(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto b1 = make_shared<op::Broadcast>(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto broadcast_1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto b1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::Dot>(arg2, arg0);
     ASSERT_EQ(dot->input_value(0).get_node_shared_ptr(), arg2);
     ASSERT_EQ(dot->input_value(1).get_node_shared_ptr(), arg0);
@@ -107,8 +108,8 @@ TEST(build_graph, function_undeclared_parameters)
     auto arg1 = make_shared<op::Parameter>(element::f32, Shape{3});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{32, 7});
     auto arg3 = make_shared<op::Parameter>(element::f32, Shape{32, 7});
-    auto broadcast_1 = make_shared<op::Broadcast>(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto b1 = make_shared<op::Broadcast>(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto broadcast_1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto b1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::Dot>(arg2, arg0);
     ASSERT_EQ(dot->input_values()[0].get_node_shared_ptr(), arg2);
     ASSERT_EQ(dot->input_values()[1].get_node_shared_ptr(), arg0);

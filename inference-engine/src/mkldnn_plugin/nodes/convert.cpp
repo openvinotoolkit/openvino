@@ -112,7 +112,10 @@ public:
                     exec_cast<PrecisionTrait<Precision::U8>::value_type, PrecisionTrait<Precision::I32>::value_type>(inputs[0], outputs[0]);
                     break;
                 default:
-                    std::string errorMsg = "Unsupported precisions!";
+                    std::stringstream ss;
+                    ss << "Unsupported precisions: " << inputs[0]->getTensorDesc().getPrecision() << " -> " << outputs[0]->getTensorDesc().getPrecision();
+                    std::string errorMsg = ss.str();
+
                     if (resp) {
                         errorMsg.copy(resp->msg, sizeof(resp->msg)-1);
                     }

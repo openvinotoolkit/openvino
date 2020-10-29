@@ -1532,7 +1532,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxIE>::createLayer(const std::shar
         auto img_H = img_shape[2];
         auto data_H = data_shape[2];
         if (attr.step == -1)
-            attr.step = 1. * img_H / data_H;
+            attr.step = static_cast<float>(1. * img_H / data_H);
         else
             attr.step *= img_H;
         for (auto& size : attr.min_size)
@@ -1636,6 +1636,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_
     switch (castedLayer->eltwise_type) {
     case ELTWISE_TYPE::Sum:
         type = "sum";
+        break;
+    case ELTWISE_TYPE::Sub:
+        type = "sub";
         break;
     case ELTWISE_TYPE::Prod:
         type = "prod";

@@ -40,7 +40,7 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
         auto off_value = std::stof(off_value_node->convert_value_to_string(0));
 
         auto one_hot_ie = std::make_shared<ngraph::op::OneHotIE>(one_hot->input_value(0),
-                                                                 one_hot->get_axis(), depth_value, on_value, off_value, m_output_type);
+                                                                 static_cast<int>(one_hot->get_axis()), depth_value, on_value, off_value, m_output_type);
         one_hot_ie->set_friendly_name(one_hot->get_friendly_name());
 
         // insert Convert layer to cast output to a correct data type defined by the on/off values
