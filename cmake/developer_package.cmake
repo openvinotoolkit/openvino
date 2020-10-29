@@ -245,5 +245,3 @@ function(set_ci_build_number)
     set(CI_BUILD_NUMBER "${CI_BUILD_NUMBER}" PARENT_SCOPE)
 endfunction()
 set_ci_build_number()
-
-set(CMAKE_VERBOSE_MAKEFILE ON)
