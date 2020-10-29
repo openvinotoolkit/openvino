@@ -75,7 +75,6 @@ private:
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         auto input = inputEdge(0)->input();
-
         auto perm = input->desc().dimsOrder().toPermutation();
         IE_ASSERT(perm.size() <= 4);
 
@@ -86,11 +85,11 @@ private:
         auto sampleNearestMode = attrs().get<int>("nearestMode");
         auto sampleShapeCalcMode = attrs().get<int>("shapeCalcMode");
         auto sampleCoordTransMode = attrs().get<int>("coordTransMode");
-        auto& pads_begin = attrs().get<DimValues>("pads_begin");
-        auto& pads_end = attrs().get<DimValues>("pads_end");
-        auto& sizes = attrs().get<DimValues>("sizes");
-        auto& axis = attrs().get<DimValues>("InterpolateAxis");
-        auto& scales = attrs().get<DimValues>("InterpolateScales");
+        auto pads_begin = attrs().get<DimValues>("pads_begin");
+        auto pads_end = attrs().get<DimValues>("pads_end");
+        // auto sizes = attrs().get<DimValues>("sizes");
+        // auto axis = attrs().get<DimValues>("InterpolateAxis");
+        // auto scales = attrs().get<DimValues>("InterpolateScales");
 
         serializer.append(static_cast<int>(antialias));
         serializer.append(static_cast<float>(cube_coeff));
@@ -100,20 +99,31 @@ private:
         serializer.append(static_cast<int>(sampleShapeCalcMode));
         serializer.append(static_cast<int>(sampleCoordTransMode));
 
-        for (int i = 0; i < perm.size(); ++i) {
-            serializer.append(static_cast<int>(pads_begin.get(perm[i], 0)));
-            serializer.append(static_cast<int>(pads_end.get(perm[i], 0)));
-            serializer.append(static_cast<int>(sizes.get(perm[i], 0)));
-            serializer.append(static_cast<int>(axis.get(perm[i], 0)));
-            serializer.append(static_cast<float>(scales.get(perm[i], 0)));
-        }
+        // for (int i = 0; i < perm.size(); ++i) {
+        //     serializer.append(static_cast<int>(pads_begin.get(perm[i], 0)));
+        //     serializer.append(static_cast<int>(pads_end.get(perm[i], 0)));
+        //     serializer.append(static_cast<int>(sizes.get(perm[i], 0)));
+        //     serializer.append(static_cast<int>(axis.get(perm[i], 0)));
+        //     serializer.append(static_cast<float>(scales.get(perm[i], 0)));
+        // }
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        auto input = inputEdge(0)->input();
+        // auto input = inputEdge(0)->input();
+        // auto output = outputEdge(0)->output();
+
+        // input->serializeBuffer(serializer);
+        // output->serializeBuffer(serializer);
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
+        auto input2 = inputEdge(2)->input();
+        auto input3 = inputEdge(3)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeBuffer(serializer);
+        input0->serializeBuffer(serializer);
+        input1->serializeBuffer(serializer);
+        input2->serializeBuffer(serializer);
+        input3->serializeBuffer(serializer);
         output->serializeBuffer(serializer);
     }
 };
@@ -139,8 +149,10 @@ Stage StageBuilder::addInterpolateStage(
 }
 
 void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
+    printf("PARSE start\n");
+    IE_ASSERT(inputs.size() == 4);
     IE_ASSERT(outputs.size() == 1);
+    return;
 
     auto layer = std::dynamic_pointer_cast<ie::InterpolateLayer>(_layer);
     IE_ASSERT(layer != nullptr);
@@ -157,40 +169,41 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
     pads_end.set(Dim::C, layer->pads_end[1]);
     pads_end.set(Dim::N, layer->pads_end[0]);
 
-    DimValues sizes;
-    sizes.set(Dim::W, layer->sizes[3]);
-    sizes.set(Dim::H, layer->sizes[2]);
-    sizes.set(Dim::C, layer->sizes[1]);
-    sizes.set(Dim::N, layer->sizes[0]);
+    // DimValues sizes;
+    // sizes.set(Dim::W, layer->sizes[3]);
+    // sizes.set(Dim::H, layer->sizes[2]);
+    // sizes.set(Dim::C, layer->sizes[1]);
+    // sizes.set(Dim::N, layer->sizes[0]);
 
-    DimValues scales;
-    scales.set(Dim::W, layer->scales[3]);
-    scales.set(Dim::H, layer->scales[2]);
-    scales.set(Dim::C, layer->scales[1]);
-    scales.set(Dim::N, layer->scales[0]);
+    // DimValues scales;
+    // scales.set(Dim::W, layer->scales[3]);
+    // scales.set(Dim::H, layer->scales[2]);
+    // scales.set(Dim::C, layer->scales[1]);
+    // scales.set(Dim::N, layer->scales[0]);
 
-    DimValues axes;
-    axes.set(Dim::W, layer->axes[3]);
-    axes.set(Dim::H, layer->axes[2]);
-    axes.set(Dim::C, layer->axes[1]);
-    axes.set(Dim::N, layer->axes[0]);
+    // DimValues axes;
+    // axes.set(Dim::W, layer->axes[3]);
+    // axes.set(Dim::H, layer->axes[2]);
+    // axes.set(Dim::C, layer->axes[1]);
+    // axes.set(Dim::N, layer->axes[0]);
 
-    auto stage = model->addNewStage<InterpolateStage>(_layer->name, StageType::Interpolate, _layer, inputs, outputs);
+    auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, inputs, outputs);
 
-    stage->attrs().set<bool>("antialias", _layer->GetParamAsInt("antialias", 0));
-    stage->attrs().set<float>("cube_coeff", _layer->GetParamAsFloat("cube_coeff", 0));
-    stage->attrs().set<int>("batch", _layer->GetParamAsInt("batch", 1));
-    stage->attrs().set<int>("type", _layer->GetParamAsInt("type", 0));
+    stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
+    stage->attrs().set<float>("cube_coeff", layer->GetParamAsFloat("cube_coeff", 0));
+    stage->attrs().set<int>("batch", layer->GetParamAsInt("batch", 1));
+    stage->attrs().set<int>("type", layer->GetParamAsInt("type", 0));
 
     stage->attrs().set<DimValues>("pads_begin", pads_begin);
     stage->attrs().set<DimValues>("pads_end", pads_end);
-    stage->attrs().set<DimValues>("sizes", sizes);
 
-    stage->attrs().set<int>("nearestMode", _layer->GetParamAsInt("nearestMode", 0));
-    stage->attrs().set<int>("shapeCalcMode", _layer->GetParamAsInt("shapeCalcMode", 0));
-    stage->attrs().set<int>("coordTransMode", _layer->GetParamAsInt("coordTransMode", 0));
-    stage->attrs().set<DimValues>("InterpolateAxis", axes);
-    stage->attrs().set<DimValues>("InterpolateScales", scales);
+    stage->attrs().set<int>("nearestMode", layer->GetParamAsInt("nearestMode", 0));
+    stage->attrs().set<int>("shapeCalcMode", layer->GetParamAsInt("shapeCalcMode", 0));
+    stage->attrs().set<int>("coordTransMode", layer->GetParamAsInt("coordTransMode", 0));
+    // stage->attrs().set<DimValues>("sizes", sizes);
+    // stage->attrs().set<DimValues>("InterpolateAxis", axes);
+    // stage->attrs().set<DimValues>("InterpolateScales", scales);
+    printf("PARSE end\n");
 }
 
 }  // namespace vpu
