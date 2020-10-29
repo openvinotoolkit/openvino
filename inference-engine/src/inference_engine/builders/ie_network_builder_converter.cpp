@@ -81,9 +81,11 @@ public:
                 {"elu", std::make_shared<LayerConverter<InferenceEngine::CNNLayer>>("ELU")},
                 {"sigmoid", std::make_shared<LayerConverter<InferenceEngine::CNNLayer>>("Sigmoid")},
                 {"tanh", std::make_shared<LayerConverter<InferenceEngine::CNNLayer>>("TanH")},
+                {"neghalflog", std::make_shared<LayerConverter<InferenceEngine::CNNLayer>>("NegHalfLog")},
                 {"log", std::make_shared<LayerConverter<InferenceEngine::CNNLayer>>("Log")},
                 {"divbyn", std::make_shared<LayerConverter<InferenceEngine::CNNLayer>>("DivByN")},
                 {"exp", std::make_shared<LayerConverter<InferenceEngine::CNNLayer>>("exp")},
+                {"identity", std::make_shared<LayerConverter<InferenceEngine::CNNLayer>>("identity")},
         };
 
         auto typeIt = layer->getParameters().find("type");

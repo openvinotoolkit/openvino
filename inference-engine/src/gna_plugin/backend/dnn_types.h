@@ -21,6 +21,7 @@ enum DnnActivationType : uint8_t {
     kActCustom,
     kActExp,
     kActLog,
+    kActNegHalfLog,
     kActDivByN,
     kActNumType
 };
@@ -53,6 +54,7 @@ static const char *intel_dnn_activation_name[kActNumType] = {
         "kActCustom",
         "kActExp",
         "kActLog",
+        "kActNegHalfLog",
         "kActDivByN"
 };
 

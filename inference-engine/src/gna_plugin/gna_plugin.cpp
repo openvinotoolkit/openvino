@@ -57,6 +57,7 @@ uint32_t ToByteSize(const Gna2DataType type) {
     }
 }
 
+float GNAPluginNS::identity_SF = 256.0f;
 constexpr uint32_t GNAPluginNS::GNAPlugin::FAKE_REQUEST_CONFIG_ID;
 #endif
 using namespace InferenceEngine;
@@ -1425,6 +1426,14 @@ void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config) {
             THROW_GNA_EXCEPTION << "GNA performance counter enabling parameter "
                                 << "should be equal to YES/NO, but not" << value;
         }
+    });
+
+    if_set(CONFIG_KEY(IDENTITY_SCALE_FACTOR), [&] {
+        auto idScaleFactor = InferenceEngine::CNNLayer::ie_parse_float(value);
+            if (fp32eq(idScaleFactor, 0.0f)) {
+                THROW_GNA_EXCEPTION << "identity scale factor of 0.0f not supported";
+            }
+        identity_SF = idScaleFactor;
     });
 
     if_set(GNA_CONFIG_KEY(LIB_N_THREADS), [&] {

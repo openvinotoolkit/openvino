@@ -73,6 +73,8 @@ QuantizeLayer::~QuantizeLayer() {}
 SigmoidLayer::~SigmoidLayer() {}
 DivByNLayer::~DivByNLayer() {}
 LogLayer::~LogLayer() {}
+IdentityLayer::~IdentityLayer() {}
+NegHalfLogLayer::~NegHalfLogLayer() {}
 ExpLayer::~ExpLayer() {}
 TanHLayer::~TanHLayer() {}
 MathLayer::~MathLayer() {}
