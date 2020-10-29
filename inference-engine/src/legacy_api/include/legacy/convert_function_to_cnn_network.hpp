@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <legacy/cnn_network_impl.hpp>
-#include <legacy/ie_ngraph_utils.hpp>
+#include <ie_ngraph_utils.hpp>
 #include "blob_factory.hpp"
 #include <ngraph/op/constant.hpp>
 
