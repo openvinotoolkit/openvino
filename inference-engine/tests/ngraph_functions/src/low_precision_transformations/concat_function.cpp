@@ -46,6 +46,33 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
     return function;
 }
 
+std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
+    const ngraph::element::Type precision,
+    const ngraph::Shape& inputShape,
+    const FakeQuantizeOnDataWithConstant& fqOnData1,
+    const FakeQuantizeOnDataWithConstant& fqOnData2) {
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    input1->set_friendly_name("input1");
+    const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
+
+    const std::vector<size_t> inputShape2 = inputShape;
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    input2->set_friendly_name("input2");
+    const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
+
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
+        ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
+    concat->set_friendly_name("output");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector{ input1, input2 },
+        "ConcatTransformation");
+
+    return function;
+}
+
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithNeighbors(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
@@ -456,6 +483,53 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
+    const DequantizationOperations& dequantizationOperations) {
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    input1->set_friendly_name("input1");
+    const auto fakeQuantize1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
+
+    const std::vector<size_t> inputShape2 = inputShape;
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    input2->set_friendly_name("input2");
+    const auto fakeQuantize2 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
+
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Concat>>(
+        ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
+
+    const std::shared_ptr<ngraph::Node> lastDequantization = makeDequantization(concat, dequantizationOperations);
+    lastDequantization->set_friendly_name("output");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastDequantization) };
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector{ input1, input2 },
+        "ConcatTransformation");
+
+    if (fqOnData1.outputPrecision != fqOnData2.outputPrecision) {
+        THROW_IE_EXCEPTION << "FakeQuantize expected precisions are different";
+    }
+    const ngraph::element::Type fqOnDataPrecision = fqOnData1.outputPrecision;
+    if (fqOnDataPrecision != ngraph::element::undefined) {
+        if (fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) {
+            THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
+        }
+        const ngraph::element::Type fakeQuantizePrecision = fakeQuantize1->get_output_element_type(0);
+
+        if (fqOnDataPrecision != fakeQuantizePrecision) {
+            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize1, fqOnDataPrecision);
+            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize2, fqOnDataPrecision);
+            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, fqOnDataPrecision);
+        }
+    }
+
+    return function;
+}
+
+std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
+    const ngraph::element::Type precision,
+    const ngraph::Shape& inputShape,
+    const FakeQuantizeOnDataWithConstant& fqOnData1,
+    const FakeQuantizeOnDataWithConstant& fqOnData2,
     const DequantizationOperations& dequantizationOperations) {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input1");

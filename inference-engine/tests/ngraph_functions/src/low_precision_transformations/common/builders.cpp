@@ -141,6 +141,46 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     return std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(*fq, fqOnData.outputPrecision);
 }
 
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
+    const Output<Node>& input,
+    const ngraph::element::Type precision,
+    const FakeQuantizeOnDataWithConstant& fqOnData) {
+    const auto inputLowNode = ngraph::builder::makeConstant(
+        precision,
+        fqOnData.constantShapes.empty() ? ngraph::Shape{} : fqOnData.constantShapes[0],
+        fqOnData.inputLowValues,
+        fqOnData.inputLowValues.empty());
+
+    const auto inputHighNode = ngraph::builder::makeConstant(
+        precision,
+        fqOnData.constantShapes.empty() ? ngraph::Shape{} : fqOnData.constantShapes[1],
+        fqOnData.inputHighValues,
+        fqOnData.inputHighValues.empty());
+
+    const auto outputLowNode = ngraph::builder::makeConstant(
+        precision,
+        fqOnData.constantShapes.empty() ? ngraph::Shape{} : fqOnData.constantShapes[2],
+        fqOnData.outputLowValues,
+        fqOnData.outputLowValues.empty());
+
+    const auto outputHighNode = ngraph::builder::makeConstant(
+        precision,
+        fqOnData.constantShapes.empty() ? ngraph::Shape{} : fqOnData.constantShapes[3],
+        fqOnData.outputHighValues,
+        fqOnData.outputHighValues.empty());
+
+    auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fqOnData.quantizationLevel);
+    return fq;
+}
+
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
+    const std::shared_ptr<ngraph::Node>& input,
+    const ngraph::element::Type precision,
+    const FakeQuantizeOnDataWithConstant& fqOnData) {
+    const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(input, precision, fqOnData);
+    return std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(*fq, fqOnData.outputPrecision);
+}
+
 } // namespace subgraph
 } // namespace builder
 } // namespace ngraph
