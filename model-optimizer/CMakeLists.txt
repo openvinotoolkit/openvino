@@ -23,6 +23,7 @@ configure_file(
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         DESTINATION deployment_tools/model_optimizer
+        USE_SOURCE_PERMISSIONS
         COMPONENT model_optimizer
         PATTERN ".*" EXCLUDE
         PATTERN "automation" EXCLUDE
