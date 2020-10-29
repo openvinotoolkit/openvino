@@ -11,7 +11,6 @@
 #include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
 #include <cpp_interfaces/base/ie_memory_state_base.hpp>
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
 #include "ie_profiling.hpp"

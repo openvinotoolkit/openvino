@@ -111,7 +111,7 @@ TEST_P(MemoryStateTest, smoke_MemoryState_Reset) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(MemoryStateTest, smoke_MemoryState_QueryState) {
+TEST_P(MemoryStateTest, inferreq_smoke_MemoryState_QueryState) {
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
@@ -125,7 +125,7 @@ TEST_P(MemoryStateTest, smoke_MemoryState_QueryState) {
     }
 }
 
-TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
+TEST_P(MemoryStateTest, inferreq_smoke_MemoryState_SetState) {
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
@@ -154,7 +154,7 @@ TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
     }
 }
 
-TEST_P(MemoryStateTest, smoke_MemoryState_Reset) {
+TEST_P(MemoryStateTest, inferreq_smoke_MemoryState_Reset) {
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
