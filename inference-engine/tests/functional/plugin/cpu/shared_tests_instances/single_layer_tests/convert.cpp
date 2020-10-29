@@ -8,24 +8,29 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
+using namespace InferenceEngine;
 
 namespace {
 const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::U8,
-        InferenceEngine::Precision::I8,
+const std::vector<Precision> precisions = {
+        Precision::U8,
+        Precision::I8,
+        Precision::U16,
+        Precision::I16,
+        Precision::I32,
+        Precision::U64,
+        Precision::I64,
+        Precision::FP32
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NoReshape, ConvertLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvertLayerTest, ConvertLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(inShape),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::Values(Layout::ANY),
+                                ::testing::Values(Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvertLayerTest::getTestCaseName);
 

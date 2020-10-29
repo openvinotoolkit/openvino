@@ -468,6 +468,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::Tenso
         CASE(InferenceEngine::Precision::I8)
         CASE(InferenceEngine::Precision::I16)
         CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::U64)
         CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::I32)
         CASE(InferenceEngine::Precision::BOOL)

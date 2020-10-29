@@ -35,6 +35,8 @@ inline ::ngraph::element::Type convertIE2nGraphPrc(const InferenceEngine::Precis
             return ::ngraph::element::Type(::ngraph::element::Type_t::i32);
         case InferenceEngine::Precision::I64:
             return ::ngraph::element::Type(::ngraph::element::Type_t::i64);
+        case InferenceEngine::Precision::U64:
+            return ::ngraph::element::Type(::ngraph::element::Type_t::u64);
         case InferenceEngine::Precision::BOOL:
             return ::ngraph::element::Type(::ngraph::element::Type_t::boolean);
         case InferenceEngine::Precision::BIN:

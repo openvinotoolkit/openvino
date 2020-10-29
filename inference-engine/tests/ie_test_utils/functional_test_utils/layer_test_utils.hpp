@@ -67,18 +67,29 @@ public:
 protected:
     LayerTestsCommon();
 
+    template<typename T>
+    typename std::enable_if<std::is_signed<T>::value, T>::type
+    static ie_abs(const T &val) {
+        return std::abs(val);
+    }
+
+    template<typename T>
+    typename std::enable_if<std::is_unsigned<T>::value, T>::type
+    static ie_abs(const T &val) {
+        return val;
+    }
 
     template<class T>
-    void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
+    static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
         for (std::size_t i = 0; i < size; ++i) {
             const auto &ref = expected[i];
             const auto &res = actual[i];
-            const auto absoluteDifference = std::abs(res - ref);
+            const auto absoluteDifference = ie_abs(res - ref);
             if (absoluteDifference <= threshold) {
                 continue;
             }
 
-            const auto max = std::max(std::abs(res), std::abs(ref));
+            const auto max = std::max(ie_abs(res), ie_abs(ref));
             ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= threshold))
                                         << "Relative comparison of values expected: " << ref << " and actual: " << res
                                         << " at index " << i << " with threshold " << threshold
