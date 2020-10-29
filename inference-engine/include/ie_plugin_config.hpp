@@ -235,6 +235,7 @@ DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
  * PluginConfigParams::YES or PluginConfigParams::NO
  */
 DECLARE_CONFIG_KEY(PERF_COUNT);
+DECLARE_CONFIG_KEY(IDENTITY_SCALE_FACTOR);
 
 /**
  * @brief The key defines dynamic limit of batch processing.

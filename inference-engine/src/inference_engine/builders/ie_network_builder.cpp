@@ -269,13 +269,14 @@ idx_t Builder::Network::addLayer(const std::vector<PortInfo>& inputs, const Laye
 }
 
 idx_t Builder::Network::addLayer(const Layer& layer) {
+    auto &layerParam = parameters["layers"].as<std::vector<Layer::Ptr>>();
     auto getAvailableId = [&](idx_t defaultId) {
         if (defaultId == (std::numeric_limits<idx_t>::max)()) defaultId = 0;
 
-        auto it = parameters["layers"].as<std::vector<Layer::Ptr>>().begin();
-        while (it != parameters["layers"].as<std::vector<Layer::Ptr>>().end()) {
-            for (it = parameters["layers"].as<std::vector<Layer::Ptr>>().begin();
-                 it != parameters["layers"].as<std::vector<Layer::Ptr>>().end(); it++) {
+        auto it = layerParam.begin();
+        while (it != layerParam.end()) {
+            for (it = layerParam.begin();
+                 it != layerParam.end(); it++) {
                 if ((*it)->getId() == defaultId) {
                     defaultId++;
                     break;
@@ -300,12 +301,11 @@ idx_t Builder::Network::addLayer(const Layer& layer) {
         }
         return generatedName;
     };
+
     idx_t generatedId = getAvailableId(layer.getId());
     const auto name = generateAvailableName(layer.getName(), generatedId);
-    parameters["layers"].as<std::vector<Layer::Ptr>>().emplace_back(std::make_shared<Layer>(generatedId, layer));
-    parameters["layers"]
-        .as<std::vector<Layer::Ptr>>()[parameters["layers"].as<std::vector<Layer::Ptr>>().size() - 1]
-        ->setName(name);
+    layerParam.emplace_back(std::make_shared<Layer>(generatedId, layer));
+    layerParam[layerParam.size() - 1]->setName(name);
     return generatedId;
 }
 

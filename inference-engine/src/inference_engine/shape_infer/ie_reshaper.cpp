@@ -158,7 +158,6 @@ ReshapeLauncher::Ptr Reshaper::getLauncherByLayerName(const std::string& layerNa
 
 StatusCode Reshaper::run(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) {
     if (network) {
-        std::cout << "Reshaper::run networkShapeInfer" << "\n";
 	   return networkShapeInfer(inputShapes, resp);
     }
 

@@ -18,6 +18,7 @@
 #include "gna_slope_scale.h"
 
 namespace GNAPluginNS {
+extern float identity_SF;
 namespace frontend {
 struct ScaleFactorUpdateResult {
     InferenceEngine::CNNLayer *restartLayer = nullptr;
@@ -53,7 +54,7 @@ template<>
 class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
  private :
     const float activation_scale_factor = 2048.f;
-    const float identity_scale_factor = 512.0f;
+    const float identity_scale_factor = identity_SF;
     const float k = 5;
     const float k_identity = 6;
 

@@ -57,6 +57,7 @@ uint32_t ToByteSize(const Gna2DataType type) {
     }
 }
 
+float GNAPluginNS::identity_SF = 256.0f;
 constexpr uint32_t GNAPluginNS::GNAPlugin::FAKE_REQUEST_CONFIG_ID;
 #endif
 using namespace InferenceEngine;
@@ -385,18 +386,19 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         run_passes(newNet, false);
     } else {
         switch (gnaPrecision) {
-            case Precision::I16:
+            case Precision::I16: {
                 ModelQuantizer<QuantI16> q16;
-                std::cout << "Config gnaPrecision = I16 ip SF = " << inputsDesc->inputScaleFactors[0] << "\n";
-		newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
-                break;
-            case Precision::I8:
+		        newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+            }
+            break;
+            case Precision::I8:{
                 ModelQuantizer<QuantI8> q8;
-		std::cout << "Config gnaPrecision = I8 ip SF = " << inputsDesc->inputScaleFactors[0] << "\n";
                 newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
-                break;
-            default:
+            }
+            break;
+            default: {
                 THROW_GNA_EXCEPTION << "no mans land for GNA precision";
+            }
                 break;
         }
     }
@@ -503,13 +505,12 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         // auto idx = std::distance(outputsDataMap.begin(), outputPort);
         auto & desc = outputsDesc[idx];
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-        std::cout << "is quantized ? " << quantized << "\n";
+
         desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
         desc.orientation = component.orientation_out;
         desc.num_bytes_per_element = component.num_bytes_per_output;
         desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
-        
-        std::cout << "desc.scale_factor " << desc.scale_factor << "\n";
+
         // TODO: this need to be fixed
         desc.num_elements = component.num_rows_out;
 
@@ -1431,6 +1432,14 @@ void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config) {
             THROW_GNA_EXCEPTION << "GNA performance counter enabling parameter "
                                 << "should be equal to YES/NO, but not" << value;
         }
+    });
+
+    if_set(CONFIG_KEY(IDENTITY_SCALE_FACTOR), [&] {
+        auto idScaleFactor = InferenceEngine::CNNLayer::ie_parse_float(value);
+            if (fp32eq(idScaleFactor, 0.0f)) {
+                THROW_GNA_EXCEPTION << "identity scale factor of 0.0f not supported";
+            }
+        identity_SF = idScaleFactor;
     });
 
     if_set(GNA_CONFIG_KEY(LIB_N_THREADS), [&] {
