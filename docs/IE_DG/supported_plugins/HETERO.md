@@ -32,6 +32,8 @@ Another way to annotate a network is to set affinity manually using <code>ngraph
 
 The fallback policy does not work if even one layer has an initialized affinity. The sequence should be calling of automating affinity settings and then fix manually.
 
+> **NOTE**: If you set affinity manually, be careful at the current moment Inference Engine plugins don't support constant (`Constant`->`Result`) and empty (`Parameter`->`Result`) networks. Please avoid such subgraphs when you set affinity manually.
+
 @snippet openvino/docs/snippets/HETERO1.cpp part1
 
 If you rely on the default affinity distribution, you can avoid calling <code>InferenceEngine::Core::QueryNetwork</code> and just call <code>InferenceEngine::Core::LoadNetwork</code> instead:
