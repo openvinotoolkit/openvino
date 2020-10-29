@@ -87,9 +87,6 @@ private:
         auto sampleCoordTransMode = attrs().get<int>("coordTransMode");
         auto pads_begin = attrs().get<DimValues>("pads_begin");
         auto pads_end = attrs().get<DimValues>("pads_end");
-        // auto sizes = attrs().get<DimValues>("sizes");
-        // auto axis = attrs().get<DimValues>("InterpolateAxis");
-        // auto scales = attrs().get<DimValues>("InterpolateScales");
 
         serializer.append(static_cast<int>(antialias));
         serializer.append(static_cast<float>(cube_coeff));
@@ -99,21 +96,13 @@ private:
         serializer.append(static_cast<int>(sampleShapeCalcMode));
         serializer.append(static_cast<int>(sampleCoordTransMode));
 
-        // for (int i = 0; i < perm.size(); ++i) {
-        //     serializer.append(static_cast<int>(pads_begin.get(perm[i], 0)));
-        //     serializer.append(static_cast<int>(pads_end.get(perm[i], 0)));
-        //     serializer.append(static_cast<int>(sizes.get(perm[i], 0)));
-        //     serializer.append(static_cast<int>(axis.get(perm[i], 0)));
-        //     serializer.append(static_cast<float>(scales.get(perm[i], 0)));
-        // }
+        for (int i = 0; i < perm.size(); ++i) {
+            serializer.append(static_cast<int>(pads_begin.get(perm[i], 0)));
+            serializer.append(static_cast<int>(pads_end.get(perm[i], 0)));
+        }
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        // auto input = inputEdge(0)->input();
-        // auto output = outputEdge(0)->output();
-
-        // input->serializeBuffer(serializer);
-        // output->serializeBuffer(serializer);
         auto input0 = inputEdge(0)->input();
         auto input1 = inputEdge(1)->input();
         auto input2 = inputEdge(2)->input();
@@ -169,24 +158,6 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
     pads_end.set(Dim::C, layer->pads_end[1]);
     pads_end.set(Dim::N, layer->pads_end[0]);
 
-    // DimValues sizes;
-    // sizes.set(Dim::W, layer->sizes[3]);
-    // sizes.set(Dim::H, layer->sizes[2]);
-    // sizes.set(Dim::C, layer->sizes[1]);
-    // sizes.set(Dim::N, layer->sizes[0]);
-
-    // DimValues scales;
-    // scales.set(Dim::W, layer->scales[3]);
-    // scales.set(Dim::H, layer->scales[2]);
-    // scales.set(Dim::C, layer->scales[1]);
-    // scales.set(Dim::N, layer->scales[0]);
-
-    // DimValues axes;
-    // axes.set(Dim::W, layer->axes[3]);
-    // axes.set(Dim::H, layer->axes[2]);
-    // axes.set(Dim::C, layer->axes[1]);
-    // axes.set(Dim::N, layer->axes[0]);
-
     auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, inputs, outputs);
 
     stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
@@ -200,9 +171,6 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
     stage->attrs().set<int>("nearestMode", layer->GetParamAsInt("nearestMode", 0));
     stage->attrs().set<int>("shapeCalcMode", layer->GetParamAsInt("shapeCalcMode", 0));
     stage->attrs().set<int>("coordTransMode", layer->GetParamAsInt("coordTransMode", 0));
-    // stage->attrs().set<DimValues>("sizes", sizes);
-    // stage->attrs().set<DimValues>("InterpolateAxis", axes);
-    // stage->attrs().set<DimValues>("InterpolateScales", scales);
     printf("PARSE end\n");
 }
 
