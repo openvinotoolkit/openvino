@@ -15,19 +15,28 @@
 """
 
 import numpy as np
+from typing import Dict
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, rename_nodes
+from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.graph.graph import Graph, rename_nodes, Node
+from mo.graph.port import Port
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.strided_slice import StridedSlice
-from mo.utils.error import Error
 
 
-def convert_negative_indices(indices: np.array, shape: np.array):
-    for ind, value in enumerate(indices):
-        if value < 0:
-            indices[ind] += shape[ind]
+def create_ss_interval_border(shape, axes, node: Node, out_port: Port):
+    mask = np.zeros(len(shape))
+    first_part = mask[:axes[0]]
+    last_part = mask[axes[-1] + 1:]
+
+    concat = create_op_with_const_inputs(node.graph, Concat, port_value_dict={0: first_part, 2: last_part},
+                                         op_attrs={'name': 'Concat', 'axis': 0,
+                                                   'in_ports_count': 3})
+    out_port.get_connection().set_destination(concat.in_port(1))
+    return concat
 
 
 class ConvertSlice(MiddleReplacementPattern):
@@ -43,7 +52,8 @@ class ConvertSlice(MiddleReplacementPattern):
         from extensions.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
-    def pattern(self):
+    @staticmethod
+    def pattern():
         return dict(
             nodes=[
                 ('slice', dict(kind='op', op='Slice'))
@@ -51,65 +61,48 @@ class ConvertSlice(MiddleReplacementPattern):
             edges=[]
         )
 
-    def replace_pattern(self, graph: Graph, match: dict):
+    @staticmethod
+    def replace_pattern(graph: Graph, match: Dict[str, Node]):
         node = match['slice']
+        node_name = node.soft_get('name', node.id)
 
         input_shape = node.in_port(0).data.get_shape()
-        output_shape = node.out_port(0).data.get_shape()
-        starts = node.in_port(1).data.get_value()
-        ends = node.in_port(2).data.get_value()
-        if starts is None or ends is None:
-            raise Error('The input with starts or end is not constant for node {}'.format(node.id))
+        axes = node.in_port(3).data.get_value().copy()
+        for i, val in enumerate(axes):
+            axes[i] = get_canonical_axis_index(input_shape, val)
+        start_node = node.in_node(1)
+        end_node = node.in_node(2)
 
-        # the value for 'ends' is usually maximum possible value of int64. This
-        # value must be converted to maximum of int32 because such big values do not fit into the int32 which is
-        # supported by the StridedSlice layer
-        ends = np.clip(ends, np.iinfo(np.int32).min, np.iinfo(np.int32).max)
-        if node.is_in_port_connected(3):
-            axes = node.in_port(3).data.get_value()
-            if axes is None:
-                raise Error('The input with axes is not constant for node {}'.format(node.id))
-        else:
-            axes = int64_array(list(range(starts.size)))
+        ss_begin = create_ss_interval_border(input_shape, axes, start_node, node.in_port(1).get_source())
+        ss_end = create_ss_interval_border(input_shape, axes, end_node, node.in_port(2).get_source())
+        rename_nodes([(ss_begin, node_name + '/Begin'), (ss_end, node_name + '/End')])
 
         if node.is_in_port_connected(4):
             steps = node.in_port(4).data.get_value()
-            if steps is None:
-                raise Error('The input with steps is not constant for node {}'.format(node.id))
         else:
-            steps = np.ones([starts.size])
+            steps = np.ones([axes.size])
 
-        ss_begin_mask = np.zeros(len(input_shape), dtype=np.int32)
-        ss_end_mask = np.zeros(len(input_shape), dtype=np.int32)
-        ss_begin = np.zeros(len(input_shape), dtype=np.int32)
-        ss_end = np.zeros(len(input_shape), dtype=np.int32)
-        ss_step = np.ones(len(input_shape), dtype=np.int32)
+        ss_begin_mask = np.zeros(len(input_shape), dtype=np.int64)
+        ss_end_mask = np.zeros(len(input_shape), dtype=np.int64)
+        ss_step = np.ones(len(input_shape), dtype=np.int64)
 
-        # prepare inputs and attributes for the StridedSlice layer
         for i, axis in enumerate(axes):
-            if starts[i] != 0:
-                ss_begin_mask[axis] = 1
-                ss_begin[axis] = starts[i]
-
+            ss_begin_mask[axis] = 1
             ss_end_mask[axis] = 1
-            ss_end[axis] = ends[i]
-
             ss_step[axis] = steps[i]
 
-        slice_node_name = node.soft_get('name', node.id)
+        ss_strides = Const(graph, dict(name=node_name + '/Strides', value=ss_step)).create_node()
 
-        begin_node = Const(graph, {'value': ss_begin, 'name': slice_node_name + '/begin'}).create_node()
-        end_node = Const(graph, {'value': ss_end, 'name': slice_node_name + '/end'}).create_node()
-        strides_node = Const(graph, {'value': ss_step, 'name': slice_node_name + '/stride'}).create_node()
-
-        ss = StridedSlice(graph, dict(new_axis_mask=np.zeros(len(output_shape), dtype=np.int32),
-                                      shrink_axis_mask=np.zeros(len(output_shape), dtype=np.int32),
-                                      ellipsis_mask=np.zeros(len(output_shape), dtype=np.int32),
+        ss = StridedSlice(graph, dict(name='ss', new_axis_mask=np.zeros(len(input_shape), dtype=np.int64),
+                                      shrink_axis_mask=np.zeros(len(input_shape), dtype=np.int64),
+                                      ellipsis_mask=np.zeros(len(input_shape), dtype=np.int64),
                                       begin_mask=ss_begin_mask,
                                       end_mask=ss_end_mask)).create_node()
-        rename_nodes([(node, slice_node_name + '_delete'), (ss, slice_node_name)])
+
         node.in_port(0).get_connection().set_destination(ss.in_port(0))
-        begin_node.out_port(0).connect(ss.in_port(1))
-        end_node.out_port(0).connect(ss.in_port(2))
-        strides_node.out_port(0).connect(ss.in_port(3))
+        ss.in_port(1).connect(ss_begin.out_port(0))
+        ss.in_port(2).connect(ss_end.out_port(0))
+        ss.in_port(3).connect(ss_strides.out_port(0))
         node.out_port(0).get_connection().set_source(ss.out_port(0))
+
+        rename_nodes([(node, node_name + '/ShouldBeDeleted'), (ss, node_name)])
