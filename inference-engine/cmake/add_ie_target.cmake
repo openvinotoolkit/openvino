@@ -9,7 +9,7 @@ addIeTarget(
    NAME core_lib
    ADD_CPPLINT
    DEVELOPER_PACKAGE
-   TYPE SHARED
+   TYPE <SHARED / STATIC / EXECUTABLE>
    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
    ADDITIONAL_SOURCE_DIRS
         /some/additional/sources
@@ -91,7 +91,7 @@ function(addIeTarget)
     if (ARG_TYPE STREQUAL EXECUTABLE)
         add_executable(${ARG_NAME} ${all_sources})
     elseif(ARG_TYPE STREQUAL STATIC OR ARG_TYPE STREQUAL SHARED)
-        add_library(${ARG_NAME} ${type} ${all_sources})
+        add_library(${ARG_NAME} ${ARG_TYPE} ${all_sources})
     else()
         message(SEND_ERROR "Invalid target type ${ARG_TYPE} specified for target name ${ARG_NAME}")
     endif()
