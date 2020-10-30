@@ -35,9 +35,9 @@ namespace ngraph
                         size_t arg0_count,
                         size_t arg1_count,
                         size_t arg2_count,
-                        size_t arg3_count)
+                        size_t out_count)
             {
-                for (size_t i = 0; i < arg3_count; i++)
+                for (size_t i = 0; i < out_count; i++)
                 {
                     out[i] = arg0[i % arg0_count] ? arg1[i % arg1_count] : arg2[i % arg2_count];
                 }
