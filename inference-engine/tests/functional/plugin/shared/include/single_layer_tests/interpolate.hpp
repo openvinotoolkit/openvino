@@ -35,13 +35,25 @@ typedef std::tuple<
 > InterpolateSpecificParamsForTests;
 
 typedef std::tuple<
+        InterpolateSpecificParams,
+        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
+        InferenceEngine::SizeVector,    // Input shapes
+        InferenceEngine::SizeVector,    // Target shapes
+        LayerTestsUtils::TargetDevice   // Device name
+> InterpolateLayerTestParams;
+
+typedef std::tuple<
         InferenceEngine::Precision,         // Net precision
         InferenceEngine::Layout,            // Input layout
         InferenceEngine::Layout,            // Output layout
         std::vector<size_t>,                // Input shapes
         std::vector<size_t>,                // Target shapes
         LayerTestsUtils::TargetDevice       // Device name
-> InterpolateLayerTestParams;
+> InterpolateLayerTestParams1;
 
 using InterpolateLayerParams = std::tuple<
         InterpolateSpecificParams,
@@ -59,6 +71,15 @@ class InterpolateLayerTest : public testing::WithParamInterface<InterpolateLayer
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams> obj);
+
+protected:
+    void SetUp() override;
+};
+
+class InterpolateLayerTest1 : public testing::WithParamInterface<InterpolateLayerTestParams1>,
+                             virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams1> obj);
 
 protected:
     void SetUp() override;

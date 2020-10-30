@@ -39,7 +39,7 @@ std::vector<std::vector<size_t>> layerParamsOut = {
 };
 
 // INSTANTIATE_TEST_CASE_P(smoke_interpolate,
-//                         InterpolateLayerTest,
+//                         InterpolateLayerTest1,
 //                         ::testing::Combine(
 //                             ::testing::ValuesIn(netPrecisions),
 //                             ::testing::Values(InferenceEngine::Layout::ANY),
@@ -47,6 +47,6 @@ std::vector<std::vector<size_t>> layerParamsOut = {
 //                             ::testing::ValuesIn(layerParams),
 //                             ::testing::ValuesIn(layerParamsOut),
 //                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
-//                         InterpolateLayerTest::getTestCaseName);
+//                         InterpolateLayerTest1::getTestCaseName);
 
 }  // namespace
