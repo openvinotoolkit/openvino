@@ -36,6 +36,7 @@ public:
     ngraph::op::TopKMode get_mode() { return m_mode; }
 
     ngraph::op::TopKSortType get_sort_type() { return m_sort_type; }
+    bool visit_attributes(AttributeVisitor &visitor) override;
 
 private:
     int64_t m_axis;
