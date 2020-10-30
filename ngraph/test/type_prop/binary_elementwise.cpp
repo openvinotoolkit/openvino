@@ -536,9 +536,9 @@ TEST(type_prop, logic_arith_compare_partial_et)
         return std::make_shared<op::Greater>(param0, param1);
     };
 
-    auto test_not = [](element::Type et) -> std::shared_ptr<Node> {
+    auto test_logical_not = [](element::Type et) -> std::shared_ptr<Node> {
         auto param = std::make_shared<op::Parameter>(et, Shape{1, 2, 3});
-        return std::make_shared<op::Not>(param);
+        return std::make_shared<op::v1::LogicalNot>(param);
     };
 
     // Arith ops:
@@ -598,7 +598,7 @@ TEST(type_prop, logic_arith_compare_partial_et)
     // int -> !
     // boo -> boo
     // dyn -> boo
-    ASSERT_EQ(test_not(element::i32)->get_element_type(), element::i32);
-    ASSERT_EQ(test_not(element::boolean)->get_element_type(), element::boolean);
-    ASSERT_EQ(test_not(element::dynamic)->get_element_type(), element::dynamic);
+    ASSERT_EQ(test_logical_not(element::i32)->get_element_type(), element::i32);
+    ASSERT_EQ(test_logical_not(element::boolean)->get_element_type(), element::boolean);
+    ASSERT_EQ(test_logical_not(element::dynamic)->get_element_type(), element::dynamic);
 }

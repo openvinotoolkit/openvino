@@ -1444,11 +1444,11 @@ TEST(constant_folding, const_concat_axis_1_bool_type)
     ASSERT_EQ(values_expected, values_out);
 }
 
-TEST(constant_folding, const_not)
+TEST(constant_folding, const_logical_not)
 {
     auto constant =
         op::Constant::create(element::boolean, Shape{2, 3}, vector<char>{0, 1, 0, 0, 1, 1});
-    auto logical_not = make_shared<op::Not>(constant);
+    auto logical_not = make_shared<op::v1::LogicalNot>(constant);
     logical_not->set_friendly_name("test");
     auto f = make_shared<Function>(logical_not, ParameterVector{});
 
@@ -1456,7 +1456,7 @@ TEST(constant_folding, const_not)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Not>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v1::LogicalNot>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =

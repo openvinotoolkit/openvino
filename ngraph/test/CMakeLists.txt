@@ -297,6 +297,7 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
+    backend/logical_not.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
@@ -309,7 +310,6 @@ set(MULTI_TEST_SRC
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
-    backend/not.in.cpp
     backend/non_zero.in.cpp
     backend/numeric.in.cpp
     backend/one_hot.in.cpp
