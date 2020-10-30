@@ -1481,7 +1481,6 @@ protected:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SpaceToDepth:
-        case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
         case OP_TYPEID::StopGradient:
         case OP_TYPEID::TensorIterator:
@@ -1518,6 +1517,7 @@ protected:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
         case OP_TYPEID::Softmax:
+        case OP_TYPEID::Split_v1:
         case OP_TYPEID::Squeeze:
         case OP_TYPEID::Sum:
         case OP_TYPEID::Subtract:

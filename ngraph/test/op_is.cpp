@@ -787,7 +787,7 @@ namespace
 
     void op_is_Split()
     {
-        op::Split node;
+        op::v1::Split node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));

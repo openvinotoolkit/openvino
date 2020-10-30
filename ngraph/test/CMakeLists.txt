@@ -337,6 +337,7 @@ set(MULTI_TEST_SRC
     backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
+    backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/subtract.in.cpp
     backend/sum.in.cpp
