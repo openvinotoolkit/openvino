@@ -19,6 +19,8 @@ std::string ExecGraphKeepAssignNode::getTestCaseName(testing::TestParamInfo<std:
  * So exec graph may lose it. Will check that it's present in dumped exec graph.
  */
 TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     auto device_name = this->GetParam();
     ngraph::Shape shape = {3, 2};
     ngraph::element::Type type = ngraph::element::f32;

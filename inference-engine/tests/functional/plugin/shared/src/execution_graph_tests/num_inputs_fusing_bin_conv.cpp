@@ -50,6 +50,8 @@ void ExecGraphInputsFusingBinConv::TearDown() {
 }
 
 TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
     auto ie = PluginCache::get().ie();
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice);

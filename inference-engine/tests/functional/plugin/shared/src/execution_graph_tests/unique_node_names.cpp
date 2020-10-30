@@ -60,6 +60,8 @@ void ExecGraphUniqueNodeNames::TearDown() {
 }
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
     auto ie = PluginCache::get().ie();
