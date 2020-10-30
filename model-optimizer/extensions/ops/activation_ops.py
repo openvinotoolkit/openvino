@@ -180,6 +180,27 @@ class Elu(Activation):
         return ['alpha']
 
 
+class ThresholdedRelu(Activation):
+    # The operation will be decomposed to primitive operations
+    op = 'ThresholdedRelu'
+
+    def __init__(self, graph: Graph, attrs):
+        trelu_attrs = {'alpha': 1.0, 'type': None}
+        trelu_attrs.update(attrs)
+        super().__init__(graph, trelu_attrs)
+
+    @staticmethod
+    def thresholded_relu(values: np.ndarray, alpha: float):
+        values = values.astype(float)
+        for index, x in np.ndenumerate(values):
+            values[index] = values[index] * (x > alpha)
+        return values
+
+    @classmethod
+    def infer(cls, node: Node):
+        return eltwise_infer(node, lambda x, alpha: ThresholdedRelu.thresholded_relu(x, alpha), alpha=node.alpha)
+
+
 class LeakyReLU(Op):
     op = 'LeakyReLU'
 
