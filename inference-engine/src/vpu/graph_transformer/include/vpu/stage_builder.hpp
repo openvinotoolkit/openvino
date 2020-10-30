@@ -70,7 +70,7 @@ public:
             const Model& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
-            const Data& input,
+            const DataVector& input,
             const Data& output,
             const std::string& origin);
 

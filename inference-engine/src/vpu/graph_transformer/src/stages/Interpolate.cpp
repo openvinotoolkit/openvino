@@ -53,9 +53,12 @@ private:
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
-        auto input = inputEdge(0)->input();
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
+        auto input2 = inputEdge(2)->input();
+        auto input3 = inputEdge(3)->input();
 
-        orderInfo.setOutput(outputEdge(0), input->desc().dimsOrder());
+        orderInfo.setOutput(outputEdge(0), input0->desc().dimsOrder());
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
@@ -70,7 +73,7 @@ private:
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::S32}, {DataType::FP16}, {DataType::S32}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -88,7 +91,7 @@ private:
         auto pads_begin = attrs().get<DimValues>("pads_begin");
         auto pads_end = attrs().get<DimValues>("pads_end");
 
-        serializer.append(static_cast<int>(antialias));
+        serializer.append(static_cast<bool>(antialias));
         serializer.append(static_cast<float>(cube_coeff));
         serializer.append(static_cast<int>(batch));
         serializer.append(static_cast<int>(sampleType));
@@ -123,50 +126,47 @@ Stage StageBuilder::addInterpolateStage(
         const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
-        const Data& input,
+        const DataVector& input,
         const Data& output,
         const std::string& origin) {
     Stage interpolateStage = model->addNewStage<InterpolateStage>(
         name,
         StageType::Interpolate,
         layer,
-        {input},
+        {input[0], input[1], input[2], input[3]},
         {output});
     interpolateStage->attrs().set<std::string>("origin", origin);
 
     return interpolateStage;
 }
 
-void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     printf("PARSE start\n");
     IE_ASSERT(inputs.size() == 4);
     IE_ASSERT(outputs.size() == 1);
-    return;
 
-    auto layer = std::dynamic_pointer_cast<ie::InterpolateLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+    int ON = outputs[0]->desc().dim(Dim::N);
+    int OC = outputs[0]->desc().dim(Dim::C);
+    int OH = outputs[0]->desc().dim(Dim::H);
+    int OW = outputs[0]->desc().dim(Dim::W);
 
-    DimValues pads_begin;
-    pads_begin.set(Dim::W, layer->pads_begin[3]);
-    pads_begin.set(Dim::H, layer->pads_begin[2]);
-    pads_begin.set(Dim::C, layer->pads_begin[1]);
-    pads_begin.set(Dim::N, layer->pads_begin[0]);
+    int IN = inputs[0]->desc().dim(Dim::N);
+    int IC = inputs[0]->desc().dim(Dim::C);
+    int IH = inputs[0]->desc().dim(Dim::H);
+    int IW = inputs[0]->desc().dim(Dim::W);
 
-    DimValues pads_end;
-    pads_end.set(Dim::W, layer->pads_end[3]);
-    pads_end.set(Dim::H, layer->pads_end[2]);
-    pads_end.set(Dim::C, layer->pads_end[1]);
-    pads_end.set(Dim::N, layer->pads_end[0]);
+    printf("ON = %d, OC = %d, OH = %d, OW = %d\n", ON, OC, OH, OW);
+    printf("IN = %d, IC = %d, IH = %d, IW = %d\n", IN, IC, IH, IW);
 
     auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, inputs, outputs);
 
-    stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
+    stage->attrs().set<bool>("antialias", layer->GetParamAsBool("antialias", 0));
     stage->attrs().set<float>("cube_coeff", layer->GetParamAsFloat("cube_coeff", 0));
     stage->attrs().set<int>("batch", layer->GetParamAsInt("batch", 1));
     stage->attrs().set<int>("type", layer->GetParamAsInt("type", 0));
 
-    stage->attrs().set<DimValues>("pads_begin", pads_begin);
-    stage->attrs().set<DimValues>("pads_end", pads_end);
+    stage->attrs().set<std::vector<int>>("pads_begin", layer->GetParamAsInts("pads_begin"));
+    stage->attrs().set<std::vector<int>>("pads_end", layer->GetParamAsInts("pads_end"));
 
     stage->attrs().set<int>("nearestMode", layer->GetParamAsInt("nearestMode", 0));
     stage->attrs().set<int>("shapeCalcMode", layer->GetParamAsInt("shapeCalcMode", 0));

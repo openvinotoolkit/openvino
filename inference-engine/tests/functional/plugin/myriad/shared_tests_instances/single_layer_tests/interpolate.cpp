@@ -20,23 +20,27 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 std::vector<size_t> axes = {0, 1, 2, 3};
-std::vector<float> scales = {2, 4, 1, 1};
+std::vector<float> scales = {1, 1, 1, 1};
 std::vector<std::vector<size_t>> layerParams = {
+    // {1, 1, 1, 1},
+    // {12, 4, 3, 2},
+    // {128, 128, 12, 1}
     {1, 1, 1, 1},
-    {12, 4, 3, 2},
-    {128, 128, 12, 1}
+    {3, 1, 12, 4},
+    {12, 1, 128, 128}
 };
 std::vector<std::vector<size_t>> layerParamsOut = {
+    // {1, 1, 1, 1},
+    // {24, 16, 3, 2},
+    // {256, 512, 12, 1}
     {1, 1, 1, 1},
-    {24, 16, 3, 2},
-    {256, 512, 12, 1}
+    {3, 1, 12, 4},
+    {12, 1, 128, 128}
 };
 
 // INSTANTIATE_TEST_CASE_P(smoke_interpolate,
 //                         InterpolateLayerTest,
 //                         ::testing::Combine(
-//                             ::testing::ValuesIn(axes),
-//                             ::testing::ValuesIn(scales),
 //                             ::testing::ValuesIn(netPrecisions),
 //                             ::testing::Values(InferenceEngine::Layout::ANY),
 //                             ::testing::Values(InferenceEngine::Layout::ANY),
