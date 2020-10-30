@@ -36,7 +36,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Set1, GatherNDLayerTest,
                             gatherNDArgsSubset1,
                             ::testing::ValuesIn(dPrecisions),
                             ::testing::ValuesIn(iPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                            ::testing::Values<Config>({})),
                         GatherNDLayerTest::getTestCaseName);
 
 const auto gatherNDArgsSubset2 = ::testing::Combine(
@@ -51,6 +52,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Set2, GatherNDLayerTest,
                             gatherNDArgsSubset2,
                             ::testing::ValuesIn(dPrecisions),
                             ::testing::ValuesIn(iPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                            ::testing::Values<Config>({})),
                         GatherNDLayerTest::getTestCaseName);
 }  // namespace

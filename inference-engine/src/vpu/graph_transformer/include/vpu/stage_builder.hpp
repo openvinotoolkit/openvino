@@ -312,6 +312,15 @@ public:
             const Data& input0,
             const Data& input1,
             const Data& output);
+
+    Stage addGatherNDStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input,
+            const Data& indices,
+            const Data& output,
+            int32_t batch_dims);
 };
 
 }  // namespace vpu

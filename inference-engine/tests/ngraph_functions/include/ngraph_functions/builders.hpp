@@ -439,5 +439,6 @@ std::shared_ptr<ngraph::Node> makeNormalizeL2(const ngraph::Output<Node>& data,
                                               const std::vector<int64_t>& axes,
                                               float eps,
                                               ngraph::op::EpsMode epsMode);
+
 }  // namespace builder
 }  // namespace ngraph

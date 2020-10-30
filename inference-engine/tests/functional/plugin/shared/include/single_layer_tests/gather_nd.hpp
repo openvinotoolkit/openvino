@@ -10,6 +10,7 @@
 
 #include "functional_test_utils/layer_test_utils.hpp"
 
+using Config = std::map<std::string, std::string>;
 
 typedef std::tuple<
         std::vector<size_t>,               // Data shapes
@@ -21,13 +22,14 @@ typedef std::tuple<
         GatherNDParamsSubset,
         InferenceEngine::Precision,        // Data precision
         InferenceEngine::Precision,        // Indices precision
-        LayerTestsUtils::TargetDevice      // Device name
+        LayerTestsUtils::TargetDevice,     // Device name
+        Config                             // Plugin config
 > GatherNDParams;
 
 namespace LayerTestsDefinitions {
 
 class GatherNDLayerTest : public testing::WithParamInterface<GatherNDParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                          public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatherNDParams> &obj);
 
