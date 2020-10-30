@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "transformations/low_precision/variadic_split.hpp"
+#include "low_precision/variadic_split.hpp"
 #include "ngraph_functions/low_precision_transformations/variadic_split_function.hpp"
 
 namespace LayerTestsDefinitions {

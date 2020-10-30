@@ -125,89 +125,6 @@ namespace opset0_downgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Broadcast> node)
-    {
-        auto arg = node->input_value(0);
-        auto arg_pshape = arg.get_partial_shape();
-        auto arg_rank = arg_pshape.rank();
-        auto target_shape_input = node->input_value(1);
-
-        shared_ptr<Node> replacement_node;
-
-        NGRAPH_CHECK(arg_pshape.is_static(),
-                     "Unable to convert Broadcast:v1 to Broadcast:v0 "
-                     "if argument shape is not static. Node: ",
-                     *node);
-        const auto& arg_shape = arg_pshape.to_shape();
-
-        NGRAPH_CHECK(op::is_constant(target_shape_input.get_node()));
-        auto target_shape = node->get_output_shape(0);
-        NGRAPH_CHECK(node->get_broadcast_axes().first);
-
-        // (Re)construct axes_mapping.
-        AxisSet broadcast_axes = node->get_broadcast_axes().second;
-        std::vector<size_t> axes_mapping{
-            ngraph::builder::opset1::get_axes_mapping(target_shape, broadcast_axes)};
-
-        Output<Node> squeezed_arg = arg;
-        // Collect axes to squeeze. Broadcast v0 "adds" new axes, thus we have to squeeze
-        // the empty ones (dim:=1), which would be broadcasted by Broadcast v1.
-        std::vector<size_t> empty_axes;
-        for (size_t a{0}; a < axes_mapping.size(); ++a)
-        {
-            if (arg_shape.at(a) == 1 && target_shape.at(axes_mapping.at(a)) != 1)
-            {
-                empty_axes.push_back(a);
-            }
-        }
-        // Check if arg_shape contains some more empty dimensions marked to broadcast.
-        // If axes_mapping size is less than arg_shape size, then some of arg dimensions may
-        // be equal to one and marked to broadcast.
-        if (axes_mapping.size() < arg_shape.size())
-        {
-            for (size_t a{axes_mapping.size()}; a < arg_shape.size(); ++a)
-            {
-                if (arg_shape.at(a) == 1)
-                {
-                    empty_axes.push_back(a);
-                }
-            }
-        }
-        if (!empty_axes.empty())
-        {
-            auto v0squeeze = [](const Output<Node>& value, vector<size_t> axes) {
-                if (axes.empty())
-                {
-                    return value.get_node_shared_ptr();
-                }
-
-                Shape in_shape{value.get_shape()};
-                for (size_t idx = 0; idx < axes.size(); ++idx)
-                {
-                    in_shape.at(axes.at(idx)) = 0;
-                }
-                Shape output_shape;
-                for (auto axis : in_shape)
-                {
-                    if (axis != 0)
-                    {
-                        output_shape.push_back(axis);
-                    }
-                }
-                return make_shared<op::Reshape>(
-                           value, get_default_order(value.get_shape().size()), output_shape)
-                    ->add_provenance_group_members_above({value});
-
-            };
-            squeezed_arg = v0squeeze(arg, empty_axes);
-        }
-
-        replacement_node =
-            make_shared<op::v0::Broadcast>(squeezed_arg, target_shape, broadcast_axes);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Convolution> node)
     {
         const auto data_arg = node->input_value(0);
@@ -300,27 +217,6 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::Equal, op::v1::Equal>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Gather> node)
-    {
-        auto axis_node = as_type_ptr<op::Constant>(node->input_value(2).get_node_shared_ptr());
-
-        NGRAPH_CHECK(axis_node,
-                     "Unable to convert Gather:v1 to Gather:v0 if axis is not constant. Node: ",
-                     *node);
-
-        NGRAPH_CHECK(
-            axis_node->get_element_type() == element::i64,
-            "Unable to convert Gather:v1 to Gather:v0 with axis other type than int64. Node: ",
-            *node);
-
-        int64_t axis = axis_node->get_vector<int64_t>()[0];
-
-        auto replacement_node =
-            make_shared<op::v0::Gather>(node->input_value(0), node->input_value(1), axis);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Greater> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Greater, op::v1::Greater>(node);
@@ -405,13 +301,6 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::LessEq, op::v1::LessEqual>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalNot> node)
-    {
-        auto replacement_node = make_shared<op::v0::Not>(node->input_value(0));
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalOr> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Or, op::v1::LogicalOr>(node);
@@ -442,43 +331,9 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::NotEqual, op::v1::NotEqual>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::OneHot> node)
-    {
-        const auto indices = node->input_value(0);
-        const auto depth = node->input_value(1).get_node();
-        auto on_value = node->input_value(2);
-        auto off_value = node->input_value(3);
-        const auto axis = node->get_axis();
-
-        NGRAPH_CHECK(op::is_constant(depth), "depth input must be constant", *node);
-        const auto output_pshape = node->get_output_partial_shape(0);
-        NGRAPH_CHECK(output_pshape.is_static(), "output shape must be static", *node);
-        const auto output_shape = output_pshape.to_shape();
-
-        auto one_hot = std::make_shared<ngraph::op::Convert>(
-            std::make_shared<ngraph::op::OneHot>(indices, output_shape, axis),
-            on_value.get_element_type());
-
-        auto broadcasted_values = builder::numpy_broadcast_outputs({one_hot, on_value, off_value});
-        on_value = broadcasted_values[1];
-        off_value = broadcasted_values[2];
-
-        auto replacement_node = one_hot * (on_value - off_value) + off_value;
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Power> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMax> node)
-    {
-        auto replacement_node = op_cast_reduction_node<op::v0::Max, op::v1::ReduceMax>(node);
-        replace_node(node, replacement_node);
-        return replacement_node;
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMean> node)
@@ -510,20 +365,6 @@ namespace opset0_downgrade
 
         const auto replacement_node =
             std::make_shared<op::v0::Divide>(sum_node, count_node, op::AutoBroadcastSpec::NUMPY);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMin> node)
-    {
-        auto replacement_node = op_cast_reduction_node<op::v0::Min, op::v1::ReduceMin>(node);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceProd> node)
-    {
-        auto replacement_node = op_cast_reduction_node<op::v0::Product, op::v1::ReduceProd>(node);
         replace_node(node, replacement_node);
         return replacement_node;
     }

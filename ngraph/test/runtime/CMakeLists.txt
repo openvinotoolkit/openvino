@@ -37,8 +37,6 @@ set (SRC
     pass/fused_op_decomposition.hpp
     pass/implicit_broadcast_elimination.cpp
     pass/implicit_broadcast_elimination.hpp
-    pass/like_replacement.cpp
-    pass/like_replacement.hpp
     pass/liveness.cpp
     pass/liveness.hpp
     pass/opset0_downgrade.cpp
