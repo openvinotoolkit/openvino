@@ -193,7 +193,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     if (next.is_type<convolution>() &&
         fmt_prev == format::bfyx &&
-        fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] <= 4)
+        fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] <= 4 &&
+        next.as<convolution>().get_primitive()->activations_zero_points.empty() &&
+        next.as<convolution>().get_primitive()->weights_zero_points.empty())
         return true;
 
     if (next.is_type<convolution>() &&
