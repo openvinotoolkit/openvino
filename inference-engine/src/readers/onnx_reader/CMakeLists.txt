@@ -16,6 +16,9 @@ source_group("src" FILES ${LIBRARY_SRC})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine ONNX reader plugin")
+
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)

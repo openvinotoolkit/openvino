@@ -22,6 +22,9 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine IR v7 reader plugin")
+
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/"
