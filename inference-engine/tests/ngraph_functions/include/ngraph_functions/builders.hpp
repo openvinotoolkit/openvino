@@ -440,11 +440,5 @@ std::shared_ptr<ngraph::Node> makeNormalizeL2(const ngraph::Output<Node>& data,
                                               float eps,
                                               ngraph::op::EpsMode epsMode);
 
-std::shared_ptr<Node> makeGatherND(const ngraph::Output<Node>& input,
-                                   const ngraph::Shape& indicesShape,
-                                   const element::Type& indicesType,
-                                   const std::size_t batchDims);
-
-
 }  // namespace builder
 }  // namespace ngraph
