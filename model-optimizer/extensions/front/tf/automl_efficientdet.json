@@ -1,7 +1,8 @@
 [
   {
-    "id": "EfficientDet",
+    "id": "AutomlEfficientDet",
     "custom_attributes": {
+      "preprocessing_input_node": "convert_image",
       "preprocessing_output_node": "truediv",
       "aspect_ratios": [1.0, 1.0, 1.4, 0.7, 0.7, 1.4],
       "variance": [1.0, 1.0, 1.0, 1.0],
