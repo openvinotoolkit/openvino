@@ -33,8 +33,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 
 **Could Be Optionally Installed**
 
-[DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment.
-The tool enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
+[Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
 configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components:
 * [Model Downloader](@ref omz_tools_downloader_README)
 * [Intel® Open Model Zoo](@ref omz_models_intel_index)
