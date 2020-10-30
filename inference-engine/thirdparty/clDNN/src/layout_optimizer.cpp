@@ -178,7 +178,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0))
         return true;
 
-    if (next.is_type<quantize>() && fmt_prev == format::bfyx && prev.is_input() && prev_dt == data_types::u8)
+    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
+        prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
         return true;
 
     if (next.is_type<convolution>() &&
@@ -202,11 +203,13 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         (prev_output_layout.size.feature[0] == 3 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
         return true;
 
-    if (next.is_type<quantize>() && fmt_prev == format::bfyx && (fmt_next == format::b_fs_yx_fsv16 ||
-        fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4))
+    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
+        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
+         fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4))
         return true;
 
     if (next.is_type<convolution>() &&
+        !(prev.is_type<quantize>() && (prev_dt == data_types::i8 || prev_dt == data_types::u8)) &&
         (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx)  && prev_output_layout.size.feature[0] == 3 &&
         (fmt_next == format::b_fs_yx_fsv4 ||
          fmt_next == format::bs_fs_yx_bsv16_fsv16))
@@ -230,7 +233,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
 
     if (prev.is_type<quantize>() &&
         (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::b_fs_zyx_fsv32 ||
-         fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
+         fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
     return false;
@@ -358,7 +361,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         }
 
         // Check for non-grouped or depthwise convolution
-        if (input_layout.size.spatial[2] == 1 &&
+        if (input_layout.format.dimension() == 4 &&
             ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
             weights_layout.size.batch[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
@@ -368,7 +371,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
              (input_layout.size.feature[0] <= 4)))  // only bfyx -> fsv16 kernel supports asymmetric quantization in fsv16 format
             return true;
         // Check for grouped convolution
-        else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
+        else if (input_layout.format.dimension() == 4 && input_layout.size.batch[0] < 16 &&
                  out_features_per_group >= 16 &&
                  // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
                  (in_features_per_group % 4 == 0) &&
@@ -801,6 +804,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             } else {
                 expected = format::b_fs_yx_fsv4;
             }
+        } else if (layout.format.spatial_num() == 3 && (layout.data_type == data_types::i8 || layout.data_type == data_types::u8)) {
+            expected = format::b_fs_zyx_fsv16;
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
         expected = node.get_output_layout().format;

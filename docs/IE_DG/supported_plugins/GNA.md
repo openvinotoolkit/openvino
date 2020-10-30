@@ -19,7 +19,7 @@ Devices with Intel&reg; GNA support:
 
 * [Amazon Alexa* Premium Far-Field Developer Kit](https://developer.amazon.com/en-US/alexa/alexa-voice-service/dev-kits/amazon-premium-voice)
 
-* [Gemini Lake](https://ark.intel.com/content/www/us/en/ark/products/codename/83915/gemini-lake.html):
+* [Intel&reg; Pentium&reg; Silver Processors N5xxx, J5xxx and Intel&reg; Celeron&reg; Processors N4xxx, J4xxx](https://ark.intel.com/content/www/us/en/ark/products/codename/83915/gemini-lake.html):
 	- Intel&reg; Pentium&reg; Silver J5005 Processor
 	- Intel&reg; Pentium&reg; Silver N5000 Processor
 	- Intel&reg; Celeron&reg; J4005 Processor
@@ -27,10 +27,10 @@ Devices with Intel&reg; GNA support:
 	- Intel&reg; Celeron&reg; Processor N4100
 	- Intel&reg; Celeron&reg; Processor N4000
 
-* [Cannon Lake](https://ark.intel.com/content/www/us/en/ark/products/136863/intel-core-i3-8121u-processor-4m-cache-up-to-3-20-ghz.html):
+* [Intel&reg; Core&trade; Processors (formerly codenamed Cannon Lake)](https://ark.intel.com/content/www/us/en/ark/products/136863/intel-core-i3-8121u-processor-4m-cache-up-to-3-20-ghz.html):
 Intel&reg; Core&trade; i3-8121U Processor
 
-* [Ice Lake](https://ark.intel.com/content/www/us/en/ark/products/codename/74979/ice-lake.html):
+* [10th Generation Intel&reg; Core&trade; Processors (formerly codenamed Ice Lake)](https://ark.intel.com/content/www/us/en/ark/products/codename/74979/ice-lake.html):
 	- Intel&reg; Core&trade; i7-1065G7 Processor
 	- Intel&reg; Core&trade; i7-1060G7 Processor
 	- Intel&reg; Core&trade; i5-1035G4 Processor
@@ -41,6 +41,8 @@ Intel&reg; Core&trade; i3-8121U Processor
 	- Intel&reg; Core&trade; i3-1005G1 Processor
 	- Intel&reg; Core&trade; i3-1000G1 Processor
 	- Intel&reg; Core&trade; i3-1000G4 Processor
+
+* All [11th Generation Intel&reg; Core&trade; Processors (formerly codenamed Tiger Lake)](https://ark.intel.com/content/www/us/en/ark/products/codename/88759/tiger-lake.html).
 
 > **NOTE**: On platforms where Intel&reg; GNA is not enabled in the BIOS, the driver cannot be installed, so the GNA plugin uses the software emulation mode only.
 
@@ -64,10 +66,11 @@ The list of supported layers can be found
 [here](Supported_Devices.md) (see the GNA column of Supported Layers section).
 Limitations include:
 
-- Only 1D convolutions (in the models converted from [Kaldi](../../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md) framework) are natively supported
+- Only 1D convolutions are natively supported in the models converted from:
+	- [Kaldi](../../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md) framework;
+	- [TensorFlow](../../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md) framework; note that for TensorFlow models, the option `--disable_nhwc_to_nchw` must be used when running the Model Optimizer.
 - The number of output channels for convolutions must be a multiple of 4
 - Permute layer support is limited to the cases where no data reordering is needed, or when reordering is happening for 2 dimensions, at least one of which is not greater than 8
-- Power layer only supports the power parameter equal to 1
 
 #### Experimental Support for 2D Convolutions
 
@@ -158,6 +161,30 @@ input blob using `InferenceEngine::ICNNNetwork::setBatchSize`. Increasing batch 
 Heterogeneous plugin was tested with the Intel&reg; GNA as a primary device and CPU as a secondary device. To run inference of networks with layers unsupported by the GNA plugin (for example, Softmax), use the Heterogeneous plugin with the `HETERO:GNA,CPU` configuration. For the list of supported networks, see the [Supported Frameworks](#supported-frameworks).
 
 > **NOTE:** Due to limitation of the Intel&reg; GNA backend library, heterogenous support is limited to cases where in the resulted sliced graph, only one subgraph is scheduled to run on GNA\_HW or GNA\_SW devices.
+
+## Recovery from interruption by high-priority Windows audio processes\*
+
+As noted in the introduction, GNA is designed for real-time workloads such as noise reduction.
+For such workloads, processing should be time constrained, otherwise extra delays may cause undesired effects such as
+audio "glitches". To make sure that processing can satisfy real time requirements, the GNA driver provides a QoS
+(Quality of Service) mechanism which interrupts requests that might cause high-priority Windows audio processes to miss
+schedule, thereby causing long running GNA tasks to terminate early.
+
+Applications should be prepared for this situation.
+If an inference (in `GNA_HW` mode) cannot be executed because of such an interruption, then `InferRequest::Wait()` will return status code
+`StatusCode::INFER_NOT_STARTED` (note that it will be changed to a more meaningful status code in future releases).
+
+Any application working with GNA must properly react if it receives this code. Various strategies are possible.
+One of the options is to immediately switch to GNA SW emulation mode:
+
+```cpp
+std::map<std::string, Parameter> newConfig;
+newConfig[GNAConfigParams::KEY_GNA_DEVICE_MODE] = Parameter("GNA_SW_EXACT");
+executableNet.SetConfig(newConfig);
+
+```
+
+then resubmit and switch back to GNA_HW after some time hoping that the competing application has finished.
 
 ## See Also
 

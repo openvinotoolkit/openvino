@@ -4,11 +4,17 @@
 
 set(CMAKE_SYSTEM_NAME WindowsStore)
 
-if (NOT DEFINED CMAKE_SYSTEM_VERSION)
-    set(CMAKE_SYSTEM_VERSION 10.0)
+if(NOT DEFINED CMAKE_SYSTEM_VERSION)
+    # Sometimes CMAKE_HOST_SYSTEM_VERSION has form 10.x.y while we need
+    # form 10.x.y.z Adding .0 at the end fixes the issue
+    if(CMAKE_HOST_SYSTEM_VERSION MATCHES "^10\.0.[0-9]+$")
+        set(CMAKE_SYSTEM_VERSION "${CMAKE_HOST_SYSTEM_VERSION}.0")
+    else()
+        set(CMAKE_SYSTEM_VERSION "${CMAKE_HOST_SYSTEM_VERSION}")
+    endif()
 endif()
 
-if (NOT DEFINED CMAKE_SYSTEM_PROCESSOR)
+if(NOT DEFINED CMAKE_SYSTEM_PROCESSOR)
     set(CMAKE_SYSTEM_PROCESSOR ${CMAKE_HOST_SYSTEM_PROCESSOR})
 endif()
 
@@ -21,6 +27,4 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/src/uwp.hpp"
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /FI\"${CMAKE_CURRENT_BINARY_DIR}/src/uwp.hpp\"")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /FI\"${CMAKE_CURRENT_BINARY_DIR}/src/uwp.hpp\"")
 
-# UWP setting for package isolation
-# set(CMAKE_VS_GLOBALS "AppContainerApplication=true")
 set(CMAKE_VS_GLOBALS "WindowsTargetPlatformMinVersion=${CMAKE_SYSTEM_VERSION}")

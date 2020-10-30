@@ -502,9 +502,13 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_empty_axes_input)
 
     test_case.add_input<float>(input_data);
 
-    // output should be filled with 1f values
-    test_case.add_expected_output<float>(data_shape, vector<float>(shape_size(data_shape), 1));
+    test_case.add_expected_output<float>(
+        data_shape,
+        vector<float>{0.01428571, 0.02857143, 0.04285714, 0.05714286, 0.07142857, 0.08571429,
+                      0.1,        0.11428571, 0.12857144, 0.14285715, 0.15714286, 0.17142858,
 
+                      0.18571429, 0.2,        0.21428572, 0.22857143, 0.24285714, 0.25714287,
+                      0.27142859, 0.2857143,  0.3,        0.31428573, 0.32857144, 0.34285715});
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
@@ -1372,6 +1376,52 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels)
                                                        0.000000000000000,
                                                        0.70710678068654742,
                                                        1.4142135613730948});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_shared_across_channel_batch_size_2)
+{
+    Shape data_shape{2, 2, 5};
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    auto mvn_func = make_shared<op::MVN>(data, true);
+    auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
+    auto test_case = test::TestCase<TestEngine>(function);
+    // data
+    vector<float> data_vector(shape_size(data_shape));
+    iota(begin(data_vector), end(data_vector), 0);
+    test_case.add_input<float>(data_vector);
+
+    // expected result
+    test_case.add_expected_output<float>(
+        data_shape,
+        {-1.5666989f, -1.2185436f, -0.8703883f, -0.5222329f, -0.1740777f, 0.1740777f,  0.5222329f,
+         0.8703883f,  1.2185436f,  1.5666989f,  -1.5666989f, -1.2185436f, -0.8703883f, -0.5222329f,
+         -0.1740777f, 0.1740777f,  0.5222329f,  0.8703883f,  1.2185436f,  1.5666989f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_not_shared_across_channel_batch_size_2)
+{
+    Shape data_shape{2, 2, 5};
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    auto mvn_func = make_shared<op::MVN>(data, false);
+    auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
+    auto test_case = test::TestCase<TestEngine>(function);
+    // data
+    vector<float> data_vector(shape_size(data_shape));
+    iota(begin(data_vector), end(data_vector), 0);
+    test_case.add_input<float>(data_vector);
+
+    // expected result
+    test_case.add_expected_output<float>(
+        data_shape,
+        {-1.4142135f, -0.7071068f, 0.0000000f,  0.7071068f,  1.4142135f,  -1.4142135f, -0.7071068f,
+         0.0000000f,  0.7071068f,  1.4142135f,  -1.4142135f, -0.7071068f, 0.0000000f,  0.7071068f,
+         1.4142135f,  -1.4142135f, -0.7071068f, 0.0000000f,  0.7071068f,  1.4142135f});
 
     test_case.run();
 }

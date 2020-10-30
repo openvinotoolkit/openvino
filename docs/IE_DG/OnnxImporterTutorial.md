@@ -48,7 +48,7 @@ Refer to the sections below for details.
 > ```
 
 Once you create the `ng_function`, you can use it to run computation on the Inference Engine.
-As it was shown in [Build a Model with nGraph Library](nGraphTutorial.md), `std::shared_ptr<ngraph::Function>` can be transformed into a `CNNNetwork`.
+As it was shown in [Build a Model with nGraph Library](../nGraph_DG/build_function.md), `std::shared_ptr<ngraph::Function>` can be transformed into a `CNNNetwork`.
 
 
 ### <a name="stream">Stream as Input</a>
@@ -65,4 +65,3 @@ The code below shows how to convert the ONNX ResNet50 model to the nGraph functi
 
 [onnx_header]: https://github.com/NervanaSystems/ngraph/blob/master/src/ngraph/frontend/onnx_import/onnx.hpp
 [onnx_model_zoo]: https://github.com/onnx/models
-

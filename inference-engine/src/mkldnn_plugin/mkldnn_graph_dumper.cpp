@@ -5,7 +5,7 @@
 #include "mkldnn_graph_dumper.h"
 #include <legacy/cnn_network_impl.hpp>
 #include <legacy/ie_util_internal.hpp>
-#include <legacy/ie_ngraph_utils.hpp>
+#include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "mkldnn_debug.h"
 #include "generic_ie.hpp"
@@ -41,7 +41,7 @@ CNNLayer::Ptr create_cnnlayer(const MKLDNNNodePtr &node) {
     return layer;
 }
 
-std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
+InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
     std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node> > node2layer;
 
     ngraph::ResultVector results;
@@ -142,7 +142,7 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
     return net;
 }
 
-std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
+InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
     net->setName(graph._name);
@@ -191,14 +191,12 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
         net->setInputInfo(in_info);
     }
 
-    return net;
+    return InferenceEngine::CNNNetwork{net};
 }
 
 void dump_graph_as_dot(const MKLDNNGraph &graph, std::ostream &out) {
-    auto dump_net = dump_graph_as_ie_net(graph);
-    if (dump_net == nullptr)
-        THROW_IE_EXCEPTION << "Nullable net dump";
-    InferenceEngine::saveGraphToDot(*dump_net, out, drawer_callback);
+    InferenceEngine::CNNNetwork dump_net = dump_graph_as_ie_net(graph);
+    InferenceEngine::saveGraphToDot(dump_net, out, drawer_callback);
 }
 
 //**********************************

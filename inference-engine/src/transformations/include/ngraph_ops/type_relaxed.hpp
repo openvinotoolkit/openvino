@@ -190,6 +190,7 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
     }
 
+
     // Override (some) output types
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
         auto overridden_output_type = get_overridden_output_type(i);

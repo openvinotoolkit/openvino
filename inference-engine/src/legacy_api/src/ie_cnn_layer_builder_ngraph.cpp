@@ -8,33 +8,31 @@
 #include <sstream>
 #include <utility>
 
-#include "ngraph_ops/crop_ie.hpp"
+#include "legacy/ngraph_ops/crop_ie.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
-#include "ngraph_ops/eltwise.hpp"
-#include "ngraph_ops/fully_connected.hpp"
-#include "ngraph_ops/gather_ie.hpp"
-#include "ngraph_ops/gather_tree_ie.hpp"
-#include "ngraph_ops/gru_cell_ie.hpp"
-#include "ngraph_ops/interp.hpp"
-#include "ngraph_ops/lrn_ie.hpp"
-#include <ngraph_ops/lstm_cell_ie.hpp>
+#include "legacy/ngraph_ops/eltwise.hpp"
+#include "legacy/ngraph_ops/fully_connected.hpp"
+#include "legacy/ngraph_ops/gather_ie.hpp"
+#include "legacy/ngraph_ops/gather_tree_ie.hpp"
+#include "legacy/ngraph_ops/gru_cell_ie.hpp"
+#include "legacy/ngraph_ops/interp.hpp"
+#include "legacy/ngraph_ops/lrn_ie.hpp"
+#include "legacy/ngraph_ops/lstm_cell_ie.hpp"
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
-#include "ngraph_ops/normalize_ie.hpp"
-#include "ngraph_ops/nms_ie.hpp"
-#include "ngraph_ops/onehot_ie.hpp"
-#include "ngraph_ops/pad_ie.hpp"
-#include "ngraph_ops/power.hpp"
-#include "ngraph_ops/prior_box_clustered_ie.hpp"
-#include "ngraph_ops/prior_box_ie.hpp"
-#include "ngraph_ops/proposal_ie.hpp"
-#include "ngraph_ops/relu_ie.hpp"
-#include "ngraph_ops/selu_ie.hpp"
-#include "ngraph_ops/scaleshift.hpp"
-#include "ngraph_ops/tile_ie.hpp"
-#include "ngraph_ops/topk_ie.hpp"
-#include "ngraph_ops/rnn_cell_ie.hpp"
-#include "ngraph_ops/hard_sigmoid_ie.hpp"
+#include "legacy/ngraph_ops/normalize_ie.hpp"
+#include "legacy/ngraph_ops/nms_ie.hpp"
+#include "legacy/ngraph_ops/onehot_ie.hpp"
+#include "legacy/ngraph_ops/pad_ie.hpp"
+#include "legacy/ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
+#include "legacy/ngraph_ops/prior_box_ie.hpp"
+#include "legacy/ngraph_ops/proposal_ie.hpp"
+#include "legacy/ngraph_ops/relu_ie.hpp"
+#include "legacy/ngraph_ops/selu_ie.hpp"
+#include "legacy/ngraph_ops/scaleshift.hpp"
+#include "legacy/ngraph_ops/tile_ie.hpp"
+#include "legacy/ngraph_ops/rnn_cell_ie.hpp"
+#include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
@@ -43,6 +41,7 @@
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/opsets/opset5.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include "legacy/graph_transformer.h"
@@ -114,8 +113,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GenericIE>::createLayer(const std::share
     return res;
 }
 
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     auto find_input_idx = [](const CNNLayerPtr& where, const DataPtr& what) {
         auto it = std::find_if(where->insData.begin(), where->insData.end(), [&](const DataWeakPtr& wk_ptr) {
             auto layer_data = wk_ptr.lock();
@@ -129,7 +127,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         return it - where->insData.begin();
     };
 
-    auto tensor_iterator = ngraph::as_type_ptr<ngraph::op::TensorIterator>(layer);
+    auto tensor_iterator = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(layer);
     if (!tensor_iterator) {
         THROW_IE_EXCEPTION << "Cannot cast layer to TensorIterator.";
     }
@@ -142,8 +140,8 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     std::map<std::string, DataPtr> out_info_map;
 
     // inputs/outputs of TensorIterator (ngraph representation)
-    auto parameters = tensor_iterator->get_body()->get_parameters();
-    auto results = tensor_iterator->get_body()->get_results();
+    auto parameters = tensor_iterator->get_function()->get_parameters();
+    auto results = tensor_iterator->get_function()->get_results();
 
     // Convert body (ngraph representation) to CNNNetwork.
     // This network will contain nodes of type = "Input" and data nodes with wrong names.
@@ -155,7 +153,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     // This map will save information about data nodes
     std::map<std::string, std::vector<TensorDesc>> layer_name_to_tensor_desc;
     {
-        CNNNetwork body_net(tensor_iterator->get_body());
+        CNNNetwork body_net(tensor_iterator->get_function());
         CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
@@ -353,6 +351,20 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         }
     }
 
+    return res;
+}
+
+template<>
+CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto res = createSubGraphLayer(layer);
+    res->type = "TensorIterator";
+    return res;
+}
+
+template<>
+CNNLayer::Ptr NodeConverter<ngraph::opset5::Loop>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto res = createSubGraphLayer(layer);
+    res->type = "Loop";
     return res;
 }
 
@@ -619,7 +631,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Maximum>::createLayer(const std::sha
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::Minimum>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "Minimum operation should be decomposed";
+    LayerParams params = {layer->get_friendly_name(), "Eltwise",
+                          details::convertPrecision(layer->get_output_element_type(0))};
+    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
+    res->params["operation"] = "min";
+    return res;
 }
 
 template <>
@@ -647,12 +663,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Add>::createLayer(const std::shared_
     auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
     res->params["operation"] = "sum";
     return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::BatchNormInference>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "BatchNormInference operation should be fused or decomposed";
 }
 
 template <>
@@ -760,74 +770,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ConvolutionIE>::createLayer(
     NodeConverter<ngraph::op::Constant> converter;
     const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
     if (!keep_constants && converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-
-        if (castedLayer->inputs().size() == 3) {
-            const auto biasNode = castedLayer->input_value(2).get_node_shared_ptr();
-            if (converter.canCreate(biasNode)) {
-                const auto& bias = converter.createLayer(biasNode);
-                res->blobs["biases"] = bias->blobs["custom"];
-                res->_biases = bias->blobs["custom"];
-            }
-        }
-    }
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::DeconvolutionIE>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Deconvolution",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::DeconvolutionLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::DeconvolutionIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_pads_begin()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_begin"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_pads_end()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_end"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["strides"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_dilations()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["dilations"] = value;
-
-    // Restore kernel size and output
-    const auto& shape = castedLayer->get_input_shape(1);
-    res->params["output"] = asString(shape[1]);
-
-    value.clear();
-    for (size_t i = 2; i < shape.size(); i++) {
-        if (!value.empty()) value += ",";
-        value += asString(shape[i]);
-    }
-    res->params["kernel"] = value;
-    res->params["group"] = asString(castedLayer->get_group());
-
-    NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
-    if (converter.canCreate(weightsNode)) {
         const auto& weights = converter.createLayer(weightsNode);
         res->blobs["weights"] = weights->blobs["custom"];
         res->_weights = weights->blobs["custom"];
@@ -1373,43 +1315,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std:
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "DetectionOutput",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::DetectionOutput>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto attr = castedLayer->get_attrs();
-    std::string param;
-
-    res->params["num_classes"] = asString(attr.num_classes);
-    res->params["background_label_id"] = asString(attr.background_label_id);
-    res->params["top_k"] = asString(attr.top_k);
-    res->params["variance_encoded_in_target"] = (attr.variance_encoded_in_target ? "1" : "0");
-    for (const auto& val : attr.keep_top_k) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["keep_top_k"] = param;
-    res->params["code_type"] = attr.code_type;
-    res->params["share_location"] = (attr.share_location ? "1" : "0");
-    res->params["nms_threshold"] = asString(attr.nms_threshold);
-    res->params["confidence_threshold"] = asString(attr.confidence_threshold);
-    res->params["clip_after_nms"] = (attr.clip_after_nms ? "1" : "0");
-    res->params["clip_before_nms"] = (attr.clip_before_nms ? "1" : "0");
-    res->params["decrease_label_id"] = (attr.decrease_label_id ? "1" : "0");
-    res->params["normalized"] = (attr.normalized ? "1" : "0");
-    res->params["input_height"] = asString(attr.input_height);
-    res->params["input_width"] = asString(attr.input_width);
-    res->params["objectness_score"] = asString(attr.objectness_score);
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ProposalIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Proposal",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1520,7 +1425,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxIE>::createLayer(const std::shar
         auto img_H = img_shape[2];
         auto data_H = data_shape[2];
         if (attr.step == -1)
-            attr.step = 1. * img_H / data_H;
+            attr.step = static_cast<float>(1. * img_H / data_H);
         else
             attr.step *= img_H;
         for (auto& size : attr.min_size)
@@ -1583,36 +1488,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PowerIE>::createLayer(const std::shared_
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::TopK>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "TopK",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::TopKLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::TopK>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["mode"] = ngraph::as_string<ngraph::op::v1::TopK::Mode>(castedLayer->get_mode());;
-    res->params["sort"] = ngraph::as_string<ngraph::op::v1::TopK::SortType>(castedLayer->get_sort_type());
-    res->params["axis"] = asString(castedLayer->get_axis());
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::TopKIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "TopK",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::TopKLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::TopKIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["mode"] = ngraph::as_string<ngraph::op::v1::TopK::Mode>(castedLayer->get_mode());;
-    res->params["sort"] = ngraph::as_string<ngraph::op::v1::TopK::SortType>(castedLayer->get_sort_type());
-    res->params["axis"] = asString(castedLayer->get_axis());
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Eltwise",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1624,6 +1499,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_
     switch (castedLayer->eltwise_type) {
     case ELTWISE_TYPE::Sum:
         type = "sum";
+        break;
+    case ELTWISE_TYPE::Sub:
+        type = "sub";
         break;
     case ELTWISE_TYPE::Prod:
         type = "prod";
@@ -2100,55 +1978,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Sqrt>::createLayer(const std::shared_ptr
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::StridedSlice>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "StridedSlice",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::StridedSliceLayer>(params);
-    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::v1::StridedSlice>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_begin_mask()) {
-        if (!value.empty()) value += ",";
-        // plugins require reverse value of this mask.
-        value += asString((1-val));
-    }
-    res->params["begin_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_end_mask()) {
-        if (!value.empty()) value += ",";
-        // plugins require reverse value of this mask.
-        value += asString((1-val));
-    }
-    res->params["end_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_new_axis_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["new_axis_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_shrink_axis_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["shrink_axis_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_ellipsis_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["ellipsis_mask"] = value;
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::OneHotIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "OneHot", Precision::FP32};
 
@@ -2185,14 +2014,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GRN>::createLayer(const std::shared_ptr<
 
     auto res = std::make_shared<InferenceEngine::GRNLayer>(params);
     res->params["bias"] = asString(castedLayer->get_bias());
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::LogicalNot>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Activation", details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    res->params["type"] = "not";
     return res;
 }
 

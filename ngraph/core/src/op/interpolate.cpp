@@ -25,7 +25,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v0::Interpolate::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Interpolate, "Interpolate", 0);
 
 op::v0::Interpolate::Interpolate(const Output<Node>& image,
                                  const Output<Node>& output_shape,

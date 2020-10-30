@@ -101,7 +101,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
 
         if not self.is_fusable_reverse_sequence(direct_reverse) or \
                 not self.is_fusable_reverse_sequence(inverse_reverse):
-            # we can not merge ReverseSequence with ot equal sequences
+            # we can not merge ReverseSequence without equal sequences
             return
 
         # Modify stride in TI

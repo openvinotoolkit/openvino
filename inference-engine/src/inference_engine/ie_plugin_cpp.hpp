@@ -92,10 +92,12 @@ public:
         CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(modelFileName, config), actual));
     }
 
-    void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
-                      QueryNetworkResult& res) const {
-        CALL_STATEMENT(actual->QueryNetwork(network, config, res));
+    QueryNetworkResult QueryNetwork(const ICNNNetwork& network,
+                                    const std::map<std::string, std::string>& config) const {
+        QueryNetworkResult res;
+        CALL_STATEMENT(res = actual->QueryNetwork(network, config));
         if (res.rc != OK) THROW_IE_EXCEPTION << res.resp.msg;
+        return res;
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,

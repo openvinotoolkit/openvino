@@ -30,7 +30,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::Unsqueeze::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
 
 op::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
     : FusedOp({data, axes})
@@ -105,7 +105,7 @@ shared_ptr<Node> op::Unsqueeze::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
-namespace
+namespace unsqueeze
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
@@ -171,5 +171,36 @@ bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Unsqueeze::evaluate");
-    return evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+    return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+}
+
+bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values,
+                                      const OutputVector& inputs_values)
+{
+    if (get_output_partial_shape(0).is_dynamic())
+    {
+        return false;
+    }
+
+    const auto& shape = get_output_shape(0);
+
+    if (auto data_const =
+            std::dynamic_pointer_cast<op::Constant>(inputs_values[0].get_node_shared_ptr()))
+    {
+        // In case if data constant has single consumer we can change it shape without making a copy
+        // Otherwise we create Constant copy with shape from unsqueeze node
+        if (data_const->output(0).get_target_inputs().size() == 1)
+        {
+            data_const->set_data_shape(shape);
+            data_const->validate_and_infer_types();
+            output_values[0] = data_const;
+        }
+        else
+        {
+            output_values[0] = std::make_shared<op::Constant>(
+                data_const->get_element_type(), shape, data_const->get_data_ptr());
+        }
+        return true;
+    }
+    return false;
 }

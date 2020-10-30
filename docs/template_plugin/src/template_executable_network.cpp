@@ -98,27 +98,29 @@ InferenceEngine::InferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::Cr
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
-void TemplatePlugin::ExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& asyncRequest) {
+IInferRequest::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
+    IInferRequest::Ptr asyncRequest;
     auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     auto asyncThreadSafeImpl = std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                                            _taskExecutor, _plugin->_waitExecutor, _callbackExecutor);
     asyncRequest.reset(new InferenceEngine::InferRequestBase<TemplateAsyncInferRequest>(asyncThreadSafeImpl),
                        [](InferenceEngine::IInferRequest *p) { p->Release(); });
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    return asyncRequest;
 }
 // ! [executable_network:create_infer_request]
 
 // ! [executable_network:get_config]
-void TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const {
-    result = _cfg.Get(name);
+Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name) const {
+    return _cfg.Get(name);
 }
 // ! [executable_network:get_config]
 
 // ! [executable_network:get_metric]
-void TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {
+InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name) const {
     // TODO: return more supported values for metrics
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        result = IE_SET_METRIC(SUPPORTED_METRICS, std::vector<std::string>{
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{
             METRIC_KEY(NETWORK_NAME),
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(SUPPORTED_CONFIG_KEYS),
@@ -132,13 +134,13 @@ void TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name, Infer
         for (auto&& configKey : streamExecutorConfigKeys) {
             configKeys.emplace_back(configKey);
         }
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (METRIC_KEY(NETWORK_NAME) == name) {
         auto networkName = _function->get_friendly_name();
-        result = IE_SET_METRIC(NETWORK_NAME, networkName);
+        IE_SET_METRIC_RETURN(NETWORK_NAME, networkName);
     } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = _cfg._streamsExecutorConfig._streams;
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }

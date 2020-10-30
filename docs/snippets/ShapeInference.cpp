@@ -1,17 +1,15 @@
 #include <inference_engine.hpp>
-#include <opencv2/core.hpp>
+#include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
 
 
 int main() {
-using namespace InferenceEngine;
-using namespace cv;
 int batch_size = 1;
 //! [part0]
     InferenceEngine::Core core;
     // ------------- 0. Read IR and image ----------------------------------------------
-    CNNNetwork network = core.ReadNetwork("path/to/IR/xml");
+    InferenceEngine::CNNNetwork network = core.ReadNetwork("path/to/IR/xml");
     cv::Mat image = cv::imread("path/to/image");
     // ---------------------------------------------------------------------------------
 
@@ -21,7 +19,7 @@ int batch_size = 1;
 
     // ------------- 2. Set new input shapes -------------------------------------------
     std::string input_name;
-    SizeVector input_shape;
+    InferenceEngine::SizeVector input_shape;
     std::tie(input_name, input_shape) = *input_shapes.begin(); // let's consider first input only
     input_shape[0] = batch_size; // set batch size to the first input dimension
     input_shape[2] = image.rows; // changes input height to the image one
@@ -37,9 +35,8 @@ int batch_size = 1;
 
     // ------------- 4. Loading model to the device ------------------------------------
     std::string device = "CPU";
-    ExecutableNetwork executable_network = core.LoadNetwork(network, device);
+    InferenceEngine::ExecutableNetwork executable_network = core.LoadNetwork(network, device);
     // ---------------------------------------------------------------------------------
-
 
 //! [part0]
 

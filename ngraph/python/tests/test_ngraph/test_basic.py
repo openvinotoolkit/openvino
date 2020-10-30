@@ -28,13 +28,9 @@ from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 from tests import (xfail_issue_34323,
                    xfail_issue_35929,
-                   xfail_issue_35926,
                    xfail_issue_36476,
-                   xfail_issue_36478,
                    xfail_issue_36479,
                    xfail_issue_36480)
-
-from openvino.inference_engine import IENetwork
 
 
 def test_ngraph_function_api():
@@ -69,11 +65,11 @@ def test_ngraph_function_api():
         pytest.param(np.int8, marks=xfail_issue_36479),
         np.int16,
         np.int32,
-        pytest.param(np.int64, marks=xfail_issue_35926),
+        np.int64,
         pytest.param(np.uint8, marks=xfail_issue_36479),
         np.uint16,
         pytest.param(np.uint32, marks=xfail_issue_36476),
-        pytest.param(np.uint64, marks=xfail_issue_36478),
+        np.uint64,
     ],
 )
 def test_simple_computation_on_ndarrays(dtype):
@@ -417,14 +413,3 @@ def test_runtime_info():
     runtime_info_after = relu_node.get_rt_info()
 
     assert runtime_info_after["affinity"] == "test_affinity"
-
-    params = [test_param]
-    results = [relu_node]
-
-    ng_function = Function(results, params, "testFunc")
-
-    capsule = Function.to_capsule(ng_function)
-    cnn_network = IENetwork(capsule)
-    cnn_layer = cnn_network.layers["testReLU"]
-    assert cnn_layer is not None
-    assert cnn_layer.affinity == "test_affinity"

@@ -182,7 +182,7 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1,  1, AGE_BASED))
                 .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, AGE_BASED));
     }
-    
+
     if (dtype == Datatype::F32) {
         // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
         selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 2, AGE_BASED))
@@ -195,17 +195,17 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     selector.Case([&](const fully_connected_params&) -> tune_params {
         tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, DEFAULT);
-    
+
         while (batch % result.tile_b != 0)
             result.tile_b--;
-    
+
         result.dispatch_bsv = 16;
         while (batch % (result.tile_b * result.dispatch_bsv) != 0)
             result.dispatch_bsv--;
 
         if (result.tile_b >= 8)
             result.exec_options = AGE_BASED;
-    
+
         return result;
     });
 
@@ -214,43 +214,43 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
 FullyConnected_bf_tiled::DispatchData
 FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int autoTuneIndex) const {
-    auto runInfo = Parent::SetDefault(params);
+    auto dispatchData = Parent::SetDefault(params);
     auto tparams = GetAutoTuneParams(params, autoTuneIndex);
 
     size_t feature_threads = CeilDiv(params.output.Feature().v, tparams.tile_ofm * simd);
     size_t batch_threads = params.output.Batch().v / tparams.tile_b;
 
-    runInfo.gws0 = feature_threads * batch_threads * simd;
-    runInfo.gws1 = 1;
-    runInfo.gws2 = 1;
+    dispatchData.gws[0] = feature_threads * batch_threads * simd;
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
 
-    runInfo.lws0 = simd;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = simd;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    runInfo.tile_m = tparams.tile_b;
-    runInfo.tile_n = tparams.tile_ofm;
-    runInfo.tile_mk = tparams.tile_ifm;
-    runInfo.tile_nk = tparams.tile_k;
-    runInfo.tile_ms = tparams.dispatch_bsv;
-    runInfo.tile_ns = tparams.dispatch_fsv;
+    dispatchData.tile_m = tparams.tile_b;
+    dispatchData.tile_n = tparams.tile_ofm;
+    dispatchData.tile_mk = tparams.tile_ifm;
+    dispatchData.tile_nk = tparams.tile_k;
+    dispatchData.tile_ms = tparams.dispatch_bsv;
+    dispatchData.tile_ns = tparams.dispatch_fsv;
 
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
-    jit.AddConstant(MakeJitConstant("TILE_B", kd.tile_m));
-    jit.AddConstant(MakeJitConstant("TILE_OFM", kd.tile_n));
-    jit.AddConstant(MakeJitConstant("TILE_IFM", kd.tile_mk));
-    jit.AddConstant(MakeJitConstant("TILE_K", kd.tile_nk));
-    jit.AddConstant(MakeJitConstant("TILE_K_OFM", kd.tile_nk * kd.tile_n));
-    jit.AddConstant(MakeJitConstant("DISPATCH_BSV", kd.tile_ms));
-    jit.AddConstant(MakeJitConstant("DISPATCH_FSV", kd.tile_ns));
+    jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
+    jit.AddConstant(MakeJitConstant("TILE_OFM", dispatchData.tile_n));
+    jit.AddConstant(MakeJitConstant("TILE_IFM", dispatchData.tile_mk));
+    jit.AddConstant(MakeJitConstant("TILE_K", dispatchData.tile_nk));
+    jit.AddConstant(MakeJitConstant("TILE_K_OFM", dispatchData.tile_nk * dispatchData.tile_n));
+    jit.AddConstant(MakeJitConstant("DISPATCH_BSV", dispatchData.tile_ms));
+    jit.AddConstant(MakeJitConstant("DISPATCH_FSV", dispatchData.tile_ns));
 
-    jit.Merge(MakeConstantLoopUnrollJitConstants(kd.tile_m));
+    jit.Merge(MakeConstantLoopUnrollJitConstants(dispatchData.tile_m));
 
     bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.output.GetFirstElementOffset() % 2 != 0;
     jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));
@@ -262,14 +262,14 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     if (!params.fused_ops.empty()) {
         auto boundary_check = BoundaryCheck::DISABLED;
-        if (params.output.Feature().v % (kd.tile_n * simd) != 0)
+        if (params.output.Feature().v % (dispatchData.tile_n * simd) != 0)
             boundary_check = BoundaryCheck::ENABLED;
 
         FusedOpsConfiguration conf = { "",
                                        {"(out_b + bi)", "out_f", "0", "0"},
                                        "activated[bi]",
                                        activation_dt,
-                                       kd.tile_n,
+                                       dispatchData.tile_n,
                                        LoadType::LT_ALIGNED_READ,
                                        boundary_check,
                                        IndexType::TENSOR_COORD,

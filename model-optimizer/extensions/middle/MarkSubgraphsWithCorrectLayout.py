@@ -51,14 +51,15 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
 
     @staticmethod
     def get_input_nodes(node: Node):
-        return [src_port.get_source().node for src_port in node.in_ports().values()]
+        return [src_port.get_source().node for src_port in node.in_ports().values() if not src_port.disconnected()]
 
     @staticmethod
     def get_output_nodes(node: Node):
         result = []
         for out_port in node.out_ports().values():
-            for dest_port in out_port.get_destinations():
-                result.append(dest_port.node)
+            if not out_port.disconnected():
+                for dest_port in out_port.get_destinations():
+                    result.append(dest_port.node)
         return result
 
     def bfs(self, start_nodes: list, visited: set, condition: callable = None, forward: bool = True):

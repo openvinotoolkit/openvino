@@ -30,6 +30,13 @@ set (SRC
 )
 
 add_library(ngraph_test_util STATIC ${SRC})
+
+if(COMMAND ie_faster_build)
+    ie_faster_build(ngraph_test_util
+        UNITY
+    )
+endif()
+
 if(NGRAPH_LIB_VERSIONING_ENABLE)
     set_target_properties(ngraph_test_util PROPERTIES
         VERSION ${NGRAPH_VERSION})

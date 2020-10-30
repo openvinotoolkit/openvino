@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,24 +18,22 @@
 namespace kernel_selector {
 
 static ROIPoolingKernelBase::DispatchData SetDefault(const roi_pooling_params& params) {
-    ROIPoolingKernelBase::DispatchData kd;
-
-    kd.fp16UnitUsed = (params.inputs[0].GetDType() == Datatype::F16);
+    ROIPoolingKernelBase::DispatchData dispatchData;
 
     // Determine global work sizes.
-    kd.gws0 = params.output.LogicalSize();
-    kd.gws1 = 1;
-    kd.gws2 = 1;
+    dispatchData.gws[0] = params.output.LogicalSize();
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
 
     // Find largest positive local work size that is divider for global work size.
-    kd.lws0 = std::min(std::max(kd.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
-    while (kd.gws0 % kd.lws0 != 0) {
-        --kd.lws0;
+    dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
+    while (dispatchData.gws[0] % dispatchData.lws[0] != 0) {
+        --dispatchData.lws[0];
     }
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 JitConstants ROIPoolingKernelBase::GetJitConstants(const roi_pooling_params& rp) const {
@@ -59,7 +57,7 @@ KernelsData ROIPoolingKernelBase::GetCommonKernelsData(const Params& params,
         return {};
     }
 
-    DispatchData runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
     KernelData kd = KernelData::Default<roi_pooling_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
@@ -67,7 +65,7 @@ KernelsData ROIPoolingKernelBase::GetCommonKernelsData(const Params& params,
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
     kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     if (orgParams.mode == PoolType::DEFORMABLE_BILINEAR && !orgParams.no_trans)
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});

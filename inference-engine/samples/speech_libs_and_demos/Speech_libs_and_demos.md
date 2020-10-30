@@ -1,7 +1,7 @@
 # Speech Library and Speech Recognition Demos {#openvino_inference_engine_samples_speech_libs_and_demos_Speech_libs_and_demos}
 
-Starting with the 2020.1 release, OpenVINO&trade; provides a set of libraries and demos to demonstrate end-to-end
-speech recognition, as well as new acoustic and language models that can work with these demos.
+Intel® distributions of OpenVINO&trade; toolkit for Linux* OS and Windows* OS provide a set of libraries and demos to
+demonstrate end-to-end speech recognition, as well as new acoustic and language models that can work with these demos.
 The libraries are designed for preprocessing (feature extraction) to get a feature vector from a speech signal, as well
 as postprocessing (decoding) to produce text from scores. Together with OpenVINO&trade;-based neural-network speech recognition,
 these libraries provide an end-to-end pipeline converting speech to text. This pipeline is demonstrated by the
@@ -38,7 +38,7 @@ Additionally, [new acoustic and language models](http://download.01.org/opencv/2
 
 To download pretrained models and build all dependencies:
 
-* On Linux* OS or macOS*, use the shell script `<INSTALL_DIR>/deployment_tools/demo/demo_speech_recognition.sh`
+* On Linux* OS, use the shell script `<INSTALL_DIR>/deployment_tools/demo/demo_speech_recognition.sh`
 
 * On Windows* OS, use the batch file `<INSTALL_DIR>\deployment_tools\demo\demo_speech_recognition.bat`
 
@@ -51,7 +51,7 @@ The script follows the steps below:
 
 If you are behind a proxy, set the following environment variables in a console session before running the script:
 
-* On Linux* OS and macOS*:
+* On Linux* OS:
 
 ```sh
 export http_proxy=http://{proxyHost}:{proxyPort}
