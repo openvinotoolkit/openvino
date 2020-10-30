@@ -27,17 +27,17 @@ set(IE_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2020, Intel Corporation")
 set(IE_VS_VER_COMMENTS_STR "https://docs.openvinotoolkit.org/")
 
 #
-# ie_generate_vs_version_file(NAME <name>
-#                             FILEDESCRIPTION <file description>
-#                             OUTPUT_FILE <output file>
-#                             [FILEVERSION <file version>]
-#                             [INTERNALNAME <internal name>]
-#                             [COPYRIGHT <name>]
-#                             [PRODUCTNAME <name>]
-#                             [PRODUCTVERSION <name>]
-#                             [COMMENTS <name>]
-#                             [FILEVERSION_QUAD <name>]
-#                             [PRODUCTVERSION_QUAD <name>])
+# ie_add_vs_version_file(NAME <name>
+#                        FILEDESCRIPTION <file description>
+#                        OUTPUT_FILE <output file>
+#                        [FILEVERSION <file version>]
+#                        [INTERNALNAME <internal name>]
+#                        [COPYRIGHT <name>]
+#                        [PRODUCTNAME <name>]
+#                        [PRODUCTVERSION <name>]
+#                        [COMMENTS <name>]
+#                        [FILEVERSION_QUAD <name>]
+#                        [PRODUCTVERSION_QUAD <name>])
 #
 function(ie_add_vs_version_file)
     if(NOT WIN32)
