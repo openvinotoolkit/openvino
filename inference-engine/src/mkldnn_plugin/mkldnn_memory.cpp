@@ -98,10 +98,8 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, co
 
         std::vector<ptrdiff_t> dims(memData.dims, memData.dims + memData.ndims);
 
-        auto data_type = GetDataType();
-
         MKLDNNMemory src(eng);
-        src.Create(dims, data_type, format, data);
+        src.Create(dims, dataType, format, data);
 
         std::shared_ptr<mkldnn::reorder> pReorder =
                 std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
@@ -351,6 +349,28 @@ void MKLDNNMemory::CreateBlockingDesc(memory::desc &desc) {
         blk.strides[0][curr_idx] = dims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, dims[prev_idx]);
     }
 }
+
+Precision MKLDNNMemory::convertToIePrec(memory::data_type dataType) {
+    switch (dataType) {
+        case memory::f32:
+            return Precision::FP32;
+        case memory::u8:
+            return Precision::U8;
+        case memory::s8:
+            return Precision::I8;
+        case memory::s16:
+            return Precision::I16;
+        case memory::s32:
+            return Precision::I32;
+        case memory::bin:
+            return Precision::BIN;
+        case memory::bf16:
+            return Precision::BF16;
+        default:
+           THROW_IE_EXCEPTION << "Unknown mkldnn data type";
+    }
+}
+
 memory::format MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
     switch (layout) {
         case NCHW:
@@ -1133,6 +1153,11 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
                 mkldnnFormat = memory::format::x;
             } else if (realDims.ndims() == 2) {
                 mkldnnFormat = memory::format::nc;
+            } else if (realDims.ndims() == 3) {
+                if (order == SizeVector{0, 1, 2})
+                    mkldnnFormat = memory::format::tnc;
+                else if (order == SizeVector{1, 0, 2})
+                    mkldnnFormat = memory::format::ntc;
             } else if (realDims.ndims() == 4) {
                 if (order.size() == 7 &&
                     order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1 && order[5] == 0 && order[6] == 1) {
