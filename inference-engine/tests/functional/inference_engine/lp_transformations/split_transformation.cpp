@@ -95,10 +95,8 @@ public:
 };
 
 TEST_P(SplitTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-
-    auto res = compare_functions(referenceFunction, actualFunction, true, false);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

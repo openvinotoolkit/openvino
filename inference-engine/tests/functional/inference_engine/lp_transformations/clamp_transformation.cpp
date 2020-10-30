@@ -79,10 +79,8 @@ public:
 };
 
 TEST_P(ClampTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -331,7 +329,7 @@ const std::vector<ClampTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, {{ 128.f, 0.f, 128.f }, ngraph::element::f32}, {}},
+            {{}, {{ 128.f, 0.f, 128.f }, ngraph::element::f32, ngraph::Shape{1, 3, 1, 1}, false}, {}},
             ngraph::element::f32,
             {{}, {}, {{3.f, 3.f, 3.f}}}
         }

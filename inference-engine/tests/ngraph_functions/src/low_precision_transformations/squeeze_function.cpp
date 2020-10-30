@@ -20,6 +20,7 @@ std::shared_ptr<ngraph::Function> SqueezeFunction::getOriginal(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
 
@@ -30,6 +31,7 @@ std::shared_ptr<ngraph::Function> SqueezeFunction::getOriginal(
     squeeze->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(squeeze) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SqueezeTransformation");
 }
 
@@ -64,15 +66,20 @@ std::shared_ptr<ngraph::Function> SqueezeFunction::getReference(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto squeeze = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Squeeze>>(
         op::Squeeze(dequantizationOpBefore, std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)),
         precisionAfterOperation);
+    squeeze->set_friendly_name("output");
+
     const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(squeeze, dequantizationAfter);
+    squeeze->set_friendly_name("output_original");
     dequantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SqueezeTransformation");
 }
 

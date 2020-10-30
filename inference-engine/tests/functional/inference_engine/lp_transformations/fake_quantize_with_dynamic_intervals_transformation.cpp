@@ -101,18 +101,22 @@ private:
         const auto inputLow = inputLowConst ?
             std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Constant>(constantPresition, constantShape, low)) :
             std::make_shared<ngraph::opset1::Parameter>(constantPresition, constantShape);
+        inputLow->set_friendly_name("inputLow");
 
         const auto inputHigh = inputLowConst ?
             std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Constant>(constantPresition, constantShape, high)) :
             std::make_shared<ngraph::opset1::Parameter>(constantPresition, constantShape);
+        inputHigh->set_friendly_name("inputHigh");
 
         const auto outputLow = outputLowConst ?
             std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Constant>(constantPresition, constantShape, low)) :
             std::make_shared<ngraph::opset1::Parameter>(constantPresition, constantShape);
+        outputLow->set_friendly_name("outputLow");
 
         const auto outputHigh = outputHighConst ?
             std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Constant>(constantPresition, constantShape, high)) :
             std::make_shared<ngraph::opset1::Parameter>(constantPresition, constantShape);
+        outputHigh->set_friendly_name("outputHigh");
 
         const auto levels = 256ul;
 
@@ -120,6 +124,7 @@ private:
         fakeQuantize->set_friendly_name("fakeQuantize");
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fakeQuantize) };
+        results[0]->set_friendly_name("result");
 
         ngraph::ParameterVector inputs{ input };
         if (as_type_ptr<ngraph::opset1::Parameter>(inputLow)) {
@@ -141,7 +146,7 @@ private:
 
 TEST_P(FakeQuantizeWithDynamicIntervalsTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

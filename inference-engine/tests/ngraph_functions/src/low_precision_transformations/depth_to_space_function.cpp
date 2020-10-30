@@ -43,12 +43,14 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    input->set_friendly_name("input");
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
     auto d2s = std::make_shared<ngraph::opset1::DepthToSpace>(dequantizationOp, mode, blockSize);
     d2s->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(d2s) };
+    results[0]->set_friendly_name("result");
 
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "DepthToSpaceTransformation");
     return function;
@@ -62,13 +64,18 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
     auto d2s = std::make_shared<ngraph::opset1::DepthToSpace>(dequantizationOpBefore, mode, blockSize);
+    d2s->set_friendly_name("output");
+
     const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(d2s, dequantizationAfter);
+    d2s->set_friendly_name("output_original");
     dequantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
+    results[0]->set_friendly_name("result");
 
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "DepthToSpaceTransformation");
     return function;

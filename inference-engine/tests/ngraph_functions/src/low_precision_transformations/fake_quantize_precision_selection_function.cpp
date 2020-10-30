@@ -31,8 +31,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
         values.fakeQuantizeOnData.inputLowValues,
         values.fakeQuantizeOnData.inputHighValues,
         values.fakeQuantizeOnData.outputLowValues,
-        values.fakeQuantizeOnData.outputHighValues);
-    fakeQuantize->set_friendly_name("fakeQuantize");
+        values.fakeQuantizeOnData.outputHighValues,
+        "fakeQuantize");
 
     std::shared_ptr<ngraph::Node> branch1Last;
     {
@@ -47,6 +47,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
                     fakeQuantize,
                     std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
                 element::f32);
+        branch1Operation->set_friendly_name("intermediate");
 
         const size_t inputChannelsCount = inputShape[1];
         const size_t outputChannelsCount = 2 * inputShape[1];
@@ -55,6 +56,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
             precision,
             ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
             std::vector<float>(outputChannelsCount * inputChannelsCount, 1.f));
+        weights->set_friendly_name("weights");
 
         std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::opset1::Convolution>(
             branch1Operation,
@@ -68,11 +70,13 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
                     values.fakeQuantizeOnWeights.inputLowValues,
                     values.fakeQuantizeOnWeights.inputHighValues,
                     values.fakeQuantizeOnWeights.outputLowValues,
-                    values.fakeQuantizeOnWeights.outputHighValues),
+                    values.fakeQuantizeOnWeights.outputHighValues,
+                    "fqOnWeights"),
             ngraph::Strides{ 1, 1 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::Strides{ 1, 1 });
+        convolution->set_friendly_name("convolution");
 
         branch1Last = convolution;
     }
@@ -85,6 +89,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
                 fakeQuantize,
                 std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
             element::f32);
+        branch2Last->set_friendly_name("PRelu");
     }
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
@@ -92,6 +97,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
     concat->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizePrecisionSelectionFunction");
 }
 
@@ -105,8 +111,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
     const auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
         input,
         precision,
-        values.fakeQuantizeOnData);
-    fakeQuantize->set_friendly_name("fakeQuantize");
+        values.fakeQuantizeOnData,
+        "fakeQuantize");
 
     // branch with limitation precision operation (Convolution)
     std::shared_ptr<ngraph::Node> branch1Pooling = values.operationBeforeLimitedOperationIsPrecisionTransparent ?
@@ -117,6 +123,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
             fakeQuantize,
             std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
+    branch1Pooling->set_friendly_name("intermediate");
 
     const size_t inputChannelsCount = inputShape[1];
     const size_t outputChannelsCount = 2 * inputShape[1];
@@ -125,6 +132,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         precision,
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         std::vector<float>(outputChannelsCount * inputChannelsCount, -126.f));
+    weights->set_friendly_name("weights");
 
     std::shared_ptr<ngraph::Node> onWeights = values.fakeQuantizeOnWeights.empty() ?
         weights :
@@ -136,7 +144,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
             values.fakeQuantizeOnWeights.inputLowValues,
             values.fakeQuantizeOnWeights.inputHighValues,
             values.fakeQuantizeOnWeights.outputLowValues,
-            values.fakeQuantizeOnWeights.outputHighValues);
+            values.fakeQuantizeOnWeights.outputHighValues,
+            "fqOnWeights");
 
     std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
         std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{},
@@ -146,20 +155,24 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
+    convolution->set_friendly_name("convolution");
 
-    std::shared_ptr<ngraph::opset1::Multiply> branch1Multiply = std::make_shared<ngraph::opset1::Multiply>(
+    std::shared_ptr<ngraph::opset1::Multiply> branch1Multiply = std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(
         convolution,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape({1, 1, 1}), std::vector<float>({ 0.0001f })));
+    ngraph::pass::low_precision::NetworkHelper::setDequantizationName(convolution, branch1Multiply);
 
 
     // just another branch
     std::shared_ptr<ngraph::opset1::PRelu> branch2PRelu = std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
         fakeQuantize,
         std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
+    branch2PRelu->set_friendly_name("PRelu");
 
-    const std::shared_ptr<ngraph::Node> branch2Multiply = std::make_shared<ngraph::opset1::Multiply>(
+    const std::shared_ptr<ngraph::Node> branch2Multiply = std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(
         branch2PRelu,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape({}), std::vector<float>({0.01f})));
+    ngraph::pass::low_precision::NetworkHelper::setDequantizationName(branch2PRelu, branch2Multiply);
 
     if (values.fakeQuantizeOnDataOutPrecision != precision) {
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, values.fakeQuantizeOnDataOutPrecision);
@@ -179,6 +192,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
             replace_node(
                 weights,
                 ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(weights, ngraph::element::i8));
+            convolution->get_input_node_shared_ptr(1)->set_friendly_name("weights");
         }
 
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(branch2PRelu, precision);
@@ -190,6 +204,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
     concat->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizePrecisionSelectionFunction");
 }
 

@@ -27,6 +27,8 @@ std::shared_ptr<ngraph::Function> ConvertMulOrAddWithDequantizationFunction::get
     const ngraph::element::Type inputPrecision,
     const std::vector<float>& multiplyConst) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    input->set_friendly_name("input");
+
     const auto reluOriginal = ngraph::opset1::Relu(
         ngraph::op::TemporaryReplaceOutputType(input, element::f32).get());
 
@@ -34,14 +36,16 @@ std::shared_ptr<ngraph::Function> ConvertMulOrAddWithDequantizationFunction::get
         reluOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
-
+    relu->set_friendly_name("relu");
 
     const auto multiply = std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(relu,
                                                             std::make_shared<opset1::Constant>(element::f32, inputShape, multiplyConst));
+    ngraph::pass::low_precision::NetworkHelper::setDequantizationName(relu, multiply);
 
     multiply->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input },
                                               "ConvertMulOrAddTransformationWithDequantization");
 }
@@ -51,6 +55,8 @@ std::shared_ptr<ngraph::Function> ConvertMulOrAddWithDequantizationFunction::get
     const ngraph::element::Type inputPrecision,
     const std::vector<float>& multiplyConst) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    input->set_friendly_name("input");
+
     const auto reluOriginal = ngraph::opset1::Relu(
         ngraph::op::TemporaryReplaceOutputType(input, element::f32).get());
 
@@ -58,6 +64,7 @@ std::shared_ptr<ngraph::Function> ConvertMulOrAddWithDequantizationFunction::get
         reluOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
+    relu->set_friendly_name("relu");
 
     const auto weights = std::make_shared<opset1::Constant>(element::f32, inputShape, multiplyConst);
     const auto bias = std::make_shared<opset1::Constant>(element::f32, inputShape, 0.0);
@@ -67,6 +74,7 @@ std::shared_ptr<ngraph::Function> ConvertMulOrAddWithDequantizationFunction::get
     scaleShift->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(scaleShift) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvertMulOrAddTransformationWithDequantization");
 }
 

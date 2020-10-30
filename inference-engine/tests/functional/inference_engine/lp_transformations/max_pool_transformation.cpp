@@ -16,6 +16,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "ngraph_functions/low_precision_transformations/max_pool_function.hpp"
 
 using namespace testing;
@@ -24,8 +25,7 @@ using namespace ngraph::pass;
 class MaxPoolTransformationTestValues {
 public:
     low_precision::LayerTransformation::Params params;
-    std::vector<float> subtractValues;
-    std::vector<float> mutliplyValues;
+    ngraph::builder::subgraph::DequantizationOperations dequantization;
 };
 
 typedef std::tuple<
@@ -43,11 +43,8 @@ public:
         actualFunction = ngraph::builder::subgraph::MaxPoolFunction::getOriginal(
             precision,
             shape,
-            {
-                testValues.params.updatePrecisions ? testValues.params.precisionsOnActivations[0] : precision,
-                testValues.subtractValues,
-                testValues.mutliplyValues
-            });
+            testValues.params.updatePrecisions ? testValues.params.precisionsOnActivations[0] : precision,
+            testValues.dequantization);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
@@ -56,11 +53,8 @@ public:
         referenceFunction = ngraph::builder::subgraph::MaxPoolFunction::getReference(
             precision,
             shape,
-            {
-                testValues.params.updatePrecisions ? testValues.params.precisionsOnActivations[0] : precision,
-                testValues.subtractValues,
-                testValues.mutliplyValues
-            });
+            testValues.params.updatePrecisions ? testValues.params.precisionsOnActivations[0] : precision,
+            testValues.dequantization);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MaxPoolTransformationParams> obj) {
@@ -71,15 +65,14 @@ public:
         std::ostringstream result;
         result <<
             LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << "_" <<
-            testValues.subtractValues.size() << "_" <<
-            testValues.mutliplyValues.size() << "_";
+            testValues.dequantization;
         return result.str();
     }
 };
 
 TEST_P(MaxPoolTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -93,11 +86,11 @@ const std::vector<ngraph::Shape> shapes = {
 };
 
 const std::vector<MaxPoolTransformationTestValues> testValues = {
-    { LayerTransformation::createParamsU8I8(), { 128 }, { 0.02f } },
-    { LayerTransformation::createParamsU8I8(), {}, { 0.02f } },
-    { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), { 128 }, { 0.02f } },
-    { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), {}, { 0.02f } },
-    { LayerTransformation::createParamsI8I8(), { 128 }, { 0.02f } },
+    { LayerTransformation::createParamsU8I8(), { {ngraph::element::f32}, { 128.f }, { 0.02f } } },
+    { LayerTransformation::createParamsU8I8(), { {ngraph::element::f32}, {}, { 0.02f } } },
+    { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), { {ngraph::element::f32}, { 128.f }, { 0.02f } } },
+    { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), { {ngraph::element::f32}, {}, { 0.02f } } },
+    { LayerTransformation::createParamsI8I8(), { {ngraph::element::f32}, { 128.f }, { 0.02f } } },
 };
 
 INSTANTIATE_TEST_CASE_P(

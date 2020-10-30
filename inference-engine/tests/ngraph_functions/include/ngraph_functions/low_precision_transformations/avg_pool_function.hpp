@@ -8,6 +8,7 @@
 #include <ngraph/ngraph.hpp>
 #include "common/fake_quantize_on_data.hpp"
 #include "low_precision/layer_transformation.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -15,26 +16,13 @@ namespace subgraph {
 
 class AvgPoolFunction {
 public:
-    class ActualValues {
-    public:
-        ngraph::element::Type lowPrecision;
-        std::vector<float> subtractValues;
-        std::vector<float> mutliplyValues;
-    };
-
-    class ExpectedValues {
-    public:
-        ngraph::element::Type activationPrecision;
-        std::vector<float> subtractValues;
-        std::vector<float> mutliplyValues;
-    };
-
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
         const ngraph::Shape& inputShape,
         const bool addFQ,
         const std::string additionalLayer,
-        const ActualValues& values);
+        const ngraph::element::Type lowPrecision,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
@@ -46,7 +34,8 @@ public:
         const ngraph::Shape& inputShape,
         const bool addFQ,
         const std::string additionalLayer,
-        const ExpectedValues& values);
+        const ngraph::element::Type activationPrecision,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 };
 
 }  // namespace subgraph

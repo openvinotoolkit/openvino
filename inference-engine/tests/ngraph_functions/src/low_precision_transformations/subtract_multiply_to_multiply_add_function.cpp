@@ -23,11 +23,13 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getOrig
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     dequantizationOp->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");
 }
 
@@ -68,20 +70,28 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getRefe
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     std::shared_ptr<Node> parent = dequantizationOp;
 
+    std::shared_ptr<ngraph::Node> mul;
     if (!multiply.empty()) {
-        parent = makeElementwise<DequantizationMultiply>(parent, multiply);
+        mul = makeElementwise<DequantizationMultiply>(parent, multiply);
+        ngraph::pass::low_precision::NetworkHelper::setDequantizationName(parent, mul);
+        parent = mul;
     }
 
     if (!add.empty()) {
-        parent = makeElementwise<DequantizationAdd>(parent, add);
+        const auto addNode = makeElementwise<DequantizationAdd>(parent, add);
+        ngraph::pass::low_precision::NetworkHelper::setDequantizationName(parent, addNode);
+        mul->set_friendly_name("output_original");
+        parent = addNode;
     }
     parent->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");
 }
 

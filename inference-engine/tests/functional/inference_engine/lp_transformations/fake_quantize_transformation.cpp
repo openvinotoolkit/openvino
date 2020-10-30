@@ -16,25 +16,20 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
 
-class ExpectedValues {
-public:
-    std::vector<float> subtract;
-    std::vector<float> multiply;
-};
-
 class FakeQuantizeTransformationTestValues {
 public:
     low_precision::LayerTransformation::Params params;
     builder::subgraph::FakeQuantizeOnData actual;
     builder::subgraph::FakeQuantizeOnData expected;
-    ngraph::element::Type expectedFakeQuantizeOnDataPrecision;
-    std::map<ngraph::element::Type, ExpectedValues> expectedValues;
+    element::Type expectedFakeQuantizeOnDataPrecision;
+    std::map<element::Type, ngraph::builder::subgraph::DequantizationOperations> expectedValues;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -56,7 +51,7 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeTransformat
 }
 
 typedef std::tuple<
-    ngraph::element::Type,
+    element::Type,
     ngraph::Shape,
     bool,
     FakeQuantizeTransformationTestValues> FakeQuantizeTransformationParams;
@@ -87,8 +82,7 @@ public:
             params.updatePrecisions,
             fakeQuantizeOnData.expected,
             fakeQuantizeOnData.expectedFakeQuantizeOnDataPrecision,
-            fakeQuantizeOnData.expectedValues.find(element::f32)->second.subtract,
-            fakeQuantizeOnData.expectedValues.find(element::f32)->second.multiply);
+            fakeQuantizeOnData.expectedValues.find(element::f32)->second);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
@@ -108,14 +102,14 @@ public:
 
 TEST_P(FakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    ngraph::element::i32,
-    ngraph::element::f16
+const std::vector<element::Type> precisions = {
+    element::f32,
+    element::i32,
+    element::f16
 };
 
 const std::vector<bool> updatePrecisions = { true, false };
@@ -128,8 +122,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
         ngraph::element::u8,
         {
-            { ngraph::element::f32, { {}, { 0.01f }} },
-            { ngraph::element::f16, { {}, { 0.01f }} }
+            { element::f32, { {element::f32}, {}, { 0.01f }} },
+            { element::f16, { {element::f32}, {}, { 0.01f }} }
         }
     },
     {
@@ -138,8 +132,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { -1.23f }, { 2.55f }, { 0.f }, { 255.f } },
         ngraph::element::u8,
         {
-            { ngraph::element::f32, {{ 82.97619048f }, { 0.014823529f }} },
-            { ngraph::element::f16, {{ 83.f }, { 0.014823529f }} }
+            { element::f32, {{element::f32}, { 82.97619048f }, { 0.014823529f }} },
+            { element::f16, {{element::f32}, { 83.f }, { 0.014823529f }} }
         }
     },
     {
@@ -148,8 +142,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { -1.28f} , { 1.27f }, { 0.f }, { 255.f } },
         ngraph::element::u8,
         {
-            { ngraph::element::f32, {{ 128.f }, { 0.01f }} },
-            { ngraph::element::f16, {{ 128.f }, { 0.01f }} }
+            { element::f32, {{element::f32}, { 128.f }, { 0.01f }} },
+            { element::f16, {{element::f32}, { 128.f }, { 0.01f }} }
         }
     },
 
@@ -160,8 +154,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { -1.28f}, { 1.27f }, { -128.f}, { 127.f } },
         ngraph::element::i8,
         {
-            { ngraph::element::f32, {{ }, { 0.01f }} },
-            { ngraph::element::f16, {{ }, { 0.01f }} }
+            { element::f32, {{element::f32}, { }, { 0.01f }} },
+            { element::f16, {{element::f32}, { }, { 0.01f }} }
         }
     },
     {
@@ -170,8 +164,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { -0.12f}, { 1.27f }, { -128.f}, { 127.f } },
         ngraph::element::i8,
         {
-            { ngraph::element::f32, {{ -105.9856115f }, { 0.00545098f }} },
-            { ngraph::element::f16, {{ -105.9856115f }, { 0.00545098f }} }
+            { element::f32, {{element::f32}, { -105.9856115f }, { 0.00545098f }} },
+            { element::f16, {{element::f32}, { -105.9856115f }, { 0.00545098f }} }
         }
     },
     {
@@ -180,8 +174,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
         ngraph::element::i8,
         {
-            { ngraph::element::f32, {{ -128.f }, { 0.01f }} },
-            { ngraph::element::f16, {{ -128.f }, { 0.01f }} }
+            { element::f32, {{element::f32}, { -128.f }, { 0.01f }} },
+            { element::f16, {{element::f32}, { -128.f }, { 0.01f }} }
         }
     },
 
@@ -192,7 +186,7 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { 0.f }, { 2.55f }, { 1.f }, { 1.f } },
         ngraph::element::Type_t::i8,
         {
-            { ngraph::element::f32, {{}, { 2.55f }} }
+            { element::f32, {{element::f32}, {}, { 2.55f }} }
         }
     },
 
@@ -204,8 +198,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { -0.504395f }, { 0.5f }, { -128.f }, { 127.f } },
         ngraph::element::i8,
         {
-            { ngraph::element::f32, {{ }, { -0.504395f / -128.0f }} },
-            { ngraph::element::f16, {{ }, { -0.504395f / -128.0f }} }
+            { element::f32, {{element::f32}, { }, { -0.504395f / -128.0f }} },
+            { element::f16, {{element::f32}, { }, { -0.504395f / -128.0f }} }
         }
     },
 
@@ -216,8 +210,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 255.f } },
         ngraph::element::u8,
         {
-            { ngraph::element::f32, {{ }, { 1e-32f }} },
-            { ngraph::element::f16, {{ }, { 1e-32f }} }
+            { element::f32, {{element::f32}, { }, { 1e-32f }} },
+            { element::f16, {{element::f32}, { }, { 1e-32f }} }
         }
     }
 };

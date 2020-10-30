@@ -20,13 +20,16 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
     const ngraph::Shape& inputShape,
     const std::shared_ptr<Node>& parent,
     const FakeQuantizeOnWeights& fqOnWeights,
-    bool typeRelaxed) {
+    const float weightsValue,
+    bool typeRelaxed,
+    const size_t convIdx = 0) {
     const size_t inputChannelsCount = inputShape[1];
     const size_t outputChannelsCount = 2 * inputShape[1];
     const auto weights = ngraph::opset1::Constant::create(
         precision,
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
-        std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
+        std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValue));
+    weights->set_friendly_name("weights" + std::to_string(convIdx + 1));
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution = typeRelaxed ?
         std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
@@ -36,7 +39,8 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
                 weights :
                 ngraph::builder::makeFakeQuantize(
                     weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
-                    fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues), element::f32).get(),
+                    fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues,
+                    "fakeQuantizeOnWeights" + std::to_string(convIdx + 1)), element::f32).get(),
             ngraph::Strides{ 1, 1 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
@@ -46,11 +50,13 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
             fqOnWeights.empty() ? weights->output(0) :
             ngraph::builder::makeFakeQuantize(
                 weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
-                fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues),
+                fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues,
+                "fakeQuantizeOnWeights" + std::to_string(convIdx + 1)),
             ngraph::Strides{ 1, 1 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::Strides{ 1, 1 });
+    convolution->set_friendly_name("convolution" + std::to_string(convIdx + 1));
 
     return convolution;
 }
@@ -60,6 +66,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
     const ngraph::Shape& inputShape,
     const ActualValues& values) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
+
     const auto fakeQuantizeOnActivations = values.fqOnData.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
@@ -70,13 +78,15 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
             values.fqOnData.inputLowValues,
             values.fqOnData.inputHighValues,
             values.fqOnData.outputLowValues,
-            values.fqOnData.outputHighValues);
+            values.fqOnData.outputHighValues,
+            "fakeQuantizeOnData");
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution1 = createConvolution(
         precision,
         inputShape,
         fakeQuantizeOnActivations,
         values.fqOnWeights1,
+        3.f,
         false);
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution2 = createConvolution(
@@ -84,10 +94,12 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
         inputShape,
         fakeQuantizeOnActivations,
         values.fqOnWeights2,
-        false);
+        3.f, false, 1);
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(NodeVector{ convolution1, convolution2 }, 1ul);
+    concat->set_friendly_name("concat");
     ngraph::ResultVector results { std::make_shared<ngraph::opset1::Result>(concat) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction");
 }
 
@@ -97,46 +109,54 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const ExpectedValues& values) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
     auto fakeQuantizeOnActivations = values.fqOnData.empty() ?
         nullptr :
-        makeFakeQuantizeTypeRelaxed(input, precision, values.fqOnData);
+        makeFakeQuantizeTypeRelaxed(input, precision, values.fqOnData, "fakeQuantizeOnData");
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution1 = createConvolution(
         precision,
         inputShape,
         fakeQuantizeOnActivations,
         FakeQuantizeOnWeights(),
-        true);
-    const std::shared_ptr<ngraph::opset1::Multiply> multiply1 = std::make_shared<ngraph::opset1::Multiply>(
+        -124.f, true);
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply1 = std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(
         convolution1,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape{1, 1, 1}, values.multiplay1Values));
+    ngraph::pass::low_precision::NetworkHelper::setDequantizationName(convolution1, multiply1);
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution2 = createConvolution(
         precision,
         inputShape,
         fakeQuantizeOnActivations,
         FakeQuantizeOnWeights(),
-        true);
-    const std::shared_ptr<ngraph::opset1::Multiply> multiply2 = std::make_shared<ngraph::opset1::Multiply>(
+        -124.f, true, 1);
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply2 = std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(
         convolution2,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape{1, 1, 1}, values.multiplay2Values));
+    ngraph::pass::low_precision::NetworkHelper::setDequantizationName(convolution2, multiply2);
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(NodeVector{ multiply1, multiply2 }, 1ul);
+    concat->set_friendly_name("concat");
 
     if (params.updatePrecisions) {
-        // fakeQuantizeOnActivations->set_output_type(0, params.precisionsOnActivations[0], fakeQuantizeOnActivations->get_output_partial_shape(0));
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantizeOnActivations, params.precisionsOnActivations[0]);
 
+        std::string convWeightsName1 = convolution1->get_input_node_shared_ptr(1)->get_friendly_name();
         replace_node(
             convolution1->get_input_node_shared_ptr(1),
             ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution1->get_input_node_shared_ptr(1), params.precisionsOnWeights[0]));
+        convolution1->get_input_node_shared_ptr(1)->set_friendly_name(convWeightsName1);
 
+        std::string convWeightsName2 = convolution2->get_input_node_shared_ptr(1)->get_friendly_name();
         replace_node(
             convolution2->get_input_node_shared_ptr(1),
             ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution2->get_input_node_shared_ptr(1), params.precisionsOnWeights[0]));
+        convolution2->get_input_node_shared_ptr(1)->set_friendly_name(convWeightsName2);
     }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+    results[0]->set_friendly_name("result");
     auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction");
 
     return function;

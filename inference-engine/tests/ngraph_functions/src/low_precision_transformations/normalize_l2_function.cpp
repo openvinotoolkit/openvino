@@ -4,6 +4,7 @@
 
 #include "ngraph_functions/low_precision_transformations/normalize_l2_function.hpp"
 
+#include <low_precision/network_helper.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -64,35 +65,41 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
     const ngraph::op::EpsMode& epsMode,
     const NormalizeL2ActualValues& actualValues) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(actualValues.precision, shape);
+    input->set_friendly_name("input");
     std::shared_ptr<ngraph::Node> parent = input;
 
     const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
+    ngraph::pass::low_precision::NetworkHelper::setDequantizationName(input, convert);
     parent = convert;
 
     if (!actualValues.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared< ngraph::opset1::Subtract >(
+        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::opset1::Subtract>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(
                 precision, Shape({ actualValues.subtractValues.size() }), actualValues.subtractValues));
+        ngraph::pass::low_precision::NetworkHelper::setDequantizationName(input, subtract);
         parent = subtract;
     }
 
     if (!actualValues.mutliplyValues.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply = std::make_shared< ngraph::opset1::Multiply >(
+        const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(
                 precision, Shape({ 1, actualValues.mutliplyValues.size(), 1, 1 }), actualValues.mutliplyValues));
+        ngraph::pass::low_precision::NetworkHelper::setDequantizationName(input, multiply);
         parent = multiply;
     }
 
     const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ actualValues.axes.size() }, actualValues.axes);
+    axesNode->set_friendly_name("output/Constant");
     const auto normalizeL2 = std::make_shared<ngraph::opset1::NormalizeL2>(parent, axesNode, 1e-6, epsMode);
     normalizeL2->set_friendly_name("output");
     auto& rtInfo = normalizeL2->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("normalizeL2");
 
-    ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(normalizeL2) };
-    const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "NormalizeL2Transformation");
+    const auto result = std::make_shared<ngraph::opset1::Result>(normalizeL2);
+    result->set_friendly_name("result");
+    const auto function = std::make_shared<ngraph::Function>(result, ngraph::ParameterVector{ input }, "NormalizeL2Transformation");
     return function;
 }
 
@@ -102,11 +109,13 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
     const ngraph::op::EpsMode& epsMode,
     const NormalizeL2ExpectedValues& expectedValues) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(expectedValues.precision, shape);
+    input->set_friendly_name("input");
     std::shared_ptr<ngraph::Node> parent = input;
 
     if (!expectedValues.subtractValues.empty()) {
         const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
         parent = convert;
+        ngraph::pass::low_precision::NetworkHelper::setDequantizationName(input, convert);
 
         const std::shared_ptr<ngraph::Node> subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
@@ -115,16 +124,19 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
                 precision,
                 Shape({ expectedValues.subtractValues.size() }),
                 expectedValues.subtractValues), element::f32).get());
+        ngraph::pass::low_precision::NetworkHelper::setDequantizationName(input, subtract);
         parent = subtract;
     }
 
     const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ expectedValues.axes.size() }, expectedValues.axes);
+    axesNode->set_friendly_name("output/Constant");
     const auto normalizeL2 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::NormalizeL2>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
         ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(axesNode, element::f32).get(),
         1e-6,
         epsMode);
+    normalizeL2->set_friendly_name("output_original");
     auto& rtInfo = normalizeL2->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("normalizeL2");
     std::shared_ptr<ngraph::Node> output = normalizeL2;
@@ -135,13 +147,17 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
             ngraph::op::TemporaryReplaceOutputType(output, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(std::make_shared<ngraph::opset1::Constant>(
                 precision, Shape({ 1, expectedValues.mutliplyValues.size(), 1, 1 }), expectedValues.mutliplyValues), element::f32).get());
+        ngraph::pass::low_precision::NetworkHelper::setDequantizationName(normalizeL2, multiply);
+
         multiply->get_rt_info()["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("normalizeL2");
         output = multiply;
     }
     output->set_friendly_name("output");
 
-    ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(output) };
-    const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "NormalizeL2Transformation");
+    const auto result = std::make_shared<ngraph::opset1::Result>(output);
+    result->set_friendly_name("result");
+
+    const auto function = std::make_shared<ngraph::Function>(result, ngraph::ParameterVector{ input }, "NormalizeL2Transformation");
 
     return function;
 }

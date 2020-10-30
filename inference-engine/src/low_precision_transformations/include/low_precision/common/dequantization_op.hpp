@@ -82,9 +82,11 @@ public:
     DequantizationSubtract(
         const ngraph::Output<Node>& arg0,
         const ngraph::Output<Node>& arg1,
-        const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY)) :
+        const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY),
+        const std::string& friendlyName = "") :
         ngraph::opset1::Subtract(arg0, arg1, auto_broadcast) {
         initRuntimeInfo(*this);
+        set_friendly_name(friendlyName);
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
@@ -99,9 +101,11 @@ public:
     DequantizationMultiply(
         const Output<Node>& arg0,
         const Output<Node>& arg1,
-        const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY)) :
+        const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY),
+        const std::string& friendlyName = "") :
         ngraph::opset1::Multiply(arg0, arg1, auto_broadcast) {
         initRuntimeInfo(*this);
+        set_friendly_name(friendlyName);
     }
 
     DequantizationMultiply(const ngraph::opset1::Multiply& multiply) :

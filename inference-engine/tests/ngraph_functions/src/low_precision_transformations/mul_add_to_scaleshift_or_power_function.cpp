@@ -27,12 +27,14 @@ namespace subgraph {
         const ngraph::builder::subgraph::DequantizationOperations::Multiply& mulValues,
         const ngraph::builder::subgraph::Add& addValues) {
         const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
+        input->set_friendly_name("input");
 
         const auto mulConst = ngraph::op::Constant::create(ngraph::element::f32, mulValues.constantShape, mulValues.values);
         const auto mul = std::make_shared<ngraph::op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(input, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(mulConst, element::f32).get());
+        mul->set_friendly_name("mul");
 
         const auto addConst = ngraph::op::Constant::create(ngraph::element::f32, addValues.constantShape, addValues.values);
         const auto add = std::make_shared<ngraph::pass::low_precision::DequantizationAdd>(mul, addConst);
@@ -44,6 +46,7 @@ namespace subgraph {
         }
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
+        results[0]->set_friendly_name("result");
         return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MulAddToScaleshiftOrPowerFunction");
     }
 
@@ -55,6 +58,7 @@ namespace subgraph {
         const ngraph::builder::subgraph::Add& biasesValues,
         const ngraph::element::Type precisionAfterOperation) {
         const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
+        input->set_friendly_name("input");
 
         ngraph::Shape constShape = { 1, inputShape[1], 1, 1 };
         const auto weights = ngraph::op::Constant::create(ngraph::element::f32, constShape, weightsValues.values);
@@ -76,6 +80,7 @@ namespace subgraph {
 
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastNode) };
+        results[0]->set_friendly_name("result");
         return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MulAddToScaleshiftOrPowerFunction");
     }
 }  // namespace subgraph

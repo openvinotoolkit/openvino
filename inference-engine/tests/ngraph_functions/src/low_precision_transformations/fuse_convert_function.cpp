@@ -21,11 +21,13 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
     std::shared_ptr<op::Parameter> input;
     if (constInput) {
         parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape, std::vector<float>{ 128.f });
+        parent->set_friendly_name("constant");
     } else {
         input = std::make_shared<ngraph::opset1::Parameter>(
             inputPrecision,
             ngraph::Shape(inputShape));
         parent = input;
+        parent->set_friendly_name("input");
     }
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, dequantization);
@@ -36,6 +38,7 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
         ngraph::ParameterVector{ input };
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, parameters, "FuseConvertFunction");
 }
 

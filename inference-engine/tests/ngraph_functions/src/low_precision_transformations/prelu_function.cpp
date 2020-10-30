@@ -23,6 +23,7 @@ std::shared_ptr<ngraph::Function> PReluFunction::getOriginal(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     const auto slope = std::make_shared<ngraph::opset1::Constant>(precisionBeforeDequantization, Shape{}, std::vector<float> { 0.1f });
@@ -30,6 +31,7 @@ std::shared_ptr<ngraph::Function> PReluFunction::getOriginal(
     prelu->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(prelu) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "PReluFunction");
 }
 
@@ -60,16 +62,20 @@ std::shared_ptr<ngraph::Function> PReluFunction::getReference(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto slope = std::make_shared<ngraph::opset1::Constant>(precisionBeforeDequantization, Shape{}, std::vector<float> { 0.1f });
     const auto prelu = std::make_shared< op::TypeRelaxed<ngraph::opset1::PRelu>>(
         ngraph::opset1::PRelu(quantizationOpBefore, slope),
         precisionAfterOperation);
+    prelu->set_friendly_name("output");
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(prelu, dequantizationAfter);
+    prelu->set_friendly_name("output_original");
     quantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "PReluFunction");
 }
 

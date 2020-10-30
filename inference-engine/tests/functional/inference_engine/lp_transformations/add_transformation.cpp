@@ -114,8 +114,7 @@ public:
             testValues.expected.precision2,
             testValues.expected.dequantization2,
             testValues.expected.dequantizationAfter,
-            // Constant operations after transformations are on 1 input only
-            testValues.constInput == 0 ? 1 : -1,
+            testValues.constInput,
             testValues.expected.constValues,
             testValues.additionalLayer,
             testValues.expected.operationType);
@@ -142,7 +141,7 @@ public:
 
 TEST_P(AddTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -505,7 +504,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             {}
         },
         "group_convolution"
-    },
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(

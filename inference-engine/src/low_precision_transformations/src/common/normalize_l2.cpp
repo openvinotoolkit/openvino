@@ -131,11 +131,12 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
         ngraph::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());
+    NetworkHelper::setDequantizationName(newNormalize, newMultiply);
+    ngraph::copy_runtime_info({ newNormalize, newMultiply }, newMultiply);
 
     replace_node(normalize, newMultiply);
-    ngraph::copy_runtime_info({ normalize, newMultiply }, newMultiply);
 
-    updateOutput(context, newMultiply, normalize);
+    updateOutput(context, newMultiply, newNormalize);
     return true;
 }
 

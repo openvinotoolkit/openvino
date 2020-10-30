@@ -24,7 +24,7 @@ struct BranchNodes {
     std::shared_ptr<Node> dequantization;
 };
 
-BranchNodes getBranch(const MultiplyBranch& branch) {
+BranchNodes getBranch(const MultiplyBranch& branch, const std::string friendlyName) {
     if (!branch.constant.empty()) {
         if (branch.inputShape != branch.constant.shape) {
             THROW_IE_EXCEPTION << "shapes are not equals: " << branch.inputShape << " & " << branch.constant.shape;
@@ -41,6 +41,7 @@ BranchNodes getBranch(const MultiplyBranch& branch) {
             branch.constant.outPrecision,
             branch.constant.shape,
             branch.constant.values));
+    parent->set_friendly_name(friendlyName);
 
     const auto dequantization = makeDequantization(parent, branch.dequantization);
     return {parent, dequantization};
@@ -49,8 +50,8 @@ BranchNodes getBranch(const MultiplyBranch& branch) {
 std::shared_ptr<ngraph::Function> MultiplyFunction::get(
     const ngraph::Shape& inputShape,
     const MultiplyValues& actualValues) {
-    const BranchNodes branchNodes1 = getBranch(actualValues.branch1);
-    const BranchNodes branchNodes2 = getBranch(actualValues.branch2);
+    const BranchNodes branchNodes1 = getBranch(actualValues.branch1, "input1");
+    const BranchNodes branchNodes2 = getBranch(actualValues.branch2, "input2");
 
     auto multiplyOriginal = actualValues.isDequantization ?
         DequantizationMultiply(
@@ -68,7 +69,8 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::get(
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("multiply");
     multiply->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
+    const auto result = std::make_shared<ngraph::opset1::Result>(multiply);
+    result->set_friendly_name("result");
 
     ngraph::ParameterVector inputs;
     if (is_type<opset1::Parameter>(branchNodes1.input)) {
@@ -78,7 +80,7 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::get(
         inputs.push_back(std::dynamic_pointer_cast<opset1::Parameter>(branchNodes2.input));
     }
 
-    return std::make_shared<ngraph::Function>(results, inputs, "MultiplyTransformation");
+    return std::make_shared<ngraph::Function>(result, inputs, "MultiplyTransformation");
 }
 
 }  // namespace subgraph

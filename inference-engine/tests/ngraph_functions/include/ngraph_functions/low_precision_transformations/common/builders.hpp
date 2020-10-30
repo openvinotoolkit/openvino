@@ -60,12 +60,19 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
 
 std::shared_ptr<Node> makeDequantization(
     const Output<Node>& data,
-    const DequantizationOperations& dequantizationOperations);
+    const DequantizationOperations& dequantizationOperations,
+    const size_t outputIdx = 0);
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& input,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
+
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
+    const Output<Node>& input,
+    const ngraph::element::Type precision,
+    const FakeQuantizeOnData& fqOnData,
+    const std::string friendlyName);
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
@@ -77,12 +84,30 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const ngraph::element::Type precision,
     const FakeQuantizeOnDataWithConstant& fqOnData);
 
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
+    const Output<Node>& input,
+    const ngraph::element::Type precision,
+    const FakeQuantizeOnDataWithConstant& fqOnData,
+    const std::string friendlyName);
+
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
     const ngraph::element::Type precision,
     const FakeQuantizeOnDataWithConstant& fqOnData);
+
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
+    const std::shared_ptr<ngraph::Node>& input,
+    const ngraph::element::Type precision,
+    const FakeQuantizeOnDataWithConstant& fqOnData,
+    const std::string friendlyName);
 
 std::shared_ptr<Node> addDequantizationAttribute(const std::shared_ptr<Node>& op);
+
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
+    const std::shared_ptr<ngraph::Node>& input,
+    const ngraph::element::Type precision,
+    const FakeQuantizeOnData& fqOnData,
+    const std::string friendlyName);
 
 } // namespace subgraph
 } // namespace builder

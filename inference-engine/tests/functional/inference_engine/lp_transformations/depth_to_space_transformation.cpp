@@ -92,7 +92,7 @@ public:
 
 TEST_P(DepthToSpaceTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -171,4 +171,4 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, DepthToSpaceTransformation, ::testing::ValuesIn(testValues), DepthToSpaceTransformation::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(LPT, DepthToSpaceTransformation, ::testing::ValuesIn(testValues), DepthToSpaceTransformation::getTestCaseName);

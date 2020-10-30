@@ -357,13 +357,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}
+            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}, true}, {{0.1f}, ngraph::element::f32, {}}}
         },
         {
             ngraph::element::u8,
             {},
             ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}
+            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}, true}, {{0.1f}, ngraph::element::f32, {}}}
         }
     },
     // U8: no subtract 4D -> 2D: channels are not affected: per tensor quantization
@@ -537,9 +537,8 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
 };
 
 TEST_P(ReshapeTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

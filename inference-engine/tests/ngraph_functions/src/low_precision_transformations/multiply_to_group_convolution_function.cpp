@@ -19,11 +19,13 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOrigina
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
     dequantizationOp->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MultiplyToGroupConvolutionFunction");
 }
 
@@ -54,6 +56,7 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getReferen
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         inputPrecision,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const size_t spatialDimsSize = inputShape.size() - 2;
     ngraph::Strides strides(spatialDimsSize, 1ul);
@@ -69,14 +72,20 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getReferen
         pads,
         pads,
         dilations);
+    gconv->set_friendly_name("output/GroupConvolution");
+    weights->set_friendly_name("output/GroupConvolution/Constant");
+
     std::shared_ptr<ngraph::Node> lastNode = gconv;
     if (biases) {
         lastNode = std::make_shared<ngraph::opset1::Add>(gconv, biases);
+        lastNode->set_friendly_name("input/DequantizationSubtract");
     }
     const auto dequantizationOp = makeDequantization(lastNode, dequantization);
+    ngraph::pass::low_precision::NetworkHelper::setDequantizationName(input, dequantizationOp);
     dequantizationOp->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MultiplyToGroupConvolutionFunction");
 }
 

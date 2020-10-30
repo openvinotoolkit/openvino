@@ -65,6 +65,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
     }
 
     const std::shared_ptr<ngraph::opset1::Clamp> replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->get_input_node_shared_ptr(0), min, max);
+    NetworkHelper::copyInfo(newClamp, replacement);
     replace_node(newClamp, replacement);
 
     element::Type outputClampType = dequantization.multiply ?

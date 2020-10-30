@@ -39,6 +39,7 @@ std::shared_ptr<Node> createWeightsOriginal(
             weightsValues.size() == 1ul ?
                 std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
                 weightsValues);
+        weights->set_friendly_name("weights");
     } else {
         const size_t inputChannelsPerGroup = inputChannelsCount / groupCount;
         const std::shared_ptr<ngraph::opset1::Constant> weightsConst = ngraph::opset1::Constant::create(
@@ -47,6 +48,7 @@ std::shared_ptr<Node> createWeightsOriginal(
             weightsValues.size() == 1ul ?
                 std::vector<float>(outputChannelsCount * kernelSize * kernelSize * inputChannelsPerGroup, weightsValues[0]) :
                 weightsValues);
+        weightsConst->set_friendly_name("weights");
 
         const std::shared_ptr<ngraph::Node> fakeQuantize = ngraph::builder::makeFakeQuantize(
             weightsConst,
@@ -56,7 +58,8 @@ std::shared_ptr<Node> createWeightsOriginal(
             fakeQuantizeOnWeights.inputLowValues,
             fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues,
-            fakeQuantizeOnWeights.outputHighValues);
+            fakeQuantizeOnWeights.outputHighValues,
+            "fqOnWeights");
 
         const std::shared_ptr<ngraph::opset1::Reshape> reshape = std::make_shared<ngraph::opset1::Reshape>(
             fakeQuantize,
@@ -65,7 +68,8 @@ std::shared_ptr<Node> createWeightsOriginal(
                 Shape{ 5 },
                 std::vector<size_t>({ groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, 7, 7 })),
             true);
-
+        reshape->set_friendly_name("reshapeOnWeights");
+        reshape->get_input_node_shared_ptr(1)->set_friendly_name("reshapeOnWeights/Constant");
         weights = reshape;
     }
 
@@ -81,6 +85,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     std::shared_ptr<ngraph::opset1::Constant> weightsConst,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    input->set_friendly_name("input");
     const auto dequantization = makeDequantization(input, dequantizationBefore);
 
     const size_t inputChannelsCount = inputShape[1];
@@ -112,6 +117,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     convolution->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "GroupConvolutionTransformation");
 }
 
@@ -178,6 +184,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const ngraph::element::Type precisionAfterDequantization) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    input->set_friendly_name("input");
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
     const size_t inputChannelsCount = inputShape[1];
@@ -201,6 +208,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
             weightsSize == 1ul ? std::vector<float>(
                 groupCount * outputChannelsInGroup * inputChannelsInGroup * kernelSize * kernelSize,
                 weightsConst->cast_vector<float>()[0]) : weightsConst->cast_vector<float>());
+        weights->set_friendly_name("weights");
     } else {
         weights = createWeightsOriginal(
             weightsConst->get_element_type(),
@@ -226,11 +234,14 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution, precisionAfterOperation);
+    convolution->set_friendly_name("output");
 
     const auto deqAfter = makeDequantization(convolution, dequantizationAfter);
+    convolution->set_friendly_name("output_original");
     deqAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(deqAfter) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionTransformation");
 }
 

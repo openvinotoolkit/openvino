@@ -69,6 +69,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
         NetworkHelper::copyInfo(multiplyParent, newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
+        NetworkHelper::copyInfo(constParent, newMultiply->get_input_node_shared_ptr(1));
 
         if (!FakeQuantizeDequantization::checkElementwise(newMultiply)) {
             NetworkHelper::cleanRunTimeInfo(newMultiply);
@@ -113,6 +114,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
                     dequantizationFullPath.data : dequantizationFullPath.convert) :
                 dequantizationFullPath.subtract,
             newMultiplyValuesFullPath);
+
+        NetworkHelper::setDequantizationName(
+            dequantizationFullPath.data.get_node_shared_ptr(),
+            inputs[fullPathIndex].get_node_shared_ptr());
 
         newMultiply = multiply->clone_with_new_inputs(inputs);
     }

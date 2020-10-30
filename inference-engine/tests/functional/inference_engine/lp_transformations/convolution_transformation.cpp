@@ -64,7 +64,6 @@ public:
             testValues.actual.dequantization,
             testValues.actual.weights,
             testValues.actual.fakeQuantizeOnWeights);
-
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
         transform.transform(actualFunction);
@@ -98,7 +97,7 @@ public:
 
 TEST_P(ConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

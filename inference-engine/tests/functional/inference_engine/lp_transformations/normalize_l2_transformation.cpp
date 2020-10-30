@@ -48,6 +48,7 @@ public:
             shape,
             epsMode,
             params.actual);
+
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::NormalizeL2Transformation, ngraph::opset1::NormalizeL2>(
             low_precision::LayerTransformation::Params(params.transformationParams));
@@ -83,7 +84,7 @@ public:
 
 TEST_P(NormalizeL2Transformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

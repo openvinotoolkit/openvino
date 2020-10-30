@@ -19,6 +19,7 @@ namespace subgraph {
         const ngraph::Shape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations dequantization) {
         const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
+        input->set_friendly_name("input");
 
         const auto deq = makeDequantization(input, dequantization);
         const auto op = ngraph::opset1::MaxPool(
@@ -32,11 +33,15 @@ namespace subgraph {
             op,
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
+        targetOp->set_friendly_name("targetOp");
         auto& rtInfo = targetOp->get_rt_info();
         rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("targetOp");
 
+        const auto result = std::make_shared<ngraph::opset1::Result>(targetOp);
+        result->set_friendly_name("result");
+
         return std::make_shared<ngraph::Function>(
-            ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(targetOp) },
+            ngraph::ResultVector{ result },
             ngraph::ParameterVector{ input },
             "MoveDequantizationAfterFunction");
     }
@@ -48,6 +53,7 @@ namespace subgraph {
         const ngraph::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations dequantizationAfter) {
         const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
+        input->set_friendly_name("input");
 
         const auto deqBefore = makeDequantization(input, dequantizationBefore);
         const auto op = ngraph::opset1::MaxPool(
@@ -62,13 +68,17 @@ namespace subgraph {
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(targetOp, precisionAfterOperation);
+        targetOp->set_friendly_name("targetOp");
         auto& rtInfo = targetOp->get_rt_info();
         rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("targetOp");
 
         const auto deqAfter = makeDequantization(targetOp, dequantizationAfter);
 
+        const auto result = std::make_shared<ngraph::opset1::Result>(deqAfter);
+        result->set_friendly_name("result");
+
         return std::make_shared<ngraph::Function>(
-            ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(deqAfter) },
+            ngraph::ResultVector{ result },
             ngraph::ParameterVector{ input },
             "MoveDequantizationAfterFunction");
     }

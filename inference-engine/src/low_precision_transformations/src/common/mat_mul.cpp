@@ -95,10 +95,10 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
             fold<ngraph::opset1::Multiply>(
                 NetworkHelper::toScalar(as_type_ptr<opset1::Constant>(const1)),
                 const2)));
-    replace_node(matMul, newMultiply);
+    NetworkHelper::setDequantizationName(newMatMul, newMultiply);
     ngraph::copy_runtime_info({ newMultiply, matMul }, newMultiply);
-
-    updateOutput(context, newMultiply, matMul);
+    replace_node(matMul, newMultiply);
+    updateOutput(context, newMultiply, newMatMul);
 
     return true;
 }

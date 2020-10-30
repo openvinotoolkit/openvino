@@ -81,6 +81,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     element::i64,
                     Shape{ length },
                     broadcastShape));
+            NetworkHelper::copyInfo(subtract->get_input_node_shared_ptr(1), newShift);
 
             const auto newSubtract = as_type_ptr<opset1::Subtract>(subtract->clone_with_new_inputs({
                 subtract->input_value(0).get_node_shared_ptr(),
@@ -154,7 +155,6 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     {
         decomposeFakeQuantizeForWeightsPath(convolution);
-
         std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->input_value(1).get_node_shared_ptr());
         std::shared_ptr<opset1::Multiply> multiplyFromWeights = as_type_ptr<opset1::Multiply>(
             reshapeFromWeights == nullptr ?
@@ -201,6 +201,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 auto zeroPointConstant = fold<opset1::Broadcast>(
                     subtractFromWeights->get_input_node_shared_ptr(1),
                     std::make_shared<opset1::Constant>(element::i32, Shape{ zeroPointShape.size() }, zeroPointShape));
+                NetworkHelper::copyInfo(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
                 replace_node(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
             }
         }
@@ -234,6 +235,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
         convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
+    NetworkHelper::setDequantizationName(convolution, finalDequantization);
     ngraph::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
 

@@ -105,7 +105,7 @@ public:
 
 TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, false, false);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -129,11 +129,11 @@ const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues> fak
             { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
             { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            { 1.f },
+            { 0.01f },
             { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            { 1.f }
+            { 0.01f }
         }
     }
 };

@@ -19,6 +19,7 @@ std::shared_ptr<ngraph::Function> TransposeFunction::getOriginal(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
 
@@ -28,6 +29,7 @@ std::shared_ptr<ngraph::Function> TransposeFunction::getOriginal(
     transpose->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(transpose) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");
 }
 
@@ -62,6 +64,7 @@ std::shared_ptr<ngraph::Function> TransposeFunction::getReference(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
 
@@ -70,6 +73,8 @@ std::shared_ptr<ngraph::Function> TransposeFunction::getReference(
         ngraph::Shape{ transposeConstValues.size() },
         transposeConstValues);
     const std::shared_ptr<ngraph::opset1::Transpose> transpose = std::make_shared<ngraph::opset1::Transpose>(quantizationOpBefore, transposeConstant);
+    transpose->set_friendly_name("output");
+
     if (quantizationOpBefore->get_output_element_type(0) != precisionAfterOperation) {
         THROW_IE_LPT_EXCEPTION(*quantizationOpBefore) << "unexpected precision '" << precisionAfterOperation << "' after operation";
     }
@@ -78,9 +83,11 @@ std::shared_ptr<ngraph::Function> TransposeFunction::getReference(
     }
 
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(transpose, dequantizationAfter);
+    transpose->set_friendly_name("output_original");
     quantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");
 }
 

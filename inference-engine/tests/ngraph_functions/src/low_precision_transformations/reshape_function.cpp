@@ -19,6 +19,7 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
 
@@ -29,6 +30,7 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
     reshape->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");
 }
 
@@ -64,6 +66,7 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getReference(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
 
@@ -72,6 +75,8 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getReference(
         ngraph::Shape{ reshapeConstValues.size() },
         reshapeConstValues);
     const std::shared_ptr<ngraph::opset1::Reshape> reshape = std::make_shared<ngraph::opset1::Reshape>(quantizationOpBefore, reshapeConstant, true);
+    reshape->set_friendly_name("output");
+
     if (quantizationOpBefore->get_output_element_type(0) != precisionAfterOperation) {
         THROW_IE_LPT_EXCEPTION(*quantizationOpBefore) << "unexpected precision '" << precisionAfterOperation << "' after operation";
     }
@@ -80,9 +85,11 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getReference(
     }
 
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(reshape, dequantizationAfter);
+    reshape->set_friendly_name("output_original");
     quantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");
 }
 

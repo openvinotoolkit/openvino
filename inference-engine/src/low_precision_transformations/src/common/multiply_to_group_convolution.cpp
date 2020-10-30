@@ -83,6 +83,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         pads,
         dilations);
     convolution->set_friendly_name(multiply->get_friendly_name() + "/GroupConvolution");
+    weightsNode->set_friendly_name(convolution->get_friendly_name() + "/Weights");
 
     std::shared_ptr<Node> lastNode = convolution;
     if (dequantization.subtract != nullptr) {

@@ -24,12 +24,14 @@ std::shared_ptr<ngraph::Function> FuseMultiplyToFakeQuantizeFunction::get(
     const FakeQuantizeOnData& fqOnData,
     const DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
-    const auto fakeQuantize = makeFakeQuantize(input, ngraph::element::f32, fqOnData);
+    const auto fakeQuantize = makeFakeQuantize(input, ngraph::element::f32, fqOnData, "fakeQuantize");
     const auto lastDequantization = makeDequantization(fakeQuantize, dequantization);
     lastDequantization->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastDequantization) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseSubtractToFakeQuantizeFunction");
 }
 

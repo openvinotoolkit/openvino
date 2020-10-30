@@ -21,6 +21,7 @@ std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
     const auto mvn = std::make_shared<ngraph::op::MVN>(dequantizationOp, reductionAxes, normalizeVariance);
@@ -28,8 +29,9 @@ std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
     auto& rtInfo = mvn->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("mvn");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(mvn) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MVNFunction");
+    const auto result = std::make_shared<ngraph::opset1::Result>(mvn);
+    result->set_friendly_name("result");
+    return std::make_shared<ngraph::Function>(result, ngraph::ParameterVector{ input }, "MVNFunction");
 }
 
 std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
@@ -60,18 +62,21 @@ std::shared_ptr<ngraph::Function> MVNFunction::getReference(
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
 
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto mvn = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::MVN>>(
         op::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance), precisionAfterOperation);
+    mvn->set_friendly_name("output_original");
     auto& rtInfo = mvn->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("mvn");
 
     const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(mvn, dequantizationAfter);
     dequantizationOpAfter->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MVNFunction");
+    const auto result = std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter);
+    result->set_friendly_name("result");
+    return std::make_shared<ngraph::Function>(result, ngraph::ParameterVector{ input }, "MVNFunction");
 }
 
 }  // namespace subgraph

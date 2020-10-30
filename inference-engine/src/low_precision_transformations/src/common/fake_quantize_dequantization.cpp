@@ -16,14 +16,18 @@ namespace low_precision {
 FakeQuantizeDequantization::FakeQuantizeDequantization() {}
 
 FakeQuantizeDequantization::FakeQuantizeDequantization(
-    Output<Node> data,
-    std::shared_ptr<opset1::Convert> convert,
-    std::shared_ptr<opset1::Subtract> subtract,
-    std::shared_ptr<opset1::Multiply> multiply) :
+    const Output<Node>& data,
+    const std::shared_ptr<ngraph::opset1::Convert>& convert,
+    const std::shared_ptr<ngraph::opset1::Subtract>& subtract,
+    const std::shared_ptr<ngraph::opset1::Constant>& subtractConstant,
+    const std::shared_ptr<ngraph::opset1::Multiply>& multiply,
+    const std::shared_ptr<ngraph::opset1::Constant>& multiplyConstant) :
     data(data),
     convert(convert),
     subtract(subtract),
-    multiply(multiply) {
+    subtractConstant(subtractConstant),
+    multiply(multiply),
+    multiplyConstant(multiplyConstant) {
 }
 
 bool FakeQuantizeDequantization::empty() const {

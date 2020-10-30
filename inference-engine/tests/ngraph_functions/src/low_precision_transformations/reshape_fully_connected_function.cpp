@@ -31,6 +31,7 @@ std::shared_ptr<ngraph::Function> ReshapeFullyConnectedFunction::getOriginal(
     const ngraph::Shape& outputShape,
     const ngraph::element::Type outputPrecision) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision1, inputShape);
+    input->set_friendly_name("input");
 
     const auto weightsShape = Shape{ outputShape[1], inputShape[1] };
     const auto weights = std::make_shared<opset1::Constant>(inputPrecision2, weightsShape, std::vector<float>(shape_size(weightsShape), 1.f));
@@ -40,6 +41,7 @@ std::shared_ptr<ngraph::Function> ReshapeFullyConnectedFunction::getOriginal(
     fullyConnected->set_friendly_name("fullyConnected");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fullyConnected) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFullyConnectedFunction");
 }
 
@@ -51,9 +53,11 @@ std::shared_ptr<ngraph::Function> ReshapeFullyConnectedFunction::getReference(
     const ngraph::Shape& outputShape,
     const ngraph::element::Type outputPrecision) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision1, inputShape);
+    input->set_friendly_name("input");
 
     std::vector<int64_t> reshapeShape{ -1, static_cast<int64_t>(inputShape.back()) };
     auto reshape = std::make_shared<opset1::Reshape>(input, opset1::Constant::create(element::i64, Shape{ 2 }, reshapeShape), true);
+    reshape->set_friendly_name("fullyConnected/Reshape");
 
     const auto weightsShape = Shape{ outputShape[1], inputShape[1] };
     const auto weights = std::make_shared<opset1::Constant>(inputPrecision2, weightsShape, std::vector<float>(shape_size(weightsShape), 1.f));
@@ -63,6 +67,7 @@ std::shared_ptr<ngraph::Function> ReshapeFullyConnectedFunction::getReference(
     fullyConnected->set_friendly_name("fullyConnected");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fullyConnected) };
+    results[0]->set_friendly_name("result");
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFullyConnectedFunction");
 }
 

@@ -72,9 +72,10 @@ std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2,
     const bool compareConstValues,
-    const bool compareNames,
+    const bool compareOutputNames,
     const bool compareRuntimeKeys,
-    const bool comparePrecisions) {
+    const bool comparePrecisions,
+    const bool compareNames) {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
@@ -104,7 +105,7 @@ std::pair<bool, std::string> compare_functions(
 
     std::queue<std::pair<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>> q;
     for (size_t i = 0; i < f1_results.size(); ++i) {
-        if (compareNames) {
+        if (compareOutputNames) {
             if (f1_results[i]->get_input_node_shared_ptr(0)->get_friendly_name() !=
                 f2_results[i]->get_input_node_shared_ptr(0)->get_friendly_name()) {
                 return { false, "Different output names: " + f1_results[i]->get_input_node_shared_ptr(0)->get_friendly_name()
@@ -181,6 +182,10 @@ std::pair<bool, std::string> compare_functions(
             if (compareRuntimeKeys && !compare_rt_keys(node1, node2)) {
                 err_log << "Different runtime info detected" << std::endl
                     << node1->get_friendly_name() << " and " << node2->get_friendly_name() << " not equal runttime info." << std::endl;;
+            }
+
+            if (compareNames && (node1->get_friendly_name() != node2->get_friendly_name())) {
+                return { false, "Different names: " + node1->get_friendly_name() + " and " + node2->get_friendly_name() };
             }
 
             q.push({node1->input_value(i).get_node_shared_ptr(), node2->input_value(i).get_node_shared_ptr()});

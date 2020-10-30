@@ -48,12 +48,14 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     }
 
     auto constant = fold<opset1::Negative>(add->get_input_node_shared_ptr(constBranchIndex));
+    NetworkHelper::copyInfo(add->get_input_node_shared_ptr(constBranchIndex), constant);
     auto constOutput = constant->output(0);
 
     const auto subtract = std::make_shared<DequantizationSubtract>(
         add->get_input_node_shared_ptr(dataBranchIndex),
         constOutput,
-        add->get_autob());
+        add->get_autob(),
+        add->get_friendly_name());
     NetworkHelper::copyInfo(add, subtract);
 
     replace_node(add, subtract);
@@ -72,6 +74,7 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
     const auto newSubConst = fold<opset1::Subtract>(
         add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1),
         add->get_input_node_shared_ptr(1));
+    NetworkHelper::copyInfo(add->get_input_node_shared_ptr(1), newSubConst);
 
     const auto newSubtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
         std::vector<element::Type>{element::f32, element::f32},
@@ -160,8 +163,12 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             fold<opset1::Divide>(
                 fold<opset1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
                 multiplyFullPathValues));
+        newSubtractFullPathValues->set_friendly_name(
+            dequantizationFullPath.subtractConstant != nullptr ? dequantizationFullPath.subtractConstant->get_friendly_name() : "");
 
         std::shared_ptr<Node> newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
+        newMultiplyFullPathValues->set_friendly_name(
+            dequantizationFullPath.multiplyConstant != nullptr ? dequantizationFullPath.multiplyConstant->get_friendly_name() : "");
 
         if (NetworkHelper::isZeroConst(newSubtractFullPathValues)) {
             newSubtractFullPathValues = nullptr;
@@ -174,21 +181,29 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         inputs[emptyPathIndex] = dequantizationEmptyPath.data.get_node_shared_ptr();
         inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
             newSubtractFullPathValues == nullptr ?
-                fullPathInput :
-                std::make_shared<DequantizationSubtract>(fullPathInput, newSubtractFullPathValues),
-            newMultiplyFullPathValues);
+            fullPathInput :
+            std::make_shared<DequantizationSubtract>(
+                fullPathInput,
+                newSubtractFullPathValues,
+                ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY),
+                dequantizationFullPath.subtract != nullptr ? dequantizationFullPath.subtract->get_friendly_name() : ""),
+            newMultiplyFullPathValues,
+            ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY),
+            dequantizationFullPath.multiply != nullptr ? dequantizationFullPath.multiply->get_friendly_name() : "");
+        NetworkHelper::setDequantizationName(dequantizationFullPath.data.get_node_shared_ptr(), inputs[fullPathIndex]);
 
         newAddOrSubtract = std::make_shared<op::TypeRelaxed<opset1::Add>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
         newMultiply = std::make_shared<DequantizationMultiply>(newAddOrSubtract, multiplyEmptyPathValues);
+        ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
 
         replace_node(add, newMultiply);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
-        ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
-    }
 
+        newMultiply->set_friendly_name(newAddOrSubtract->get_friendly_name() + "/DequantizationMultiply");
+    }
     updateOutput(context, newMultiply, newAddOrSubtract);
 
     if (fullPathIndex != -1) {
