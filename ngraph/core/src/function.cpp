@@ -381,7 +381,6 @@ bool Function::visit_attributes(AttributeVisitor& visitor)
 void Function::add_sinks(const SinkVector& sinks)
 {
     m_sinks.insert(m_sinks.end(), sinks.begin(), sinks.end());
-    validate_nodes_and_infer_types();
 }
 
 void Function::remove_sink(const std::shared_ptr<op::Sink>& sink)
@@ -395,7 +394,6 @@ void Function::remove_sink(const std::shared_ptr<op::Sink>& sink)
 void Function::add_results(const ResultVector& results)
 {
     m_results.insert(m_results.end(), results.begin(), results.end());
-    validate_nodes_and_infer_types();
 }
 
 void Function::remove_result(const std::shared_ptr<op::Result>& result)
