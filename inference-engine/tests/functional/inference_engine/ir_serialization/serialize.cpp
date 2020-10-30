@@ -165,3 +165,37 @@ TEST_F(SerializationTest, ModelWithConstants_ONNXImporter) {
 
     ASSERT_TRUE(success) << message;
 }
+
+TEST_F(SerializationTest, ExperimentalDetectronROIFeatureExtractor_MO) {
+    const std::string model = IR_SERIALIZATION_MODELS_PATH
+        "experimental_detectron_roi_feature_extractor.xml";
+
+    InferenceEngine::Core ie;
+    auto expected = ie.ReadNetwork(model);
+    expected.serialize(m_out_xml_path, m_out_bin_path);
+    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+        compare_functions(result.getFunction(), expected.getFunction());
+
+    ASSERT_TRUE(success) << message;
+}
+
+TEST_F(SerializationTest, ExperimentalDetectronDetectionOutput_MO) {
+    const std::string model = IR_SERIALIZATION_MODELS_PATH
+        "experimental_detectron_detection_output.xml";
+
+    InferenceEngine::Core ie;
+    auto expected = ie.ReadNetwork(model);
+    expected.serialize(m_out_xml_path, m_out_bin_path);
+    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+        compare_functions(result.getFunction(), expected.getFunction());
+
+    ASSERT_TRUE(success) << message;
+}

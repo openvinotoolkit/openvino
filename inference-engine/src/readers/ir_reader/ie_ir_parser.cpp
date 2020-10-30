@@ -63,7 +63,7 @@ public:
         originBlob(weights) { }
 };
 
-V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) {
+V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
     // Load default opsets
     opsets["opset1"] = ngraph::get_opset1();
     opsets["opset2"] = ngraph::get_opset2();
@@ -196,7 +196,7 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::i
             result_nodes[0]->add_control_dependency(assign);
         }
     }
-    CNNNetwork net(function);
+    CNNNetwork net(function, _exts);
     parsePreProcess(net, root, binStream);
     return net;
 }

@@ -1,0 +1,38 @@
+<?xml version="1.0" ?>
+<!--This is syntetic model created by hand desined only for white-box unit testing-->
+<net name="add_abc" version="10">
+	<layers>
+		<layer id="0" name="A" type="Parameter" version="opset1">
+			<data element_type="f32" shape="1"/>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="DetectionOutput" type="ExperimentalDetectronDetectionOutput" version="experimental">
+			<data class_agnostic_box_regression="0" deltas_weights="10.0,10.0,5.0,5.0" max_delta_log_wh="4.135166645050049" max_detections_per_image="100" nms_threshold="0.5" num_classes="81" post_nms_count="2000" score_threshold="0.05"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Y" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+	</edges>
+</net>

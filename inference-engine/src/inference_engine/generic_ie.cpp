@@ -168,3 +168,17 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
                            << " with type " << type;
     }
 }
+
+bool ngraph::op::GenericIE::visit_attributes(ngraph::AttributeVisitor& visitor) {
+    for (const auto& p : params) {
+        std::string name = p.first;
+        std::string value = p.second;
+        visitor.on_attribute(name, value);
+    }
+    // This is a way to pass type name to transformations::Serialize() without
+    // adding plugin_api dependency on transformation library
+    std::string name = "__generic_ie_type__";
+    std::string value = getType();
+    visitor.on_attribute(name, value);
+    return true;
+}
