@@ -302,14 +302,9 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
     {
-        float *ptr_per_channel_weights_quants_min = nullptr;
-        float *ptr_per_channel_weights_quants_max = nullptr;
-
-        if (!quantData->_weights_quants_min.empty()) {
-            ptr_per_channel_weights_quants_min = &quantData->_weights_quants_min.front();
-            ptr_per_channel_weights_quants_max = &quantData->_weights_quants_max.front();
-        }
-
+        auto per_channel_weights = !quantData->_weights_quant.GetMinValues().empty();
+        auto weightsScale = quantData->_weights_quant.GetScale();
+        auto dstScale = quantData->_dst_quant.GetScale();
         fnc(wl->_weights->buffer().as<float *>(),
             wl->_biases ? wl->_biases->buffer().as<float *>() : nullptr,
             intWeights->buffer(),
@@ -321,11 +316,11 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
             num_columns,
             num_rows_padded,
             num_columns_padded,
-            quantData->levels,
+            quantData->_weights_quant.GetLevels(),
             nullptr,
             nullptr,
-            ptr_per_channel_weights_quants_min,
-            ptr_per_channel_weights_quants_max);
+            per_channel_weights ? &quantData->_weights_quant.GetMinValues().front(): nullptr,
+            per_channel_weights ? &quantData->_weights_quant.GetMaxValues().front(): nullptr);
             &quantData->_weights_quantized);
     }
     wl->_weights = intWeights;

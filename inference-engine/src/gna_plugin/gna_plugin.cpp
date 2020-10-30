@@ -1118,7 +1118,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 #ifdef PLOT
     dnn->BeginNewWrite(dnn_dump_write_index);
     if (dnn->num_components() != 0) {
-        dnn->WriteDnnText("Net_.txt", kDnnInt);
+        dnn->WriteDnnText("Net_.txt", kDnnFloat);
     }
     dnn_dump_write_index++;
 #endif

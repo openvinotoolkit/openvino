@@ -51,9 +51,6 @@ struct QuantizedLayerParams {
     Quantization _src_quant;
     Quantization _dst_quant;
 
-    std::vector<float> _weights_quants_min;
-    std::vector<float> _weights_quants_max;
-
     // deprecate this
     Quantization _weights_quant;
     bool _weights_quantized = false;

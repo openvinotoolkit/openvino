@@ -222,7 +222,6 @@ void QuantizeVector16(float *ptr_float_memory, int16_t *ptr_int_memory, uint32_t
 
 template<>
 void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const {
-    // TODO: possible remove this zero point
     uint32_t num_saturate = 0;
 
     if (fq_ptr_output_high == nullptr || fq_ptr_output_low == nullptr) {
@@ -239,6 +238,16 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
         if (channel_multiplier > MAX_OUT_MULTIPLIER) {
             THROW_GNA_EXCEPTION << "invalid channel multiplier: " << channel_multiplier;
         }
+
+        auto row_max = 0.0f;
+        for (uint32_t col = 0; col < num_columns; col++) {
+            auto value = fabs(ptr_float_weights[i * num_columns + col]);
+            if (value > row_max) {
+                row_max = value;
+            }
+        }
+
+        //gnawarn() << "row max bigger than calculated by tool: " << row_max << ", " << fq_ptr_output_high[i] << "\n";
 
         for (uint32_t j = 0; j < num_columns; j++) {
             auto offset = i * num_columns + j;
@@ -266,6 +275,8 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             } else {
                 normalizedWeight = (int8_t)value;
             }
+
+            // range checking
 
             // range checking
             ptr_int_weights[offset] = static_cast<int8_t>(normalizedWeight);
