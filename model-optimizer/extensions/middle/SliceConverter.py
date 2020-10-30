@@ -17,6 +17,7 @@
 import numpy as np
 from typing import Dict
 
+from extensions.ops.Cast import Cast
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes, Node
@@ -35,8 +36,10 @@ def create_ss_interval_border(shape, axes, node: Node, out_port: Port):
     concat = create_op_with_const_inputs(node.graph, Concat, port_value_dict={0: first_part, 2: last_part},
                                          op_attrs={'name': 'Concat', 'axis': 0,
                                                    'in_ports_count': 3})
+    cast = Cast(node.graph, dict(name='Cast', dst_type=np.int64)).create_node()
     out_port.get_connection().set_destination(concat.in_port(1))
-    return concat
+    concat.out_port(0).connect(cast.in_port(0))
+    return cast
 
 
 class ConvertSlice(MiddleReplacementPattern):
