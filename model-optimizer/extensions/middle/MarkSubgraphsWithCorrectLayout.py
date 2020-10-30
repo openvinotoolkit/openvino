@@ -181,8 +181,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         return dynamic_in_nodes
 
     @staticmethod
-    def walk_up_from_in_ports_to_out_ports(in_ports: Set[Port], out_ports: Set[Port],
-                                           visited_ports: Set[Port] = None, visited_nodes: Set[Node] = None):
+    def walk_up_from_in_ports_to_out_ports(in_ports: Set[Port], out_ports: Set[Port], port_condition=None):
         """"
         Returns all intermediate ports and nodes of such a sub-graph:
 
@@ -194,14 +193,14 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
            \/       \/
             in_ports
         """
-        if visited_ports is None:
-            visited_ports = set()
-        if visited_nodes is None:
-            visited_nodes = set()
+        visited_ports = set()
+        visited_nodes = set()
 
         deque_of_in_ports = deque(in_ports)
         while len(deque_of_in_ports):
             in_port = deque_of_in_ports.popleft()
+            if in_port.get_source() is None:
+                continue
             source_node = in_port.get_source().node
             if in_port in visited_ports:  # do not check visited_nodes as search is based on ports
                 continue
@@ -210,55 +209,17 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
                 if not len(in_port.get_source().node.in_ports()):  # for Constants and Parameters to be visited
                     visited_nodes.add(in_port.get_source().node)
                 continue
-            deque_of_in_ports.extend([port for port in source_node.in_ports().values() if not port.disconnected()])
+            for idx, port in source_node.in_ports().items():
+                if not port.disconnected() and (not port_condition or port_condition(source_node, idx)):
+                    deque_of_in_ports.append(port)
             visited_nodes.add(source_node)
         return visited_ports, visited_nodes
 
     @staticmethod
-    def walk_up_from_in_ports_to_out_ports_not_going_into_conv_weights(in_ports: Set[Port], out_ports: Set[Port],
-                                                                       visited_ports: Set[Port] = None,
-                                                                       visited_nodes: Set[Node] = None):
-        """"
-        Returns all intermediate ports and nodes of such a sub-graph, except for the path that starts from weight port
-        of convolution like operation:
-
-            out_ports
-            |        |
-           \/       \/
-            .   .   .
-            |        |
-           \/       \/
-            in_ports
-        """
-        if visited_ports is None:
-            visited_ports = set()
-        if visited_nodes is None:
-            visited_nodes = set()
-
-        deque_of_in_ports = deque(in_ports)
+    def is_not_weight_port(node: Node, idx: int):
         w_types_to_in_port_dict = MarkSubGraphsWithCorrectLayout.get_weighted_layer_type_to_in_weights_port()
-        while len(deque_of_in_ports):
-            in_port = deque_of_in_ports.popleft()
-            if not in_port.get_source():
-                continue
-            source_node = in_port.get_source().node
-            if in_port in visited_ports:  # do not check visited_nodes as search is based on ports
-                continue
-            visited_ports.update({in_port, in_port.get_source()})
-            if in_port.get_source() in out_ports:  # reached source marked to stop the search
-                if not len(in_port.get_source().node.in_ports()):  # for Constants and Parameters to be visited
-                    visited_nodes.add(in_port.get_source().node)
-                continue
-            node_type = source_node.soft_get('type')
-            if source_node.soft_get('type') in w_types_to_in_port_dict.keys():
-                # do not add in port going to weights
-                deque_of_in_ports.extend([port for idx, port in source_node.in_ports().items() if
-                                          not port.disconnected() and idx != w_types_to_in_port_dict[node_type](
-                                              source_node)])
-            else:
-                deque_of_in_ports.extend([port for port in source_node.in_ports().values() if not port.disconnected()])
-            visited_nodes.add(source_node)
-        return visited_ports, visited_nodes
+        node_type = node.soft_get('type')
+        return node_type in w_types_to_in_port_dict.keys() and idx != w_types_to_in_port_dict[node_type](node)
 
     @staticmethod
     def get_ports_and_nodes_on_weights(graph):
@@ -283,10 +244,13 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         for result in graph.get_op_nodes(type='Result'):
             result_ports.update(result.in_ports().values())
 
-        # collect all sub-graphs that start with Constant/Parameter/ShapeOf and end at in_port as weights
+        # collect all sub-graphs that start with Constant/Parameter/ShapeOf/ExtractImagePatches and end at in_port as
+        # weights
         ports_w, nodes_w = MarkSubGraphsWithCorrectLayout.walk_up_from_in_ports_to_out_ports(weight_ports, start_ports)
-        ports_d, nodes_d = MarkSubGraphsWithCorrectLayout.walk_up_from_in_ports_to_out_ports_not_going_into_conv_weights(
-            result_ports, start_ports)
+        # collect all sub-graphs that start with Constant/Parameter/ShapeOf/ExtractImagePatches, end at Result nodes and
+        # not contains branches that end as weights
+        ports_d, nodes_d = MarkSubGraphsWithCorrectLayout.walk_up_from_in_ports_to_out_ports(
+            result_ports, start_ports, MarkSubGraphsWithCorrectLayout.is_not_weight_port)
         nodes_dif = nodes_w.difference(nodes_d)
         nodes_in_w = MarkSubGraphsWithCorrectLayout.insert_permute_inputs_before_dynamic_weights_subgraph(nodes_dif)
         return ports_w.difference(ports_d), nodes_dif, nodes_in_w

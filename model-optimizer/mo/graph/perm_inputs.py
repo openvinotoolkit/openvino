@@ -175,12 +175,11 @@ def transpose_nchw_to_nhwc(op_node: Node, port_info: str, input_port: int):
     graph = op_node.graph
     permutation_data_node = get_node_with_permutation(op_node, port_info)
     rank = len(permutation_data_node.shape)
-    assert rank in [4, 5], 'Rank is not 4D or 5D for HCHW to HHWC permutation on node {}.'.format(op_node.id)
+    assert rank >= 4, 'Rank must be 4D or higher for HCHW to HHWC permutation on node {}.'.format(op_node.id)
 
-    if rank == 4:
-        perm = int64_array([0, 2, 3, 1])
-    else:
-        perm = int64_array([0, 2, 3, 4, 1])
+    perm = list(range(rank))
+    perm.insert(1, perm.pop())
+    perm = int64_array(perm)
 
     transpose_name = op_node.soft_get('name', op_node.id) + '/Transpose'
     from mo.front.tf.graph_utils import create_op_with_const_inputs  # avoiding recursive imports
