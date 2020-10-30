@@ -8323,8 +8323,11 @@ INSTANTIATE_TEST_CASE_P(
         .smoke_test_params(format::b_fs_yx_fsv32, false, true)
         .smoke_test_params(format::b_fs_yx_fsv32, true, false)
         .smoke_test_params(format::b_fs_yx_fsv32, false, false, true)
-        .smoke_test_params(format::b_fs_yx_fsv16, false, false, true)
         .smoke_test_params(format::b_fs_yx_fsv16)
+        .smoke_test_params(format::b_fs_yx_fsv16, true, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, true, false)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, false, true)
         .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
     ),
     to_string_convolution_all_params
