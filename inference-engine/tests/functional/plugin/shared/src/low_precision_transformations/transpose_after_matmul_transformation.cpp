@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/permute_transformation.hpp"
+#include "low_precision_transformations/transpose_after_matmul_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PermuteTransformation::getTestCaseName(testing::TestParamInfo<PermuteTransformationParams> obj) {
+std::string TransposeAfterMatMulTransformation::getTestCaseName(testing::TestParamInfo<TransposeAfterMatMulTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
@@ -37,7 +37,7 @@ std::string PermuteTransformation::getTestCaseName(testing::TestParamInfo<Permut
     return result.str();
 }
 
-void PermuteTransformation::SetUp() {
+void TransposeAfterMatMulTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -66,10 +66,10 @@ void PermuteTransformation::SetUp() {
     transpose->set_friendly_name("transpose");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(transpose) };
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "PermuteTransformation");
+    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "TransposeAfterMatMulTransformation");
 }
 
-TEST_P(PermuteTransformation, CompareWithRefImpl) {
+TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {
     Run();
 };
 
