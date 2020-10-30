@@ -15,31 +15,31 @@ using namespace InferenceEngine;
 
 namespace vpu {
 enum class InterpolateMode {
-    nearest     = 0,
-    linear      = 1,
-    linear_onnx = 2,
-    cubic       = 3
+    nearest,
+    linear,
+    linear_onnx,
+    cubic
 };
 
 enum class InterpolateShapeCalcMode {
-    sizes  = 0,
-    scales = 1
+    sizes,
+    scales
 };
 
 enum class InterpolateCoordTransMode {
-    half_pixel           = 0,
-    pytorch_half_pixel   = 1,
-    asymmetric           = 2,
-    tf_half_pixel_for_nn = 3,
-    align_corners        = 4
+    half_pixel,
+    pytorch_half_pixel,
+    asymmetric,
+    tf_half_pixel_for_nn,
+    align_corners
 };
 
 enum class InterpolateNearestMode {
-    round_prefer_floor = 0,
-    round_prefer_ceil  = 1,
-    floor              = 2,
-    ceil               = 3,
-    simple             = 4
+    round_prefer_floor,
+    round_prefer_ceil,
+    floor,
+    ceil,
+    simple
 };
 
 namespace {
@@ -57,8 +57,11 @@ private:
         auto input1 = inputEdge(1)->input();
         auto input2 = inputEdge(2)->input();
         auto input3 = inputEdge(3)->input();
+        auto output = outputEdge(0)->output();
 
         orderInfo.setOutput(outputEdge(0), input0->desc().dimsOrder());
+        // orderInfo.setInput(inputEdge(0), DimsOrder::fromNumDims(input0->desc().numDims()));
+        // orderInfo.setOutput(outputEdge(0), DimsOrder::fromNumDims(output->desc().numDims()));
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
@@ -83,26 +86,21 @@ private:
 
         auto antialias = attrs().get<bool>("antialias");
         auto cube_coeff = attrs().get<float>("cube_coeff");
-        auto batch = attrs().get<int>("batch");
-        auto sampleType = attrs().get<int>("type");
-        auto sampleNearestMode = attrs().get<int>("nearestMode");
-        auto sampleShapeCalcMode = attrs().get<int>("shapeCalcMode");
-        auto sampleCoordTransMode = attrs().get<int>("coordTransMode");
-        auto pads_begin = attrs().get<DimValues>("pads_begin");
-        auto pads_end = attrs().get<DimValues>("pads_end");
+        auto sampleType = attrs().get<InterpolateMode>("type");
+        auto sampleNearestMode = attrs().get<InterpolateNearestMode>("nearestMode");
+        auto sampleShapeCalcMode = attrs().get<InterpolateShapeCalcMode>("shapeCalcMode");
+        auto sampleCoordTransMode = attrs().get<InterpolateCoordTransMode>("coordTransMode");
+        auto pads_begin = attrs().get<std::vector<int>>("pads_begin");
+        auto pads_end = attrs().get<std::vector<int>>("pads_end");
 
         serializer.append(static_cast<bool>(antialias));
         serializer.append(static_cast<float>(cube_coeff));
-        serializer.append(static_cast<int>(batch));
-        serializer.append(static_cast<int>(sampleType));
-        serializer.append(static_cast<int>(sampleNearestMode));
-        serializer.append(static_cast<int>(sampleShapeCalcMode));
-        serializer.append(static_cast<int>(sampleCoordTransMode));
-
-        for (int i = 0; i < perm.size(); ++i) {
-            serializer.append(static_cast<int>(pads_begin.get(perm[i], 0)));
-            serializer.append(static_cast<int>(pads_end.get(perm[i], 0)));
-        }
+        serializer.append(static_cast<uint32_t>(sampleType));
+        serializer.append(static_cast<uint32_t>(sampleNearestMode));
+        serializer.append(static_cast<uint32_t>(sampleShapeCalcMode));
+        serializer.append(static_cast<uint32_t>(sampleCoordTransMode));
+        serializer.append(static_cast<std::vector<int>>(pads_begin));
+        serializer.append(static_cast<std::vector<int>>(pads_end));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -145,33 +143,62 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer
     IE_ASSERT(inputs.size() == 4);
     IE_ASSERT(outputs.size() == 1);
 
-    int ON = outputs[0]->desc().dim(Dim::N);
-    int OC = outputs[0]->desc().dim(Dim::C);
-    int OH = outputs[0]->desc().dim(Dim::H);
-    int OW = outputs[0]->desc().dim(Dim::W);
-
-    int IN = inputs[0]->desc().dim(Dim::N);
-    int IC = inputs[0]->desc().dim(Dim::C);
-    int IH = inputs[0]->desc().dim(Dim::H);
-    int IW = inputs[0]->desc().dim(Dim::W);
-
-    printf("ON = %d, OC = %d, OH = %d, OW = %d\n", ON, OC, OH, OW);
-    printf("IN = %d, IC = %d, IH = %d, IW = %d\n", IN, IC, IH, IW);
+    ie::details::CaselessEq<std::string> cmp;
 
     auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, inputs, outputs);
 
     stage->attrs().set<bool>("antialias", layer->GetParamAsBool("antialias", 0));
     stage->attrs().set<float>("cube_coeff", layer->GetParamAsFloat("cube_coeff", 0));
-    stage->attrs().set<int>("batch", layer->GetParamAsInt("batch", 1));
-    stage->attrs().set<int>("type", layer->GetParamAsInt("type", 0));
 
+    auto mode = layer->GetParamAsString("type", "nearest");
+    auto nearest_m = layer->GetParamAsString("nearestMode", "round_prefer_floor");
+    auto shape_calc = layer->GetParamAsString("shapeCalcMode", "scales");
+    auto coord_trans = layer->GetParamAsString("coordTransMode", "half_pixel");
+
+    if (cmp(mode, "nearest")) {
+        stage->attrs().set<InterpolateMode>("type", InterpolateMode::nearest);
+    } else {
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " supports only nearest mode";
+    }
+
+    if (cmp(nearest_m, "round_prefer_floor")) {
+        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_floor);
+    } else if (cmp(nearest_m, "round_prefer_ceil")) {
+        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_ceil);
+    } else if (cmp(nearest_m, "floor")) {
+        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::floor);
+    } else if (cmp(nearest_m, "ceil")) {
+        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::ceil);
+    } else if (cmp(nearest_m, "simple")) {
+        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::simple);
+    } else {
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " does not support this nearest mode";
+    }
+
+    if (cmp(shape_calc, "scales")) {
+        stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::scales);
+    } else if (cmp(shape_calc, "sizes")) {
+        stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::sizes);
+    } else {
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " does not support this shape calculation mode";
+    }
+
+    if (cmp(coord_trans, "half_pixel")) {
+        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::half_pixel);
+    } else if (cmp(coord_trans, "pytorch_half_pixel")) {
+        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::pytorch_half_pixel);
+    } else if (cmp(coord_trans, "asymmetric")) {
+        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::asymmetric);
+    } else if (cmp(coord_trans, "tf_half_pixel_for_nn")) {
+        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::tf_half_pixel_for_nn);
+    } else if (cmp(coord_trans, "align_corners")) {
+        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::align_corners);
+    } else {
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " does not support this coordinate transformation mode";
+    }
+  
     stage->attrs().set<std::vector<int>>("pads_begin", layer->GetParamAsInts("pads_begin"));
     stage->attrs().set<std::vector<int>>("pads_end", layer->GetParamAsInts("pads_end"));
-
-    stage->attrs().set<int>("nearestMode", layer->GetParamAsInt("nearestMode", 0));
-    stage->attrs().set<int>("shapeCalcMode", layer->GetParamAsInt("shapeCalcMode", 0));
-    stage->attrs().set<int>("coordTransMode", layer->GetParamAsInt("coordTransMode", 0));
-    printf("PARSE end\n");
 }
 
 }  // namespace vpu

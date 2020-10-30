@@ -50,8 +50,8 @@ typedef std::tuple<
         InferenceEngine::Precision,         // Net precision
         InferenceEngine::Layout,            // Input layout
         InferenceEngine::Layout,            // Output layout
-        std::vector<size_t>,                // Input shapes
-        std::vector<size_t>,                // Target shapes
+        InferenceEngine::SizeVector,        // Input shapes
+        InferenceEngine::SizeVector,        // Target shapes
         LayerTestsUtils::TargetDevice       // Device name
 > InterpolateLayerTestParams1;
 

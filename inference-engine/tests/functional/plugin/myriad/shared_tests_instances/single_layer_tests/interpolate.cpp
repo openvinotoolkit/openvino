@@ -19,23 +19,23 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16,
 };
 
-std::vector<size_t> axes = {0, 1, 2, 3};
-std::vector<float> scales = {1, 1, 1, 1};
+std::vector<size_t> axes = {2, 3};
+std::vector<float> scales = {1.25f, 1.5f};
 std::vector<std::vector<size_t>> layerParams = {
     // {1, 1, 1, 1},
     // {12, 4, 3, 2},
     // {128, 128, 12, 1}
-    {1, 1, 1, 1},
-    {3, 1, 12, 4},
-    {12, 1, 128, 128}
+    {1, 1, 40, 40}
+    // {3, 1, 12, 4},
+    // {12, 1, 128, 128}
 };
 std::vector<std::vector<size_t>> layerParamsOut = {
     // {1, 1, 1, 1},
     // {24, 16, 3, 2},
     // {256, 512, 12, 1}
-    {1, 1, 1, 1},
-    {3, 1, 12, 4},
-    {12, 1, 128, 128}
+    {1, 1, 50, 60}
+    // {3, 1, 12, 4},
+    // {12, 1, 128, 128}
 };
 
 // INSTANTIATE_TEST_CASE_P(smoke_interpolate,

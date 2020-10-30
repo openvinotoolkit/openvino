@@ -112,8 +112,8 @@ std::string InterpolateLayerTest1::getTestCaseName(testing::TestParamInfo<Interp
     std::string targetDevice;
     std::tie(netPrecision, inLayout, outLayout, inputShapes, targetShapes, targetDevice) = obj.param;
     std::vector<size_t> padBegin, padEnd;
-    std::vector<int64_t> axes = {0, 1, 2, 3};
-    std::vector<float> scales = {2, 4, 1, 1};
+    std::vector<int64_t> axes = {2, 3};
+    std::vector<float> scales = {1.25f, 1.5f};
     bool antialias = false;
     ngraph::op::v4::Interpolate::InterpolateMode mode = ngraph::op::v4::Interpolate::InterpolateMode::nearest;
     ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode::scales;
@@ -146,8 +146,8 @@ void InterpolateLayerTest1::SetUp() {
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(netPrecision, inLayout, outLayout, inputShape, targetShape, targetDevice) = this->GetParam();
     std::vector<size_t> padBegin = std::vector<size_t>(1, 0), padEnd = std::vector<size_t>(1, 0);
-    std::vector<int64_t> axes = {0, 1, 2, 3};
-    std::vector<float> scales = {2, 4, 1, 1};
+    std::vector<int64_t> axes = {2, 3};
+    std::vector<float> scales = {1.25f, 1.5f};
     bool antialias = false;
     ngraph::op::v4::Interpolate::InterpolateMode mode = ngraph::op::v4::Interpolate::InterpolateMode::nearest;
     ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode::scales;
