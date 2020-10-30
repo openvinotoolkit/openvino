@@ -206,48 +206,103 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                         __attribute__((opencl_unroll_hint))
                         for (uint ixb = 0; ixb < CEIL_DIV(IN_BLOCK_WIDTH, SIMD); ++ixb) {
                             uint input_idx = input_start_idx + izb * INPUT0_Z_PITCH * FSV + iyb * INPUT0_Y_PITCH * FSV + ixb * SIMD * FSV;
-
+                            #ifdef SHOULD_USE_DATA_ZP
+                                const int y_idx = input_y + fyn * DILATION_SIZE_Y + iyb;
+                                const int z_idx = input_z + fzn * DILATION_SIZE_Z + izb;
+                            #endif
                             if (ixb != CEIL_DIV(IN_BLOCK_WIDTH, SIMD) - 1) {
+                                #ifdef SHOULD_USE_DATA_ZP
+                                    const int x_idx = input_x + ixb * SIMD + get_sub_group_local_id();
+                                    const bool input_on_padding = (((x_idx < 0) || (x_idx >= INPUT0_SIZE_X)) ||
+                                                                   ((y_idx < 0) || (y_idx >= INPUT0_SIZE_Y)) ||
+                                                                   ((z_idx < 0) || (z_idx >= INPUT0_SIZE_Z)));
+                                #endif
+
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 if (in_f_offset == 0) {
                                 #endif
-                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        if (input_on_padding) {
+                                            input_val[izb][iyb][ixb] = data_zp_val;
+                                        } else {
+                                    #endif
+                                            input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        }
+                                    #endif
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 } else {
                                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &input_val[izb][iyb][ixb];
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        INPUT0_TYPE* input_zp_int8_arr = (INPUT0_TYPE*) &data_zp_val;
+                                    #endif
                                     __attribute__((opencl_unroll_hint(FSV)))
                                     for (uint v = 0; v < FSV; v++) {
-                                        if (v + in_f_offset < FSV) {
-                                            input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v];
-                                        } else {
-                                            const uint addr = input_idx + get_sub_group_local_id() * FSV + v +
-                                                        ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
-                                                         (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
-                                                         (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
-                                            input_int8_arr[v] = conv_input[addr];
-                                        }
+                                        #ifdef SHOULD_USE_DATA_ZP
+                                            if (input_on_padding) {
+                                                input_int8_arr[v] = input_zp_int8_arr[v];
+                                            } else {
+                                        #endif
+                                                if (v + in_f_offset < FSV) {
+                                                    input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v];
+                                                } else {
+                                                    const uint addr = input_idx + get_sub_group_local_id() * FSV + v +
+                                                                ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
+                                                                    (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
+                                                                    (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
+                                                    input_int8_arr[v] = conv_input[addr];
+                                                }
+                                        #ifdef SHOULD_USE_DATA_ZP
+                                            }
+                                        #endif
                                     }
                                 }
                                 #endif
                             } else {
+                                #ifdef SHOULD_USE_DATA_ZP
+                                    const int x_idx = input_x + ixb * SIMD + tmp;
+                                    const bool input_on_padding = (((x_idx < 0) || (x_idx >= INPUT0_SIZE_X)) ||
+                                                                   ((y_idx < 0) || (y_idx >= INPUT0_SIZE_Y)) ||
+                                                                   ((z_idx < 0) || (z_idx >= INPUT0_SIZE_Z)));
+                                #endif
+
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 if (in_f_offset == 0) {
                                 #endif
-                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint*)(conv_input + input_idx + tmp * FSV));
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        if (input_on_padding) {
+                                            input_val[izb][iyb][ixb] = data_zp_val;
+                                        } else {
+                                    #endif
+                                            input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + tmp * FSV));
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        }
+                                    #endif
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 } else {
                                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &input_val[izb][iyb][ixb];
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        INPUT0_TYPE* input_zp_int8_arr = (INPUT0_TYPE*) &data_zp_val;
+                                    #endif
                                     __attribute__((opencl_unroll_hint(FSV)))
                                     for (uint v = 0; v < FSV; v++) {
-                                        if (v + in_f_offset < FSV) {
-                                            input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v];
-                                        } else {
-                                            const uint addr = input_idx + tmp * FSV + v +
-                                                        ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
-                                                         (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
-                                                         (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
-                                            input_int8_arr[v] = conv_input[addr];
-                                        }
+                                        #ifdef SHOULD_USE_DATA_ZP
+                                            if (input_on_padding) {
+                                                input_int8_arr[v] = input_zp_int8_arr[v];
+                                            } else {
+                                            #endif
+                                                if (v + in_f_offset < FSV) {
+                                                    input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v];
+                                                } else {
+                                                    const uint addr = input_idx + tmp * FSV + v +
+                                                                ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
+                                                                    (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
+                                                                    (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
+                                                    input_int8_arr[v] = conv_input[addr];
+                                                }
+                                        #ifdef SHOULD_USE_DATA_ZP
+                                            }
+                                        #endif
                                     }
                                 }
                                 #endif
@@ -307,45 +362,17 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                     IMAD(dotProdAxWZP,
                                                     inputs,
                                                     AS_FILTER_TYPE_4(weights_zp_val[ofb][ive])));
+                                                    dotProd[ofb][od][oh][ow] -= dotProdAxWZP;
                                                 #endif
 
-                                                #if defined ASYMMETRIC_DATA_QUANTIZATION || defined ASYMMETRIC_WEIGHTS_QUANTIZATION
-                                                    #ifdef NON_ZERO_INPUT0_PAD_BEFORE
-                                                        const uint idx_z = od * STRIDE_SIZE_Z + (fzn * FILTER_SIZE_Z_UNROLL + fzu) * DILATION_SIZE_Z + input_z;
-                                                        const uint idx_y = oh * STRIDE_SIZE_Y + (fyn * FILTER_SIZE_Y_UNROLL + fyu) * DILATION_SIZE_Y + input_y;
-                                                        const uint idx_x = x_block_idx + input_x;
-                                                        if (((idx_z >= 0) && (idx_z < INPUT0_SIZE_Z)) &&
-                                                            ((idx_y >= 0) && (idx_y < INPUT0_SIZE_Y)) &&
-                                                            ((idx_x >= 0) && (idx_x < INPUT0_SIZE_X))) {
-                                                    #endif
-                                                            #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
-                                                                dotProd[ofb][od][oh][ow] -= dotProdAxWZP;
-                                                            #endif
+                                                #if !defined COMPENSATION_TERM && defined ASYMMETRIC_DATA_QUANTIZATION
+                                                    dotProd[ofb][od][oh][ow] -= dotProdAZPxW;
+                                                #endif
 
-                                                            #if !defined COMPENSATION_TERM && defined ASYMMETRIC_DATA_QUANTIZATION
-                                                                dotProd[ofb][od][oh][ow] -= dotProdAZPxW;
-                                                            #endif
-
-                                                            #if (!defined COMPENSATION_TERM && \
-                                                                 defined ASYMMETRIC_DATA_QUANTIZATION && \
-                                                                 defined ASYMMETRIC_WEIGHTS_QUANTIZATION)
-                                                                dotProd[ofb][od][oh][ow] += dotProdAZPxWZP[ofb][ive];
-                                                            #endif
-                                                    #ifdef NON_ZERO_INPUT0_PAD_BEFORE
-                                                        }
-                                                        #ifdef COMPENSATION_TERM
-                                                        else
-                                                        {
-                                                            #ifdef ASYMMETRIC_DATA_QUANTIZATION
-                                                                dotProd[ofb][od][oh][ow] += dotProdAZPxW;
-                                                            #endif
-
-                                                            #if defined ASYMMETRIC_DATA_QUANTIZATION && defined ASYMMETRIC_WEIGHTS_QUANTIZATION
-                                                                dotProd[ofb][od][oh][ow] -= dotProdAZPxWZP[ofb][ive];
-                                                            #endif
-                                                        }
-                                                        #endif
-                                                    #endif
+                                                #if (!defined COMPENSATION_TERM && \
+                                                        defined ASYMMETRIC_DATA_QUANTIZATION && \
+                                                        defined ASYMMETRIC_WEIGHTS_QUANTIZATION)
+                                                    dotProd[ofb][od][oh][ow] += dotProdAZPxWZP[ofb][ive];
                                                 #endif
                                             }
                                         }
