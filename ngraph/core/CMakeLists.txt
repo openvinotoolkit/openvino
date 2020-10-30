@@ -33,13 +33,9 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
 
-if (NGRAPH_STATIC_LIBRARY)
-    # Create static library
-    add_library(ngraph STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
-else()
-    # Create shared library
-    add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
-endif()
+# Create static or shared library depending on BUILD_SHARED_LIBS
+add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ngraph
@@ -75,7 +71,7 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
         SOVERSION ${NGRAPH_API_VERSION})
 endif()
 target_compile_definitions(ngraph PUBLIC NGRAPH_VERSION="${NGRAPH_VERSION}")
-if(NGRAPH_STATIC_LIBRARY)
+if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
 endif()
 
