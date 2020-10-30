@@ -1158,36 +1158,6 @@ TEST(eval, evaluate_tanh)
     ASSERT_FLOAT_VECTORS_EQ(input, result_val);
 }
 
-TEST(eval, evaluate_not)
-{
-    auto p = make_shared<op::Parameter>(element::boolean, Shape{2, 2});
-    auto op_not = make_shared<op::Not>(p);
-    auto fun = make_shared<Function>(OutputVector{op_not}, ParameterVector{p});
-    auto result = make_shared<HostTensor>();
-
-    ASSERT_TRUE(fun->evaluate(
-        {result}, {make_host_tensor<element::Type_t::boolean>(Shape{2, 2}, {1, 0, 1, 0})}));
-    EXPECT_EQ(result->get_element_type(), element::boolean);
-    auto result_val = read_vector<char>(result);
-    vector<char> expec{0, 1, 0, 1};
-    ASSERT_EQ(result_val, expec);
-}
-
-TEST(eval, evaluate_not_i32)
-{
-    auto p = make_shared<op::Parameter>(element::i32, Shape{2, 2});
-    auto op_not = make_shared<op::Not>(p);
-    auto fun = make_shared<Function>(OutputVector{op_not}, ParameterVector{p});
-    auto result = make_shared<HostTensor>();
-
-    ASSERT_TRUE(fun->evaluate(
-        {result}, {make_host_tensor<element::Type_t::i32>(Shape{2, 2}, {100, 0, -2, 0})}));
-    EXPECT_EQ(result->get_element_type(), element::i32);
-    auto result_val = read_vector<int32_t>(result);
-    vector<int32_t> expec{0, 1, 0, 1};
-    ASSERT_EQ(result_val, expec);
-}
-
 TEST(eval, evaluate_logical_not)
 {
     auto p = make_shared<op::Parameter>(element::boolean, Shape{2, 2});
