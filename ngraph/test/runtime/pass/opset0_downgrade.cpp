@@ -301,13 +301,6 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::LessEq, op::v1::LessEqual>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalNot> node)
-    {
-        auto replacement_node = make_shared<op::v0::Not>(node->input_value(0));
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalOr> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Or, op::v1::LogicalOr>(node);
@@ -343,13 +336,6 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMax> node)
-    {
-        auto replacement_node = op_cast_reduction_node<op::v0::Max, op::v1::ReduceMax>(node);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMean> node)
     {
         // ReduceMean = Sum / Count
@@ -379,13 +365,6 @@ namespace opset0_downgrade
 
         const auto replacement_node =
             std::make_shared<op::v0::Divide>(sum_node, count_node, op::AutoBroadcastSpec::NUMPY);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMin> node)
-    {
-        auto replacement_node = op_cast_reduction_node<op::v0::Min, op::v1::ReduceMin>(node);
         replace_node(node, replacement_node);
         return replacement_node;
     }
