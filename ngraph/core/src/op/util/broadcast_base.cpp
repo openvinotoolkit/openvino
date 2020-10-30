@@ -93,7 +93,7 @@ void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& ar
         return;
     }
     const auto arg_rank_length = arg_shape.rank().get_length();
-    auto start_axis = target_shape.size() - arg_rank_length;
+    const int64_t start_axis = target_shape.size() - arg_rank_length;
     NODE_VALIDATION_CHECK(this,
                           start_axis >= 0,
                           "Broadcast target_shape has smaller rank ",
