@@ -28,7 +28,7 @@ public:
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
         visitor.on_attribute("element_type", m_element_type);
         visitor.on_attribute("shape", m_shape);
-        if (m_data == nullptr) {
+        if (!m_data) {
             m_data = std::make_shared<ngraph::runtime::AlignedBuffer>(shape_size(m_shape) * m_element_type.size(), 64);
         }
         visitor.on_attribute("value", m_data);
@@ -113,8 +113,7 @@ class CustomAddConstKernel : public InferenceEngine::ILayerExecImpl {
                 // retrieve constant data
                 const auto data_beg = static_cast<char*>(data_ptr);
                 const auto data_end = std::next(data_beg, shape_size(shape) * el_type.size());
-                std::vector<char> value;
-                std::copy(data_beg, data_end, back_inserter(value));
+                std::vector<char> value{data_beg, data_end};
 
                 auto inputData = minputHolder.as<const int32_t *>();
                 auto outputData = moutputHolder.as<int32_t  *>();

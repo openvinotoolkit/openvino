@@ -136,9 +136,7 @@ public:
         if (std::string(node->get_type_name()) != "Constant") {
             const auto data_beg = static_cast<char*>(adapter.get_ptr());
             const auto data_end = std::next(data_beg, adapter.size());
-            std::string ss_str;
-            std::copy(data_beg, data_end, back_inserter(ss_str));
-            params[name] = ss_str;
+            params[name] = std::string{data_beg, data_end};
         }
     }
 
@@ -445,20 +443,11 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         }
         res->params["kernel"] = kernel_value;
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr(); 
+        if (InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
             if (node->inputs().size() == 3) {
                 const auto biasNode = node->input_value(2).get_node_shared_ptr();
-                if (converter.canCreate(biasNode)) {
-                    const auto& bias = converter.createLayer(biasNode);
-                    res->blobs["biases"] = bias->blobs["custom"];
-                    res->_biases = bias->blobs["custom"];
-                }
+                InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
             }
         }
         return res;
