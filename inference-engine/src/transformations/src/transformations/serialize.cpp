@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <ngraph/variant.hpp>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "pugixml.hpp"
@@ -53,7 +54,7 @@ class XmlVisitor : public ngraph::AttributeVisitor {
 
 public:
     XmlVisitor(pugi::xml_node& data, std::string& node_type_name)
-        : m_data(data), m_node_type_name{node_type_name} {}
+        : m_data(data), m_node_type_name(node_type_name) {}
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
@@ -67,14 +68,11 @@ public:
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::string>& adapter) override {
-        if ((m_node_type_name == "GenericIE") && (name == "__generic_ie_type__")) {
-            // __generic_ie_type__  in GenericIE should not be serialized as a <data>
-            // since it's purpose is to hold name of the layer type
+        if ((m_node_type_name == "GenericIE") &&
+            (name == "__generic_ie_type__")) {
+            // __generic_ie_type__  in GenericIE should not be serialized as a
+            // <data> since it's purpose is to hold name of the layer type
             // it is a WA to not introduce dependency on plugin_api library
-            m_node_type_name = adapter.get();
-        } else if ((m_node_type_name == "ExecutionNode") && (name == "layerType")) {
-            // layerType in ExecutionNode should not be serialized in <data>
-            // since it's purpose is to hold name of the layer type
             m_node_type_name = adapter.get();
         } else {
             m_data.append_attribute(name.c_str())
@@ -114,6 +112,25 @@ public:
             .set_value(create_atribute_list(adapter).c_str());
     }
 };
+
+void visit_exec_graph_node(pugi::xml_node& data, std::string& node_type_name,
+                           const ngraph::Node* n) {
+    using VariantString = ngraph::VariantImpl<std::string>;
+
+    for (const auto& param : n->get_rt_info()) {
+        if (auto variant =
+                std::dynamic_pointer_cast<VariantString>(param.second)) {
+            std::string name = param.first;
+            std::string value = variant->get();
+
+            if (name == "layerType") {
+                node_type_name = value;
+            } else {
+                data.append_attribute(name.c_str()).set_value(value.c_str());
+            }
+        }
+    }
+}
 
 const std::unordered_map<ngraph::Node*, int> create_layer_ids(
     const ngraph::Function& f) {
@@ -272,10 +289,25 @@ std::string get_node_unique_name(std::unordered_set<std::string>& unique_names,
     return name;
 }
 
+bool is_exec_graph(const ngraph::Function& f) {
+    bool execGraphInfoSerialization = true;
+
+    // go over all operations and check whether performance stat is set
+    for (const auto& op : f.get_ops()) {
+        auto& rtInfo = op->get_rt_info();
+        if (rtInfo.find("execTimeMcs") != rtInfo.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void ngfunction_2_irv10(
     pugi::xml_document& doc, std::vector<uint8_t>& bin,
     const ngraph::Function& f,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
+    bool exec_graph = is_exec_graph(f);
+
     pugi::xml_node netXml = doc.append_child("net");
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     netXml.append_attribute("version").set_value("10");
@@ -295,18 +327,22 @@ void ngfunction_2_irv10(
         layer.append_attribute("name").set_value(
             get_node_unique_name(unique_names, node).c_str());
         auto layer_type_attribute = layer.append_attribute("type");
-        layer.append_attribute("version").set_value(
-            get_opset_name(node, custom_opsets).c_str());
-
+        if (!exec_graph) {
+            layer.append_attribute("version").set_value(
+                get_opset_name(node, custom_opsets).c_str());
+        }
         // <layers/data>
         pugi::xml_node data = layer.append_child("data");
 
         // <layers/data> general atributes
         std::string node_type_name{node->get_type_name()};
-        XmlVisitor visitor(data, node_type_name);
-        NGRAPH_CHECK(node->visit_attributes(visitor),
-                     "Visitor API is not supported in ", node);
-
+        if (exec_graph) {
+            visit_exec_graph_node(data, node_type_name, node);
+        } else {
+            XmlVisitor visitor(data, node_type_name);
+            NGRAPH_CHECK(node->visit_attributes(visitor),
+                         "Visitor API is not supported in ", node);
+        }
         layer_type_attribute.set_value(
             translate_type_name(node_type_name).c_str());
 
