@@ -53,7 +53,8 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
+CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph,
+                       const std::vector<IExtensionPtr>& exts) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetwork::CNNNetwork");
 
     if (graph == nullptr) {
@@ -61,7 +62,7 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
     }
 
     // Create CNNNetworkNGraphImpl
-    network = std::make_shared<CNNNetworkNGraphImpl>(graph);
+    network = std::make_shared<CNNNetworkNGraphImpl>(graph, exts);
     actual = network.get();
     if (actual == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
@@ -111,8 +112,10 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph)
-    : _ngraph_function(nGraph) {
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
+    const std::shared_ptr<Function>& nGraph,
+    const std::vector<IExtensionPtr>& exts)
+    : _ngraph_function(nGraph), _ie_extensions(exts) {
     // Restore usual attributes for ICNNNetwork
     auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
@@ -402,8 +405,15 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            ResponseDesc* resp) const noexcept {
     try {
         if (getFunction()) {
+            std::map<std::string, ngraph::OpSet> custom_opsets;
+            for (auto extension : _ie_extensions) {
+                auto opset = extension->getOpSets();
+                custom_opsets.insert(begin(opset), end(opset));
+            }
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::Serialize>(xmlPath, binPath);
+            manager.register_pass<ngraph::pass::Serialize>(
+                xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
+                custom_opsets);
             manager.run_passes(_ngraph_function);
         } else {
 #ifdef ENABLE_V7_SERIALIZE
