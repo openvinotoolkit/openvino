@@ -27,6 +27,7 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
+#include "ie_extension.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -36,7 +37,8 @@ namespace details {
  */
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl): public ICNNNetwork {
 public:
-    CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph);
+    CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
+                         const std::vector<IExtensionPtr>& exts = {});
     CNNNetworkNGraphImpl(const ICNNNetwork& nGraph);
     ~CNNNetworkNGraphImpl() override = default;
 
@@ -88,6 +90,7 @@ protected:
 private:
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
+    const std::vector<IExtensionPtr> _ie_extensions;
 
     /**
      * @brief Create DataPtr for nGraph operation
