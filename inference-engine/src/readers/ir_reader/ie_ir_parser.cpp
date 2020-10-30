@@ -435,7 +435,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
         std::make_shared<LayerCreator<ngraph::op::ROIPooling>>("ROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Softmax>>("Softmax"),
         std::make_shared<LayerCreator<ngraph::op::v1::Split>>("Split"),
         std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit"),
         std::make_shared<LayerCreator<ngraph::op::Tanh>>("TanH"),
@@ -1239,20 +1238,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::MatMul>::creat
     auto transpose_b = GetBoolAttr(dn, "transpose_b", false);
 
     return std::make_shared<ngraph::op::MatMul>(inputs[0], inputs[1], transpose_a, transpose_b);
-}
-
-// Softmax layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Softmax>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::Softmax>(inputs[0], GetUIntAttr(dn, "axis"));
 }
 
 // RegionYolo layer
