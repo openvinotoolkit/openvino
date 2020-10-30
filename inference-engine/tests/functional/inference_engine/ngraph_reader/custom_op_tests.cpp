@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <ie_core.hpp>
+#include <string>
 #include <ngraph/ngraph.hpp>
-#include <common_test_utils/test_assertions.hpp>
+#include "ngraph_reader_tests.hpp"
 
 class CustomAddConst : public ngraph::op::Op {
 public:
@@ -195,7 +194,7 @@ void infermodel(InferenceEngine::Core& ie, const std::string& model, const std::
     ASSERT_EQ(expected, computed_values);
 }
 
-TEST(NGraphReaderTests, ReadXmlModelWithCustomAddConstOp) {
+TEST_F(NGraphReaderTests, ReadXmlModelWithCustomAddConstOp) {
     std::string model = R"V0G0N(
   <net name="Network" version="10">
     <layers>
