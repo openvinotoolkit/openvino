@@ -27,6 +27,14 @@ using BroadcastTestParams = std::tuple<
 class NonZero_BroadcastBidirectional : public testing::WithParamInterface<BroadcastTestParams>,
                                        virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
+    size_t getDynamicAxis(const DataShape& shapeA, const DataShape& shapeB) const {
+        size_t res = 0;
+        while (shapeA[res] == shapeB[res]) {
+            res++;
+        }
+        return res;
+    }
+
     void prepareBroadcastInputs() {
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
 
@@ -38,11 +46,9 @@ protected:
         const auto& upperBoundShape = broadcastParams.targetShape.upperBoundShape;
         const auto& realShape = broadcastParams.targetShape.shape;
 
-        while (upperBoundShape[m_dynamicAxis] == realShape[m_dynamicAxis]) {
-            m_dynamicAxis++;
-        }
+        const auto dynamicAxis = getDynamicAxis(upperBoundShape, realShape);
 
-        m_param = std::make_shared<ngraph::opset5::Parameter>(tensorType, TensorShape{upperBoundShape[m_dynamicAxis]});
+        m_param = std::make_shared<ngraph::opset5::Parameter>(tensorType, TensorShape{upperBoundShape[dynamicAxis]});
         m_nonZero = std::make_shared<ngraph::opset5::NonZero>(m_param);
         const auto shapeOfNonZero = std::make_shared<ngraph::opset5::ShapeOf>(m_nonZero);
         const auto numNonZeros = std::make_shared<ngraph::opset5::Gather>(
@@ -52,25 +58,25 @@ protected:
 
         m_broadcastTargetShape = numNonZeros;
 
-        if (m_dynamicAxis > 0) {
+        if (dynamicAxis > 0) {
             m_broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
                 ngraph::NodeVector{
                     ngraph::opset5::Constant::create(
                         ngraph::element::i64,
-                        ngraph::Shape{m_dynamicAxis},
-                        std::vector<size_t>{upperBoundShape.begin(), upperBoundShape.begin() + m_dynamicAxis}),
+                        ngraph::Shape{dynamicAxis},
+                        std::vector<size_t>{upperBoundShape.begin(), upperBoundShape.begin() + dynamicAxis}),
                     m_broadcastTargetShape},
                 0);
         }
 
-        if (m_dynamicAxis < upperBoundShape.size() - 1) {
+        if (dynamicAxis < upperBoundShape.size() - 1) {
             m_broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
                 ngraph::NodeVector{
                     m_broadcastTargetShape,
                     ngraph::opset5::Constant::create(
                         ngraph::element::i64,
-                        ngraph::Shape{upperBoundShape.size() - m_dynamicAxis - 1},
-                        std::vector<size_t>{upperBoundShape.begin() + m_dynamicAxis + 1, upperBoundShape.end()})},
+                        ngraph::Shape{upperBoundShape.size() - dynamicAxis - 1},
+                        std::vector<size_t>{upperBoundShape.begin() + dynamicAxis + 1, upperBoundShape.end()})},
                 0);
         }
 
@@ -91,7 +97,9 @@ protected:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         // We emulate dynamic shape through the number of non-zeros in NonZero input tensor
         const auto& broadcastParams = std::get<0>(GetParam());
-        const auto numNonZeros = broadcastParams.targetShape.shape[m_dynamicAxis];
+        const auto numNonZeros = broadcastParams.targetShape.shape[getDynamicAxis(
+            broadcastParams.targetShape.upperBoundShape,
+            broadcastParams.targetShape.shape)];
 
         auto tensorDesc = info.getTensorDesc();
         auto blob = make_blob_with_precision(tensorDesc);
@@ -108,7 +116,6 @@ protected:
     }
 
 protected:
-    size_t m_dynamicAxis = 0;
     std::shared_ptr<ngraph::Node> m_broadcastInput;
     std::shared_ptr<ngraph::Node> m_broadcastTargetShape;
     std::shared_ptr<ngraph::opset5::NonZero> m_nonZero;
