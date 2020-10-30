@@ -15,8 +15,7 @@
 */
 #include <initializer_list>
 
-#include <../api/CPP/cldnn_defs.h>
-#include <../api/CPP/memory.hpp>
+#include <../api/memory.hpp>
 
 
 

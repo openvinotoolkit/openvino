@@ -14,14 +14,13 @@
 // limitations under the License.
 */
 
-#include <../api/CPP/cldnn_defs.h>
-#include <../api/CPP/engine.hpp>
-#include <../api/CPP/input_layout.hpp>
-#include <../api/CPP/memory.hpp>
-#include <../api/CPP/data.hpp>
-#include <../api/CPP/topology.hpp>
-#include <../api/CPP/network.hpp>
-#include <../api/CPP/custom_gpu_primitive.hpp>
+#include <../api/engine.hpp>
+#include <../api/input_layout.hpp>
+#include <../api/memory.hpp>
+#include <../api/data.hpp>
+#include <../api/topology.hpp>
+#include <../api/network.hpp>
+#include <../api/custom_gpu_primitive.hpp>
 #include <iostream>
 #include <iomanip>
 #include <chrono>
@@ -72,7 +71,7 @@ void chapter_7(engine& my_engine)
     std::string entry_point = "add_kernel";
     
     // Parameter binding for the custom primitive
-    std::vector<cldnn_arg> parameters = { { arg_input, 0 }, { arg_input, 1 }, { arg_output, 0 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 }, { custom_gpu_primitive::arg_input, 1 }, { custom_gpu_primitive::arg_output, 0 } };
     
     // Output layout for the custom primitive
     layout output_layout = my_layout;
