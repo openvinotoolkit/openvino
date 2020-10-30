@@ -14,7 +14,7 @@ DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
          def job_newest = job.builds.first()
          for (build in job.builds.reverse()[0..<-1]) {
              if (build.isBuilding()){
-                 echo "Kill task = ${build} because newest #${job_newest} is on the way"
+                 echo "Stop task = ${build} because newest #${job_newest} is on the way"
                  build.doStop();
                  continue;
              }
