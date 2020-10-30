@@ -4,7 +4,7 @@ graph {
   name: "basic loop"
   node {
     input: "trip_count"
-    input: ""
+    input: "cond_in"
     input: "a_init"
     output: "a_final"
     output: "a_values"
@@ -12,7 +12,6 @@ graph {
     attribute {
       name: "body"
       g {
-        name: "simple add"
         node {
           input: "a_in"
           input: "b"
@@ -21,10 +20,11 @@ graph {
           op_type: "Add"
         }
         node {
-          input: "cond"
+          input: "i"
+          input: "threshold"
           output: "cond_out"
-          name: "cond_identity"
-          op_type: "Identity"
+          name: "condition_calc"
+          op_type: "Less"
         }
         node {
           input: "current_a"
@@ -32,16 +32,20 @@ graph {
           name: "output_accumulator"
           op_type: "Identity"
         }
+        name: "simple add"
+        initializer {
+          dims: 1
+          dims: 2
+          data_type: 1
+          float_data: 1
+          float_data: 1
+          name: "b"
+        }
         input {
           name: "i"
           type {
             tensor_type {
               elem_type: 7
-              shape {
-                dim {
-                  dim_value: 1
-                }
-              }
             }
           }
         }
@@ -50,8 +54,6 @@ graph {
           type {
             tensor_type {
               elem_type: 9
-              shape {
-              }
             }
           }
         }
@@ -60,14 +62,6 @@ graph {
           type {
             tensor_type {
               elem_type: 1
-              shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
-              }
             }
           }
         }
@@ -76,8 +70,6 @@ graph {
           type {
             tensor_type {
               elem_type: 9
-              shape {
-              }
             }
           }
         }
@@ -86,14 +78,6 @@ graph {
           type {
             tensor_type {
               elem_type: 1
-              shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
-              }
             }
           }
         }
@@ -102,14 +86,6 @@ graph {
           type {
             tensor_type {
               elem_type: 1
-              shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
-              }
             }
           }
         }
@@ -120,16 +96,20 @@ graph {
   initializer {
     dims: 1
     data_type: 7
-    int64_data: 3
+    int64_data: 10
     name: "trip_count"
   }
   initializer {
-  dims: 1
-  dims: 2
-  data_type: 1
-  float_data: 1
-  float_data: 1
-  name: "b"
+    dims: 1
+    data_type: 7
+    int64_data: 3
+    name: "threshold"
+  }
+  initializer {
+    dims: 1
+    data_type: 9
+    int32_data: 00000001
+    name: "cond_in"
   }
   input {
     name: "a_init"
@@ -152,14 +132,6 @@ graph {
     type {
       tensor_type {
         elem_type: 1
-        shape {
-          dim {
-            dim_value: 1
-          }
-          dim {
-            dim_value: 2
-          }
-        }
       }
     }
   }
@@ -168,14 +140,6 @@ graph {
     type {
       tensor_type {
         elem_type: 1
-        shape {
-          dim {
-            dim_value: 3
-          }
-          dim {
-            dim_value: 2
-          }
-        }
       }
     }
   }
