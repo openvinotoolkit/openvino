@@ -41,6 +41,11 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
+if(COMMAND ie_add_vs_version_file)
+    ie_add_vs_version_file(NAME onnx_importer
+                           FILEDESCRIPTION "nGraph ONNX importer library")
+endif()
+
 if(COMMAND ie_faster_build)
     ie_faster_build(onnx_importer
         UNITY

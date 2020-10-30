@@ -246,4 +246,4 @@ function(set_ci_build_number)
 endfunction()
 set_ci_build_number()
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+include(vs_version/vs_version)
