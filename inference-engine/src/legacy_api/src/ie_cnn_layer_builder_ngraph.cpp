@@ -462,14 +462,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Tanh>::createLayer(const std::shared_ptr
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Relu>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReLU",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReLULayer>(params);
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::SeluIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Selu",
                           details::convertPrecision(layer->get_output_element_type(0))};

@@ -427,7 +427,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::NonMaxSuppression>>("NonMaxSuppression"),
         std::make_shared<LayerCreator<ngraph::op::NormalizeL2>>("NormalizeL2"),
         std::make_shared<LayerCreator<ngraph::op::v1::OneHot>>("OneHot"),
-        std::make_shared<LayerCreator<ngraph::op::Relu>>("ReLU"),
         std::make_shared<LayerCreator<ngraph::op::v1::Pad>>("Pad"),
         std::make_shared<LayerCreator<ngraph::op::ReverseSequence>>("ReverseSequence"),
         std::make_shared<LayerCreator<ngraph::op::PriorBoxClustered>>("PriorBoxClustered"),
@@ -1112,15 +1111,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::Selu>::cre
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 3);
     return std::make_shared<ngraph::op::v0::Selu>(inputs[0], inputs[1], inputs[2]);
-}
-
-// ReLU layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Relu>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    return std::make_shared<ngraph::op::Relu>(inputs[0]);
 }
 
 // Tanh layer
