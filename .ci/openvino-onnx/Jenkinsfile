@@ -6,22 +6,21 @@ DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 
 // workaround for aborting previous builds on PR update
 @NonCPS
- def killPreviousRunningBuilds() {
+ def stopPreviousRunningBuilds() {
      def jobname = env.JOB_NAME
-     def buildnum = env.BUILD_NUMBER.toInteger()
-     echo buildnum.toString()
-     def job = Jenkins.instance.getItemByFullName(jobname)
-     echo job.toString()
-     echo job.builds.toString()
-     def job_newest = job.builds.first()
-     for (build in job.builds.reverse()[0..<-1]) {
-         if (build.isBuilding()){
-             echo build.getNumber().toInteger().toString()
-             echo "Kill task = ${build} because newest #${job_newest} is on the way"
-             // build.doStop();
-             continue;
+     if (jobname.startsWith("onnx/openvino_ci/PR")){
+         def buildnum = env.BUILD_NUMBER.toInteger()
+         def job = Jenkins.instance.getItemByFullName(jobname)
+         def job_newest = job.builds.first()
+         for (build in job.builds.reverse()[0..<-1]) {
+             if (build.isBuilding()){
+                 echo "Kill task = ${build} because newest #${job_newest} is on the way"
+                 build.doStop();
+                 continue;
+             }
          }
      }
+
  }
 
 def getGitPrInfo(String project) {
