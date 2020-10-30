@@ -79,7 +79,6 @@
 #include "ngraph/runtime/reference/region_yolo.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
-#include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
 #include "ngraph/runtime/reference/result.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
@@ -1244,19 +1243,6 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::relu<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
-            break;
-        }
-        case OP_TYPEID::ReplaceSlice:
-        {
-            const op::ReplaceSlice* slice = static_cast<const op::ReplaceSlice*>(&node);
-            reference::replace_slice<T>(args[0]->get_data_ptr<const T>(),
-                                        args[1]->get_data_ptr<const T>(),
-                                        out[0]->get_data_ptr<T>(),
-                                        node.get_input_shape(1),
-                                        slice->get_lower_bounds(),
-                                        slice->get_upper_bounds(),
-                                        slice->get_strides(),
-                                        node.get_output_shape(0));
             break;
         }
         case OP_TYPEID::Reverse:

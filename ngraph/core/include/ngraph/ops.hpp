@@ -126,7 +126,6 @@
 #include "ngraph/op/region_yolo.hpp"
 #include "ngraph/op/relu.hpp"
 #include "ngraph/op/reorg_yolo.hpp"
-#include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/reverse.hpp"
