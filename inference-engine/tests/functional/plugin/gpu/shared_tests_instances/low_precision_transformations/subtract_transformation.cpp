@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/multiply_transformation.hpp"
+#include "low_precision_transformations/subtract_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -19,11 +19,11 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParams()
 };
 
-//INSTANTIATE_TEST_CASE_P(LPT, MultiplyTransformation,
-//    ::testing::Combine(
-//        ::testing::ValuesIn(netPrecisions),
-//        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
-//        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-//        ::testing::ValuesIn(trasformationParamValues)),
-//    MultiplyTransformation::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_LPT, SubtractTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::ValuesIn(trasformationParamValues)),
+    SubtractTransformation::getTestCaseName);
 }  // namespace
