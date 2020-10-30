@@ -303,7 +303,7 @@ void ngfunction_2_irv10(
 
         // <layers/data> general atributes
         std::string node_type_name{node->get_type_name()};
-        XmlVisitor visitor{data, node_type_name};
+        XmlVisitor visitor(data, node_type_name);
         NGRAPH_CHECK(node->visit_attributes(visitor),
                      "Visitor API is not supported in ", node);
 

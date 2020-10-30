@@ -199,17 +199,3 @@ TEST_F(SerializationTest, ExperimentalDetectronDetectionOutput_MO) {
 
     ASSERT_TRUE(success) << message;
 }
-
-// TODO: compare serialized model with expected reference
-TEST_F(SerializationTest, DISABLED_ExecutionGraph) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "addmul_abc.xml";
-
-    InferenceEngine::Core ie;
-    auto cnnNet = ie.ReadNetwork(model);
-    auto execNet = ie.LoadNetwork(cnnNet, "CPU");
-    auto execGraph = execNet.GetExecGraphInfo();
-    InferenceEngine::InferRequest req = execNet.CreateInferRequest();
-    execGraph.serialize(m_out_xml_path, m_out_bin_path);
-
-    // ASSERT (m_out_xml_path == addmul_abc_execution.xml)
-}
