@@ -404,26 +404,16 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        if (getFunction()) {
-            std::map<std::string, ngraph::OpSet> custom_opsets;
-            for (auto extension : _ie_extensions) {
-                auto opset = extension->getOpSets();
-                custom_opsets.insert(begin(opset), end(opset));
-            }
-            ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::Serialize>(
-                xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
-                custom_opsets);
-            manager.run_passes(_ngraph_function);
-        } else {
-#ifdef ENABLE_V7_SERIALIZE
-            auto network = std::make_shared<details::CNNNetworkImpl>(*this);
-            return network->serialize(xmlPath, binPath, resp);
-#else
-            return DescriptionBuffer(NOT_IMPLEMENTED, resp)
-                   << "The serialization of legacy IR is not implemented";
-#endif
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+        for (auto extension : _ie_extensions) {
+            auto opset = extension->getOpSets();
+            custom_opsets.insert(begin(opset), end(opset));
         }
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::Serialize>(
+            xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
+            custom_opsets);
+        manager.run_passes(_ngraph_function);
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {

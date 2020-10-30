@@ -19,11 +19,9 @@ endif()
 
 if(DEFINED IE_MAIN_SOURCE_DIR)
     set(InferenceEngine_LIBRARIES inference_engine)
-    list(APPEND InferenceEngine_LIBRARIES inference_engine_legacy)  # TODO: remove in PR #2755
 else()
     find_package(InferenceEngineDeveloperPackage REQUIRED)
     set(InferenceEngine_LIBRARIES IE::inference_engine)
-    list(APPEND InferenceEngine_LIBRARIES IE::inference_engine_legacy) # TODO: remove in PR #2755
 endif()
 
 if(UNIX)
