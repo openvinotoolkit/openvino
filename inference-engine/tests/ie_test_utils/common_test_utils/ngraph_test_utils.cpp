@@ -47,22 +47,22 @@ bool compare_rt_keys(const std::shared_ptr<ngraph::Node>& node1, const std::shar
     const auto& first_node_rt_info = node1->get_rt_info();
     const auto& second_node_rt_info = node2->get_rt_info();
 
-    // TODO: should be uncommented
-    // if (first_node_rt_info.size() != second_node_rt_info.size()) {
-    //    return false;
-    // }
+    if (first_node_rt_info.empty() && second_node_rt_info.empty()) {
+        return true;
+    }
 
-    for (auto first_it = first_node_rt_info.begin(); first_it != first_node_rt_info.end(); ++first_it) {
-        bool was_found = false;
-        for (auto secont_it = second_node_rt_info.begin(); secont_it != second_node_rt_info.end(); ++secont_it) {
-            if (first_it->first == secont_it->first) {
-                was_found = true;
-                break;
-            }
-        }
-        if (!was_found) {
+    if (first_node_rt_info.size() != second_node_rt_info.size()) {
+        return false;
+    }
+
+    auto first_node_rt_info_it = first_node_rt_info.begin();
+    auto second_node_rt_info_it = second_node_rt_info.begin();
+    while (first_node_rt_info_it != first_node_rt_info.end()) {
+        if (first_node_rt_info_it->first != second_node_rt_info_it->first) {
             return false;
         }
+        ++first_node_rt_info_it;
+        ++second_node_rt_info_it;
     }
 
     return true;

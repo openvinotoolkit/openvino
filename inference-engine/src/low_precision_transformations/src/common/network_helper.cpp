@@ -632,8 +632,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             fq->get_levels(),
             fq->get_auto_broadcast()),
         true);
-    // TODO: for debuging only - remove later
-    newFQ->set_friendly_name(fq->get_friendly_name() + "_original");
+    newFQ->set_friendly_name(fq->get_friendly_name());
 
     std::shared_ptr<ngraph::Node> convert2;
     if (updatePrecision) {
@@ -1037,6 +1036,12 @@ std::shared_ptr<Node> NetworkHelper::toScalarIfPossible(std::shared_ptr<Node> no
     return NetworkHelper::toScalar(constant);
 }
 
+std::shared_ptr<Node> NetworkHelper::markAsDequantizationOp(std::shared_ptr<Node> op) {
+    auto opCopy = op->clone_with_new_inputs(op->input_values());
+    auto& rtInfo = opCopy->get_rt_info();
+    rtInfo["DEQUANTIZATION"] = std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr());
+    return opCopy;
+}
 
 }  // namespace low_precision
 }  // namespace pass
