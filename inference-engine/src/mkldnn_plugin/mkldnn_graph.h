@@ -30,7 +30,7 @@ public:
         Ready = 1,
     };
 
-    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)) {}
+    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)), cancelation_requested(false) {}
 
     Status GetStatus() {
         return status;
