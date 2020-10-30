@@ -57,11 +57,6 @@ if(ENABLE_SSE42)
     add_definitions(-DHAVE_SSE=1)
 endif()
 
-if(ENABLE_V7_SERIALIZE)
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp"
-        PROPERTIES COMPILE_DEFINITIONS ENABLE_V7_SERIALIZE)
-endif()
-
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
 
 set (PUBLIC_HEADERS_DIR "${IE_MAIN_SOURCE_DIR}/include")
@@ -131,7 +126,11 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 add_library(${TARGET_NAME} SHARED
             ${IE_STATIC_DEPENDENT_FILES}
+            ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Core Runtime library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
