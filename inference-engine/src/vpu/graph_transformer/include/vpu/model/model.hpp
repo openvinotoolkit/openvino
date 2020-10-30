@@ -322,6 +322,9 @@ public:
         return _orderedStageList | asRange();
     }
 
+    bool isDynamic() const;
+    bool isStatic() const;
+
     //
     // Allocator
     //

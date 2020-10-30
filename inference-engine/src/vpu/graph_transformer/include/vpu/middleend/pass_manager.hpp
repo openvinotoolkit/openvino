@@ -148,7 +148,8 @@ public:
     //
 
     Pass::Ptr mergeReLUAndBias();
-    Pass::Ptr mergeEltwiseAndReLU();
+    Pass::Ptr mergeEltwiseAndReLUDynamic();
+    Pass::Ptr mergeEltwiseAndReLUStatic();
     Pass::Ptr replaceWithSCReLU();
     Pass::Ptr replaceWithReduceMean();
 
