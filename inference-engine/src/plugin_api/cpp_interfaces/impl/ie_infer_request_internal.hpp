@@ -63,6 +63,9 @@ public:
         InferImpl();
     }
 
+    /**
+     * @brief Default common implementation for all plugins
+     */
     StatusCode Cancel() override {
         return InferenceEngine::NOT_IMPLEMENTED;
     }
