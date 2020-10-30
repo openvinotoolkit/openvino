@@ -25,9 +25,11 @@ using BroadcastTestParams = std::tuple<
 
 
 class NonZero_BroadcastBidirectional : public testing::WithParamInterface<BroadcastTestParams>,
-                                       public DSR_TestsCommon {
+                                       virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void prepareBroadcastInputs() {
+        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
+
         const auto& parameters = GetParam();
         const auto& broadcastParams = std::get<0>(parameters);
         const auto& tensorType = std::get<1>(parameters);
@@ -40,46 +42,50 @@ protected:
             m_dynamicAxis++;
         }
 
-        const auto tensorParam = createParameter(tensorType, TensorShape{upperBoundShape[m_dynamicAxis]});
-        const auto nonZero = std::make_shared<ngraph::opset5::NonZero>(tensorParam);
-        const auto shapeOfNonZero = std::make_shared<ngraph::opset5::ShapeOf>(nonZero);
-        const auto numNonZeros = std::make_shared<ngraph::opset5::Gather>(shapeOfNonZero,
-                                                                          ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}),
-                                                                          ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+        m_param = std::make_shared<ngraph::opset5::Parameter>(tensorType, TensorShape{upperBoundShape[m_dynamicAxis]});
+        m_nonZero = std::make_shared<ngraph::opset5::NonZero>(m_param);
+        const auto shapeOfNonZero = std::make_shared<ngraph::opset5::ShapeOf>(m_nonZero);
+        const auto numNonZeros = std::make_shared<ngraph::opset5::Gather>(
+            shapeOfNonZero,
+            ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}),
+            ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
 
         m_broadcastTargetShape = numNonZeros;
 
         if (m_dynamicAxis > 0) {
             m_broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
-                    ngraph::NodeVector{ngraph::opset5::Constant::create(
-                            ngraph::element::i64,
-                            ngraph::Shape{m_dynamicAxis},
-                            std::vector<size_t>{upperBoundShape.begin(), upperBoundShape.begin() + m_dynamicAxis}),
-                                       m_broadcastTargetShape},
-                    0);
+                ngraph::NodeVector{
+                    ngraph::opset5::Constant::create(
+                        ngraph::element::i64,
+                        ngraph::Shape{m_dynamicAxis},
+                        std::vector<size_t>{upperBoundShape.begin(), upperBoundShape.begin() + m_dynamicAxis}),
+                    m_broadcastTargetShape},
+                0);
         }
 
         if (m_dynamicAxis < upperBoundShape.size() - 1) {
             m_broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
-                    ngraph::NodeVector{m_broadcastTargetShape,
-                                       ngraph::opset5::Constant::create(
-                                               ngraph::element::i64,
-                                               ngraph::Shape{upperBoundShape.size() - m_dynamicAxis - 1},
-                                               std::vector<size_t>{upperBoundShape.begin() + m_dynamicAxis + 1, upperBoundShape.end()})},
-                    0);
+                ngraph::NodeVector{
+                    m_broadcastTargetShape,
+                    ngraph::opset5::Constant::create(
+                        ngraph::element::i64,
+                        ngraph::Shape{upperBoundShape.size() - m_dynamicAxis - 1},
+                        std::vector<size_t>{upperBoundShape.begin() + m_dynamicAxis + 1, upperBoundShape.end()})},
+                0);
         }
 
         m_broadcastInput = ngraph::builder::makeConstant(tensorType, ngraph::Shape{broadcastParams.inputShape}, std::vector<int64_t>{}, true);
-        m_additionalResults.push_back(std::make_shared<ngraph::opset5::Result>(nonZero->output(0)));
     }
 
-    std::shared_ptr<ngraph::Node> createTestedOp() override {
+    void SetUp() override {
         prepareBroadcastInputs();
 
-        const auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(
-                m_broadcastInput, m_broadcastTargetShape, ngraph::op::BroadcastType::BIDIRECTIONAL);
+        const auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(m_broadcastInput, m_broadcastTargetShape, ngraph::op::BroadcastType::BIDIRECTIONAL);
 
-        return broadcast;
+        function = std::make_shared<ngraph::Function>(
+            ngraph::NodeVector{broadcast, m_nonZero},
+            ngraph::ParameterVector{m_param},
+            "NonZero-Broadcast");
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
@@ -105,6 +111,8 @@ protected:
     size_t m_dynamicAxis = 0;
     std::shared_ptr<ngraph::Node> m_broadcastInput;
     std::shared_ptr<ngraph::Node> m_broadcastTargetShape;
+    std::shared_ptr<ngraph::opset5::NonZero> m_nonZero;
+    std::shared_ptr<ngraph::opset5::Parameter> m_param;
 };
 
 TEST_P(NonZero_BroadcastBidirectional, CompareWithReference) {
@@ -131,16 +139,18 @@ using BroadcastExplicitTestParams = std::tuple<
 
 class NonZero_BroadcastExplicit : public NonZero_BroadcastBidirectional {
 protected:
-    std::shared_ptr<ngraph::Node> createTestedOp() override {
+    void SetUp() override {
         prepareBroadcastInputs();
-        const auto& axesMapping = std::get<0>(GetParam()).axesMapping;
 
+        const auto& axesMapping = std::get<0>(GetParam()).axesMapping;
         const auto axesMappingConst = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{axesMapping.size()}, axesMapping);
 
-        const auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(
-                m_broadcastInput, m_broadcastTargetShape, axesMappingConst);
+        const auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(m_broadcastInput, m_broadcastTargetShape, axesMappingConst);
 
-        return broadcast;
+        function = std::make_shared<ngraph::Function>(
+            ngraph::NodeVector{broadcast, m_nonZero},
+            ngraph::ParameterVector{m_param},
+            "NonZero-Broadcast");
     }
 };
 
