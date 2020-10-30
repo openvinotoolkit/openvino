@@ -156,8 +156,6 @@ void QuantizeVector16(float *ptr_float_memory, int16_t *ptr_int_memory, uint32_t
 
 template<>
 void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const {
-    // TODO: possible remove this zero point
-    const float zeroPoint = MAX_VAL_1B_WEIGHT;
     uint32_t num_saturate = 0;
 
     if (fq_ptr_output_high == nullptr || fq_ptr_output_low == nullptr) {
@@ -168,25 +166,58 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
     }
 
     for (uint32_t i = 0; i < num_rows; i++) {
+        uint32_t channel_multiplier = ((fq_ptr_output_high[i] - fq_ptr_output_low[i]) *
+            *ptr_weight_scale_factor) / (fq_levels - 1) + 0.5f;
+        ptr_int_biases[i].multiplier = static_cast<uint8_t> (channel_multiplier);
+        if (channel_multiplier > MAX_OUT_MULTIPLIER) {
+            THROW_GNA_EXCEPTION << "invalid channel multiplier: " << channel_multiplier;
+        }
+
+        auto row_max = 0.0f;
+        for (uint32_t col = 0; col < num_columns; col++) {
+            auto value = fabs(ptr_float_weights[i * num_columns + col]);
+            if (value > row_max) {
+                row_max = value;
+            }
+        }
+
+        //gnawarn() << "row max bigger than calculated by tool: " << row_max << ", " << fq_ptr_output_high[i] << "\n";
+
         for (uint32_t j = 0; j < num_columns; j++) {
             auto offset = i * num_columns + j;
-            auto normalizedWeight = ptr_float_weights[offset] - zeroPoint;
-            // range checking
+            auto rounding_value = (ptr_float_weights[i * num_columns + j] > 0) ? 0.5f : -0.5f;   
+            float value = ptr_float_weights[offset] * (*ptr_weight_scale_factor / ptr_int_biases[i].multiplier) + rounding_value;
+            auto normalizedWeight = static_cast<int32_t>(value);
             if (normalizedWeight > MAX_VAL_1B_WEIGHT || normalizedWeight < -MAX_VAL_1B_WEIGHT) {
-                THROW_GNA_EXCEPTION << "unsupported weights range for I8 quantisation: " << ptr_float_weights[offset];
+                // gnawarn() << "unsupported weights range for I8 quantisation: " << normalizedWeight << ", channel mul:" << (int32_t)ptr_int_biases[i].multiplier  << "\n";
             }
+
+            if (value > 127.0) {
+                normalizedWeight = 127;
+                num_saturate++;
+            }
+            else if (value < -128.0) {
+                normalizedWeight = -128;
+                num_saturate++;
+            }
+            else {
+                normalizedWeight = (int8_t)value;
+            }
+
+            // range checking
             ptr_int_weights[offset] = static_cast<int8_t>(normalizedWeight);
         }
-        if (fq_ptr_output_high == nullptr || fq_ptr_output_low == nullptr) {
-            THROW_GNA_EXCEPTION << "Fake quantized output range not set";
-        }
-        if (fq_levels == 0 || fq_levels == 1) {
-            THROW_GNA_EXCEPTION << "Fake quantized levels not set";
-        }
-        auto channel_scale = (fq_levels - 1) / (fq_ptr_output_high[i] - fq_ptr_output_low[i]);
-        auto channel_scale_multiplier = *ptr_weight_scale_factor / channel_scale;
 
-        ptr_int_biases[i].multiplier = static_cast<uint8_t> (channel_scale_multiplier);
+        for (uint32_t j = num_columns; j < num_columns_padded; j++) {
+            ptr_int_weights[i * num_columns + j] = 0;
+        }
+    }
+
+    for (uint32_t i = num_rows; i < num_rows_padded; i++) {
+        for (uint32_t j = 0; j < num_columns_padded; j++) {
+            ptr_int_weights[i * num_columns + j] = 0;
+        }
+        ptr_int_biases[i].multiplier = 0;
     }
 
     if (ptr_float_biases != nullptr) {

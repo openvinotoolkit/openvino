@@ -270,7 +270,7 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
     if (InferenceEngine::CNNNetHasPrevLayer(wl)) {
         auto quantDataForInputLayer =
             InferenceEngine::getInjectedData<QuantizedLayerParams>(*InferenceEngine::CNNNetPrevLayer(wl).get());
-        input_scale_factor = quantDataForInputLayer->_dst_quant.scale;
+        input_scale_factor = quantDataForInputLayer->_dst_quant.GetScale();
         if (std::isnan(input_scale_factor) ||
             std::isinf(input_scale_factor)) {
             THROW_IE_EXCEPTION << "Unsupported input scale factor value " << input_scale_factor;
@@ -301,30 +301,25 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
     {
-        float *ptr_per_channel_weights_quants_min = nullptr;
-        float *ptr_per_channel_weights_quants_max = nullptr;
-
-        if (!quantData->_weights_quants_min.empty()) {
-            ptr_per_channel_weights_quants_min = &quantData->_weights_quants_min.front();
-            ptr_per_channel_weights_quants_max = &quantData->_weights_quants_max.front();
-        }
-
+        auto per_channel_weights = !quantData->_weights_quant.GetMinValues().empty();
+        auto weightsScale = quantData->_weights_quant.GetScale();
+        auto dstScale = quantData->_dst_quant.GetScale();
         fnc(wl->_weights->buffer().as<float *>(),
             wl->_biases ? wl->_biases->buffer().as<float *>() : nullptr,
             intWeights->buffer(),
             intBiases ? intBiases->buffer() : static_cast<BiasesPrecision *>(nullptr),
             input_scale_factor,
-            &quantData->_weights_quant.scale,
-            &quantData->_dst_quant.scale,
+            &weightsScale,
+            &dstScale,
             num_rows,
             num_columns,
             num_rows_padded,
             num_columns_padded,
-            quantData->levels,
+            quantData->_weights_quant.GetLevels(),
             nullptr,
             nullptr,
-            ptr_per_channel_weights_quants_min,
-            ptr_per_channel_weights_quants_max);
+            per_channel_weights ? &quantData->_weights_quant.GetMinValues().front(): nullptr,
+            per_channel_weights ? &quantData->_weights_quant.GetMaxValues().front(): nullptr);
     }
     wl->_weights = intWeights;
     wl->_biases = intBiases;
@@ -384,7 +379,7 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
     if (InferenceEngine::CNNNetHasPrevLayer(conv)) {
         auto quantDataForInputLayer =
             InferenceEngine::getInjectedData<QuantizedLayerParams>(*InferenceEngine::CNNNetPrevLayer(conv).get());
-        input_scale_factor = quantDataForInputLayer->_dst_quant.scale;
+        input_scale_factor = quantDataForInputLayer->_dst_quant.GetScale();
         if (std::isnan(input_scale_factor) ||
             std::isinf(input_scale_factor)) {
             THROW_IE_EXCEPTION << "Unsupported input scale factor value " << input_scale_factor;
@@ -411,13 +406,15 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*conv);
     {
+        auto weightsScale = quantData->_weights_quant.GetScale();
+        auto dstScale = quantData->_dst_quant.GetScale();
         fnc(conv->_weights->buffer().as<float *>(),
             conv->_biases ? conv->_biases->buffer().as<float *>() : nullptr,
             intWeights->buffer(),
             intBiases ? intBiases->buffer() : static_cast<BiasesPrecision *>(nullptr),
             input_scale_factor,
-            &quantData->_weights_quant.scale,
-            &quantData->_dst_quant.scale,
+            &weightsScale,
+            &dstScale,
             num_rows,
             num_columns,
             num_rows_padded,
@@ -488,7 +485,7 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
             if (cnnLayer->blobs["custom"]->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
                 cnnLayer->blobs["custom"] = make_fp32_blob(cnnLayer->blobs["custom"]);
             }
-            auto const_scale_factor = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer)->_dst_quant.scale;
+            auto const_scale_factor = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer)->_dst_quant.GetScale();
             auto new_const_blob = InferenceEngine::Blob::CreateFromData(cnnLayer->outData[0]);
             auto const_blob = cnnLayer->blobs["custom"];
             if (const_blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {

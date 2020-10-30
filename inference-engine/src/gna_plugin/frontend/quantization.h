@@ -11,7 +11,7 @@
 #include <cstdint>
 #include "backend/gna_types.h"
 
-#define MAX_OUT_MULTIPLIER 230
+#define MAX_OUT_MULTIPLIER 255
 #define MAX_VAL_1B_WEIGHT 127
 #define MAX_VAL_2B_WEIGHT 16384
 #define MAX_VAL_2B_FEAT 16384
@@ -33,10 +33,10 @@ struct QuantizationCallback {
 
     // TODO: copied from fake quantize activation
     int32_t fq_levels;
-    float  *fq_ptr_input_low;
-    float  *fq_ptr_input_high;
-    float  *fq_ptr_output_low;
-    float  *fq_ptr_output_high;
+    const float *fq_ptr_input_low;
+    const float *fq_ptr_input_high;
+    const float *fq_ptr_output_low;
+    const float *fq_ptr_output_high;
 
     void runQuantize() const;
     void runFakeQuantize() const;

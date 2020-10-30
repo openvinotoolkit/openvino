@@ -6,20 +6,50 @@
 
 namespace GNAPluginNS {
 
-struct Quantization {
+class Quantization {
+public:
+    void SetScale(float s) {
+        scale = s;
+        scale_set = true;
+    }
+    auto GetScale() const {
+        return scale;
+    }
+    auto IsScaleSet() const {
+        return scale_set;
+    }
+    void SetLevels(int32_t l) {
+        levels = l;
+    }
+    auto GetLevels() const {
+        return levels;
+    }
+    void SetMinValues(const std::vector<float> &min){
+        min_values.clear();
+        min_values.insert(min_values.end(), min.begin(), min.end());
+    }
+    auto& GetMinValues() const {
+        return min_values;
+    }
+    void SetMaxValues(const std::vector<float>& max) {
+        max_values.clear();
+        max_values.insert(max_values.end(), max.begin(), max.end());
+    }
+    auto& GetMaxValues() const {
+        return max_values;
+    }
+
+private:
     float scale = 1.0f;
-    float offset = 0.0f;
-    int shift = 0.0f;
+    bool scale_set = false;
+    int32_t levels = 0;
+    std::vector<float> min_values;
+    std::vector<float> max_values;
 };
 
 struct QuantizedLayerParams {
     Quantization _src_quant;
     Quantization _dst_quant;
-
-    // per channel weights quant data
-    int32_t levels;
-    std::vector<float> _weights_quants_min;
-    std::vector<float> _weights_quants_max;
 
     // deprecate this
     Quantization _weights_quant;

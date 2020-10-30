@@ -1729,11 +1729,11 @@ void FuseFQIntoWeightsPass::run() {
         // 1. broke existing connections - by detaching fq subgraph from rest of graph
         auto prevData = weightableLayer->insData[1].lock();
         auto prevLayer = getCreatorLayer(prevData).lock();
+        auto weightDims = prevLayer->outData.front()->getDims();
         prevLayer->outData.clear();
         weightableLayer->insData.resize(1);
 
         // 2. running FQ function for given layer
-        auto weightDims = fqLayer->outData.front()->getDims();
         if (weightDims.size() != 2) {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " layout of weigths not equal to NC not yet supported";
         }
@@ -1748,28 +1748,28 @@ void FuseFQIntoWeightsPass::run() {
 
             // modify scale factors for quantized component
             auto outputRange = gnaFakeQuantizeLayer.getOutputRange();
-            quantized->_weights_quants_min.insert(
-                quantized->_weights_quants_max.end(), outputRange.first.begin(), outputRange.first.end());
+            quantized->_weights_quant.SetMinValues(outputRange.first);
+            quantized->_weights_quant.SetMaxValues(outputRange.second);
+            quantized->_weights_quant.SetLevels(gnaFakeQuantizeLayer.getLevels());
 
-            quantized->_weights_quants_max.insert(
-                quantized->_weights_quants_max.end(), outputRange.second.begin(), outputRange.second.end());
-
-            quantized->levels = gnaFakeQuantizeLayer.getLevels();
             auto inputRange = gnaFakeQuantizeLayer.getInputRange();
 
             // lets find out minimum scale factor among channels
-            if (quantized->_weights_quants_min.empty()) {
-                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " per channel weigts scales missed";
+            if (quantized->_weights_quant.GetMinValues().empty()) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " per channel weigths scales missed";
             }
             auto getScale = [&quantized](uint32_t i) {
-                return (quantized->levels - 1) / (quantized->_weights_quants_max[i] - quantized->_weights_quants_min[i]);
+                return (quantized->_weights_quant.GetLevels() - 1) / (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
             };
+
             float min_channel_scale = getScale(0);
-            for (uint32_t i = 1; i < quantized->_weights_quants_min.size(); i++) {
+            for (uint32_t i = 1; i < quantized->_weights_quant.GetMinValues().size(); i++) {
                 min_channel_scale = std::min(min_channel_scale, getScale(i));
             }
+
             // common scale calculation
-            quantized->_weights_quant.scale = min_channel_scale * MAX_OUT_MULTIPLIER;
+            quantized->_weights_quant.SetScale(min_channel_scale * MAX_OUT_MULTIPLIER);
+
             continue;
         }
 
@@ -1836,13 +1836,22 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             THROW_GNA_LAYER_EXCEPTION(fqLayer)
                 << "unsupported,per-channel quantisation for layer : " << nextLayer->name;
         }
-        float scaleInput = (inputRange.second[0] - inputRange.first[0]) / (fqLayer.getLevels() - 1);
-        float scaleOutputs = (outputRange.second[0] - outputRange.first[0]) / (fqLayer.getLevels() - 1);
-
-        auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(nextLayer);
+        float fqLevels = fqLayer.getLevels();
+        float scaleInput = fqLevels / (inputRange.second[0] - inputRange.first[0]);
+        float scaleOutputs = fqLevels / (outputRange.second[0] - outputRange.first[0]);
 
         // TODO: proper mapping into scale factors
-        quantParams->_src_quant.scale = 1 / scaleInput;
+        auto quantParamsNextLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(nextLayer);
+        quantParamsNextLayer->_src_quant.SetScale(scaleOutputs);
+        quantParamsNextLayer->_src_quant.SetLevels(fqLevels);
+        quantParamsNextLayer->_src_quant.SetMinValues({ outputRange.first[0] });
+        quantParamsNextLayer->_src_quant.SetMaxValues({ outputRange.second[0] });
+
+        auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
+        //quantParamsPrevLayer->_dst_quant.SetScale(scaleOutputs);
+        quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);
+        quantParamsPrevLayer->_dst_quant.SetMinValues({ inputRange.first[0] });
+        quantParamsPrevLayer->_dst_quant.SetMaxValues({ inputRange.second[0] });
     }
 }
 
@@ -1854,7 +1863,7 @@ int PassManager::run(int index) {
         saveGraphToDot(*network.get(), out, [](const CNNLayerPtr layer,
                                                ordered_properties &printed_properties,
                                                ordered_properties &node_properties) {});
-        network->serialize(name + ".xml", "", nullptr);
+        network->serialize(name + ".xml", name + ".bin", nullptr);
     };
 #else
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};
