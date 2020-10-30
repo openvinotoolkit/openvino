@@ -29,7 +29,6 @@ set(IE_VS_VER_COMMENTS_STR "https://docs.openvinotoolkit.org/")
 #
 # ie_add_vs_version_file(NAME <name>
 #                        FILEDESCRIPTION <file description>
-#                        OUTPUT_FILE <output file>
 #                        [FILEVERSION <file version>]
 #                        [INTERNALNAME <internal name>]
 #                        [COPYRIGHT <name>]
