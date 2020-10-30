@@ -441,7 +441,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::Split>>("Split"),
         std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit"),
         std::make_shared<LayerCreator<ngraph::op::Tanh>>("TanH"),
-        std::make_shared<LayerCreator<ngraph::op::v0::Tile>>("Tile"),
         std::make_shared<LayerCreator<ngraph::op::TensorIterator>>("TensorIterator"),
         std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop"),
         std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd"),
@@ -498,7 +497,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
         }
 
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_Finsensitive(params.type));
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(params.type));
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node);
         if (ngraphNode->visit_attributes(visitor))
@@ -1140,15 +1139,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Result>::creat
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 1);
     return std::make_shared<ngraph::op::Result>(inputs[0]);
-}
-
-// Tile layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::Tile>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v0::Tile>(inputs[0], inputs[1]);
 }
 
 // StridedSlice layer

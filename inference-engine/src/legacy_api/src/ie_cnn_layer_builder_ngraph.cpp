@@ -1478,20 +1478,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::TileIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Tile",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::TileLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::TileIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["axis"] = asString(castedLayer->axis);
-    res->params["tiles"] = asString(castedLayer->tiles);
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ResampleV2>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Resample", details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
