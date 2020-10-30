@@ -56,6 +56,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: not supported yet, ticket 37690
         R"(.*Loop.*)",
         // TODO: Issue: 41694
-        R"(.*smoke_Set2.*CTCLossLayerTest.*)",
+        R"(.*CTCLossLayerTest.*)",
     };
 }
