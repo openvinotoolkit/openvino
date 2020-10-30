@@ -125,7 +125,11 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 add_library(${TARGET_NAME} SHARED
             ${IE_STATIC_DEPENDENT_FILES}
+            ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Core Runtime library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 

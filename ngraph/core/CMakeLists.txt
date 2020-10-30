@@ -47,6 +47,11 @@ if(COMMAND ie_add_api_validator_post_build_step)
     ie_add_api_validator_post_build_step(TARGET ngraph)
 endif()
 
+if(COMMAND ie_add_vs_version_file)
+    ie_add_vs_version_file(NAME ngraph
+                           FILEDESCRIPTION "nGraph library")
+endif()
+
 set_target_properties(ngraph PROPERTIES
                       CXX_VISIBILITY_PRESET hidden
                       C_VISIBILITY_PRESET hidden

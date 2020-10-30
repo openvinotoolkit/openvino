@@ -47,6 +47,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 
 add_library(${TARGET_NAME} SHARED $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Legacy library")
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine

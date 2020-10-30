@@ -14,15 +14,18 @@
 # limitations under the License.
 # ******************************************************************************
 
-set(LIBRARY_TYPE SHARED)
-
 if (NGRAPH_INTERPRETER_ENABLE)
-    add_library(interpreter_backend ${LIBRARY_TYPE} int_backend.cpp int_executable.cpp)
+    add_library(interpreter_backend SHARED int_backend.cpp int_executable.cpp)
 
     if(COMMAND ie_faster_build)
         ie_faster_build(interpreter_backend
             UNITY
         )
+    endif()
+
+    if(COMMAND ie_add_vs_version_file)
+        ie_add_vs_version_file(NAME interpreter_backend
+                               FILEDESCRIPTION "nGraph interpreter backend library")
     endif()
 
     target_compile_definitions(interpreter_backend PRIVATE INTERPRETER_BACKEND_EXPORTS)

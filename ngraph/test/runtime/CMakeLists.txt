@@ -59,6 +59,11 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
+if(COMMAND ie_add_vs_version_file)
+    ie_add_vs_version_file(NAME ngraph_backend
+                           FILEDESCRIPTION "nGraph backend library")
+endif()
+
 target_compile_definitions(ngraph_backend
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"

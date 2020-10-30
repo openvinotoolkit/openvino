@@ -24,6 +24,9 @@ ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Transformations library")
+
 target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
                                      PRIVATE openvino::itt ngraph::builder pugixml)
 
