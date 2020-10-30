@@ -21,7 +21,7 @@ namespace InferenceEngine {
 class IShapeInferExtension;
 using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
 
-}
+}  // namespace InferenceEngine
 
 namespace ngraph {
 namespace op {
@@ -104,6 +104,8 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
+
     static void addExtension(std::shared_ptr<const ngraph::Function> func, const InferenceEngine::IShapeInferExtensionPtr& ext);
     static std::vector<InferenceEngine::IShapeInferExtensionPtr> getExtensions(std::shared_ptr<const ngraph::Function> func);
 
@@ -133,4 +135,3 @@ private:
 
 }  // namespace op
 }  // namespace ngraph
-

@@ -64,7 +64,7 @@ protected:
                 boxes, dsr, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNMSSigma);
 
         const auto function = std::make_shared<ngraph::Function>(
-                ngraph::OutputVector{node->outputs()},
+                node->outputs(),
                 ngraph::ParameterVector{boxes, scores, dims},
                 "Actual");
 

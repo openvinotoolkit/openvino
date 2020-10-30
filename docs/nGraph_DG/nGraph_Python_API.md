@@ -188,6 +188,8 @@ for node in function.get_ordered_ops():
 
 Attributes are properties of nodes in the computational graph, which will be stored when the model is serialized to a file. However, there can be additional properties of nodes, which are only important during the execution of a graph. An example of such a property is `affinity`, which determines which operation will be executed on which hardware in a heterogeneous environment. You can get and set runtime information by using the `get_rt_info` method of a node.
 
+> **NOTE**: If you set affinity manually, be careful at the current moment Inference Engine plugins don't support constant (`Constant`->`Result`) and empty (`Parameter`->`Result`) networks. Please avoid such subgraphs when you set affinity manually.
+
 ```python
 rt_info = node.get_rt_info()
 rt_info["affinity"] = "test_affinity"
