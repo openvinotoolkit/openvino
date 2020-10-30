@@ -18,8 +18,8 @@ Review the [Architecture Concept](https://github.com/openvinotoolkit/model_serve
 A few key features: 
 - Support for multiple frameworks. Serve models trained in popular formats such as Caffe\*, TensorFlow\*, MXNet\*, and ONNX*.
 - Deploy new [model versions](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md#model-version-policy) without changing client code.
-- Support for AI accelerators including [Intel Movidius Myriad VPUs](@ref openvino_docs_IE_DG_supported_plugins_VPU), 
-[GPU](@ref docs_IE_DG_supported_plugins_CL_DNN), and [HDDL](@ref docs_IE_DG_supported_plugins_HDDL). 
+- Support for AI accelerators including [Intel Movidius Myriad VPUs](../IE_DG/supported_plugins/VPU), 
+[GPU](../IE_DG/supported_plugins/CL_DNN), and [HDDL](../IE_DG/supported_plugins/HDDL). 
 - The server can be enabled both on [Bare Metal Hosts](https://github.com/openvinotoolkit/model_server/blob/main/docs/host.md) or in
 [Docker* containers](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md).
 - [Kubernetes deployments](https://github.com/openvinotoolkit/model_server/blob/main/deploy). The server can be deployed in a Kubernetes cluster allowing the inference service to scale horizontally and ensure high availability.  
