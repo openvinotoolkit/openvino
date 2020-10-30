@@ -17,14 +17,14 @@ Review the [Architecture Concept](https://github.com/openvinotoolkit/model_serve
 
 A few key features: 
 - Support for multiple frameworks. Serve models trained in popular formats such as Caffe\*, TensorFlow\*, MXNet\*, and ONNX*.
-- Deploy new [model versions](docs/docker_container.md) without changing client code.
+- Deploy new [model versions](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md#model-version-policy) without changing client code.
 - Support for AI accelerators including [Intel Movidius Myriad VPUs](@ref openvino_docs_IE_DG_supported_plugins_VPU), 
 [GPU](@ref docs_IE_DG_supported_plugins_CL_DNN), and [HDDL](@ref docs_IE_DG_supported_plugins_HDDL). 
 - The server can be enabled both on [Bare Metal Hosts](https://github.com/openvinotoolkit/model_server/blob/main/docs/host.md) or in
 [Docker* containers](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md).
 - [Kubernetes deployments](https://github.com/openvinotoolkit/model_server/blob/main/deploy). The server can be deployed in a Kubernetes cluster allowing the inference service to scale horizontally and ensure high availability.  
 - [Model reshaping](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md#model-reshaping). The server supports reshaping models in runtime. 
-- [Model ensemble](docs/ensemble_scheduler.md) (preview). Connect multiple models to deploy complex processing solutions and reduce overhead of sending data back and forth.
+- [Model ensemble](https://github.com/openvinotoolkit/model_server/blob/main/docs/ensemble_scheduler.md) (preview). Connect multiple models to deploy complex processing solutions and reduce overhead of sending data back and forth.
 
 > **NOTE**: OVMS has been tested on CentOS\* and Ubuntu\*. Publically released Docker images are based on CentOS.
 
@@ -34,10 +34,8 @@ A few key features:
 
 2. Build the Docker image with the command below:
 ```bash
-make docker_build DLDT_PACKAGE_URL=<URL>
+make docker_build
 ```
-
-> **NOTE**: Register on the [OpenVINO™ toolkit website](https://software.intel.com/en-us/openvino-toolkit/choose-download) to recieve the URL to the OpenVINO toolkit package.
 
 The command generates:
 * Image tagged as `openvino/model_server:latest` with CPU, NCS, and HDDL support
