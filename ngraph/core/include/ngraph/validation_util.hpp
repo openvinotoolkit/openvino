@@ -144,6 +144,7 @@ namespace ngraph
     /// \return    Checking if axis is in range [-tensor_rank, tensor_rank-1], otherwise
     ///            returns error. If negative axis, it counts from the last to the first axis,
     ///            by adding tensor_rank to axis.
+    NGRAPH_API
     int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank);
 
     /// \brief      Handle out of range axes in vector.
