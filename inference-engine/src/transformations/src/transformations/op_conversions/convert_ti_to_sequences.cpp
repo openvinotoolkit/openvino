@@ -26,20 +26,19 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
 
         // create pattern
         auto data = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1});
-        auto axis_squeeze = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 1);
-
-        auto input_data = std::make_shared<ngraph::opset5::Squeeze>(data, axis_squeeze);
+        auto pattern_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1});
+        auto squeeze = std::make_shared<ngraph::opset5::Reshape>(data, pattern_1, false);
         auto input_H_state = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1});
         auto input_C_state = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1});
         auto input_W = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{4, 1});
         auto input_R = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{4, 1});
         auto input_B = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{4});
 
-        auto cell = std::make_shared<ngraph::opset5::LSTMCell>(input_data, input_H_state, input_C_state,
+        auto cell = std::make_shared<ngraph::opset5::LSTMCell>(squeeze, input_H_state, input_C_state,
                                                                input_W, input_R, input_B, 1);
 
-        auto axis_unsqueeze = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 1);
-        auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(cell, axis_unsqueeze);
+        auto pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
+        auto unsqueeze = std::make_shared<ngraph::opset5::Reshape>(cell, pattern_2, false);
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
@@ -184,18 +183,18 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
 
         // create pattern
         auto data = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1});
-        auto axis_squeeze = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 0);
-        auto input_data = std::make_shared<ngraph::opset5::Squeeze>(data, axis_squeeze);
+        auto pattern_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1});
+        auto squeeze = std::make_shared<ngraph::opset5::Reshape>(data, pattern_1, false);
 
         auto input_H_state = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1});
         auto input_W = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{1, 1});
         auto input_R = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{1, 1});
         auto input_B = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{1});
 
-        auto cell = std::make_shared<ngraph::opset5::RNNCell>(input_data, input_H_state, input_W, input_R, input_B, 1);
+        auto cell = std::make_shared<ngraph::opset5::RNNCell>(squeeze, input_H_state, input_W, input_R, input_B, 1);
 
-        auto axis_unsqueeze = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 0);
-        auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(cell, axis_unsqueeze);
+        auto pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
+        auto unsqueeze = std::make_shared<ngraph::opset5::Reshape>(cell, pattern_2, false);
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
@@ -335,18 +334,18 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
 
         // create pattern
         auto data = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1});
-        auto axis_squeeze = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 0);
-        auto input_data = std::make_shared<ngraph::opset5::Squeeze>(data, axis_squeeze);
+        auto pattern_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1});
+        auto squeeze = std::make_shared<ngraph::opset5::Reshape>(data, pattern_1, false);
 
         auto input_H_state = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1});
         auto input_W = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{3, 1});
         auto input_R = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{3, 1});
         auto input_B = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{3});
 
-        auto cell = std::make_shared<ngraph::opset5::GRUCell>(input_data, input_H_state, input_W, input_R, input_B, 1);
+        auto cell = std::make_shared<ngraph::opset5::GRUCell>(squeeze, input_H_state, input_W, input_R, input_B, 1);
 
-        auto axis_unsqueeze = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 0);
-        auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(cell, axis_unsqueeze);
+        auto pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
+        auto unsqueeze = std::make_shared<ngraph::opset5::Reshape>(cell, pattern_2, false);
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;

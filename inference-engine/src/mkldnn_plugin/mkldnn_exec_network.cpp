@@ -100,8 +100,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
         }
     }
 
-    MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
-
     auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, std::string name) {
         LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
         auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);

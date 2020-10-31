@@ -192,11 +192,17 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
                             enable_convert_to_sequence &=
                                     gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
                             count_rnn++;
-                        } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+                        } else if (const auto &lstm_cell_v4 = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
                                 op)) {
-                            enable_convert_to_sequence &= lstm_cell->get_clip() == 0.0f;
+                            enable_convert_to_sequence &= lstm_cell_v4->get_clip() == 0.0f;
                             enable_convert_to_sequence &=
-                                    lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                                    lstm_cell_v4->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                            count_rnn++;
+                        } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
+                                op)) {
+                            enable_convert_to_sequence &= lstm_cell_v1->get_clip() == 0.0f;
+                            enable_convert_to_sequence &=
+                                    lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
                             count_rnn++;
                         }
                     }
