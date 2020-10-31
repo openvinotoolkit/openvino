@@ -3,6 +3,7 @@
 //
 
 #include "execution_graph_tests/keep_assing.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include <ngraph/ngraph.hpp>
 #include <inference_engine.hpp>
