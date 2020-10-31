@@ -31,6 +31,10 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
+#include <transformations/op_conversions/rnn_cell_decomposition.hpp>
+#include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -128,6 +132,40 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                        ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
             }
 
+            if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
+                return true;
+            }
+
+            if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(node)) {
+                return true;
+            }
+
+            if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(node)) {
+                return lstm_cell->get_clip() != 0.0f || lstm_cell->get_activations()
+                                                        != std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+            }
+
+            if (auto ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                size_t count_rnn = 0;
+                bool enable_convert_to_sequence = true;
+                for (const auto &op : ti_op->get_body()->get_ops()) {
+                    if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(op)) {
+                        enable_convert_to_sequence &= false;
+                        count_rnn++;
+                    } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(op)) {
+                        enable_convert_to_sequence &= false;
+                        count_rnn++;
+                    } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(op)) {
+                        enable_convert_to_sequence &= lstm_cell->get_clip() == 0.0f;
+                        enable_convert_to_sequence &=
+                                lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                        count_rnn++;
+                    }
+                }
+                enable_convert_to_sequence &= count_rnn == 1;
+                return enable_convert_to_sequence;
+            }
+
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
@@ -155,6 +193,12 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             manager.register_pass<ngraph::pass::CommonOptimizations>();
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+            manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+            manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+            manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+            manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+            manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+            manager.register_pass<ngraph::pass::RNNCellDecomposition>();
 
             manager.set_callback(transformations_callback);
             manager.run_passes(nGraphFunc);
@@ -197,6 +241,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         {
             ngraph::pass::Manager manager = ngraph::pass::Manager();
             manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+            manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             manager.set_callback(transformations_callback);
             manager.run_passes(nGraphFunc);
         }

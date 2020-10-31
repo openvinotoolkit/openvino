@@ -29,17 +29,6 @@ void FrontEnd::unrollLoops(ie::ICNNNetwork& network) {
                 "Scale dumps does not work with IR, which contain Tensor Iterator layers.");
         }
     }
-
-    if (env.config.forcePureTensorIterator) {
-        return;
-    }
-
-    if (env.config.enableTensorIteratorUnrolling) {
-        ie::NetPass::UnrollTI(network);
-    } else {
-        // Try to convert network to a RNN sequence due to performance reasons
-        ie::NetPass::CombineRNNSeq(network);
-    }
 }
 
 }  // namespace vpu

@@ -44,6 +44,10 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
+#include <transformations/op_conversions/rnn_cell_decomposition.hpp>
+#include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -100,6 +104,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+    manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+    manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+    manager.register_pass<ngraph::pass::RNNCellDecomposition>();
 
     std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
             {ngraph::element::i64, ngraph::element::i32},
@@ -137,6 +147,63 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
             [](const_node_ptr &node) -> bool {
                 const auto & rank = node->input(0).get_partial_shape().rank().get_length();
                 return rank == 4lu || rank == 5lu;
+            });
+
+    pass_config->set_callback<ngraph::pass::RNNCellDecomposition>(
+            [](const_node_ptr &node) -> bool {
+                if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
+                    return rnn_cell->get_clip() != 0.0f;
+                }
+            return false;
+            });
+
+    pass_config->set_callback<ngraph::pass::GRUCellDecomposition>(
+            [](const_node_ptr &node) -> bool {
+                if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(node)) {
+                    return gru_cell->get_clip() != 0.0f || gru_cell->get_activations()
+                                                           != std::vector<std::string>{"sigmoid", "tanh"};
+                }
+                return false;
+            });
+
+    pass_config->set_callback<ngraph::pass::LSTMCellDecomposition>(
+            [](const_node_ptr &node) -> bool {
+                if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(node)) {
+                    return lstm_cell->get_clip() != 0.0f || lstm_cell->get_activations()
+                                                            != std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                }
+                return false;
+            });
+
+    pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
+                              ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                              ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+            [](const_node_ptr &node) -> bool {
+                if (auto ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                    size_t count_rnn = 0;
+                    bool enable_convert_to_sequence = true;
+                    for (const auto &op : ti_op->get_body()->get_ops()) {
+                        if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(op)) {
+                            enable_convert_to_sequence &= rnn_cell->get_clip() == 0.0f;
+                            count_rnn++;
+                        } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
+                                op)) {
+                            enable_convert_to_sequence &= gru_cell->get_clip() == 0.0f;
+                            enable_convert_to_sequence &=
+                                    gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+                            count_rnn++;
+                        } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+                                op)) {
+                            enable_convert_to_sequence &= lstm_cell->get_clip() == 0.0f;
+                            enable_convert_to_sequence &=
+                                    lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                            count_rnn++;
+                        }
+                    }
+                    enable_convert_to_sequence &= count_rnn == 1;
+                    return enable_convert_to_sequence;
+                }
+                return false;
             });
 
     // List of enabled/disabled transformations
