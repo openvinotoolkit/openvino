@@ -186,11 +186,11 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     const auto& env = CompileEnv::get();
-    if (!env.config.forcePureTensorIterator) {
+/*    if (!env.config.forcePureTensorIterator) {
         manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
         manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
         manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
-    }
+}*/
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
 
