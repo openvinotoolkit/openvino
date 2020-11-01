@@ -18,20 +18,6 @@ INTERPRETER.onnx_resize10_down_scales_const_nearest
 # Failed in MacOS:
 INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
 
-# ONNX Loop
-onnx_controlflow_loop_2d_add_execution
-
-# ONNX Loop - tests disabled temporarily
-onnx_controlflow_loop_2d_add_check_model
-onnx_controlflow_loop_scalars_check_model
-onnx_controlflow_loop_add_initializer_from_parent_scope
-onnx_controlflow_loop_add_input_from_parent_scope
-onnx_controlflow_loop_add_node_from_parent_scope
-onnx_controlflow_loop_add_value_access_to_body_scope_exception
-onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
-onnx_controlflow_loop_2d_add_exception_if_no_identity_cond
-onnx_controlflow_loop_2d_add_const_cond
-
 # Disabled tests for disabled reference implementations
 INTERPRETER.onnx_model_qlinear_matmul_3d
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
@@ -141,3 +127,30 @@ INTERPRETER.ctc_greedy_decoder_f16
 # LogSoftmax's reference implementation doesn't handle scalar input properly
 onnx_model_logsoftmax_0D
 
+# No Constant/Identity termination condition output body is not supported by current nG Loop
+# is_termination_condition_always_true returns false
+onnx_controlflow_loop_2d_no_identity_termination_cond
+onnx_controlflow_loop_2d_const_no_identity_termination_cond
+onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
+
+#dynamic trip count
+onnx_controlflow_loop_2d_trip_count_dynamic
+
+# Input body shape is changed during Loop iterations
+# Exception is throw during Loop shape inference
+# Is it expected?
+onnx_controlflow_loop_concat_values
+
+# Infinitive Loop is not supported
+onnx_controlflow_loop_infinite
+
+# Loop is not supported yet by INTERPRETER backend
+onnx_controlflow_loop_2d_add
+onnx_controlflow_loop_2d_no_identity_termination_cond_false
+onnx_controlflow_loop_add_initializer_from_parent_scope
+onnx_controlflow_loop_add_node_from_parent_scope
+onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
+onnx_controlflow_loop_scalars
+onnx_controlflow_loop_2d_add_const_cond
+onnx_controlflow_loop_no_variadic_inputs_and_outputs
+onnx_controlflow_loop_power

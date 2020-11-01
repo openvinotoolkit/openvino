@@ -95,14 +95,8 @@ Function::Function(const OutputVector& results,
                    const SinkVector& sinks,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(as_result_vector(results))
-    , m_sinks(sinks)
-    , m_parameters(parameters)
-    , m_name(name)
-    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
-    , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    : Function(as_result_vector(results), sinks, parameters, name)
 {
-    validate_nodes_and_infer_types();
 }
 
 void Function::validate_nodes_and_infer_types()
@@ -136,7 +130,7 @@ std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
     }
     for (auto& r : get_sinks())
     {
-        nodes.push_back(r);
+        nodes.emplace_back(r);
     }
     for (auto& param : get_parameters())
     {
@@ -387,7 +381,6 @@ bool Function::visit_attributes(AttributeVisitor& visitor)
 void Function::add_sinks(const SinkVector& sinks)
 {
     m_sinks.insert(m_sinks.end(), sinks.begin(), sinks.end());
-    validate_nodes_and_infer_types();
 }
 
 void Function::remove_sink(const std::shared_ptr<op::Sink>& sink)
@@ -396,13 +389,11 @@ void Function::remove_sink(const std::shared_ptr<op::Sink>& sink)
                                  m_sinks.end(),
                                  [&sink](std::shared_ptr<op::Sink>& s) { return s == sink; }),
                   m_sinks.end());
-    validate_nodes_and_infer_types();
 }
 
 void Function::add_results(const ResultVector& results)
 {
     m_results.insert(m_results.end(), results.begin(), results.end());
-    validate_nodes_and_infer_types();
 }
 
 void Function::remove_result(const std::shared_ptr<op::Result>& result)
@@ -412,7 +403,6 @@ void Function::remove_result(const std::shared_ptr<op::Result>& result)
                        m_results.end(),
                        [&result](std::shared_ptr<op::v0::Result>& r) { return r == result; }),
         m_results.end());
-    validate_nodes_and_infer_types();
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;
