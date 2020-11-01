@@ -20,6 +20,7 @@ ngraph::pass::LowLatency::LowLatency() {
             return false;
         }
 
+        std::vector<std::shared_ptr<ngraph::op::Sink>> assigns;
         const auto& func = ti->get_function();
         for (const auto& in : ti->get_input_descriptions()) {
             int64_t variable_id = 0;
@@ -37,15 +38,14 @@ ngraph::pass::LowLatency::LowLatency() {
                 // insert Assign nodes: provider -> (new Assign) -> Result
                 const auto res = func->get_results().at(merged_in->m_body_value_index);
                 auto assign = std::make_shared<opset5::Assign>(res->input_value(0), variable_name);
-                res->input(0).replace_source_output(assign);
 
                 // control dependency so that ReadValue is processed before Assign
                 assign->add_control_dependency(read_value);
-
-                // save Assign in the func so that it gets into graph traversals and isn't deleted.
-                func->add_sinks({assign});
+                assigns.emplace_back(assign);
             }
         }
+        // save Assign in the func so that it gets into graph traversals and isn't deleted.
+        func->add_sinks(assigns);
         return true;
     };
 

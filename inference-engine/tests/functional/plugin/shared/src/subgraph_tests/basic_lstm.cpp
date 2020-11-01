@@ -114,57 +114,6 @@ void Basic_LSTM_S::Run() {
     Compare(referenceOutputs, actualOutputs);
 }
 
-std::shared_ptr<ngraph::Function> Basic_LSTM_S::CreateGraphWithUnrolledTI() {
-    InferenceEngine::Precision netPrecision;
-    netPrecision = std::get<0>(this->GetParam());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
-    auto params = ngraph::builder::makeParams(ngPrc, { {1, 490} });
-
-    const size_t hidden_size = 118;
-    const size_t batch_size = 1;
-    const size_t iterations = 10;
-
-    outPrc = InferenceEngine::Precision::FP32;
-
-    //Reshape_1 [1,490] -> [1, 10, 49]
-    std::vector<uint64_t> outFormShapes1 = { batch_size, iterations, 49 };
-    auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 3 }, outFormShapes1);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
-
-    std::vector<uint64_t> axis_shape = { 1 };
-    auto axis = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ }, axis_shape);
-    auto split1 = std::make_shared<ngraph::opset1::Split>(reshape1, axis, iterations);
-
-    ngraph::Output<ngraph::Node> H[iterations + 1];
-    ngraph::Output<ngraph::Node> C[iterations + 1];
-    std::shared_ptr<ngraph::opset4::LSTMCell> lstm[iterations];
-    H[0] = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
-    C[0] = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
-    auto reshape1_shape = reshape1->output(0).get_shape();
-    auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hidden_size, reshape1_shape[2] }, {}, true);
-    auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hidden_size, hidden_size }, {}, true);
-
-    outFormShapes1 = { batch_size, reshape1_shape[2] };
-    auto constantX = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, outFormShapes1);
-
-    for (size_t i = 0; i < iterations; ++i) {
-        auto X = split1->output(i);
-        lstm[i] = std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
-            H[i], C[i],
-            weightsNode, reccurrenceWeightsNode, hidden_size);
-
-        H[i+1] = lstm[i]->output(0);
-        C[i+1] = lstm[i]->output(1);
-    }
-
-    const size_t output_size = 12;
-    auto fc1 = ngraph::builder::makeFullyConnected(H[iterations], ngPrc, output_size, true, { hidden_size, output_size }, { 1 }, { 1 });
-
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fc1) };
-    return std::make_shared<ngraph::Function>(results, params, "Basic_LSTM_S_Ref");
-}
-
 std::vector<std::vector<std::uint8_t>> Basic_LSTM_S::CalculateRefs() {
     //For now TensorIterator is not implemented in ngraph interpreter so it is needed to validate with another reference
     auto reference_model = ngraph::clone_function(*function);

@@ -1139,10 +1139,10 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                     continue;
             }
 
-            //if (cnnLayer->type == "Memory" && cnnLayer->params["index"] == "0") {
-                //cnnLayer->outData.clear();
-                //continue;
-            //}
+            if (cnnLayer->type == "Memory" && cnnLayer->params["index"] == "0") {
+                cnnLayer->outData.clear();
+                continue;
+            }
             auto outName = layer->output(i).get_tensor().get_name();
             if (outName.empty()) {
                 outName = ngraph::op::util::create_ie_output_name(layer->output(i));
