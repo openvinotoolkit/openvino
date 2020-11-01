@@ -18,6 +18,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include "execution_graph_tests/unique_node_names.hpp"
 
@@ -60,6 +61,8 @@ void ExecGraphUniqueNodeNames::TearDown() {
 }
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
     auto ie = PluginCache::get().ie();
