@@ -189,25 +189,25 @@ protected:
         const auto minRank = minRankNode == tensorShapeConst ? tensorShapeDimsCount : targetShapeDimsCount;
 
         ngraph::NodeVector dims;
-        for (int i = 0; i < minRank; i++) {
-            const auto minRankDim = std::make_shared<ngraph::opset5::Gather>(
-                minRankNode,
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {minRank - i - 1}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
-            const auto maxRankDim = std::make_shared<ngraph::opset5::Gather>(
-                maxRankNode,
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {maxRank - i - 1}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
-            dims.insert(dims.begin(), std::make_shared<ngraph::opset5::Maximum>(minRankDim, maxRankDim));
-        }
 
-        for (int i = maxRank - minRank - 1; i >= 0; i--) {
-            dims.insert(
-                dims.begin(),
+        for (int i = 0; i < maxRank - minRank; i++) {
+            dims.push_back(
                 std::make_shared<ngraph::opset5::Gather>(
                     maxRankNode,
                     ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {i}),
                     ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0})));
+        }
+
+        for (int i = 0; i < minRank; i++) {
+            const auto minRankDim = std::make_shared<ngraph::opset5::Gather>(
+                minRankNode,
+                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {i}),
+                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+            const auto maxRankDim = std::make_shared<ngraph::opset5::Gather>(
+                maxRankNode,
+                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {maxRank - minRank + i}),
+                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+            dims.push_back(std::make_shared<ngraph::opset5::Maximum>(minRankDim, maxRankDim));
         }
 
         const auto outShape = std::make_shared<ngraph::opset5::Concat>(dims, 0);
