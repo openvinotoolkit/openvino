@@ -33,9 +33,12 @@ std::pair<bool, std::string> compare_docs(pugi::xml_document& doc1,
     exec_graph_walker walker1, walker2;
     doc1.child("net").child("layers").traverse(walker1);
     doc2.child("net").child("layers").traverse(walker2);
+    auto nodes1_size = walker1.nodes.size();
+    auto nodes2_size = walker2.nodes.size();
 
-    if (walker1.nodes.size() != walker2.nodes.size()) {
-        return {false, "XML's contain different number of nodes"};
+    if (nodes1_size != nodes2_size) {
+        return {false, "Node count differ: " + std::to_string(nodes1_size) +
+                           " != " + std::to_string(nodes2_size)};
     }
 
     // for every node
@@ -47,8 +50,9 @@ std::pair<bool, std::string> compare_docs(pugi::xml_document& doc1,
         std::string node_name{walker1.nodes[i].name()};
 
         if (attr1_size != attr2_size) {
-            return {false,
-                    node_name + " contain different number of attributes"};
+            return {false, "Attribute count differ in <" + node_name + "> :" +
+                               std::to_string(attr1_size) + "!=" +
+                               std::to_string(attr2_size)};
         }
         // for every attribute in node
         if (attr1_size > 0) {
@@ -57,13 +61,12 @@ std::pair<bool, std::string> compare_docs(pugi::xml_document& doc1,
             for (int j = 0; j < attr1_size; j++) {
                 std::string a1_name{a1->name()};
                 std::string a2_name{a2->name()};
-                if (a1_name != a2_name) {
-                    return {false,
-                            node_name + " contain different attribute names"};
-                }
-                if (std::string(a1->value()) != std::string(a2->value())) {
-                    return {false,
-                            node_name + " contain different attribute values"};
+                std::string a1_value{a1->value()};
+                std::string a2_value{a2->value()};
+                if ((a1_name != a2_name) || (a1_value != a2_value)) {
+                    return {false, "Attributes differ in <" + node_name +
+                                       "> : " + a1_name + "=" + a1_value +
+                                       " != " + a2_name + "=" + a2_value};
                 }
                 ++a1;
                 ++a2;
