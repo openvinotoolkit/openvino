@@ -28,6 +28,8 @@ void ngraph::op::GenericIE::addExtension(std::shared_ptr<const ngraph::Function>
 
     for (auto r : func->get_results())
         nodes.emplace_back(r);
+    for (auto s : func->get_sinks())
+        nodes.emplace_back(s);
     for (auto param : func->get_parameters())
         nodes.emplace_back(param);
 
