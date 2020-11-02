@@ -59,7 +59,7 @@ public:
         {
             push_pass<Validate>();
         }
-        if (!Enable)
+        if (!Enable && !m_pass_config->is_enabled<T>())
         {
             m_pass_config->disable<T>();
         }
@@ -102,6 +102,7 @@ public:
     /// \brief Set external PassConfig object.
     void set_pass_config(const std::shared_ptr<PassConfig>& pass_config)
     {
+        pass_config->add_disabled_passes(*m_pass_config);
         *m_pass_config = *pass_config;
     }
 

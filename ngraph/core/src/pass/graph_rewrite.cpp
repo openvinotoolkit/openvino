@@ -272,6 +272,19 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
+void pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs)
+{
+    auto pass_config = get_pass_config();
+    rhs->add_disabled_passes(*pass_config);
+    PassBase::set_pass_config(rhs);
+
+    // update pass_config for nested transformations
+    for (auto& pass : m_matchers)
+    {
+        pass->set_pass_config(rhs);
+    }
+}
+
 void pass::RecurrentGraphRewrite::add_matcher(
     const std::shared_ptr<pattern::RecurrentMatcher>& m,
     const ngraph::recurrent_graph_rewrite_callback& callback,
