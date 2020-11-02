@@ -17,13 +17,13 @@ typedef std::tuple<
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     bool,
-    bool> PermuteTransformationParams;
+    bool> TransposeAfterMatMulTransformationParams;
 
-class PermuteTransformation :
-    public testing::WithParamInterface<PermuteTransformationParams>,
+class TransposeAfterMatMulTransformation :
+    public testing::WithParamInterface<TransposeAfterMatMulTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PermuteTransformationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<TransposeAfterMatMulTransformationParams> obj);
 
 protected:
     void SetUp() override;

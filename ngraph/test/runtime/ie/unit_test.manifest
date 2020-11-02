@@ -313,7 +313,7 @@ slice_scalar
 slice_3d_start_just_oob
 shape_of_scalar
 reverse_0d
-reverse_1d_nochange
+reverse_1d
 reverse_2d_nochange
 reverse_3d_nochange
 product_trivial
@@ -597,6 +597,7 @@ abc_int64
 # Unsupported primitive of type: Round
 IE_CPU.onnx_model_round
 IE_CPU.onnx_model_round_half_nearest_even
+round_away_from_zero
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -646,7 +647,9 @@ select_v1
 reverse_1d_0
 reverse_2d_0
 reverse_2d_1
+reverse_2d_1_mask
 reverse_2d_01
+reverse_2d_01_mask
 reverse_3d_0
 reverse_3d_1
 reverse_3d_2
