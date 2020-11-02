@@ -63,7 +63,7 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
         parameter_node.out_port(0).disconnect()
 
         # remove existing Result operations to remove unsupported sub-graph
-        graph.remove_nodes_from([node.id for node in graph.get_op_nodes(op='Result')])
+        graph.remove_nodes_from([node.id for node in graph.get_op_nodes(op='Result')] + ['detections'])
 
         # determine if the op which is a input/final result of mean value and scale applying to the input tensor
         # then connect it to the input of the first convolution of the model, so we remove the image pre-processing
@@ -125,7 +125,7 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
         bias.value = bias.value.reshape(-1, 4)[:, [1, 0, 3, 2]].reshape(bias.shape)
 
         detection_output_node = DetectionOutput(graph, dict(
-            name='detection_output',
+            name='detections',
             num_classes=int(replacement_descriptions['num_classes']),
             share_location=1,
             background_label_id=int(replacement_descriptions['num_classes']) + 1,

@@ -61,6 +61,28 @@ OpenVINO&trade; toolkit provides samples that can be used to infer EfficientDet 
 [Object Detection for SSD C++ Sample](@ref openvino_inference_engine_samples_object_detection_sample_ssd_README) and 
 [Object Detection for SSD Python Sample](@ref openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README).
 
+## <a name="efficientdet-ir-results-interpretation"></a>Interpreting Results of the TensorFlow Model and the IR
+
+The TensorFlow model produces as output a list of 7-element tuples: `[image_id, y_min, x_min, y_max, x_max, confidence, class_id]`, where:
+* `image_id` -- image batch index.
+* `y_min` -- absolute `y` coordinate of the lower left corner of the detected object.
+* `x_min` -- absolute `x` coordinate of the lower left corner of the detected object.
+* `y_max` -- absolute `y` coordinate of the upper right corner of the detected object.
+* `x_max` -- absolute `x` coordinate of the upper right corner of the detected object.
+* `confidence` -- is the confidence of the detected object.
+* `class_id` -- is the id of the detected object class counted from 1.
+
+The output of the IR is a list of 7-element tuples: `[image_id, class_id, confidence, x_min, y_min, x_max, y_max]`, where:
+* `image_id` -- image batch index.
+* `class_id` -- is the id of the detected object class counted from 0.
+* `confidence` -- is the confidence of the detected object.
+* `x_min` -- normalized `x` coordinate of the lower left corner of the detected object.
+* `y_min` -- normalized `y` coordinate of the lower left corner of the detected object.
+* `x_max` -- normalized `x` coordinate of the upper right corner of the detected object.
+* `y_max` -- normalized `y` coordinate of the upper right corner of the detected object.
+
+The first element with `image_id = -1` means end of data.
+
 ---
 ## See Also
 
