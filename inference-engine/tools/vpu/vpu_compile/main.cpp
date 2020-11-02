@@ -73,7 +73,7 @@ static void showUsage() {
     std::cout << "    -c                           <value>     "   << config_message                    << std::endl;
     std::cout << "    -ip                          <value>     "   << inputs_precision_message          << std::endl;
     std::cout << "    -op                          <value>     "   << outputs_precision_message         << std::endl;
-    std::cout << "    -iop                        \"<value>\"  "   << iop_message                       << std::endl;
+    std::cout << "    -iop                        \"<value>\"    " << iop_message                       << std::endl;
     std::cout << "    -VPU_NUMBER_OF_SHAVES        <value>     "   << number_of_shaves_message          << std::endl;
     std::cout << "    -VPU_NUMBER_OF_CMX_SLICES    <value>     "   << number_of_cmx_slices_message      << std::endl;
     std::cout << "    -VPU_TILING_CMX_LIMIT_KB     <value>     "   << tiling_cmx_limit_message          << std::endl;
