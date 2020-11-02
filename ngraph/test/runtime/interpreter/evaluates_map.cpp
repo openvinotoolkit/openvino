@@ -1264,6 +1264,8 @@ namespace
             return evaluate<element::Type_t::u16>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::u32:
             return evaluate<element::Type_t::u32>(as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::u64:
+            return evaluate<element::Type_t::u64>(as_type_ptr<T>(node), outputs, inputs);
         default:
             throw ngraph_error(std::string("Unhandled data type ") +
                                node->get_element_type().get_type_name() +

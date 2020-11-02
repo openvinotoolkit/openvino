@@ -62,7 +62,6 @@
 #include "ngraph/op/sinh.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/squeeze.hpp"
-#include "ngraph/op/stop_gradient.hpp"
 #include "ngraph/op/tan.hpp"
 #include "ngraph/op/tanh.hpp"
 #include "ngraph/op/topk.hpp"
@@ -884,7 +883,7 @@ TEST(eval, evaluate_relu_2Ffprop_i32)
 TEST(eval, evaluate_round)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{5});
-    auto round = make_shared<op::Round>(p);
+    auto round = make_shared<op::v5::Round>(p, op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto fun = make_shared<Function>(OutputVector{round}, ParameterVector{p});
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
@@ -899,7 +898,7 @@ TEST(eval, evaluate_round)
 TEST(eval, evaluate_round_2D)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{3, 5});
-    auto round = make_shared<op::Round>(p);
+    auto round = make_shared<op::v5::Round>(p, op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto fun = make_shared<Function>(OutputVector{round}, ParameterVector{p});
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result},
@@ -1156,36 +1155,6 @@ TEST(eval, evaluate_tanh)
         input.begin(), input.end(), input.begin(), [](float x) -> float { return std::tanh(x); });
 
     ASSERT_FLOAT_VECTORS_EQ(input, result_val);
-}
-
-TEST(eval, evaluate_not)
-{
-    auto p = make_shared<op::Parameter>(element::boolean, Shape{2, 2});
-    auto op_not = make_shared<op::Not>(p);
-    auto fun = make_shared<Function>(OutputVector{op_not}, ParameterVector{p});
-    auto result = make_shared<HostTensor>();
-
-    ASSERT_TRUE(fun->evaluate(
-        {result}, {make_host_tensor<element::Type_t::boolean>(Shape{2, 2}, {1, 0, 1, 0})}));
-    EXPECT_EQ(result->get_element_type(), element::boolean);
-    auto result_val = read_vector<char>(result);
-    vector<char> expec{0, 1, 0, 1};
-    ASSERT_EQ(result_val, expec);
-}
-
-TEST(eval, evaluate_not_i32)
-{
-    auto p = make_shared<op::Parameter>(element::i32, Shape{2, 2});
-    auto op_not = make_shared<op::Not>(p);
-    auto fun = make_shared<Function>(OutputVector{op_not}, ParameterVector{p});
-    auto result = make_shared<HostTensor>();
-
-    ASSERT_TRUE(fun->evaluate(
-        {result}, {make_host_tensor<element::Type_t::i32>(Shape{2, 2}, {100, 0, -2, 0})}));
-    EXPECT_EQ(result->get_element_type(), element::i32);
-    auto result_val = read_vector<int32_t>(result);
-    vector<int32_t> expec{0, 1, 0, 1};
-    ASSERT_EQ(result_val, expec);
 }
 
 TEST(eval, evaluate_logical_not)

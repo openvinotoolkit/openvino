@@ -197,7 +197,7 @@ TEST(type_prop, or_bad_arguments)
 {
     test_binary_logical(
         "Or", [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-            return make_shared<op::Or>(x, y);
+            return make_shared<op::v1::LogicalOr>(x, y);
         });
 }
 
@@ -238,7 +238,7 @@ TEST(type_prop, eltwise_auto_bcast)
     test_binary_eltwise_numpy<op::v1::Minimum>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Multiply>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::NotEqual>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Or>(element::boolean, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::LogicalOr>(element::boolean, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Power>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Subtract>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Xor>(element::boolean, op::AutoBroadcastType::NUMPY);
@@ -490,9 +490,9 @@ TEST(type_prop, logic_arith_compare_partial_et)
         return std::make_shared<op::v1::Greater>(param0, param1);
     };
 
-    auto test_not = [](element::Type et) -> std::shared_ptr<Node> {
+    auto test_logical_not = [](element::Type et) -> std::shared_ptr<Node> {
         auto param = std::make_shared<op::Parameter>(et, Shape{1, 2, 3});
-        return std::make_shared<op::Not>(param);
+        return std::make_shared<op::v1::LogicalNot>(param);
     };
 
     // Arith ops:
@@ -552,7 +552,7 @@ TEST(type_prop, logic_arith_compare_partial_et)
     // int -> !
     // boo -> boo
     // dyn -> boo
-    ASSERT_EQ(test_not(element::i32)->get_element_type(), element::i32);
-    ASSERT_EQ(test_not(element::boolean)->get_element_type(), element::boolean);
-    ASSERT_EQ(test_not(element::dynamic)->get_element_type(), element::dynamic);
+    ASSERT_EQ(test_logical_not(element::i32)->get_element_type(), element::i32);
+    ASSERT_EQ(test_logical_not(element::boolean)->get_element_type(), element::boolean);
+    ASSERT_EQ(test_logical_not(element::dynamic)->get_element_type(), element::dynamic);
 }

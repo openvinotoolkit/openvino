@@ -3,6 +3,7 @@
 //
 
 #include "execution_graph_tests/keep_assing.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include <ngraph/ngraph.hpp>
 #include <inference_engine.hpp>
@@ -19,6 +20,8 @@ std::string ExecGraphKeepAssignNode::getTestCaseName(testing::TestParamInfo<std:
  * So exec graph may lose it. Will check that it's present in dumped exec graph.
  */
 TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     auto device_name = this->GetParam();
     ngraph::Shape shape = {3, 2};
     ngraph::element::Type type = ngraph::element::f32;

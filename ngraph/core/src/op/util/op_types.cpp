@@ -103,7 +103,6 @@ bool ngraph::op::is_commutative(const ngraph::Node* node)
            dynamic_cast<const ngraph::op::v1::LogicalXor*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Minimum*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Multiply*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::Or*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::LogicalOr*>(node) != nullptr;
 }
 

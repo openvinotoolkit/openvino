@@ -193,52 +193,6 @@ namespace opset1_upgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Max> node)
-    {
-        bool keep_dims = false;
-        auto replacement_node =
-            make_shared<op::v1::ReduceMax>(node->input_value(0), node->input_value(1), keep_dims);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Min> node)
-    {
-        bool keep_dims = false;
-        auto replacement_node =
-            make_shared<op::v1::ReduceMin>(node->input_value(0), node->input_value(1), keep_dims);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Not> node)
-    {
-        auto replacement_node = make_shared<op::v1::LogicalNot>(node->input_value(0));
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Or> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Or, op::v1::LogicalOr>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Reverse> node)
-    {
-        // creates a Constant node from the v0::Reverse reversed_axes attribute
-        // and uses it as the second input of v1::Reverse
-        const auto reversed_axes = node->get_reversed_axes();
-
-        const auto reversed_axes_constant = op::Constant::create(
-            element::i64, Shape{reversed_axes.size()}, reversed_axes.to_vector());
-
-        const auto replacement_node = make_shared<op::v1::Reverse>(
-            node->input_value(0), reversed_axes_constant, op::v1::Reverse::Mode::INDEX);
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Softmax> node)
     {
         NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),
