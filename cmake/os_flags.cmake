@@ -129,7 +129,7 @@ endfunction()
 function(ie_arm_neon_optimization_flags flags)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    elseif(MSVC)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # nothing
     elseif(ANDROID)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
