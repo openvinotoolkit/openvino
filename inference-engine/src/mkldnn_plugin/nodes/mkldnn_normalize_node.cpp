@@ -576,10 +576,6 @@ private:
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
 
-        if (!isFloatCompatible(dst_dt)) {
-            uni_vcvtps2dq(vmm_dst, vmm_dst);
-        }
-
         if (dst_dt == memory::f32) {
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::bf16) {
