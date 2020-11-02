@@ -109,7 +109,7 @@ pipeline {
     stages {
         stage("Clone repository") {
             steps{
-                killPreviousRunningBuilds()
+                stopPreviousRunningBuilds()
                 dir("${WORKDIR}") {
                     checkout scm
                 }
