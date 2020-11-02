@@ -77,6 +77,11 @@ static constexpr char tiling_cmx_limit_message[] =
                                              "Optional. Specifies CMX limit for data tiling.\n"
 "                                             Value should be equal or greater than -1.\n"
 "                                             Overwrites value from config.";
+static constexpr char number_of_vpu_througput_streams[] =
+                                             "Optional. Optimize vpu plugin execution to maximize throughput.\n"
+"                                             This option should be used with integer value which is the requested number of streams.\n"
+"                                             The only possible values are: 1, 2, 3\n"
+"                                             Overwrites value from config.";
 
 // FPGA-specific
 static constexpr char dla_arch_name[] =
@@ -96,31 +101,33 @@ DEFINE_string(iol, "", iol_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
+DEFINE_string(VPU_THROUGHPUT_STREAMS, "", number_of_vpu_througput_streams);
 DEFINE_string(DLA_ARCH_NAME, "", dla_arch_name);
 
 static void showUsage() {
     std::cout << "compile_tool [OPTIONS]" << std::endl;
-    std::cout                                                                                      << std::endl;
-    std::cout << " Common options:                             "                                   << std::endl;
-    std::cout << "    -h                                       "   << help_message                 << std::endl;
-    std::cout << "    -m                           <value>     "   << model_message                << std::endl;
-    std::cout << "    -d                           <value>     "   << targetDeviceMessage          << std::endl;
-    std::cout << "    -o                           <value>     "   << output_message               << std::endl;
-    std::cout << "    -c                           <value>     "   << config_message               << std::endl;
-    std::cout << "    -ip                          <value>     "   << inputs_precision_message     << std::endl;
-    std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
-    std::cout << "    -iop                        \"<value>\"    "   << iop_message                << std::endl;
-    std::cout << "    -il                          <value>     "   << inputs_layout_message        << std::endl;
-    std::cout << "    -ol                          <value>     "   << outputs_layout_message       << std::endl;
-    std::cout << "    -iol                        \"<value>\"    "   << iol_message                << std::endl;
-    std::cout                                                                                      << std::endl;
-    std::cout << " MYRIAD-specific options:                    "                                   << std::endl;
-    std::cout << "      -VPU_NUMBER_OF_SHAVES      <value>     "   << number_of_shaves_message     << std::endl;
-    std::cout << "      -VPU_NUMBER_OF_CMX_SLICES  <value>     "   << number_of_cmx_slices_message << std::endl;
-    std::cout << "      -VPU_TILING_CMX_LIMIT_KB   <value>     "   << tiling_cmx_limit_message     << std::endl;
-    std::cout                                                                                      << std::endl;
-    std::cout << " FPGA-specific options:                      "                                   << std::endl;
-    std::cout << "      -DLA_ARCH_NAME             <value>     "   << dla_arch_name                << std::endl;
+    std::cout                                                                                           << std::endl;
+    std::cout << " Common options:                             "                                        << std::endl;
+    std::cout << "    -h                                       "   << help_message                      << std::endl;
+    std::cout << "    -m                           <value>     "   << model_message                     << std::endl;
+    std::cout << "    -d                           <value>     "   << targetDeviceMessage               << std::endl;
+    std::cout << "    -o                           <value>     "   << output_message                    << std::endl;
+    std::cout << "    -c                           <value>     "   << config_message                    << std::endl;
+    std::cout << "    -ip                          <value>     "   << inputs_precision_message          << std::endl;
+    std::cout << "    -op                          <value>     "   << outputs_precision_message         << std::endl;
+    std::cout << "    -iop                        \"<value>\"    "   << iop_message                     << std::endl;
+    std::cout << "    -il                          <value>     "   << inputs_layout_message             << std::endl;
+    std::cout << "    -ol                          <value>     "   << outputs_layout_message            << std::endl;
+    std::cout << "    -iol                        \"<value>\"    "   << iol_message                     << std::endl;
+    std::cout                                                                                           << std::endl;
+    std::cout << " MYRIAD-specific options:                    "                                        << std::endl;
+    std::cout << "      -VPU_NUMBER_OF_SHAVES      <value>     "   << number_of_shaves_message          << std::endl;
+    std::cout << "      -VPU_NUMBER_OF_CMX_SLICES  <value>     "   << number_of_cmx_slices_message      << std::endl;
+    std::cout << "      -VPU_TILING_CMX_LIMIT_KB   <value>     "   << tiling_cmx_limit_message          << std::endl;
+    std::cout << "      -VPU_THROUGHPUT_STREAMS    <value>     "   << number_of_vpu_througput_streams   << std::endl;
+    std::cout                                                                                           << std::endl;
+    std::cout << " FPGA-specific options:                      "                                        << std::endl;
+    std::cout << "      -DLA_ARCH_NAME             <value>     "   << dla_arch_name                     << std::endl;
     std::cout << std::endl;
 }
 
@@ -192,6 +199,10 @@ IE_SUPPRESS_DEPRECATED_END
 
         if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
             config[InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
+        }
+
+        if (!FLAGS_VPU_THROUGHPUT_STREAMS.empty()) {
+            config[InferenceEngine::MYRIAD_THROUGHPUT_STREAMS] = FLAGS_VPU_THROUGHPUT_STREAMS;
         }
     }
 

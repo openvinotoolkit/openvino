@@ -34,6 +34,10 @@ static constexpr char number_of_cmx_slices_message[] = "Optional. Specifies numb
 static constexpr char tiling_cmx_limit_message[] = "Optional. Specifies CMX limit for data tiling."
                                                    " Value should be equal or greater than -1."
                                                    " Overwrites value from config.";
+static constexpr char number_of_vpu_througput_streams[] = "Optional. Optimize vpu plugin execution to maximize throughput."
+                                                          " This option should be used with integer value which is the requested number of streams."
+                                                          " The only possible values are: 1, 2, 3"
+                                                          " Overwrites value from config.";
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of network."
                                                    " Supported values: FP32, FP16, U8. Default value: FP16.";
 static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of network."
@@ -56,22 +60,24 @@ DEFINE_string(iop, "", iop_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
+DEFINE_string(VPU_THROUGHPUT_STREAMS, "", number_of_vpu_througput_streams);
 
 static void showUsage() {
     std::cout << std::endl;
     std::cout << "myriad_compile [OPTIONS]" << std::endl;
     std::cout << "[OPTIONS]:" << std::endl;
-    std::cout << "    -h                                       "   << help_message                 << std::endl;
-    std::cout << "    -m                           <value>     "   << model_message                << std::endl;
-    std::cout << "    -pp                          <value>     "   << plugin_path_message          << std::endl;
-    std::cout << "    -o                           <value>     "   << output_message               << std::endl;
-    std::cout << "    -c                           <value>     "   << config_message               << std::endl;
-    std::cout << "    -ip                          <value>     "   << inputs_precision_message     << std::endl;
-    std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
-    std::cout << "    -iop                        \"<value>\"    " << iop_message                  << std::endl;
-    std::cout << "    -VPU_NUMBER_OF_SHAVES        <value>     "   << number_of_shaves_message     << std::endl;
-    std::cout << "    -VPU_NUMBER_OF_CMX_SLICES    <value>     "   << number_of_cmx_slices_message << std::endl;
-    std::cout << "    -VPU_TILING_CMX_LIMIT_KB     <value>     "   << tiling_cmx_limit_message     << std::endl;
+    std::cout << "    -h                                       "   << help_message                      << std::endl;
+    std::cout << "    -m                           <value>     "   << model_message                     << std::endl;
+    std::cout << "    -pp                          <value>     "   << plugin_path_message               << std::endl;
+    std::cout << "    -o                           <value>     "   << output_message                    << std::endl;
+    std::cout << "    -c                           <value>     "   << config_message                    << std::endl;
+    std::cout << "    -ip                          <value>     "   << inputs_precision_message          << std::endl;
+    std::cout << "    -op                          <value>     "   << outputs_precision_message         << std::endl;
+    std::cout << "    -iop                        \"<value>\"  "   << iop_message                       << std::endl;
+    std::cout << "    -VPU_NUMBER_OF_SHAVES        <value>     "   << number_of_shaves_message          << std::endl;
+    std::cout << "    -VPU_NUMBER_OF_CMX_SLICES    <value>     "   << number_of_cmx_slices_message      << std::endl;
+    std::cout << "    -VPU_TILING_CMX_LIMIT_KB     <value>     "   << tiling_cmx_limit_message          << std::endl;
+    std::cout << "    -VPU_THROUGHPUT_STREAMS      <value>     "   << number_of_vpu_througput_streams   << std::endl;
     std::cout << std::endl;
 }
 
@@ -119,6 +125,10 @@ static std::map<std::string, std::string> configure(const std::string &configFil
 
     if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
         config[InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
+    }
+
+    if (!FLAGS_VPU_THROUGHPUT_STREAMS.empty()) {
+        config[InferenceEngine::MYRIAD_THROUGHPUT_STREAMS] = FLAGS_VPU_THROUGHPUT_STREAMS;
     }
 
     return config;
