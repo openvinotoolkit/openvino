@@ -338,7 +338,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_clip_default_int8_max_cpu"),
     (xfail_issue_38091,
         "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
-        "OnnxBackendNodeModelTest.test_round_cpu",
         "OnnxBackendNodeModelTest.test_mvn_cpu",
         "OnnxBackendNodeModelTest.test_elu_example_cpu"),
     (xfail_issue_35929,
