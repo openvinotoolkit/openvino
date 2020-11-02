@@ -15,7 +15,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-// using ngraph::helpers::operator<<;
+using ngraph::helpers::operator<<;
 
 namespace LayerTestsDefinitions {
 
@@ -38,24 +38,24 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     double cubeCoef;
     std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
     std::ostringstream result;
-    // result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    // result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
-    // result << "InterpolateMode=" << mode << "_";
-    // result << "ShapeCalcMode=" << shapeCalcMode << "_";
-    // result << "CoordinateTransformMode=" << coordinateTransformMode << "_";
-    // result << "NearestMode=" << nearestMode << "_";
-    // result << "CubeCoef=" << cubeCoef << "_";
-    // result << "Antialias=" << antialias << "_";
-    // result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
-    // result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
-    // result << "Axes=" << CommonTestUtils::vec2str(axes) << "_";
-    // result << "Scales=" << CommonTestUtils::vec2str(scales) << "_";
-    // result << "netPRC=" << netPrecision.name() << "_";
-    // result << "inPRC=" << inPrc.name() << "_";
-    // result << "outPRC=" << outPrc.name() << "_";
-    // result << "inL=" << inLayout << "_";
-    // result << "outL=" << outLayout << "_";
-    // result << "trgDev=" << targetDevice;
+    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
+    result << "InterpolateMode=" << mode << "_";
+    result << "ShapeCalcMode=" << shapeCalcMode << "_";
+    result << "CoordinateTransformMode=" << coordinateTransformMode << "_";
+    result << "NearestMode=" << nearestMode << "_";
+    result << "CubeCoef=" << cubeCoef << "_";
+    result << "Antialias=" << antialias << "_";
+    result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
+    result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
+    result << "Axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "Scales=" << CommonTestUtils::vec2str(scales) << "_";
+    result << "netPRC=" << netPrecision.name() << "_";
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetDevice;
     return result.str();
 }
 
@@ -170,7 +170,6 @@ void InterpolateLayerTest1::SetUp() {
     auto axesInput = std::make_shared<ngraph::opset3::Constant>(axesConst);
 
     ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{mode, shapeCalcMode, padBegin, padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
-    printf("InterpolateLayerTest1 SetUp interpolate-----\n\n");
 
     auto interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0],
                                                                      sizesInput,
@@ -178,9 +177,7 @@ void InterpolateLayerTest1::SetUp() {
                                                                      axesInput,
                                                                      interpolateAttributes);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(interpolate)};
-    printf("-----InterpolateLayerTest1 SetUp interpolaten\n");
     function = std::make_shared<ngraph::Function>(results, params, "interpolate");
-    printf("-----InterpolateLayerTest1 SetUp interpolate-----\n\n");
 }
 
 TEST_P(InterpolateLayerTest1, CompareWithRefs) {
