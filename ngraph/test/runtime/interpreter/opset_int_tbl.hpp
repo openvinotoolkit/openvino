@@ -33,6 +33,8 @@ NGRAPH_OP(LogicalOr, op::v1)
 NGRAPH_OP(LogicalXor, op::v1)
 NGRAPH_OP(LogicalNot, op::v1)
 NGRAPH_OP(GatherTree, op::v1)
+NGRAPH_OP(OneHot, op::v1)
+NGRAPH_OP(Reverse, op::v1)
 #undef ID_SUFFIX
 
 #define ID_SUFFIX(NAME) NAME##_v3
@@ -57,6 +59,7 @@ NGRAPH_OP(GatherND, op::v5)
 NGRAPH_OP(LSTMSequence, op::v5)
 NGRAPH_OP(GRUSequence, op::v5)
 NGRAPH_OP(RNNSequence, op::v5)
+NGRAPH_OP(BatchNormInference, op::v5)
 NGRAPH_OP(Round, op::v5)
 NGRAPH_OP(LogSoftmax, op::v5)
 #undef ID_SUFFIX

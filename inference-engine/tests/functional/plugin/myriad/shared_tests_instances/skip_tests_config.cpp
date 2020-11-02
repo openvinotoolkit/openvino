@@ -25,5 +25,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 40473
         R"(.*TopKLayerTest.*mode=min.*sort=index.*)",
+        // TODO: Issue: 40961
+        R"(.*(ConstantResultSubgraphTest).*)",
     };
 }

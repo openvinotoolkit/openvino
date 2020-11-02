@@ -14,6 +14,7 @@
  limitations under the License.
 """
 import numpy as np
+import logging as log
 
 from extensions.front.kaldi.replace_lstm_node_pattern import create_zero_value_with_batch_from_input
 from extensions.ops.splice import Splice
@@ -173,6 +174,14 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
             out = Result(graph, {'name': 'Memory_output'}).create_node()
             memory_in.out_port(0).connect(out.in_port(0))
             out_port.get_connection().set_source(memory_out.out_port(0))
+
+        if not graph.graph['cmd_params'].static_shape:
+            log.error(
+                "Model can not be translated in a reshape-able way.\n"
+                "Model Optimizer key static_shape was turned on to prevent related errors.\n"
+                "There will be no success changing input shapes of the model with the help of "
+                "InferenceEngine reshape method", extra={'is_warning': True})
+            graph.graph['cmd_params'].static_shape = True
 
         graph.remove_node(op_output_id)
         graph.remove_node(node.id)

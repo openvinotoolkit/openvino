@@ -615,3 +615,16 @@ You need to specify values for each input of the model. For more information, re
 #### 102. What does the message "Operation _contrib_box_nms is not supported ..." mean? <a name="question-102"></a>
 
 It means that you trying to convert the topology which contains '_contrib_box_nms' operation which is not supported directly. However the sub-graph of operations including the '_contrib_box_nms' could be replaced with DetectionOutput layer if your topology is one of the gluoncv topologies. Specify '--enable_ssd_gluoncv' command line parameter for the Model Optimizer to enable this transformation.
+
+\htmlonly
+
+<script>
+  window.addEventListener('load', function(){
+    var questionID = getURLParameter('question'); /* this function is defined in openvino-layout.js */
+    if (questionID) {
+      window.location = window.location.pathname + '#' + encodeURI(questionID);
+    }
+  });
+</script>
+
+\endhtmlonly

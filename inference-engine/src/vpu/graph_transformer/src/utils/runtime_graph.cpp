@@ -7,7 +7,7 @@
 #include "generic_ie.hpp"
 
 #include <legacy/ie_util_internal.hpp>
-#include <legacy/ie_ngraph_utils.hpp>
+#include <ie_ngraph_utils.hpp>
 #include <exec_graph_info.hpp>
 #include <ngraph/variant.hpp>
 
@@ -241,8 +241,13 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo& stageMeta) {
     serializationInfo[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = layoutStream.str();
 
     std::string outPrecisionsStr;
+    Precision runtimePrecision {Precision::I32};
     ind = 0;
     for (auto &outPrecision : stageMeta.outPrecisions) {
+        // if we have any output precision not equal I32 -> we assume runtimePrecision is FP16
+        if (outPrecision != Precision::I32) {
+            runtimePrecision = Precision::FP16;
+        }
         if (ind == 0) {
             outPrecisionsStr += outPrecision.name();
             ind++;
@@ -251,7 +256,7 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo& stageMeta) {
         outPrecisionsStr += ',' + std::string(outPrecision.name());
     }
     serializationInfo[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outPrecisionsStr;
-
+    serializationInfo[ExecGraphInfoSerialization::RUNTIME_PRECISION] = runtimePrecision.name();
     return serializationInfo;
 }
 

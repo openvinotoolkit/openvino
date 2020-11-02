@@ -19,7 +19,7 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
 
-    auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0, ngraph::op::EpsMode::ADD);
+    auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0.0f, ngraph::op::EpsMode::ADD);
     auto mul = std::make_shared<ngraph::opset1::Multiply> (normalize, input_1);
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
@@ -62,7 +62,8 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
                                                                        constant->output(0),
                                                                        normalize->get_eps(),
                                                                        across_spatial,
-                                                                       channel_shared);
+                                                                       channel_shared,
+                                                                       normalize->get_element_type());
 
         normalize_ie->set_friendly_name(mul->get_friendly_name());
         ngraph::copy_runtime_info({normalize, mul}, normalize_ie);
@@ -79,7 +80,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNormalizeL2ToLegacyMatcher, "Convert
 ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
-    auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0, ngraph::op::EpsMode::ADD);
+    auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0.0f, ngraph::op::EpsMode::ADD);
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto normalize = std::dynamic_pointer_cast<ngraph::op::NormalizeL2> (m.get_match_root());
@@ -93,13 +94,14 @@ ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatch
         bool across_channels = !(axis.size() == 1 && axis[0] == 1);
         bool channel_shared = true;
 
-        auto scale = std::make_shared<ngraph::opset1::Constant>(normalize->get_input_element_type(0), Shape{1}, std::vector<float>{1.0});
+        auto scale = std::make_shared<ngraph::opset1::Constant>(normalize->output(0).get_element_type(), Shape{1}, std::vector<float>{1.0});
 
         auto normalize_ie = std::make_shared<ngraph::op::NormalizeIE> (normalize->input(0).get_source_output(),
                                                                        scale->output(0),
                                                                        normalize->get_eps(),
                                                                        across_channels,
-                                                                       channel_shared);
+                                                                       channel_shared,
+                                                                       normalize->get_element_type());
 
         normalize_ie->set_friendly_name(normalize->get_friendly_name());
         ngraph::copy_runtime_info(normalize, normalize_ie);
