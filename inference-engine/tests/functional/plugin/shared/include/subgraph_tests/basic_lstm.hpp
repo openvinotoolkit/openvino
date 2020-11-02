@@ -29,6 +29,9 @@ public:
     void Run() override;
 
 protected:
+    size_t hidden_size;
+    std::vector<float> hidden_memory_init;
+    std::vector<float> cell_memory_init;
     void SetUp() override;
     std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
 };

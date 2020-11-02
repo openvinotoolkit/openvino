@@ -128,7 +128,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
 
                 // +1 because the left and right borders are included [start, end]
                 m_num_iterations = (abs(end - start) + 1) / part_size;
-
                 if (body_param_partial_shape.is_static())
                 {
                     // validate

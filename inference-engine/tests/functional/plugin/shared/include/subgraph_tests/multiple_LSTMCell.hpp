@@ -20,6 +20,7 @@ class MultipleLSTMCellTest : public LayerTestsUtils::LayerTestsCommon,
 private:
     // you have to Unroll TI manually and remove memory untill ngraph supports it
     void switchToNgraphFriendlyModel();
+    void CreatePureTensorIteratorModel();
     // since we switching models we need to generate and save weights biases and inputs in SetUp
     size_t hiddenSize;
     std::vector<float> input_bias;

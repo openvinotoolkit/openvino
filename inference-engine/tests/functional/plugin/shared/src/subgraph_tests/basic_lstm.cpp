@@ -8,6 +8,7 @@
 #include <tuple>
 #include <vector>
 #include <ie_plugin_config.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
@@ -49,7 +50,7 @@ void Basic_LSTM_S::SetUp() {
 
     auto params = ngraph::builder::makeParams(ngPrc, { {1, 490} });
 
-    const size_t hidden_size = 118;
+    hidden_size = 118;
     const size_t batch_size = 1;
 
     outPrc = InferenceEngine::Precision::FP32;
@@ -62,10 +63,13 @@ void Basic_LSTM_S::SetUp() {
     auto reshape1_shape = reshape1->output(0).get_shape();
     auto H_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
     auto C_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
+    hidden_memory_init = std::static_pointer_cast<ngraph::opset1::Constant>(H_init)->cast_vector<float>();
+    cell_memory_init = std::static_pointer_cast<ngraph::opset1::Constant>(C_init)->cast_vector<float>();
 
     auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, hidden_size });
     auto C_t = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, hidden_size });
-
+    H_t->set_friendly_name("hidden_state_1");
+    C_t->set_friendly_name("cell_state_1");
     //Body
     auto X = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, 1, reshape1_shape[2] });
     auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hidden_size, reshape1_shape[2] }, {}, true);
@@ -169,7 +173,10 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl) {
     Run();
 };
 
-TEST_P(Basic_LSTM_S, CompareWithRefImpl_low_latency) {
+TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
+    InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,
+                                                  InferenceEngine::SizeVector({1, hidden_size}),
+                                                  InferenceEngine::Layout::NC);
     // Reshape
     auto params = ngraph::builder::makeParams(function->get_parameters().at(0)->get_element_type(), { {1, 49} });
     function->replace_parameter(0, params[0]);
@@ -193,9 +200,23 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_low_latency) {
     manager.register_pass<ngraph::pass::LowLatency>();
     manager.register_pass<ngraph::pass::UnrollTensorIterator>();
     manager.run_passes(function);
-
-    // Run and compare
     LoadNetwork();
+    auto states = executableNetwork.QueryState();
+    for (auto& state : states) {
+        auto name = state.GetName();
+        if (name.find("cell_state_1") != std::string::npos) {
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+                                                                       cell_memory_init.data(), cell_memory_init.size());
+            state.SetState(blob);
+        } else if (name.find("hidden_state_1") != std::string::npos) {
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+                                                                       hidden_memory_init.data(), hidden_memory_init.size());
+            state.SetState(blob);
+        } else {
+            GTEST_FAIL() << "unknown memory state";
+        }
+    }
+    // Run and compare
     Infer();
     const auto& actualOutputs = GetOutputs();
     Compare(referenceOutputs, actualOutputs);

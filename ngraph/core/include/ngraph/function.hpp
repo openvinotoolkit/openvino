@@ -151,7 +151,6 @@ namespace ngraph
 
         /// \brief Return a list of function's sinks.
         const SinkVector& get_sinks() const { return m_sinks; }
-
         /// \brief Add new sink nodes to the list. Method doesn't validate graph, it should be done
         /// manually after all changes.
         /// \param sinks new sink nodes
@@ -160,7 +159,6 @@ namespace ngraph
         /// \brief Delete sink node from the list of sinks. Method doesn't delete node from graph.
         /// \param sink Sink to delete
         void remove_sink(const std::shared_ptr<op::Sink>& sink);
-
 
         /// \brief Add new Result nodes to the list. Method doesn't validate graph, it should be
         /// done manually after all changes.
