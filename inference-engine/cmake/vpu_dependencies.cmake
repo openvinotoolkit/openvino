@@ -13,7 +13,7 @@ endif()
 
 include(dependency_solver)
 
-set(VPU_SUPPORTED_FIRMWARES usb-ma2450 usb-ma2x8x pcie-ma248x)
+set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma248x)
 
 #
 # Default packages
@@ -66,11 +66,11 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
     string(TOUPPER "${firmware_name}" firmware_name_upper)
     set(var_name VPU_FIRMWARE_${firmware_name_upper}_FILE)
 
-    set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${firmware_name}.mvcmd")
+    set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/${firmware_name}.mvcmd")
 
     # Handle PCIe elf firmware for Windows
     if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma248x")
-        set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${firmware_name}.elf")
+        set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/${firmware_name}.elf")
     endif ()
 
     list(APPEND all_firmware_files ${firmware_out_file})
@@ -79,7 +79,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         COMMAND
             ${CMAKE_COMMAND} -E copy ${${var_name}} ${firmware_out_file}
         MAIN_DEPENDENCY ${${var_name}}
-        COMMENT "[VPU] Copy ${${var_name}} to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
+        COMMENT "[VPU] Copy ${${var_name}} to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}"
         VERBATIM)
 
     install(FILES ${${var_name}}

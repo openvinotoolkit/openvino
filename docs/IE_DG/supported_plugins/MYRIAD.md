@@ -2,7 +2,7 @@
 
 ## Introducing MYRIAD Plugin
 
-The Inference Engine MYRIAD plugin is developed for inference of neural networks on Intel&reg; Movidius&trade; Neural Compute Stick and Intel&reg; Neural Compute Stick 2.
+The Inference Engine MYRIAD plugin is developed for inference of neural networks on Intel&reg; Neural Compute Stick 2.
 
 ## Installation on Linux* OS
 
@@ -23,10 +23,10 @@ The Inference Engine MYRIAD plugin supports the following networks:
 * GoogleNet (Inception) v1, v2, v4
 * VGG family (VGG16, VGG19)
 * SqueezeNet v1.0, v1.1
-* ResNet v1 family (18\*\* \*\*\*, 50, 101, 152)
+* ResNet v1 family (18\*\*\*, 50, 101, 152)
 * MobileNet (mobilenet-v1-1.0-224, mobilenet-v2)
 * Inception ResNet v2
-* DenseNet family\*\* (121,161,169,201)
+* DenseNet family (121,161,169,201)
 * SSD-300, SSD-512, SSD-MobileNet, SSD-GoogleNet, SSD-SqueezeNet
 
 **TensorFlow\***:
@@ -45,7 +45,7 @@ The Inference Engine MYRIAD plugin supports the following networks:
 
 **MXNet\***:
 * AlexNet and CaffeNet
-* DenseNet family\*\* (121,161,169,201)
+* DenseNet family (121,161,169,201)
 * SqueezeNet v1.1
 * MobileNet v1, v2
 * NiN
@@ -54,8 +54,6 @@ The Inference Engine MYRIAD plugin supports the following networks:
 * SqueezeNet v1.1
 * VGG family (VGG16, VGG19)
 * SSD-Inception-v3, SSD-MobileNet, SSD-ResNet-50, SSD-300
-
-\*\* Network is tested on Intel&reg; Movidius&trade; Neural Compute Stick with BatchNormalization fusion optimization disabled during Model Optimizer import
 
 \*\*\* Network is tested on Intel&reg; Neural Compute Stick 2 with BatchNormalization fusion optimization disabled during Model Optimizer import
 
@@ -77,9 +75,9 @@ In addition to common parameters, the MYRIAD plugin accepts the following option
 ## Device allocation <a name="MYRIAD_DEVICE_ALLOC">&nbsp;</a>
 
 Each `IExecutableNetwork` instance tries to allocate new device on `InferenceEngine::Core::LoadNetwork`, but if all available devices are already allocated it will use the one with the minimal number of uploaded networks.
-The maximum number of networks single device can handle depends on device memory capacity and the size of the networks. 
+The maximum number of networks single device can handle depends on device memory capacity and the size of the networks.
 
-If `KEY_VPU_MYRIAD_FORCE_RESET` option is set to `YES` the plugin will reset all VPU devices in the system. 
+If `KEY_VPU_MYRIAD_FORCE_RESET` option is set to `YES` the plugin will reset all VPU devices in the system.
 
 Single device cannot be shared across multiple processes.
 

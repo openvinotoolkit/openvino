@@ -26,7 +26,7 @@
   - [Build Steps](#build-steps-3)
 - [Use Custom OpenCV Builds for Inference Engine](#use-custom-opencv-builds-for-inference-engine)
 - [Add Inference Engine to Your Project](#add-inference-engine-to-your-project)
-- [(Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2](#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2)
+- [(Optional) Additional Installation Steps for the Intel® Neural Compute Stick 2](#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2)
   - [For Linux, Raspbian Stretch* OS](#for-linux-raspbian-stretch-os)
 - [Next Steps](#next-steps)
 - [Additional Resources](#additional-resources)
@@ -43,7 +43,7 @@ The open source version of Inference Engine includes the following plugins:
 | CPU plugin           | Intel® Xeon® with Intel® AVX2 and AVX512, Intel® Core™ Processors with Intel® AVX2, Intel® Atom® Processors with Intel® SSE |
 | GPU plugin           | Intel® Processor Graphics, including Intel® HD Graphics and Intel® Iris® Graphics |
 | GNA plugin           | Intel® Speech Enabling Developer Kit, Amazon Alexa\* Premium Far-Field Developer Kit, Intel® Pentium® Silver processor J5005, Intel® Celeron® processor J4005, Intel® Core™ i3-8121U processor |
-| MYRIAD plugin        | Intel® Movidius™ Neural Compute Stick powered by the Intel® Movidius™ Myriad™ 2, Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X |
+| MYRIAD plugin        | Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X |
 | Heterogeneous plugin | Heterogeneous plugin enables computing for inference on one network on several Intel® devices. |
 
 ## Build on Linux\* Systems
@@ -58,7 +58,7 @@ The software was validated on:
 - GCC\* 4.8 or higher to build the Inference Engine
 - Python 3.6 or higher for Inference Engine Python API wrapper
 - (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441].
-> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher. 
+> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher.
 
 ### Build Steps
 1. Clone submodules:
@@ -129,7 +129,7 @@ You can use the following additional build options:
   1. Install all additional packages listed in the
      `/inference-engine/ie_bridges/python/requirements.txt` file:
      ```sh
-     pip install -r requirements.txt  
+     pip install -r requirements.txt
      ```
   2. Use the `-DENABLE_PYTHON=ON` option. To specify an exact Python version, use the following
      options:
@@ -336,7 +336,7 @@ The software was validated on:
 - Microsoft\* Visual Studio 2017, 2019
 - (Optional) Intel® Graphics Driver for Windows* (26.20) [driver package].
 - Python 3.6 or higher for Inference Engine Python API wrapper
-> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher. 
+> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher.
 
 ### Build Steps
 
@@ -349,7 +349,7 @@ The software was validated on:
    the Intel® Graphics Driver for Windows (26.20) [driver package] before
    running the build. If you don't want to use the GPU plugin, use the
    `-DENABLE_CLDNN=OFF` CMake build option and skip the installation of the
-   Intel® Graphics Driver.    
+   Intel® Graphics Driver.
 3. Create build directory:
     ```sh
     mkdir build
@@ -446,7 +446,7 @@ The software was validated on:
 - [CMake]\* 3.13 or higher
 - Clang\* compiler from Xcode\* 10.1 or higher
 - Python\* 3.6 or higher for the Inference Engine Python API wrapper
-> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher. 
+> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher.
 
 ### Build Steps
 
@@ -499,9 +499,9 @@ You can use the following additional build options:
    ```sh
    -DPYTHON_EXECUTABLE=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/bin/python3.7m \
    -DPYTHON_LIBRARY=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/lib/libpython3.7m.dylib \
-   -DPYTHON_INCLUDE_DIR=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/include/python3.7m 
+   -DPYTHON_INCLUDE_DIR=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/include/python3.7m
    ```
-   - If you installed Python another way, you can use the following commands to find where the `dylib` and `include_dir` are located, respectively: 
+   - If you installed Python another way, you can use the following commands to find where the `dylib` and `include_dir` are located, respectively:
    ```sh
    find /usr/ -name 'libpython*m.dylib'
    find /usr/ -type d -name python3.7m
@@ -518,7 +518,7 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
 
 - [CMake]\* 3.13 or higher
 - Android NDK (this guide has been validated with r20 release)
-> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher. 
+> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher.
 
 ### Build Steps
 
@@ -608,11 +608,11 @@ include_directories(${InferenceEngine_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${InferenceEngine_LIBRARIES} dl)
 ```
 
-## (Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2
+## (Optional) Additional Installation Steps for the Intel® Neural Compute Stick 2
 
-> **NOTE**: These steps are only required if you want to perform inference on
-Intel® Movidius™ Neural Compute Stick or the Intel® Neural Compute Stick 2 using
-the Inference Engine MYRIAD Plugin. See also [Intel® Neural Compute Stick 2 Get Started].
+> **NOTE**: These steps are only required if you want to perform inference on the
+Intel® Neural Compute Stick 2 using the Inference Engine MYRIAD Plugin. See also
+[Intel® Neural Compute Stick 2 Get Started].
 
 ### For Linux, Raspbian\* Stretch OS
 
@@ -622,11 +622,10 @@ the Inference Engine MYRIAD Plugin. See also [Intel® Neural Compute Stick 2 Get
 sudo usermod -a -G users "$(whoami)"
 ```
 
-2. To perform inference on Intel® Movidius™ Neural Compute Stick and Intel®
-   Neural Compute Stick 2, install the USB rules as follows:
+2. To perform inference on Intel® Neural Compute Stick 2, install the USB rules
+as follows:
 ```sh
 cat <<EOF > 97-myriad-usbboot.rules
-SUBSYSTEM=="usb", ATTRS{idProduct}=="2150", ATTRS{idVendor}=="03e7", GROUP="users", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"
 SUBSYSTEM=="usb", ATTRS{idProduct}=="2485", ATTRS{idVendor}=="03e7", GROUP="users", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"
 SUBSYSTEM=="usb", ATTRS{idProduct}=="f63b", ATTRS{idVendor}=="03e7", GROUP="users", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"
 EOF

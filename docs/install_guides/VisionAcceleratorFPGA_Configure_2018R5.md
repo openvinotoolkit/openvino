@@ -22,12 +22,12 @@ A directory named `fpga_support_files` is created.
 ```sh
 cd fpga_support_files
 ```
-	
+
 5. Source `setup_env.sh` to set your environment variables:
 ```sh
 source /home/<user>/Downloads/fpga_support_files/setup_env.sh
 ```
-	
+
 6. Configure the FPGA Driver Blacklist:
 ```sh
 sudo mv config/blacklist-altera-cvp.conf /etc/modprobe.d
@@ -37,41 +37,41 @@ sudo mv config/blacklist-altera-cvp.conf /etc/modprobe.d
 ```sh
 sudo su
 ```
-	
+
 8. Use the `setup_env.sh` script from `fpga_support_files.tgz` to set your environment variables:
 ```sh
 source /home/<user>/Downloads/fpga_support_files/setup_env.sh
 ```
-	
+
 9. Change directory to `Downloads/fpga_support_files/`:
 ```sh
 cd /home/<user>/Downloads/fpga_support_files/
 ```
-	
+
 10. Run the FPGA dependencies script, which allows OpenCL to support Ubuntu* and recent kernels:
 ```sh
 ./install_openvino_fpga_dependencies.sh
 ```
 
-11. When asked, select the FPGA card, Intel® GPU, and Intel® Movidius™ Neural Compute Stick, then you can install the correct dependencies.
+11. When asked, select the FPGA card, Intel® GPU, and Intel® Neural Compute Stick 2, then you can install the correct dependencies.
 
 12. If you installed the 4.14 kernel as part of the installation script, you will need to reboot the machine and select the new kernel in the Ubuntu (grub) boot menu. You will also need to rerun `setup_env.sh` to set up your environmental variables again.
-		
+
 13. Install OpenCL™ devices. Enter **Y** when prompted to install:
 ```sh
 aocl install
 ```
-	
+
 14. Reboot the machine:
 ```sh
 reboot
 ```
-	
+
 15. Use the `setup_env.sh` script from `fpga_support_files.tgz` to set your environment variables:
 ```sh
 source /home/<user>/Downloads/fpga_support_files/setup_env.sh
 ```
-	
+
 16. Run `aocl diagnose`:
 ```sh
 aocl diagnose
@@ -93,21 +93,21 @@ cd /home/<user>/Downloads/fpga_support_files/config/
 ```sh
 sudo cp -rf a10_1150_sg1 /opt/altera/aocl-pro-rte/aclrte-linux64/board/
 ```
-	
+
 3. Convert the BSP files from DOS to UNIX:
 ```sh
 sudo chmod +x a10_1150_sg1
 find a10_1150_sg1 -type f -print0 | xargs -0 dos2unix
 ```
-	
+
 4. Set up the USB Blaster:
-		
+
     1. Connect the cable between the board and the host system. Use the letter codes in the diagram below for the connection points:
-				
+
     2. Connect the B end of the cable to point B on the board.
 
     3. Connect the F end of the cable to point F on the FPGA download cable.
-				
+
     4. From point F end of the cable to point F on the FPGA download cable, the connection is as shown:
 ![](../img/VisionAcceleratorJTAG.png)
 
@@ -115,17 +115,17 @@ find a10_1150_sg1 -type f -print0 | xargs -0 dos2unix
 ```sh
 source /home/<user>/Downloads/fpga_support_files/setup_env.sh
 ```
-	
-6. Update the Intel® FPGA Download Cable rules to program the board without root permissions and to flash the initialization bitstreams so that the Intel® FPGA Download Cable can communicate with the board: 
+
+6. Update the Intel® FPGA Download Cable rules to program the board without root permissions and to flash the initialization bitstreams so that the Intel® FPGA Download Cable can communicate with the board:
 ```sh
 sudo cp config/51-usbblaster.rules /etc/udev/rules.d
 ```
-	
+
 7. Load the USB rules:
 ```sh
 sudo udevadm control --reload-rules && udevadm trigger
 ```
-	
+
 8. Unplug and re-plug the Intel® FPGA Download Cable to enable JTAG connection.
 
 9. Run `jtagconfig` to ensure that your Intel FPGA Download Cable driver is ready to use:
@@ -135,22 +135,22 @@ jtagconfig
 Your output is similar to:
 ```sh
 1) USB-Blaster [1-6]
-02E660DD   10AX115H1(.|E2|ES)/10AX115H2/.. 
+02E660DD   10AX115H1(.|E2|ES)/10AX115H2/..
 ```
 
 10. Download [Intel® Quartus® Prime Software Lite Edition 17.1](http://fpgasoftware.intel.com/17.1/?edition=lite). Install the Intel® Quartus® Prime Software Lite to the `/home/<user>/intelFPGA/17.1` directory.
 > **NOTE**: You will need the complete the Intel® Quartus® Prime Software Lite version when you want to program the `boardtest_1ddr_top.aocx` into the flash for permanent availability.
-	
+
 11. Export the Intel® Quartus® Prime Software Lite environment variable:
 ```sh
 export QUARTUS_ROOTDIR=/home/<user>/intelFPGA/17.1/quartus
 ```
-	
+
 12. Use `jtagconfig` to slow the clock:
 ```sh
 jtagconfig --setparam 1 JtagClock 6M
 ```
-	
+
 13. (OPTIONAL) Confirm the clock is set to 6M:
 ```sh
 jtagconfig --getparam 1 JtagClock
@@ -164,7 +164,7 @@ You should see the following:
 ```sh
 cd /opt/altera/aocl-pro-rte/aclrte-linux64/board/a10_1150_sg1/bringup
 ```
-	
+
 15. Program the `boardtest_1ddr_top.aocx` file to the flash to be made permanently available even after power cycle:
 ```sh
 aocl flash acl0 boardtest_1ddr_top.aocx
@@ -186,12 +186,12 @@ Your output is similar to:
 ```sh
 source /home/<user>/Downloads/fpga_support_file/setup_env.sh
 ```
-	
+
 19. Uninstall the previous BSP before installing the OpenCL drivers for the R5 BSP:
 ```sh
 aocl uninstall /opt/altera/aocl-pro-rte/aclrte-linux64/board/<BSP_package>/
 ```
-	
+
 20. Export and source the environment script:
 ```sh
 export AOCL_BOARD_PACKAGE_ROOT=/opt/altera/aocl-pro-rte/aclrte-linux64/board/a10_1150_sg1
@@ -204,13 +204,13 @@ source /opt/altera/aocl-pro-rte/aclrte-linux64/init_opencl.sh
 ```sh
 aocl install
 ```
-	
+
 22. Run the `diagnose` command:
 ```sh
 aocl diagnose
 ```
 You should see `DIAGNOSTIC_PASSED` before proceeding to the next steps.
-	
+
 ## 3. Program a Bitstream
 
 The bitstream you program should correspond to the topology you want to deploy. In this section, you program a SqueezeNet bitstream and deploy the classification sample with a SqueezeNet model that you used the Model Optimizer to convert in the steps before.
@@ -225,17 +225,17 @@ Depending on how many bitstreams you selected, there are different folders for e
 ```sh
 source /home/<user>/Downloads/fpga_support_files/setup_env.sh
 ```
-	
+
 3. Change to your home directory:
 ```sh
 cd /home/<user>
 ```
-	
+
 4. Program the bitstream for the Intel® Vision Accelerator Design with Intel® Arria® 10 FPGA:
 ```sh
 aocl program acl0 /opt/intel/openvino/bitstreams/a10_vision_design_bitstreams/5-0_PL1_FP11_SqueezeNet.aocx
 ```
-			
+
 ### Optional Steps to Flash the FPGA Card
 
 > **NOTE**:
@@ -248,12 +248,12 @@ aocl program acl0 /opt/intel/openvino/bitstreams/a10_vision_design_bitstreams/5-
 ```sh
 jtagconfig
 ```
-	
+
 3. Use `jtagconfig` to slow the clock:
 ```sh
 jtagconfig --setparam 1 JtagClock 6M
 ```
-	
+
 4. Store the Intel® Vision Accelerator Design with Intel® Arria® 10 FPGA bistream on the board:
 ```sh
 aocl flash acl0 /opt/intel/openvino/bitstreams/a10_vision_design_bitstreams/5-0_PL1_FP11_SqueezeNet.aocx
@@ -274,27 +274,27 @@ In this section, you will create an FP16 model suitable for hardware accelerator
 ```sh
 mkdir /home/<user>/squeezenet1.1_FP16
 ```
-	
+
 2. Go to `/home/<user>/squeezenet1.1_FP16`:
 ```sh
 cd /home/<user>/squeezenet1.1_FP16
 ```
-	
+
 3. Use the Model Optimizer to convert an FP16 SqueezeNet Caffe* model into an optimized Intermediate Representation (IR):
 ```sh
 python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model /home/<user>/openvino_models/FP32/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir .
 ```
-	
+
 4. The `squeezenet1.1.labels` file contains the classes `ImageNet` uses. This file is included so that the inference results show text instead of classification numbers. Copy `squeezenet1.1.labels` to the your optimized model location:
 ```sh
 cp /home/<user>/openvino_models/ir/squeezenet1.1/FP32/squeezenet1.1.labels  .
 ```
-	
+
 5. Copy a sample image to the release directory. You will use this with your optimized model:
 ```sh
 sudo cp /opt/intel/openvino/deployment_tools/demo/car.png  ~/inference_engine_samples/intel64/Release
 ```
-	
+
 ## 5. Run a Sample Application
 
 1. Go to the samples directory
