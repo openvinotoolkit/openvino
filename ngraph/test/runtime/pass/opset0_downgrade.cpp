@@ -376,36 +376,6 @@ namespace opset0_downgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Reverse> node)
-    {
-        auto axes_node = node->input_value(1).get_node_shared_ptr();
-        NGRAPH_CHECK(op::is_constant(axes_node),
-                     "Unable to convert Reverse:v1 to Reverse:v0 "
-                     "if reduction axes are not constant. Node: ",
-                     *node);
-        const auto axes_node_const = as_type_ptr<op::Constant>(axes_node);
-        AxisSet axes{};
-        if (node->get_mode() == op::v1::Reverse::Mode::INDEX)
-        {
-            axes = axes_node_const->get_axis_vector_val();
-        }
-        else // Mode::MASK
-        {
-            auto axes_mask = axes_node_const->get_vector<bool>();
-            for (size_t i = 0; i < axes_mask.size(); ++i)
-            {
-                if (axes_mask[i])
-                {
-                    axes.emplace(i);
-                }
-            }
-        }
-        auto replacement_node = make_shared<op::v0::Reverse>(node->input_value(0), axes);
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Select> node)
     {
         ngraph::pass::ImplicitBroadcastElimination().run_on_node(node);
@@ -474,7 +444,11 @@ namespace opset0_downgrade
 
         if (!p.reverse_axes.empty())
         {
-            replacement_node = make_shared<op::Reverse>(replacement_node, p.reverse_axes);
+            replacement_node = make_shared<op::v1::Reverse>(
+                replacement_node,
+                op::Constant::create(
+                    element::u64, {p.reverse_axes.size()}, p.reverse_axes.to_vector()),
+                op::v1::Reverse::Mode::INDEX);
         }
 
         replace_node(node, replacement_node);
