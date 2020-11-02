@@ -79,7 +79,6 @@
 #include "ngraph/runtime/reference/region_yolo.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
-#include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
 #include "ngraph/runtime/reference/result.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
@@ -862,7 +861,6 @@ protected:
             break;
         }
         case OP_TYPEID::LogicalNot_v1:
-        case OP_TYPEID::Not:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::logical_not(
@@ -1247,30 +1245,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::ReplaceSlice:
-        {
-            const op::ReplaceSlice* slice = static_cast<const op::ReplaceSlice*>(&node);
-            reference::replace_slice<T>(args[0]->get_data_ptr<const T>(),
-                                        args[1]->get_data_ptr<const T>(),
-                                        out[0]->get_data_ptr<T>(),
-                                        node.get_input_shape(1),
-                                        slice->get_lower_bounds(),
-                                        slice->get_upper_bounds(),
-                                        slice->get_strides(),
-                                        node.get_output_shape(0));
-            break;
-        }
-        case OP_TYPEID::Reverse:
-        {
-            const op::Reverse* reverse = static_cast<const op::Reverse*>(&node);
-            reference::reverse(args[0]->get_data_ptr<const char>(),
-                               out[0]->get_data_ptr<char>(),
-                               node.get_input_shape(0),
-                               node.get_output_shape(0),
-                               reverse->get_reversed_axes(),
-                               args[0]->get_element_type().size());
-            break;
-        }
         case OP_TYPEID::ReverseSequence:
         {
             const op::ReverseSequence* reverse = static_cast<const op::ReverseSequence*>(&node);
@@ -1288,15 +1262,6 @@ protected:
             {
                 throw ngraph_error("only int32 indices are supported");
             }
-            break;
-        }
-        case OP_TYPEID::Round:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            reference::round<T>(args[0]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                element_count,
-                                op::v5::Round::RoundMode::HALF_TO_EVEN);
             break;
         }
         case OP_TYPEID::Select:
@@ -1519,18 +1484,16 @@ protected:
         case OP_TYPEID::LogicalOr_v1:
         case OP_TYPEID::LogicalXor_v1:
         case OP_TYPEID::MatMul:
-        case OP_TYPEID::Max:
         case OP_TYPEID::Maximum:
-        case OP_TYPEID::Min:
         case OP_TYPEID::Minimum:
         case OP_TYPEID::Multiply:
         case OP_TYPEID::NonZero_v3:
         case OP_TYPEID::NotEqual:
-        case OP_TYPEID::Or:
         case OP_TYPEID::Power:
         case OP_TYPEID::Range:
         case OP_TYPEID::Reshape:
         case OP_TYPEID::Result:
+        case OP_TYPEID::Reverse_v1:
         case OP_TYPEID::Round_v5:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
