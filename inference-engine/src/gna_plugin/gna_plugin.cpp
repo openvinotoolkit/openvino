@@ -872,10 +872,17 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     int inputNum = 0;
     for (auto &input : inputs) {
         auto inputLayout = input.second->getTensorDesc().getLayout();
-        if (inputLayout != Layout::NC && inputLayout != Layout::CN && inputLayout != Layout::CHW && inputLayout != NCHW) {
+        if (inputLayout != Layout::NC && inputLayout != Layout::CN && inputLayout != Layout::CHW && inputLayout != Layout::NCHW) {
             THROW_GNA_EXCEPTION << "Expected input blob to have Layout::NC or Layout::CN, but was: "
                                 << input.second->getTensorDesc().getLayout();
         }
+
+        auto dims = input.second->getTensorDesc().getDims();
+        if (inputLayout == Layout::CHW && (dims[0] != 0 || dims[1] != 0)) {
+            THROW_GNA_EXCEPTION << "For Layout::CHW only dimension with height = 1 and channel = 1 is supported, but was: "
+                                << dims;
+        }
+
         if (inputLayout == Layout::NCHW || inputLayout == Layout::CHW) {
             // specific case that can be squeezed to 2d
             inputLayout = Layout::NC;
@@ -883,7 +890,6 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 
         auto is2D = input.second->getTensorDesc().getLayout() == Layout::NC || input.second->getTensorDesc().getLayout() == Layout::CN;
         auto is3D = input.second->getTensorDesc().getLayout() == Layout::CHW;
-        auto dims = input.second->getTensorDesc().getDims();
 
         if (!inputsDesc->ptr_inputs_global_id.count(input.first)) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
