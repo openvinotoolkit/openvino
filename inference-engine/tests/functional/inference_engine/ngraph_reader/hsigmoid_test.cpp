@@ -59,120 +59,134 @@ TEST_F(NGraphReaderTests, ReadHSigmoidNetwork) {
     std::string modelV5 = R"V0G0N(
 <net name="Network" version="5" precision="FP32" batch="1">
     <layers>
-        <layer name="in1" type="Input" precision="FP32" id="0">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="const1" type="Const" precision="FP32" id="1">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                </port>
-            </output>
-            <blobs>
-                <custom offset="0" size="8"/>
-            </blobs>
-        </layer>
-        <layer name="add" type="Add" precision="FP32" id="2">
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-                <port id="1">
-                    <dim>1</dim>
-                </port>
-            </input>
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="const2" type="Const" precision="FP32" id="4">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                </port>
-            </output>
-            <blobs>
-                <custom offset="8" size="16"/>
-            </blobs>
-        </layer>
-        <layer name="min" type="Minimum" precision="FP32" id="5">
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-                <port id="1">
-                    <dim>1</dim>
-                </port>
-            </input>
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-
-        <layer name="const3" type="Const" precision="FP32" id="6">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                </port>
-            </output>
-            <blobs>
-                <custom offset="16" size="24"/>
-            </blobs>
-        </layer>
-
-        <layer name="mul" type="Multiply" precision="FP32" id="7">
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-                <port id="1">
-                    <dim>1</dim>
-                </port>
-            </input>
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-        <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
-        <edge from-layer="2" from-port="0" to-layer="5" to-port="0"/>
-        <edge from-layer="4" from-port="0" to-layer="5" to-port="1"/>
-        <edge from-layer="5" from-port="0" to-layer="7" to-port="0"/>
-        <edge from-layer="6" from-port="0" to-layer="7" to-port="1"/>
-    </edges>
+		<layer name="in1" type="Input" precision="FP32" id="0">
+			<data originalLayersNames="in1" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="Add_735" type="Power" precision="FP32" id="1">
+			<data originalLayersNames="activation" power="1" scale="1" shift="3" />
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="Relu_736" type="ReLU" precision="FP32" id="2">
+			<data originalLayersNames="activation" />
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="Multiply_742" type="Power" precision="FP32" id="3">
+			<data originalLayersNames="activation" power="1" scale="-1" shift="0" />
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="Multiply_744" type="Const" precision="FP32" id="4">
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="0" size="4" precision="FP32" />
+			</blobs>
+		</layer>
+		<layer name="Maximum_745" type="Eltwise" precision="FP32" id="5">
+			<data auto_broadcast="numpy" operation="max" originalLayersNames="activation" />
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="activation" type="Power" precision="FP32" id="6">
+			<data originalLayersNames="activation" power="1" scale="-0.166667" shift="0" />
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>22</dim>
+					<dim>22</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+		<edge from-layer="2" from-port="1" to-layer="3" to-port="0" />
+		<edge from-layer="3" from-port="1" to-layer="5" to-port="0" />
+		<edge from-layer="4" from-port="0" to-layer="5" to-port="1" />
+		<edge from-layer="5" from-port="2" to-layer="6" to-port="0" />
+	</edges>
 </net>
 )V0G0N";
 
