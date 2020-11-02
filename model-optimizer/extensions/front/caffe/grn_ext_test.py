@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ from unittest.mock import patch
 
 from extensions.front.caffe.grn_ext import GRNFrontExtractor
 from extensions.ops.grn import GRNOp
-from mo.utils.unittest.extractors import FakeMultiParam
-from mo.utils.unittest.graph import FakeNode
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.ops.op import Op
+from mo.utils.unittest.extractors import FakeMultiParam
+from mo.utils.unittest.graph import FakeNode
 
 
 class FakeGRNProtoLayer:

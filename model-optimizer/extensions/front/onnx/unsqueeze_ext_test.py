@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ class TestUnsqueezeONNXExt(unittest.TestCase):
         UnsqueezeFrontExtractor.extract(node)
 
         exp_res = {
-            'unsqueeze_dims': axes,
+            'expand_axis': axes,
         }
 
         for key in exp_res.keys():

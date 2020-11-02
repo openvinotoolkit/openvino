@@ -1,0 +1,196 @@
+[
+    {
+        "name": "Function_1",
+        "ops": [
+            {
+                "cacheable": true,
+                "element_type": "int64_t",
+                "name": "Parameter_785",
+                "op": "Parameter",
+                "op_version": 0,
+                "outputs": [
+                    "Parameter_785_0"
+                ],
+                "shape": [
+                    41,
+                    1
+                ]
+            },
+            {
+                "cacheable": true,
+                "element_type": "double",
+                "name": "Parameter_786",
+                "op": "Parameter",
+                "op_version": 0,
+                "outputs": [
+                    "Parameter_786_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ]
+            },
+            {
+                "input_order": [
+                    0,
+                    1
+                ],
+                "inputs": [
+                    "Parameter_785"
+                ],
+                "name": "Reshape_790",
+                "op": "Reshape",
+                "op_version": 0,
+                "output_shape": [
+                    41
+                ],
+                "outputs": [
+                    "Reshape_790_0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Reshape_790"
+                ],
+                "name": "OneHot_791",
+                "one_hot_axis": 1,
+                "op": "OneHot",
+                "op_version": 0,
+                "outputs": [
+                    "OneHot_791_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ]
+            },
+            {
+                "inputs": [
+                    "OneHot_791"
+                ],
+                "name": "Convert_792",
+                "op": "Convert",
+                "op_version": 0,
+                "outputs": [
+                    "Convert_792_0"
+                ],
+                "target_type": "double"
+            },
+            {
+                "inputs": [
+                    "Parameter_786"
+                ],
+                "name": "Softmax_789",
+                "op": "Softmax",
+                "op_version": 0,
+                "outputs": [
+                    "Softmax_789_0"
+                ],
+                "softmax_axes": [
+                    1
+                ]
+            },
+            {
+                "inputs": [
+                    "Softmax_789"
+                ],
+                "name": "Log_793",
+                "op": "Log",
+                "op_version": 0,
+                "outputs": [
+                    "Log_793_0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Convert_792",
+                    "Log_793"
+                ],
+                "name": "Multiply_794",
+                "op": "Multiply",
+                "op_version": 0,
+                "outputs": [
+                    "Multiply_794_0"
+                ]
+            },
+            {
+                "element_type": "int64_t",
+                "name": "Constant_795",
+                "op": "Constant",
+                "op_version": 0,
+                "outputs": [
+                    "Constant_795_0"
+                ],
+                "shape": [
+                    1
+                ],
+                "value": [
+                    "1"
+                ]
+            },
+            {
+                "inputs": [
+                    "Multiply_794",
+                    "Constant_795"
+                ],
+                "name": "Sum_796",
+                "op": "Sum",
+                "op_version": 0,
+                "outputs": [
+                    "Sum_796_0"
+                ],
+                "reduction_axes": [
+                    1
+                ]
+            },
+            {
+                "inputs": [
+                    "Sum_796"
+                ],
+                "name": "Negative_797",
+                "op": "Negative",
+                "op_version": 0,
+                "outputs": [
+                    "Negative_797_0"
+                ]
+            },
+            {
+                "input_order": [
+                    0
+                ],
+                "inputs": [
+                    "Negative_797"
+                ],
+                "name": "Reshape_798",
+                "op": "Reshape",
+                "op_version": 0,
+                "output_shape": [
+                    41,
+                    1
+                ],
+                "outputs": [
+                    "Reshape_798_0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Reshape_798"
+                ],
+                "name": "Result_799",
+                "needs_default_layout": true,
+                "op": "Result",
+                "op_version": 0,
+                "outputs": [
+                    "Result_799_0"
+                ]
+            }
+        ],
+        "parameters": [
+            "Parameter_785",
+            "Parameter_786"
+        ],
+        "result": [
+            "Result_799"
+        ]
+    }
+]

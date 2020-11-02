@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,11 +24,12 @@ class ROIPooling(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
+            'type': __class__.op,
+            'op': __class__.op,
+            'version': 'opset2',
             'pooled_h': None,
             'pooled_w': None,
             'spatial_scale': 0.0625,
-            'type': __class__.op,
-            'op': __class__.op,
             'infer': roipooling_infer,
             'in_ports_count': 2,
             'out_ports_count': 1,

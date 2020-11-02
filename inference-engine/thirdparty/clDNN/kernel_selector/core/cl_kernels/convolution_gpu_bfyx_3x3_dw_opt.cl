@@ -31,9 +31,9 @@ KERNEL(convolution_gpu_bfyx_3x3_dw_opt)(
     uint split_idx)
 {
     const uint local_id = get_local_id(0);
-    const uint tile_x = get_global_id(0);
-    const uint tile_y = get_global_id(1);
-    const uint bf = get_global_id(2);
+    const uint tile_x = (uint)get_global_id(0);
+    const uint tile_y = (uint)get_global_id(1);
+    const uint bf = (uint)get_global_id(2);
     const uint f = bf % INPUT0_FEATURE_NUM;
     const uint b = bf / INPUT0_FEATURE_NUM;
 
@@ -117,7 +117,7 @@ KERNEL(convolution_gpu_bfyx_3x3_dw_opt)(
 
         if ((local_id < TILE_WIDTH) && (offset_x < INPUT0_SIZE_X))
         {
-            output[OUTPUT_OFFSET + out_offset + y * INPUT0_SIZE_X + offset_x] = ACTIVATION(res, NL_M, NL_N);
+            output[OUTPUT_OFFSET + out_offset + y * INPUT0_SIZE_X + offset_x] = ACTIVATION(res, ACTIVATION_PARAMS);
         }
 
         first = (first + 1) % 3;

@@ -17,16 +17,16 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include <api/CPP/concatenation.hpp>
-#include <api/CPP/reorder.hpp>
-#include <api/CPP/data.hpp>
-#include <api/CPP/reshape.hpp>
+#include <api/concatenation.hpp>
+#include <api/reorder.hpp>
+#include <api/data.hpp>
+#include <api/reshape.hpp>
 
 using namespace cldnn;
 using namespace tests;
@@ -51,8 +51,8 @@ TEST(propagate_constants, copy_dependecies_from_nodes) {
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
     topology.add(reshape("reshape1", "weights1", tensor(spatial(1, 2))));
-    topology.add(reorder("reorder2", "input", layout(data_types::f32, format::byxf, 4)));
-    topology.add(reorder("reorder1", "reshape1", layout(data_types::f32, format::byxf, 4)));
+    topology.add(reorder("reorder2", "input", layout(data_types::f32, format::byxf, tensor(4))));
+    topology.add(reorder("reorder1", "reshape1", layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(concatenation("concat", { "reorder1", "weights2" }, concatenation::along_x));
     topology.add(convolution("conv2", { "reorder2" }, { "concat" }));
     network network(engine, topology, build_opt);

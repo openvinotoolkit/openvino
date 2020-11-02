@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,43 +14,28 @@ namespace vpu {
 namespace {
 
 class NoneStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<NoneStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
-        DataMap<float> out;
-
-        for (const auto& outEdge : _outputEdges) {
-            out[outEdge->output()] = 1.0f;
-        }
-
-        return out;
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
-        return DataMap<DimsOrder>();
-    }
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
         return StageSHAVEsRequirements::NotNeeded;
-    }
-
-    void finalCheckImpl() const override {
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
@@ -63,7 +48,7 @@ private:
 }  // namespace
 
 Stage StageBuilder::addNoneStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const DataVector& inputs,

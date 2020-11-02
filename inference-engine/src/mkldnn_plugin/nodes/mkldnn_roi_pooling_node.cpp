@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_roi_pooling_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
@@ -14,7 +14,9 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNROIPoolingNode::MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNROIPoolingNode::MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+        MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNROIPoolingNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -82,7 +84,7 @@ void MKLDNNROIPoolingNode::createPrimitive() {
 
     const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set for node " << getName() << ".";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
     auto prim_desc = roi_pooling_forward::primitive_desc(*selected_desc_ptr, getEngine());
     primitive_desc_iterator itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());
@@ -110,3 +112,4 @@ void MKLDNNROIPoolingNode::createDescriptor(const std::vector<InferenceEngine::T
                                           spatial_scale)));
     descs.push_back(desc);
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNROIPoolingNode, ROIPooling);

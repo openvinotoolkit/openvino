@@ -1,4 +1,4 @@
-# Automatic Speech Recognition C++ Sample
+# Automatic Speech Recognition C++ Sample {#openvino_inference_engine_samples_speech_sample_README}
 
 This topic shows how to run the speech sample application, which
 demonstrates acoustic model inference based on Kaldi\* neural networks
@@ -48,12 +48,11 @@ will be removed in GNA hardware version 3 and higher.
 #### Execution Modes
 
 Several execution modes are supported via the `-d` flag.  If the device
-is set to `CPU` and the GNA plugin is selected, the GNA device is
-emulated in fast-but-not-bit-exact mode.  If the device is set to
-`GNA_AUTO`, then the GNA hardware is used if available and the driver is
-installed.  Otherwise, the GNA device is emulated in
-fast-but-not-bit-exact mode.  If the device is set to `GNA_HW`, then the
-GNA hardware is used if available and the driver is installed.
+is set to `CPU` mode, then all calculation will be performed  on CPU device
+using CPU Plugin.  If the device is set to `GNA_AUTO`, then the GNA hardware is
+used if available and the driver is installed.  Otherwise, the GNA device is 
+emulated in fast-but-not-bit-exact mode.  If the device is set to `GNA_HW`,
+then the GNA hardware is used if available and the driver is installed.
 Otherwise, an error will occur.  If the device is set to `GNA_SW`, the
 GNA device is emulated in fast-but-not-bit-exact mode.  Finally, if
 the device is set to `GNA_SW_EXACT`, the GNA device is emulated in
@@ -89,13 +88,13 @@ speech_sample [OPTION]
 Options:
 
     -h                      Print a usage message.
-    -i "<path>"             Required. Path to an .ark file.
+    -i "<path>"             Required. Paths to an .ark files. Example of usage: <file1.ark,file2.ark> or <file.ark>.
     -m "<path>"             Required. Path to an .xml file with a trained model (required if -rg is missing).
     -o "<path>"             Optional. Output file name (default name is "scores.ark").
     -l "<absolute_path>"    Required for CPU custom layers. Absolute path to a shared library with the kernel implementations.
-    -d "<device>"           Optional. Specify a target device to infer on. CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.
+    -d "<device>"           Optional. Specify a target device to infer on. CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_EXACT and HETERO with combination of GNA
+     as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown below. The sample will look for a suitable plugin for device specified.
     -p                      Optional. Plugin name. For example, GPU. If this parameter is set, the sample will look for this plugin only
-    -pp                     Optional. Path to a plugin folder.
     -pc                     Optional. Enables performance report
     -q "<mode>"             Optional. Input quantization mode:  "static" (default), "dynamic", or "user" (use with -sf).
     -qb "<integer>"         Optional. Weight bits for quantization:  8 or 16 (default)
@@ -106,7 +105,10 @@ Options:
     -wg "<path>"            Optional. Write GNA model to file using path/filename provided.
     -we "<path>"            Optional. Write GNA embedded model to file using path/filename provided.
     -nthreads "<integer>"   Optional. Number of threads to use for concurrent async inference requests on the GNA.
-    -cw "<integer>"         Optional. Number of frames for context windows (default is 0). Works only with context window networks. If you use the cw flag, the batch size and nthreads arguments are ignored.
+    -cw_l "<integer>"       Optional. Number of frames for left context windows (default is 0). Works only with context window networks.
+                            If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.
+    -cw_r "<integer>"       Optional. Number of frames for right context windows (default is 0). Works only with context window networks.
+                            If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.
 
 ```
 
@@ -134,7 +136,7 @@ The following pre-trained models are available:
 * rm\_lstm4f
 * rm\_cnn4a\_smbr
 
-All of them can be downloaded from [https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi](https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi) or using the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) .
+All of them can be downloaded from [https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi](https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi) or using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) .
 
 
 ### Speech Inference
@@ -152,7 +154,9 @@ scores (`wsj_dnn5b_smbr_dev93_scores_10.ark`) corresponding to the input
 feature file (`wsj_dnn5b_smbr_dev93_10.ark`) are assumed to be available
 for comparison.
 
-> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+>
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ## Sample Output
 
@@ -200,6 +204,6 @@ cat out.txt | utils/int2sym.pl -f 2- words.txt | sed s:\<UNK\>::g | compute-wer 
 ```
 
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)
+* [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](@ref omz_tools_downloader_README)

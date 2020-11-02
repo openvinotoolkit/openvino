@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,15 +20,12 @@ from mo.graph.graph import Node
 
 
 def multi_box_prior_infer_mxnet(node: Node):
-    img_shape = node.in_node(1).shape
-    data_shape = node.in_node(0).shape
+    v10 = node.has_and_set('V10_infer')
+    data_H, data_W = node.in_node(0).value if v10 else node.in_node(0).shape[2:]
+
     num_ratios = len(node.aspect_ratio)
-
-    if node.step != -1:
-        node.step = img_shape[2] * node.step
-    else:
-        node.step = img_shape[2] / data_shape[2]
-    node.min_size = [ms * img_shape[2] for ms in node.min_size]
-
     num_priors = len(node.min_size) + num_ratios - 1
-    node.out_node(0).shape = np.array([1, 2, data_shape[2] * data_shape[3]*num_priors*4], dtype=np.int64)
+    if v10:
+        node.out_node(0).shape = np.array([2, data_H * data_W * num_priors * 4], dtype=np.int64)
+    else:
+        node.out_node(0).shape = np.array([1, 2, data_H * data_W * num_priors * 4], dtype=np.int64)

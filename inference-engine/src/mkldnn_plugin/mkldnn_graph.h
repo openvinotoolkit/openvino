@@ -1,31 +1,28 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "ie_parallel.hpp"
+#include "cpp/ie_cnn_network.h"
+#include "config.h"
+#include "mkldnn_memory.h"
+#include "mean_image.h"
+#include "mkldnn_node.h"
+#include "mkldnn_edge.h"
+#include "threading/ie_thread_local.hpp"
 #include <map>
 #include <string>
 #include <vector>
 #include <memory>
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-
-#include "ie_parallel.hpp"
-#include "mkldnn_memory.h"
-#include "config.h"
-#include "perf_count.h"
-#include "mkldnn_dims.h"
-#include "mean_image.h"
-#include "mkldnn_node.h"
-#include "mkldnn_edge.h"
-#include "mkldnn_extension_utils.h"
-#include "mkldnn_streams.h"
 
 namespace MKLDNNPlugin {
 
 class MKLDNNGraph {
 public:
     typedef std::shared_ptr<MKLDNNGraph> Ptr;
+    MKLDNNWeightsSharing::Ptr weightsCache;
 
     enum Status {
         NotReady = 0,
@@ -49,7 +46,10 @@ public:
     void getInputBlobs(InferenceEngine::BlobMap &in_map);
     void getOutputBlobs(InferenceEngine::BlobMap &out_map);
 
-    void CreateGraph(const InferenceEngine::ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    template<typename NET>
+    void CreateGraph(const NET &network,
+                     const MKLDNNExtensionManager::Ptr& extMgr,
+                     MKLDNNWeightsSharing::Ptr &w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
         return _meanImages.find(name) != _meanImages.end();
@@ -64,6 +64,10 @@ public:
         return graphNodes;
     }
 
+    std::string GetName() {
+        return _name;
+    }
+
     std::vector<MKLDNNEdgePtr>& GetEdges() {
         return graphEdges;
     }
@@ -71,6 +75,11 @@ public:
     std::vector<MKLDNNNodePtr>& GetOutputNodes() {
         return outputNodes;
     }
+
+    std::map<std::string, MKLDNNNodePtr>& GetInputNodes() {
+        return inputNodes;
+    }
+
 
     mkldnn::engine getEngine() const {
         return eng;
@@ -81,41 +90,19 @@ public:
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
     void DropNode(const MKLDNNNodePtr& node);
+    void DropDWConvNode(const MKLDNNNodePtr& node);
 
-    void CreateArena(int threads_per_stream) {
-        #if IE_THREAD == IE_THREAD_OMP
-        omp_set_num_threads(threads_per_stream);
-        #elif IE_THREAD == IE_THREAD_TBB
-        ptrArena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena(threads_per_stream));
-        #endif
-    }
+    InferenceEngine::CNNNetwork dump() const;
 
-    void CreateObserver(int _stream_id, int _threads_per_stream, int _pinning_step = 1) {
-        #if IE_THREAD == IE_THREAD_TBB
-        ptrObserver
-                = std::unique_ptr<tbb::task_scheduler_observer>(
-                new pinning_observer(*ptrArena.get(), _stream_id, _threads_per_stream, _pinning_step));
-        #else
-        cpu_set_t *process_mask = nullptr;
-        int ncpus = 0;
-        get_process_mask(ncpus, process_mask);
-            #if IE_THREAD == IE_THREAD_OMP
-            #pragma omp parallel for
-                    for (int thread_index = 0; thread_index < _threads_per_stream; thread_index++) {
-                        pin_thread_to_vacant_core(_stream_id * _threads_per_stream + thread_index, 1, ncpus, process_mask);
-                    }
-            #elif IE_THREAD == IE_THREAD_SEQ
-            pin_thread_to_vacant_core(_stream_id * _threads_per_stream, 1, ncpus, process_mask);
-            #endif
-        CPU_FREE(process_mask);
-        #endif
-    }
+    template<typename NET>
+    static void ApplyUnrollPasses(NET &net);
 
-    InferenceEngine::ICNNNetwork::Ptr dump() const;
+    void ResetInferCount() { infer_count = 0; }
+
+    void SortTopologically();
 
 protected:
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
-    void SortTopologically();
 
     void ForgetGraphData() {
         status = NotReady;
@@ -130,6 +117,12 @@ protected:
     Status status;
     Config config;
 
+    // For dumping purposes. -1 - no counting, all other positive
+    // values mean increment it within each Infer() call
+    int infer_count = -1;
+
+    bool reuse_io_tensors = true;
+
     MKLDNNMemoryPtr memWorkspace;
 
     std::map<std::string, MKLDNNNodePtr> inputNodes;
@@ -138,16 +131,15 @@ protected:
     std::vector<MKLDNNEdgePtr> graphEdges;
 
     std::map<std::string, MeanImage> _meanImages;
+    std::string _name;
 
-    #if IE_THREAD == IE_THREAD_TBB
-    std::unique_ptr<tbb::task_arena> ptrArena;
-    std::unique_ptr<tbb::task_scheduler_observer> ptrObserver;
-    #endif
     mkldnn::engine eng;
 
-    void Replicate(const ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
+    void InitDescriptors();
     void InitEdges();
     void Allocate();
     void AllocateWithReuse();
@@ -158,7 +150,8 @@ protected:
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend std::shared_ptr<InferenceEngine::ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph);
+    friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);
+    friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
     void dumpToDotFile(std::string file) const;
@@ -167,35 +160,6 @@ private:
         InferenceEngine::CNNLayerPtr cnnLayer;
         size_t outIdx;
     };
-};
-
-
-class MKLDNNExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefault {
-public:
-    typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
-
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                      InferenceEngine::OutputsDataMap networkOutputs) override;
-
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
-
-    MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network, const Config &cfg,
-                      const MKLDNNExtensionManager::Ptr& extMgr);
-
-    ~MKLDNNExecNetwork() {
-        graphs.clear();
-        extensionManager.reset();
-    }
-
-    void setProperty(const std::map<std::string, std::string> &properties);
-
-    void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
-
-protected:
-    std::vector<MKLDNNGraph::Ptr> graphs;
-    MKLDNNExtensionManager::Ptr extensionManager;
-
-    bool CanProcessDynBatch(const InferenceEngine::ICNNNetwork &network) const;
 };
 
 }  // namespace MKLDNNPlugin

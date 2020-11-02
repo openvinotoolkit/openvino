@@ -2,12 +2,12 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "precomp.hpp"
 #include <cassert>
-#include "opencv2/gapi/gcall.hpp"
+#include <opencv2/gapi/gcall.hpp>
 #include "api/gcall_priv.hpp"
 
 // GCall private implementation ////////////////////////////////////////////////
@@ -49,6 +49,11 @@ cv::GMat cv::GCall::yield(int output)
     return cv::GMat(m_priv->m_node, output);
 }
 
+cv::GMatP cv::GCall::yieldP(int output)
+{
+    return cv::GMatP(m_priv->m_node, output);
+}
+
 cv::GScalar cv::GCall::yieldScalar(int output)
 {
     return cv::GScalar(m_priv->m_node, output);
@@ -57,6 +62,11 @@ cv::GScalar cv::GCall::yieldScalar(int output)
 cv::detail::GArrayU cv::GCall::yieldArray(int output)
 {
     return cv::detail::GArrayU(m_priv->m_node, output);
+}
+
+cv::detail::GOpaqueU cv::GCall::yieldOpaque(int output)
+{
+    return cv::detail::GOpaqueU(m_priv->m_node, output);
 }
 
 cv::GCall::Priv& cv::GCall::priv()

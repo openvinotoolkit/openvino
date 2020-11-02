@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
+
+#include <vpu/model/data_contents/ie_blob_content.hpp>
 
 #include <vector>
 #include <map>
@@ -15,67 +17,37 @@ namespace vpu {
 namespace {
 
 class NormalizeStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<NormalizeStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
 
-        auto input = _inputEdges[0]->input();
-        auto scales = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
-        out[input] = 1.0f;
-        out[scales] = 1.0f;
-        out[output] = 1.0f;
-
-        return out;
+        orderInfo.setOutput(outputEdge(0), input->desc().dimsOrder());
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
-
-        out[output] = input->desc().dimsOrder();
-
-        return out;
-    }
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        if (input(0)->desc().dimsOrder().dimInd(Dim::C) == 0) {
+            stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+            stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
+        }
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
+        batchInfo.setInput(inputEdge(0), BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -89,27 +61,19 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
+        auto input = inputEdge(0)->input();
+        auto scales = inputEdge(1)->input();
+        auto output = outputEdge(0)->output();
 
-        auto input = _inputEdges[0]->input();
-        auto scales = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
-
-        input->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
-        scales->serializeOldBuffer(handle_from_this(), serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
+        scales->serializeBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseNormalize(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseNormalize(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -127,18 +91,9 @@ void FrontEnd::parseNormalize(
 
     auto output = outputs[0];
 
-    auto scales = model->addConstData(
-        layer->name + "@scales",
-        DataDesc({weightsBlob->size()}),
-        ieBlobContent(weightsBlob));
+    auto scales = model->addConstData(layer->name + "@scales", DataDesc({weightsBlob->size()}), ieBlobContent(weightsBlob));
 
-    auto stage = model->addNewStage<NormalizeStage>(
-        layer->name,
-        StageType::Normalize,
-        layer,
-        {inputs[0], scales},
-        outputs);
-
+    auto stage = model->addNewStage<NormalizeStage>(layer->name, StageType::Normalize, layer, {inputs[0], scales}, outputs);
     stage->attrs().set<bool>("acrossSpatial", acrossSpatial);
     stage->attrs().set<bool>("channelShared", channelShared);
     stage->attrs().set<float>("eps", eps);

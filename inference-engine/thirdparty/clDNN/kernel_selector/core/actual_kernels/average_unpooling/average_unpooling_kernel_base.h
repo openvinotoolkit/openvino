@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,53 +16,47 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // average_unpooling_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct average_unpooling_params : public base_params
-    {
-        average_unpooling_params() : base_params(KernelType::AVERAGE_UNPOOLING) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// average_unpooling_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct average_unpooling_params : public base_params {
+    average_unpooling_params() : base_params(KernelType::AVERAGE_UNPOOLING) {}
 
-        uSize unpoolSize;
-        uSize unpoolStride;
+    uSize unpoolSize;
+    uSize unpoolStride;
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            return base_params::GetParamsKey();
-        }
+    virtual ParamsKey GetParamsKey() const {
+        return base_params::GetParamsKey();
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// average_unpooling_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct average_unpooling_optional_params : optional_params {
+    average_unpooling_optional_params() : optional_params(KernelType::AVERAGE_UNPOOLING) {}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// AverageUnpoolingKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class AverageUnpoolingKernelBase : public KernelBaseOpenCL {
+public:
+    using KernelBaseOpenCL::KernelBaseOpenCL;
+    virtual ~AverageUnpoolingKernelBase() {}
+
+    struct DispatchData : public CommonDispatchData {
+        bool needsBoundary = false;
     };
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // average_unpooling_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct average_unpooling_optional_params : optional_params
-    {
-        average_unpooling_optional_params() : optional_params(KernelType::AVERAGE_UNPOOLING) {}
-    };
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // AverageUnpoolingKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class AverageUnpoolingKernelBase : public common_kernel_base
-    {
-    public:
-        using common_kernel_base::common_kernel_base;
-        virtual ~AverageUnpoolingKernelBase() {}
-
-        struct DispatchData : public CommonDispatchData
-        {
-            bool needsBoundary = false;
-        };
-
-    protected:
-        virtual bool Validate(const Params&, const optional_params&) const override;
-        virtual JitConstants GetJitConstants(const average_unpooling_params& params) const;
-        virtual DispatchData SetDefault(const average_unpooling_params& params) const;
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
-    };
-}
+protected:
+    bool Validate(const Params&, const optional_params&) const override;
+    virtual JitConstants GetJitConstants(const average_unpooling_params& params) const;
+    virtual DispatchData SetDefault(const average_unpooling_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
+};
+}  // namespace kernel_selector

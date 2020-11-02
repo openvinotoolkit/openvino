@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,60 +14,28 @@ namespace vpu {
 namespace {
 
 class TileStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<TileStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
-        if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales.at(input);
-
-            out[output] = inputScale;
-        } else {
-            // Tile can only propagate scaling, not generate.
-
-            out[input] = 1.0f;
-            out[output] = 1.0f;
-        }
-
-        return out;
-    }
-
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
 
         auto inOrder = input->desc().dimsOrder();
         auto finalOrder = inOrder;
 
-        DataMap<DimsOrder> out;
-
-        out[input] = finalOrder;
-        out[output] = finalOrder;
-
-        return out;
+        orderInfo.setInput(inputEdge(0), finalOrder);
+        orderInfo.setOutput(outputEdge(0), finalOrder);
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
@@ -77,15 +45,13 @@ protected:
         return StageSHAVEsRequirements::OnlyOne;
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         auto axis = attrs().get<Dim>("axis");
         auto tiles = attrs().get<int>("tiles");
@@ -98,25 +64,17 @@ protected:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        input->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseTile(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseTile(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -131,15 +89,9 @@ void FrontEnd::parseTile(
     auto perm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
     auto axis = perm[input->desc().numDims() - 1 - layer->axis];
 
-    auto stage = model->addNewStage<TileStage>(
-        layer->name,
-        StageType::Tile,
-        layer,
-        {input},
-        {output});
-
-    stage->attrs().set<Dim>("axis", axis);
-    stage->attrs().set<int>("tiles", layer->tiles);
+    auto stage = model->addNewStage<TileStage>(layer->name, StageType::Tile, layer, {input}, {output});
+    stage->attrs().set("axis", axis);
+    stage->attrs().set("tiles", layer->tiles);
 }
 
 }  // namespace vpu

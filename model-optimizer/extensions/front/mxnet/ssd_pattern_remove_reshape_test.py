@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 import unittest
 
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
-from mo.utils.unittest.graph import build_graph
 from mo.graph.graph import Node
+from mo.utils.unittest.graph import build_graph
 
 
 class TestSsdPatternRemoveReshape(unittest.TestCase):
     def test_pattern_remove_reshape(self):
-        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
                              'node_2': {'type': 'Identity', 'kind': 'op'},
                              'node_multi_box_prior1': {'type': '_contrib_MultiBoxPrior', 'kind': 'op',
                                                        'op': '_contrib_MultiBoxPrior'},
@@ -47,9 +47,8 @@ class TestSsdPatternRemoveReshape(unittest.TestCase):
                             {
                                 'node_concat': {'symbol_dict': {'attrs': {'dim': 3}}},
                             })
-
-        pattern = SsdPatternRemoveReshape()
-        pattern.find_and_replace_pattern(graph)
+        graph.stage = 'front'
+        SsdPatternRemoveReshape().find_and_replace_pattern(graph)
         node_concat = Node(graph, 'node_concat')
         self.assertEqual(node_concat['symbol_dict']['attrs']['dim'], 2)
         self.assertFalse(graph.has_node('node_reshape'))

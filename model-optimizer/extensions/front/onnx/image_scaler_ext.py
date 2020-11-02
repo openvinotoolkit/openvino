@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,8 +17,6 @@
 import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
-
 from mo.front.onnx.extractors.utils import onnx_attr
 
 
@@ -26,8 +24,8 @@ class ImageScalerFrontExtractor(FrontExtractorOp):
     op = 'ImageScaler'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         dst_type = lambda x: np.array(x)
 
         scale = onnx_attr(node, 'scale', 'f', default=np.array(1.0), dst_type=dst_type)
@@ -42,4 +40,4 @@ class ImageScalerFrontExtractor(FrontExtractorOp):
         node['scale'] = scale
         node['bias'] = bias
 
-        return __class__.enabled
+        return cls.enabled

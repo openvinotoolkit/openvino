@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ from mo.middle.passes.infer import override_batch
 
 class OverrideBatch(FrontReplacementPattern):
     enabled = True
+    run_not_recursively = True
 
     def find_and_replace_pattern(self, graph: Graph):
         override_batch(graph, graph.graph['cmd_params'].batch)

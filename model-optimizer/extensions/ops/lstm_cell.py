@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-import networkx as nx
 
 from mo.front.common.partial_infer.utils import mark_input_bins
 from mo.graph.graph import Node, Graph
@@ -44,9 +42,12 @@ class LSTMCell(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset4',
             'infer': __class__.infer,
             'in_ports_count': 5,
             'out_ports_count': 2,
+            'wr_input_id': 3,
+            'gates_count': 4
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -94,3 +95,7 @@ class LSTMCell(Op):
             node['hidden_size'] = hidden_size
 
         assert cell_shape[1] == hidden_size
+
+        input_shape = node.in_node(0).shape
+        assert input_shape is not None
+        assert hidden_shape[0] == cell_shape[0] == input_shape[0], 'States are not broadcastable by batch'

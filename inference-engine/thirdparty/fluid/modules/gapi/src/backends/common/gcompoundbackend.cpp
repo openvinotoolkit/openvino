@@ -2,12 +2,12 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "precomp.hpp"
 
-#include "opencv2/gapi/gcompoundkernel.hpp" // compound::backend()
+#include <opencv2/gapi/gcompoundkernel.hpp> // compound::backend()
 
 #include "api/gbackend_priv.hpp"
 #include "compiler/gislandmodel.hpp" // GIslandExecutable

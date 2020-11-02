@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ class RemoveIdentity(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.InputCut import MiddleInputCut
-        return [MiddleInputCut]
+        from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
+        return [AddMeanScaleValues]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleStart
@@ -44,8 +44,8 @@ class RemoveDropout(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.pass_separator import PreMiddleStart
-        return [PreMiddleStart]
+        from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
+        return [AddMeanScaleValues]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleStart
@@ -66,8 +66,8 @@ class RemoveNodesWithZeroPhase(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        from extensions.middle.pass_separator import PreMiddleStart
-        return [PreMiddleStart]
+        from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
+        return [AddMeanScaleValues]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleStart

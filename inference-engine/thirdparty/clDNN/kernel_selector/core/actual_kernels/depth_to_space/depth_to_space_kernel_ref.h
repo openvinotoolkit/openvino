@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,41 +16,26 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "depth_to_space_kernel_base.h"
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // depth_to_space_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct depth_to_space_params : public base_params
-    {
-        depth_to_space_params() : base_params(KernelType::DEPTH_TO_SPACE) {}
+namespace kernel_selector {
+class DepthToSpaceKernelRef : public DepthToSpaceKernelBase {
+public:
+    using Parent = DepthToSpaceKernelBase;
 
-        size_t block_size;
+    DepthToSpaceKernelRef() : DepthToSpaceKernelBase("depth_to_space_ref") {}
+    virtual ~DepthToSpaceKernelRef() {}
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            return base_params::GetParamsKey();
-        }
-    };
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // depth_to_space_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct depth_to_space_optional_params : optional_params
-    {
-        depth_to_space_optional_params() : optional_params(KernelType::DEPTH_TO_SPACE) {}
-    };
-
-    class DepthToSpaceKernelRef : public common_kernel_base
-    {
-    public:
-        DepthToSpaceKernelRef() : common_kernel_base("depth_to_space_ref") {}
-        virtual ~DepthToSpaceKernelRef() {}
-        virtual JitConstants GetJitConstants(const depth_to_space_params& params) const;
-        virtual CommonDispatchData SetDefault(const depth_to_space_params& params, const optional_params&) const;
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+protected:
+    JitConstants GetJitConstants(const depth_to_space_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
+};
+}  // namespace kernel_selector

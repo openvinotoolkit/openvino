@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
     a string and casts it to actual node data type
     """
     enabled = True
+    run_not_recursively = True
     graph_condition = [lambda graph: graph.graph['freeze_placeholder'] is not None]
 
     def run_after(self):
@@ -38,13 +39,12 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
         return [RestorePorts]
 
     def run_before(self):
-        from extensions.front.pass_separator import FrontStart
-        return [FrontStart]
-
+        return []
+    
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('placeholder', dict(kind='op', op='Placeholder'))],
+            nodes=[('placeholder', dict(kind='op', op='Parameter'))],
             edges=[]
         )
 

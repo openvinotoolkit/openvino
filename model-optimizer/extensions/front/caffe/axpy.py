@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
  limitations under the License.
 """
 
+from extensions.ops.elementwise import Add
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
-from mo.ops.lin_op import Add
 from mo.ops.scale_shift import ScaleShiftOp
 
 
-class AxpyToEltwise(FrontReplacementOp):
+class AxpyToSSandAdd(FrontReplacementOp):
     """
-    Replaces Axpy layer with ScaleShift and Eltwise.
+    Replaces Axpy layer with ScaleShift and Add.
     """
     op = "Axpy"
     enabled = True

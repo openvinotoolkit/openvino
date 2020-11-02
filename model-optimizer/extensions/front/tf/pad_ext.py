@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,33 +15,34 @@
 """
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.pad import Pad
+from mo.ops.pad import TFPad
 
 
 class PadFrontExtractor(FrontExtractorOp):
     op = 'Pad'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        Pad.update_node_stat(node)
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        TFPad.update_node_stat(node)
+        return cls.enabled
 
 
 class PadV2FrontExtractor(FrontExtractorOp):
     op = 'PadV2'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        TFPad.update_node_stat(node)
+        return cls.enabled
 
 
 class MirrorPadFrontExtractor(FrontExtractorOp):
     op = 'MirrorPad'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        Pad.update_node_stat(node, {'mode': node.pb.attr['mode'].s.decode('utf-8').lower()})
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        TFPad.update_node_stat(node, {'mode': node.pb.attr['mode'].s.decode('utf-8').lower()})
+        return cls.enabled

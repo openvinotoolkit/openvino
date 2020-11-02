@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
 """
 
 import logging as log
-
-import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
@@ -136,6 +134,7 @@ class BlockLSTM(FrontReplacementOp):
         outputs = node.out_edges()
         if 6 in outputs:
             outputs[6]['out'] = 0
+            node.add_output_port(0, skip_if_exist=True)
 
         # do not replace any output edge
         return []

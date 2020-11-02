@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,28 +16,26 @@
 
 import logging as log
 
-from extensions.front.squared_difference import SquaredDifference
-from extensions.front.sub import Sub
+from extensions.front.PowerToEltwises import PowerToEltwises
+from extensions.ops.mvn import MVN
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
-from extensions.front.div import Div
-from mo.ops.op import Op
 
 
 class MVNUnrolled(FrontReplacementSubgraph):
     enabled = True
 
-    def run_before(self):
-        return [SquaredDifference, Div, Sub]
+    def run_after(self):
+        return [PowerToEltwises]
 
     def pattern(self):
         log.debug('Enabled MVN replacement')
         return dict(
             nodes=[
-                ('mean', dict(kind='op', op='Mean')),
+                ('mean', dict(kind='op', op='ReduceMean')),
                 ('stop_grad', dict(kind='op', op='StopGradient')),
                 ('sqdiff', dict(kind='op', op='SquaredDifference')),
-                ('variance', dict(kind='op', op='Mean')),
+                ('variance', dict(kind='op', op='ReduceMean')),
                 ('add', dict(kind='op', op='Add')),
                 ('pow', dict(kind='op', op='Pow')),
                 ('sub', dict(kind='op', op='Sub')),
@@ -56,8 +54,6 @@ class MVNUnrolled(FrontReplacementSubgraph):
 
     @staticmethod
     def replace_sub_graph(graph: Graph, match: dict):
-        MVN = Op.get_op_class_by_name('MVN')
-
         mvn = MVN(graph, dict(
             name=match['truediv'].name + '/MVN_',
             required_reduction_indices=[1, 2] if graph.graph['layout'] == 'NHWC' else [2, 3]

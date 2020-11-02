@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ import onnx
 from generator import generator, generate
 
 from extensions.front.onnx.transpose_ext import TransposeFrontExtractor
+from extensions.ops.transpose import Transpose
 from mo.ops.op import Op
-from mo.ops.permute import Permute
 from mo.utils.unittest.extractors import PB
 
 
@@ -51,7 +51,7 @@ class TestTransposeONNXExt(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        Op.registered_ops['Permute'] = Permute
+        Op.registered_ops['Transpose'] = Transpose
         pass
 
     # This generator generates all permutations for [0,1,2,3] and [0,1,2] orders
@@ -62,9 +62,9 @@ class TestTransposeONNXExt(unittest.TestCase):
         TransposeFrontExtractor.extract(node)
 
         exp_res = {
-            'type': 'Permute',
+            'type': 'Transpose',
             'order': order,
-            'infer': Permute.infer
+            'infer': Transpose.infer
         }
 
         for key in exp_res.keys():

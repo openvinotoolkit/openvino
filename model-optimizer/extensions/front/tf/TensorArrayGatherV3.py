@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
 from extensions.ops.TensorArrayGather import TensorArrayGather
-from mo.front.tf.extractors.utils import tf_int_list, tf_tensor_shape
+from mo.front.extractor import FrontExtractorOp
+from mo.front.tf.extractors.utils import tf_tensor_shape
 from mo.graph.graph import Node
 
 
@@ -24,12 +24,12 @@ class TensorArrayGatherV3Exteractor(FrontExtractorOp):
     op = "TensorArrayGatherV3"
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         attrs = {
             'op': __class__.op,
             'element_shape': tf_tensor_shape(node.pb.attr["element_shape"].shape),
         }
         TensorArrayGather.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 

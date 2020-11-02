@@ -154,7 +154,7 @@ set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD
 
 
 target_link_libraries("${CLDNN_BUILD__PROJ}"
-    OpenCL
+    clDNN_OpenCL
   )
 
 if(WIN32)
@@ -182,11 +182,9 @@ else((NOT ANDROID) AND (UNIX))
   set(CLDNN_CACHE_PATH "${CLDNN__OUTPUT_LIB_DIR}/")
 endif()
 
-message(STATUS "[CACHE COMMAND]: " "${CMAKE_COMMAND} -E copy_if_different ${__CLDNN_Directory__core}/cache/cache.json ${CLDNN_CACHE_PATH}")
-
 add_custom_command(
     TARGET "${CLDNN_BUILD__PROJ}" POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${__CLDNN_Directory__core}/cache/cache.json ${CLDNN_CACHE_PATH})
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${__CLDNN_Directory__core}/cache/cache.json ${CLDNN_CACHE_PATH}/cache.json)
 
 
 # ======================================================================================================

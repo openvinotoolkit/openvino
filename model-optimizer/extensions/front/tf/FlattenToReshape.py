@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ from extensions.front.tf.nearest_neighbor_upsampling import NearestNeighborUpsam
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
+from mo.ops.const import Const
 
 
 def is_value_is_constant(val: np.ndarray, const: [int, float]):
@@ -36,7 +37,7 @@ def is_value_is_constant(val: np.ndarray, const: [int, float]):
 class FlattenToReshapeableReshape(FrontReplacementSubgraph):
     """
     The TensorFlow implementation of the Flatten operation is not reshape-able because the batch size is hardcoded
-    during te constant propagation. This transform sets the 'dim' attribute for the Reshape to [0, -1].
+    during the constant propagation. This transform sets the 'dim' attribute for the Reshape to [0, -1].
     """
     enabled = True
 
@@ -49,7 +50,7 @@ class FlattenToReshapeableReshape(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('shape', dict(op='Shape')),
+                ('shape', dict(op='ShapeOf')),
                 ('strided_slice', dict(op='StridedSlice')),
                 ('pack', dict(op='Pack')),
                 ('const', dict(op='Const')),
@@ -86,6 +87,9 @@ class FlattenToReshapeableReshape(FrontReplacementSubgraph):
                           '"{}".'.format(ind, strided_slice_node.soft_get('value')))
                 return
 
-        graph.remove_edge(pack_node.id, reshape_node.id)
-        reshape_node['dim'] = int64_array([0, -1])
+        reshape_node.in_port(1).disconnect()
+        reshape_const_node = Const(graph, {'value': int64_array([0, -1]),
+                                           'name': reshape_node.soft_get('name', reshape_node.id) + '/shape'}).create_node()
+        reshape_node.in_port(1).connect(reshape_const_node.out_port(0))
+        reshape_node['special_zero'] = True
         log.debug('The node "{}" is actually a Flatten node'.format(reshape_node.soft_get('name')))

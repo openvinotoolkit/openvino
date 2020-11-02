@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,21 +14,31 @@
  limitations under the License.
 """
 
+import importlib
 import logging as log
 import mmap
 import os
+import sys
 
 import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
-from mo.front.caffe.proto import caffe_pb2
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 
 
-def parse_mean(file_path: str, in_shape: np.ndarray, mean_file_offsets: [tuple, None]):
+def import_caffe_pb2(caffe_parser_path: str):
+    # import caffe_pb2
+    sys.path.insert(0, caffe_parser_path)
+    caffe_pb2 = importlib.import_module("caffe_pb2")
+    sys.path.pop(0)
+
+    return caffe_pb2
+
+
+def parse_mean(file_path: str, in_shape: np.ndarray, mean_file_offsets: [tuple, None], caffe_pb2):
     blob = caffe_pb2.BlobProto()
     with open(file_path, 'rb') as file:
         data = file.read()
@@ -80,7 +90,7 @@ def parse_mean(file_path: str, in_shape: np.ndarray, mean_file_offsets: [tuple, 
             str(err)) from err
 
 
-def load_caffe_proto_model(proto_path: str, model_path: [str, None] = None):
+def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] = None):
     # 1. python protobuf is used
     if api_implementation._implementation_type == 'python':
         message = 'Please expect that Model Optimizer conversion might be slow. ' \
@@ -89,12 +99,12 @@ def load_caffe_proto_model(proto_path: str, model_path: [str, None] = None):
             from google.protobuf.pyext import cpp_message
             # Check os windows and env variable PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
             if os.name == 'nt' and os.environ.get('PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION', default='') != 'cpp':
-                # 2. cpp implementaion is available but not used
+                # 2. cpp implementation is available but not used
                 message += 'However, cpp implementation is available, you can boost ' \
                            'model conversion by setting PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION env variable to cpp. \n' \
                            'Run: set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \n'
         except ImportError:
-            # 3. cpp implementaion is not available
+            # 3. cpp implementation is not available
             message += 'However you can use the C++ protobuf implementation that is supplied with the OpenVINO toolkit' \
                        'or build protobuf library from sources. \n' \
                        'Navigate to "install_prerequisites" folder and run: ' \
@@ -149,7 +159,7 @@ def get_layers(proto):
                     refer_to_faq_msg(7))
 
 
-def caffe_pb_to_nx(proto, model):
+def caffe_pb_to_nx(graph, proto, model):
     """
     Converts proto/model layers to a graph. Edges are restored by bottom/top attributes.
     Graph nodes has two attributes: pb for prototxt definition and model_pb for caffemodel definition.
@@ -166,7 +176,6 @@ def caffe_pb_to_nx(proto, model):
         Graph
         built NX Directed graph.
     """
-    graph = Graph()
     # Blobs in prototxt model can be reused by inplace layer.
     # This requires loading of pb layers in order and tracking the latest
     # layer that writes a particular blob.
@@ -281,7 +290,7 @@ def caffe_pb_to_nx(proto, model):
                 input_names.append(layer.name)
 
         layer.name = graph.unique_id(layer.name)
-        graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op')
+        graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
@@ -308,4 +317,4 @@ def caffe_pb_to_nx(proto, model):
     if len(input_names) <= 0:
         raise Error('The topology contains no "input" layers. ' +
                     refer_to_faq_msg(79))
-    return graph, {name: shape for (name, shape) in zip(input_names, input_dims)}
+    return {name: shape for (name, shape) in zip(input_names, input_dims)}

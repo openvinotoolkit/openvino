@@ -1,3 +1,2 @@
-opencv-python
-numpy
-cython
+numpy==1.16.3
+cython==0.29.17

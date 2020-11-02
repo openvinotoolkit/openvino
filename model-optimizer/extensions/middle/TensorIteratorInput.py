@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import logging as log
 
 import numpy as np
 
+from extensions.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
 from extensions.ops.TensorIterator_ops import TensorIteratorInput
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
@@ -43,8 +44,7 @@ class SmartInputMatcher(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['is_cyclic']]
 
     def run_after(self):
-        from extensions.middle.TensorIterator_utils import DeleteSelect
-        return [DeleteSelect]
+        return [AddIsCyclicAttribute]
 
     def run_before(self):
         from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
@@ -144,7 +144,7 @@ class SmartInputMatcher(MiddleReplacementPattern):
             if shape['kind'] == 'op' and shape['op'] == 'Const':
                 start = 0
                 end = shape.value[0]
-                log.warning("You network cannot be reshaped since shapes of placeholders is a contants."
+                log.warning("Your network cannot be reshaped since shapes of placeholders are constants."
                             "Please, provide non-constant shapes. ")
 
         # Create input node with params
@@ -238,8 +238,9 @@ class BackEdgeSimpleInputMatcher(MiddleReplacementPattern):
         cycle_input = match['BackEdge'].in_node(1)
 
         # We need to create new TensorItertorInput node only if this node doesn't exist already.
-        if len(init_input.in_nodes()) == 0 or\
-           (len(init_input.in_nodes()) == 1 and init_input.has_valid('value')):
+        if (len(init_input.in_nodes()) == 0 or \
+           (len(init_input.in_nodes()) == 1 and init_input.has_valid('value') and
+            init_input.in_node(0).soft_get('op') != 'TensorIteratorInput')):
 
             input_node = TensorIteratorInput(graph, dict(external_port_id=None,
                                                          internal_layer_id=None,

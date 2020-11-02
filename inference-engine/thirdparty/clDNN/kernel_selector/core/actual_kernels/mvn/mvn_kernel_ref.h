@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +11,34 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
 #include "mvn_kernel_base.h"
- 
-namespace kernel_selector 
-{    
-    class MVNKernelRef : public MVNKernelBase
-    {
-    public:
-        MVNKernelRef() : MVNKernelBase("mvn_gpu_ref") {}
-        virtual ~MVNKernelRef() {}
+#include <string>
+#include <vector>
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+namespace kernel_selector {
+class MVNKernelRef : public MVNKernelBase {
+public:
+    using Parent = MVNKernelBase;
+    MVNKernelRef() : MVNKernelBase("mvn_gpu_ref") {}
+    virtual ~MVNKernelRef() {}
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        std::string GetKernelName(const mvn_params&) const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::QUANTIZE,
+            FusedOpType::ELTWISE,
+            FusedOpType::SCALE
+        };
+    }
+    std::string GetKernelName(const mvn_params&) const override;
+};
+}  // namespace kernel_selector

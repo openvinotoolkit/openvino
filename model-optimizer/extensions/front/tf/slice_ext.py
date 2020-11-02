@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,18 +16,14 @@
 
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
-from mo.ops.slice import Slice
+from mo.ops.slice import TFSlice
 
 
 class SliceExtractor(FrontExtractorOp):
     op = 'Slice'
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
-        Slice.update_node_stat(node, {
-                                      'axis': None,
-                                      'start': None,
-                                      'end': None,
-                                      })
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node: Node):
+        TFSlice.update_node_stat(node)
+        return cls.enabled

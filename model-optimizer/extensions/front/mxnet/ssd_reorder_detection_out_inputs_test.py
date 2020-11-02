@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,16 +19,16 @@ import unittest
 import numpy as np
 
 from extensions.front.mxnet.ssd_reorder_detection_out_inputs import SsdReorderDetectionOutInputs
-from mo.utils.unittest.graph import build_graph
 from mo.graph.graph import Node
+from mo.utils.unittest.graph import build_graph
 
 
 class TestSsdReorderDetectionOutInputs(unittest.TestCase):
     def test_reorder_detection_out_inputs(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
-             'node_2': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
-             'node_3': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
+             'node_2': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
+             'node_3': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
              'multi_box_detection': {'type': '_contrib_MultiBoxDetection', 'kind': 'op',
                                      'op': '_contrib_MultiBoxDetection'},
              },

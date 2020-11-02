@@ -1,17 +1,18 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_batchnorm_node.h"
-#include "mkldnn_depthwise_node.h"
 #include <mkldnn_extension_utils.h>
-#include "ie_memcpy.h"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNBatchNormalizationNode::MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng): MKLDNNNode(layer, eng) {
+MKLDNNBatchNormalizationNode::MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer,
+                                                           const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return GetVarianceDesc(primitive_desc_it.fetch());
     });
@@ -35,7 +36,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
     if (bnLayer->_weights == nullptr || bnLayer->_biases == nullptr) {
         THROW_IE_EXCEPTION << "Weights/biases are empty for layer: " << bnLayer->name
                            << " used in MKLDNN node: " << getName() << "\n"
-                           << "Use ReadWeights and SetWeights methods of InferenceEngine::CNNNetReader"
+                           << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
                            << " to load them from .bin part of the IR";
     }
 
@@ -46,14 +47,14 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
 
     eps = bnLayer->epsilon;
 
-    size_t variancesSize = MKLDNNDims(bnLayer->_weights->dims()).size();
-    size_t meansSize = MKLDNNDims(bnLayer->_biases->dims()).size();
+    size_t variancesSize = MKLDNNDims(bnLayer->_weights->getTensorDesc().getDims()).size();
+    size_t meansSize = MKLDNNDims(bnLayer->_biases->getTensorDesc().getDims()).size();
 
     if (variancesSize != meansSize && variancesSize != 1)
         THROW_IE_EXCEPTION << "Incorrect weights and biases sizes!";
 
-    internalBlobs.push_back(createInternalBlob(bnLayer->_weights->dims(), true));
-    internalBlobs.push_back(createInternalBlob(bnLayer->_biases->dims(), false));
+    internalBlobs.push_back(createInternalBlob(bnLayer->_weights->getTensorDesc().getDims(), true));
+    internalBlobs.push_back(createInternalBlob(bnLayer->_biases->getTensorDesc().getDims(), false));
 
     auto parentOutDims = getParentEdgeAt(0)->getDims();
 
@@ -67,7 +68,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
 
         size_t C = static_cast<size_t>(getChildEdgeAt(0)->getDims()[1]);
         SizeVector mkldnn_weights = {2, C};
-        TensorDesc desc(scshLayer->_weights->precision(), mkldnn_weights, InferenceEngine::NC);
+        TensorDesc desc(scshLayer->_weights->getTensorDesc().getPrecision(), mkldnn_weights, InferenceEngine::NC);
         InferenceEngine::TBlob<float>::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
         internalBlob->allocate();
         float * data = internalBlob->buffer();
@@ -79,7 +80,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
             THROW_IE_EXCEPTION << "Cannot get weights blob for node " << getName() << ".";
 
         size_t weightsByteSize = blb->byteSize();
-        ie_memcpy(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
+        cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
         data += blb->size();
         blb = scshLayer->_biases;
 
@@ -88,7 +89,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
         } else {
             if (weightsByteSize != blb->byteSize())
                 THROW_IE_EXCEPTION << "ScaleShift has incorrect weights!";
-            ie_memcpy(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
+            cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
         }
         internalBlobs.push_back(internalBlob);
     }
@@ -106,7 +107,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
 
 MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetVarianceDesc(const memory::primitive_desc &primitive_desc) const {
     memory::primitive_desc aprimitive_desc;
-    mkldnn_primitive_desc_t bndesc;
+    mkldnn_primitive_desc_t bndesc = nullptr;
     mkldnn_batch_normalization_desc_t *p;
     error::wrap_c_api(mkldnn_primitive_desc_query(
             primitive_desc.get(), mkldnn::convert_to_c(batch_normalization_d), 0, &p),
@@ -126,7 +127,7 @@ MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetVarianceDesc(const memory::pri
 
 MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetMeanDesc(const memory::primitive_desc &primitive_desc) const {
     memory::primitive_desc aprimitive_desc;
-    mkldnn_primitive_desc_t bndesc;
+    mkldnn_primitive_desc_t bndesc = nullptr;
     mkldnn_batch_normalization_desc_t *p;
     error::wrap_c_api(mkldnn_primitive_desc_query(
             primitive_desc.get(), mkldnn::convert_to_c(batch_normalization_d), 0, &p),
@@ -146,7 +147,7 @@ MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetMeanDesc(const memory::primiti
 
 MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetScaleShiftWeightsDesc(const memory::primitive_desc &primitive_desc) const {
     memory::primitive_desc adesc;
-    mkldnn_primitive_desc_t bndesc;
+    mkldnn_primitive_desc_t bndesc = nullptr;
     const_mkldnn_primitive_desc_t const_bndesc =
             mkldnn_primitive_desc_query_pd(primitive_desc.get(),
                                            mkldnn::convert_to_c(weights_pd), 0);
@@ -207,7 +208,10 @@ void MKLDNNBatchNormalizationNode::createDescriptor(const std::vector<InferenceE
 }
 
 void MKLDNNBatchNormalizationNode::initOptimalPrimitiveDescriptor() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
 
@@ -233,7 +237,7 @@ void MKLDNNBatchNormalizationNode::initSupportedPrimitiveDescriptors() {
     // BN primitive doesn't support strides
     for (auto& desc : descs) {
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine());
-        do {
+        while (itpd.is_not_end()) {
             InferenceEngine::LayerConfig config;
             config.dynBatchSupport = true;
             for (size_t i = 0; i < desc.inputNumbers(); i++) {
@@ -244,17 +248,21 @@ void MKLDNNBatchNormalizationNode::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
+            std::vector<memory::format> outFormats;
             for (size_t i = 0; i < desc.outputNumbers(); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
                 dataConfig.desc = getDstMemDesc(itpd, i);
                 config.outConfs.push_back(dataConfig);
+
+                outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
             }
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-        } while (itpd.next());
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            itpd++;
+        }
     }
 }
 
@@ -293,3 +301,5 @@ MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::getDstMemDesc(mkldnn::primitive_d
                                                             getChildEdgeAt(idx)->getDims().ToSizeVector(),
                                                             desc.getBlockingDesc()));
 }
+
+REG_MKLDNN_PRIM_FOR(MKLDNNBatchNormalizationNode, BatchNormalization);

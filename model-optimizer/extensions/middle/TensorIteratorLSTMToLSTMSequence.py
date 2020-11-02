@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
  limitations under the License.
 """
 
+from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
 from extensions.middle.TF_lstm_cell_to_generic import TensorFlowLSTMtoGeneric
 from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import find_isomorphisms
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
-from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize, permute_before_and_after
 
 
 class TensorIteratorLSTM(MiddleReplacementPattern):

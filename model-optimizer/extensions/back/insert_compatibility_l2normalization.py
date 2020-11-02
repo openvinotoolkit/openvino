@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,14 +15,14 @@
 """
 
 import numpy as np
-import networkx as nx
-from mo.ops.op import Op
-from mo.graph.graph import Graph
+
 from mo.back.replacement import BackReplacementPattern
+from mo.graph.graph import Graph
+from mo.ops.const import Const
 
 
 class CompatibilityL2NormalizationPattern(BackReplacementPattern):
-
+    force_clean_up = True
     enabled = True
 
     def pattern(self):
@@ -50,5 +50,7 @@ class CompatibilityL2NormalizationPattern(BackReplacementPattern):
         l2_normalization_node = match['l2_normalization']
         if len(l2_normalization_node.in_nodes()) < 2:
             value = np.full([l2_normalization_node.in_node(0).shape[1]], 1.0, dtype=np.float32)
-            weights_node = Op.create_input_data_node(graph, name=l2_normalization_node['name'] + '_weights', value=value)
-            graph.create_edge(weights_node, l2_normalization_node, out_port=0, in_port=1, edge_attrs={'bin': 'weights'})
+            weights_node = Const(graph, dict(name=l2_normalization_node['name'] + '_weights', value=value)).create_node()
+            l2_normalization_node.add_input_port(1)
+            l2_normalization_node.in_port(1).connect(weights_node.out_port(0))
+            l2_normalization_node.in_port(1).bin = 'weights'

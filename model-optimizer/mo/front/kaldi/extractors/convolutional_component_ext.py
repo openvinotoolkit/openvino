@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ class ConvolutionalComponentFrontExtractor(FrontExtractorOp):
     op = 'convolutionalcomponent'  # Naming like in Kaldi
     enabled = True
 
-    @staticmethod
-    def extract(node: Node) -> bool:
+    @classmethod
+    def extract(cls, node: Node) -> bool:
         """
         Extract conv parameters from node.parameters.
         node.parameters like file descriptor object.
@@ -85,4 +85,4 @@ class ConvolutionalComponentFrontExtractor(FrontExtractorOp):
         mapping_rule['bias_addable'] = len(biases) > 0
 
         Convolution.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        return cls.enabled

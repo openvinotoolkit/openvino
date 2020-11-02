@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -46,11 +46,6 @@ class TestEmitter(unittest.TestCase):
         net = Element('net')
         with self.assertRaises(Error):
             xml_shape(np.array([2, 10, 50, -50], dtype=np.int64), net)
-
-    def test_xml_shape_zero_values(self):
-        net = Element('net')
-        with self.assertRaises(Error):
-            xml_shape(np.array([2, 0, 50, 50], dtype=np.int64), net)
 
 
 class TestSoftGet(unittest.TestCase):

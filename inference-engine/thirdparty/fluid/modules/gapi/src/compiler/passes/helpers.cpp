@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -13,7 +13,7 @@
 
 #include <ade/util/filter_range.hpp>
 
-#include "opencv2/gapi/own/assert.hpp" // GAPI_Assert
+#include <opencv2/gapi/own/assert.hpp> // GAPI_Assert
 #include "compiler/passes/helpers.hpp"
 
 namespace {

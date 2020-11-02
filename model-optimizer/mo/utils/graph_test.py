@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,10 @@
 
 import unittest
 
-import networkx as nx
-
-from mo.utils.error import Error
-from mo.utils.graph import dfs, bfs_search, is_connected_component, sub_graph_between_nodes
 from mo.graph.graph import Graph
+from mo.utils.error import Error
+from mo.utils.graph import bfs_search, is_connected_component, sub_graph_between_nodes
+
 
 class TestGraphUtils(unittest.TestCase):
     def test_simple_dfs(self):
@@ -29,7 +28,7 @@ class TestGraphUtils(unittest.TestCase):
         graph.add_edges_from([(1, 2), (1, 3), (3, 4)])
 
         visited = set()
-        order = dfs(graph, 1, visited)
+        order = graph.dfs(1, visited)
         self.assertTrue(order == [4, 3, 2, 1] or order == [2, 4, 3, 1])
 
     def test_bfs_search_default_start_nodes(self):
@@ -156,7 +155,7 @@ class TestGraphUtils(unittest.TestCase):
         """
         graph = Graph()
         graph.add_nodes_from(list(range(1, 6)))
-        graph.node[5]['op'] = 'Placeholder'
+        graph.node[5]['op'] = 'Parameter'
         graph.add_edges_from([(1, 2), (2, 3), (3, 4), (5, 2)])
         self.assertRaises(Error, sub_graph_between_nodes, graph, [1], [4])
 
@@ -170,7 +169,7 @@ class TestGraphUtils(unittest.TestCase):
         """
         graph = Graph()
         graph.add_nodes_from(list(range(1, 6)))
-        graph.node[5]['op'] = 'Placeholder'
+        graph.node[5]['op'] = 'Parameter'
         graph.add_edges_from([(1, 2), (2, 3), (3, 4), (5, 2)])
         sub_graph_nodes = sub_graph_between_nodes(graph, [2], [4])
         self.assertIsNotNone(sub_graph_nodes)

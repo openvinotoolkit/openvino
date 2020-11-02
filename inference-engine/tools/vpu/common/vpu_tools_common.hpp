@@ -1,17 +1,5 @@
-//
-// Copyright (C) 2018-2019 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
@@ -25,9 +13,11 @@
 
 InferenceEngine::CNNNetwork readNetwork(const std::string &xmlFileName);
 
-InferenceEngine::InferencePlugin loadPlugin(const std::string &plugin, const std::string &plugin_path);
-
-/* Set all precisions to FP16 */
+bool isFP16(InferenceEngine::Precision precision);
+bool isFP32(InferenceEngine::Precision precision);
+bool isU8(InferenceEngine::Precision precision);
+bool isFloat(InferenceEngine::Precision precision);
+/* Set FP32 to FP16, all others without changes */
 void setPrecisions(const InferenceEngine::CNNNetwork &network);
 
 std::map<std::string, std::string> parseConfig(const std::string &configName, char comment = '#');
@@ -74,7 +64,7 @@ public:
 
 void loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blob);
 
-void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap);
+void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap, const std::string report = "per_layer");
 
 std::vector<std::string> extractFilesByExtension(const std::string& directory, const std::string& extension);
 std::vector<std::string> extractFilesByExtension(const std::string& directory, const std::string& extension,

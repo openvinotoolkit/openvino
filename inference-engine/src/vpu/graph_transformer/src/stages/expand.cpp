@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,44 +11,28 @@
 #include <unordered_set>
 #include <algorithm>
 
-#include <vpu/utils/extra.hpp>
-
 namespace vpu {
 
 namespace {
 
 class ExpandStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<ExpandStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
-        VPU_THROW_EXCEPTION << "Must never be called";
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
+
+        orderInfo.setOutput(outputEdge(0), input->desc().dimsOrder());
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
-
-        out[output] = input->desc().dimsOrder();
-
-        return out;
-    }
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         auto dimsOrder = output->desc().dimsOrder();
 
@@ -81,12 +65,11 @@ protected:
         // Merge output consumers StridesRequirement.
         //
 
-        for (const auto& consumer : output->consumers()) {
-            auto consumerInfo = consumer->getDataStridesRequirements();
+        for (const auto& consumerEdge : output->consumerEdges()) {
+            const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
 
-            auto consumerStrideIt = consumerInfo.find(output);
-            if (consumerStrideIt != consumerInfo.end()) {
-                auto consumerReqs = consumerStrideIt->second;
+            if (consumerInfo.hasInput(consumerEdge)) {
+                const auto& consumerReqs = consumerInfo.getInput(consumerEdge);
 
                 for (int i = 0; i < minExpandDimInd + 1; ++i) {
                     if (outputReqs.get(i) == DimStride::Any) {
@@ -103,22 +86,19 @@ protected:
         // Return merged StridesRequirements.
         //
 
-        DataMap<StridesRequirement> out;
-
-        out[input] = inputReqs;
-        out[output] = outputReqs;
-
-        return out;
+        stridesInfo.setInput(inputEdge(0), inputReqs);
+        stridesInfo.setOutput(outputEdge(0), outputReqs);
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        const auto& firstInputPrecision = input(0)->desc().type();
+        assertInputsOutputsTypes(this, {{firstInputPrecision}}, {{firstInputPrecision}});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
@@ -133,7 +113,7 @@ protected:
 }  // namespace
 
 Stage StageBuilder::addExpandStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const Data& input,

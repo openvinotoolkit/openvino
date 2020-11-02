@@ -9,6 +9,7 @@ import os
 import argparse
 import glob
 import ntpath
+import re
 
 class OpenCL2CHeaders(object):
 
@@ -61,13 +62,38 @@ class OpenCL2CHeaders(object):
         res = '{{"{}",\n(std::string) R"__krnl(\n'.format(kernel_name)
         content = self.append_file_content(filename, filename)
         max_lines = 200
+        max_characters = 16350
+        characters = 1  # Newline character above
 
+        comment_regexp = re.compile(r'(^)?[^\S\n]*/(?:\*(.*?)\*/[^\S\n]*|/[^\n]*)($)?', re.DOTALL | re.MULTILINE)
+
+        def comment_replacer(match):
+            begin, mid, end = match.group(1,2,3)
+            if mid is None:
+                return ''
+            elif begin is not None or end is not None:
+                return ''
+            elif '\n' in mid:
+                return '\n'
+            else:
+                return ' '
+
+            return
+
+        # Remove comments
+        content = comment_regexp.sub(comment_replacer, content)
+        # Remove empty lines
+        content = os.linesep.join([s for s in content.splitlines() if s])
+        # Remove multiple spaces
+        content = re.sub(' +', ' ', content)
         for i, line in enumerate(content.split('\n')):
-            if i % max_lines == 0:
+            if (i + 1) % max_lines == 0 or characters + len(line) + 1 > max_characters:
                 res += ')__krnl"\n + R"__krnl('
+                characters = 0
             res += line + '\n'
+            characters += len(line) + 1
 
-        res += ')__krnl"}},\n\n'.format(kernel_name, self.append_file_content(filename, filename))
+        res += ')__krnl"}},\n\n'.format(kernel_name)
 
         return res
 

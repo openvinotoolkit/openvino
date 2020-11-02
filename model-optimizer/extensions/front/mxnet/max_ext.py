@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,25 +14,18 @@
  limitations under the License.
 """
 
-import numpy as np
-
+from extensions.ops.ReduceOps import ReduceMax
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.ops.reduce import Reduce
 
 
 class MaxFrontExtractor(FrontExtractorOp):
     op = 'max'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        data = {
-            'axis': np.array([attrs.int('axis', 0)], dtype=np.int64),
-            'reduce_type': 'max',
-            'keep_dims': False
-        }
-        # update the attributes of the node
-        Reduce.update_node_stat(node, data)
-        return __class__.enabled
+        ReduceMax.update_node_stat(node, {'axis': int64_array([attrs.int('axis', 0)]), 'keep_dims': False})
+        return cls.enabled

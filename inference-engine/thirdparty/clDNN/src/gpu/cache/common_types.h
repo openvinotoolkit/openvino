@@ -17,11 +17,13 @@
 
 #include <string>
 
-namespace cldnn { namespace gpu { 
+namespace cldnn {
+namespace gpu {
 
-class gpu_toolkit; //TODO temporary
+class gpu_toolkit;  // TODO temporary
 using context = gpu_toolkit;
 using jit = std::string;
 using code = std::string;
 
-} }
+}  // namespace gpu
+}  // namespace cldnn

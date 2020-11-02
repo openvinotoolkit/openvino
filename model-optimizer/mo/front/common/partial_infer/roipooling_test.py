@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ nodes_attributes = {'node_1': {'kind': 'data'},
                     'node_4': {'kind': 'data'},
                     'roipool': {'type': 'ROIPooling', 'kind': 'op', 'pooled_h': None, 'pooled_w': None},
                     'output': {'value': None, 'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
+                    'op_output': { 'kind': 'op', 'op': 'Result'},
                     }
 
 

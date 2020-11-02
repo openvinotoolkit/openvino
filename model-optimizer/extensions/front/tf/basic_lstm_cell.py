@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,21 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.front.split_normalizer import SplitInputsReconnect
 from extensions.ops.lstm_cell import LSTMCell
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
-from mo.ops.output import Output
+from mo.ops.result import Result
 
 
 class BasicLSTMCell(FrontReplacementSubgraph):
     enabled = True
-
-    # When the deprecated IR version was requested, we configure only those phases that can lead
-    # to functional regressions in the version 2. BasicLSTMCell is one such transformation;
-    # when it is turned off, the body of TF basic_lstm_cell is converted as-is in a decomposed form,
-    # and should work in version 2.
-    graph_condition = [lambda graph: graph.graph['ir_version'] != 2]
 
     # list of names of all original nodes that are supported by IE
     # this list is collected gradually by a separate transformation
@@ -49,6 +43,10 @@ class BasicLSTMCell(FrontReplacementSubgraph):
 
         __class__.outputs = ['mul_2', 'add_1']
 
+    def run_after(self):
+        from extensions.front.split_normalizer import AttributedSplitToSplit
+        return [AttributedSplitToSplit, SplitInputsReconnect]
+
     def pattern(self):
         return dict(
             nodes=[
@@ -62,14 +60,14 @@ class BasicLSTMCell(FrontReplacementSubgraph):
                 ('split', dict(op='Split')),
                 ('shift_const', dict()),
                 ('shift', dict(op='Add')),
-                ('sigmoid_0', dict(op='Activation', operation='sigmoid')),
+                ('sigmoid_0', dict(op='Sigmoid')),
                 ('mul_0', dict(op='Mul')),
-                ('sigmoid_1', dict(op='Activation', operation='sigmoid')),
-                ('tanh_0', dict(op='Activation', operation='tanh')),
+                ('sigmoid_1', dict(op='Sigmoid')),
+                ('tanh_0', dict(op='Tanh')),
                 ('mul_1', dict(op='Mul')),
                 ('add_1', dict(op='Add')),
-                ('tanh_1', dict(op='Activation', operation='tanh')),
-                ('sigmoid_2', dict(op='Activation', operation='sigmoid')),
+                ('tanh_1', dict(op='Tanh')),
+                ('sigmoid_2', dict(op='Sigmoid')),
                 ('mul_2', dict(op='Mul'))
             ],
             edges=[
@@ -81,8 +79,8 @@ class BasicLSTMCell(FrontReplacementSubgraph):
                 ('matmul', 'biasadd', {'in': 0}),
                 ('biases', 'biasadd', {'in': 1}),
 
-                ('split_axis', 'split', {'in': 0}),
-                ('biasadd', 'split', {'in': 1}),
+                ('split_axis', 'split', {'in': 1}),
+                ('biasadd', 'split', {'in': 0}),
 
                 # This important block specifies how gates are ordered in TF graph
                 ('split', 'sigmoid_1', {'out': 0}),  # i
@@ -149,7 +147,7 @@ class BasicLSTMCell(FrontReplacementSubgraph):
         # when this node haven't some outputs.
         for i in [0, 1]:
             if i not in lstm_node.out_nodes():
-                fake_output_node = Output(graph, dict(name=lstm_node.name + "/Output_{}".format(i)))
+                fake_output_node = Result(graph, dict(name=lstm_node.name + "/Output_{}".format(i)))
                 fake_output_node.create_node(inputs=[lstm_node], edge_attrs={'out': i, 'in': 0})
 
         lstm_node['tf'] = True

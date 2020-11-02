@@ -1896,6 +1896,9 @@ struct ImageFormat : public cl_image_format
         image_channel_data_type = type;
     }
 
+    //! \brief Default constexpr copy constructor.
+    constexpr ImageFormat(const ImageFormat& rhs) = default;
+
     //! \brief Assignment operator.
     ImageFormat& operator = (const ImageFormat& rhs)
     {

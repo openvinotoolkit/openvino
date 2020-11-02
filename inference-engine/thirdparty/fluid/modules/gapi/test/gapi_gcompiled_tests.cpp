@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "test_precomp.hpp"
@@ -61,17 +61,17 @@ TEST_F(GCompiledValidateMetaTyped, ValidMeta)
 
 TEST_F(GCompiledValidateMetaTyped, InvalidMeta)
 {
-    auto f = m_cc.compile(cv::GMatDesc{CV_8U,1,cv::gapi::own::Size(64,32)},
+    auto f = m_cc.compile(cv::GMatDesc{CV_8U,1,cv::Size(64,32)},
                           cv::empty_scalar_desc());
 
     cv::Scalar sc(33);
     cv::Mat out;
 
-    // 3 channels intead 1
+    // 3 channels instead 1
     cv::Mat in1 = cv::Mat::eye(cv::Size(64,32), CV_8UC3);
     EXPECT_THROW(f(in1, sc, out), std::logic_error);
 
-    // 32f intead 8u
+    // 32f instead 8u
     cv::Mat in2 = cv::Mat::eye(cv::Size(64,32), CV_32F);
     EXPECT_THROW(f(in2, sc, out), std::logic_error);
 
@@ -106,17 +106,17 @@ TEST_F(GCompiledValidateMetaUntyped, ValidMeta)
 
 TEST_F(GCompiledValidateMetaUntyped, InvalidMetaValues)
 {
-    auto f = m_ucc.compile(cv::GMatDesc{CV_8U,1,cv::gapi::own::Size(64,32)},
+    auto f = m_ucc.compile(cv::GMatDesc{CV_8U,1,cv::Size(64,32)},
                            cv::empty_scalar_desc());
 
     cv::Scalar sc(33);
     cv::Mat out;
 
-    // 3 channels intead 1
+    // 3 channels instead 1
     cv::Mat in1 = cv::Mat::eye(cv::Size(64,32), CV_8UC3);
     EXPECT_THROW(f(cv::gin(in1, sc), cv::gout(out)), std::logic_error);
 
-    // 32f intead 8u
+    // 32f instead 8u
     cv::Mat in2 = cv::Mat::eye(cv::Size(64,32), CV_32F);
     EXPECT_THROW(f(cv::gin(in2, sc), cv::gout(out)), std::logic_error);
 
@@ -131,7 +131,7 @@ TEST_F(GCompiledValidateMetaUntyped, InvalidMetaValues)
 
 TEST_F(GCompiledValidateMetaUntyped, InvalidMetaShape)
 {
-    auto f = m_ucc.compile(cv::GMatDesc{CV_8U,1,cv::gapi::own::Size(64,32)},
+    auto f = m_ucc.compile(cv::GMatDesc{CV_8U,1,cv::Size(64,32)},
                            cv::empty_scalar_desc());
 
     cv::Mat in1 = cv::Mat::eye(cv::Size(64,32), CV_8UC1);

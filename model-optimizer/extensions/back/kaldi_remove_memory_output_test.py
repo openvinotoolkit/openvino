@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ class KaldiRemoveMemoryOutputTest(unittest.TestCase):
             'kind': 'data'
         },
         'memory_node': {
-            'op': 'Memory',
+            'op': 'Assign',
             'kind': 'op'
         },
         'output_node': {
@@ -34,7 +34,7 @@ class KaldiRemoveMemoryOutputTest(unittest.TestCase):
         },
         'op_output': {
             'kind': 'data',
-            'op': 'OpOutput',
+            'op': 'Result',
         }
     }
 

@@ -1,3 +1,7 @@
+if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 if (NOT TARGET ade )
   find_package(ade 0.1.0 REQUIRED)
 endif()
@@ -23,7 +27,7 @@ target_include_directories(${FLUID_TARGET}
   PUBLIC          $<BUILD_INTERFACE:${FLUID_ROOT}/include>
   PRIVATE         ${FLUID_ROOT}/src)
 
-target_compile_definitions(${FLUID_TARGET} PUBLIC -DGAPI_STANDALONE
+target_compile_definitions(${FLUID_TARGET} PUBLIC GAPI_STANDALONE
 # This preprocessor definition resolves symbol clash when
 # standalone fluid meets gapi ocv module in one application
                                            PUBLIC cv=fluidcv)
@@ -31,4 +35,18 @@ target_compile_definitions(${FLUID_TARGET} PUBLIC -DGAPI_STANDALONE
 set_target_properties(${FLUID_TARGET} PROPERTIES POSITION_INDEPENDENT_CODE True)
 set_property(TARGET ${FLUID_TARGET} PROPERTY CXX_STANDARD 11)
 
+if(MSVC)
+  target_compile_options(${FLUID_TARGET} PUBLIC "/wd4251")
+  target_compile_options(${FLUID_TARGET} PUBLIC "/wd4275")
+  target_compile_definitions(${FLUID_TARGET} PRIVATE _CRT_SECURE_NO_DEPRECATE)
+  # Disable obsollete warning C4503 popping up on MSVC <<2017
+  # https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-1-c4503?view=vs-2019
+  set_target_properties(${FLUID_TARGET} PROPERTIES COMPILE_FLAGS "/wd4503")
+endif()
+
 target_link_libraries(${FLUID_TARGET} PRIVATE ade)
+
+if(WIN32)
+  # Required for htonl/ntohl on Windows
+  target_link_libraries(${FLUID_TARGET} PRIVATE wsock32 ws2_32)
+endif()

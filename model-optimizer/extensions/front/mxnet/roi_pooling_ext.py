@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,12 +20,12 @@ from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.ops.roipooling import ROIPooling
 
 
-class PoolingFrontExtractor(FrontExtractorOp):
+class ROIPoolingFrontExtractor(FrontExtractorOp):
     op = 'ROIPooling'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
         spatial_scale = attrs.float("spatial_scale", None)
@@ -41,4 +41,4 @@ class PoolingFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         ROIPooling.update_node_stat(node, data)
-        return __class__.enabled
+        return cls.enabled

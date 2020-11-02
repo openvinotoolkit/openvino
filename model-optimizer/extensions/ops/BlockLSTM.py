@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,12 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.partial_infer.utils import mark_input_bins
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-import numpy as np
 
 
 class BlockLSTM(Op):
@@ -29,7 +26,7 @@ class BlockLSTM(Op):
         mandatory_props = {
             'op': __class__.op,
             'infer': __class__.infer,
-            'type': __class__.op,
+            'type': None,
         }
         super().__init__(graph, mandatory_props, attrs)
 

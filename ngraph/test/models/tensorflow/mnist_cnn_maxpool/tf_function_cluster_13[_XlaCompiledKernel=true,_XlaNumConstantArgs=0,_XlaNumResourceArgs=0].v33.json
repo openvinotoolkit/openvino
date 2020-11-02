@@ -1,0 +1,360 @@
+[{
+  "name" : "Function_4",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_176",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_176_0"],
+      "shape" : [ 50, 784 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_175",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_175_0"],
+      "shape" : [10]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_174",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_174_0"],
+      "shape" : [ 1024, 10 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_173",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_173_0"],
+      "shape" : [1024]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_172",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_172_0"],
+      "shape" : [ 3136, 1024 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_171",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_171_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_170",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_170_0"],
+      "shape" : [ 5, 5, 32, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_169",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_169_0"],
+      "shape" : [32]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_168",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_168_0"],
+      "shape" : [ 5, 5, 1, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_179",
+      "op" : "Constant",
+      "outputs" : ["Constant_179_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_178",
+      "op" : "Constant",
+      "outputs" : ["Constant_178_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_177",
+      "op" : "Constant",
+      "outputs" : ["Constant_177_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Parameter_176"],
+      "name" : "Reshape_180",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 28, 28, 1 ],
+      "outputs" : ["Reshape_180_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_175"],
+      "name" : "Broadcast_210",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_210_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_173"],
+      "name" : "Broadcast_205",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_205_0"],
+      "shape" : [ 50, 1024 ]
+    },
+    {
+      "axes" : [ 0, 1, 2 ],
+      "inputs" : ["Parameter_171"],
+      "name" : "Broadcast_196",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_196_0"],
+      "shape" : [ 50, 14, 14, 64 ]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_170"],
+      "name" : "Reshape_193",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 32, 5, 5 ],
+      "outputs" : ["Reshape_193_0"]
+    },
+    {
+      "axes" : [ 0, 1, 2 ],
+      "inputs" : ["Parameter_169"],
+      "name" : "Broadcast_185",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_185_0"],
+      "shape" : [ 50, 28, 28, 32 ]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_168"],
+      "name" : "Reshape_182",
+      "op" : "Reshape",
+      "output_shape" : [ 32, 1, 5, 5 ],
+      "outputs" : ["Reshape_182_0"]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_179"],
+      "name" : "Broadcast_187",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_187_0"],
+      "shape" : [ 50, 28, 28, 32 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_178"],
+      "name" : "Broadcast_198",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_198_0"],
+      "shape" : [ 50, 14, 14, 64 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_177"],
+      "name" : "Broadcast_207",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_207_0"],
+      "shape" : [ 50, 1024 ]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_180"],
+      "name" : "Reshape_181",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 1, 28, 28 ],
+      "outputs" : ["Reshape_181_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_181", "Reshape_182" ],
+      "name" : "Convolution_183",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_183_0"],
+      "padding_above" : [ 2, 2 ],
+      "padding_below" : [ 2, 2 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["Convolution_183"],
+      "name" : "Reshape_184",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 28, 28, 32 ],
+      "outputs" : ["Reshape_184_0"]
+    },
+    {
+      "inputs" : [ "Reshape_184", "Broadcast_185" ],
+      "name" : "Add_186",
+      "op" : "Add",
+      "outputs" : ["Add_186_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_187", "Add_186" ],
+      "name" : "Maximum_188",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_188_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Maximum_188"],
+      "name" : "Reshape_189",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 32, 28, 28 ],
+      "outputs" : ["Reshape_189_0"]
+    },
+    {
+      "inputs" : ["Reshape_189"],
+      "name" : "MaxPool_190",
+      "op" : "MaxPool",
+      "outputs" : ["MaxPool_190_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["MaxPool_190"],
+      "name" : "Reshape_191",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 14, 14, 32 ],
+      "outputs" : ["Reshape_191_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_191"],
+      "name" : "Reshape_192",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 32, 14, 14 ],
+      "outputs" : ["Reshape_192_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_192", "Reshape_193" ],
+      "name" : "Convolution_194",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_194_0"],
+      "padding_above" : [ 2, 2 ],
+      "padding_below" : [ 2, 2 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["Convolution_194"],
+      "name" : "Reshape_195",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 14, 14, 64 ],
+      "outputs" : ["Reshape_195_0"]
+    },
+    {
+      "inputs" : [ "Reshape_195", "Broadcast_196" ],
+      "name" : "Add_197",
+      "op" : "Add",
+      "outputs" : ["Add_197_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_198", "Add_197" ],
+      "name" : "Maximum_199",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_199_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Maximum_199"],
+      "name" : "Reshape_200",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 14, 14 ],
+      "outputs" : ["Reshape_200_0"]
+    },
+    {
+      "inputs" : ["Reshape_200"],
+      "name" : "MaxPool_201",
+      "op" : "MaxPool",
+      "outputs" : ["MaxPool_201_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["MaxPool_201"],
+      "name" : "Reshape_202",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 7, 7, 64 ],
+      "outputs" : ["Reshape_202_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_202"],
+      "name" : "Reshape_203",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 3136 ],
+      "outputs" : ["Reshape_203_0"]
+    },
+    {
+      "inputs" : [ "Reshape_203", "Parameter_172" ],
+      "name" : "Dot_204",
+      "op" : "Dot",
+      "outputs" : ["Dot_204_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Dot_204", "Broadcast_205" ],
+      "name" : "Add_206",
+      "op" : "Add",
+      "outputs" : ["Add_206_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_207", "Add_206" ],
+      "name" : "Maximum_208",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_208_0"]
+    },
+    {
+      "inputs" : [ "Maximum_208", "Parameter_174" ],
+      "name" : "Dot_209",
+      "op" : "Dot",
+      "outputs" : ["Dot_209_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Dot_209", "Broadcast_210" ],
+      "name" : "Add_211",
+      "op" : "Add",
+      "outputs" : ["Add_211_0"]
+    }
+  ],
+  "parameters" : [
+    "Parameter_168", "Parameter_169", "Parameter_170", "Parameter_171",
+    "Parameter_172", "Parameter_173", "Parameter_174", "Parameter_175",
+    "Parameter_176"
+  ],
+  "result" : ["Add_211"]
+}]

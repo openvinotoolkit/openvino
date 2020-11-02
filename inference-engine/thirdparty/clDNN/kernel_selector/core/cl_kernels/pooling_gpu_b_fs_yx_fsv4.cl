@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,39 +14,54 @@
 
 
 #include "include/include_all.cl"
+#include "include/data_types.cl"
 
-#if MAX_POOLING
-    #define INIT_VAL CHAR_MIN
-#elif AVG_POOLING
-    #define INIT_VAL 0
+#define ALIGN_TO(val, multiple) (((val) + (multiple) - 1) / (multiple) * (multiple))
+
+#define AS_TYPE(type, val) CAT(as_, type)(val)
+#define INPUT_VEC4 MAKE_VECTOR_TYPE(INPUT0_TYPE, 4)
+
+#define ACTIVATION_VEC4 MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 4)
+#define TO_ACTIVATION_VEC4 CAT(convert_, ACTIVATION_VEC4)
+
+#define OUTPUT_VEC4 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4)
+#define TO_OUTPUT_VEC4 CAT(convert_, OUTPUT_VEC4)
+
+#if   defined MAX_POOLING
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
+#elif defined AVG_POOLING
+    #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #else
-#error
+    #error
 #endif
 
-
-inline int FUNC(apply_pooling)(int tmp, int in)
+inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING
-    return max(tmp, in);
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
 #endif
 }
 
 KERNEL(pooling_gpu_b_fs_yx_fsv4)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output)
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
 {
     const uint x    = (uint)get_global_id(0);
     const uint y    = (uint)get_global_id(1);
     const uint bf   = (uint)get_global_id(2);
-    const uint f    = (bf * 4) % INPUT0_FEATURE_NUM;
-    const uint b    = (bf * 4) / INPUT0_FEATURE_NUM;
+    const uint f    = (bf * 4) % ALIGN_TO(INPUT0_FEATURE_NUM, 4);
+    const uint b    = (bf * 4) / ALIGN_TO(INPUT0_FEATURE_NUM, 4);
 
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    int result[4] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
+    ACCUMULATOR_TYPE result[4] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
 
 #ifdef CHECK_BOUNDRY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
@@ -56,7 +71,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
     }
 
 #ifdef DYNAMIC_KERNEL_DIVIDER
-    uint num_elementes = 0;
+    uint num_elements = 0;
 #endif
 
     const uint batch_and_feature_offset = GET_DATA_B_FS_YX_FSV4_INDEX(INPUT0, b, f, 0, 0);
@@ -75,14 +90,14 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
                     const uint input_idx = batch_and_feature_offset + input_offset_y*IN_Y_PITCH + input_offset_x*IN_X_PITCH;
 
                     int int_data   = *((const __global int*)(input + input_idx));
-                    char4 ch4_data = as_char4(int_data);
-                    result[0] = FUNC_CALL(apply_pooling)(result[0], (int)ch4_data[0]);
-                    result[1] = FUNC_CALL(apply_pooling)(result[1], (int)ch4_data[1]);
-                    result[2] = FUNC_CALL(apply_pooling)(result[2], (int)ch4_data[2]);
-                    result[3] = FUNC_CALL(apply_pooling)(result[3], (int)ch4_data[3]);
+                    INPUT_VEC4 ch4_data = AS_TYPE(INPUT_VEC4, int_data);
+                    result[0] = FUNC_CALL(apply_pooling)(result[0], TO_ACCUMULATOR_TYPE(ch4_data[0]));
+                    result[1] = FUNC_CALL(apply_pooling)(result[1], TO_ACCUMULATOR_TYPE(ch4_data[1]));
+                    result[2] = FUNC_CALL(apply_pooling)(result[2], TO_ACCUMULATOR_TYPE(ch4_data[2]));
+                    result[3] = FUNC_CALL(apply_pooling)(result[3], TO_ACCUMULATOR_TYPE(ch4_data[3]));
 
 #ifdef DYNAMIC_KERNEL_DIVIDER
-                    num_elementes++;
+                    num_elements++;
 #endif
                 }
             }
@@ -91,7 +106,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
 #ifdef DYNAMIC_WITH_PADDING_KERNEL_DIVIDER
     const int hend = min(offset_y + POOL_SIZE_Y, INPUT0_SIZE_Y + PADDING_SIZE_Y);
     const int wend = min(offset_x + POOL_SIZE_X, INPUT0_SIZE_X + PADDING_SIZE_X);
-    const uint num_elementes = (hend - offset_y) * (wend - offset_x);
+    const uint num_elements = (hend - offset_y) * (wend - offset_x);
 #endif
 #else // !CHECK_BOUNDRY
     uint input_idx = GET_DATA_B_FS_YX_FSV4_INDEX(INPUT0, b, f, offset_y, offset_x);
@@ -101,11 +116,11 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
         for(uint i = 0; i < POOL_SIZE_X; i++)
         {
             int int_data   = *((const __global int*)(input + input_idx));
-            char4 ch4_data = as_char4(int_data);
-            result[0] = FUNC_CALL(apply_pooling)(result[0], (int)ch4_data[0]);
-            result[1] = FUNC_CALL(apply_pooling)(result[1], (int)ch4_data[1]);
-            result[2] = FUNC_CALL(apply_pooling)(result[2], (int)ch4_data[2]);
-            result[3] = FUNC_CALL(apply_pooling)(result[3], (int)ch4_data[3]);
+            INPUT_VEC4 ch4_data = AS_TYPE(INPUT_VEC4, int_data);
+            result[0] = FUNC_CALL(apply_pooling)(result[0], TO_ACCUMULATOR_TYPE(ch4_data[0]));
+            result[1] = FUNC_CALL(apply_pooling)(result[1], TO_ACCUMULATOR_TYPE(ch4_data[1]));
+            result[2] = FUNC_CALL(apply_pooling)(result[2], TO_ACCUMULATOR_TYPE(ch4_data[2]));
+            result[3] = FUNC_CALL(apply_pooling)(result[3], TO_ACCUMULATOR_TYPE(ch4_data[3]));;
 
             input_idx += IN_X_PITCH;
         }
@@ -113,31 +128,78 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
     }
 
 #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-    const uint num_elementes = POOL_SIZE_X*POOL_SIZE_Y;
+    const uint num_elements = POOL_SIZE_X*POOL_SIZE_Y;
 #endif
 #endif
 
 #if defined AVG_POOLING
+#if ENABLE_ROUND
+    int4 not_fused_result;
+    for(uint i = 0; i < 4; i++) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-        for(uint i = 0; i < 4; i++)
-        {
-            result[i] = convert_int(round(((float)result[i] / max(num_elementes, (uint)1)));
-        }
+        not_fused_result[i] = convert_int(round(((float)result[i] / max(num_elements, (uint)1))));
     #else
-        for(uint i = 0; i < 4; i++)
-        {
-            result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X)));
-        }
+        not_fused_result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X)));
     #endif
-#endif
+    }
+#else
+    float4 not_fused_result;
+    for(uint i = 0; i < 4; i++) {
+    #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
+        not_fused_result[i] = (float)result[i] / max(num_elements, (uint)1);
+    #else
+        not_fused_result[i] = (float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X);
+    #endif
+    }
+#endif  // ENABLE_ROUND
+#else  // AVG_POOLING
+    int4 not_fused_result;
+    for (uint i = 0; i < 4; ++i) {
+        not_fused_result[i] = result[i];
+    }
+#endif  // AVG_POOLING
 
-    char4 char_res;
+    ACTIVATION_VEC4 pool_result = TO_ACTIVATION_VEC4(not_fused_result);
+
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_VEC4 final_result = FUSED_OPS_RESULT;
+#else
+    OUTPUT_VEC4 final_result = TO_OUTPUT_VEC4(pool_result);
     for(uint op = 0; op < 4; op++)
     {
-        char_res[op] = ACTIVATION(convert_char(result[op]), NL_M ,NL_N);
+        final_result[op] = ACTIVATION(final_result[op], ACTIVATION_PARAMS);
     }
-    const uint output_pos = GET_DATA_B_FS_YX_FSV4_INDEX(OUTPUT, b, f, y, x);
-    *((__global int*)(output + output_pos)) = as_int(char_res);
+#endif
+
+#if OUTPUT_LAYOUT_B_FS_YX_FSV4
+    const uint output_pos = OUTPUT_GET_INDEX(b, f, y, x);
+#if OUTPUT_FEATURE_NUM % 4 == 0
+    *((__global OUTPUT_VEC4*)(output + output_pos)) = final_result;
+#else
+    for (uint i = 0; i < 4; ++i) {
+        if (f + i < OUTPUT_FEATURE_NUM) {
+            output[output_pos + i] = final_result[i];
+        }
+    }
+#endif
+#else
+    for (uint i = 0; i < 4; ++i) {
+        if (OUTPUT_FEATURE_NUM % 4 == 0 || f + i < OUTPUT_FEATURE_NUM) {
+            output[OUTPUT_GET_INDEX(b, f + i, y, x)] = final_result[i];
+        }
+    }
+#endif
 }
 
+#undef ALIGN_TO
+#undef AS_TYPE
+
 #undef INIT_VAL
+#undef INPUT_VEC4
+
+#undef ACTIVATION_VEC4
+#undef TO_ACTIVATION_VEC4
+
+#undef OUTPUT_VEC4
+#undef TO_OUTPUT_VEC4

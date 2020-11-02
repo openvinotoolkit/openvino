@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,9 @@
 #include <vector>
 #include <map>
 #include <utility>
+#include <set>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <vpu/model/base.hpp>
 #include <vpu/model/edges.hpp>
@@ -17,6 +18,7 @@
 #include <vpu/model/data_desc.hpp>
 #include <vpu/backend/blob_serializer.hpp>
 #include <vpu/utils/enums.hpp>
+#include <vpu/utils/optional.hpp>
 
 namespace vpu {
 
@@ -44,11 +46,20 @@ VPU_DECLARE_ENUM(StageType,
     StubFullyConnected,
     StubDeconv,
 
-    Concat,
+    //
+    // Stages that will be replaced with other stages or const datas.
+    //
+
+    StubPriorBox,
+    StubPriorBoxClustered,
+
+    StubConcat,
     Split,
     Reshape,
     Expand,
-    Shrink,
+    Crop,
+
+    Empty = -1,
 
     //
     // Normal operations
@@ -76,13 +87,9 @@ VPU_DECLARE_ENUM(StageType,
     Deconvolution = 22,
     Elu = 23,
     Power = 26,
-    Crop = 27,
     Tile = 28,
     RegionYolo = 29,
     ReorgYolo = 30,
-    Convert_u8f16 = 31,
-    Convert_f32f16 = 32,
-    Convert_f16f32 = 33,
     Permute = 34,
     Normalize = 35,
     DetectionOutput = 37,
@@ -96,7 +103,6 @@ VPU_DECLARE_ENUM(StageType,
     HwFcRelayout = 56,
     Clamp = 57,
     RefConvolution = 58,
-    GlobalAvgPool = 59,
     GlobalMaxPool = 60,
     GRN = 61,
     MVN = 62,
@@ -105,13 +111,68 @@ VPU_DECLARE_ENUM(StageType,
     ROIPooling = 65,
     PSROIPooling = 66,
     Interp = 67,
-    Custom = 68,
+    Custom = 115,
     MTCNN = 69,
     LSTMCell = 70,
     Pad = 71,
     Resample = 72,
     Upsampling = 73,
-    ArgMax = 74,
+    Div = 75,
+    Min = 76,
+    Squared_diff = 77,
+    Equal = 78,
+    Not_equal = 79,
+    Greater = 80,
+    Greater_equal = 81,
+    Less = 82,
+    Less_equal = 83,
+    Logical_NOT = 84,
+    Logical_AND = 85,
+    Logical_OR = 86,
+    Logical_XOR = 87,
+    Pow = 88,
+    Floor_mod = 89,
+    Select = 90,
+    GEMM = 91,
+    Log = 92,
+    ReduceAnd = 93,
+    ReverseSequence = 94,
+    Gather = 100,
+    Exp = 101,
+    Floor = 102,
+    TopK = 104,
+    ScatterUpdate = 103,
+    ReduceMin = 105,
+    ExpDetectionOutput = 106,  // ExperimentalDetectronDetectionOutput
+    ROIFeatureExtractor = 108,
+    SCRelu = 109,
+    Erf = 110,
+    Convert = 111,
+    ReduceMax = 112,
+    ReduceSum = 113,
+    ReduceMean = 114,
+    ConvND = 116,
+    OneHot = 117,
+    PoolND = 118,
+    LoopStart = 119,
+    LoopEnd = 120,
+    ExpPriorGridGenerator = 121,
+    NonZero = 122,
+    ROIAlign = 123,
+    ExpGenerateProposals = 124,
+    ExpTopKROIs = 125,
+    ScatterElementsUpdate = 126,
+    OutShapeOfReshape = 127,
+    Concat = 128,
+    Broadcast = 129,
+    StaticShapeNMS = 130,
+    Mish = 131,
+    Gelu = 132,
+    StridedSlice = 133,
+    SoftPlus = 134,
+    Swish = 135,
+    GatherND = 136,
+    HSwish = 137,
 )
 
 //
@@ -148,7 +209,7 @@ VPU_DECLARE_ENUM(StageSHAVEsRequirements,
 );
 
 //
-// StageNode
+// ScalePropagationStep
 //
 
 VPU_DECLARE_ENUM(ScalePropagationStep,
@@ -157,17 +218,153 @@ VPU_DECLARE_ENUM(ScalePropagationStep,
     Propagate
 );
 
+//
+// TopKMode
+//
+
+// Firmware implementations must be aligned with these values
+VPU_DECLARE_ENUM(TopKMode,
+    Max = 0,
+    Min = 1)
+
+//
+// TopKSort
+//
+
+// Firmware implementations must be aligned with these values
+VPU_DECLARE_ENUM(TopKSort,
+    None = 0,
+    Value = 1,
+    Index = 2)
+
+//
+// TopKOutput
+//
+
+// Firmware implementations must be aligned with these values
+VPU_DECLARE_ENUM(TopKOutputs,
+    All = 0,
+    ValueOnly = 1,
+    IndexOnly = 2)
+
+//
+// ConcatInferRequirement
+//
+
+// Requirement whether to infer Concat stage on the device side
+VPU_DECLARE_ENUM(ConcatInferRequirement,
+    NeedToInfer = 0,
+    CanBeReplaced = 1)
+
+//
+// ConcatInferRequirement
+//
+
+// Modes for Broadcast operation according to specification
+VPU_DECLARE_ENUM(BroadcastMode,
+    NUMPY = 0,
+    EXPLICIT = 1,
+    BIDIRECTIONAL = 2)
+
+//
+// StageDataInfo
+//
+
+template <typename Val>
+class StageDataInfo final {
+public:
+    StageDataInfo(const StageDataInfo&) = delete;
+    StageDataInfo& operator=(const StageDataInfo&) = delete;
+
+    StageDataInfo(StageDataInfo&&) = delete;
+    StageDataInfo& operator=(StageDataInfo&&) = delete;
+
+    inline void init(int numInputs, int numOutputs) {
+        _inputVals.clear();
+        _inputVals.resize(numInputs);
+
+        _outputVals.clear();
+        _outputVals.resize(numOutputs);
+    }
+
+    template <typename V>
+    inline void setInput(const StageInput& edge, V&& val) {
+        IE_ASSERT(edge->consumer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _inputVals.size());
+        _inputVals[edge->portInd()] = std::forward<V>(val);
+    }
+    template <typename V>
+    inline void setOutput(const StageOutput& edge, V&& val) {
+        IE_ASSERT(edge->producer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _outputVals.size());
+        _outputVals[edge->portInd()] = std::forward<V>(val);
+    }
+
+    inline bool hasInput(const StageInput& edge) const {
+        IE_ASSERT(edge->consumer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _inputVals.size());
+        return _inputVals[edge->portInd()].hasValue();
+    }
+    inline bool hasOutput(const StageOutput& edge) const {
+        IE_ASSERT(edge->producer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _outputVals.size());
+        return _outputVals[edge->portInd()].hasValue();
+    }
+
+    inline const Val& getInput(const StageInput& edge) const {
+        IE_ASSERT(edge->consumer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _inputVals.size());
+        return _inputVals[edge->portInd()].get();
+    }
+    inline const Val& getOutput(const StageOutput& edge) const {
+        IE_ASSERT(edge->producer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _outputVals.size());
+        return _outputVals[edge->portInd()].get();
+    }
+
+    bool empty() const {
+        for (const auto& val : _inputVals) {
+            if (val.hasValue()) {
+                return false;
+            }
+        }
+        for (const auto& val : _outputVals) {
+            if (val.hasValue()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+private:
+    friend StageNode;
+    explicit StageDataInfo(const StageNode* owner) : _owner(owner) {}
+
+private:
+    const StageNode* _owner = nullptr;
+
+    SmallVector<Optional<Val>> _inputVals;
+    SmallVector<Optional<Val>> _outputVals;
+};
+
+//
+// StageNode
+//
+
+constexpr int invalidId = -1;
+
 class StageNode :
-        public EnableHandleFromThis<StageNode>,
-        public EnableCustomAttributes {
+        public EnableHandle,
+        public EnableCustomAttributes,
+        public std::enable_shared_from_this<StageNode> {
     //
     // Main attributes
     //
 
     VPU_MODEL_ATTRIBUTE(std::string, name, "")
+    VPU_MODEL_ATTRIBUTE(int, id, invalidId)
     VPU_MODEL_ATTRIBUTE(StageType, type, StageType::None)
     VPU_MODEL_ATTRIBUTE(int, index, -1)
-    VPU_MODEL_ATTRIBUTE(int, subGraphNumber, -1)
 
     //
     // Bindings with IE
@@ -184,8 +381,8 @@ class StageNode :
 
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageTempBufferVector, tempBufferEdges)
 
-    VPU_MODEL_ATTRIBUTE(InjectedStage, parentStageEdge, nullptr)
-    VPU_MODEL_ATTRIBUTE_PTR_RANGE(InjectedStageList, injectedStageEdges)
+    VPU_MODEL_ATTRIBUTE(Injection, parentStageEdge, nullptr)
+    VPU_MODEL_ATTRIBUTE(Injection, injectedStageEdge, nullptr)
 
     //
     // SHAVEs allocation
@@ -193,11 +390,33 @@ class StageNode :
 
     VPU_MODEL_ATTRIBUTE(int, numSHAVEs, 0)
 
+    VPU_MODEL_ATTRIBUTE(Model, model, nullptr)
+
+public:
     //
-    // Edges wrappers
+    // Comparison operators
     //
 
+    struct IdCmp final {
+        inline bool operator()(const Stage& left, const Stage& right) const {
+            VPU_THROW_UNLESS(left->id() >= invalidId,
+                "Stages comparison: stage %v with type %v was created in incorrect way",
+                left->name(), left->type());
+            VPU_THROW_UNLESS(right->id() >= invalidId,
+                "Stages comparison: stage %v with type %v was created in incorrect way",
+                right->name(), right->type());
+
+            return left->id() < right->id();
+        }
+    };
+
+    using IdOrderedSet = std::set<Stage, IdCmp>;
+
 private:
+    //
+    // Range helpers
+    //
+
     struct InputAccess final {
         inline auto operator()(const StageInput& edge) const -> decltype(edge->input()) {
             return edge->input();
@@ -228,28 +447,14 @@ private:
         }
     };
 
-    struct InjectedStageAccess final {
-        inline auto operator()(const InjectedStage& edge) const -> decltype(edge->child()) {
+    struct InjectionAccess final {
+        inline auto operator()(const Injection& edge) const -> decltype(edge->child()) {
             return edge->child();
         }
     };
 
-    struct StageCmp final {
-        inline bool operator()(const Stage& left, const Stage& right) const {
-            auto res = left->name().compare(right->name());
-            if (res > 0) {
-                return true;
-            }
-            if (res < 0) {
-                return false;
-            }
-            // Different Stage nodes might have equal names, compare pointers instead
-            return reinterpret_cast<uintptr_t>(left.get()) > reinterpret_cast<uintptr_t>(right.get());
-        }
-    };
-
     // It holds the number of separate edges per each prev/next stage
-    using StageOrderMap = std::map<Stage, int, StageCmp>;
+    using StageOrderMap = std::map<Stage, int, IdCmp>;
 
     struct StageOrderMapAccess final {
         inline const Stage& operator()(const StageOrderMap::value_type& p) const {
@@ -287,19 +492,11 @@ public:
         return mapRange<OutputAccess>(outputEdges());
     }
 
-    inline auto prevStages() const -> decltype(mapRange<StageOrderMapAccess>(contRange(_prevStages))) {
-        return mapRange<StageOrderMapAccess>(contRange(_prevStages));
+    inline auto prevStages() const -> decltype(_prevStages | asRange() | map<StageOrderMapAccess>()) {
+        return _prevStages | asRange() | map<StageOrderMapAccess>();
     }
-    template <class Cond>
-    inline auto prevStages(Cond&& cond) -> decltype(filterRange(prevStages(), std::forward<typename std::remove_reference<Cond>::type>(cond))) {
-        return filterRange(prevStages(), std::forward<typename std::remove_reference<Cond>::type>(cond));
-    }
-    inline auto nextStages() const -> decltype(mapRange<StageOrderMapAccess>(contRange(_nextStages))) {
-        return mapRange<StageOrderMapAccess>(contRange(_nextStages));
-    }
-    template <class Cond>
-    inline auto nextStages(Cond&& cond) -> decltype(filterRange(nextStages(), std::forward<typename std::remove_reference<Cond>::type>(cond))) {
-        return filterRange(nextStages(), std::forward<typename std::remove_reference<Cond>::type>(cond));
+    inline auto nextStages() const -> decltype(_nextStages | asRange() | map<StageOrderMapAccess>()) {
+        return _nextStages | asRange() | map<StageOrderMapAccess>();
     }
 
     inline int numTempBuffers() const { return _tempBufferEdges.size(); }
@@ -317,12 +514,7 @@ public:
 
     inline Stage parentStage() const { return _parentStageEdge == nullptr ? nullptr : _parentStageEdge->parent(); }
 
-    inline int numInjectedStages() const {
-        return _injectedStageEdges.size();
-    }
-    inline auto injectedStages() const -> decltype(mapRange<InjectedStageAccess>(injectedStageEdges())) {
-        return mapRange<InjectedStageAccess>(injectedStageEdges());
-    }
+    inline Stage injectedStage() const { return _injectedStageEdge == nullptr ? Stage() : _injectedStageEdge->child(); }
 
 public:
     inline virtual ~StageNode() = default;
@@ -336,7 +528,7 @@ public:
             return StageCategory::Special;
         } else if (_type == StageType::MyriadXHwOp) {
             return StageCategory::HW;
-        } else if (_type == StageType::Copy) {
+        } else if (_type == StageType::Copy || _type == StageType::LoopStart || _type == StageType::LoopEnd) {
             return StageCategory::DMA;
         } else {
             return StageCategory::SHAVE;
@@ -347,13 +539,9 @@ public:
     // Bindings with IE
     //
 
-    inline std::string origLayerName() const { return _origLayer != nullptr ? _origLayer->name : std::string(); }
-
-    //
-    // Main attributes
-    //
-
-    void setSubGraphNumber(int subGraphNumber);
+    inline std::string origLayerName() const {
+        return _origLayer != nullptr ? _origLayer->name : std::string();
+    }
 
     //
     // SHAVEs allocation
@@ -365,28 +553,30 @@ public:
     // Passes utilities
     //
 
-    // Scale factor propagation from inputs to outputs
-    DataMap<float> propagateScaleFactors(
-            const DataMap<float>& inputScales,
-            ScalePropagationStep step);
-
     // Data order propagation from inputs to outputs.
-    DataMap<DimsOrder> propagateDataOrder() const;
+    const StageDataInfo<DimsOrder>& propagateDataOrder();
 
     // Get Data strides requirements
-    DataMap<StridesRequirement> getDataStridesRequirements() const;
+    const StageDataInfo<StridesRequirement>& getDataStridesRequirements();
 
     // Finalize internal parameter to final Data layout.
     void finalizeDataLayout();
 
     // Information about batch support.
-    DataMap<BatchSupport> getBatchSupportInfo() const;
+    const StageDataInfo<BatchSupport>& getBatchSupportInfo();
 
     // Resources requirements.
     StageSHAVEsRequirements getSHAVEsRequirements() const;
 
-    // Final check.
+    void initialCheck() const;
     void finalCheck() const;
+
+    // Name postfix for modified stage
+    inline void appendNamePostfix(const std::string& postfix) {
+        _name = _name + postfix;
+    }
+
+    StageListNode posForPassList;
 
     //
     // Backend utilities
@@ -401,21 +591,18 @@ protected:
 
     virtual StagePtr cloneImpl() const = 0;
 
-    virtual DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
-            ScalePropagationStep step);
+    virtual void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) = 0;
 
-    virtual DataMap<DimsOrder> propagateDataOrderImpl() const = 0;
-
-    virtual DataMap<StridesRequirement> getDataStridesRequirementsImpl() const = 0;
+    virtual void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) = 0;
 
     virtual void finalizeDataLayoutImpl() = 0;
 
-    virtual DataMap<BatchSupport> getBatchSupportInfoImpl() const = 0;
+    virtual void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) = 0;
 
     virtual StageSHAVEsRequirements getSHAVEsRequirementsImpl() const;
 
-    virtual void finalCheckImpl() const = 0;
+    virtual void initialCheckImpl() const {}
+    virtual void finalCheckImpl() const {}
 
     virtual void serializeParamsImpl(BlobSerializer& serializer) const = 0;
 
@@ -423,28 +610,49 @@ protected:
 
 protected:
     inline StageNode() :
-            _injectedStageEdges(&InjectedStageEdge::_posInStage),
-            _posInModel(this),
-            _posInBfsQueue(this) {
+            posForPassList(this),
+            _scaleInfo(this),
+            _orderInfo(this),
+            _stridesInfo(this),
+            _batchInfo(this),
+            _posInModel(this) {
     }
     inline StageNode(const StageNode& other) :
             EnableCustomAttributes(other),
-            _injectedStageEdges(&InjectedStageEdge::_posInStage),
-            _posInModel(this),
-            _posInBfsQueue(this) {
+            posForPassList(this),
+            _scaleInfo(this),
+            _orderInfo(this),
+            _stridesInfo(this),
+            _batchInfo(this),
+            _posInModel(this) {
     }
 
-protected:
-    Handle<Model> _model;
+    void changeType(StageType type) {
+        _type = type;
+    }
 
 private:
-    StagePtrList::iterator _ptrPosInModel;
-    IntrusivePtrListNode<StageNode> _posInModel;
-    IntrusivePtrListNode<StageNode> _posInBfsQueue;
+    StageDataInfo<float> _scaleInfo;
+    StageDataInfo<DimsOrder> _orderInfo;
+    StageDataInfo<StridesRequirement> _stridesInfo;
+    StageDataInfo<BatchSupport> _batchInfo;
 
-    friend class Model;
+    StagePtrList::iterator _ptrPosInModel;
+    StageListNode _posInModel;
+
+    friend ModelObj;
 };
 
 void printTo(std::ostream& os, const Stage& stage);
+
+void assertAllInputsOutputsTypes(const Stage& stage,
+                                 const DataType& expectedInputsType,
+                                 const DataType& expectedOutputsType);
+
+using DataTypesRequirement = std::vector<EnumSet<DataType>>;
+
+void assertInputsOutputsTypes(const Stage& stage,
+                              const DataTypesRequirement& expectedInputsTypes,
+                              const DataTypesRequirement& expectedOutputsTypes);
 
 }  // namespace vpu

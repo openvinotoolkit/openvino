@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,10 @@
 #include <unordered_set>
 #include <string>
 
-#include <vpu/vpu_plugin_config.hpp>
+#include <vpu/myriad_config.hpp>
 #include <vpu/private_plugin_config.hpp>
+
+#include <vpu/parsed_config_base.hpp>
 
 #include <vpu/graph_transformer.hpp>
 #include <vpu/utils/perf_report.hpp>
@@ -19,83 +21,40 @@
 
 namespace vpu {
 
-VPU_DECLARE_ENUM(ConfigMode,
-    DEFAULT_MODE = 0,
-    RUNTIME_MODE = 1,
-    COMPILE_MODE = 2,
-)
+class ParsedConfig : public ParsedConfigBase {
+public:
+    const std::string& compilerLogFilePath() const {
+        return _compilerLogFilePath;
+    }
 
-struct ParsedConfig {
-    CompilationConfig compileConfig;
+    const CompilationConfig& compileConfig() const {
+        return _compileConfig;
+    }
 
-    bool printReceiveTensorTime = false;
-    bool exclusiveAsyncRequests = false;
-    bool perfCount              = false;
-    bool forceReset             = false;
+    bool printReceiveTensorTime() const {
+        return _printReceiveTensorTime;
+    }
 
-    LogLevel vpuLogLevel = LogLevel::None;
-    LogLevel logLevel = LogLevel::None;
+    bool perfCount() const {
+        return _perfCount;
+    }
 
-    PerfReport perfReport = PerfReport::PerStage;
-
-    std::map<std::string, std::string> getDefaultConfig() const;
-
-    virtual ~ParsedConfig() = default;
+    PerfReport perfReport() const {
+        return _perfReport;
+    }
 
 protected:
-    explicit ParsedConfig(ConfigMode configMode = ConfigMode::DEFAULT_MODE);
-
-    void checkUnknownOptions(const std::map<std::string, std::string> &config) const;
-    virtual void checkInvalidValues(const std::map<std::string, std::string> &config) const;
-    std::unordered_set<std::string> getKnownOptions() const;
-
-    std::map<std::string, std::string> parse(const std::map<std::string, std::string> &config) {
-        checkInvalidValues(config);
-        checkUnknownOptions(config);
-        checkOptionsAccordingToMode(config);
-
-        auto defaultConfig = getDefaultConfig();
-        for (auto &&entry : config) {
-            defaultConfig[entry.first] = entry.second;
-        }
-
-        return defaultConfig;
-    }
-
-    void configure(const std::map<std::string, std::string> &config);
-    void checkSupportedValues(const std::unordered_map<std::string, std::unordered_set<std::string>> &supported,
-                              const std::map<std::string, std::string> &config) const;
-
-    virtual void checkOptionsAccordingToMode(const std::map<std::string, std::string> &config) const;
-    virtual std::unordered_set<std::string> getCompileOptions() const;
-    virtual std::unordered_set<std::string> getRuntimeOptions() const;
+    const std::unordered_set<std::string>& getCompileOptions() const override;
+    const std::unordered_set<std::string>& getRunTimeOptions() const override;
+    const std::unordered_set<std::string>& getDeprecatedOptions() const override;
+    void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-    ConfigMode _mode = ConfigMode::DEFAULT_MODE;
-    Logger::Ptr _log;
+    std::string _compilerLogFilePath;
+    CompilationConfig _compileConfig;
+    bool _printReceiveTensorTime = false;
+    bool _perfCount              = false;
+    PerfReport _perfReport = PerfReport::PerLayer;
 };
-
-template<typename T, typename V>
-inline void setOption(T &dst, const V &supported, const std::map<std::string, std::string> &config, const std::string &key) {
-    auto value = config.find(key);
-    if (value != config.end()) {
-        dst = supported.at(value->second);
-    }
-}
-
-inline void setOption(std::string &dst, const std::map<std::string, std::string> &config, const std::string &key) {
-    auto value = config.find(key);
-    if (value != config.end()) {
-        dst = value->second;
-    }
-}
-
-template<typename T, typename C>
-inline void setOption(T &dst, const std::map<std::string, std::string> &config, const std::string &key, const C &preprocess) {
-    auto value = config.find(key);
-    if (value != config.end()) {
-        dst = preprocess(value->second);
-    }
-}
 
 }  // namespace vpu

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
 from mo.front.extractor import attr_getter
@@ -31,6 +30,7 @@ class SimplerNMSOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'experimental',
             'in_ports_count': 3,
             'out_ports_count': 1,
             'infer': SimplerNMSOp.simplernms_infer

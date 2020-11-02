@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@
 import unittest
 
 from extensions.front.mxnet.ssd_pattern_remove_transpose import SsdPatternRemoveTranspose
-from mo.utils.unittest.graph import build_graph
 from mo.graph.graph import Node
+from mo.utils.unittest.graph import build_graph
 
 
 class TestSsdPatternRemoveTranspose(unittest.TestCase):
     def test_pattern_remove_transpose(self):
-        graph = build_graph({'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        graph = build_graph({'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
                              'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
                              'node_4': {'type': 'Identity', 'value': None, 'kind': 'op'},
-                             'node_transpose': {'type': 'transpose', 'value': None, 'kind': 'op', 'op': 'transpose'},
+                             'node_transpose': {'type': 'transpose', 'value': None, 'kind': 'op', 'op': 'Transpose'},
                              'node_softmax_activation': {'type': 'SoftMax', 'value': None, 'kind': 'op',
                                                          'op': 'SoftMax'},
                              'node_multi_box_detection': {'type': '_contrib_MultiBoxDetection', 'value': None,

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,14 +19,15 @@ import unittest
 import numpy as np
 
 from extensions.middle.EltwiseInputReshape import EltwiseInputReshape
+from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.passes.eliminate_test import build_graph
-from mo.middle.passes.fusing.fuse_linear_ops_test import compare_graphs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 # The dictionary with nodes attributes used to build various graphs. A key is the name of the node and the value is the
 # dictionary with node attributes.
 nodes_attributes = {
     # Placeholder layers
-    'placeholder_1': {'value': None, 'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'value': None, 'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
@@ -34,9 +35,13 @@ nodes_attributes = {
     # Reshape layers
     'reshape_1': {'type': 'Reshape', 'value': None, 'kind': 'op', 'op': 'Reshape'},
     'reshape_1_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'reshape_1_const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': None},
+    'reshape_1_const_data': {'kind': 'data', 'value': None, 'shape': None},
 
     'reshape_2': {'type': 'Reshape', 'value': None, 'kind': 'op', 'op': 'Reshape'},
     'reshape_2_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'reshape_2_const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': None},
+    'reshape_2_const_data': {'kind': 'data', 'value': None, 'shape': None},
 
     # Fake consumes layers
     'consumer_1': {'type': 'Consumer', 'value': None, 'kind': 'op', 'op': 'Consumer'},
@@ -54,33 +59,43 @@ class EltwiseInputReshapeTest(unittest.TestCase):
         #   data---(new_shape1)-->consumer1      =>    data---->Reshape-->consumer1
         #        `-(new_shape2)-->consumer2                 `-->Reshape-->consumer2
         #
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1_data', 'consumer_1', {'new_shape': [1, 3, 1, 1]}),
-                             ('placeholder_1_data', 'consumer_2', {'new_shape': [1, 1, 3]}),
-                             ('placeholder_1_data', 'consumer_3'),
-                             ('consumer_1', 'concat'),
-                             ('consumer_2', 'concat'),
-                             ('consumer_3', 'concat'),
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 3])}}, nodes_with_edges_only=True)
+        graph = build_graph(nodes_attributes, [
+            ('placeholder_1', 'placeholder_1_data'),
+            ('placeholder_1_data', 'consumer_1', {'new_shape': int64_array([1, 3, 1, 1])}),
+            ('placeholder_1_data', 'consumer_2', {'new_shape': int64_array([1, 1, 3])}),
+            ('placeholder_1_data', 'consumer_3'),
+            ('consumer_1', 'concat'),
+            ('consumer_2', 'concat'),
+            ('consumer_3', 'concat'),
+        ],
+                            {'placeholder_1_data': {'shape': int64_array([1, 3])}}, nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1_data', 'reshape_1'),
-                                 ('placeholder_1_data', 'reshape_2'),
-                                 ('placeholder_1_data', 'consumer_3'),
-                                 ('reshape_1', 'reshape_1_data'),
-                                 ('reshape_2', 'reshape_2_data'),
-                                 ('reshape_1_data', 'consumer_1'),
-                                 ('reshape_2_data', 'consumer_2'),
-                                 ('consumer_1', 'concat'),
-                                 ('consumer_2', 'concat'),
-                                 ('consumer_3', 'concat'),
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 3])},
-                                 'reshape_1': {'dim': np.array([1, 3, 1, 1])},
-                                 'reshape_1_data': {'shape': np.array([1, 3, 1, 1])},
-                                 'reshape_2': {'dim': np.array([1, 1, 3])},
-                                 'reshape_2_data': {'shape': np.array([1, 1, 3])},
+                                [
+                                    ('placeholder_1', 'placeholder_1_data'),
+                                    ('placeholder_1_data', 'reshape_1'),
+                                    ('reshape_1_const', 'reshape_1_const_data'),
+                                    ('reshape_1_const_data', 'reshape_1'),
+                                    ('placeholder_1_data', 'reshape_2'),
+                                    ('reshape_2_const', 'reshape_2_const_data'),
+                                    ('reshape_2_const_data', 'reshape_2'),
+                                    ('placeholder_1_data', 'consumer_3'),
+                                    ('reshape_1', 'reshape_1_data'),
+                                    ('reshape_2', 'reshape_2_data'),
+                                    ('reshape_1_data', 'consumer_1'),
+                                    ('reshape_2_data', 'consumer_2'),
+                                    ('consumer_1', 'concat'),
+                                    ('consumer_2', 'concat'),
+                                    ('consumer_3', 'concat'),
+                                ],
+                                {'placeholder_1_data': {'shape': int64_array([1, 3])},
+                                 'reshape_1_const': {'value': int64_array([1, 3, 1, 1]), 'shape': int64_array([4])},
+                                 'reshape_1_const_data': {'value': int64_array([1, 3, 1, 1]),
+                                                          'shape': int64_array([4])},
+                                 'reshape_1_data': {'shape': int64_array([1, 3, 1, 1])},
+                                 'reshape_2_const': {'value': int64_array([1, 1, 3]), 'shape': int64_array([3])},
+                                 'reshape_2_const_data': {'value': int64_array([1, 1, 3]), 'shape': int64_array([3])},
+                                 'reshape_2_data': {'shape': int64_array([1, 1, 3])},
                                  }, nodes_with_edges_only=True)
 
         pattern = EltwiseInputReshape()
@@ -95,28 +110,36 @@ class EltwiseInputReshapeTest(unittest.TestCase):
         #        `-(new_shape1)-->consumer2                         `-->consumer2
         #
         graph = build_graph(nodes_attributes,
-                            [('placeholder_1_data', 'consumer_1', {'new_shape': [1, 3, 1, 1]}),
-                             ('placeholder_1_data', 'consumer_2', {'new_shape': [1, 3, 1, 1]}),
-                             ('placeholder_1_data', 'consumer_3'),
-                             ('consumer_1', 'concat'),
-                             ('consumer_2', 'concat'),
-                             ('consumer_3', 'concat'),
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 3])}}, nodes_with_edges_only=True)
+                            [
+                                ('placeholder_1', 'placeholder_1_data'),
+                                ('placeholder_1_data', 'consumer_1', {'new_shape': int64_array([1, 3, 1, 1])}),
+                                ('placeholder_1_data', 'consumer_2', {'new_shape': int64_array([1, 3, 1, 1])}),
+                                ('placeholder_1_data', 'consumer_3'),
+                                ('consumer_1', 'concat'),
+                                ('consumer_2', 'concat'),
+                                ('consumer_3', 'concat'),
+                            ],
+                            {'placeholder_1_data': {'shape': int64_array([1, 3])}}, nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1_data', 'reshape_1'),
-                                 ('placeholder_1_data', 'consumer_3'),
-                                 ('reshape_1', 'reshape_1_data'),
-                                 ('reshape_1_data', 'consumer_1'),
-                                 ('reshape_1_data', 'consumer_2'),
-                                 ('consumer_1', 'concat'),
-                                 ('consumer_2', 'concat'),
-                                 ('consumer_3', 'concat'),
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 3])},
-                                 'reshape_1': {'dim': np.array([1, 3, 1, 1])},
-                                 'reshape_1_data': {'shape': np.array([1, 3, 1, 1])},
+                                [
+                                    ('placeholder_1', 'placeholder_1_data'),
+                                    ('placeholder_1_data', 'reshape_1'),
+                                    ('reshape_1_const', 'reshape_1_const_data'),
+                                    ('reshape_1_const_data', 'reshape_1'),
+                                    ('placeholder_1_data', 'consumer_3'),
+                                    ('reshape_1', 'reshape_1_data'),
+                                    ('reshape_1_data', 'consumer_1'),
+                                    ('reshape_1_data', 'consumer_2'),
+                                    ('consumer_1', 'concat'),
+                                    ('consumer_2', 'concat'),
+                                    ('consumer_3', 'concat'),
+                                ],
+                                {'placeholder_1_data': {'shape': int64_array([1, 3])},
+                                 'reshape_1_const': {'value': int64_array([1, 3, 1, 1]), 'shape': int64_array([4])},
+                                 'reshape_1_const_data': {'value': int64_array([1, 3, 1, 1]),
+                                                          'shape': int64_array([4])},
+                                 'reshape_1_data': {'shape': int64_array([1, 3, 1, 1])},
                                  }, nodes_with_edges_only=True)
 
         pattern = EltwiseInputReshape()
@@ -131,14 +154,14 @@ class EltwiseInputReshapeTest(unittest.TestCase):
         #        `-(new_shape2)-->consumer2            data-->consumer2
         #
         graph = build_graph(nodes_attributes,
-                            [('placeholder_1_data', 'consumer_1', {'new_shape': [1, 3, 1, 1]}),
-                             ('placeholder_1_data', 'consumer_2', {'new_shape': [1, 1, 3]}),
+                            [('placeholder_1_data', 'consumer_1', {'new_shape': int64_array([1, 3, 1, 1])}),
+                             ('placeholder_1_data', 'consumer_2', {'new_shape': int64_array([1, 1, 3])}),
                              ('placeholder_1_data', 'consumer_3'),
                              ('consumer_1', 'concat'),
                              ('consumer_2', 'concat'),
                              ('consumer_3', 'concat'),
                              ],
-                            {'placeholder_1_data': {'shape': np.array([1, 3]), 'value': np.ones([1, 3])}},
+                            {'placeholder_1_data': {'shape': int64_array([1, 3]), 'value': np.ones([1, 3])}},
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
@@ -149,9 +172,10 @@ class EltwiseInputReshapeTest(unittest.TestCase):
                                  ('consumer_2', 'concat'),
                                  ('consumer_3', 'concat'),
                                  ],
-                                {'placeholder_1_data': {'shape': np.array([1, 3, 1, 1]), 'value': np.ones([1, 3, 1, 1])},
-                                 'placeholder_2_data': {'shape': np.array([1, 1, 3]), 'value': np.ones([1, 1, 3])},
-                                 'placeholder_3_data': {'shape': np.array([1, 3]), 'value': np.ones([1, 3])},
+                                {'placeholder_1_data': {'shape': int64_array([1, 3, 1, 1]),
+                                                        'value': np.ones([1, 3, 1, 1])},
+                                 'placeholder_2_data': {'shape': int64_array([1, 1, 3]), 'value': np.ones([1, 1, 3])},
+                                 'placeholder_3_data': {'shape': int64_array([1, 3]), 'value': np.ones([1, 3])},
                                  }, nodes_with_edges_only=True)
 
         pattern = EltwiseInputReshape()
@@ -166,14 +190,14 @@ class EltwiseInputReshapeTest(unittest.TestCase):
         #        `-(new_shape2)-->consumer2                 `->consumer2
         #
         graph = build_graph(nodes_attributes,
-                            [('placeholder_1_data', 'consumer_1', {'new_shape': [3, 1, 1]}),
-                             ('placeholder_1_data', 'consumer_2', {'new_shape': [3, 1, 1]}),
-                             ('placeholder_1_data', 'consumer_3', {'new_shape': [3, 1, 1]}),
+                            [('placeholder_1_data', 'consumer_1', {'new_shape': int64_array([3, 1, 1])}),
+                             ('placeholder_1_data', 'consumer_2', {'new_shape': int64_array([3, 1, 1])}),
+                             ('placeholder_1_data', 'consumer_3', {'new_shape': int64_array([3, 1, 1])}),
                              ('consumer_1', 'concat'),
                              ('consumer_2', 'concat'),
                              ('consumer_3', 'concat'),
                              ],
-                            {'placeholder_1_data': {'shape': np.array([1, 3]), 'value': np.ones([1, 3])}},
+                            {'placeholder_1_data': {'shape': int64_array([1, 3]), 'value': np.ones([1, 3])}},
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
@@ -184,7 +208,7 @@ class EltwiseInputReshapeTest(unittest.TestCase):
                                  ('consumer_2', 'concat'),
                                  ('consumer_3', 'concat'),
                                  ],
-                                {'placeholder_1_data': {'shape': np.array([3, 1, 1]), 'value': np.ones([3, 1, 1])}
+                                {'placeholder_1_data': {'shape': int64_array([3, 1, 1]), 'value': np.ones([3, 1, 1])}
                                  }, nodes_with_edges_only=True)
 
         pattern = EltwiseInputReshape()
@@ -199,24 +223,24 @@ class EltwiseInputReshapeTest(unittest.TestCase):
         #        `-(new_shape1)-->consumer2                `-->consumer2
         #
         graph = build_graph(nodes_attributes,
-                            [('placeholder_1_data', 'consumer_1', {'new_shape': [1, 3]}),
-                             ('placeholder_1_data', 'consumer_2', {'new_shape': [1, 3]}),
+                            [('placeholder_1_data', 'consumer_1', {'new_shape': int64_array([1, 3])}),
+                             ('placeholder_1_data', 'consumer_2', {'new_shape': int64_array([1, 3])}),
                              ('placeholder_1_data', 'consumer_3'),
                              ('consumer_1', 'concat'),
                              ('consumer_2', 'concat'),
                              ('consumer_3', 'concat'),
                              ],
-                            {'placeholder_1_data': {'shape': np.array([1, 3])}}, nodes_with_edges_only=True)
+                            {'placeholder_1_data': {'shape': int64_array([1, 3])}}, nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
-                            [('placeholder_1_data', 'consumer_1', {'new_shape': [1, 3]}),
-                             ('placeholder_1_data', 'consumer_2', {'new_shape': [1, 3]}),
-                             ('placeholder_1_data', 'consumer_3'),
-                             ('consumer_1', 'concat'),
-                             ('consumer_2', 'concat'),
-                             ('consumer_3', 'concat'),
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 3])}}, nodes_with_edges_only=True)
+                                [('placeholder_1_data', 'consumer_1', {'new_shape': int64_array([1, 3])}),
+                                 ('placeholder_1_data', 'consumer_2', {'new_shape': int64_array([1, 3])}),
+                                 ('placeholder_1_data', 'consumer_3'),
+                                 ('consumer_1', 'concat'),
+                                 ('consumer_2', 'concat'),
+                                 ('consumer_3', 'concat'),
+                                 ],
+                                {'placeholder_1_data': {'shape': int64_array([1, 3])}}, nodes_with_edges_only=True)
 
         pattern = EltwiseInputReshape()
         pattern.find_and_replace_pattern(graph)

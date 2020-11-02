@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,38 +23,53 @@
 #include "event_impl.h"
 
 #include "kernel_selector_helper.h"
+#include <memory>
+#include <vector>
 
-namespace cldnn { namespace gpu {
+namespace cldnn {
+namespace gpu {
 
-class kernel : public context_holder 
-{
+class kernel : public context_holder {
+    uint32_t _prog_id;
     kernels_cache::kernel_id _kernel_id;
-    bool _one_time_kernel; //If this flag is true, the kernel is intended to be executed only once (can be removed later from the cache).
+    bool _one_time_kernel;  // If this flag is true, the kernel is intended to be executed only once (can be removed
+                            // later from the cache).
+
+    std::map<uint32_t, kernels_cache::kernel_type> _cl_kernels;
 
 public:
-    explicit kernel(std::shared_ptr<gpu_toolkit> context, const std::shared_ptr<kernel_selector::kernel_string>& kernel_string, bool dump_custom_program = false, bool one_time_kernel = false)
+    explicit kernel(std::shared_ptr<gpu_toolkit> context,
+                    const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
+                    uint32_t prog_id,
+                    bool dump_custom_program = false,
+                    bool one_time_kernel = false)
         : context_holder(context)
-        , _kernel_id(context->get_kernels_cache().set_kernel_source(kernel_string, dump_custom_program, one_time_kernel)) 
-		, _one_time_kernel(one_time_kernel)
-    {}
+        , _prog_id(prog_id)
+        , _kernel_id(context->get_kernels_cache(prog_id).set_kernel_source(kernel_string, dump_custom_program, one_time_kernel))
+        , _one_time_kernel(one_time_kernel)
+        , _cl_kernels({}) {}
 
-    kernel(const kernel& other) : context_holder(other.context()), _kernel_id(other._kernel_id), _one_time_kernel(other._one_time_kernel) {}
+    kernel(const kernel& other)
+        : context_holder(other.context())
+        , _prog_id(other._prog_id)
+        , _kernel_id(other._kernel_id)
+        , _one_time_kernel(other._one_time_kernel)
+        , _cl_kernels(other._cl_kernels) {}
 
-    kernel& operator=(const kernel& other) 
-    {
-        if (this == &other)
-        {
+    kernel& operator=(const kernel& other) {
+        if (this == &other) {
             return *this;
         }
 
         _kernel_id = other._kernel_id;
+        _prog_id = other._prog_id;
         _one_time_kernel = other._one_time_kernel;
+        _cl_kernels = other._cl_kernels;
 
         return *this;
     }
 
-    struct kernel_arguments_data
-    {
+    struct kernel_arguments_data {
         std::vector<memory_impl::cptr> inputs;
         std::vector<memory_impl::cptr> intermediates;
         memory_impl::cptr output;
@@ -63,26 +78,31 @@ public:
         memory_impl::cptr hidden;
         memory_impl::cptr cell;
         memory_impl::cptr bias;
-        memory_impl::cptr weights_quantization_factors;
-        memory_impl::cptr output_calibration_factors;
+        memory_impl::cptr weights_zero_points;
+        memory_impl::cptr activations_zero_points;
+        memory_impl::cptr compensation;
         memory_impl::cptr lookup_table;
         memory_impl::cptr scale_table;
         memory_impl::cptr slope;
-        memory_impl::cptr prev_weights_grad;
-        memory_impl::cptr prev_bias_grad;
         // used for fused primitives
-        std::vector<memory_impl::cptr> fused_op_calibration_factors;
-        int32_t           split          = 0;
-        float             lr;
+        std::vector<memory_impl::cptr> fused_op_inputs;
+        int32_t split = 0;
+        float lr;
         const kernel_selector::kernel_scalar_arguments* scalars = nullptr;
     };
 
-    void set_output_event(bool is_out_event) { context()->set_output_event(is_out_event); }
+    void set_output_event(uint32_t net_id, bool is_out_event) {
+        context()->set_output_event(net_id, is_out_event);
+    }
 
-    event_impl::ptr run(
-        const kernel_selector::cl_kernel_data& kernel_data,
-        const std::vector<event_impl::ptr>& dependencies,
-        const kernel_arguments_data& args) const;
+    void cleanup(uint32_t queue_id);
+    void set_arguments(uint32_t queue_id,
+                       const kernel_selector::cl_kernel_data& kernel_data,
+                       const kernel_arguments_data& args);
+    event_impl::ptr run(uint32_t queue_id,
+                        const kernel_selector::cl_kernel_data& kernel_data,
+                        const std::vector<event_impl::ptr>& dependencies) const;
 };
 
-} }
+}  // namespace gpu
+}  // namespace cldnn

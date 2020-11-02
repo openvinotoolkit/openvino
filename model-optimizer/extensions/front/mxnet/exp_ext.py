@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
  limitations under the License.
 """
 
+from extensions.ops.activation_ops import Exp
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.activation import Activation
 
 
 class ExpExtractor(FrontExtractorOp):
     op = 'exp'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        Activation.update_node_stat(node, {'operation': 'exp'})
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        Exp.update_node_stat(node)
+        return cls.enabled

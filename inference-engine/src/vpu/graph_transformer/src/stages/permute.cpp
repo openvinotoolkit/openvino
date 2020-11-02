@@ -1,160 +1,145 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <vpu/compile_env.hpp>
 
 #include <vector>
 #include <utility>
-#include <unordered_set>
 #include <memory>
-#include <set>
+#include <string>
+#include <limits>
 
 namespace vpu {
 
 namespace {
 
-template <class Cont1, class Cont2>
-std::vector<typename Cont1::value_type> permuteArray(const Cont1& src, const Cont2& permutation) {
-    std::vector<typename Cont1::value_type> out(permutation.size());
+const char permutationKey[]          = "permutation";
+const char outputOrderKey[]          = "outputOrder";
 
-    for (int i = 0; i < out.size(); i++) {
-        auto newInd = static_cast<int>(permutation[i]);
+class PermuteStage : public StageNode {
+public:
+    using StageNode::StageNode;
 
-        IE_ASSERT(newInd >= 0);
-        IE_ASSERT(newInd < src.size());
-
-        out[i] = src[newInd];
-    }
-
-    return out;
-}
-
-class PermuteStage final : public StageNode {
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<PermuteStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
-        if (step == ScalePropagationStep::Propagate) {
-            out[output] = inputScales.at(input);
-        } else {
-            // Copy can only propagate scaling.
-            out[input] = 1.0f;
-            out[output] = 1.0f;
-        }
-
-        return out;
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        DimsOrder outputOrder = input(0)->desc().dimsOrder();
+        outputOrder = attrs().getOrDefault(outputOrderKey, outputOrder);
+        orderInfo.setOutput(outputEdge(0), outputOrder);
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
-
-        out[output] = input->desc().dimsOrder();
-
-        return out;
-    }
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>&) override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>&) override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
         return StageSHAVEsRequirements::CanBeLimited;
     }
 
+    void initialCheckImpl() const override {
+        const auto& firstInputPrecision = input(0)->desc().type();
+        assertInputsOutputsTypes(this, {{firstInputPrecision}}, {{firstInputPrecision}});
+    }
+
     void finalCheckImpl() const override {
+        auto inDimsOrder = input(0)->desc().dimsOrder();
+        auto outDimsOrder = output(0)->desc().dimsOrder();
+        IE_ASSERT(inDimsOrder.numDims() == outDimsOrder.numDims());
+        IE_ASSERT(isOrdersCompatible(inDimsOrder, outDimsOrder));
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
+        const auto& permutation = attrs().get<PermutationDimsMap>(permutationKey);
+        PermutationIndexVector indices = permuteMapToVector(permutation,
+                                                            input(0)->desc().dimsOrder(),
+                                                            output(0)->desc().dimsOrder());
+        indices.resize(MAX_DIMS_32, -1);
 
-        auto input = _inputEdges[0]->input();
-
-        const auto& order = attrs().get<std::vector<int>>("order");
-
-        auto perm = input->desc().dimsOrder().toPermutation();
-        auto ind = input->desc().dimsOrder().toIndices();
-
-        auto dimPerm = permuteArray(order, perm);
-        auto memoryOrderPerm = permuteArray(ind.toVector(-1), dimPerm);
-
-        int i = 0;
-        for (i = 0; i < memoryOrderPerm.size(); i++) {
-            serializer.append(static_cast<uint32_t>(memoryOrderPerm[i]));
-        }
-        for (; i < MAX_DIMS_32; i++) {
-            serializer.append(static_cast<uint32_t>(-1));
+        for (const auto index : indices) {
+            serializer.append(static_cast<uint32_t>(index));
         }
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        input->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
+        input(0)->serializeBuffer(serializer);
+        output(0)->serializeBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parsePermute(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parsePermute(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    auto ieOrder = layer->GetParamAsInts("order");
+    const auto ieOrder = layer->GetParamAsUInts("order");
+    const auto perm = DimsOrder::fromNumDims(checked_cast<int>(ieOrder.size())).toPermutation();
 
-    auto maxIeOrder = *std::max_element(ieOrder.begin(), ieOrder.end());
-
-    std::vector<int> vpuOrder(MAX_DIMS_64, -1);
+    PermutationDimsMap permutation;
     for (size_t i = 0; i < ieOrder.size(); i++) {
-        vpuOrder[i] = maxIeOrder - ieOrder[ieOrder.size() - 1 - i];
+        const auto srcDim = perm[ieOrder.size() - ieOrder[i] - 1];
+        const auto dstDim = perm[ieOrder.size() - i - 1];
+        permutation.set(dstDim, srcDim);
     }
 
-    auto input = inputs[0];
-    auto output = outputs[0];
+    _stageBuilder->addPermuteStage(model, layer->name, layer, inputs[0], outputs[0], permutation);
+}
+
+Stage StageBuilder::addPermuteStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input,
+        const Data& output,
+        const PermutationDimsMap& permutation) {
+    auto inDimsOrder  = input->desc().dimsOrder();
+    auto outDimsOrder = output->desc().dimsOrder();
+    IE_ASSERT(isOrdersCompatible(inDimsOrder, outDimsOrder));
 
     auto stage = model->addNewStage<PermuteStage>(
-        layer->name,
+        name,
         StageType::Permute,
         layer,
-        inputs,
-        outputs);
+        {input},
+        {output});
+    stage->attrs().set(permutationKey, permutation);
+    return stage;
+}
 
-    stage->attrs().set<std::vector<int>>("order", vpuOrder);
+Stage StageBuilder::addReorderStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input,
+        const Data& output) {
+    const auto* env = CompileEnv::getOrNull();
+    VPU_THROW_UNLESS(
+        env == nullptr || !env->config.disableReorder,
+        "Tried to add Reorder Stage %v, while DISABLE_REORDER option was set",
+        name);
+
+    for (const auto& p : input->desc().dims()) {
+        IE_ASSERT(p.second == output->desc().dim(p.first));
+    }
+
+    PermutationDimsMap permutationMap;
+    for (const auto & dim : output->desc().dimsOrder().toPermutation()) {
+        permutationMap.set(dim, dim);
+    }
+
+    auto stage = addPermuteStage(model, name, layer, input, output, permutationMap);
+    stage->attrs().set(outputOrderKey, output->desc().dimsOrder());
+    return stage;
 }
 
 }  // namespace vpu

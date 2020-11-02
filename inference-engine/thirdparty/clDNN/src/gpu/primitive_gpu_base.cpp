@@ -15,18 +15,30 @@
 */
 
 #include "primitive_gpu_base.h"
+#include <list>
 
 namespace cldnn {
-    namespace gpu {
+namespace gpu {
 
-        bool is_any_user_cpu(const std::list<const program_node*>& users)
-        {
-            for (const auto& user : users)
-            {
-                if (user->get_selected_impl()->is_cpu())
-                    return true;
+bool is_user_cpu(const program_node* user) {
+    if (user->can_be_optimized()) {
+        auto users = user->get_users();
+        for (const auto& u : users) {
+            if (is_user_cpu(u)) {
+                return true;
             }
-            return false;
         }
+        return false;
     }
+    return user->get_selected_impl()->is_cpu();
 }
+
+bool is_any_user_cpu(const std::list<const program_node*>& users) {
+    for (const auto& user : users) {
+        if (is_user_cpu(user))
+            return true;
+    }
+    return false;
+}
+}  // namespace gpu
+}  // namespace cldnn

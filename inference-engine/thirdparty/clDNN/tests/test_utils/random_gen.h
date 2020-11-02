@@ -66,7 +66,6 @@ namespace rnd_generators
     static_assert(number_caps<float>::inv_exp2(7) == 0.0078125f, "1/exp2(7)");
     static_assert(number_caps<float>::inv_exp2(8) == 0.00390625f, "1/exp2(8)");
 
-
     template <>
     struct number_caps<double>
     {
@@ -154,7 +153,6 @@ namespace rnd_generators
             return reinterpret_cast<const output_type&>(conv_repr);
         }
     };
-
 
     template <typename NumberTy, typename RndEngineTy>
     auto gen_number(RndEngineTy& rnd_engine,

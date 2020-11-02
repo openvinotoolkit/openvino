@@ -1,17 +1,5 @@
-//
-// Copyright (C) 2018-2019 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 /* on windows min and max already defined that makes using numeric_limits impossible */
@@ -20,7 +8,7 @@
 #endif
 
 #include <sys/stat.h>
-#include <w_dirent.h>
+#include <os/windows/w_dirent.h>
 
 #include <algorithm>
 #include <map>
@@ -31,33 +19,42 @@
 #include <limits>
 
 #include "vpu_tools_common.hpp"
-#include "vpu/utils/string.hpp"
+#include <vpu/utils/string.hpp>
 #include "samples/common.hpp"
 
 #include "precision_utils.h"
 
 InferenceEngine::CNNNetwork readNetwork(const std::string &xmlFileName) {
-    std::string binFileName = fileNameNoExt(xmlFileName) + ".bin";
-
-    InferenceEngine::CNNNetReader reader;
-    reader.ReadNetwork(xmlFileName);
-    reader.ReadWeights(binFileName);
-
-    return reader.getNetwork();
+    return InferenceEngine::Core().ReadNetwork(xmlFileName);
 }
 
-InferenceEngine::InferencePlugin loadPlugin(const std::string &plugin, const std::string &plugin_path) {
-    /* Unfortunately, there is no check on invalid device inside IE API */
-    return InferenceEngine::PluginDispatcher({plugin_path}).getPluginByDevice(plugin);
+bool isFP16(InferenceEngine::Precision precision) {
+    return precision == InferenceEngine::Precision::FP16;
+}
+
+bool isFP32(InferenceEngine::Precision precision) {
+    return precision == InferenceEngine::Precision::FP32;
+}
+
+bool isU8(InferenceEngine::Precision precision) {
+    return precision == InferenceEngine::Precision::U8;
+}
+
+bool isFloat(InferenceEngine::Precision precision) {
+    return isFP16(precision) || isFP32(precision);
 }
 
 void setPrecisions(const InferenceEngine::CNNNetwork &network) {
     for (auto &&layer : network.getInputsInfo()) {
-        layer.second->setPrecision(InferenceEngine::Precision::FP16);
+        if (isFP32(layer.second->getPrecision())) {
+            layer.second->setPrecision(InferenceEngine::Precision::FP16);
+        }
     }
 
     for (auto &&layer : network.getOutputsInfo()) {
-        layer.second->setPrecision(InferenceEngine::Precision::FP16);
+        if (isFP32(layer.second->getPrecision())) {
+            layer.second->setPrecision(InferenceEngine::Precision::FP16);
+        }
     }
 }
 
@@ -139,13 +136,14 @@ void loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blo
 
     BitMap reader(imageFilename);
 
-    size_t batch = blob->dims()[3];
-    size_t w = blob->dims()[0];
-    size_t h = blob->dims()[1];
+    const auto dims = tensDesc.getDims();
+    auto numBlobChannels = dims[1];
+    size_t batch = dims[0];
+    size_t w = dims[3];
+    size_t h = dims[2];
     size_t img_w = reader.width();
     size_t img_h = reader.height();
 
-    auto numBlobChannels = blob->dims()[2];
     size_t numImageChannels = reader.size() / (reader.width() * reader.height());
     if (numBlobChannels != numImageChannels && numBlobChannels != 1) {
         throw std::invalid_argument("Input channels mismatch: image channels " + std::to_string(numImageChannels) +
@@ -180,7 +178,7 @@ void loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blo
     }
 }
 
-void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) {
+void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap, const std::string report) {
     std::vector<std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfVec(perfMap.begin(),
                                                                                              perfMap.end());
     std::sort(perfVec.begin(), perfVec.end(),
@@ -198,7 +196,7 @@ void printPerformanceCounts(const std::map<std::string, InferenceEngine::Inferen
     size_t indexWidth = 7, nameWidth = maxLayerName + 5, typeWidth = maxExecType + 5, timeWidth = 10;
     size_t totalWidth = indexWidth + nameWidth + typeWidth + timeWidth;
 
-    std::cout << std::endl << "Detailed Per Stage Profile" << std::endl;
+    std::cout << std::endl << "Detailed " << report << " Profile" << std::endl;
     for (size_t i = 0; i < totalWidth; i++)
         std::cout << "=";
     std::cout << std::endl;
@@ -304,8 +302,8 @@ void loadBinaryTensor(const std::string &binaryFileName, InferenceEngine::Blob::
         throw std::invalid_argument("Can not read \"" + binaryFileName + "\"");
     }
 
-    auto expected_size = blob->size();
-    if (fileSize != 4 * expected_size) {
+    auto expected_size = blob->byteSize();
+    if (fileSize != expected_size) {
         throw std::invalid_argument("File \"" + binaryFileName + "\" contains " + std::to_string(fileSize) + " bytes "
                                     "but network expects " + std::to_string(expected_size));
     }

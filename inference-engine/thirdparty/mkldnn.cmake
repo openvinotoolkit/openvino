@@ -1,5 +1,5 @@
 #===============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,9 +18,6 @@
 #  for more convenient integration to IE build process
 #
 #===============================================================================
-
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(version_cmake_included true)
 
@@ -51,6 +48,9 @@ configure_file(
 )
 
 function(detect_mkl LIBNAME)
+    unset(MKLLIB CACHE)
+    unset(MKLINC CACHE)
+
     message(STATUS "Detecting Intel(R) MKL: trying ${LIBNAME}")
     find_path(MKLINC mkl_cblas.h ${MKL}/include)
     find_library(MKLLIB ${LIBNAME} "${MKL}/lib")
@@ -81,6 +81,8 @@ endfunction()
 
 if (THREADING STREQUAL "TBB")
     add_definitions(-DMKLDNN_THR=MKLDNN_THR_TBB)
+elseif (THREADING STREQUAL "TBB_AUTO")
+    add_definitions(-DMKLDNN_THR=MKLDNN_THR_TBB_AUTO)
 elseif (THREADING STREQUAL "OMP")
     add_definitions(-DMKLDNN_THR=MKLDNN_THR_OMP)
 else()
@@ -115,23 +117,6 @@ if(WIN32)
     endif()
 endif()
 
-# to make build time reasonable, don't use optimizations for s8u8s32 Xbyak
-# kernels
-file(GLOB FILES_WITHNO_OPT
-    ${MKLDNN_ROOT}/src/cpu/gemm/s8x8s32/jit_avx512_core_kernel_b0_gemm_s8u8s32_kern.cpp
-    ${MKLDNN_ROOT}/src/cpu/gemm/s8x8s32/jit_avx512_core_kernel_gemm_s8u8s32_kern.cpp
-    ${MKLDNN_ROOT}/src/cpu/gemm/s8x8s32/jit_avx512_core_u8_copy_an_kern.cpp
-    ${MKLDNN_ROOT}/src/cpu/gemm/s8x8s32/jit_avx512_core_u8_copy_at_kern.cpp
-    ${MKLDNN_ROOT}/src/cpu/gemm/s8x8s32/jit_avx512_core_u8_copy_bn_kern.cpp
-    ${MKLDNN_ROOT}/src/cpu/gemm/s8x8s32/jit_avx512_core_u8_copy_bt_kern.cpp)
-if(WIN32 AND NOT MINGW)
-    set_source_files_properties(${FILES_WITHNO_OPT}
-        PROPERTIES COMPILE_FLAGS "/Od")
-else()
-    set_source_files_properties(${FILES_WITHNO_OPT}
-        PROPERTIES COMPILE_FLAGS "-O0 -U_FORTIFY_SOURCE")
-endif()
-
 add_library(${TARGET} STATIC ${HDR} ${SRC})
 set_ie_threading_interface_for(${TARGET})
 
@@ -142,19 +127,21 @@ if(GEMM STREQUAL "OPENBLAS")
     list(APPEND ${TARGET}_LINKER_LIBS ${BLAS_LIBRARIES})
 elseif (GEMM STREQUAL "MKL")
     ## enable cblas_gemm from mlkml package
-if(WIN32 OR APPLE)
-    detect_mkl("mklml")
-else()
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        detect_mkl("mklml_intel")
+    if(WIN32 OR APPLE)
+        detect_mkl("mklml")
     else()
-        detect_mkl("mklml_gnu")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+            detect_mkl("mklml_intel")
+        else()
+            detect_mkl("mklml_gnu")
+        endif()
     endif()
-endif()
     add_definitions(-DUSE_MKL -DUSE_CBLAS)
     include_directories(AFTER ${MKLINC})
     list(APPEND ${TARGET}_LINKER_LIBS ${MKLLIB})
 endif()
 ## enable jit_gemm from mlk-dnn
+
+add_definitions(-DMKLDNN_ENABLE_CONCURRENT_EXEC)
 
 target_link_libraries(${TARGET} PRIVATE ${${TARGET}_LINKER_LIBS})

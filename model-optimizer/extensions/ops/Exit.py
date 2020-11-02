@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
 """
 
 import numpy as np
+
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class Exit(Op):
@@ -25,7 +25,7 @@ class Exit(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'infer': Exit.exit_infer,
             'in_ports_count': 1,

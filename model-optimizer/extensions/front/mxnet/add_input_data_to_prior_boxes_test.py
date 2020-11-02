@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,19 +15,19 @@
 """
 
 import unittest
-
-import numpy as np
 from argparse import Namespace
 
-from mo.graph.graph import Node
+import numpy as np
+
 from extensions.front.mxnet.add_input_data_to_prior_boxes import AddInputDataToPriorBoxes
+from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
 
 class TestMxnetPipeline(unittest.TestCase):
     def test_mxnet_pipeline_1(self):
         graph = build_graph(
-            {'data': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'data': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'node_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
              'node_multi_box': {'type': '_contrib_MultiBoxPrior', 'kind': 'op', 'op': '_contrib_MultiBoxPrior'},
              },
@@ -49,7 +49,7 @@ class TestMxnetPipeline(unittest.TestCase):
 
     def test_mxnet_pipeline_2(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'node_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
              'node_multi_box': {'type': '_contrib_MultiBoxPrior', 'kind': 'op', 'op': '_contrib_MultiBoxPrior'},
              },

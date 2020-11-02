@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,12 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
-import networkx as nx
-
+from extensions.ops.elementwise import Pow
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
-from mo.ops.power import Power
+from mo.ops.const import Const
 
 
 class ReciprocalReplacer(FrontReplacementOp):
@@ -26,7 +26,8 @@ class ReciprocalReplacer(FrontReplacementOp):
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
-        reciprocal = Power(graph, dict(scale=1, power=-1, shift=0, name=node.name + '/power_'))
-        out_node = reciprocal.create_node([node.in_node(0)])
-
-        return [out_node.id]
+        const = Const(graph, dict(value=np.array(-1.), name=node.name + '/reciprocal_pow_const_')).create_node()
+        reciprocal = Pow(graph, {'name': node.name + '/reciprocal_pow_'}).create_node()
+        node.in_port(0).get_connection().set_destination(reciprocal.in_port(0))
+        const.out_port(0).connect(reciprocal.in_port(1))
+        return [reciprocal.id]

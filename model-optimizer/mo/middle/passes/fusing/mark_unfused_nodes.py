@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ def _check_lin_op(node: Node, layout: str):
         weights_id = get_value_id(node)
         if weights_id is None:
             node.graph.node[node.id]['can_be_fused'] = False
-            log.info('[ FUSING ] Node {} wasn\'t marked as fusable (no weights, probably this is Eltwise that is not '
-                     'fusable)'.format(node.id))
+            log.info('[ FUSING ] Node {} wasn\'t marked as fusable (no weights, probably this is element-wise operation'
+                     ' that is not fusable)'.format(node.id))
             return
 
         node.graph.node[node.id]['can_be_fused'] = True

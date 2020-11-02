@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #include "permute_kernel_selector.h"
 #include "permute_kernel_ref.h"
- 
+
 namespace kernel_selector {
 
-    permute_kernel_selector::permute_kernel_selector()
-    {
-        Attach<PermuteKernelRef>();
-    }
+permute_kernel_selector::permute_kernel_selector() { Attach<PermuteKernelRef>(); }
 
-    KernelsData permute_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::PERMUTE);
-    }
+KernelsData permute_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::PERMUTE);
 }
+}  // namespace kernel_selector

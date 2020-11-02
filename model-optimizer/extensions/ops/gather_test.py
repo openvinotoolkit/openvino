@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,19 +27,34 @@ from mo.utils.unittest.graph import build_graph
 class TestGatherPartialInfer(unittest.TestCase):
     @staticmethod
     def _create_graph():
-        nodes_attributes = {'gather_input': {'shape': None, 'value': None, 'kind': 'data'},
-                            'gather_input2': {'shape': None, 'value': None, 'kind': 'data'},
-                            'gather_node': {'op': 'Gather', 'kind': 'op'},
-                            'gather_output': {'shape': None, 'value': None, 'kind': 'data'}
-                            }
+        nodes_attributes = {
+
+            'gather_input': {'kind': 'op'},
+            'gather_input_data': {'shape': None, 'value': None, 'kind': 'data'},
+            'gather_input2': {'kind': 'op'},
+            'gather_input2_data': {'shape': None, 'value': None, 'kind': 'data'},
+            'gather_input3': {'kind': 'op'},
+            'gather_input3_data': {'shape': None, 'value': 0, 'kind': 'data'},
+
+            'gather_node': {'op': 'Gather', 'kind': 'op'},
+            'gather_output': {'shape': None, 'value': None, 'kind': 'data'}
+
+        }
         return build_graph(nodes_attributes,
                            [
-                               ('gather_input', 'gather_node'), ('gather_node', 'gather_output'), ('gather_input2', 'gather_node')
+                               ('gather_input', 'gather_input_data'),
+                               ('gather_input2', 'gather_input2_data'),
+                               ('gather_input3', 'gather_input3_data'),
+
+                               ('gather_input_data', 'gather_node'),
+                               ('gather_input2_data', 'gather_node'),
+                               ('gather_input3_data', 'gather_node'),
+
+                               ('gather_node', 'gather_output'),
                            ],
                            {
-                               'gather_input': {'shape': int64_array([10, 15]), 'value': np.ones((3, 15))},
-                               'gather_input2': {'shape': int64_array([2]), 'value': np.array([0, 2])},
-                               'gather_node': {'axis': 0},
+                               'gather_input_data': {'shape': int64_array([10, 15]), 'value': np.ones((3, 15))},
+                               'gather_input2_data': {'shape': int64_array([2]), 'value': np.array([0, 2])},
                            })
 
     def test_gather_infer(self):

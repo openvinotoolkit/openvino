@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ class CastFrontExtractor(FrontExtractorOp):
     op = 'Cast'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         cast_dst_type = tf_data_type_decode[node.pb.attr['DstT'].type][0]
         Cast.update_node_stat(node, {'dst_type': cast_dst_type})
-        return __class__.enabled
+        return cls.enabled

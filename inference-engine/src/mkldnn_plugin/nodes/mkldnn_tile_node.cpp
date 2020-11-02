@@ -1,18 +1,20 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_tile_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNTileNode::MKLDNNTileNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNTileNode::MKLDNNTileNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNTileNode::getSupportedDescriptors() {
     auto * tileLayer = dynamic_cast<TileLayer*>(getCnnLayer().get());
@@ -43,17 +45,7 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     auto& inDims = getParentEdgeAt(0)->getDims();
-    memory::format fmt = memory::format::any;
-    if (inDims.ndims() == 2) {
-        fmt = memory::format::nc;
-    } else if (inDims.ndims() == 4) {
-        fmt = memory::format::nchw;
-    } else if (inDims.ndims() == 5) {
-        fmt = memory::format::ncdhw;
-    }
-    if (fmt == memory::format::any) {
-        THROW_IE_EXCEPTION << "Tile " << getName() << " supports only 2D, 4D and 5D dimensions!";
-    }
+    memory::format fmt = MKLDNNMemory::GetPlainFormat(inDims);
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
@@ -65,7 +57,7 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
     config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
 }
 
 void MKLDNNTileNode::createPrimitive() {
@@ -76,7 +68,7 @@ void MKLDNNTileNode::createPrimitive() {
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
         THROW_IE_EXCEPTION << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
     if (getParentEdges().size() != 1)
         THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
 }
@@ -121,7 +113,7 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
 
     for (int i = 0; i < m_outer_dim; ++i) {
         for (int t = 0; t < tiles; ++t) {
-            memcpy(dst_ptr, src_ptr, m_inner_dim* sizeof(float));
+            cpu_memcpy(dst_ptr, src_ptr, m_inner_dim* sizeof(float));
             dst_ptr += m_inner_dim;
         }
         src_ptr += m_inner_dim;
@@ -131,3 +123,4 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
 bool MKLDNNTileNode::created() const {
     return getType() == Tile;
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNTileNode, Tile);

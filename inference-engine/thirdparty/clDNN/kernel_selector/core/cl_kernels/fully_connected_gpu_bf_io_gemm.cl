@@ -23,11 +23,11 @@
 #define VEC_SIZE 4
 __attribute__ ((reqd_work_group_size(WORK_GROUP_X, 1, 1)))
 KERNEL(fc_f16)(
-    const __global const half  *src_vector,
+    const __global half  *src_vector,
     __global half        *dst_vector,
-    const __global const half  *matrix
+    const __global half  *matrix
 #if BIAS_TERM
-    , const __global const half  *biases
+    , const __global half  *biases
 #endif
     )
 {
@@ -123,9 +123,9 @@ KERNEL(fc_f16)(
 
     #if BIAS_TERM
     const half bias = biases[y];
-    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, NL_M, NL_N);
+    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, ACTIVATION_PARAMS);
     #else
-    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0], NL_M, NL_N);
+    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0], ACTIVATION_PARAMS);
     #endif
 }
 #endif 
@@ -137,11 +137,11 @@ KERNEL(fc_f16)(
 #define VEC_SIZE 4
 __attribute__ ((reqd_work_group_size(WORK_GROUP_X, 1, 1)))
 KERNEL(fc_f32)(
-    const __global const float  *src_vector,
+    const __global float  *src_vector,
     __global float        *dst_vector,
-    const __global const float  *matrix
+    const __global float  *matrix
 #if BIAS_TERM
-    , const __global const float  *biases
+    , const __global float  *biases
 #endif
     )
 {
@@ -240,7 +240,7 @@ KERNEL(fc_f32)(
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
-    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, NL_M, NL_N);
+    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, ACTIVATION_PARAMS);
 }
 #endif 
 

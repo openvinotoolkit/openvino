@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -40,5 +40,5 @@ class UselessMergeEraser(MiddleReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: dict):
         if len(graph.in_edges(match['merge'].id)) <= 1:
-            remove_op_node_with_data_node(graph, match['merge'])
+            remove_op_node_with_data_node(graph, match['merge'], list(match['merge'].in_nodes().values())[0])
             log.info("Useles Merge op and data nodes was deleted op='{}'".format(match['merge'].id))

@@ -1,78 +1,47 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set (TARGET_NAME "clDNNPlugin")
 
-file (GLOB MAIN_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        )
+if (LINUX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1 -msse4.2")
+    if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=terminate")
+    endif()
+endif()
 
-file (GLOB LIBRARY_HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
-        )
+file(GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
 addVersionDefines(cldnn_engine.cpp CI_BUILD_NUMBER CLDNN_VERSION)
 
-add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+ie_add_plugin(NAME ${TARGET_NAME}
+              DEVICE_NAME "GPU"
+              SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
+              VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-# Create named folders for the sources within the .vcproj
-# Empty name lists them directly under the .vcproj
-source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${LIBRARY_HEADERS})
+target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
+                                             inference_engine inference_engine_legacy
+                                             inference_engine_transformations)
 
-
-#TODO: clDNN for non windows...
-if (APPLE)
-elseif  (UNIX)
-    set(CLDNN_BUILD_PLATFORM Centos7/)
-    set(CLDNN_PLATFORM Linux64/)
-    set(CLDNN_LIB_FOLDER bin)
-    set(CLDNN_LIB_NAME clDNN64)
-else ()
-    #32 bits platform
-    if (NOT "${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-        set(CLDNN_PLATFORM Windows32/)
-        set(CLDNN_LIB_NAME clDNN32)
-    else()
-        set(CLDNN_PLATFORM Windows64/)
-        set(CLDNN_LIB_NAME clDNN64)
-    endif()
-    set(CLDNN_LIB_FOLDER lib)
-endif ()
-
-set (CLDNN_TOP_FOLDER ${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN)
-
-# Properties->C/C++->General->Additional Include Directories
-include_directories (
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${IE_MAIN_SOURCE_DIR}/include
-        ${CLDNN_TOP_FOLDER}/api
-        ${CLDNN_TOP_FOLDER}/include
-        #${OCL_DIST}/include
-        ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
-
-# clDnn build configuration, change that if you'd like to debug
-if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" )
-    set (Configuration ${CMAKE_BUILD_TYPE})
+if(USE_CNNNETWORK_LPT)
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
 else()
-    set (Configuration Release)
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations)
 endif()
 
-set(CLDNN_LIBRARY clDNN_shlib)
+set(CLDNN_TOP_FOLDER "${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN")
+target_include_directories(${TARGET_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+        ${CLDNN__IOCL_ICD_INCDIRS}
+        ${CLDNN_TOP_FOLDER})
 
-# Create library file from sources.
-add_library(${TARGET_NAME} SHARED
-    ${MAIN_SRC}
-    ${LIBRARY_HEADERS})
-target_link_libraries(${TARGET_NAME} ${INTEL_ITT_LIBS} inference_engine ${CLDNN_LIBRARY})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
-set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+# install
 
-#copy default global xml file describing the custom kernels and the *.cl files
-add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/cldnn_global_custom_kernels $<TARGET_FILE_DIR:${TARGET_NAME}>/cldnn_global_custom_kernels)
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+install(FILES "${clDNN_SOURCE_DIR}/kernel_selector/core/cache/cache.json"
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
+        COMPONENT gpu)

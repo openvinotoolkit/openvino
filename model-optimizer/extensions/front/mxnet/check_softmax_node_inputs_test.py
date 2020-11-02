@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,15 +17,15 @@
 import unittest
 
 from extensions.front.mxnet.check_softmax_node_inputs import CheckSoftmaxNodeInputs
-from mo.utils.unittest.graph import build_graph
 from mo.graph.graph import Node
+from mo.utils.unittest.graph import build_graph
 
 
 class TestCheckSoftmaxNodeInputs(unittest.TestCase):
     def test_remove_softmax_output_input(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
-             'node_2': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+             'node_2': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'softmax': {'type': 'SoftmaxOutput', 'value': None, 'kind': 'op', 'op': 'SoftmaxOutput'},
              },
             [('node_1', 'softmax'),
@@ -44,7 +44,7 @@ class TestCheckSoftmaxNodeInputs(unittest.TestCase):
 
     def test_remove_softmax_activation_input(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'softmax': {'type': 'SoftmaxActivation', 'value': None, 'kind': 'op', 'op': 'SoftmaxActivation'},
              },
             [('node_1', 'softmax')])

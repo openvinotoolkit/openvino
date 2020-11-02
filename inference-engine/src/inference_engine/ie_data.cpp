@@ -1,107 +1,134 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_layers.h"
-#include "ie_data.h"
-#include "blob_factory.hpp"
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
+
+#include "blob_factory.hpp"
+#include "cnn_network_ngraph_impl.hpp"
 
 using namespace InferenceEngine;
 
-Blob::Ptr Blob::CreateFromData(const DataPtr &data) {
-    return CreateBlobFromData(data);
+Blob::Ptr Blob::CreateFromData(const DataPtr& data) {
+    // TODO Here some decision should be made about the layout.
+    // For now we just pass the layout and use conversion to NCHW for ANY.
+    InferenceEngine::Layout targetLayout = data->getLayout();
+    if (data->getLayout() == InferenceEngine::Layout::ANY) {
+        targetLayout = InferenceEngine::Layout::NCHW;
+    }
+
+    InferenceEngine::TensorDesc desc(data->getPrecision(), data->getTensorDesc().getDims(), targetLayout);
+
+    switch (data->getPrecision()) {
+    case InferenceEngine::Precision::FP32:
+        return std::make_shared<InferenceEngine::TBlob<float>>(desc);
+    case InferenceEngine::Precision::Q78:
+    case InferenceEngine::Precision::I16:
+    case InferenceEngine::Precision::FP16:
+        return std::make_shared<InferenceEngine::TBlob<short>>(desc);
+    case InferenceEngine::Precision::U8:
+        return std::make_shared<InferenceEngine::TBlob<uint8_t>>(desc);
+    case InferenceEngine::Precision::I8:
+        return std::make_shared<InferenceEngine::TBlob<int8_t>>(desc);
+    case InferenceEngine::Precision::I32:
+        return std::make_shared<InferenceEngine::TBlob<int32_t>>(desc);
+    case InferenceEngine::Precision::BF16:
+        return std::make_shared<InferenceEngine::TBlob<short>>(desc);
+    default:
+        THROW_IE_EXCEPTION << "precision is no set";
+    }
 }
 
-Data::Data(const std::string &name, Precision _precision, Layout layout): precision(_precision), layout(layout),
-                                                                          name(name), userObject({0}),
-                                                                          tensorDesc(_precision, layout) {}
+namespace InferenceEngine {
 
-Data::Data(const std::string &name, const SizeVector &a_dims, Precision _precision, Layout layout)
-        : precision(_precision), layout(layout), dims(a_dims), name(name), userObject({0}),
-          tensorDesc(_precision, a_dims, layout) {
-    SizeVector tensorDims = a_dims;
-    std::reverse(tensorDims.begin(), tensorDims.end());
-    tensorDesc = TensorDesc(_precision, tensorDims, layout);
+class CNNLayer;
+
+/**
+ * @brief A smart pointer to the CNNLayer
+ */
+using CNNLayerPtr = std::shared_ptr<CNNLayer>;
+/**
+ * @brief A smart weak pointer to the CNNLayer
+ */
+using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
+
+}  // namespace InferenceEngine
+
+class Data::Impl {
+public:
+    /**
+     * @brief A pointer to the layer that creates this data element, null for input data elements
+     */
+    CNNLayerWeakPtr creatorLayer;
+
+    /**
+     * @brief A map of layers that use this node as input.
+     * It is useful for recursive NN graph traversal.
+     */
+    std::map<std::string, CNNLayerPtr> inputTo;
+};
+
+Data::Data(const std::string& name, Precision _precision, Layout layout)
+    : name(name), userObject({0}), tensorDesc(_precision, layout) {
+    _impl = std::make_shared<Impl>();
 }
 
-Data::Data(const std::string &name, const TensorDesc &desc): tensorDesc(desc), precision(desc.getPrecision()),
-                                                             layout(desc.getLayout()), dims(desc.getDims()),
-                                                             name(name), userObject({0}) {
-    std::reverse(dims.begin(), dims.end());
-}
-
-const SizeVector& Data::getDims() const {
-    return tensorDesc.getDims();
+Data::Data(const std::string& name, const TensorDesc& desc): name(name), userObject({0}), tensorDesc(desc) {
+    _impl = std::make_shared<Impl>();
 }
 
 const Precision& Data::getPrecision() const {
-    if (precision)
-        return precision;
-
     return tensorDesc.getPrecision();
 }
 
 const TensorDesc& Data::getTensorDesc() const {
-    if ((tensorDesc.getDims().size() == 0 && tensorDesc.getDims() != dims) ||
-            (tensorDesc.getLayout() == Layout::ANY && layout != Layout::ANY) ||
-            (!tensorDesc.getPrecision() && precision)) {
-        THROW_IE_EXCEPTION << "Tensor descriptor is empty!";
-    }
-    if (precision && tensorDesc.getPrecision() != precision) {
-        tensorDesc.setPrecision(precision);
-    }
     return tensorDesc;
 }
 
 bool Data::isInitialized() const {
-    return !dims.empty() || !tensorDesc.getDims().empty() || layout == SCALAR;
+    return !tensorDesc.getDims().empty() || tensorDesc.getLayout() == SCALAR;
 }
 
-void Data::setDims(const SizeVector &a_dims) {
-    dims = a_dims;
-    std::reverse(dims.begin(), dims.end());
+void Data::setDims(const SizeVector& a_dims) {
     tensorDesc.setDims(a_dims);
-}
-
-void Data::setBatchSize(size_t batch_size) {
-    if (dims.empty()) {
-        dims = tensorDesc.getDims();
-        std::reverse(dims.begin(), dims.end());
-    }
-    if (dims.empty())
-        return;
-    dims.at(dims.size() - 1) = batch_size;
-    SizeVector normalDims = dims;
-    std::reverse(normalDims.begin(), normalDims.end());
-    tensorDesc.setDims(normalDims);
 }
 
 void Data::setLayout(Layout layout) {
     tensorDesc.setLayout(layout);
-    this->layout = layout;
 }
 
-void Data::reshape(const SizeVector &a_dims, Layout a_layout) {
-    dims = a_dims;
-    layout = a_layout;
-    std::reverse(dims.begin(), dims.end());
-
-    tensorDesc.reshape(a_dims, layout);
+void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
+    tensorDesc.reshape(a_dims, a_layout);
 }
 
-CNNLayerWeakPtr &Data::getCreatorLayer() {
-    return creatorLayer;
+Data::Data(const Data& data) :
+    name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc) {
+    _impl = std::make_shared<Impl>();
+    _impl->creatorLayer = data._impl->creatorLayer;
+    _impl->inputTo = data._impl->inputTo;
 }
 
-const std::string &Data::getName() const {
+Data & Data::operator = (const Data& data) {
+    if (this != &data) {
+        name = data.name;
+        userObject = data.userObject;
+        tensorDesc = data.tensorDesc;
+
+        _impl->creatorLayer = data._impl->creatorLayer;
+        _impl->inputTo = data._impl->inputTo;
+    }
+
+    return *this;
+}
+
+const std::string& Data::getName() const {
     return name;
 }
 
-std::map<std::string, CNNLayerPtr> &Data::getInputTo() {
-    return inputTo;
+void Data::setName(const std::string& newName) {
+    name = newName;
 }
 
 const UserValue& Data::getUserObject() const {
@@ -109,12 +136,31 @@ const UserValue& Data::getUserObject() const {
 }
 
 Layout Data::getLayout() const {
-    if (tensorDesc.getLayout() == Layout::ANY && layout != Layout::ANY)
-        return layout;
     return tensorDesc.getLayout();
 }
 
-void Data::setPrecision(const Precision & precision) {
-    this->precision = precision;
+void Data::setPrecision(const Precision& precision) {
     tensorDesc.setPrecision(precision);
 }
+
+const SizeVector& Data::getDims() const {
+    return tensorDesc.getDims();
+}
+
+// compatibility
+
+namespace InferenceEngine {
+
+INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data) {
+    return data->_impl->creatorLayer;
+}
+
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data) {
+    return data->_impl->inputTo;
+}
+
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data) {
+    return data->_impl->inputTo;
+}
+
+}  // namespace InferenceEngine

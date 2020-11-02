@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef GAPI_API_GBACKEND_PRIV_HPP
@@ -17,6 +17,9 @@
 
 #include "opencv2/gapi/gcommon.hpp"
 #include "opencv2/gapi/gkernel.hpp"
+
+#include "compiler/gmodel.hpp"
+
 
 namespace cv
 {
@@ -41,11 +44,29 @@ public:
     // there's no need in having both cv::gimpl::GBackend
     // and cv::gapi::GBackend - these two things can be unified
     // NOTE - nodes are guaranteed to be topologically sorted.
+
+    // NB: This method is deprecated
     virtual EPtr compile(const ade::Graph   &graph,
                          const GCompileArgs &args,
                          const std::vector<ade::NodeHandle> &nodes) const;
 
+
+    virtual EPtr compile(const ade::Graph   &graph,
+                         const GCompileArgs &args,
+                         const std::vector<ade::NodeHandle> &nodes,
+                         const std::vector<cv::gimpl::Data>& ins_data,
+                         const std::vector<cv::gimpl::Data>& outs_data) const;
+
+    // Ask backend to provide general backend-specific compiler passes
     virtual void addBackendPasses(ade::ExecutionEngineSetupContext &);
+
+    // Ask backend to put extra meta-sensitive backend passes Since
+    // the inception of Streaming API one can compile graph without
+    // meta information, so if some passes depend on this information,
+    // they are called when meta information becomes available.
+    virtual void addMetaSensitiveBackendPasses(ade::ExecutionEngineSetupContext &);
+
+    virtual cv::gapi::GKernelPackage auxiliaryKernels() const;
 
     virtual ~Priv() = default;
 };

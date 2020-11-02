@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,55 +18,60 @@ import unittest
 
 import numpy as np
 
-from mo.middle.passes.eliminate import graph_clean_up
-from mo.middle.passes.fusing.decomposition import convert_scale_shift_to_mul_add, convert_batch_norm, \
-    convert_bn_to_mul_add
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.middle.passes.fusing.decomposition import convert_scale_shift_to_mul_add, convert_batch_norm
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
-    'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'placeholder_2': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # ScaleShift layer
     'scaleshift_1': {'type': 'ScaleShift', 'kind': 'op', 'op': 'ScaleShift', 'axis': 0},
-    'const_scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'op'},
+    'const_scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'data'},
-    'const_scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'op'},
+    'const_scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'scaleshift_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Mul and Add operations
     'mul_1': {'type': None, 'value': None, 'kind': 'op', 'op': 'Mul'},
-    'const_mul_1_w': {'value': None, 'shape': None, 'kind': 'op'},
+    'const_mul_1_w': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'mul_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'mul_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     'add_1': {'type': None, 'kind': 'op', 'op': 'Add'},
-    'const_add_1_w': {'value': None, 'shape': None, 'kind': 'op'},
+    'const_add_1_w': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'add_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'add_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Mul and Add operations
     'mul_2': {'type': None, 'kind': 'op', 'op': 'Mul'},
-    'const_mul_2_w': {'value': None, 'shape': None, 'kind': 'op'},
+    'const_mul_2_w': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'mul_2_w': {'value': None, 'shape': None, 'kind': 'data'},
     'mul_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     'add_2': {'type': None, 'kind': 'op', 'op': 'Add'},
-    'const_add_2_w': {'value': None, 'shape': None, 'kind': 'op'},
+    'const_add_2_w': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'add_2_w': {'value': None, 'shape': None, 'kind': 'data'},
     'add_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Reshape
     'placeholder_2/Reshape_': {'type': 'Reshape', 'kind': 'op', 'op': 'Reshape'},
     'placeholder_2/Reshape_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'placeholder_2/Reshape_const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': None},
+    'placeholder_2/Reshape_const_data': {'kind': 'data', 'value': None, 'shape': None},
     # BatchNorm operation
     'bn_op': {'type': None, 'kind': 'op', 'op': 'BatchNorm', 'can_be_fused': True},
+    'const_bn_const': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'bn_const': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_bn_beta': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'bn_beta': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_bn_mean': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'bn_mean': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_bn_var': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'bn_var': {'value': None, 'shape': None, 'kind': 'data'},
     'bn_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Concat1 operation
     'concat': {'type': 'Concat', 'kind': 'op', 'op': 'Concat'},
     'concat_data': {'value': None, 'shape': None, 'kind': 'data'},
-    'op_output': {'kind': 'op', 'op': 'OpOutput'}
+    'op_output': {'kind': 'op', 'op': 'Result'}
 }
 
 
@@ -103,7 +108,7 @@ class ScaleShiftToMulAdd(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         convert_scale_shift_to_mul_add(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
 
@@ -126,6 +131,8 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_2', 'placeholder_2_data'),
                                  ('placeholder_2_data', 'placeholder_2/Reshape_'),
+                                 ('placeholder_2/Reshape_const', 'placeholder_2/Reshape_const_data'),
+                                 ('placeholder_2/Reshape_const_data', 'placeholder_2/Reshape_'),
                                  ('placeholder_2/Reshape_', 'placeholder_2/Reshape_data'),
                                  ('placeholder_1_data', 'mul_1'),
                                  ('placeholder_2/Reshape_data', 'mul_1'),
@@ -134,7 +141,8 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227])},
-                                 'placeholder_2/Reshape_': {'dim': np.array([1, 227, 1, 1])},
+                                 'placeholder_2/Reshape_const': {'value': np.array([1, 227, 1, 1]), 'shape': [4]},
+                                 'placeholder_2/Reshape_const_data': {'value': np.array([1, 227, 1, 1]), 'shape': [4]},
                                  'placeholder_2/Reshape_data': {'shape': np.array([1, 227, 1, 1])},
                                  'mul_1': {'can_be_fused': True},
                                  'scaleshift_1_data': {}
@@ -142,7 +150,7 @@ class ScaleShiftToMulAdd(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         convert_scale_shift_to_mul_add(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
 
@@ -166,6 +174,8 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_2', 'placeholder_2_data'),
                                  ('placeholder_2_data', 'placeholder_2/Reshape_'),
+                                 ('placeholder_2/Reshape_const', 'placeholder_2/Reshape_const_data'),
+                                 ('placeholder_2/Reshape_const_data', 'placeholder_2/Reshape_'),
                                  ('placeholder_2/Reshape_', 'placeholder_2/Reshape_data'),
                                  ('placeholder_1_data', 'mul_1'),
                                  ('placeholder_2/Reshape_data', 'mul_1'),
@@ -174,7 +184,8 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([227])},
-                                 'placeholder_2/Reshape_': {'dim': np.array([1, 227, 1, 1])},
+                                 'placeholder_2/Reshape_const': {'value': np.array([1, 227, 1, 1]), 'shape': [4]},
+                                 'placeholder_2/Reshape_const_data': {'value': np.array([1, 227, 1, 1]), 'shape': [4]},
                                  'placeholder_2/Reshape_data': {'shape': np.array([1, 227, 1, 1])},
                                  'mul_1': {'can_be_fused': True},
                                  'scaleshift_1_data': {}
@@ -182,7 +193,7 @@ class ScaleShiftToMulAdd(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         convert_scale_shift_to_mul_add(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
 
@@ -221,7 +232,7 @@ class ScaleShiftToMulAdd(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         convert_scale_shift_to_mul_add(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
 
@@ -268,7 +279,7 @@ class ScaleShiftToMulAdd(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         convert_scale_shift_to_mul_add(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
 
@@ -299,7 +310,7 @@ class ScaleShiftToMulAdd(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         convert_scale_shift_to_mul_add(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
 
@@ -342,7 +353,7 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                  })
 
         convert_scale_shift_to_mul_add(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'scaleshift_1_data')
         self.assertTrue(flag, resp)
@@ -353,6 +364,10 @@ class BatchNormDecomposition(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'bn_op'),
+                             ('const_bn_const', 'bn_const'),
+                             ('const_bn_beta', 'bn_beta'),
+                             ('const_bn_mean', 'bn_mean'),
+                             ('const_bn_var', 'bn_var'),
                              ('bn_const', 'bn_op'),
                              ('bn_beta', 'bn_op'),
                              ('bn_mean', 'bn_op'),
@@ -370,7 +385,7 @@ class BatchNormDecomposition(unittest.TestCase):
                              'bn_var': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                              'bn_data': {'shape': np.array([1, 227, 227, 3])},
                              'concat_data': {}
-                             })
+                             }, nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
@@ -413,11 +428,11 @@ class BatchNormDecomposition(unittest.TestCase):
                                  'add_1': {'can_be_fused': True},
                                  'add_2': {'can_be_fused': True},
                                  'concat_data': {}
-                                 })
+                                 }, nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
         convert_batch_norm(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_data')
         self.assertTrue(flag, resp)
@@ -427,6 +442,10 @@ class BatchNormDecomposition(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'bn_op'),
+                             ('const_bn_const', 'bn_const'),
+                             ('const_bn_beta', 'bn_beta'),
+                             ('const_bn_mean', 'bn_mean'),
+                             ('const_bn_var', 'bn_var'),
                              ('bn_const', 'bn_op'),
                              ('bn_beta', 'bn_op'),
                              ('bn_mean', 'bn_op'),
@@ -491,124 +510,7 @@ class BatchNormDecomposition(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         convert_batch_norm(graph)
-        graph_clean_up(graph)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'concat_data')
-        self.assertTrue(flag, resp)
-
-    def test_caffe_bn_decomposition_1(self):
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'bn_op'),
-                             ('bn_mean', 'bn_op'),
-                             ('bn_var', 'bn_op'),
-                             ('bn_op', 'bn_data'),
-                             ('concat', 'concat_data'),
-                             ('bn_data', 'concat'),
-                             ('concat_data', 'op_output')
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
-                             'bn_op': {'epsilon': 1.2, 'op': 'BatchNormalization'},
-                             'bn_mean': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-                             'bn_var': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-                             'bn_data': {'shape': np.array([1, 227, 227, 3])},
-                             'concat_data': {}
-                             })
-
-        del graph['placeholder_1']['placeholder_1_data'][0]['in']
-        del graph['bn_op']['bn_data'][0]['in']
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'mul_1'),
-                                 ('const_mul_1_w', 'mul_1_w'),
-                                 ('mul_1_w', 'mul_1'),
-                                 ('mul_1', 'mul_1_data'),
-                                 ('mul_1_data', 'add_1'),
-                                 ('const_add_1_w', 'add_1_w'),
-                                 ('add_1_w', 'add_1'),
-                                 ('add_1', 'add_1_data'),
-                                 ('concat', 'concat_data'),
-                                 ('add_1_data', 'concat'),
-                                 ('concat_data', 'op_output')
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'const_mul_1_w': {'shape': np.array([3]),
-                                             'value': np.array([0.67419986, 0.55901699, 0.48795004])},
-                                 'mul_1_w': {'shape': np.array([3]),
-                                             'value': np.array([0.67419986, 0.55901699, 0.48795004])},
-                                 'const_add_1_w': {'shape': np.array([3]),
-                                             'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
-                                 'add_1_w': {'shape': np.array([3]),
-                                             'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
-                                 'add_1_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'mul_1': {'can_be_fused': True},
-                                 'add_1': {'can_be_fused': True},
-                                 'concat_data': {}
-                                 })
-
-        graph.graph['layout'] = 'NHWC'
-        convert_bn_to_mul_add(graph)
-        graph_clean_up(graph)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'concat_data')
-        self.assertTrue(flag, resp)
-
-    # 'can_be_fused': False for BatchNormalization
-    def test_caffe_bn_decomposition_2(self):
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'bn_op'),
-                             ('bn_mean', 'bn_op'),
-                             ('bn_var', 'bn_op'),
-                             ('bn_op', 'bn_data'),
-                             ('concat', 'concat_data'),
-                             ('bn_data', 'concat'),
-                             ('concat_data', 'op_output')
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
-                             'bn_op': {'epsilon': 1.2, 'op': 'BatchNormalization', 'can_be_fused': False},
-                             'bn_mean': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-                             'bn_var': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-                             'bn_data': {'shape': np.array([1, 227, 227, 3])},
-                             'concat_data': {}
-                             })
-
-        del graph['placeholder_1']['placeholder_1_data'][0]['in']
-        del graph['bn_op']['bn_data'][0]['in']
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'mul_1'),
-                                 ('const_mul_1_w', 'mul_1_w'),
-                                 ('mul_1_w', 'mul_1'),
-                                 ('mul_1', 'mul_1_data'),
-                                 ('mul_1_data', 'add_1'),
-                                 ('const_add_1_w', 'add_1_w'),
-                                 ('add_1_w', 'add_1'),
-                                 ('add_1', 'add_1_data'),
-                                 ('concat', 'concat_data'),
-                                 ('add_1_data', 'concat'),
-                                 ('concat_data', 'op_output')
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'const_mul_1_w': {'shape': np.array([3]),
-                                             'value': np.array([0.67419986, 0.55901699, 0.48795004])},
-                                 'mul_1_w': {'shape': np.array([3]),
-                                             'value': np.array([0.67419986, 0.55901699, 0.48795004])},
-                                 'const_add_1_w': {'shape': np.array([3]),
-                                             'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
-                                 'add_1_w': {'shape': np.array([3]),
-                                             'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
-                                 'add_1_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'mul_1': {'can_be_fused': False},
-                                 'add_1': {'can_be_fused': False},
-                                 'concat_data': {}
-                                 })
-
-        graph.graph['layout'] = 'NHWC'
-        convert_bn_to_mul_add(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_data')
         self.assertTrue(flag, resp)

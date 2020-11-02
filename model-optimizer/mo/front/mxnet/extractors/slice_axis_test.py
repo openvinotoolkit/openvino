@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ from mo.utils.unittest.graph import build_graph
 class TestMXNetSliceAxisExtractorOp(unittest.TestCase):
     def test_extract_slice_axis_layer(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'slice_axis_node': {'type': 'sigmoid', 'kind': 'op', 'op': 'slice_axis', },
              'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
              },

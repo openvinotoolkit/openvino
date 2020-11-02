@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,25 +16,41 @@
 
 import numpy as np
 
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node, Graph
-from mo.ops.eltwise import Eltwise
-from mo.ops.power import Power
+from extensions.ops.elementwise import Mul, Pow
+from mo.front.common.replacement import FrontReplacementPattern
+from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.graph.graph import Graph, Node, rename_node
 
 
-class Div(FrontReplacementOp):
-    op = "Div"
-    enabled = True
+class Div(FrontReplacementPattern):
+    # This transformation is called directly from the 'model-optimizer/extensions/middle/fusings.py' transformation
+    enabled = False
 
-    def replace_op(self, graph: Graph, node: Node):
-        reciprocal = Power(graph, {'scale': 1, 'power': np.float64(-1), 'shift': 0,
-                                   'name': node.name + '/reciprocal_'}).create_node()
-        mul = Eltwise(graph, {'operation': 'mul', 'name': node.name + '/mul_'}).create_node()
+    @staticmethod
+    def div_to_mul_replacement(div: Node):
+        # we execute this transformation for V10 IR later on middle phase despite graph_condition
+        # so we prevent Div replacement on shape-calculating sub-graphs
+        if div.in_port(0).data.get_value() is not None and div.in_port(1).data.get_value() is not None:
+            return
 
-        # Connect nodes
-        node.in_port(1).get_connection().set_destination(reciprocal.in_port(0))
-        node.in_port(0).get_connection().set_destination(mul.in_port(1))
-        reciprocal.out_port(0).connect(mul.in_port(0))
+        graph = div.graph
+        name = div.soft_get('name', div.id)
 
-        # The "explicit" version of the return value is: [(out_node.id, 0)])
-        return [mul.id]
+        # keep Mul name the same as Div -- because of mathematical equality of output tensors
+        rename_node(node=div, name=name + '/to_be_removed')
+
+        # reconnect Div in(out)puts to Mul
+        mul = Mul(graph, {'name': name}).create_node()
+        rename_node(mul, name)
+
+        div.in_port(0).get_connection().set_destination(mul.in_port(0))
+        div.in_port(1).get_connection().set_destination(mul.in_port(1))
+        div.out_port(0).get_connection().set_source(mul.out_port(0))
+
+        # restore mathematical equivalence to Div operation: Div(A, B) = Mul(A, Pow(B, -1))
+        reciprocal = create_op_with_const_inputs(graph, Pow, {1: np.float64(-1)}, {'name': name + '/reciprocal_'})
+        mul.in_port(1).get_connection().insert_node(reciprocal)
+
+    def find_and_replace_pattern(self, graph: Graph):
+        for div in graph.get_op_nodes(op='Div'):
+            self.div_to_mul_replacement(div)

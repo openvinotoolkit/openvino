@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -30,5 +30,7 @@ class CreateTensorNodes(FrontReplacementPattern):
         return [FrontFinish]
 
     def find_and_replace_pattern(self, graph: Graph):
-        create_tensor_nodes(graph)
         graph.stage = 'middle'
+        graph.strict_mode = False
+        create_tensor_nodes(graph)
+        graph.strict_mode = True

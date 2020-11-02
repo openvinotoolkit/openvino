@@ -2,13 +2,13 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_UTIL_OPTIONAL_HPP
 #define OPENCV_GAPI_UTIL_OPTIONAL_HPP
 
-#include "opencv2/gapi/util/variant.hpp"
+#include <opencv2/gapi/util/variant.hpp>
 
 // A poor man's `optional` implementation, incompletely modeled against C++17 spec.
 namespace cv

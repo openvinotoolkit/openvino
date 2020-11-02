@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,35 +14,43 @@
  limitations under the License.
 """
 
-import os
 import json
-
-import numpy as np
-import mxnet as mx
 import logging as log
+import os
 
-from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states
+import mxnet as mx
+import numpy as np
+
 from mo.front.mxnet.extractor import common_mxnet_fields
+from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states
 from mo.front.mxnet.nd_to_params import build_params_file
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
 
-def load_symbol_nodes(model_name, legacy_mxnet_model: bool = False):
-    model_name = '%s-symbol.json' % model_name
-    if legacy_mxnet_model:
+def load_symbol_nodes(model_name, input_symbol: str = None, legacy_mxnet_model: bool = False):
+    if input_symbol:
+        json_name = input_symbol
+        if legacy_mxnet_model:
+            log.warning('If you use --input_symbol with legacy MXNet models be sure that symbol and param names ' +
+                        'have correct format supported by MXNet')
+    else:
+        json_name = '%s-symbol.json' % model_name
+        input_symbol = json_name
+
+    if legacy_mxnet_model and (input_symbol == json_name):
         log.warning('For legacy MXNet models Model Optimizer does not support conversion of old MXNet models' +
                     '(trained with 1.0.0 version of MXNet and lower) with custom layers. ' +
                     refer_to_faq_msg(93))
-        sym = mx.symbol.load(model_name)
+        sym = mx.symbol.load(json_name)
         model_nodes = json.loads(sym.tojson())
     else:
-        if os.path.isfile(model_name):
-            model_nodes = json.load(open(model_name))
+        if os.path.isfile(json_name):
+            model_nodes = json.load(open(json_name))
         else:
             raise Error('Specified input json {} does not exist. ' +
-                        refer_to_faq_msg(84), model_name)
+                        refer_to_faq_msg(84), json_name)
 
     return model_nodes['nodes']
 
@@ -80,7 +88,7 @@ def load_symbol_def(input_model_name, input_symbol, input_names: str = '', nd_pr
             "Arguments --nd_prefix_name, --pretrained_model_name and --input_symbol should be provided. Please provide all or do not use any. " +
             refer_to_faq_msg(81))
 
-    model_nodes = load_symbol_nodes(model_name, legacy_mxnet_model)
+    model_nodes = load_symbol_nodes(model_name, input_symbol, legacy_mxnet_model)
 
     return model_nodes, model_params, model_name, iteration_number
 
@@ -89,7 +97,7 @@ def symbol_attrs(symbol_node):
     return {'symbol_dict': symbol_node}
 
 
-def symbol2nx(model_nodes, model_params, input_names: str = ''):
+def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
     if not input_names:
         input_names = ('data',)
     else:
@@ -98,7 +106,6 @@ def symbol2nx(model_nodes, model_params, input_names: str = ''):
     rnn_states = init_rnn_states(model_nodes)
     names_rnn_states = list(rnn_states.keys())
 
-    graph = Graph()
     # as mxnet contain input layers as index of layer, for correct set up edges, we need provide index of layer with name of  graph node
     index_node_keys = {}
     for i, node in enumerate(model_nodes):

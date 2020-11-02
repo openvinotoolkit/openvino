@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 import numpy as np
 
-from extensions.middle.FusePermutesSequence import FusePermutesSequence
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 
@@ -35,9 +34,9 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
         return [MiddleStart]
 
     def run_before(self):
-        return [
-            FusePermutesSequence,
-        ]
+        from extensions.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
+        return [TransposeTensorIteratorLSTM]
+
 
     def pattern(self):
         return dict(

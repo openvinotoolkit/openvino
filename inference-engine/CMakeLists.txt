@@ -1,154 +1,94 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
-cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
-
 project(InferenceEngine)
 
-set(DEV_BUILD TRUE)
+set(CMAKE_MODULE_PATH "${IE_MAIN_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
-include(CTest)
+include(features_ie)
 
-## WA for problem with gtest submodule. It cannot detect uint32 type.
-## remove Gtest submodule and this two lines together
-include (CheckTypeSize)
-check_type_size (uint32_t uint32_t LANGUAGE CXX)
+# include developer package
+include(developer_package_ie)
 
-if (UNIX AND NOT APPLE)
-set(LINUX TRUE)
+# These options are shared with 3rdparty plugins by means of developer package
+include(check_features_ie)
+
+# resolving dependencies for the project
+include(dependencies)
+
+
+# Fuzz tests also building without ENABLE_FUZZING
+include(fuzzing)
+
+if (ENABLE_FUZZING)
+    enable_fuzzing()
 endif()
 
-option (OS_FOLDER "create OS dedicated folder in output" OFF)
+find_package(Threads REQUIRED)
 
-if(CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
-    set (ARCH_FOLDER armv7l)
-elseif("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-    set (ARCH_FOLDER intel64)
-else()
-    set (ARCH_FOLDER  ia32)
-endif()
+unset(IEDeveloperPackageTargets CACHE)
+function(ie_developer_export_targets)
+    set(IEDeveloperPackageTargets "${IEDeveloperPackageTargets};${ARGV}")
 
-if (OS_FOLDER)
-	message ("**** OS FOLDER IS: [${OS_FOLDER}]")
-	if ("${OS_FOLDER}" STREQUAL "ON")
-		message ("**** USING OS FOLDER: [${CMAKE_SYSTEM_NAME}]")
-		set (BIN_FOLDER bin/${CMAKE_SYSTEM_NAME}/${ARCH_FOLDER})
-	else()
-		set (BIN_FOLDER bin/${OS_FOLDER}/${ARCH_FOLDER})
-	endif()
-else()
-    set (BIN_FOLDER bin/${ARCH_FOLDER})
-endif()
+    # to allow exporting of aliased targets with the original names
+    foreach(target_name ${IEDeveloperPackageTargets})
+        if(TARGET "${target_name}")
+            get_target_property(original_name ${target_name} ALIASED_TARGET)
+            if(TARGET "${original_name}")
+                message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
+                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
+                list(REMOVE_ITEM IEDeveloperPackageTargets ${target_name})
+                list(APPEND IEDeveloperPackageTargets ${original_name})
+            endif()
+        endif()
+    endforeach()
 
-set (IE_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set (CMAKE_MODULE_PATH "${IE_MAIN_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+    list(REMOVE_DUPLICATES IEDeveloperPackageTargets)
+    set(IEDeveloperPackageTargets "${IEDeveloperPackageTargets}" CACHE INTERNAL
+        "Paths to extra Inference Engine plugins" FORCE)
+endfunction()
 
-#printing debug messages
-include (debug)
+function(ie_developer_export)
+    export(TARGETS ${OpenVINODeveloperPackageTargets} NAMESPACE IE::
+        APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 
-if("${CMAKE_BUILD_TYPE}" STREQUAL "")
-    debug_message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
-    set(CMAKE_BUILD_TYPE "Release")
-endif()
-message(STATUS "BUILD_CONFIGURATION: ${CMAKE_BUILD_TYPE}")
+    export(TARGETS ${IEDeveloperPackageTargets} NAMESPACE IE::
+        APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 
-if(COVERAGE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -O0")
-endif()
+    # Custom target to build only Inference Engine Developer Package targets
+    add_custom_target(ie_dev_targets ALL DEPENDS ${OpenVINODeveloperPackageTargets} ${IEDeveloperPackageTargets} gflags
+                      inference_engine_ir_reader inference_engine_ir_v7_reader)
+endfunction()
 
-if (UNIX)
-    SET(LIB_DL ${CMAKE_DL_LIBS})
-endif()
-
-set (OUTPUT_ROOT ${IE_MAIN_SOURCE_DIR})
-
-include(os_flags)
-
-#resolving dependencies for the project
-include (dependencies)
-
-set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
-set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
-
-if (WIN32)
-    # Support CMake multiconfiguration for Visual Studio build
-    set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
-    set(IE_BUILD_CONFIGURATION $<CONFIG>)
-else ()
-    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" )
-        set(IE_BUILD_POSTFIX ${IE_DEBUG_POSTFIX})
-    else()
-        set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})
-    endif()
-    set(IE_BUILD_CONFIGURATION ${CMAKE_BUILD_TYPE})
-endif()
-
-add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
-
-if(NOT(UNIX))
-    if (WIN32)
-        #set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-        #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-    endif()
-    set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set (CMAKE_LIBRARY_PATH ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set (CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set (LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set (LIBRARY_OUTPUT_PATH ${LIBRARY_OUTPUT_DIRECTORY}) # compatibility issue: linux uses LIBRARY_OUTPUT_PATH, windows uses LIBRARY_OUTPUT_DIRECTORY
-else ()
-    set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
-    set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
-    set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION})
-    set (CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION})
-    set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION})
-    set (LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
-    set (LIBRARY_OUTPUT_PATH ${LIBRARY_OUTPUT_DIRECTORY}/lib)
-endif()
-
-if (APPLE)
-    set(CMAKE_MACOSX_RPATH 1)
-endif(APPLE)
-
-#rpath fully disabled
-if (NOT ENABLE_PLUGIN_RPATH)
-    SET (CMAKE_SKIP_RPATH TRUE)
-endif()
-
-#Use solution folders.
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-#message("=====================> ${CMAKE_BUILD_TYPE} <=====================")
-
-message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
-message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
-message (STATUS "IE_MAIN_SOURCE_DIR .................... " ${IE_MAIN_SOURCE_DIR})
-message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
-message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
-
-include(sdl)
-
-set (CMAKE_POSITION_INDEPENDENT_CODE ON)
-
-include (sanitizer)
-
-include(CheckCXXCompilerFlag)
-
-include(cpplint)
+add_subdirectory(thirdparty)
 
 add_subdirectory(src)
-add_subdirectory(tests)
-add_subdirectory(thirdparty)
-set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
 
-#to be able to link
-set (LIB_FOLDER ${IE_MAIN_SOURCE_DIR}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
+if(ENABLE_TESTS)
+    add_subdirectory(tests_deprecated)
+    add_subdirectory(tests)
+endif()
+
+add_subdirectory(tools)
+
+function(ie_build_samples)
+    # samples should be build with the same flags as from OpenVINO package,
+    # so unset all flags
+    foreach(var CMAKE_CXX_FLAGS CMAKE_C_FLAGS CMAKE_CXX_STANDARD
+                CMAKE_EXE_LINKER_FLAGS CMAKE_POLICY_DEFAULT_CMP0063
+                CMAKE_CXX_VISIBILITY_PRESET CMAKE_C_VISIBILITY_PRESET
+                CMAKE_VISIBILITY_INLINES_HIDDEN CMAKE_POSITION_INDEPENDENT_CODE
+                THREADS_PREFER_PTHREAD_FLAG X86_64 X86 ARM AARCH64 LINUX
+                MINGW64 CMAKE_BUILD_TYPE CMAKE_MACOSX_RPATH)
+        unset(${var})
+    endforeach()
+    include(sanitizer)
+    add_subdirectory(samples)
+endfunction()
 
 # gflags and format_reader targets are kept inside of samples directory and
 # they must be built even if samples build is disabled (required for tests and tools).
-add_subdirectory(samples)
+ie_build_samples()
 
 file(GLOB_RECURSE SAMPLES_SOURCES samples/*.cpp samples/*.hpp samples/*.h)
 add_cpplint_target(sample_cpplint
@@ -159,4 +99,166 @@ if (ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
 
+add_subdirectory(ie_bridges/c)
+
+if (ENABLE_JAVA)
+    add_subdirectory(ie_bridges/java)
+endif()
+
 add_cpplint_report_target()
+
+#
+# Install
+#
+
+# install C++ samples
+
+ie_cpack_add_component(cpp_samples REQUIRED DEPENDS core)
+
+if(UNIX)
+    install(DIRECTORY samples/
+            DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
+            COMPONENT cpp_samples
+            USE_SOURCE_PERMISSIONS
+            PATTERN *.bat EXCLUDE
+            PATTERN speech_libs_and_demos EXCLUDE)
+elseif(WIN32)
+    install(DIRECTORY samples/
+            DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
+            COMPONENT cpp_samples
+            USE_SOURCE_PERMISSIONS
+            PATTERN *.sh EXCLUDE
+            PATTERN speech_libs_and_demos EXCLUDE)
+endif()
+
+# install C samples
+
+ie_cpack_add_component(c_samples REQUIRED DEPENDS core)
+
+if(UNIX)
+    install(PROGRAMS samples/build_samples.sh
+            DESTINATION ${IE_CPACK_IE_DIR}/samples/c
+            COMPONENT c_samples)
+elseif(WIN32)
+    install(PROGRAMS samples/build_samples_msvc.bat
+            DESTINATION ${IE_CPACK_IE_DIR}/samples/c
+            COMPONENT c_samples)
+endif()
+
+install(DIRECTORY ie_bridges/c/samples/
+        DESTINATION ${IE_CPACK_IE_DIR}/samples/c
+        COMPONENT c_samples
+        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE)
+
+install(FILES samples/CMakeLists.txt
+        DESTINATION ${IE_CPACK_IE_DIR}/samples/c
+        COMPONENT c_samples)
+
+# install Python samples
+
+if(ENABLE_PYTHON)
+    ie_cpack_add_component(python_samples REQUIRED DEPENDS core)
+
+    install(DIRECTORY ${ie_python_api_SOURCE_DIR}/sample/
+            DESTINATION ${IE_CPACK_IE_DIR}/samples/python
+            COMPONENT python_samples)
+endif()
+
+# install speech demo files
+
+if(SPEECH_LIBS_AND_DEMOS)
+    ie_cpack_add_component(speech_demo_files REQUIRED)
+
+    install(DIRECTORY ${TEMP}/deployment_tools
+                      ${TEMP}/data_processing
+            DESTINATION .
+            COMPONENT speech_demo_files)
+endif()
+
+#
+# Developer package
+#
+
+ie_developer_export_targets(format_reader)
+ie_developer_export_targets(${NGRAPH_LIBRARIES})
+
+# for Template plugin
+if(NGRAPH_INTERPRETER_ENABLE)
+    ie_developer_export_targets(ngraph_backend interpreter_backend)
+endif()
+
+ie_developer_export()
+
+configure_file(
+    "${IE_MAIN_SOURCE_DIR}/cmake/developer_package_config.cmake.in"
+    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
+    @ONLY)
+
+configure_file(
+    "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
+    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
+    COPYONLY)
+
+#
+# Coverage
+#
+
+if(ENABLE_COVERAGE)
+    include(coverage_ie)
+endif()
+
+#
+# Add extra modules
+#
+
+function(register_extra_modules)
+    set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/build-modules")
+
+    function(generate_fake_dev_package)
+        set(iedevconfig_file "${InferenceEngineDeveloperPackage_DIR}/InferenceEngineDeveloperPackageConfig.cmake")
+        file(REMOVE "${iedevconfig_file}")
+
+        file(WRITE "${iedevconfig_file}" "\# !! AUTOGENERATED: DON'T EDIT !!\n\n")
+        file(APPEND "${iedevconfig_file}" "ie_deprecated_no_errors()\n")
+
+        foreach(target IN LISTS OpenVINODeveloperPackageTargets IEDeveloperPackageTargets)
+            if(target)
+                file(APPEND "${iedevconfig_file}" "add_library(IE::${target} ALIAS ${target})\n")
+            endif()
+        endforeach()
+    endfunction()
+
+    generate_fake_dev_package()
+
+    # automatically import plugins from the 'plugins' folder
+    file(GLOB local_extra_modules "plugins/*")
+    if(NGRAPH_INTERPRETER_ENABLE)
+        list(APPEND local_extra_modules "${OpenVINO_MAIN_SOURCE_DIR}/docs/template_plugin")
+    endif()
+
+    # detect where IE_EXTRA_MODULES contains folders with CMakeLists.txt
+    # other folders are supposed to have sub-folders with CMakeLists.txt
+    foreach(module_path IN LISTS IE_EXTRA_MODULES)
+        if(EXISTS "${module_path}/CMakeLists.txt")
+            list(APPEND extra_modules "${module_path}")
+        elseif(module_path)
+            file(GLOB extra_modules ${extra_modules} "${module_path}/*")
+        endif()
+    endforeach()
+
+    # add each extra module
+    foreach(module_path IN LISTS extra_modules local_extra_modules)
+        if(module_path)
+            get_filename_component(module_name "${module_path}" NAME)
+            if(NOT DEFINED BUILD_${module_name})
+                set(BUILD_${module_name} ON CACHE BOOL "Build ${module_name} extra module" FORCE)
+            endif()
+            if(BUILD_${module_name})
+                message(STATUS "Register ${module_name} to be built in build-modules/${module_name}")
+                add_subdirectory("${module_path}" "build-modules/${module_name}")
+            endif()
+        endif()
+    endforeach()
+endfunction()
+
+register_extra_modules()

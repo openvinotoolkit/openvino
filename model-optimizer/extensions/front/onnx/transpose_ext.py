@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,11 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
-from mo.ops.permute import Permute
 
+from extensions.ops.transpose import Transpose
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
 
@@ -25,15 +24,13 @@ class TransposeFrontExtractor(FrontExtractorOp):
     op = 'Transpose'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         # In case of undefined 'perm' attribute, Transpose operation in ONNX reverse the dimensions
         order = onnx_attr(node, 'perm', 'ints', default=None)
         attrs = {
-            'order': np.array(order, dtype=np.int64) if order is not None else None,
+            'order': int64_array(order) if order is not None else None,
             'reverse_order': order is None
         }
-
-        # update the attributes of the node
-        Permute.update_node_stat(node, attrs)
-        return __class__.enabled
+        Transpose.update_node_stat(node, attrs)
+        return cls.enabled

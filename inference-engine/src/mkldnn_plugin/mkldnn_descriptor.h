@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,20 +37,20 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::softmax_forward::desc> desc);
     operator std::shared_ptr<mkldnn::softmax_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::depthwise_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::depthwise_forward::desc>();
-
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::rnn_forward::desc> desc);
     operator std::shared_ptr<mkldnn::rnn_forward::desc>();
 
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc> desc);
     operator std::shared_ptr<mkldnn::eltwise_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::binarization_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::binarization_forward::desc>();
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::quantization_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::quantization_forward::desc>();
 
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::binary_convolution_forward::desc> desc);
     operator std::shared_ptr<mkldnn::binary_convolution_forward::desc>();
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::deformable_convolution_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::deformable_convolution_forward::desc>();
 
     mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
             const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) const;

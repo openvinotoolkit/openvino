@@ -16,17 +16,16 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/eltwise.hpp"
-#include "api/CPP/reorder.hpp"
-#include "api/CPP/custom_gpu_primitive.hpp"
-#include <api/CPP/engine.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/eltwise.hpp"
+#include "api/reorder.hpp"
+#include "api/custom_gpu_primitive.hpp"
+#include <api/engine.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-
 
 namespace cldnn
 {
@@ -74,7 +73,10 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<cldnn_arg> parameters = { {arg_input, 0}, {arg_input, 1 }, {arg_output, 0 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        {custom_gpu_primitive::arg_input, 0},
+        {custom_gpu_primitive::arg_input, 1 },
+        {custom_gpu_primitive::arg_output, 0 } };
     layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
@@ -178,7 +180,7 @@ void add_basic_in2x2x2x2_with_reorder()
         "       output[idx] = input0[idx] + input1[idx];\n" +
         "   }\n";
     std::string entry_point = "add_kernel";
-    std::vector<cldnn_arg> parameters = { { arg_input, 0 },{ arg_input, 1 },{ arg_output, 0 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_input, 1 },{ custom_gpu_primitive::arg_output, 0 } };
     layout output_layout = { DType, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
@@ -280,7 +282,7 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<cldnn_arg> parameters = { { arg_input, 0 },{ arg_output, 0 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_output, 0 } };
     layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
@@ -373,7 +375,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<cldnn_arg> parameters = { { arg_input, 0 },{ arg_output, 0 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_output, 0 } };
     layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
@@ -474,7 +476,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<cldnn_arg> parameters = { { arg_input, 0 },{ arg_output, 0 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_output, 0 } };
     layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
@@ -539,7 +541,7 @@ TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<cldnn_arg> parameters = { { arg_input, 0 },{ arg_input, 1 },{ arg_output, 0 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_input, 1 },{ custom_gpu_primitive::arg_output, 0 } };
     layout output_layout = { data_types::u8, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;

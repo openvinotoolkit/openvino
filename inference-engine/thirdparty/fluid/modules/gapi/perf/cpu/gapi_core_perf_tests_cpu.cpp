@@ -2,12 +2,12 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "../perf_precomp.hpp"
 #include "../common/gapi_core_perf_tests.hpp"
-#include "opencv2/gapi/cpu/core.hpp"
+#include <opencv2/gapi/cpu/core.hpp>
 
 #define CORE_CPU cv::gapi::core::cpu::kernels()
 
@@ -110,16 +110,18 @@ INSTANTIATE_TEST_CASE_P(CmpPerfTestCPU, CmpPerfTest,
         Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(CmpWithScalarPerfTestCPU, CmpWithScalarPerfTest,
-    Combine(Values(CMP_EQ, CMP_GE, CMP_NE, CMP_GT, CMP_LT, CMP_LE),
-        Values(szSmall128, szVGA, sz720p, sz1080p),
-        Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
-        Values(cv::compile_args(CORE_CPU))));
+    Combine(Values(AbsExact().to_compare_f()),
+            Values(CMP_EQ, CMP_GE, CMP_NE, CMP_GT, CMP_LT, CMP_LE),
+            Values(szSmall128, szVGA, sz720p, sz1080p),
+            Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
+            Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(BitwisePerfTestCPU, BitwisePerfTest,
     Combine(Values(AND, OR, XOR),
-        Values(szSmall128, szVGA, sz720p, sz1080p),
-        Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1),
-        Values(cv::compile_args(CORE_CPU))));
+            testing::Bool(),
+            Values(szSmall128, szVGA, sz720p, sz1080p),
+            Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1),
+            Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(BitwiseNotPerfTestCPU, BitwiseNotPerfTest,
     Combine(Values(szSmall128, szVGA, sz720p, sz1080p),
@@ -227,6 +229,11 @@ INSTANTIATE_TEST_CASE_P(CropPerfTestCPU, CropPerfTest,
         Values(cv::Rect(10, 8, 20, 35), cv::Rect(4, 10, 37, 50)),
         Values(cv::compile_args(CORE_CPU))));
 
+INSTANTIATE_TEST_CASE_P(CopyPerfTestCPU, CopyPerfTest,
+    Combine(Values(szSmall128, szVGA, sz720p, sz1080p),
+        Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
+        Values(cv::compile_args(CORE_CPU))));
+
 INSTANTIATE_TEST_CASE_P(ConcatHorPerfTestCPU, ConcatHorPerfTest,
     Combine(Values(szSmall128, szVGA, sz720p, sz1080p),
         Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
@@ -261,10 +268,13 @@ INSTANTIATE_TEST_CASE_P(LUTPerfTestCustomCPU, LUTPerfTest,
 
 
 INSTANTIATE_TEST_CASE_P(ConvertToPerfTestCPU, ConvertToPerfTest,
-    Combine(Values(CV_8UC3, CV_8UC1, CV_16UC1, CV_32FC1),
-        Values(CV_8U, CV_16U, CV_16S, CV_32F),
-        Values(szSmall128, szVGA, sz720p, sz1080p),
-        Values(cv::compile_args(CORE_CPU))));
+    Combine(Values(AbsExact().to_compare_f()),
+            Values(CV_8UC3, CV_8UC1, CV_16UC1, CV_16SC1, CV_32FC1),
+            Values(CV_8U, CV_16U, CV_16S, CV_32F),
+            Values(szSmall128, szVGA, sz720p, sz1080p),
+            Values(2.5, 1.0),
+            Values(0.0),
+            Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(ResizePerfTestCPU, ResizePerfTest,
     Combine(Values(AbsExact().to_compare_f()),
@@ -283,4 +293,33 @@ INSTANTIATE_TEST_CASE_P(ResizeFxFyPerfTestCPU, ResizeFxFyPerfTest,
         Values(0.5, 0.1),
         Values(0.5, 0.1),
         Values(cv::compile_args(CORE_CPU))));
-}
+
+INSTANTIATE_TEST_CASE_P(ParseSSDBLPerfTestCPU, ParseSSDBLPerfTest,
+                        Combine(Values(sz720p, sz1080p),
+                                Values(0.3f, 0.7f),
+                                Values(0, 1),
+                                Values(cv::compile_args(CORE_CPU))));
+
+INSTANTIATE_TEST_CASE_P(ParseSSDPerfTestCPU, ParseSSDPerfTest,
+                        Combine(Values(sz720p, sz1080p),
+                                Values(0.3f, 0.7f),
+                                testing::Bool(),
+                                testing::Bool(),
+                                Values(cv::compile_args(CORE_CPU))));
+
+INSTANTIATE_TEST_CASE_P(ParseYoloPerfTestCPU, ParseYoloPerfTest,
+                        Combine(Values(sz720p, sz1080p),
+                                Values(0.3f, 0.7f),
+                                Values(0.5),
+                                Values(7, 80),
+                                Values(cv::compile_args(CORE_CPU))));
+
+INSTANTIATE_TEST_CASE_P(SizePerfTestCPU, SizePerfTest,
+                        Combine(Values(CV_8UC1, CV_8UC3, CV_32FC1),
+                                Values(szSmall128, szVGA, sz720p, sz1080p),
+                                Values(cv::compile_args(CORE_CPU))));
+
+INSTANTIATE_TEST_CASE_P(SizeRPerfTestCPU, SizeRPerfTest,
+                        Combine(Values(szSmall128, szVGA, sz720p, sz1080p),
+                                Values(cv::compile_args(CORE_CPU))));
+} // opencv_test

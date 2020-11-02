@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,12 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
 from mo.front.common.partial_infer.utils import convert_tf_padding_to_str
 from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_data_format_spatial, tf_data_format_channel, tf_data_format_batch, \
-    tf_int_list
+from mo.front.tf.extractors.utils import tf_data_format_spatial, tf_int_list
 from mo.ops.pooling import Pooling
 
 
@@ -26,59 +24,59 @@ class AvgPoolFrontExtractor(FrontExtractorOp):
     op = 'AvgPool'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = create_pooling_attrs(node, 'avg')
         attrs.update({'op': __class__.op})
         # update the attributes of the node
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class MaxPoolFrontExtractor(FrontExtractorOp):
     op = 'MaxPool'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = create_pooling_attrs(node, 'max')
         attrs.update({'op': __class__.op})
         # update the attributes of the node
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class MaxPool3DFrontExtractor(FrontExtractorOp):
     op = 'MaxPool3D'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = create_pooling_attrs(node, 'max')
         attrs.update({'op': __class__.op})
         # update the attributes of the node
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class AvgPool3DFrontExtractor(FrontExtractorOp):
     op = 'AvgPool3D'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = create_pooling_attrs(node, 'avg')
         attrs.update({'op': __class__.op})
         # update the attributes of the node
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 def create_pooling_attrs(node, pool_method):
     data_format = node.pb.attr["data_format"]
 
     attrs = {
-        'auto_pad': convert_tf_padding_to_str(node.pb.attr['padding']),
+        'auto_pad': convert_tf_padding_to_str(node.pb.attr['padding'].s.decode()),
         'window': tf_int_list(node.pb.attr["ksize"].list),
         'spatial_dims': tf_data_format_spatial(data_format),
         'pad': None,  # will be inferred when input shape is known

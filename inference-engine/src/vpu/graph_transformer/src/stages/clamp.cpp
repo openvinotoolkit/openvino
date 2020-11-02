@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,43 +9,19 @@
 #include <set>
 #include <string>
 
-#include <vpu/sw/post_op_stage.hpp>
+#include <vpu/stages/post_op_stage.hpp>
 
 namespace vpu {
 
 namespace {
 
 class ClampStage final : public PostOpStage {
+public:
+    using PostOpStage::PostOpStage;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<ClampStage>(*this);
-    }
-
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
-        if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales.at(input);
-
-            out[output] = inputScale;
-
-            attrs().get<float>("min_value") *= inputScale;
-            attrs().get<float>("max_value") *= inputScale;
-        } else {
-            // Clamp can only propagate scaling, not generate.
-            out[input] = 1.0f;
-            out[output] = 1.0f;
-        }
-
-        return out;
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -59,11 +35,7 @@ protected:
 
 }  // namespace
 
-void FrontEnd::parseClamp(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseClamp(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -74,7 +46,7 @@ void FrontEnd::parseClamp(
 }
 
 Stage StageBuilder::addClampStage(
-            const Model::Ptr& model,
+            const Model& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
             float min,

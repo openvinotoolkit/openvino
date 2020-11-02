@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,9 +16,8 @@
 
 import unittest
 
-import networkx as nx
-from mo.graph.graph import Graph
 from extensions.ops.instance_normalization import InstanceNormalization
+from mo.graph.graph import Graph
 
 
 class InstanceNormalizationOp(unittest.TestCase):
