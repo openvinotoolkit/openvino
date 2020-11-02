@@ -17,8 +17,9 @@ std::string GatherNDLayerTest::getTestCaseName(const testing::TestParamInfo<Gath
     InferenceEngine::Precision dPrecision, iPrecision;
     int batchDims;
     std::string device;
+    Config config;
     GatherNDParamsSubset gatherArgsSubset;
-    std::tie(gatherArgsSubset, dPrecision, iPrecision, device) = obj.param;
+    std::tie(gatherArgsSubset, dPrecision, iPrecision, device, config) = obj.param;
     std::tie(dataShape, indicesShape, batchDims) = gatherArgsSubset;
 
     std::ostringstream result;
@@ -28,6 +29,13 @@ std::string GatherNDLayerTest::getTestCaseName(const testing::TestParamInfo<Gath
     result << "DP=" << dPrecision.name() << "_";
     result << "IP=" << iPrecision.name() << "_";
     result << "device=" << device;
+    if (!config.empty()) {
+        result << "_config=";
+        for (const auto& cfg : config) {
+            result << "{" << cfg.first << ": " << cfg.second << "}";
+        }
+    }
+
     return result.str();
 }
 
@@ -36,7 +44,7 @@ void GatherNDLayerTest::SetUp() {
     InferenceEngine::Precision dPrecision, iPrecision;
     int batchDims;
     GatherNDParamsSubset gatherArgsSubset;
-    std::tie(gatherArgsSubset, dPrecision, iPrecision, targetDevice) = this->GetParam();
+    std::tie(gatherArgsSubset, dPrecision, iPrecision, targetDevice, configuration) = this->GetParam();
     std::tie(dataShape, indicesShape, batchDims) = gatherArgsSubset;
 
     auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);

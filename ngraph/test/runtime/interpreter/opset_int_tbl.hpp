@@ -34,6 +34,7 @@ NGRAPH_OP(LogicalXor, op::v1)
 NGRAPH_OP(LogicalNot, op::v1)
 NGRAPH_OP(GatherTree, op::v1)
 NGRAPH_OP(OneHot, op::v1)
+NGRAPH_OP(Reverse, op::v1)
 #undef ID_SUFFIX
 
 #define ID_SUFFIX(NAME) NAME##_v3
