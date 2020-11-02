@@ -12,30 +12,30 @@ public:
         scale = s;
         scale_set = true;
     }
-    auto GetScale() const {
+    float GetScale() const {
         return scale;
     }
-    auto IsScaleSet() const {
+    bool IsScaleSet() const {
         return scale_set;
     }
     void SetLevels(int32_t l) {
         levels = l;
     }
-    auto GetLevels() const {
+    int32_t GetLevels() const {
         return levels;
     }
-    void SetMinValues(const std::vector<float> &min){
+    void SetMinValues(const std::vector<float> &min) {
         min_values.clear();
         min_values.insert(min_values.end(), min.begin(), min.end());
     }
-    auto& GetMinValues() const {
+    const std::vector<float>& GetMinValues() const {
         return min_values;
     }
     void SetMaxValues(const std::vector<float>& max) {
         max_values.clear();
         max_values.insert(max_values.end(), max.begin(), max.end());
     }
-    auto& GetMaxValues() const {
+    const std::vector<float>& GetMaxValues() const {
         return max_values;
     }
 

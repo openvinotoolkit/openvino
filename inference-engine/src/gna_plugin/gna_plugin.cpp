@@ -37,6 +37,7 @@
 #include "memory/gna_memory_state.hpp"
 #include "gna_model_serial.hpp"
 #include "runtime/gna_float_runtime.hpp"
+#include <layers/gna_fake_quantize_layer.hpp>
 
 #include <generic_ie.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -52,7 +53,6 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
-#include <layers/gna_fake_quantize_layer.hpp>
 
 uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -372,18 +372,17 @@ void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & net
         if (!LayerInfo(inputLayer).isConst()) {
             continue;
         }
-        // checking weight precision - they already quantized - so we need to adjust type of quantisation we have so far
-        const auto int8Levels = 255;
-        const auto int16Levels = 65535;
-        if (fqLayer.getLevels() != int8Levels && fqLayer.getLevels() != int16Levels) {
-            THROW_GNA_LAYER_EXCEPTION(*it)
-                << "unsupported quantisation scheme: number of levels is " << fqLayer.getLevels() << " while only: "
-                << int8Levels << " or " << int16Levels << " supported";
-        }
         // also in mixed mode i8 should be stated as target precision
-        if (fqLayer.getLevels() == int8Levels) {
+        if (fqLayer.getLevels() <= std::numeric_limits<uint8_t>::max()) {
             config.gnaPrecision = InferenceEngine::Precision::I8;
+        } else if (fqLayer.getLevels() <= std::numeric_limits<uint16_t>::max()) {
+            config.gnaPrecision = InferenceEngine::Precision::I16;
+        } else {
+            THROW_GNA_LAYER_EXCEPTION(*it)
+                << "unsupported quantisation scheme: number of levels is " << fqLayer.getLevels() << " while only up to "
+                << std::numeric_limits<uint16_t>::max() << " is supported";
         }
+
         gnaFlags->fake_quantized = true;
         config.gnaFlags.fake_quantized = true;
     }

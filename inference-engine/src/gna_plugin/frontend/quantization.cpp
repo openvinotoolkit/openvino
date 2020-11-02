@@ -19,7 +19,60 @@
 
 template<>
 void QuantizationCallback<int16_t, int32_t>::runFakeQuantize() const {
-    THROW_GNA_EXCEPTION << "int16 fake quantized models not yet supported";
+    uint32_t num_saturate = 0;
+
+    for (uint32_t row = 0; row < num_rows; row++) {
+        for (uint32_t col = 0; col < num_columns; col++) {
+            float rounding_value = (ptr_float_weights[row * num_columns + col] > 0) ? 0.5f : -0.5f;
+            float value = ptr_float_weights[row * num_columns + col] * *ptr_weight_scale_factor + rounding_value;
+            int16_t* ptr_weight_16 = ptr_int_weights + (row * num_columns_padded + col);
+            if (value > 32767.0) {
+                *ptr_weight_16 = 32767;
+                num_saturate++;
+            } else if (value < -32768.0) {
+                *ptr_weight_16 = -32768;
+                num_saturate++;
+            } else {
+                *ptr_weight_16 = (int16_t)value;
+            }
+        }
+        for (uint32_t col = num_columns; col < num_columns_padded; col++) {
+            int16_t* ptr_weight_16 = ptr_int_weights + (row * num_columns_padded + col);
+            *ptr_weight_16 = 0;
+        }
+    }
+    for (uint32_t row = num_rows; row < num_rows_padded; row++) {
+        for (uint32_t col = 0; col < num_columns_padded; col++) {
+            int16_t* ptr_weight_16 = ptr_int_weights + (row * num_columns_padded + col);
+            *ptr_weight_16 = 0;
+        }
+    }
+
+    // case for element wise layer
+    if (ptr_float_biases != nullptr && ptr_int_biases != nullptr) {
+        for (uint32_t j = 0; j < num_rows; j++) {
+            float rounding_value = (ptr_float_biases[j] > 0) ? 0.5f : -0.5f;
+            float value = ptr_float_biases[j] * *ptr_output_scale_factor + rounding_value;
+            if (value > 2147483647.0) {
+                ptr_int_biases[j] = 2147483647L;
+                num_saturate++;
+            } else if (value < -2147483648.0) {
+                ptr_int_biases[j] = -2147483648LL;
+                num_saturate++;
+            } else {
+                ptr_int_biases[j] = (int32_t)value;
+            }
+        }
+        for (uint32_t j = num_rows; j < num_rows_padded; j++) {
+            ptr_int_biases[j] = 0;
+        }
+    }
+
+    if (num_saturate > 0) {
+        QUANTWARNING("Warning:  %d / %d saturations in QuantizeAffine16()\n",
+            num_saturate,
+            num_rows * num_columns + num_rows);
+    }
 }
 
 template<>
@@ -181,26 +234,19 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             }
         }
 
-        //gnawarn() << "row max bigger than calculated by tool: " << row_max << ", " << fq_ptr_output_high[i] << "\n";
-
         for (uint32_t j = 0; j < num_columns; j++) {
             auto offset = i * num_columns + j;
-            auto rounding_value = (ptr_float_weights[i * num_columns + j] > 0) ? 0.5f : -0.5f;   
+            auto rounding_value = (ptr_float_weights[i * num_columns + j] > 0) ? 0.5f : -0.5f;
             float value = ptr_float_weights[offset] * (*ptr_weight_scale_factor / ptr_int_biases[i].multiplier) + rounding_value;
             auto normalizedWeight = static_cast<int32_t>(value);
-            if (normalizedWeight > MAX_VAL_1B_WEIGHT || normalizedWeight < -MAX_VAL_1B_WEIGHT) {
-                // gnawarn() << "unsupported weights range for I8 quantisation: " << normalizedWeight << ", channel mul:" << (int32_t)ptr_int_biases[i].multiplier  << "\n";
-            }
 
             if (value > 127.0) {
                 normalizedWeight = 127;
                 num_saturate++;
-            }
-            else if (value < -128.0) {
+            } else if (value < -128.0) {
                 normalizedWeight = -128;
                 num_saturate++;
-            }
-            else {
+            } else {
                 normalizedWeight = (int8_t)value;
             }
 
@@ -239,6 +285,7 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
         QUANTWARNING("Warning:  %d / %d saturations in QuantizeAffine8()\n", num_saturate, num_rows * num_columns + num_rows);
     }
 }
+
 template<>
 void QuantizationCallback<int8_t, gna_compound_bias_t>::runQuantize() const {
     if (ptr_int_biases == nullptr) {
