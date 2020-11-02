@@ -86,6 +86,7 @@ int main(int argc, char *argv[]) {
 
         // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         CNNNetwork network = ie.ReadNetwork(input_model);
+        if (network.getOutputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
         network.setBatchSize(1);
         // -----------------------------------------------------------------------------------------------------
 
@@ -130,7 +131,6 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 8. Process output ------------------------------------------------------
         Blob::Ptr output = infer_request.GetBlob(output_name);
-        if (network.getOutputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
         // Print classification results
         ClassificationResult_t classificationResult(output, {input_image_path});
         classificationResult.print();
