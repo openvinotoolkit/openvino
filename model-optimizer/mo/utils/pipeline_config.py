@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import re
 
 from mo.utils.error import Error
 from mo.utils.simple_proto_parser import SimpleProtoParser
-
 
 # The list of rules how to map the value from the pipeline.config file to the dictionary with attributes.
 # The rule is either a string or a tuple with two elements. In the first case the rule string is used as a key to
@@ -46,10 +45,13 @@ mapping_rules = [
     ('multiscale_anchor_generator_aspect_ratios', 'anchor_generator/multiscale_anchor_generator/aspect_ratios'),
     ('multiscale_anchor_generator_scales_per_octave', 'anchor_generator/multiscale_anchor_generator/scales_per_octave'),
     # SSD anchor generator attributes
-    ('ssd_anchor_generator_min_scale', 'anchor_generator/ssd_anchor_generator/min_scale'),
-    ('ssd_anchor_generator_max_scale', 'anchor_generator/ssd_anchor_generator/max_scale'),
+    ('ssd_anchor_generator_min_scale', 'anchor_generator/ssd_anchor_generator/min_scale', 0.2),
+    ('ssd_anchor_generator_max_scale', 'anchor_generator/ssd_anchor_generator/max_scale', 0.95),
     ('ssd_anchor_generator_num_layers', 'anchor_generator/ssd_anchor_generator/num_layers'),
     ('ssd_anchor_generator_aspect_ratios', 'anchor_generator/ssd_anchor_generator/aspect_ratios'),
+    ('ssd_anchor_generator_scales', 'anchor_generator/ssd_anchor_generator/scales'),
+    ('ssd_anchor_generator_interpolated_scale_aspect_ratio',
+     'anchor_generator/ssd_anchor_generator/interpolated_scale_aspect_ratio', 1.0),
     ('ssd_anchor_generator_reduce_lowest', 'anchor_generator/ssd_anchor_generator/reduce_boxes_in_lowest_layer'),
     ('ssd_anchor_generator_base_anchor_height', 'anchor_generator/ssd_anchor_generator/base_anchor_height', 1.0),
     ('ssd_anchor_generator_base_anchor_width', 'anchor_generator/ssd_anchor_generator/base_anchor_width', 1.0),

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,49 +16,44 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
- 
-namespace kernel_selector 
-{    
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // reorg_yolo_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct reorg_yolo_params : public base_params
-    {
-        reorg_yolo_params() : base_params(KernelType::REORG_YOLO) {}
 
-        uint32_t stride;
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reorg_yolo_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct reorg_yolo_params : public base_params {
+    reorg_yolo_params() : base_params(KernelType::REORG_YOLO), stride(0) {}
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            auto k = base_params::GetParamsKey();
-            return k;
-        }
-    };
+    uint32_t stride;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // reorg_yolo_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct reorg_yolo_optional_params : optional_params
-    {
-        reorg_yolo_optional_params() : optional_params(KernelType::REORG_YOLO) {}
-    };
+    virtual ParamsKey GetParamsKey() const {
+        auto k = base_params::GetParamsKey();
+        return k;
+    }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // ReorgYoloKernelRef
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class ReorgYoloKernelRef : public common_kernel_base
-    {
-    public:
-        ReorgYoloKernelRef() : common_kernel_base("reorg_yolo_gpu_ref") {}
-        virtual ~ReorgYoloKernelRef() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reorg_yolo_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct reorg_yolo_optional_params : optional_params {
+    reorg_yolo_optional_params() : optional_params(KernelType::REORG_YOLO) {}
+};
 
-        using DispatchData = CommonDispatchData;        
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ReorgYoloKernelRef
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class ReorgYoloKernelRef : public KernelBaseOpenCL {
+public:
+    ReorgYoloKernelRef() : KernelBaseOpenCL("reorg_yolo_gpu_ref") {}
+    virtual ~ReorgYoloKernelRef() {}
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        virtual JitConstants GetJitConstants(const reorg_yolo_params& params) const;
-    };
-}
+    using DispatchData = CommonDispatchData;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    virtual JitConstants GetJitConstants(const reorg_yolo_params& params) const;
+};
+}  // namespace kernel_selector

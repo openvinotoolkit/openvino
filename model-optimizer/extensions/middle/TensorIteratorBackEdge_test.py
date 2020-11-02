@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@
 import unittest
 
 from extensions.middle.TensorIteratorBackEdge import BackEdgesMatching
-from mo.utils.unittest.graph import compare_graphs, build_graph_with_attrs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph_with_attrs
 
 
 class BackEdgesMatchingTests(unittest.TestCase):
@@ -51,11 +52,14 @@ class BackEdgesMatchingTests(unittest.TestCase):
         pattern_matcher = BackEdgesMatching()
         pattern = pattern_matcher.pattern()
         graph = build_graph_with_attrs(nodes_with_attrs=pattern['nodes'], edges_with_attrs=pattern['edges'], update_edge_attrs=None,
-                                new_nodes_with_attrs=[('from_body_data', {'kind':'data'}),
+                                new_nodes_with_attrs=[('from_body_data', {'kind': 'data'}),
                                            ('exit', {'kind': 'op', 'op': 'Exit', 'name': 'exit'}),
-                                           ('exit_data', {'kind':'data'})],
+                                           ('exit_data', {'kind': 'data'}),
+                                           ('Switch_1_data_exit', {'kind': 'data'})],
+
                                 new_edges_with_attrs=[('from_body_data', 'NextIteration'),
-                                           ('Switch_1', 'exit', {'out': 0}),
+                                           ('Switch_1', 'Switch_1_data_exit', {'out': 0}),
+                                           ('Switch_1_data_exit', 'exit', {'out': 0}),
                                            ('exit', 'exit_data')])
 
         pattern_matcher.find_and_replace_pattern(graph)

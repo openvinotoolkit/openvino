@@ -1,67 +1,48 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#if GNA_LIB_VER == 1
+#include <gna-api.h>
+#else
+#include <gna2-inference-api.h>
+#include <gna2-common-api.h>
+#endif
+#include "ie_precision.hpp"
+#include "descriptions/gna_flags.hpp"
 #include <vector>
-#include <memory>
-#include <utility>
-#include <ie_icnn_network.hpp>
-#include "ie_common.h"
-#include "gna_plugin_log.hpp"
+#include <map>
 
 namespace GNAPluginNS {
 
-using CNNNetworkPtr = std::shared_ptr<InferenceEngine::ICNNNetwork>;
-
-struct Endpoint {
-    InferenceEngine::TargetDevice device;
-    InferenceEngine::Precision networkPrec;
-    std::function<CNNNetworkPtr(InferenceEngine::ICNNNetwork &network)> convert;
-
-    Endpoint(InferenceEngine::TargetDevice device,
-             InferenceEngine::Precision networkPrec,
-             std::function<CNNNetworkPtr(InferenceEngine::ICNNNetwork &network)> converter = [](InferenceEngine::ICNNNetwork &network) {
-                 return CNNNetworkPtr(&network, [](InferenceEngine::ICNNNetwork *nodelete) {});
-             }) : device(device), networkPrec(networkPrec), convert(converter) {
+struct Config {
+    Config() {
+        AdjustKeyMapValues();
     }
+    void UpdateFromMap(const std::map<std::string, std::string>& configMap);
+    void AdjustKeyMapValues();
+    std::string GetParameter(const std::string& name) const;
+    std::vector<std::string> GetSupportedKeys() const;
+
+    // precision of GNA hardware model
+    InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
+
+    std::string dumpXNNPath;
+    std::string dumpXNNGeneration;
+
+#if GNA_LIB_VER == 1
+    intel_gna_proc_t gna_proc_type = static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE);
+#else
+    Gna2AccelerationMode pluginGna2AccMode = Gna2AccelerationModeSoftware;
+    Gna2DeviceVersion pluginGna2DeviceConsistent = Gna2DeviceVersion1_0;
+#endif
+
+    std::vector<float> inputScaleFactors;
+    GNAFlags gnaFlags;
+
+    std::map<std::string, std::string> key_config_map;
 };
 
-class Config {
- public:
-    using Desc = std::vector<Endpoint>;
-    Desc supported;
-    InferenceEngine::TargetDevice _defaultDevice = InferenceEngine::TargetDevice::eDefault;
-
- public:
-    explicit Config(std::vector<Endpoint> &&config)
-        : supported(std::move(config)) {
-    }
-
-    /**
-     * @brief default device value is plugin dependent, so it should be also set, to allow fallback
-     */
-    void setDefaultDevice(InferenceEngine::TargetDevice d) {
-        _defaultDevice = d;
-    }
-
-    inline Endpoint find_configuration(InferenceEngine::ICNNNetwork &network) {
-        auto device = network.getTargetDevice();
-        auto targetDevice = device == InferenceEngine::TargetDevice::eDefault ? _defaultDevice : device;
-
-        auto res = std::find_if(std::begin(supported), std::end(supported), [&](Endpoint &e) {
-            return e.networkPrec == network.getPrecision() && (
-                e.device == device ||
-                    e.device == targetDevice);
-        });
-
-        if (res == std::end(supported)) {
-            THROW_GNA_EXCEPTION << "\"The plugin doesn't support target device: "
-                               << InferenceEngine::TargetDeviceInfo::name(network.getTargetDevice())
-                               << ".\nSupported target device: " << InferenceEngine::TargetDeviceInfo::name(InferenceEngine::TargetDevice::eGNA);
-        }
-
-        return *res;
-    }
-};
 }  // namespace GNAPluginNS

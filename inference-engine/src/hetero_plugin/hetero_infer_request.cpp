@@ -1,78 +1,87 @@
-//
-// Copyright 2017-2018 Intel Corporation.
-//
-// This software and the related documents are Intel copyrighted materials,
-// and your use of them is governed by the express license under which they
-// were provided to you (End User License Agreement for the Intel(R) Software
-// Development Products (Version May 2017)). Unless the License provides
-// otherwise, you may not use, modify, copy, publish, distribute, disclose or
-// transmit this software or the related documents without Intel's prior
-// written permission.
-//
-// This software and the related documents are provided as is, with no
-// express or implied warranties, other than those that are expressly
-// stated in the License.
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
-#include "hetero_infer_request.h"
+#include "hetero_infer_request.hpp"
+#include "hetero_itt.hpp"
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <description_buffer.hpp>
-#include <debug.h>
 #include <ie_layouts.h>
-#include <assert.h>
-#include "ie_profiling.hpp"
+#include <ie_algorithm.hpp>
+#include <cassert>
+#include <map>
+#include <string>
 
 using namespace HeteroPlugin;
 using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 
 HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                        InferenceEngine::OutputsDataMap networkOutputs,
-                                       const SubRequestsList &inferRequests) :
-        InferRequestInternal(networkInputs, networkOutputs),
-        _inferRequests(inferRequests) {
+                                       const SubRequestsList& inferRequests,
+                                       const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames) :
+    InferRequestInternal(networkInputs, networkOutputs),
+    _inferRequests(inferRequests) {
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
     }
 
-    auto requestBlob([&](const std::string &e, InferenceEngine::InferRequest::Ptr r) {
-        if (networkInputs.find(e) != networkInputs.end()) {
-            if (_blobs.find(e) != _blobs.end()) {
-                r->SetBlob(e.c_str(), _blobs[e]);
-            } else {
-                _blobs[e] = r->GetBlob(e.c_str());
-                _inputs[e] = _blobs[e];
-            }
-        } else if (networkOutputs.find(e) != networkOutputs.end()) {
-            if (_blobs.find(e) != _blobs.end()) {
-                r->SetBlob(e.c_str(), _blobs[e]);
-            } else {
-                _blobs[e] = r->GetBlob(e.c_str());
-                _outputs[e] = _blobs[e];
+    auto requestBlob([&](const std::string& blobName, InferenceEngine::InferRequest::Ptr r) {
+        std::string intermediateBlobName = blobName;
+        auto itName = subgraphInputToOutputBlobNames.find(blobName);
+        if (itName != subgraphInputToOutputBlobNames.end()) {
+            intermediateBlobName = itName->second;
+        }
+        BlobMap::iterator itBlob;
+        bool emplaced = false;
+        std::tie(itBlob, emplaced) = _blobs.emplace(intermediateBlobName, Blob::Ptr{});
+        if (emplaced) {
+            itBlob->second = r->GetBlob(blobName);
+            if (contains(networkInputs, blobName)) {
+                _inputs[blobName] = itBlob->second;
+            } else if (contains(networkOutputs, blobName)) {
+                _outputs[blobName] = itBlob->second;
             }
         } else {
-            if (_blobs.find(e) != _blobs.end()) {
-                r->SetBlob(e.c_str(), _blobs[e]);
-            } else {
-                _blobs[e] = r->GetBlob(e.c_str());
-            }
+            r->SetBlob(blobName, itBlob->second);
         }
     });
 
     // go over all subnet and create requests
-    for (auto &&ireq : _inferRequests) {
-        ireq._request = ireq._network->CreateInferRequestPtr();
+    for (auto&& desc : _inferRequests) {
+        desc._request = desc._network.CreateInferRequestPtr();
         // go over all inputs and get blobs from subnet infer requests
-        for (auto e : ireq._oNames) {
-            requestBlob(e, ireq._request);
+        for (auto&& outputInfo : desc._network.GetOutputsInfo()) {
+            requestBlob(outputInfo.first, desc._request);
         }
     }
 
     // go over all outputs and get blobs from subnet infer requests
-    for (auto r : _inferRequests) {
-        for (auto e : r._iNames) {
-            requestBlob(e, r._request);
+    for (auto&& desc : _inferRequests) {
+        for (auto&& inputInfo : desc._network.GetInputsInfo()) {
+            requestBlob(inputInfo.first, desc._request);
+        }
+    }
+}
+
+void HeteroInferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) {
+    InferenceEngine::InferRequestInternal::SetBlob(name, data);
+    assert(!_inferRequests.empty());
+    for (auto &&desc : _inferRequests) {
+        auto &r = desc._request;
+        assert(nullptr != r);
+        InputInfo::Ptr foundInput;
+        DataPtr foundOutput;
+        try {
+            // if `name` is input blob
+            if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+                r->SetBlob(name, data, foundInput->getPreProcess());
+            }
+        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+            std::string message = ex.what();
+            if (message.find(NOT_FOUND_str) == std::string::npos)
+                throw ex;
         }
     }
 }
@@ -81,7 +90,7 @@ void HeteroInferRequest::InferImpl() {
     updateInOutIfNeeded();
     size_t i = 0;
     for (auto &&desc : _inferRequests) {
-        IE_PROFILING_AUTO_SCOPE_TASK(desc._profilingTask);
+        OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, desc._profilingTask);
         auto &r = desc._request;
         assert(nullptr != r);
         r->Infer();
@@ -99,18 +108,19 @@ void HeteroInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
 }
 
 void HeteroInferRequest::updateInOutIfNeeded() {
-    IE_PROFILING_AUTO_SCOPE(updateInOutIfNeeded);
+    OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, "updateInOutIfNeeded");
     assert(!_inferRequests.empty());
     for (auto &&desc : _inferRequests) {
         auto &r = desc._request;
         assert(nullptr != r);
-        for (auto &&ioname : desc._iNames) {
+        for (auto&& inputInfo : desc._network.GetInputsInfo()) {
+            auto& ioname = inputInfo.first;
             auto iti = _inputs.find(ioname);
             if (iti != _inputs.end()) {
                 auto it = _preProcData.find(ioname);
                 if (it != _preProcData.end()) {
-                    if (it->second.getRoiBlob() != _blobs[ioname]) {
-                        r->SetBlob(ioname.c_str(), it->second.getRoiBlob());
+                    if (it->second->getRoiBlob() != _blobs[ioname]) {
+                        r->SetBlob(ioname.c_str(), it->second->getRoiBlob());
                         _blobs[ioname] = iti->second;
                     }
                 } else {
@@ -121,7 +131,8 @@ void HeteroInferRequest::updateInOutIfNeeded() {
                 }
             }
         }
-        for (auto &&ioname : desc._oNames) {
+        for (auto&& outputInfo : desc._network.GetOutputsInfo()) {
+            auto& ioname = outputInfo.first;
             auto ito = _outputs.find(ioname);
             if (ito != _outputs.end()) {
                 if (ito->second != _blobs[ioname]) {
@@ -131,58 +142,4 @@ void HeteroInferRequest::updateInOutIfNeeded() {
             }
         }
     }
-}
-
-void HeteroInferRequest::startFirstAsyncRequest() {
-    auto firstAsyncRequest = _inferRequests.begin()->_request;
-    firstAsyncRequest->StartAsync();
-}
-
-void HeteroInferRequest::setCallbackForLastRequest(std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>& callback) {
-    auto lastRequest = _inferRequests.back()._request;
-    if (lastRequest) lastRequest->SetCompletionCallback(callback);
-}
-
-void HeteroInferRequest::setCallbackSequence() {
-    for (auto desc = _inferRequests.begin(); desc != _inferRequests.end(); desc++) {
-        auto &currentAsyncRequest = desc->_request;
-        auto nextRequestDesc = std::next(desc);
-        if (nextRequestDesc != _inferRequests.end()) {
-            currentAsyncRequest->SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
-                    [=](InferRequest request, StatusCode sts) {
-                        IE_PROFILING_AUTO_SCOPE(Callback)
-                        if (sts == OK) {
-                            nextRequestDesc->_request->StartAsync();
-                        }
-                    });
-        }
-    }
-}
-
-StatusCode HeteroInferRequest::waitAllRequests(int64_t millis_timeout) {
-    StatusCode status = INFER_NOT_STARTED;
-    bool shareMsMode = true;
-    std::chrono::high_resolution_clock::time_point startTime;
-    int64_t msLeft;
-    if (millis_timeout == IInferRequest::WaitMode::STATUS_ONLY ||
-        millis_timeout == IInferRequest::WaitMode::RESULT_READY) {
-        shareMsMode = false;
-    }
-    for (auto it = _inferRequests.begin(); it != _inferRequests.end(); ++it) {
-        startTime = std::chrono::high_resolution_clock::now();
-        status = it->_request->Wait(millis_timeout);
-        msLeft = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::high_resolution_clock::now() - startTime).count();
-        if (OK != status) {
-            return status;
-        }
-        if (shareMsMode) {
-            if (millis_timeout - msLeft > 0) {
-                millis_timeout -= msLeft;
-            } else if (it != _inferRequests.end()) {
-                return RESULT_NOT_READY;
-            }
-        }
-    }
-    return status;
 }

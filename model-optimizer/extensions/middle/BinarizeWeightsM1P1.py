@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,12 +19,13 @@ import logging as log
 import numpy as np
 
 from extensions.middle.CheckForCycle import CheckForCycle
-from extensions.middle.DeleteControlFlowEdges import DeleteControlFlowEdges
 from extensions.middle.DeleteNotExecutable import DeleteNotExecutable
+from extensions.ops.elementwise import Mul, Pow
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.lin_op import Mul
-from mo.ops.power import Power
+from mo.ops.const import Const
+from mo.ops.reshape import Reshape
 
 
 class BinarizeWeightsM1P1(MiddleReplacementPattern):
@@ -45,12 +46,12 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
         transparent.
 
         #TODO Describe how to apply multiplication at output ports -- this is not specified. In the current definition
-        we can pass through only scalar multiplication, but we already requre passing it channel-wise.
+        we can pass through only scalar multiplication, but we already require passing it channel-wise.
     """
     enabled = True
 
     def run_after(self):
-        return [DeleteControlFlowEdges]
+        return []
 
     def run_before(self):
         # CheckForCycle and DeleteNotExecutable run graph clean up which should not be run before weights binarization
@@ -59,7 +60,7 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('quantize', dict(kind='op', op='Quantize')),
+                ('quantize', dict(kind='op', op='FakeQuantize')),
                 ('quantized', dict()),
                 ('operator', dict(kind='op', multiplication_transparent=True)),
             ],
@@ -85,11 +86,13 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
         if len(applicable) == 0:
             return
 
-        # Look at 3-rd and 4-th inputs of Quantize -- they have constants that should be passed through.
+        # Look at 3-rd and 4-th inputs of FakeQuantize -- they have constants that should be passed through.
         # Assume that the constant that should be passed through is a scalar.
         quantize = match['quantize']
         output_low = quantize.in_node(3)
         output_high = quantize.in_node(4)
+
+        quantize_name = quantize.soft_get('name', quantize.id)
 
         if not output_low.has_valid('value') and not output_high.has_valid('value'):
             return
@@ -109,32 +112,32 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
                       ' 0/+1 or -1/+1 forms.'.format(match['quantized'].name))
             return
 
-        # Recognize scalar
-        if len(np.unique(output_low)) != 1 or len(np.unique(output_high)) != 1:
-            log.debug('BinarizeWeightsM1P1 cannot apply transformation for data {} because output_low or output_high '
-                      'cannot be interpreted as scalars.'.format(match['quantized'].name))
-            return
-
         # TODO: Extract real scalar from 3rd and 4th inputs; reusing original tensors is dangerous because
         #       it may have incompatible shape.
 
         mult_term = quantize.in_node(3) if np.all(output_high == 0) else quantize.in_node(4)
 
+        new_shape = Const(graph, {'name': quantize_name + '/Reshape/Shape',
+                                  'value': int64_array([-1, 1, 1])}).create_node_with_data()
+        reshape = Reshape(graph, {'name': quantize_name + '/Reshape'}).create_node_with_data([mult_term, new_shape])
+
         # Patch inflow path (by diving by mult_term)
-        # Put a new Power/Mul combination here:
+        # Put a new Pow/Mul combination here:
         #       ---->---- (here)---> data ---> [3rd/4th ports]quantize ---> quantized ---> operator
 
         if len(match['quantized'].out_nodes()) > 1:
             log.debug('BinarizeWeightsM1P1: len(match[\'quantized\'].out_nodes()) > 1')
             return
-        div_op = Power(graph, {'name': quantize.name + '/DivNormalize', 'power': -1.0})
-        div_output = div_op.create_node_with_data([mult_term])
+        power_of_exponent = Const(graph, {'name': quantize_name + '/DivNormalize/Power',
+                                          'value': np.array(-1.0)}).create_node_with_data()
+        div_op = Pow(graph, {'name': quantize_name + '/DivNormalize'})
+        div_output = div_op.create_node_with_data([mult_term, power_of_exponent])
 
         for i in [3, 4]:
             match['quantize'].insert_node_with_data_before(
                 match['quantize'].in_node(i),
                 Mul,
-                dict(name=quantize.name + '/MulNormalize'),
+                dict(name=quantize_name + '/MulNormalize'),
                 additional_inputs=[div_output],
             )
 
@@ -147,7 +150,7 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
             match['operator'].out_node(),
             Mul,
             dict(name=match['operator'].name + '/MulNormalize'),
-            [mult_term],
+            [reshape],
         )
 
         # Disable 'operator' fusion with linear ops, otherwise it will annihilate changes that we just made

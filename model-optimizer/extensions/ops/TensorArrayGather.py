@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph
@@ -27,7 +26,7 @@ class TensorArrayGather(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'infer': TensorArrayGather.array_infer,
         }
@@ -52,6 +51,8 @@ class TensorArrayGather(Op):
 
         assert ta_node.has_valid('size')
         size = ta_node['size']
+
+        assert size > 0
 
         output_shape = [size] + [data_shape[i] for i in range(len(data_shape))]
         output_value = None

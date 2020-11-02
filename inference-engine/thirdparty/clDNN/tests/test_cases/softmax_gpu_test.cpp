@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,18 +15,17 @@
 */
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/softmax.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/softmax.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 
 using namespace cldnn;
 using namespace std;
 using namespace tests;
-
 
 class softmax_gpu_xb_f32_test_fixture: public ::testing::Test {
 public:
@@ -35,7 +34,6 @@ public:
         input_x   = 10, input_b   = 2,  // size of whole input buffer
         in_size   = input_x*input_b,
         out_size  = output_x*output_b;
-
 
     float in_buffer[in_size];
     float out_buffer[out_size];
@@ -199,7 +197,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(softmax("softmax", "input"));
 
-    set_values(input, {  //bfyx    
+    set_values(input, {  //bfyx
              //y0x0  y0x1   y1x0    y1x1
         /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
         /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
@@ -231,10 +229,10 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
 
     float sum = 0;
     float expected_sum = 1.0f;
-    
+
     float temp_max = 0;
     int max_value_buffer_index = 0;
-    
+
     for (uint32_t i = 0; i < batch_num; i++) //this for loops will sum results in a batch per feature, we expect that: sum = 1.0f
     {
         for (uint32_t j = 0; j < y_size; j++)
@@ -293,7 +291,6 @@ TEST(softmax_gpu_bfyx_f32, normalize_y) {
 
         0.999962831f,   //b=0, f=2, x=0
         0.993307149f,   //b=0, f=2, x=1
-
 
         0.98201379f,    //b=1, f=0, x=0
         0.99998987f,    //b=1, f=0, x=1
@@ -456,7 +453,7 @@ TEST(softmax_gpu_yxfb_f32, normalize_f) {
     topology.add(softmax("softmax", "input", softmax::normalize_fyx));
 
     set_values(input, {  //yxfb
-                //f0b0  f0b1  f0b2  f0b3  f0b4    f0b5    f0b6   f0b7   f0b8    f0b9   f0b10  f0b11 
+                //f0b0  f0b1  f0b2  f0b3  f0b4    f0b5    f0b6   f0b7   f0b8    f0b9   f0b10  f0b11
         /*y0x0*/ 0.1f, -0.1f, 0.9f, 1.5f, 0.15f, -0.01f, 0.19f,  0.45f, 0.41f, -0.12f, 0.39f, 0.65f,
         /*y1x0*/ 0.2f, 0.2f, -10.f, 5.2f, 0.01f, 0.015f, 0.29f,  0.05f, 0.41f, -0.31f, 0.29f, 1.35f
     });
@@ -522,6 +519,323 @@ TEST(softmax_gpu_yxfb_f32, normalize_f) {
     }
 }
 
+TEST(softmax_gpu_bfzyx_f32, normalize_z) {
+    //  Input  : 2x3x2x2x2
+    static const int32_t x_size = 2, y_size = 2, z_size = 2, feature_num = 3,
+        batch_num = 2, buf_size = x_size  *y_size * z_size * batch_num * feature_num;
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ batch_num, feature_num, x_size , y_size, z_size } });
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(softmax("softmax", "input", softmax::normalize_z));
+
+    vector<float> input_vec = {
+        //    z0y0x0 z0y0x1 z0y1x0 z0y1x1 z1y0x0 z1y0x1 z1y1x0 z1y1x1
+        /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f, 0.2f, -0.2f, 0.9f,  2.5f,
+        /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f, 0.3f, 0.1f,  -11.f, 6.2f,
+        /*b0f2*/0.2f, 0.2f,  -10.f, 5.2f, 0.1f, 0.3f,  -9.f,  4.2f,
+
+        /*b1f0*/3.f,  0.5f,  7.f,   12.f, 5.f,  0.1f,  6.f,   22.f,
+        /*b1f1*/4.f,  0.5f,  8.f,   8.2f, 2.2f,  0.3f,  6.f,  5.2f,
+        /*b1f2*/0.2f, 0.2f,  -10.f, 5.2f, 1.2f, 0.3f,  -12.f,  2.2f
+    };
+    set_values(input, input_vec);
+
+    float expected_max_values[24] = {
+        0.524979f, 0.524979f,
+        0.5f,      0.731059f,
+        0.524979f, 0.524979f,
+        0.731059f, 0.731059f,
+        0.524979f, 0.524979f,
+        0.731059f, 0.731059f,
+        0.880797f, 0.598688f,
+        0.731059f, 0.999955f,
+        0.858149f, 0.549834f,
+        0.880797f, 0.952574f,
+        0.731059f, 0.524979f,
+        0.880797f, 0.952574f,
+    };
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    auto output_ptr = output.pointer<float>();
+    float out_buffer[buf_size];
+    for (uint32_t i = 0; i < buf_size; i++)
+    {
+        out_buffer[i] = get_value<float>(output_ptr, i);
+    }
+
+    float temp_max = 0;
+    float expected_sum = 1.0f;
+    int max_value_buffer_index = 0;
+    for (uint32_t i = 0; i < batch_num; i++)
+    {
+        for (uint32_t l = 0; l < feature_num; l++)
+        {
+            for (uint32_t j = 0; j < y_size; j++)
+            {
+                for (uint32_t k = 0; k < x_size; k++)
+                {
+                    float sum = 0.0f;
+                    for (uint32_t m = 0; m < z_size; m++)
+                    {
+                        int index = i * feature_num * x_size * y_size * z_size +
+                            l * x_size * y_size * z_size +
+                            m * x_size * y_size +
+                            j * x_size +
+                            k;
+
+                        if (out_buffer[index] >= temp_max)
+                        {
+                            temp_max = out_buffer[index];
+                        }
+
+                        sum += out_buffer[index];
+                    }
+                    EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                    temp_max = 0;
+                    max_value_buffer_index++;
+                    EXPECT_EQ(true, are_equal(sum, expected_sum));
+                    sum = 0.0f;
+                }
+            }
+        }
+    }
+}
+
+TEST(softmax_gpu_bfyx_f32, normalize_all) {
+    //  Input  : 2x3x2x2
+    static const int32_t x_size = 2, y_size = 2, feature_num = 3,
+                         batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(softmax("softmax", "input", softmax::normalize_all));
+
+    set_values(input, {//bfyx
+                       //       y0x0  y0x1   y1x0    y1x1
+                       /*b0f0*/ 0.1f, -0.1f, 0.9f, 1.5f,
+                       /*b0f1*/ 0.2f, 0.2f, -10.f, 5.2f,
+                       /*b0f2*/ 0.2f, 0.2f, -10.f, 5.2f,
+                       /*b1f0*/ 3.f, 0.5f, 7.f, 12.f,
+                       /*b1f1*/ 4.f, 0.5f, 8.f, 8.2f,
+                       /*b1f2*/ 0.2f, 0.2f, -10.f, 5.2f});
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    auto output_ptr = output.pointer<float>();
+    float sum = 0.0f;
+    float expected_sum = 1.0f;
+    for (uint32_t i = 0; i < buf_size; i++) {
+        sum += get_value<float>(output_ptr, i);
+    }
+    EXPECT_EQ(true, are_equal(sum, expected_sum));
+}
+
+TEST(softmax_gpu_yxfb_f32, normalize_all) {
+    //  Input  : 2x2x3x2
+    static const int32_t x_size = 2, y_size = 2, feature_num = 3,
+                         batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {y_size, x_size, feature_num, batch_num}});
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(softmax("softmax", "input", softmax::normalize_all));
+
+    set_values(input, {//yxfb
+                       //       f0b0  f0b1   f1b0    f1b1
+                       /*y0x0*/ 0.1f, -0.1f, 0.9f, 1.5f,
+                       /*y0x1*/ 0.2f, 0.2f, -10.f, 5.2f,
+                       /*y0x2*/ 0.2f, 0.2f, -10.f, 5.2f,
+                       /*y1x0*/ 3.f, 0.5f, 7.f, 12.f,
+                       /*y1x1*/ 4.f, 0.5f, 8.f, 8.2f,
+                       /*y1x2*/ 0.2f, 0.2f, -10.f, 5.2f});
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    auto output_ptr = output.pointer<float>();
+    float sum = 0.0f;
+    float expected_sum = 1.0f;
+    for (uint32_t i = 0; i < buf_size; i++) {
+        sum += get_value<float>(output_ptr, i);
+    }
+    EXPECT_EQ(true, are_equal(sum, expected_sum));
+}
+
+TEST(softmax_gpu_bfzyx_f32, normalize_all) {
+    //  Input  : 2x3x2x2x2
+    static const int32_t x_size = 2, y_size = 2, z_size = 2, feature_num = 3,
+                         batch_num = 2, buf_size = x_size * y_size * z_size * batch_num * feature_num;
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, {data_types::f32, format::bfzyx, {batch_num, feature_num, x_size, y_size, z_size}});
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(softmax("softmax", "input", softmax::normalize_all));
+
+    set_values(input, {//    z0y0x0 z0y0x1 z0y1x0 z0y1x1 z1y0x0 z1y0x1 z1y1x0 z1y1x1
+                       /*b0f0*/ 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
+                       /*b0f1*/ 0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
+                       /*b0f2*/ 0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
+
+                       /*b1f0*/ 3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
+                       /*b1f1*/ 4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
+                       /*b1f2*/ 0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f});
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    auto output_ptr = output.pointer<float>();
+    float sum = 0.0f;
+    float expected_sum = 1.0f;
+    for (uint32_t i = 0; i < buf_size; i++) {
+        sum += get_value<float>(output_ptr, i);
+    }
+    EXPECT_EQ(true, are_equal(sum, expected_sum));
+}
+
+TEST(softmax_gpu_bfyx_f16, normalize_all) {
+    //  Input  : 2x3x2x2
+    static const int32_t x_size = 2, y_size = 2, feature_num = 3,
+                         batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, {data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(softmax("softmax", "input", softmax::normalize_all));
+
+    set_values(input, {//bfyx
+                       //           y0x0            y0x1            y1x0            y1x1
+                       /*b0f0*/ FLOAT16(0.1f), FLOAT16(-0.1f), FLOAT16(0.9f), FLOAT16(1.5f),
+                       /*b0f1*/ FLOAT16(0.2f), FLOAT16(0.2f), FLOAT16(-10.f), FLOAT16(5.2f),
+                       /*b0f2*/ FLOAT16(0.2f), FLOAT16(0.2f), FLOAT16(-10.f), FLOAT16(5.2f),
+                       /*b1f0*/ FLOAT16(3.f), FLOAT16(0.5f), FLOAT16(7.f), FLOAT16(12.f),
+                       /*b1f1*/ FLOAT16(4.f), FLOAT16(0.5f), FLOAT16(8.f), FLOAT16(8.2f),
+                       /*b1f2*/ FLOAT16(0.2f), FLOAT16(0.2f), FLOAT16(-10.f), FLOAT16(5.2f)});
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    auto output_ptr = output.pointer<uint16_t>();
+    float sum = 0.0f;
+    float expected_sum = 1.0f;
+    for (uint32_t i = 0; i < buf_size; i++) {
+        sum += float16_to_float32(get_value<uint16_t>(output_ptr, i));
+    }
+    ASSERT_NEAR(sum, expected_sum, 0.001);
+}
+
+TEST(softmax_gpu_yxfb_f16, normalize_all) {
+    //  Input  : 2x2x3x2
+    static const int32_t x_size = 2, y_size = 2, feature_num = 3,
+                         batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, {data_types::f16, format::yxfb, {y_size, x_size, feature_num, batch_num}});
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(softmax("softmax", "input", softmax::normalize_all));
+
+    set_values(input, {//yxfb
+                       //           f0b0            f0b1            f1b0            f1b1
+                       /*y0x0*/ FLOAT16(0.1f), FLOAT16(-0.1f), FLOAT16(0.9f), FLOAT16(1.5f),
+                       /*y0x1*/ FLOAT16(0.2f), FLOAT16(0.2f), FLOAT16(-10.f), FLOAT16(5.2f),
+                       /*y0x2*/ FLOAT16(0.2f), FLOAT16(0.2f), FLOAT16(-10.f), FLOAT16(5.2f),
+                       /*y1x0*/ FLOAT16(3.f), FLOAT16(0.5f), FLOAT16(7.f), FLOAT16(12.f),
+                       /*y1x1*/ FLOAT16(4.f), FLOAT16(0.5f), FLOAT16(8.f), FLOAT16(8.2f),
+                       /*y1x2*/ FLOAT16(0.2f), FLOAT16(0.2f), FLOAT16(-10.f), FLOAT16(5.2f)});
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    auto output_ptr = output.pointer<uint16_t>();
+    float sum = 0.0f;
+    float expected_sum = 1.0f;
+    for (uint32_t i = 0; i < buf_size; i++) {
+        sum += float16_to_float32(get_value<uint16_t>(output_ptr, i));
+    }
+    ASSERT_NEAR(sum, expected_sum, 0.001);
+}
+
+TEST(softmax_gpu_bfzyx_f16, normalize_all) {
+    //  Input  : 2x3x2x2x2
+    static const int32_t x_size = 2, y_size = 2, z_size = 2, feature_num = 3,
+                         batch_num = 2, buf_size = x_size * y_size * z_size * batch_num * feature_num;
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, {data_types::f16, format::bfzyx, {batch_num, feature_num, x_size, y_size, z_size}});
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(softmax("softmax", "input", softmax::normalize_all));
+
+    set_values(input, {//           z0y0x0          z0y0x1          z0y1x0        z0y1x1        z1y0x0          z1y0x1          z1y1x0          z1y1x1
+                       /*b0f0*/ FLOAT16(0.1f), FLOAT16(-0.1f), FLOAT16(0.9f), FLOAT16(1.5f), FLOAT16(0.2f), FLOAT16(-0.2f), FLOAT16(0.9f), FLOAT16(2.5f),
+                       /*b0f1*/ FLOAT16(0.2f), FLOAT16(0.2f), FLOAT16(-10.f), FLOAT16(5.2f), FLOAT16(0.3f), FLOAT16(0.1f), FLOAT16(-11.f), FLOAT16(6.2f),
+                       /*b0f2*/ FLOAT16(0.2f), FLOAT16(0.2f), FLOAT16(-10.f), FLOAT16(5.2f), FLOAT16(0.1f), FLOAT16(0.3f), FLOAT16(-9.f), FLOAT16(4.2f),
+
+                       /*b1f0*/ FLOAT16(3.f), FLOAT16(0.5f), FLOAT16(7.f), FLOAT16(12.f), FLOAT16(5.f), FLOAT16(0.1f), FLOAT16(6.f), FLOAT16(22.f),
+                       /*b1f1*/ FLOAT16(4.f), FLOAT16(0.5f), FLOAT16(8.f), FLOAT16(8.2f), FLOAT16(2.2f), FLOAT16(0.3f), FLOAT16(6.f), FLOAT16(5.2f),
+                       /*b1f2*/ FLOAT16(0.2f), FLOAT16(0.2f), FLOAT16(-10.f), FLOAT16(5.2f), FLOAT16(1.2f), FLOAT16(0.3f), FLOAT16(-12.f), FLOAT16(2.2f)});
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    auto output_ptr = output.pointer<uint16_t>();
+    float sum = 0.0f;
+    float expected_sum = 1.0f;
+    for (uint32_t i = 0; i < buf_size; i++) {
+        sum += float16_to_float32(get_value<uint16_t>(output_ptr, i));
+    }
+    ASSERT_NEAR(sum, expected_sum, 0.001);
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //                                                                          //
@@ -556,20 +870,13 @@ public:
 
     static void TearDownTestCase()
     {
-        for (auto generic_params : all_generic_params)
-        {
-            delete generic_params;
-        }
-
-        for (auto layer_params : all_layer_params)
-        {
-            delete layer_params;
-        }
+        all_layer_params.clear();
+        all_generic_params.clear();
     }
 
-    static std::vector<cldnn::primitive*> generate_specific_test_params()
+    static std::vector<std::shared_ptr<cldnn::primitive>> generate_specific_test_params()
     {
-        all_layer_params.push_back(new softmax("softmax", "input0", softmax::normalize_f));
+        all_layer_params.emplace_back(new softmax("softmax", "input0", softmax::normalize_f));
 
         //The test checks only valid combinations.
         //TODO: add more combinations.
@@ -577,7 +884,7 @@ public:
         return all_layer_params;
     }
 
-    static std::vector<tests::test_params*> generate_generic_test_params()
+    static std::vector<std::shared_ptr<tests::test_params>> generate_generic_test_params()
     {
         return generic_test::generate_generic_test_params(all_generic_params);
     }
@@ -585,8 +892,8 @@ public:
     virtual bool is_format_supported(cldnn::format format) override
     {
         return
-            format == cldnn_format_type::cldnn_format_yxfb ||
-            format == cldnn_format_type::cldnn_format_bfyx;
+            format == cldnn::format::yxfb ||
+            format == cldnn::format::bfyx;
     }
 
     template<typename Type>
@@ -669,7 +976,7 @@ public:
         }
     }
 
-    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, cldnn::primitive*>>& info)
+    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>>& info)
     {
         std::stringstream res;
 
@@ -697,13 +1004,13 @@ public:
 
 private:
 
-    static std::vector<tests::test_params*> all_generic_params;
-    static std::vector<cldnn::primitive*> all_layer_params;
+    static std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
+    static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 
 };
 
-std::vector<cldnn::primitive*> softmax_test::all_layer_params = {};
-std::vector<tests::test_params*> softmax_test::all_generic_params = {};
+std::vector<std::shared_ptr<cldnn::primitive>> softmax_test::all_layer_params = {};
+std::vector<std::shared_ptr<tests::test_params>> softmax_test::all_generic_params = {};
 
 TEST_P(softmax_test, SOFTMAX)
 {

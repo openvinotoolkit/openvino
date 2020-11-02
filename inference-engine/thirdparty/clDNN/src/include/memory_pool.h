@@ -16,67 +16,58 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/layout.hpp"
-#include "api/CPP/primitive.hpp"
-#include "api_impl.h"
-
+#include "api/layout.hpp"
+#include "api/primitive.hpp"
+#include "device_impl.h"
 #include "refcounted_obj.h"
 
 #include <vector>
 #include <set>
 #include <map>
+#include <list>
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
 struct memory_impl;
+struct shared_mem_params;
 struct engine_impl;
 struct program_impl;
 struct memory_user;
 struct memory_user_comparer;
 using memory_set = std::set<memory_user, memory_user_comparer>;
 
-struct memory_user
-{
+struct memory_user {
     primitive_id _id;
     uint32_t _network_id;
 
-    memory_user(primitive_id id, uint32_t network_id) :
-        _id(id) ,
-        _network_id(network_id) 
-    {}
+    memory_user(primitive_id id, uint32_t network_id)
+        : _id(id), _network_id(network_id) {}
 
-    friend std::ostream& operator<<(std::ostream& os, const memory_user& memory_user)
-    {
+    friend std::ostream& operator<<(std::ostream& os, const memory_user& memory_user) {
         os << memory_user._id << "(" << memory_user._network_id << ")";
         return os;
     }
 };
 
-struct memory_user_comparer
-{
-    bool operator()(const memory_user& l_mu, const memory_user& r_mu) const
-    {
+struct memory_user_comparer {
+    bool operator()(const memory_user& l_mu, const memory_user& r_mu) const {
         if (l_mu._network_id != r_mu._network_id)
             return l_mu._network_id < r_mu._network_id;
         return l_mu._id < r_mu._id;
     }
 };
 
-
-struct memory_record
-{
-    memory_set _users; // list of primitives that already use this memory object
+struct memory_record {
+    memory_set _users;  // list of primitives that already use this memory object
     refcounted_obj_ptr<memory_impl> _memory;
     uint32_t _network_id;
-
-    memory_record(memory_set users, refcounted_obj_ptr<memory_impl>& memory, uint32_t net_id);
+    allocation_type _type;
+    memory_record(memory_set users, refcounted_obj_ptr<memory_impl>& memory, uint32_t net_id, allocation_type type);
 };
 
-struct padded_pool_comparer
-{
-    bool operator()(const layout& ll, const layout& rl) const
-    {
+struct padded_pool_comparer {
+    bool operator()(const layout& ll, const layout& rl) const {
         if (ll.format != rl.format)
             return ll.format < rl.format;
         if (ll.data_type != rl.data_type)
@@ -89,17 +80,19 @@ struct padded_pool_comparer
     }
 };
 
-    // memory_pool class implements memory manager that handles 4 memory pools
-    // - non padded buffers - 
-    //     1 user requests for buffer with no padding. 
-    //     2 Check if buffer with requested size exist
-    //     3   * yes: check if any of current users exist on request conflict list if no - return this memory, otherwise goto 4
-    //         * no: goto 4
-    //     4 take next (allocations are sorted in increasing order) allocation. if there is no more allocations, create new allocation otherwise go t
-    // - padded buffers - not implemented yet
-    // - images 2d - not implemented yet
-    // - images 2d arrays - not implemented yet
-    // - immutable - if user request for non reusable resource don't use pool, return 
+// memory_pool class implements memory manager that handles 4 memory pools
+// - non padded buffers -
+//     1 user requests for buffer with no padding.
+//     2 Check if buffer with requested size exist
+//     3   * yes: check if any of current users exist on request conflict list if no - return this memory, otherwise
+//     goto 4
+//         * no: goto 4
+//     4 take next (allocations are sorted in increasing order) allocation. if there is no more allocations, create new
+//     allocation otherwise go t
+// - padded buffers - not implemented yet
+// - images 2d - not implemented yet
+// - images 2d arrays - not implemented yet
+// - immutable - if user request for non reusable resource don't use pool, return
 
 // TODO list:
 // - resolve engine <--> memory_pool circular dependency
@@ -107,35 +100,55 @@ struct padded_pool_comparer
 // - add decreasing memory limit in gpu_buffer/image dctor
 // - add support for multi networks reuse
 
-class memory_pool
-{
+class memory_pool {
     memory_pool();
-    
-    refcounted_obj_ptr<memory_impl> alloc_memory(const layout& layout);
-    static bool has_conflict(const memory_set&, const std::set<primitive_id>&, uint32_t);
+
+    refcounted_obj_ptr<memory_impl> alloc_memory(const layout& layout, allocation_type type, uint32_t network_id, bool reset = true);
+    static bool has_conflict(const memory_set&, const std::set<primitive_id>&, uint32_t network_id);
 
     std::multimap<uint64_t, memory_record> _non_padded_pool;
-    std::map<layout,std::list<memory_record>, padded_pool_comparer> _padded_pool;
+    std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
     std::multimap<uint64_t, memory_record> _no_reusable_pool;
-    refcounted_obj_ptr<engine_impl> _engine;
-    uint64_t _temp_memory_used;
-    uint64_t _max_peak_memory_used;
-public:
-    memory_pool(engine_impl& engine);
-    ~memory_pool();
-    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, const primitive_id& id, uint32_t network_id,  const std::set<primitive_id>& restrictions, bool reusable = true); // get from pool or create memory allocation
-    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout);
-    refcounted_obj_ptr<memory_impl> get_from_non_padded_pool(const layout& layout, const primitive_id& id, uint32_t network_id, const std::set<primitive_id>&);
-    refcounted_obj_ptr<memory_impl> get_from_padded_pool(const layout& layout, const primitive_id& id, uint32_t network_id, const std::set<primitive_id>& restrictions);
-    refcounted_obj_ptr<memory_impl> get_from_across_networks_pool(const layout& layout, const primitive_id& id, uint32_t network_id);
-    void clear_pool();
-    void color_graph(const program_impl&);
-    void dump_memory_pool(const program_impl&, std::string, std::string);
+    engine_impl* _engine;
+    std::atomic<uint64_t> _temp_memory_used;
+    std::atomic<uint64_t> _max_peak_memory_used;
 
-    uint64_t get_temp_memory_used() const { return _temp_memory_used; };
-    uint64_t get_max_peak_device_memory_used() const { return _max_peak_memory_used; };
+public:
+    explicit memory_pool(engine_impl& engine);
+    ~memory_pool();
+    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout,
+                                               const primitive_id& id,
+                                               uint32_t network_id,
+                                               const std::set<primitive_id>& restrictions,
+                                               allocation_type type,
+                                               bool reusable = true);  // get from pool or create memory allocation
+    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, allocation_type type, uint32_t network_id, bool reset = true);
+    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, const shared_mem_params* params, uint32_t network_id);
+    refcounted_obj_ptr<memory_impl> get_from_non_padded_pool(const layout& layout,
+                                                             const primitive_id& id,
+                                                             uint32_t network_id,
+                                                             const std::set<primitive_id>&,
+                                                             allocation_type type);
+    refcounted_obj_ptr<memory_impl> get_from_padded_pool(const layout& layout,
+                                                         const primitive_id& id,
+                                                         uint32_t network_id,
+                                                         const std::set<primitive_id>& restrictions,
+                                                         allocation_type type);
+    refcounted_obj_ptr<memory_impl> get_from_across_networks_pool(const layout& layout,
+                                                                  const primitive_id& id,
+                                                                  uint32_t network_id,
+                                                                  allocation_type type);
+    void clear_pool();
+    void clear_pool_for_network(uint32_t network_id);
+    void release_memory(memory_impl* memory,
+                        const primitive_id& id);
+    void color_graph(const program_impl&);
+    void dump_memory_pool(const program_impl&, std::string&, std::string&);
+
+    uint64_t get_temp_memory_used() const { return _temp_memory_used; }
+    uint64_t get_max_peak_device_memory_used() const { return _max_peak_memory_used; }
     void add_memory_used(size_t value);
     void subtract_memory_used(size_t value);
 };
 
-}
+}  // namespace cldnn

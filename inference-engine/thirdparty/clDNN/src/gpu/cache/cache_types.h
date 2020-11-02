@@ -18,8 +18,11 @@
 #include <string>
 #include <unordered_map>
 #include "common_types.h"
+#include <utility>
 
-namespace cldnn { namespace gpu { namespace cache {
+namespace cldnn {
+namespace gpu {
+namespace cache {
 
 using binary_data = std::string;
 static_assert(sizeof(binary_data::value_type) == 1, "Binary data has to represent byte array");
@@ -27,4 +30,6 @@ static_assert(sizeof(binary_data::value_type) == 1, "Binary data has to represen
 using binary_cache = std::unordered_map<size_t, binary_data>;
 using kernel = std::pair<jit, code>;
 
-} } }
+}  // namespace cache
+}  // namespace gpu
+}  // namespace cldnn

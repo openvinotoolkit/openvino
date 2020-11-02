@@ -82,7 +82,7 @@ KERNEL (fully_connected_gpu_bf_io_input_spatial)(
 #endif
     if(x < FILTER_OFM_NUM)
     {
-        output[x] = ACTIVATION((UNIT_TYPE)(result), NL_M, NL_N);
+        output[x] = ACTIVATION((UNIT_TYPE)(result), ACTIVATION_PARAMS);
     }
 }
 

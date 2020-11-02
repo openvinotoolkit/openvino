@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ class ShufflenetReLUReorder(BackReplacementPattern):
                 ('relu_data', dict(kind='data')),
                 ('reshape1', dict(kind='op', type='Reshape')),
                 ('reshape1_data', dict(kind='data')),
-                ('transpose', dict(kind='op', type='Permute')),
+                ('transpose', dict(kind='op', type='Transpose')),
                 ('transpose_data', dict(kind='data')),
                 ('reshape2', dict(kind='op', type='Reshape')),
                 ('reshape2_data', dict(kind='data')),

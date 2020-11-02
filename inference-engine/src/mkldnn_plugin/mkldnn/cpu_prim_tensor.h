@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "inference_engine.hpp"
 #include "prim_tensor.h"
 #include "mkldnn.hpp"
 #include <memory>

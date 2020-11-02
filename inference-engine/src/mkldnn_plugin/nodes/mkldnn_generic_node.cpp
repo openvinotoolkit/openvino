@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,14 @@
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 
-MKLDNNGenericNode::MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNGenericNode::MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {
+    params = layer->params;
+    blobs = layer->blobs;
+}
 
 void MKLDNNGenericNode::getSupportedDescriptors() {
-    if (!extFactory) {
+    if (!extFactory && impls.empty()) {
         std::string type = getCnnLayer() ? getCnnLayer()->type : "Generic";
         THROW_IE_EXCEPTION << "Cannot get generic primitive for layer: " << getName() << " with type: " << type;
     }
@@ -25,32 +29,38 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
-    if (!extFactory)
-        THROW_IE_EXCEPTION << "Descriptor for generic primitive doesn't exist";
-
     InferenceEngine::ResponseDesc resp;
-    InferenceEngine::StatusCode rc = extFactory->getImplementations(impls, &resp);
-    if (rc != InferenceEngine::OK) {
-        THROW_IE_EXCEPTION << resp.msg;
+    if (impls.empty()) {
+        if (!extFactory)
+            THROW_IE_EXCEPTION << "Descriptor for generic primitive doesn't exist";
+
+        std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
+
+        InferenceEngine::StatusCode rc = extFactory->getImplementations(impls_no_exec, &resp);
+        for (const auto& impl : impls_no_exec) {
+            if (auto exec_impl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl)) {
+                impls.emplace_back(exec_impl);
+            }
+        }
+        if (rc != InferenceEngine::OK) {
+            THROW_IE_EXCEPTION << resp.msg;
+        }
     }
+
     for (auto &impl : impls) {
         std::vector<InferenceEngine::LayerConfig> configs;
-        rc = impl->getSupportedConfigurations(configs, &resp);
+        auto rc = impl->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
             THROW_IE_EXCEPTION << resp.msg;
         }
 
         for (auto& config : configs) {
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+            std::vector<memory::format> outFormats;
+            for (auto& outConfig : config.outConfs) {
+                outFormats.push_back(MKLDNNMemory::Convert(outConfig.desc.getLayout()));
+            }
+
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
         }
     }
     if (impls.empty()) {
@@ -59,11 +69,11 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNGenericNode::createPrimitive() {
-    if (extFactory) {
+    if (extFactory || !impls.empty()) {
         return;
     }
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 }
 
 void MKLDNNGenericNode::execute(mkldnn::stream strm) {
@@ -80,11 +90,18 @@ bool MKLDNNGenericNode::created() const {
 
 bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
     if (getCnnLayer() && extMgr) {
-        // We should save extension manager in otder to avoid situation when
+        // We should save extension manager in order to avoid situation when
         // it will destroyed before extensibility primitives
-        extFactory.reset(extMgr->CreateExtensionFactory(getCnnLayer()));
+        if (getCnnLayer()->getNode()) {
+            auto impl = extMgr->CreateImplementation(getCnnLayer()->getNode());
+            if (auto execImpl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl))
+                impls.emplace_back(execImpl);
+        }
+        if (impls.empty()) {
+            extFactory = extMgr->CreateExtensionFactory(getCnnLayer());
+        }
 
-        if (extFactory)
+        if (extFactory || !impls.empty())
             setType(Generic);
     }
     return created();
@@ -98,23 +115,26 @@ void MKLDNNGenericNode::cleanup() {
 void MKLDNNGenericNode::execLayer() {
     bool isDynBatch = dynBatchLim > 0;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
+    std::vector<InferenceEngine::Blob::CPtr> constInputs;
     std::vector<InferenceEngine::TensorDesc> inputDescs;
-    std::vector<InferenceEngine::TensorDesc> outputDescs;
+    std::vector<InferenceEngine::SizeVector> outputShapes;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        inputs.push_back(getParentEdgeAt(i)->getBlob());
+        auto inputBlob = getParentEdgeAt(i)->getBlob();
+        inputs.push_back(inputBlob);
+        constInputs.push_back(inputBlob);
         if (isDynBatch && dynBatchLim >= inputs[inputs.size() - 1]->getTensorDesc().getDims()[0]) {
             isDynBatch = false;
         } else {
             // TODO: Ask the right dims using getShape() from previous node
             inputDescs.push_back(inputs[inputs.size() - 1]->getTensorDesc());
-            inputDescs[inputDescs.size() - 1].getDims()[0] = static_cast<size_t>(batchToProcess());
+            if (inputDescs[inputDescs.size() - 1].getDims().size() > 0)
+                inputDescs[inputDescs.size() - 1].getDims()[0] = static_cast<size_t>(batchToProcess());
         }
     }
 
     if (isDynBatch) {
-        auto sts = extFactory->getShapes(inputDescs, outputDescs, nullptr);
-        if (sts != InferenceEngine::StatusCode::OK)
-            isDynBatch = false;
+        // TODO: use ngraph-based extension mechnism if needed to recompute shape
+        isDynBatch = false;
     }
 
     if (isDynBatch) {
@@ -125,23 +145,20 @@ void MKLDNNGenericNode::execLayer() {
         }
     }
     std::vector<InferenceEngine::Blob::Ptr> outputs;
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
+    for (size_t i = 0; i < outDims.size(); i++) {
         if (isDynBatch) {
-            size_t idx = i >= outputDescs.size() ? 0 : i;
-            auto td = getChildEdgeAt(i)->getBlob()->getTensorDesc();
-            td.setDims(outputDescs[idx].getDims());
-            outputs.push_back(make_blob_with_precision(td, getChildEdgeAt(i)->getMemory().GetData()));
+            auto out_edge = getChildEdgesAtPort(i)[0];
+            auto td = out_edge->getBlob()->getTensorDesc();
+            td.setDims(outputShapes[i]);
+            outputs.push_back(make_blob_with_precision(td, out_edge->getMemory().GetData()));
         } else {
-            outputs.push_back(getChildEdgeAt(i)->getBlob());
+            outputs.push_back(getChildEdgesAtPort(i)[0]->getBlob());
         }
     }
-    auto * execImpl = dynamic_cast<InferenceEngine::ILayerExecImpl *>(impls[0].get());
-    if (execImpl != nullptr) {
-        InferenceEngine::ResponseDesc resp;
-        InferenceEngine::StatusCode rc = execImpl->execute(inputs, outputs, &resp);
-        if (rc != InferenceEngine::OK) {
-            THROW_IE_EXCEPTION << resp.msg;
-        }
+    InferenceEngine::ResponseDesc resp;
+    InferenceEngine::StatusCode rc = impls[0]->execute(inputs, outputs, &resp);
+    if (rc != InferenceEngine::OK) {
+        THROW_IE_EXCEPTION << this->getTypeStr() << ":" << this->getName() << ": " << resp.msg;
     }
 }
 
@@ -150,7 +167,7 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
     InferenceEngine::StatusCode rc;
     InferenceEngine::ResponseDesc resp;
 
-    InferenceEngine::ILayerImpl::Ptr selectedImpl;
+    InferenceEngine::ILayerExecImpl::Ptr selectedImpl;
     for (size_t k = 0, t = 0; k < impls.size(); k++) {
         std::vector<InferenceEngine::LayerConfig> configs;
         rc = impls[k]->getSupportedConfigurations(configs, &resp);
@@ -165,7 +182,9 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
     }
 
     for (size_t j = 0; j < rightConfig.inConfs.size(); j++) {
-        if (getParentEdgeAt(j)->getParent()->getChildEdges().size() > 1) {
+        // TODO: we need to better recognize cases with possible inplace conficts
+        if (getParentEdgeAt(j)->getParent()->getType() != Split &&
+            getParentEdgeAt(j)->getParent()->getChildEdges().size() > 1) {
             rightConfig.inConfs[j].inPlace = -1;
         }
     }
@@ -199,3 +218,5 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
         constant = ConstantType::Const;
     }
 }
+
+REG_MKLDNN_PRIM_FOR(MKLDNNGenericNode, Generic);

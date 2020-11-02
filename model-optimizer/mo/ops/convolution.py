@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array, float_array, mark_input_bins, assign_dims_to_weights, \
     tf_window_op_pad_infer
-from mo.front.extractor import spatial_getter
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
 
@@ -32,10 +32,10 @@ class Convolution(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
-            'infer': __class__.infer,
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset1',
+            'infer': self.infer,
             'multiplication_transparent': True,
             'multiplication_transparent_ports': [(0, 0), (1, 0)],
             'in_ports_count': 3,
@@ -43,41 +43,28 @@ class Convolution(Op):
         }, attrs)
 
     def backend_attrs(self):
+        def pad_attribute_helper(node: Node, pad_type: str='begin'):
+            assert pad_type in ['begin', 'end']
+            if not node.has_valid('pad'):
+                return None
+            pad = get_backend_pad(node.pad, node.spatial_dims, 0 if pad_type == 'begin' else 1)
+            if node.has_valid('auto_pad'):
+                pad = [0 for _ in pad]
+            return ','.join(map(str, pad))
+
         return [
-           'auto_pad',
-           'group',
-           ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
-           ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-           ('kernel', lambda node: ','.join(map(str, node['kernel_spatial']))),
-
-           ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
-           ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
-           'output',
-           'pad_value',
-           'mode',
-           'input',
-        ]
-
-    def backend_attrs_v2(self):
-        return [
-            spatial_getter('stride-x', 'stride', 1),
-            spatial_getter('stride-y', 'stride', 0),
-
-            ('kernel-x', lambda node: node.kernel_spatial[1]),
-            ('kernel-y', lambda node: node.kernel_spatial[0]),
-
-            spatial_getter('dilation-x', 'dilation', 0),
-            spatial_getter('dilation-y', 'dilation', 1),
-            spatial_getter('pad-x', 'pad', 1, lambda x: x[0]),
-            spatial_getter('pad-y', 'pad', 0, lambda x: x[0]),
-            spatial_getter('pad-r', 'pad', 1, lambda x: x[1]),
-            spatial_getter('pad-b', 'pad', 0, lambda x: x[1]),
-
             'auto_pad',
-            'output',
-            'group',
-        ]
+            ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
+            ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
+            ('pads_begin', lambda node: pad_attribute_helper(node, 'begin')),
+            ('pads_end', lambda node: pad_attribute_helper(node, 'end')),
+            ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
+                if node.has_valid('output_padding') else None),
 
+            # for BinaryConvolution only
+            'pad_value',
+            'mode',
+        ]
 
     @staticmethod
     def calc_convolution(input_spatial_shape, stride_spatial_shape, pad_spatial_shape, kernel_extent):
@@ -85,6 +72,11 @@ class Convolution(Op):
             Verified to be applicable for both Caffe and ONNX.
         '''
         spatial_val_wo_stride = input_spatial_shape + pad_spatial_shape - kernel_extent
+
+        if np.any(spatial_val_wo_stride < 0):
+            raise Error("Data after padding has dimension less than window size. " +
+                        "Possible reason of error is incorrectly specified model input shape(s).")
+
         float_spatial_val_wo_stride = float_array(spatial_val_wo_stride)
         return float_spatial_val_wo_stride / stride_spatial_shape + 1
 
@@ -119,14 +111,10 @@ class Convolution(Op):
         if not node.has_valid('bias_term'):
             node['bias_term'] = len(node.in_nodes()) == 3
 
-        # In case of caffe we have to calculate input index for weights because
-        # caffe convolution can be with more than one input
-        weights_index = len(node.in_nodes()) - 2
-        if not node.bias_term:
-            weights_index = len(node.in_nodes()) - 1
+        weights_index = node.weights_index if node.has_valid('weights_index') else 1
 
         # Reshape weights kernel to original shape
-        # In case of caffe ot MXNet framework, values for weights has no structed shape like OIHW
+        # In case of caffe or MXNet framework, values for weights have no structured shape like OIHW
         # so we have to reshape weights to normal shape
         # For this case, Convolution node should have attribute reshape_kernel = True
         if node.has_valid('reshape_kernel') and node.reshape_kernel:
@@ -135,10 +123,11 @@ class Convolution(Op):
                 log.error('Cannot reshape kernel due to not all required attrs was set to {} node'.format(node.id))
                 return
             # layout for Convolution weights is OIHW
-            kernel_shape = np.array([node.output, input_shape[node.channel_dims].item() / node.group,
-                                    *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]], dtype=np.int64)
+            kernel_shape = int64_array([node.output, input_shape[node.channel_dims].item() / node.group,
+                                       *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]])
             if node.type == 'Deconvolution':  # layout for Deconvolution weights is IOHW
                 kernel_shape[[0, 1]] = kernel_shape[[1, 0]]
+                #node.input_feature_channel, node.output_feature_channel = node.output_feature_channel, node.input_feature_channel
 
             if np.prod(kernel_shape) != np.prod(node.in_node(weights_index).value.shape):
                 log.error("Size of weights {} does not match kernel shape: {}\n".format(np.prod(node.in_node(weights_index).value.shape), kernel_shape) +
@@ -164,7 +153,7 @@ class Convolution(Op):
 
         if not node.has_valid('output'):
             # restore the number of output feature maps from the second argument that is weights
-            if node.type in ['Convolution', 'Deconvolution']:
+            if node.type in ['Convolution', 'Deconvolution', 'DeformableConvolution', 'BinaryConvolution']:
                 node['output'] = kernel_shape[node.output_feature_channel]
             else:
                 raise Error(
@@ -179,11 +168,17 @@ class Convolution(Op):
         if not node.has_valid('stride'):
             node['stride'] = np.full([len(input_shape)], 1, dtype=np.int64)
         if not node.has_valid('pad'):
-            node['pad'] = np.array([[0, 0]] * len(input_shape), dtype=np.int64)
+            node['pad'] = int64_array([[0, 0]] * len(input_shape))
         node['pad_spatial_shape'] = node.pad[node.spatial_dims]
 
         if not node.has_valid('output_padding'):
             node['output_padding'] = np.full([len(input_shape)], 0, dtype=np.int64)
+
+        if node.has_valid('output_padding') and len(input_shape) > len(node['output_padding']):
+            output_padding = np.zeros(len(input_shape), dtype=np.int64)
+            for i in range(len(node['output_padding'])):
+                output_padding[i] = node['output_padding'][i]
+            node['output_padding'] = output_padding
 
         input_spatial_shape = input_shape[node.spatial_dims]
         stride_spatial_shape = node.stride[node.spatial_dims]
@@ -204,7 +199,7 @@ class Convolution(Op):
             node.pad = pad
         else:
             pad_spatial_shape = np.add.reduce(node.pad_spatial_shape, axis=1)
-            if node.type == 'Convolution':
+            if node.type in ('Convolution', 'BinaryConvolution'):
                 float_spatial = Convolution.calc_convolution(input_spatial_shape, stride_spatial_shape,
                                                              pad_spatial_shape,
                                                              kernel_extent)
@@ -223,14 +218,16 @@ class Convolution(Op):
                         pad_spatial_shape -= output_padding
                         for dim in range(len(pad_spatial_shape)):
                             node.pad_spatial_shape[dim][1] -= pad_spatial_shape[dim]
-                        node.pad[node.spatial_dims] = node.pad_spatial_shape
-                        node['output_padding'] = None
 
                     float_spatial = Convolution.calc_deconvolution(node, input_spatial_shape, pad_spatial_shape,
                                                                    kernel_extent)
                     node['output_spatial_shape'] = int64_array(float_spatial)
+            elif node.type == 'DeformableConvolution':
+                # get the output spatial shape from the second input with offsets
+                node['output_spatial_shape'] = int64_array([node.in_node(1).shape[2:4]])
             else:
-                return
+                assert 'Unsupported layer type "{}"'.format(node.type)
+
 
         # For cases when group attribute wasn't set in extractor we should specify get_group attribute
         # this attribute should store lambda node: ... (check tf convolution extractor)
@@ -250,7 +247,7 @@ class Convolution(Op):
         for n in node.out_nodes():
             node.out_node(n).shape = output_shape
 
-        mark_input_bins(node)
+        mark_input_bins(node, start_port=1 if node.type != 'DeformableConvolution' else 2)
         assign_dims_to_weights(node.in_node(weights_index), node.kernel_spatial_idx, node.input_feature_channel,
                                node.output_feature_channel, len(kernel_shape))
 
@@ -268,5 +265,6 @@ class Convolution(Op):
                                                        ('output_feature_channel', 'input:{}'.format(weights_index)),
                                                        ])
 
-        PermuteAttrs.set_permutation(node.in_node(weights_index), node,
-                                     node.get_weights_permute if node.has_valid('get_weights_permute') else None)
+        PermuteAttrs.set_permutation(node.in_node(weights_index), node, node.soft_get('get_weights_permute', None))
+        PermuteInputs().set_input_permutation(
+            node.in_node(weights_index), node, 'input:{}'.format(weights_index), 'transpose')

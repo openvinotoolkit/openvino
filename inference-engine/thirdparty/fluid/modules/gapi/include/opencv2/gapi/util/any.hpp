@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_UTIL_ANY_HPP
@@ -13,7 +13,7 @@
 #include <typeinfo>
 #include <utility>
 
-#include "opencv2/gapi/util/throw.hpp"
+#include <opencv2/gapi/util/throw.hpp>
 
 #if defined(_MSC_VER)
    // disable MSVC warning on "multiple copy constructors specified"

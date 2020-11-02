@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,18 +13,18 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from extensions.ops.data_augmentation import DataAugmentationOp
 from mo.front.caffe.collect_attributes import merge_attrs
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
 
 
 class DataAugmentationFrontExtractor(FrontExtractorOp):
     op = 'DataAugmentation'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         proto_layer = node.pb
         param = proto_layer.augmentation_param
         # slice_dim is deprecated parameter and is used as alias for axis
@@ -53,5 +53,5 @@ class DataAugmentationFrontExtractor(FrontExtractorOp):
                 embed_input(mapping_rule, index + 1, 'custom_{}'.format(index), node.model_pb.blobs[index].data)
 
         # update the attributes of the node
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        DataAugmentationOp.update_node_stat(node, mapping_rule)
+        return cls.enabled

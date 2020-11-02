@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,23 +16,21 @@
 
 import numpy as np
 
-from mo.ops.unsqueeze import Unsqueeze
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
+from mo.ops.expand_dims import ExpandDims
 
 
 class UnsqueezeFrontExtractor(FrontExtractorOp):
+    """
+    Convert Unsqueeze layer to ExpandDims because the ExpandDims layer has fixed attribute with dimensions to unsqueeze.
+    """
     op = 'Unsqueeze'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
 
-        attrs = {
-            'unsqueeze_dims': axis if len(axis) != 0 else None
-        }
-
-        # update the attributes of the node
-        Unsqueeze.update_node_stat(node, attrs)
-        return __class__.enabled
+        ExpandDims.update_node_stat(node, {'expand_axis': axis})
+        return cls.enabled

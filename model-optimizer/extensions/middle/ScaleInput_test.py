@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ from argparse import Namespace
 import numpy as np
 
 from extensions.middle.ScaleInput import ScaleInput
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_1_data': {'value': None, 'kind': 'data', 'data_type': None},
@@ -28,12 +29,12 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_3_data': {'value': None, 'kind': 'data', 'data_type': None},
                     # Placeholders
-                    'placeholder_1': {'shape': None, 'type': 'Input', 'kind': 'op', 'op': 'Placeholder'},
+                    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-                    'placeholder_2': {'shape': None, 'type': 'Input', 'kind': 'op', 'op': 'Placeholder'},
-                    'pl_1': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+                    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+                    'pl_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'pl_1_data': {'value': None, 'kind': 'data', 'data_type': None},
-                    'pl_2': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+                    'pl_2': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'pl_2_data': {'value': None, 'kind': 'data', 'data_type': None},
                     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
                     # ScaleShift layer
@@ -45,7 +46,7 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'mul_1': {'type': None, 'kind': 'op', 'op': 'Mul'},
                     'mul_1_w': {'value': None, 'shape': None, 'kind': 'data'},
                     'mul_1_data': {'value': None, 'shape': None, 'kind': 'data'},
-                    'op_output': {'kind': 'op', 'op': 'OpOutput', 'infer': lambda x: None}
+                    'op_output': {'kind': 'op', 'op': 'Result', 'infer': lambda x: None}
                     }
 
 

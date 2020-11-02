@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #include "deconvolution_kernel_selector.h"
 #include "deconvolution_kernel_ref.h"
 #include "deconvolution_kernel_bfyx_opt.h"
- 
-namespace kernel_selector 
-{
-    deconvolution_kernel_selector::deconvolution_kernel_selector()
-    {
-        Attach<DeconvolutionKernelRef>();
-        Attach<DeconvolutionKernel_bfyx_opt>();
-    }
+#include "deconvolution_kernel_b_fs_zyx_fsv16.h"
+#include "deconvolution_kernel_b_fs_zyx_fsv16_dw.h"
+#include "deconvolution_kernel_imad_ref.hpp"
+#include "deconvolution_kernel_imad_along_f_tile_bfx.hpp"
 
-    KernelsData deconvolution_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::DECONVOLUTION);
-    }
+namespace kernel_selector {
+deconvolution_kernel_selector::deconvolution_kernel_selector() {
+    Attach<DeconvolutionKernelRef>();
+    Attach<DeconvolutionKernel_bfyx_opt>();
+    Attach<DeconvolutionKernel_b_fs_zyx_fsv16>();
+    Attach<DeconvolutionKernel_b_fs_zyx_fsv16_dw>();
+    Attach<DeconvolutionKernel_imad_ref>();
+    Attach<DeconvolutionKernel_imad_along_f_tile_bfx>();
 }
+
+KernelsData deconvolution_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::DECONVOLUTION);
+}
+}  // namespace kernel_selector

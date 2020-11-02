@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 import unittest
 
 from extensions.front.mxnet.ssd_pattern_flatten_softmax_activation import SsdPatternFlattenSoftmaxActivation
-from mo.utils.unittest.graph import build_graph
 from mo.graph.graph import Node
+from mo.utils.unittest.graph import build_graph
 
 
 class TestSsdPatternFlattenSoftmaxActivation(unittest.TestCase):
     def test_pattern_remove_transpose(self):
-        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
                              'node_2': {'type': 'Identity', 'kind': 'op'},
                              'node_3': {'type': 'Identity', 'kind': 'op'},
                              'node_softmax_activation': {'type': 'SoftMax', 'kind': 'op', 'op': 'SoftMax'},

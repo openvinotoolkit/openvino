@@ -18,35 +18,35 @@
 
 __attribute__((reqd_work_group_size(WORK_GROUP_GROUP_SIZE, 1, 1)))
 KERNEL(deconvolution_gpu_bfyx_opt)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output,
-    const __global UNIT_TYPE* filter,
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    const __global FILTER_TYPE* filter,
 #if BIAS_TERM
-    const __global UNIT_TYPE* bias,
+    const __global BIAS_TYPE* bias,
+#endif
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
 #endif
     uint split_idx
-#if FUSED_ELTWISE
-	, const __global UNIT_TYPE* fuse_input
-#endif
-	)
+    )
 {
-    UNIT_TYPE result = UNIT_VAL_ZERO;
+    ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
 
     const uint b_f          = get_global_id(2);
     const uint batch_offset = b_f / OUTPUT_FEATURE_NUM;
     const uint ofm_offset   = b_f % OUTPUT_FEATURE_NUM;
 
-    const uint global_x_group    = get_group_id(0);    
+    const uint global_x_group    = get_group_id(0);
     const uint global_y_group    = get_group_id(1);
 
-    const uint local_x        = get_local_id(0);  
-    const uint local_y        = get_local_id(1);  
+    const uint local_x        = get_local_id(0);
+    const uint local_y        = get_local_id(1);
 
     const uint stride_x_id = global_x_group % STRIDE_SIZE_X;
     const uint stride_y_id = global_y_group % STRIDE_SIZE_Y;
 
     const uint id_x = (global_x_group / STRIDE_SIZE_X) * STRIDE_SIZE_X * WORK_GROUP_GROUP_SIZE + local_x * STRIDE_SIZE_X + stride_x_id;
-    
+
     if (id_x >= OUTPUT_SIZE_X)
         return;
 
@@ -57,17 +57,19 @@ KERNEL(deconvolution_gpu_bfyx_opt)(
     const uint start_x = (STRIDE_SIZE_X - (in_x % STRIDE_SIZE_X)) % STRIDE_SIZE_X;
     const uint start_y = (STRIDE_SIZE_Y - (in_y % STRIDE_SIZE_Y)) % STRIDE_SIZE_Y;
 
-#if DEPTHWISE_SEPARABLE_OPT
-    const uint in_split_offset = (ofm_offset / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+#if GROUPED || DEPTHWISE_SEPARABLE_OPT
+    const uint g = (ofm_offset / FILTER_OFM_NUM);
+    const uint of = (ofm_offset % FILTER_OFM_NUM);
+    const uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+    const uint filter_offset = g * FILTER_GROUPS_PITCH;
 #else
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-#endif
-    const uint input_offset = INPUT0_OFFSET + batch_offset*INPUT0_BATCH_PITCH + in_split_offset;
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    const uint filter_offset = split_idx * FILTER_LENGTH;
-#else
+    const uint g = 0;
+    const uint of = ofm_offset;
+    const uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
     const uint filter_offset = 0;
 #endif
+
+    const uint input_offset = INPUT0_OFFSET + batch_offset*INPUT0_BATCH_PITCH + in_split_offset;
 
     for (uint i = start_y; i < FILTER_SIZE_Y; i+=STRIDE_SIZE_Y)
     {
@@ -87,46 +89,32 @@ KERNEL(deconvolution_gpu_bfyx_opt)(
                     uint fixed_input_offset_y = (uint)input_offset_y / STRIDE_SIZE_Y;
                     uint input_idx = input_offset + (uint)fixed_input_offset_x*INPUT0_X_PITCH + (uint)fixed_input_offset_y*INPUT0_Y_PITCH;
 
-#if GRADIENT
-                    uint filter_idx = filter_offset + ofm_offset*FILTER_IFM_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
-                    for (uint h = 0; h < FILTER_OFM_NUM; h++)
-                    {
-                        result = fma(input[input_idx], filter[filter_idx], result);
-                        filter_idx += FILTER_OFM_PITCH;
-                        input_idx += INPUT0_FEATURE_PITCH;
-                    }
-#else
-                    uint filter_idx = filter_offset + ofm_offset*FILTER_OFM_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
+                    uint filter_idx = filter_offset + of*FILTER_OFM_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
                     for (uint h = 0; h < FILTER_IFM_NUM; h++)
                     {
-                        result = fma(input[input_idx], filter[filter_idx], result);
+                        acc += TO_ACCUMULATOR_TYPE(input[input_idx]) * TO_ACCUMULATOR_TYPE(filter[filter_idx]);
                         filter_idx += FILTER_IFM_PITCH;
                         input_idx += INPUT0_FEATURE_PITCH;
                     }
-#endif
                 }
             }
         }
     }
+
+    ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(acc);
 #if BIAS_TERM
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    const uint bias_offset = split_idx * BIAS_LENGTH;
-#else
-    const uint bias_offset = 0;
+    result += bias[ofm_offset];
 #endif
-    result += bias[ofm_offset + bias_offset];
-#endif
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
-    const uint dst_index = OUTPUT_OFFSET + out_split_offset + batch_offset*OUTPUT_BATCH_PITCH + ofm_offset*OUTPUT_FEATURE_PITCH + id_y*OUTPUT_Y_PITCH + id_x*OUTPUT_X_PITCH;
-#if FUSED_ELTWISE
-    const uint fused_index = INPUT1_OFFSET + split_idx * INPUT1_FEATURE_PITCH * FILTER_OFM_NUM + batch_offset*INPUT1_BATCH_PITCH + ofm_offset*INPUT1_FEATURE_PITCH + id_y*INPUT1_Y_PITCH + id_x*INPUT1_X_PITCH;
-#if !GRADIENT
-	output[dst_index] = ACTIVATION(result + fuse_input[fused_index], NL_M, NL_N);
+    result = ACTIVATION(result, ACTIVATION_PARAMS);
+
+    const uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
+    const uint dst_index = OUTPUT_OFFSET + out_split_offset + batch_offset*OUTPUT_BATCH_PITCH + of*OUTPUT_FEATURE_PITCH + id_y*OUTPUT_Y_PITCH + id_x*OUTPUT_X_PITCH;
+
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    output[dst_index] = FUSED_OPS_RESULT;
 #else
-	output[dst_index] = result + fuse_input[fused_index];
-#endif
-#else
-    output[dst_index] = ACTIVATION(result, NL_M, NL_N);
+    output[dst_index] = TO_OUTPUT_TYPE(result);
 #endif
 }
 

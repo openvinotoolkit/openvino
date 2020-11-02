@@ -52,7 +52,7 @@ KERNEL(average_unpooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYP
     {
         for(uint i = 0; i < window_x; i++)
         {
-            output[out_index] += ACTIVATION(out_val, NL_M ,NL_N);
+            output[out_index] += ACTIVATION(out_val, ACTIVATION_PARAMS);
             out_index += OUTPUT_X_PITCH;
         }
         out_index += OUTPUT_Y_PITCH - window_x * OUTPUT_X_PITCH;

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 import logging as log
 
-import numpy as np
-
+from extensions.ops.Cast import Cast
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
-from mo.front.tf.graph_utils import add_convolution_to_swap_xy_coordinates
+from mo.front.tf.graph_utils import add_convolution_to_swap_xy_coordinates, create_op_node_with_second_input
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.concat import Concat
 from mo.ops.reshape import Reshape
 from mo.ops.unsqueeze import Unsqueeze
@@ -44,11 +45,17 @@ class CropAndResizeReplacement(FrontReplacementOp):
             log.debug('Node "{}" has already been preprocessed'.format(node.soft_get('name')))
             return []
         # reshape tensor with batch indices to 2d
-        unsqueeze_op = Unsqueeze(graph, {'unsqueeze_dims': np.array([1], dtype=np.int64)})
-        unsqueeze_node = unsqueeze_op.create_node([node.in_node(2)])
+        unsqueeze_node = create_op_node_with_second_input(graph, Unsqueeze, int64_array([1]),
+                                                          {'name': node.name + '/Unsqueeze'}, node.in_node(2))
 
-        concat_op = Concat(graph, {'axis': 1, 'name': node.name + '/concat_batch_indices_and_boxes', 'in_ports_count': 2})
-        concat_node = concat_op.create_node([unsqueeze_node, node.in_node(1)])
+        convert_node = Cast(graph, {'name': unsqueeze_node.name + '/ToFloat',
+                                    'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node()
+
+        convert_node.in_port(0).connect(unsqueeze_node.out_port(0))
+
+        concat_op = Concat(graph, {'axis': 1, 'name': node.name + '/concat_batch_indices_and_boxes',
+                                   'in_ports_count': 2})
+        concat_node = concat_op.create_node([convert_node, node.in_node(1)])
 
         # do not remove edge with crop_size because it is needed in the partial infer
         graph.remove_edge(node.in_node(1).id, node.id)
@@ -58,11 +65,9 @@ class CropAndResizeReplacement(FrontReplacementOp):
         swapped_box_coordinates_node = add_convolution_to_swap_xy_coordinates(graph, concat_node, 5)
 
         # reshape locations tensor to 2D so it could be passed to Eltwise which will be converted to ScaleShift
-        reshape_2d_op = Reshape(graph, dict(dim=np.array([-1, 5])))
-
-        reshape_2d_node = reshape_2d_op.create_node([swapped_box_coordinates_node],
-                                                    dict(name=swapped_box_coordinates_node.id + '/reshape_2d_',
-                                                         nchw_layout=True))
+        reshape_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
+                                                           dict(name=swapped_box_coordinates_node.id + '/reshape_2d_'),
+                                                           swapped_box_coordinates_node)
         graph.create_edge(reshape_2d_node, node, 0, 1)
 
         # do not replace any output edge

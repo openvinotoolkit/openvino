@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@
 
 import numpy as np
 
+from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.utils.error import Error
 
 
 def tf_strided_slice_infer(node):
     if node.in_node(1).value is None or node.in_node(2).value is None:
         raise Error('Strided slice layer supports only constant begin and end inputs')
-    begin_id = node.in_node(1).value
-    end_id = node.in_node(2).value
+    begin_id = node.in_node(1).value.copy()
+    end_id = node.in_node(2).value.copy()
     if len(node.in_nodes()) > 3:
         if node.in_node(3).value is None:
             raise Error('Strided slice layer supports only constant stride input')
@@ -100,17 +101,18 @@ def tf_strided_slice_infer(node):
                 # ignore this error
                 continue
 
+    for i, s in enumerate(slice_idx):
+        if s is None:
+            slice_idx[i] = slice(0, 1, 1)
+
     node['slices'] = np.array(slice_idx)
     for attr in ('shrink_axis_mask', 'new_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask'):
         node[attr] = np.array(node[attr], dtype=np.int32)
 
-    node.out_node().value = np.array(value) if node.in_node(0).value is not None else None
-    node.out_node().shape = np.array(value.shape, dtype=np.int64)
+    node['force_precision_in_ports'] = {port: 'int64' for port in range(1, len(node.in_nodes()))}
 
-    # change precision to I32 for begin, end, stride inputs
-    for i in range(1, len(node.in_nodes())):
-        inp = node.in_node(i)
-        inp["force_precision"] = "I32"
+    node.out_node().value = value.copy() if node.in_node(0).value is not None else None
+    node.out_node().shape = np.array(value.shape, dtype=np.int64)
 
 
 def convert_negative_indices(indices: np.array, shape: np.array):
@@ -119,50 +121,9 @@ def convert_negative_indices(indices: np.array, shape: np.array):
             indices[ind] += shape[ind]
 
 
-def caffe_slice_infer(node):
-    """
-    Slices an input layer to multiple output layers along a given dimension
-    with given slice indices
-    Parameters
-    ----------
-    node
-
-    """
-    top_shape = node.in_node(0).shape
-    slice_axis = node.axis
-    bottom_slice_axis = node.in_node(0).shape[node.axis]
-    if len(node.slice_point) == 0:
-        new_shape = np.array(top_shape, dtype=np.int64)
-        new_shape[slice_axis] = bottom_slice_axis / len(node.out_nodes())
-        for i in range(0, len(node.out_nodes())):
-            node.out_node(i).shape = new_shape
-        return
-
-    assert (len(node.slice_point) == len(node.out_nodes()) - 1)
-    prev = 0
-    slices = []
-    for slice_point in node.slice_point:
-        if slice_point <= prev:
-            raise Error(
-                'Check failed for the layer {}. Slice points should be ordered in increasing manner. '.format(node.id) +
-                'Current slice point {} is not greater than the previous slice point {}. '.format(slice_point, prev) +
-                'Please verify your model correctness')
-        slices.append(slice_point - prev)
-        prev = slice_point
-
-    slices.append(bottom_slice_axis - prev)
-    if sum(slices) != bottom_slice_axis:
-        raise Error(
-            'Check failed for the layer {}. Sum of slices points {} does not equal '.format(node.id, sum(slices)) +
-            'to the value of input blob shape by the given slice axis {}'.format(bottom_slice_axis))
-    for i in range(len(node.out_nodes())):
-        new_shape = np.array(top_shape, dtype=np.int64)
-        new_shape[slice_axis] = slices[i]
-        node.out_node(i).shape = new_shape
-
-
 def mxnet_slice_axis_infer(node):
     in_shape = node.in_node(0).shape
+    node.axis = get_canonical_axis_index(in_shape, node.axis)
     slice_axis = node.axis
 
     new_shape = np.array(in_shape, dtype=np.int64)

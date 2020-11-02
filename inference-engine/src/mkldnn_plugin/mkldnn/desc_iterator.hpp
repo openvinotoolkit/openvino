@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,29 +16,42 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     template <typename T>
     primitive_desc_iterator(const T &adesc, const mkldnn::primitive_attr &aattr, const engine &aengine) {
         mkldnn_primitive_desc_iterator_t result;
-        error::wrap_c_api(mkldnn_primitive_desc_iterator_create_v2(
-                &result, &adesc.data, aattr.get(), aengine.get(), nullptr),
-                          "could not create a primitive descriptor iterator");
-        reset(result);
+        auto sts = mkldnn_primitive_desc_iterator_create_v2(
+                &result, &adesc.data, aattr.get(), aengine.get(), nullptr);
+
+        if (sts == mkldnn_status_t::mkldnn_success)
+            reset(result);
+        else if (sts == mkldnn_status_t::mkldnn_unimplemented)
+            reset(nullptr);
+        else
+            THROW_IE_EXCEPTION << "could not create a primitive descriptor iterator";
     }
 
     template <typename T, typename TF>
     primitive_desc_iterator(const T &adesc, const mkldnn::primitive_attr &aattr,
             const engine &aengine, const TF &hint_fwd_primitive_desc) {
         mkldnn_primitive_desc_iterator_t result;
-        error::wrap_c_api(mkldnn_primitive_desc_iterator_create_v2(&result,
-                        &adesc.data,
-                        aattr.get(),
-                        aengine.get(),
-                        hint_fwd_primitive_desc.get()),
-                "could not create a primitive descriptor iterator");
-        reset(result);
+        auto sts = mkldnn_primitive_desc_iterator_create_v2(&result,
+                &adesc.data,
+                aattr.get(),
+                aengine.get(),
+                hint_fwd_primitive_desc.get());
+
+        if (sts == mkldnn_status_t::mkldnn_success)
+            reset(result);
+        else if (sts == mkldnn_status_t::mkldnn_unimplemented)
+            reset(nullptr);
+        else
+            THROW_IE_EXCEPTION << "could not create a primitive descriptor iterator";
     }
 
+    bool is_not_end() const {
+        return (handle::get() != nullptr);
+    }
 
     memory::primitive_desc fetch() const {
         memory::primitive_desc adesc;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
 
         cdesc = mkldnn_primitive_desc_iterator_fetch(get());
 
@@ -46,15 +59,20 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
         return adesc;
     }
 
-    bool next() {
+    primitive_desc_iterator operator++(int) {
         mkldnn_status_t status = mkldnn_primitive_desc_iterator_next(get());
-        return status == mkldnn_status_t::mkldnn_success;
+        if (status == mkldnn_status_t::mkldnn_iterator_ends)
+            reset(nullptr);
+        else if (status != mkldnn_status_t::mkldnn_success)
+            THROW_IE_EXCEPTION << "could not get next iteration";
+
+        return *this;
     }
 
     memory::primitive_desc src_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -68,7 +86,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     memory::primitive_desc dst_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -83,7 +101,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     memory::primitive_desc diff_src_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -97,7 +115,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     memory::primitive_desc weights_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -111,7 +129,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     memory::primitive_desc diff_dst_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -134,7 +152,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
 
     template <typename T>
     void getPrimitiveDescriptor(T& pdesc) const {
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
 
         memory::primitive_desc cdescpd;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,8 @@
 #include <gflags/gflags.h>
 #include <iostream>
 #include <sys/stat.h>
+
+#include <samples/slog.hpp>
 
 #ifdef _WIN32
 #include <os/windows/w_dirent.h>

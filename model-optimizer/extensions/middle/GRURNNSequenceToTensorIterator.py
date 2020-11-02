@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,8 +18,10 @@ import numpy as np
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.graph.graph import Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.op import Op
-from mo.ops.reshape import Reshape
+from mo.ops.squeeze import Squeeze
+from mo.ops.unsqueeze import Unsqueeze
 
 
 class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
@@ -42,8 +44,8 @@ class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
         return [RNNSequenceNormalize]
 
     def run_before(self):
-        from extensions.middle.FusePermutesSequence import FusePermutesSequence
-        return [FusePermutesSequence]
+        from extensions.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
+        return [TransposeTensorIteratorLSTM]
 
     def pattern(self):
         return dict(
@@ -87,14 +89,11 @@ class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
                   for inp in [0, 4, 1, 2]]  # X, h_init, WR, B
 
         inputs[0].shape[rnn_layer.sequence_dim] = 1
-        reshape_dim = inputs[0].shape.copy()
-        reshape_dim[rnn_layer.batch_dim] = -1
-        reshape_dim = np.delete(reshape_dim, rnn_layer.sequence_dim)
-        input_squeeze = Reshape(
-            body,
-            dict(name=rnn_layer.name + '/input_squeeze', internal_layer_id=0, dim=reshape_dim)
-        )
-        inputs[0] = input_squeeze.create_node_with_data([inputs[0]], edge_attrs=[{'internal_port_id': 0}])
+        input_squeeze = Squeeze(body, dict(name=rnn_layer.name + '/input_squeeze', internal_layer_id=0))
+        input_squeeze_dim = Const(body, dict(name=rnn_layer.name + '/input_squeeze_dim',
+                                             value=rnn_layer.sequence_dim)).create_node_with_data()
+        inputs[0] = input_squeeze.create_node_with_data([inputs[0], input_squeeze_dim],
+                                                        edge_attrs=[{'internal_port_id': 0}])
 
         # 2. Output unsqueeze Reshape
         outputs = [Op._create_data_node(body, rnn_layer.name + '/outport/' + str(out),
@@ -103,13 +102,10 @@ class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
         for out in outputs:
             add_opoutput(body, out.id, 0, False)
 
-        unsqueezed_output_shape = outputs[0].shape.copy()
-        unsqueezed_output_shape[rnn_layer.sequence_dim] = 1
-        squeezed_output_shape = np.delete(unsqueezed_output_shape, rnn_layer.sequence_dim)
-        outputs[0].shape = squeezed_output_shape
-        unsqueezed_output_shape[rnn_layer.batch_dim] = -1
-        output_unsqueeze = Reshape(body, dict(name=rnn_layer.name + '/output_unsqueeze/', dim=unsqueezed_output_shape,
-                                              internal_layer_id=2))
+        outputs[0].shape = np.delete(outputs[0].shape.copy(), rnn_layer.sequence_dim)
+        output_unsqueeze_dim = Const(body, dict(name=rnn_layer.name + '/output_unsqueeze_dim',
+                                                value=rnn_layer.sequence_dim)).create_node_with_data()
+        output_unsqueeze = Unsqueeze(body, dict(name=rnn_layer.name + '/output_unsqueeze/', internal_layer_id=2))
 
         additional_attrs = dict(activations=rnn_layer.activations,
                                 activation_alpha=rnn_layer.activation_alpha,
@@ -132,7 +128,7 @@ class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
         # internal ports for outputs of cell
         gru_cell.in_node().out_edge(0)['internal_port_id'] = 4  # h_state
 
-        gru_cell = output_unsqueeze.create_node_with_data([gru_cell])
+        gru_cell = output_unsqueeze.create_node_with_data([gru_cell, output_unsqueeze_dim])
         gru_cell.in_node().out_edge(0)['internal_port_id'] = 3
         add_opoutput(body, gru_cell.id, 0, False)
 
@@ -221,3 +217,8 @@ class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
         for i, out in enumerate(outs[1:]):
             external_port_id = 4 + i
             out.in_edge()['external_port_id'] = external_port_id
+
+        ti = outs[0].in_node()
+        TensorIterator.cover_body_input_data_nodes_with_parameter_ops(ti)
+        TensorIterator.cover_body_constant_data_nodes_with_const_ops(ti)
+        TensorIterator.normalize_internal_ids(ti)

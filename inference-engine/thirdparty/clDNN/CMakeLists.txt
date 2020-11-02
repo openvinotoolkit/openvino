@@ -31,6 +31,7 @@ include(IntelHelpers)
 set(CMAKE_CONFIGURATION_TYPES
     "Debug"
     "Release"
+    "RelWithDebInfo"
   )
 set(CMAKE_CONFIGURATION_TYPES ${CMAKE_CONFIGURATION_TYPES} CACHE INTERNAL "Available build configurations.")
 
@@ -44,6 +45,9 @@ set(CLDNN__PROJ_NAME "clDNN")
 # Default languages: C, C++.
 project("${CLDNN__PROJ_NAME}")
 
+if(POLICY CMP0063)
+    cmake_policy(SET CMP0063 NEW)
+endif()
 
 # ======================================================================================================
 # ==================================== BUILD CONFIGURATIONS (part 2) ===================================
@@ -105,6 +109,11 @@ if(CMAKE_CFG_INTDIR STREQUAL ".")
 else()
   set(CLDNN__TARGET_CFG_VAR "${CMAKE_CFG_INTDIR}")
   set(CLDNN__MULTI_CFG_GEN  YES)
+endif()
+
+if (NOT "${CLDNN__TARGET_CFG_VAR}" MATCHES "^(Release|Debug)$")
+    message(STATUS "[clDNN] ${CLDNN__TARGET_CFG_VAR} configuration is not supported for prebuilt dependencies. Release will be used")
+    set (CLDNN__TARGET_CFG_VAR "Release")
 endif()
 
 # Code generation settings.
@@ -242,6 +251,8 @@ if(DEFINED CMAKE_BUILD_TYPE)
     set(__CLDNN_BuildType "Release")
   elseif(__CLDNN_BuildType MATCHES "^debug$")
     set(__CLDNN_BuildType "Debug")
+  elseif(__CLDNN_BuildType MATCHES "^relwithdebinfo$")
+    set(__CLDNN_BuildType "RelWithDebInfo")
   else()
     set(__CLDNN_BuildType "Debug")
     if(NOT CLDNN__MULTI_CFG_GEN)
@@ -548,8 +559,10 @@ endif()
 # - on others:  shared libraries directory.
 if(__CLDNN_TargetOs MATCHES "^windows$")
   set(CLDNN__IOCL_ICD_LIBDIRS ${CLDNN__IOCL_ICD_STLDIRS} CACHE INTERNAL "Paths to libraries to link for Intel OpenCL SDK ICD.")
+  set(CLDNN__IOCL_ICD_LIBPATH ${CLDNN__IOCL_ICD_LIBDIRS}/${CMAKE_STATIC_LIBRARY_PREFIX}OpenCL${CMAKE_STATIC_LIBRARY_SUFFIX} CACHE INTERNAL "")
 else()
   set(CLDNN__IOCL_ICD_LIBDIRS ${CLDNN__IOCL_ICD_SHLDIRS} CACHE INTERNAL "Paths to libraries to link for Intel OpenCL SDK ICD.")
+  set(CLDNN__IOCL_ICD_LIBPATH ${CLDNN__IOCL_ICD_LIBDIRS}/${CMAKE_SHARED_LIBRARY_PREFIX}OpenCL${CMAKE_SHARED_LIBRARY_SUFFIX} CACHE INTERNAL "")
 endif()
 
 unset(__CLDNN_IOclIcdVersions)
@@ -669,7 +682,7 @@ message(STATUS "[clDNN]  - Root:            ${CLDNN__IOCL_ICD_ROOT}")
 message(STATUS "[clDNN]     + Headers:      ${CLDNN__IOCL_ICD_INCDIRS}")
 message(STATUS "[clDNN]     + Static libs:  ${CLDNN__IOCL_ICD_STLDIRS}")
 message(STATUS "[clDNN]     + Shared libs:  ${CLDNN__IOCL_ICD_SHLDIRS}")
-message(STATUS "[clDNN]     + Libs to link: ${CLDNN__IOCL_ICD_LIBDIRS}")
+message(STATUS "[clDNN]     + Libs to link: ${CLDNN__IOCL_ICD_LIBPATH}")
 message(STATUS "[clDNN] =============================================================================")
 unset(__CLDNN_DetectedArch_Target)
 
@@ -680,7 +693,7 @@ unset(__CLDNN_DetectedArch_Target)
 
 # =================================== Main targets names and labels ====================================
 
-set(CLDNN_BUILD__PROJ__clDNN       "${CLDNN_BUILD__PROJ_NAME_PREFIX}clDNN_shlib")
+set(CLDNN_BUILD__PROJ__clDNN       "${CLDNN_BUILD__PROJ_NAME_PREFIX}clDNN_lib")
 set(CLDNN_BUILD__PROJ_LABEL__clDNN "clDNN")
 
 # ================================================ Outputs =============================================
@@ -817,7 +830,9 @@ foreach(__CLDNN_CompilerFlagName IN ITEMS "CMAKE_CXX_FLAGS" "CMAKE_C_FLAGS")
       endif()
     endif()
   elseif(CMAKE_COMPILER_IS_INTEL)
-    message(FATAL_ERROR "TODO Support native ICC")
+    if(UNIX)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-warning=68,654,1125")
+    endif()
   # Adding needed settings specific to GCC.
   # NOTE: Following options can be needed in the future (although some not recommended: NR):
   # [NR] -fno-short-enums
@@ -843,6 +858,7 @@ foreach(__CLDNN_CompilerFlagName IN ITEMS "CMAKE_CXX_FLAGS" "CMAKE_C_FLAGS")
           -Wno-error=missing-field-initializers
           -Wno-error=unused-parameter
           -Wno-error=unused-function
+          -Wno-error=pedantic
           -march=corei7
           -mstackrealign
           -msse
@@ -890,7 +906,7 @@ intel_config_flag_apply_settings(
     CMAKE_CXX_FLAGS
     ALL_PATTERN ""
     SET
-      RttiDisabled
+      RttiEnabled
       StandardCxx11
   )
 
@@ -973,7 +989,10 @@ if((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^C
         -Wl,-headerpad_max_install_names
     )
 
-  list(APPEND CLDNN__SYSTEM_LINK_LIBRARIES "c++" "c++abi" "supc++" "dl")
+  list(APPEND CLDNN__SYSTEM_LINK_LIBRARIES "c++" "c++abi" "dl")
+  if(NOT ANDROID)
+    list(APPEND CLDNN__SYSTEM_LINK_LIBRARIES "supc++")
+  endif()
 endif()
 
 unset(__CLDNN_LinkerFlagName)
@@ -1009,28 +1028,23 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
     CLDNN_CMAKE
   )
 
-if (MSVC)
-#  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
-#      _SCL_SECURE_NO_WARNINGS
-#    )
-elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
-    _GLIBCXX_USE_CXX11_ABI=0
-    $<$<CONFIG:Release>:_FORTIFY_SOURCE=2>
-  )
-endif()
-
 # ===================================== Include/Link directories =======================================
 
 include_directories(
-    ${CLDNN__IOCL_ICD_INCDIRS}
-	${CLDNN_UTILS__RAPIDJSON_INCDIRS}
+    ${CLDNN_UTILS__RAPIDJSON_INCDIRS}
     "${CLDNN__KHR_CLHPP_DIR}"
     "${CLDNN__CODEGEN_INCDIR}"
   )
-link_directories(
-    ${CLDNN__IOCL_ICD_LIBDIRS}
+
+include_directories(SYSTEM
+    ${CLDNN__IOCL_ICD_INCDIRS})
+
+add_library(clDNN_OpenCL UNKNOWN IMPORTED)
+set_target_properties(clDNN_OpenCL
+    PROPERTIES
+        IMPORTED_LOCATION ${CLDNN__IOCL_ICD_LIBPATH}
   )
+
 
 # =================================== Link targets and dependencies ====================================
 if(CLDNN__INCLUDE_CORE)

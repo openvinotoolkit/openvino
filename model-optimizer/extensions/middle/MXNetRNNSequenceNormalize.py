@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,10 +16,12 @@
 
 import numpy as np
 
+from extensions.ops.transpose import Transpose
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.op import Op
-from mo.ops.permute import Permute
 from mo.ops.reshape import Reshape
 
 
@@ -129,6 +131,9 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         R = np.take(R, gate_reorder, axis=2)
         B = np.take(B, gate_reorder, axis=3)
 
+        # Add ports to rnn_layer
+        rnn_layer.add_sequence_of_ports(type='in', rng=range(7))
+
         for blob, port in [(W, 1), (R, 2), (B, 3)]:
             Op.create_and_connect_input_data_node(
                 graph,
@@ -187,7 +192,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         input = match['input']
         if not lstm.has_num_directions:
             return
-        old_data_node =lstm.out_node(0)
+        old_data_node = lstm.out_node(0)
         num_directions = 2 if lstm.direction in ['bidirectional'] else 1
         mxnet_shape = lstm.out_node(0).shape.copy()
 
@@ -201,19 +206,24 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         if lstm.has_num_directions:
             mo_shape = np.insert(mo_shape, 1, np.int64(num_directions))
 
-        new_data = Op._create_data_node(graph, name=lstm.name + '/Data/Reshape_mxnet/', attrs={'shape': mo_shape})
+        lstm_name = lstm.soft_get('name', lstm.id)
+
+        new_data = Op._create_data_node(graph, name=lstm_name + '/Data/Reshape_mxnet/', attrs={'shape': mo_shape})
         graph.remove_edge(lstm.id, old_data_node.id)
         graph.add_edge(lstm.id, new_data.id, key=0, out=0)
 
-        # Add Permute
-        permute_order = np.array([0, 2, 1, 3], dtype=np.int64)
-        permute = Permute(graph, dict(order=permute_order))
-        permute_data = permute.create_node_with_data([new_data], dict(name=lstm.name + '/Permute_mxnet/'))
+        # Add Transpose
+        permute_order = Const(graph, {'name': lstm_name + '/Transpose_mxnet_order',
+                                      'value': int64_array([0, 2, 1, 3])}).create_node_with_data()
+        permute_data = Transpose(graph, {'name': lstm_name + '/Transpose_mxnet/'}
+                                 ).create_node_with_data([new_data, permute_order])
 
         # Add Reshape
-        reshape = Reshape(graph, dict(dim=mxnet_shape))
-        reshape.create_node_with_data([permute_data], dict(name=lstm.name + '/Reshape_mxnet/'),
-                                      data_nodes=[old_data_node])
+        reshape = Reshape(graph, {'name': lstm_name + '/Reshape_mxnet/'})
+        reshape_dim_data = Const(graph, {'name': lstm_name + '/Reshape_mxnet_dim',
+                                         'value': mxnet_shape}).create_node_with_data()
+
+        reshape.create_node_with_data([permute_data, reshape_dim_data], dict(), data_nodes=[old_data_node])
 
     @staticmethod
     def check_input_ports(graph: Graph, match: dict):

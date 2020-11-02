@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,15 +19,23 @@ from mo.graph.graph import Graph
 
 
 class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
-    enabled = False
+    enabled = True
+
+    def run_after(self):
+        from extensions.back.pass_separator import BackFinish
+        return [BackFinish]
+
+    def run_before(self):
+        from extensions.back.SpecialNodesFinalization import CreateConstNodesReplacement
+        return [CreateConstNodesReplacement]
 
     @staticmethod
     def pattern():
         return dict(
             nodes=[
-                ('memory_node', dict(op='Memory')),
+                ('memory_node', dict(op='Assign')),
                 ('data_node', dict(kind='data')),
-                ('op_output', dict(op='OpOutput'))
+                ('op_output', dict(op='Result'))
             ],
             edges=[
                 ('memory_node', 'data_node'),
@@ -38,10 +46,10 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         """
-        Need to find the pattern: Memory -> Data -> OpOutput
+        Need to find the pattern: Memory -> Data -> Result
 
         It is needed to make Memory nodes appear in IR,
-        but they are output nodes by default and we remove the OpOutput node after each output memory.
+        but they are output nodes by default and we remove the Result node after each output memory.
 
         DO NOT use graph clean up after it
         otherwise Memory nodes would be removed as they are not on the path from input to output
@@ -55,6 +63,8 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
         """
         memory = match['memory_node']
         data = match['data_node']
+        op_output = match['op_output']
 
         graph.remove_edge(memory.id, data.id)
         graph.remove_node(data.id)
+        graph.remove_node(op_output.id)

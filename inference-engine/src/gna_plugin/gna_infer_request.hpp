@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,10 +31,14 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         }
 
         // copy inputs blobs since we need to have them in separate address space to allow simultaneous infer requests
-        _outputs[_networkOutputs.begin()->first] = plg->GetOutputBlob(networkOutputs.begin()->second->getPrecision());
+        for (auto output : _networkOutputs) {
+            _outputs[output.first] =
+                plg->GetOutputBlob(output.first, output.second->getTensorDesc().getPrecision());
+        }
+
         for (auto input : _networkInputs) {
             _inputs[input.first] =
-                plg->GetInputBlob(input.first, networkInputs.begin()->second->getInputPrecision());
+                plg->GetInputBlob(input.first, input.second->getTensorDesc().getPrecision());
         }
     }
     /**
@@ -44,7 +48,16 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     void InferImpl() override {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);
-        plg->Infer(_inputs, _outputs);
+        // result returned from sync infer wait method
+        auto result = plg->Infer(_inputs, _outputs);
+
+        // if result is false we are dealing with QoS feature
+        // if result is ok, next call to wait() will return Ok, if request not in gna_queue
+        if (!result) {
+            inferRequestIdx = -1;
+        } else {
+            inferRequestIdx = -2;
+        }
     }
 
     /**
@@ -58,18 +71,44 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     }
 
     /**
-        * @brief methods with _ThreadUnsafe prefix are to implement in plugins
-        * or in default wrapper (e.g. AsyncInferRequestThreadSafeDefault)
-        */
+     * @brief methods with _ThreadUnsafe prefix are to implement in plugins
+     * or in default wrapper (e.g. AsyncInferRequestThreadSafeDefault)
+     */
     void StartAsyncImpl() override {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);
         inferRequestIdx = plg->QueueInference(_inputs, _outputs);
+        // workaround to unblock callback-based flows
+        if (_callback) {
+            auto infer_request = _publicInterface.lock();
+            IE_ASSERT(infer_request != nullptr);
+            auto res = Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+            _callback(infer_request, res);
+        }
     }
 
+
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override {
-        if (inferRequestIdx == -1) return InferenceEngine::INFER_NOT_STARTED;
-        plg->Wait(inferRequestIdx);
+        if (inferRequestIdx == -1) {
+            return InferenceEngine::INFER_NOT_STARTED;
+        } else if (millis_timeout < -1) {
+            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str;
+        }
+
+        if (millis_timeout == InferenceEngine::IInferRequest::WaitMode::RESULT_READY) {
+            millis_timeout = MAX_TIMEOUT;
+        }
+        const auto waitStatus = plg->WaitFor(inferRequestIdx, millis_timeout);
+
+        if (waitStatus == GNA_REQUEST_PENDING) {
+            // request is still pending so Wait() is needed once again
+            return InferenceEngine::RESULT_NOT_READY;
+        }
+        if (waitStatus == GNA_REQUEST_ABORTED) {
+            // need to preserve invalid state here to avoid next Wait() from clearing it
+            inferRequestIdx = -1;
+            return InferenceEngine::INFER_NOT_STARTED;
+        }
         return InferenceEngine::OK;
     }
 };

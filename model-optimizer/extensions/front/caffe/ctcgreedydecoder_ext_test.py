@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.ctcgreedydecoder_ext import CTCGreedyDecoderFrontExtractor
 from extensions.ops.ctc_greedy_decoder import CTCGreedyDecoderOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeCTCGreedyDecoderProtoLayer:
@@ -54,7 +54,7 @@ class TestCTCGreedyDecoderExt(unittest.TestCase):
         exp_res = {
             'type': "CTCGreedyDecoder",
             'ctc_merge_repeated': 1,
-            'infer': CTCGreedyDecoderOp.ctc_greedy_decoder_infer
+            'infer': CTCGreedyDecoderOp.infer
         }
 
         for key in exp_res.keys():

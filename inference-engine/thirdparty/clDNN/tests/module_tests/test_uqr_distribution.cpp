@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include <gtest/gtest.h>
 
 #include "test_utils/uniform_quantized_real_distribution.hpp"
@@ -27,7 +26,6 @@
 #include <string>
 #include <type_traits>
 #include <utility>
-
 
 namespace cldnn { namespace tests {
 
@@ -47,27 +45,22 @@ protected:
     /// @brief Expected result_type of uniform_quantized_real_distribution.
     using expected_uqr_dist_rt = typename std::conditional<!std::is_same<RealType, void>::value, RealType, float>::type;
 
-
     void SetUp() override {}
 
     void TearDown() override {}
 };
 
-
 using uniform_quantized_real_distribution_test_types = ::testing::Types<void, float, double, long double>;
 TYPED_TEST_CASE(uniform_quantized_real_distribution_test, uniform_quantized_real_distribution_test_types);
-
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_default)
 {
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(0);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(1);
     const unsigned expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
-
 
     uqr_dist_param dist_param_instance1;
     using actual_uqr_dist_rt = typename decltype(dist_param_instance1)::distribution_type::result_type;
@@ -83,7 +76,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     // Any
     auto expected_a       = static_cast<expected_uqr_dist_rt>(-130);
     auto expected_b       = static_cast<expected_uqr_dist_rt>(244);
@@ -94,7 +86,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
     EXPECT_EQ(dist_param_instance1.a(),                     expected_a);
     EXPECT_EQ(dist_param_instance1.b(),                     expected_b);
     EXPECT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
-
 
     // Zero
     expected_a   = static_cast<expected_uqr_dist_rt>(57);
@@ -107,7 +98,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
     EXPECT_EQ(dist_param_instance2.b(),                     expected_b);
     EXPECT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
 
-
     // Almost Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(-65);
     expected_b   = static_cast<expected_uqr_dist_rt>(-45);
@@ -119,7 +109,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
     EXPECT_EQ(dist_param_instance3.b(),                     expected_b);
     EXPECT_EQ(dist_param_instance3.significand_rand_bits(), expected_srb);
 
-
     // Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(0);
     expected_b   = static_cast<expected_uqr_dist_rt>(0);
@@ -130,7 +119,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
     EXPECT_EQ(dist_param_instance4.a(),                     expected_a);
     EXPECT_EQ(dist_param_instance4.b(),                     expected_b);
     EXPECT_EQ(dist_param_instance4.significand_rand_bits(), expected_srb);
-
 
     // Over Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(-4);
@@ -145,7 +133,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
     EXPECT_EQ(dist_param_instance5.b(),                     expected_b);
     EXPECT_EQ(dist_param_instance5.significand_rand_bits(), expected_srb);
 
-
     // Throw std::invalid_argument (a > b)
     expected_a   = static_cast<expected_uqr_dist_rt>(40);
     expected_b   = static_cast<expected_uqr_dist_rt>(39);
@@ -155,7 +142,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
         uqr_dist_param dist_param_instance6(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
 
-
     // Throw std::invalid_argument (a is infinite)
     expected_a   = -std::numeric_limits<expected_uqr_dist_rt>::infinity();
     expected_b   = static_cast<expected_uqr_dist_rt>(39);
@@ -164,7 +150,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
     EXPECT_THROW({
         uqr_dist_param dist_param_instance7(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
-
 
     // Throw std::invalid_argument (b is infinite)
     expected_a   = static_cast<expected_uqr_dist_rt>(40);
@@ -181,10 +166,8 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_srb)
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a = static_cast<expected_uqr_dist_rt>(0);
     const auto expected_b = static_cast<expected_uqr_dist_rt>(1);
-
 
     // Any
     unsigned expected_srb = 4U;
@@ -195,7 +178,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_srb)
     EXPECT_EQ(dist_param_instance1.b(),                     expected_b);
     EXPECT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
 
-
     // Zero
     expected_srb = 0U;
 
@@ -204,7 +186,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_srb)
     EXPECT_EQ(dist_param_instance2.a(),                     expected_a);
     EXPECT_EQ(dist_param_instance2.b(),                     expected_b);
     EXPECT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
-
 
     // Almost Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 4U;
@@ -215,7 +196,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_srb)
     EXPECT_EQ(dist_param_instance3.b(),                     expected_b);
     EXPECT_EQ(dist_param_instance3.significand_rand_bits(), expected_srb);
 
-
     // Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
 
@@ -224,7 +204,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_srb)
     EXPECT_EQ(dist_param_instance4.a(),                     expected_a);
     EXPECT_EQ(dist_param_instance4.b(),                     expected_b);
     EXPECT_EQ(dist_param_instance4.significand_rand_bits(), expected_srb);
-
 
     // Over Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
@@ -243,11 +222,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_copy)
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-102);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(73);
     const unsigned expected_srb = 3U;
-
 
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
     uqr_dist_param dist_param_instance2(dist_param_instance1);
@@ -262,11 +239,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_move)
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-101);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(75);
     const unsigned expected_srb = 2U;
-
 
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
     uqr_dist_param dist_param_instance2(std::move(dist_param_instance1));
@@ -281,11 +256,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_assign_copy)
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-112);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(70);
     const unsigned expected_srb = 4U;
-
 
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
     uqr_dist_param dist_param_instance2(2U);
@@ -301,11 +274,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_assign_move)
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-102);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(35);
     const unsigned expected_srb = 1U;
-
 
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
     uqr_dist_param dist_param_instance2(2U);
@@ -324,7 +295,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_equality_compare)
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-102);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(35);
     const unsigned expected_srb = 1U;
-
 
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
     uqr_dist_param dist_param_instance2(2U);
@@ -351,17 +321,14 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_equality_compare)
     EXPECT_FALSE(dist_param_instance3 != dist_param_instance3);
 }
 
-
 TYPED_TEST(uniform_quantized_real_distribution_test, construct_default)
 {
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(0);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(1);
     const unsigned expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
-
 
     uqr_dist dist_instance1;
     using actual_uqr_dist_rt = typename decltype(dist_instance1)::result_type;
@@ -377,7 +344,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     // Any
     auto expected_a       = static_cast<expected_uqr_dist_rt>(-137);
     auto expected_b       = static_cast<expected_uqr_dist_rt>(271);
@@ -388,7 +354,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
     EXPECT_EQ(dist_instance1.a(),                     expected_a);
     EXPECT_EQ(dist_instance1.b(),                     expected_b);
     EXPECT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
-
 
     // Zero
     expected_a   = static_cast<expected_uqr_dist_rt>(47);
@@ -401,7 +366,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
     EXPECT_EQ(dist_instance2.b(),                     expected_b);
     EXPECT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
 
-
     // Almost Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(-55);
     expected_b   = static_cast<expected_uqr_dist_rt>(-15);
@@ -413,7 +377,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
     EXPECT_EQ(dist_instance3.b(),                     expected_b);
     EXPECT_EQ(dist_instance3.significand_rand_bits(), expected_srb);
 
-
     // Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(2);
     expected_b   = static_cast<expected_uqr_dist_rt>(2);
@@ -424,7 +387,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
     EXPECT_EQ(dist_instance4.a(),                     expected_a);
     EXPECT_EQ(dist_instance4.b(),                     expected_b);
     EXPECT_EQ(dist_instance4.significand_rand_bits(), expected_srb);
-
 
     // Over Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(-3);
@@ -439,7 +401,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
     EXPECT_EQ(dist_instance5.b(),                     expected_b);
     EXPECT_EQ(dist_instance5.significand_rand_bits(), expected_srb);
 
-
     // Throw std::invalid_argument (a > b)
     expected_a   = static_cast<expected_uqr_dist_rt>(-40);
     expected_b   = static_cast<expected_uqr_dist_rt>(-80);
@@ -449,7 +410,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
         uqr_dist dist_instance6(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
 
-
     // Throw std::invalid_argument (a is infinite)
     expected_a   = -std::numeric_limits<expected_uqr_dist_rt>::infinity();
     expected_b   = static_cast<expected_uqr_dist_rt>(-80);
@@ -458,7 +418,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
     EXPECT_THROW({
         uqr_dist dist_instance7(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
-
 
     // Throw std::invalid_argument (b is infinite)
     expected_a   = static_cast<expected_uqr_dist_rt>(-40);
@@ -476,11 +435,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_param)
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(2);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(17);
     const unsigned expected_srb = 3U;
-
 
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance1(dist_param_instance1);
@@ -499,10 +456,8 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_srb)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a = static_cast<expected_uqr_dist_rt>(0);
     const auto expected_b = static_cast<expected_uqr_dist_rt>(1);
-
 
     // Any
     unsigned expected_srb = 3U;
@@ -513,7 +468,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_srb)
     EXPECT_EQ(dist_instance1.b(),                     expected_b);
     EXPECT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
 
-
     // Zero
     expected_srb = 0U;
 
@@ -522,7 +476,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_srb)
     EXPECT_EQ(dist_instance2.a(),                     expected_a);
     EXPECT_EQ(dist_instance2.b(),                     expected_b);
     EXPECT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
-
 
     // Almost Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 2U;
@@ -533,7 +486,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_srb)
     EXPECT_EQ(dist_instance3.b(),                     expected_b);
     EXPECT_EQ(dist_instance3.significand_rand_bits(), expected_srb);
 
-
     // Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
 
@@ -542,7 +494,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_srb)
     EXPECT_EQ(dist_instance4.a(),                     expected_a);
     EXPECT_EQ(dist_instance4.b(),                     expected_b);
     EXPECT_EQ(dist_instance4.significand_rand_bits(), expected_srb);
-
 
     // Over Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
@@ -561,11 +512,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_copy)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-122);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(33);
     const unsigned expected_srb = 5U;
-
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance2(dist_instance1);
@@ -580,11 +529,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_move)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(0);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(15);
     const unsigned expected_srb = 1U;
-
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance2(std::move(dist_instance1));
@@ -599,11 +546,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, assign_copy)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-1);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(1);
     const unsigned expected_srb = 3U;
-
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance2(2U);
@@ -619,11 +564,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, assign_move)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-107);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(-36);
     const unsigned expected_srb = 2U;
-
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance2(3U);
@@ -639,11 +582,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_param)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-22);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(-17);
     const unsigned expected_srb = 2U;
-
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
 
@@ -658,13 +599,11 @@ TYPED_TEST(uniform_quantized_real_distribution_test, set_param)
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-122);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(-67);
     const unsigned expected_srb = 3U;
 
     uqr_dist dist_instance_ref(expected_a, expected_b, expected_srb);
-
 
     // Custom Parameters
     uqr_dist dist_instance1(1U);
@@ -675,7 +614,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, set_param)
     EXPECT_EQ(dist_instance1.param().significand_rand_bits(), expected_srb);
 
     EXPECT_TRUE(dist_instance1 == dist_instance_ref);
-
 
     // From Other Distribution
     uqr_dist dist_instance2(2U);
@@ -694,11 +632,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_member_param_equivalenc
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(22);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(27);
     const unsigned expected_srb = 4U;
-
 
     // Default Constructor
     uqr_dist_param dist_param_instance1;
@@ -712,7 +648,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_member_param_equivalenc
     EXPECT_EQ(dist_instance1.b(),                     dist_param_instance1.b());
     EXPECT_EQ(dist_instance1.significand_rand_bits(), dist_param_instance1.significand_rand_bits());
 
-
     // Constructor (a, b, srb)
     uqr_dist_param dist_param_instance2(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance2(expected_a, expected_b, expected_srb);
@@ -724,7 +659,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_member_param_equivalenc
     EXPECT_EQ(dist_instance2.a(),                     dist_param_instance2.a());
     EXPECT_EQ(dist_instance2.b(),                     dist_param_instance2.b());
     EXPECT_EQ(dist_instance2.significand_rand_bits(), dist_param_instance2.significand_rand_bits());
-
 
     // Constructor (srb)
     uqr_dist_param dist_param_instance3(expected_srb);
@@ -744,11 +678,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_min)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-99);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(-97);
     const unsigned expected_srb = 3U;
-
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
 
@@ -760,11 +692,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_max)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-99);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(-97);
     const unsigned expected_srb = 3U;
-
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
 
@@ -776,11 +706,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, equality_compare)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(102);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(105);
     const unsigned expected_srb = 4U;
-
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance2(2U);
@@ -812,13 +740,11 @@ TYPED_TEST(uniform_quantized_real_distribution_test, serialize)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-77);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(17);
     const unsigned expected_srb = 4U;
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
-
 
     // Preserve Stream Formatting #1
     const auto before_flags1 = std::cout.flags();
@@ -833,7 +759,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, serialize)
     EXPECT_EQ(before_flags1, after_flags1);
     EXPECT_EQ(before_fill1,  after_fill1);
     EXPECT_EQ(before_prec1,  after_prec1);
-
 
     // Preserve Stream Formatting #2
     std::wstringstream ss2;
@@ -851,7 +776,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, serialize)
     EXPECT_EQ(before_flags2, after_flags2);
     EXPECT_EQ(before_fill2,  after_fill2);
     EXPECT_EQ(before_prec2,  after_prec2);
-
 
     // Preserve Stream Formatting #3
     std::wstringstream ss3;
@@ -871,7 +795,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, serialize)
     EXPECT_EQ(before_fill3,  after_fill3);
     EXPECT_EQ(before_prec3,  after_prec3);
 
-
     // Serialize Do Not Change Internal State.
     std::wstringstream ss4;
     ss4 << std::oct << std::setprecision(5) << std::boolalpha << std::setfill(ss4.widen('#'));
@@ -887,7 +810,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, deserialize)
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(82);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(99);
     const unsigned expected_srb = 5U;
@@ -895,7 +817,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, deserialize)
     uqr_dist dist_instance_ref(expected_a, expected_b, expected_srb);
 
     uqr_dist dist_instance_base(dist_instance_ref);
-
 
     // Valid Deserialization (Narrow String)
     std::stringstream ss1, ss1_1, ss1_2;
@@ -921,7 +842,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, deserialize)
 
     EXPECT_EQ(ss1_1.str(), ss1_2.str());
 
-
     // Valid Deserialization (Wide String)
     std::wstringstream ss2, ss2_1, ss2_2;
     uqr_dist dist_instance3, dist_instance4;
@@ -946,7 +866,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, deserialize)
 
     EXPECT_EQ(ss2_1.str(), ss2_2.str());
 
-
     // Invalid Deserialization
     std::wstringstream ss3;
     uqr_dist dist_instance5(dist_instance_ref);
@@ -964,12 +883,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, deserialize)
     EXPECT_TRUE(dist_instance5 == dist_instance_ref);
 }
 
-
-TYPED_TEST(uniform_quantized_real_distribution_test, generate_random)
+TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random)
 {
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
-
 
     constexpr auto val_zero = static_cast<expected_uqr_dist_rt>(0);
 
@@ -977,7 +894,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random)
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-100);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(-92);
     const unsigned expected_srb = 4U;
-
 
     std::mt19937_64 g1;
     uqr_dist dist1(expected_a, expected_b, expected_srb);
@@ -1003,7 +919,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_degen_a_b)
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(110);
     const unsigned expected_srb = 3U;
 
-
     std::mt19937_64 g1;
     uqr_dist dist1(expected_a, expected_b, expected_srb);
 
@@ -1015,7 +930,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_degen_a_b)
     }
 }
 
-TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_degen_srb)
+TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_degen_srb)
 {
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
@@ -1023,7 +938,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_degen_srb)
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-100);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(-92);
     const unsigned expected_srb = 0U;
-
 
     std::mt19937_64 g1;
     uqr_dist dist1(expected_a, expected_b, expected_srb);
@@ -1041,7 +955,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_degen_srb)
     std::cout << "a: " << count_a << ", b: " << count_b << std::endl;
 }
 
-TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_c9)
+TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_c9)
 {
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
@@ -1049,7 +963,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_c9)
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(-2);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(2);
     const unsigned expected_srb = 3U;
-
 
     std::mt19937_64 g1;
     uqr_dist dist1(expected_a, expected_b, expected_srb);
@@ -1075,7 +988,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_c9)
     std::cout << std::endl;
 }
 
-TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_c17)
+TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_c17)
 {
     using uqr_dist             = typename TestFixture::uqr_dist;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
@@ -1083,7 +996,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_c17)
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(0);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(4);
     const unsigned expected_srb = 4U;
-
 
     std::mt19937_64 g1;
     uqr_dist dist1(expected_a, expected_b, expected_srb);
@@ -1109,12 +1021,11 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_c17)
     std::cout << std::endl;
 }
 
-TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_param)
+TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_param)
 {
     using uqr_dist             = typename TestFixture::uqr_dist;
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
-
 
     constexpr auto val_zero = static_cast<expected_uqr_dist_rt>(0);
 
@@ -1127,7 +1038,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_param)
     const auto test_a       = static_cast<expected_uqr_dist_rt>(2);
     const auto test_b       = static_cast<expected_uqr_dist_rt>(18);
     const unsigned test_srb = 5U;
-
 
     // Temporary Switch Of Param
     std::mt19937_64 g1;
@@ -1144,7 +1054,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_param)
         expected_uqr_dist_rt actual_ipart;
         EXPECT_EQ(std::modf(rnd_val / expected_fract, &actual_ipart), val_zero);
     }
-
 
     // Original Param
     expected_fract = test_fract;
@@ -1168,17 +1077,15 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_param)
     }
 }
 
-TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_equivalence)
+TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_equivalence)
 {
     using uqr_dist             = typename TestFixture::uqr_dist;
     using uqr_dist_param       = typename TestFixture::uqr_dist_param;
     using expected_uqr_dist_rt = typename TestFixture::expected_uqr_dist_rt;
 
-
     const auto expected_a       = static_cast<expected_uqr_dist_rt>(16);
     const auto expected_b       = static_cast<expected_uqr_dist_rt>(32);
     const unsigned expected_srb = 5U;
-
 
     // Equivalent Initialization.
     std::mt19937_64 g1, g2, g3, g4, g5, g6, g7, g8, g9;
@@ -1208,7 +1115,6 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_equivalence
         EXPECT_EQ(rnd_val1, rnd_val4);
         EXPECT_EQ(rnd_val1, rnd_val5);
     }
-
 
     // Equivalent Assignment And Serialization.
     dist6.reset();

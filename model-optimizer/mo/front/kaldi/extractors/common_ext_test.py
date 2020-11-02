@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,10 +16,8 @@
 
 import unittest
 
-import networkx as nx
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 from mo.graph.graph import Node, Graph
 from mo.utils.unittest.graph import build_graph
@@ -27,6 +25,8 @@ from mo.utils.unittest.graph import build_graph
 
 class KaldiFrontExtractorTest(unittest.TestCase):
     graph = Graph()
+    nodes_attributes = {}
+    test_node = None
 
     @classmethod
     def setUp(cls):
@@ -102,12 +102,36 @@ class KaldiFrontExtractorTest(unittest.TestCase):
         return pb
 
     @staticmethod
-    def write_tag_with_value(tag: str, value) -> bytes:
+    def write_tag_with_value(tag: str, value, value_type=np.int32) -> bytes:
         pb = bytes(tag + ' ', 'ascii')
-        return pb + KaldiFrontExtractorTest.write_int_value(value)
+        if value_type == np.int32:
+            return pb + KaldiFrontExtractorTest.write_int_value(value)
+        elif value_type == np.float32:
+            return pb + KaldiFrontExtractorTest.write_float_value(value)
+        else:
+            return pb + KaldiFrontExtractorTest.write_str_value(value)
 
     @staticmethod
     def write_int_value(value) -> bytes:
         pb = TestKaldiUtilsLoading.pack_value(4, 'B')
         pb += TestKaldiUtilsLoading.pack_value(value, TestKaldiUtilsLoading.uint32_fmt)
         return pb
+
+    @staticmethod
+    def write_float_value(value) -> bytes:
+        pb = TestKaldiUtilsLoading.pack_value(4, 'B')
+        pb += TestKaldiUtilsLoading.pack_value(value, TestKaldiUtilsLoading.float32_fmt)
+        return pb
+
+    @staticmethod
+    def write_str_value(value) -> bytes:
+        pb = bytes(value, 'ascii')
+        return pb
+
+    def compare_node_attrs(self, exp_res):
+        node = self.test_node
+        for key in exp_res.keys():
+            if type(node[key]) in [list, np.ndarray]:
+                self.assertTrue(np.array_equal(np.array(node[key]), np.array(exp_res[key])))
+            else:
+                self.assertEqual(node[key], exp_res[key])

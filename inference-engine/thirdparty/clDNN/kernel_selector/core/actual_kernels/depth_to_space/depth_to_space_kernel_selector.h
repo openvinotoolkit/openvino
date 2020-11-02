@@ -18,20 +18,18 @@
 
 #include "kernel_selector.h"
 
-namespace kernel_selector
-{
-    class depth_to_space_kernel_selector : public kernel_selector_base
-    {
-    public:
-        static depth_to_space_kernel_selector &Instance() {
-            static depth_to_space_kernel_selector instance_;
-            return instance_;
-        }
+namespace kernel_selector {
+class depth_to_space_kernel_selector : public kernel_selector_base {
+public:
+    static depth_to_space_kernel_selector& Instance() {
+        static depth_to_space_kernel_selector instance_;
+        return instance_;
+    }
 
-        depth_to_space_kernel_selector();
+    depth_to_space_kernel_selector();
 
-        virtual ~depth_to_space_kernel_selector() {}
+    virtual ~depth_to_space_kernel_selector() {}
 
-        virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    };
-}
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+};
+}  // namespace kernel_selector

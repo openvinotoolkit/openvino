@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "border_kernel_selector.h"
 #include "border_kernel_ref.h"
 
-namespace kernel_selector 
-{
-    border_kernel_selector::border_kernel_selector()
-    {
-        Attach<BorderKernelRef>();
-    }
+namespace kernel_selector {
+border_kernel_selector::border_kernel_selector() { Attach<BorderKernelRef>(); }
 
-    KernelsData border_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::BORDER);
-    }
+KernelsData border_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::BORDER);
 }
+}  // namespace kernel_selector

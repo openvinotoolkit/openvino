@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,8 @@ static algorithm ie2mkl(RNNCellBase::CellType cell_type) {
     }
 }
 
-MKLDNNRNN::MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {
+MKLDNNRNN::MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {
     is_cell = one_of(layer->type, "LSTMCell", "GRUCell", "RNNCell");
 }
 
@@ -148,16 +149,19 @@ void MKLDNNRNN::fillCellDesc() {
         w_bias_d = {{L, D, Gb, SC}, memory::f32, memory::ldgo};
 
     std::vector<TensorDesc> in_candidate, out_candidate;
+    std::vector<memory::format> outputFormats;
     in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, memory::f32, memory::nc});
     in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
     out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+    outputFormats.emplace_back(memory::nc);
 
     if (S == 2) {
         in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
         out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+        outputFormats.emplace_back(memory::nc);
     }
 
-    createDescriptor(in_candidate, out_candidate);
+    createDescriptor(in_candidate, out_candidate, outputFormats);
 }
 
 void MKLDNNRNN::fillSeqDesc() {
@@ -271,19 +275,26 @@ void MKLDNNRNN::fillSeqDesc() {
         in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
 
     std::vector<TensorDesc> out_candidate;
-    if (nativeOrder)
+    std::vector<memory::format> outputFormats;
+    if (nativeOrder) {
         out_candidate.push_back(out_data_d);
-    else
+        outputFormats.push_back(out_data_d.getFormat());
+    } else {
         out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, memory::f32, memory::ntc});
+        outputFormats.push_back(memory::ntc);
+    }
 
-    for (int i = 1; i < outs.size(); i++)
-        out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+    for (int i = 1; i < outs.size(); i++) {
+        out_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, memory::f32, memory::nc});
+        outputFormats.push_back(memory::nc);
+    }
 
-    createDescriptor(in_candidate, out_candidate);
+    createDescriptor(in_candidate, out_candidate, outputFormats);
 }
 
 void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
-                                 const std::vector<TensorDesc> &outputDesc) {
+                                 const std::vector<TensorDesc> &outputDesc,
+                                 const std::vector<memory::format> &outputFormats) {
     MKLDNNDescriptor desc(std::shared_ptr<rnn_forward::desc>(
             new rnn_forward::desc(forward_scoring, cell_desc,
                     direction,
@@ -315,11 +326,21 @@ void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
         config.outConfs.push_back(dataConfig);
     }
 
-    supportedPrimitiveDescriptors.push_back({config, ref_any});
+    supportedPrimitiveDescriptors.emplace_back(config, ref_any, outputFormats);
 }
 
 void MKLDNNRNN::createPrimitive() {
     if (prim) return;
+
+    std::string errorPrefix =  "RNN layer '" + getCnnLayer()->name + "'";
+    auto weightsIt = getCnnLayer()->blobs.find("weights");
+    if (weightsIt == getCnnLayer()->blobs.end())
+        THROW_IE_EXCEPTION << errorPrefix << " does not have weights blob.";
+    if (weightsIt->second->getTensorDesc().getPrecision() != Precision::FP32)
+        THROW_IE_EXCEPTION << errorPrefix << " has invalid weights precision: " << weightsIt->second->getTensorDesc().getPrecision();
+    if (getCnnLayer()->blobs.find("biases") != getCnnLayer()->blobs.end()
+            && getCnnLayer()->blobs["biases"]->getTensorDesc().getPrecision() != Precision::FP32)
+        THROW_IE_EXCEPTION << errorPrefix << " has invalid biases precision: " << getCnnLayer()->blobs["biases"]->getTensorDesc().getPrecision();
 
     std::shared_ptr<rnn_forward::desc> d = descs[0];
     rnn_forward::primitive_desc pd(*d, getEngine());
@@ -502,4 +523,6 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         strm.submit({exec_after.begin(), exec_after.end()});
 }
 
+REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
+REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNSeq);
 }  // namespace MKLDNNPlugin

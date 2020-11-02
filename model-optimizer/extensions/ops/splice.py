@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,7 @@
  limitations under the License.
 """
 
-import networkx as nx
-
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
 
@@ -27,8 +25,15 @@ class Splice(Op):
         mandatory_props = {
             'type': None,
             'op': __class__.op,
+            'const_dim': 0,
             'in_ports_count': 1,
             'out_ports_count': 1,
+            'infer': __class__.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
+    @staticmethod
+    def infer(node: Node):
+        out_node = node.out_node()
+        out_node.shape = node.in_node().shape.copy()
+        out_node.shape[1] = node.const_dim + (node.in_node().shape[1] - node.const_dim) * len(node.context)

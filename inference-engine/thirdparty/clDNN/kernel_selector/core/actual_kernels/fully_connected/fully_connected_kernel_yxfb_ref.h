@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
-
 #pragma once
+
+#include <vector>
 
 #include "fully_connected_kernel_base.h"
 
 namespace kernel_selector {
 
-    class FullyConnected_yxfb_ref : public FullyConnectedKernelBase
-    {
-    public:
-        FullyConnected_yxfb_ref() : FullyConnectedKernelBase("fully_connected_gpu_yxfb_ref") {}
+class FullyConnected_yxfb_ref : public FullyConnectedKernelBase {
+public:
+    using Parent = FullyConnectedKernelBase;
 
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    FullyConnected_yxfb_ref() : FullyConnectedKernelBase("fully_connected_gpu_yxfb_ref") {}
 
-    protected:
-        ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ACTIVATION };
+    }
+    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
+};
+}  // namespace kernel_selector

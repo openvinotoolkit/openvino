@@ -2,11 +2,11 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
-#include "test_precomp.hpp"
-#include "opencv2/gapi/util/optional.hpp"
+#include "../test_precomp.hpp"
+#include <opencv2/gapi/util/optional.hpp>
 #include <opencv2/gapi/util/compiler_hints.hpp> //suppress_unused_warning
 
 namespace opencv_test

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -56,4 +56,8 @@ endif()
 include( FindPackageHandleStandardArgs )
 FIND_PACKAGE_HANDLE_STANDARD_ARGS( Cython REQUIRED_VARS CYTHON_EXECUTABLE )
 
-mark_as_advanced( CYTHON_EXECUTABLE )
+# Find Cython version
+execute_process(COMMAND ${CYTHON_EXECUTABLE} -V ERROR_VARIABLE CYTHON_OUTPUT OUTPUT_QUIET)
+string(REGEX REPLACE "^Cython version ([0-9]+\\.[0-9]+(\\.[0-9]+)?).*" "\\1" CYTHON_VERSION "${CYTHON_OUTPUT}")
+
+mark_as_advanced( CYTHON_EXECUTABLE CYTHON_VERSION )

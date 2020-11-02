@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 # ========================================= Name / Output settings =====================================
 
 set(CLDNN_BUILD__PROJ             "clDNN_unit_tests")
@@ -72,6 +71,11 @@ set(__CLDNN_Label__gtest               "google test framework")
 file(GLOB __CLDNN_Sources__gtest
     "${__CLDNN_Directory__gtest}/*.cc"
   )
+
+if(UNIX)
+    set_source_files_properties(${__CLDNN_Sources__gtest} PROPERTIES
+        COMPILE_FLAGS "-Wno-undef")
+endif()
   
 if (MSVC)
   file(GLOB __CLDNN_Sources__natvis
@@ -110,12 +114,14 @@ include_directories(
     "${CLDNN__MAIN_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${__CLDNN_Directory__test_utils}"
-    "${CLDNN__GTEST_DIR}"
     "${__CLDNN_Directory__ks_core}"
     "${__CLDNN_Directory__ks_core}/common"
     "${__CLDNN_Directory__ks_actual_kernels}"
     "${__CLDNN_Directory__ks_common}"
   )
+
+include_directories(SYSTEM
+    "${CLDNN__GTEST_DIR}")
 
 # =================================== Link targets and dependencies ====================================
 
@@ -125,7 +131,6 @@ add_executable("${CLDNN_BUILD__PROJ}"
   )
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
-
 
 # Set library dependencies
 target_link_libraries("${CLDNN_BUILD__PROJ}"
@@ -137,7 +142,7 @@ if(WIN32)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" pthread)
 endif()
-target_link_libraries("${CLDNN_BUILD__PROJ}" ${CLDNN__SYSTEM_LINK_LIBRARIES} OpenCL)
+target_link_libraries("${CLDNN_BUILD__PROJ}" ${CLDNN__SYSTEM_LINK_LIBRARIES})
 
 # =================================== Custom pre- and post-steps =======================================
 

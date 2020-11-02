@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import numpy as np
 
 
 class PB(dict):
+    def update_node(self):
+        pass
     __getattr__ = dict.get
 
 
@@ -47,8 +49,8 @@ class BaseExtractorsTestingClass(unittest.TestCase):
             elif type(val) is list:
                 self.assertTrue(np.all([val == self.res[key]]))
             else:
-                self.assertEqual(val, self.res[key],
-                                 "{} attribute comparison failed! Expected {} but {} given.".format(key, val,
+                self.assertAlmostEqual(val, self.res[key], 7,
+                                       "{} attribute comparison failed! Expected {} but {} given.".format(key, val,
                                                                                                     self.res[key]))
 
 

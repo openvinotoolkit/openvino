@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,8 @@ class PerfCount {
     uint64_t duration;
     uint32_t num;
 
-    std::chrono::high_resolution_clock::time_point __start;
-    std::chrono::high_resolution_clock::time_point __finish;
+    std::chrono::high_resolution_clock::time_point __start = {};
+    std::chrono::high_resolution_clock::time_point __finish = {};
 
 public:
     PerfCount(): duration(0), num(0) {}

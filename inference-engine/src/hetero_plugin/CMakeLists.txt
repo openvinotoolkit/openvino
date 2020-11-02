@@ -1,29 +1,24 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set (TARGET_NAME "HeteroPlugin")
 
-file(GLOB SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+
+ie_add_plugin(NAME ${TARGET_NAME}
+              DEVICE_NAME "HETERO"
+              SOURCES ${SOURCES} ${HEADERS}
+              VERSION_DEFINES_FOR hetero_plugin.cpp)
+
+ie_faster_build(${TARGET_NAME}
+    UNITY
 )
 
-file(GLOB HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
-)
+target_link_libraries(${TARGET_NAME} PRIVATE ade pugixml inference_engine
+    inference_engine_legacy ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
-addVersionDefines(hetero_plugin.cpp CI_BUILD_NUMBER)
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-include_directories(
-    ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_PLUGIN)
-
-add_library(${TARGET_NAME} SHARED ${SOURCES} ${HEADERS})
-target_link_libraries(${TARGET_NAME} inference_engine ${INTEL_ITT_LIBS})
-set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})

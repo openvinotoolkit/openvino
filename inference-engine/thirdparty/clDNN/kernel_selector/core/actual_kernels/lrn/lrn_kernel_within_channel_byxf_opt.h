@@ -17,22 +17,26 @@
 #pragma once
 
 #include "lrn_kernel_base.h"
+#include "vector"
 
-namespace kernel_selector
-{
-    class LRNKernelWithinChannelByxfOpt : public LRNKernelBase
-    {
-    public:
-        using Parent = LRNKernelBase;
-        LRNKernelWithinChannelByxfOpt() : LRNKernelBase("lrn_within_channel_byxf_opt") {}
-        virtual ~LRNKernelWithinChannelByxfOpt() {}
+namespace kernel_selector {
+class LRNKernelWithinChannelByxfOpt : public LRNKernelBase {
+public:
+    using Parent = LRNKernelBase;
+    LRNKernelWithinChannelByxfOpt() : LRNKernelBase("lrn_within_channel_byxf_opt") {}
+    virtual ~LRNKernelWithinChannelByxfOpt() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        bool Validate(const Params&, const optional_params&) const override;
-        virtual JitConstants GetJitConstants(const lrn_params& params, DispatchData kd) const override;
-        virtual DispatchData SetDefault(const lrn_params& params) const override;
-    };
-}
+private:
+    DispatchData SetDefault(const lrn_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
+    bool Validate(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
+};
+}  // namespace kernel_selector

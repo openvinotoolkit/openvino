@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ class ConvFrontExtractor(FrontExtractorOp):
     op = 'ConvolutionBinary'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         proto_layer, model_layer = node.pb, node.model_pb
 
         if not proto_layer:
@@ -40,7 +40,8 @@ class ConvFrontExtractor(FrontExtractorOp):
         attrs = conv_create_attrs(params)
         attrs.update({'op': __class__.op,
                       'get_group': lambda node: node.group,
-                      'get_output_feature_dim': lambda node: node.output
+                      'get_output_feature_dim': lambda node: node.output,
+                      'weights_index': 1 if conv_type == 'Conv2D' else 2
                       })
 
         # Embed weights and biases as attributes
@@ -51,5 +52,5 @@ class ConvFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         Convolution.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 

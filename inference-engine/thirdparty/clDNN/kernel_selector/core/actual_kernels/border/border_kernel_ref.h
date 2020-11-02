@@ -16,17 +16,12 @@
 
 #include "border_kernel_base.h"
 
+namespace kernel_selector {
+class BorderKernelRef : public BorderKernelBase {
+public:
+    BorderKernelRef() : BorderKernelBase("border_gpu_ref") {}
 
-namespace kernel_selector
-{
-    class BorderKernelRef : public BorderKernelBase
-    {
-    public:
-        BorderKernelRef() : BorderKernelBase("border_gpu_ref") {}
-
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

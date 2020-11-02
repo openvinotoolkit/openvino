@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ class TestShapesParsing(unittest.TestCase):
         exp_res = {
             'op': 'BatchNormalization',
             'type': 'BatchNormalization',
-            'epsilon': 10,
+            'eps': 10,
             'infer': copy_shape_infer
         }
         self.assertEqual(res, exp_res)
@@ -53,15 +53,21 @@ class TestShapesParsing(unittest.TestCase):
                              FakeModelLayer(blobs))
         exp_res = {
             'type': 'BatchNormalization',
-            'epsilon': 10,
+            'eps': 10,
             'infer': copy_shape_infer,
             'mean': mean_blob,
             'variance': variance_blob,
             'embedded_inputs': [
-                (1, 'mean', {
+                (1, 'gamma', {
+                    'bin': 'gamma'
+                }),
+                (2, 'beta', {
+                    'bin': 'beta'
+                }),
+                (3, 'mean', {
                     'bin': 'biases'
                 }),
-                (2, 'variance', {
+                (4, 'variance', {
                     'bin': 'weights'
                 })
             ]
@@ -81,15 +87,21 @@ class TestShapesParsing(unittest.TestCase):
                              FakeModelLayer(blobs))
         exp_res = {
             'type': 'BatchNormalization',
-            'epsilon': 10,
+            'eps': 10,
             'infer': copy_shape_infer,
             'mean': mean_blob * 0.2,
             'variance': variance_blob * 0.2,
             'embedded_inputs': [
-                (1, 'mean', {
+                (1, 'gamma', {
+                    'bin': 'gamma'
+                }),
+                (2, 'beta', {
+                    'bin': 'beta'
+                }),
+                (3, 'mean', {
                     'bin': 'biases'
                 }),
-                (2, 'variance', {
+                (4, 'variance', {
                     'bin': 'weights'
                 })
             ]
@@ -109,15 +121,21 @@ class TestShapesParsing(unittest.TestCase):
                              FakeModelLayer(blobs))
         exp_res = {
             'type': 'BatchNormalization',
-            'epsilon': 10,
+            'eps': 10,
             'infer': copy_shape_infer,
             'mean': mean_blob * 0.,
             'variance': variance_blob * 0.,
             'embedded_inputs': [
-                (1, 'mean', {
+                (1, 'gamma', {
+                    'bin': 'gamma'
+                }),
+                (2, 'beta', {
+                    'bin': 'beta'
+                }),
+                (3, 'mean', {
                     'bin': 'biases'
                 }),
-                (2, 'variance', {
+                (4, 'variance', {
                     'bin': 'weights'
                 })
             ]

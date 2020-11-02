@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,8 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
     case mkldnn::memory::data_type::s32:
         return 4;
     case mkldnn::memory::data_type::s16:
+        return 2;
+    case mkldnn::memory::data_type::bf16:
         return 2;
     case mkldnn::memory::data_type::s8:
         return 1;
@@ -39,9 +41,12 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
             return memory::s32;
         case InferenceEngine::Precision::I16:
             return memory::s16;
+        case InferenceEngine::Precision::BF16:
+            return memory::bf16;
         case InferenceEngine::Precision::I8:
             return memory::s8;
         case InferenceEngine::Precision::U8:
+        case InferenceEngine::Precision::BOOL:
             return memory::u8;
         case InferenceEngine::Precision::BIN:
             return memory::bin;
@@ -60,6 +65,8 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
             return InferenceEngine::Precision::I32;
         case memory::s16:
             return InferenceEngine::Precision::I16;
+        case memory::bf16:
+            return InferenceEngine::Precision::BF16;
         case memory::s8:
             return InferenceEngine::Precision::I8;
         case memory::u8:
@@ -87,9 +94,11 @@ InferenceEngine::TensorDesc MKLDNNExtensionUtils::getUninitTensorDesc(const Infe
                                         std::numeric_limits<size_t>::max(), zeroArr, notInitArr});
 }
 
-bool MKLDNNExtensionUtils::initTensorsAreEqual(InferenceEngine::TensorDesc desc1, InferenceEngine::TensorDesc desc2) {
+bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2) {
     if (desc1.getDims() != desc2.getDims() || desc1.getPrecision() != desc2.getPrecision())
         return false;
+    if (desc1.getLayout() == InferenceEngine::Layout::SCALAR && desc2.getLayout() == InferenceEngine::Layout::SCALAR)
+        return true;
     if (desc1.getLayout() == InferenceEngine::Layout::ANY || desc2.getLayout() == InferenceEngine::Layout::ANY)
         return true;
     bool batch1 = desc1.getDims()[0] == 1;

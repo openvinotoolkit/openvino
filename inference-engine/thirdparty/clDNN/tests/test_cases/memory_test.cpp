@@ -17,18 +17,18 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <gtest/gtest.h>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/activation.hpp>
-#include <api/CPP/pooling.hpp>
-#include <api/CPP/concatenation.hpp>
-#include <api/CPP/data.hpp>
-#include <api/CPP/reshape.hpp>
-#include <api/CPP/crop.hpp>
-#include <api/CPP/scale.hpp>
+#include <api/engine.hpp>
+#include <api/memory.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/input_layout.hpp>
+#include <api/activation.hpp>
+#include <api/pooling.hpp>
+#include <api/concatenation.hpp>
+#include <api/data.hpp>
+#include <api/reshape.hpp>
+#include <api/crop.hpp>
+#include <api/scale.hpp>
 
 #include "test_utils/test_utils.h"
 
@@ -44,7 +44,7 @@ TEST(memory_tests, DISABLED_execution_loop)
 
     topology tpl{
         input_layout("in", in.get_layout()),
-        activation("out", "in", activation_linear)
+        activation("out", "in", activation_func::linear)
     };
 
     network net(eng, tpl);
@@ -64,7 +64,7 @@ TEST(memory_tests, DISABLED_network_creation_loop)
 
     topology tpl{
         input_layout("in", in.get_layout()),
-        activation("out", "in", activation_linear)
+        activation("out", "in", activation_func::linear)
     };
 
     while (true)
@@ -85,12 +85,12 @@ TEST(memory_pool, basic_non_padded_relu_pipe) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(activation("relu", "input", activation_relu));
-    topology.add(activation("relu1", "relu", activation_relu));
-    topology.add(activation("relu2", "relu1", activation_relu));
-    topology.add(activation("relu3", "relu2", activation_relu));
-    topology.add(activation("relu4", "relu3", activation_relu));
-    topology.add(activation("relu5", "relu4", activation_relu));
+    topology.add(activation("relu", "input", activation_func::relu));
+    topology.add(activation("relu1", "relu", activation_func::relu));
+    topology.add(activation("relu2", "relu1", activation_func::relu));
+    topology.add(activation("relu3", "relu2", activation_func::relu));
+    topology.add(activation("relu4", "relu3", activation_func::relu));
+    topology.add(activation("relu5", "relu4", activation_func::relu));
 
     std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
     set_values(input, input_vec);
@@ -101,9 +101,8 @@ TEST(memory_pool, basic_non_padded_relu_pipe) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 80);
+    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 64);
  }
-
 
 TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
     // uncomment this line to disable memory pool
@@ -119,13 +118,13 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(activation("relu", "input", activation_relu));
-    topology.add(activation("relu1", "relu", activation_relu));
+    topology.add(activation("relu", "input", activation_func::relu));
+    topology.add(activation("relu1", "relu", activation_func::relu));
     topology.add(pooling("pool1", "relu1",pooling_mode::max, { 1,1,3,3 }, { 1,1,2,2 }));
-    topology.add(activation("relu2", "pool1", activation_relu));
-    topology.add(activation("relu3", "relu2", activation_relu));
-    topology.add(activation("relu4", "relu3", activation_relu));
-    topology.add(activation("relu5", "relu4", activation_relu));
+    topology.add(activation("relu2", "pool1", activation_func::relu));
+    topology.add(activation("relu3", "relu2", activation_func::relu));
+    topology.add(activation("relu4", "relu3", activation_func::relu));
+    topology.add(activation("relu5", "relu4", activation_func::relu));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -134,15 +133,14 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)1088);
+    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)896);
 }
-
 
 TEST(memory_pool, multi_outputs_network) {
     //            -- relu -- relu1 -- relu4
-    //     input<           
+    //     input<
     //            -- relu2 --  relu3 -- relu5--relu6--relu7
-    // neither of relu5, relu6 nor relu7 can share resource with relu4. 
+    // neither of relu5, relu6 nor relu7 can share resource with relu4.
 
     // uncomment this line to disable memory pool
     /*engine_configuration cfg{ false, false, false, std::string(), std::string(), true, std::string(),std::string(), 0, false };
@@ -157,14 +155,14 @@ TEST(memory_pool, multi_outputs_network) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(activation("relu", "input", activation_relu));
-    topology.add(activation("relu1", "relu", activation_relu));
-    topology.add(activation("relu2", "input", activation_relu));
-    topology.add(activation("relu3", "relu2", activation_relu));
-    topology.add(activation("relu4", "relu1", activation_relu));
-    topology.add(activation("relu5", "relu3", activation_relu));
-    topology.add(activation("relu6", "relu5", activation_relu));
-    topology.add(activation("relu7", "relu6", activation_relu));
+    topology.add(activation("relu", "input", activation_func::relu));
+    topology.add(activation("relu1", "relu", activation_func::relu));
+    topology.add(activation("relu2", "input", activation_func::relu));
+    topology.add(activation("relu3", "relu2", activation_func::relu));
+    topology.add(activation("relu4", "relu1", activation_func::relu));
+    topology.add(activation("relu5", "relu3", activation_func::relu));
+    topology.add(activation("relu6", "relu5", activation_func::relu));
+    topology.add(activation("relu7", "relu6", activation_func::relu));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -173,14 +171,13 @@ TEST(memory_pool, multi_outputs_network) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)2048);
+    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)1536);
 }
 
-
 TEST(memory_pool, oooq) {
-    /*          -- relu1 - concat1- relu4 -- 
+    /*          -- relu1 - concat1- relu4 --
         input<  -- relu2 /                   >-- concat2 -- relu6
-                -- relu3 --  relu5 --------- 
+                -- relu3 --  relu5 ---------
        neither of relu5, relu6 nor relu7 can share resource with relu4. */
 
     engine_configuration cfg{ false, false, false, std::string(), std::string(), true /*oooq*/, std::string(),std::string(), priority_mode_types::disabled, throttle_mode_types::disabled, true /*mem_pool*/ };
@@ -194,14 +191,14 @@ TEST(memory_pool, oooq) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(activation("relu1", "input", activation_relu));
-    topology.add(activation("relu2", "input", activation_relu));
-    topology.add(activation("relu3", "input", activation_relu));
+    topology.add(activation("relu1", "input", activation_func::relu));
+    topology.add(activation("relu2", "input", activation_func::relu));
+    topology.add(activation("relu3", "input", activation_func::relu));
     topology.add(concatenation("concat1", { "relu1", "relu2"},concatenation::along_f));
-    topology.add(activation("relu4", "concat1", activation_relu));
-    topology.add(activation("relu5", "relu3", activation_relu));
+    topology.add(activation("relu4", "concat1", activation_func::relu));
+    topology.add(activation("relu5", "relu3", activation_func::relu));
     topology.add(concatenation("concat2", { "relu4", "relu5" }, concatenation::along_f));
-    topology.add(activation("relu6", "concat2", activation_relu));
+    topology.add(activation("relu6", "concat2", activation_func::relu));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -210,10 +207,10 @@ TEST(memory_pool, oooq) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 2816);
+    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 2560);
 }
 
-TEST(memory_pool, shared_mem_pool_same_topology_twice) {
+TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     /*                -- relu1 - concat1- relu4 --
     input<  -- relu2 |                             >-- concat2 -- relu6
                       -- relu3 --  relu5 ---------
@@ -228,7 +225,7 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
 
-    set_values(input, 
+    set_values(input,
     {   1.0f, 2.5f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 6.1f, 4.7f, 1.0f, 1.0f, 8.2f, 1.0f, 2.0f, 1.0f,
         5.0f, 2.0f, 2.0f, 3.0f, 5.0f, 2.0f, 2.0f, 3.0f, 1.1f, 2.4f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.6f,
         4.0f, 6.0f, 3.0f, 3.0f, 1.0f, 1.0f, 1.5f, 1.0f, 4.0f, 6.5f, 3.0f, 3.0f, 4.0f, 6.0f, 1.8f, 3.5f,
@@ -237,14 +234,14 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(activation("relu1", "input", activation_relu));
-    topology.add(activation("relu2", "input", activation_sqrt));
-    topology.add(activation("relu3", "input", activation_square));
+    topology.add(activation("relu1", "input", activation_func::relu));
+    topology.add(activation("relu2", "input", activation_func::sqrt));
+    topology.add(activation("relu3", "input", activation_func::square));
     topology.add(concatenation("concat1", { "relu1", "relu2" }, concatenation::along_f));
-    topology.add(activation("relu4", "concat1", activation_relu));
-    topology.add(activation("relu5", "relu3", activation_relu));
+    topology.add(activation("relu4", "concat1", activation_func::relu));
+    topology.add(activation("relu5", "relu3", activation_func::relu));
     topology.add(concatenation("concat2", { "relu4", "relu5" }, concatenation::along_f));
-    topology.add(activation("relu6", "concat2", activation_linear, {1.0f, 0.5f}));
+    topology.add(activation("relu6", "concat2", activation_func::linear, {1.0f, 0.5f}));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -257,7 +254,7 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice) {
     auto output_layout_first = output_memory_first.get_layout();
     auto output_ptr_first = output_memory_first.pointer<float>();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 2816);
+    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 2560);
 
     network network_second(engine, topology, bo);
     network_second.set_input_data("input", input);
@@ -267,7 +264,8 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice) {
     auto output_layout_second = output_memory_second.get_layout();
     auto output_ptr_second = output_memory_second.pointer<float>();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 3584);
+    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 3328);
+
     EXPECT_EQ(output_layout_first, output_layout_second);
 
     int y_size = output_layout_first.size.spatial[1];
@@ -280,19 +278,19 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice) {
     {
         for (int f = 0; f < f_size; ++f)
         {
-            for (int y = 0; y < y_size; ++y) 
+            for (int y = 0; y < y_size; ++y)
             {
-                for (int x = 0; x < x_size; ++x) 
+                for (int x = 0; x < x_size; ++x)
                 {
                     int idx = b * b_offset + f * f_offset + y * x_size + x;
                     EXPECT_EQ(output_ptr_first[idx], output_ptr_second[idx]);
                 }
             }
         }
-    } 
+    }
 }
 
-TEST(memory_pool, shared_mem_pool_same_topology_twice_weights) {
+TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
 
     engine_configuration cfg{ false, false, false, std::string(), std::string(), true /*oooq*/, std::string(),std::string(), priority_mode_types::disabled, throttle_mode_types::disabled, true /*mem_pool*/ };
     engine engine{ cfg };
@@ -303,7 +301,7 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice_weights) {
 
     auto input= memory::allocate(engine, { data_types::f32, format::bfyx,{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
     auto weights = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
-    
+
     std::vector<float> dummy_input_data_1 = {
        /*f0 xy*/ 0.8f, 0.65f, 0.1f, 1.0f, 1.0f, 0.5f, 0.11f, 0.33f, 0.66f, 0.11f, 0.22f, 0.33f, 0.99f, 0.8f, 0.7f, 0.5f,
        /*f1 xy*/ 0.48f, 0.05f, 0.35f, 1.0f, 1.0f, 0.51f, 0.51f, 0.13f, 0.86f, 0.10f, 0.29f, 0.53f, 0.99f, 0.4f, 0.3f, 0.1f,
@@ -325,8 +323,11 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice_weights) {
     network network_first(engine, topology, bo);
     network_first.set_input_data("input", input);
     auto outputs = network_first.execute();
-
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)824);
+    uint64_t cl_mem_result = 824;
+    uint64_t usm_result = 1208; // USM have a higher peak, since transfering memory to device adds temporay memory bytes allocated. Old memory is deallocated quickly, but max peak is higher.
+    auto is_correct = engine.get_max_used_device_memory_size() == cl_mem_result
+        || engine.get_max_used_device_memory_size() == usm_result;
+    EXPECT_TRUE(is_correct) << "Memory max peak is not correct";
 
     auto output_memory_first = outputs.at("softmax").get_memory();
     auto output_layout_first = output_memory_first.get_layout();
@@ -340,7 +341,11 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice_weights) {
     auto output_layout_second = output_memory_second.get_layout();
     auto output_ptr_second = output_memory_second.pointer<float>();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)1224);
+    cl_mem_result = 1224;
+    usm_result = 1992; // USM have a higher peak, since transfering memory to device adds temporay memory bytes allocated. Old memory is deallocated quickly, but max peak is higher.
+    is_correct = engine.get_max_used_device_memory_size() == cl_mem_result
+        || engine.get_max_used_device_memory_size() == usm_result;
+    EXPECT_TRUE(is_correct) << "Memory max peak is not correct";
     EXPECT_EQ(output_layout_first, output_layout_second);
 
     int y_size = output_layout_first.size.spatial[1];
@@ -364,7 +369,6 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice_weights) {
         }
     }
 }
-
 
 TEST(memory_pool, shared_mem_pool_diff_batches) {
 
@@ -403,6 +407,7 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     network_first.set_input_data("input", input_8);
     auto outputs = network_first.execute();
 
+    auto dev_info = engine.get_info();
     EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)3928);
 
     topo.change_input_layout("input", input_1.get_layout());//change input layout to batch=1
@@ -410,7 +415,6 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     network network_second(engine, topo, bo);
     network_second.set_input_data("input", input_1);
     auto outputs_second = network_second.execute();
-
     EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)3928);
 }
 
@@ -524,16 +528,15 @@ TEST(memory_pool, add_mem_dep_test) {
         5.0f, 6.0f, 7.0f, 8.0f});
     set_values(scale_memory, { 1.0f });
 
-
     auto input = cldnn::input_layout("input1", input_layout1);
-    auto actv1 = cldnn::activation("input_activ1", "input1", cldnn_activation_func::activation_abs);
-    auto actv2 = cldnn::activation("input_activ2", "input1", cldnn_activation_func::activation_abs);
+    auto actv1 = cldnn::activation("input_activ1", "input1", activation_func::abs);
+    auto actv2 = cldnn::activation("input_activ2", "input1", activation_func::abs);
     auto crop1 = cldnn::crop("crop1", "input_activ1", { 1,1,2,2 }, { 0, 0, 0, 0 });
     auto crop2 = cldnn::crop("crop2", "input_activ2", { 1,1,2,2 }, { 0, 1, 0, 0 });
     auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
     auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
-    auto actv3 = cldnn::activation("out3", "elt1", cldnn_activation_func::activation_abs);
-    auto actv4 = cldnn::activation("out4", "elt2", cldnn_activation_func::activation_abs);
+    auto actv3 = cldnn::activation("out3", "elt1", activation_func::abs);
+    auto actv4 = cldnn::activation("out4", "elt2", activation_func::abs);
 
     auto topology = cldnn::topology(
         input,

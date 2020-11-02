@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,50 +14,41 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// one_hot_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct one_hot_params : public base_params {
+    one_hot_params() : base_params(KernelType::ONE_HOT),
+    one_hot_axis(0), one_hot_limit(0), on_value(1.0), off_value(1.0) {}
+    uint16_t one_hot_axis;
+    int32_t one_hot_limit;
+    float on_value;
+    float off_value;
+};
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // one_hot_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct one_hot_params : public base_params
-    {
-        one_hot_params()
-            : base_params(KernelType::ONE_HOT)
-        {
-        }
-        uint16_t one_hot_axis;
-        int32_t one_hot_limit;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// one_hot_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct one_hot_optional_params : optional_params {
+    one_hot_optional_params() : optional_params(KernelType::ONE_HOT) {}
+};
 
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// OneHotKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class OneHotKernelBase : public KernelBaseOpenCL {
+public:
+    using KernelBaseOpenCL::KernelBaseOpenCL;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // one_hot_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct one_hot_optional_params : optional_params
-    {
-        one_hot_optional_params()
-            : optional_params(KernelType::ONE_HOT)
-        {
-        }
-    };
+    using DispatchData = CommonDispatchData;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // OneHotKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class OneHotKernelBase : public common_kernel_base
-    {
-    public:
-        using common_kernel_base::common_kernel_base;
-
-        using DispatchData = CommonDispatchData;
-
-    protected:
-        static JitConstants GetJitConstants(const one_hot_params& params);
-        static DispatchData SetDefault(const one_hot_params& params);
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
-    };
-}
+protected:
+    JitConstants GetJitConstants(const one_hot_params& params) const;
+    static DispatchData SetDefault(const one_hot_params& params);
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+};
+}  // namespace kernel_selector

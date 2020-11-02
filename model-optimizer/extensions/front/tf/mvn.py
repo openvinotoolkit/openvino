@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,29 +16,23 @@
 
 import logging as log
 
-import networkx as nx
-
-from extensions.front.squared_difference import SquaredDifference
+from extensions.ops.elementwise import Mul, Add
+from extensions.ops.mvn import MVN
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
-from mo.ops.eltwise import Eltwise
-from mo.ops.op import Op
 
 
-class MVN(FrontReplacementSubgraph):
+class MVNReplacer(FrontReplacementSubgraph):
     enabled = True
-
-    def run_before(self):
-        return [SquaredDifference]
 
     def pattern(self):
         log.debug('Enabled MVN replacement')
         return dict(
             nodes=[
-                ('mean', dict(op='Mean')),
+                ('mean', dict(op='ReduceMean')),
                 ('stop_grad', dict(op='StopGradient')),
                 ('sqdiff', dict(op='SquaredDifference')),
-                ('variance', dict(op='Mean')),
+                ('variance', dict(op='ReduceMean')),
                 ('squeeze_mean', dict(op='Squeeze')),
                 ('squeeze_variance', dict(op='Squeeze')),
                 ('fbn', dict(op='FusedBatchNorm')),
@@ -61,7 +55,6 @@ class MVN(FrontReplacementSubgraph):
             return
 
         log.debug('Confirmed MVN pattern after {} with name {}'.format(input.op, input.name))
-        MVN = Op.get_op_class_by_name('MVN')
 
         mvn = MVN(graph, dict(
             name=fbn.name + '/MVN_',
@@ -71,8 +64,8 @@ class MVN(FrontReplacementSubgraph):
         mvn.attrs['old_infer'] = mvn.attrs['infer']
         mvn.attrs['infer'] = __class__.infer
 
-        mul = Eltwise(graph, dict(operation='mul', name=fbn.name + '/Mul_'))
-        add = Eltwise(graph, dict(operation='sum', name=fbn.name + '/Add_'))
+        mul = Mul(graph, dict(operation='mul', name=fbn.name + '/Mul_'))
+        add = Add(graph, dict(operation='sum', name=fbn.name + '/Add_'))
 
         input_gamma = fbn.in_node(1)
         input_beta = fbn.in_node(2)

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,14 +25,14 @@ from mo.utils.unittest.graph import build_graph
 wrong_attrs_graph = {'node_1': {'type': 'Identity', 'kind': 'op'},
                      'accum': {'type': 'Accum', 'kind': 'op'},
                      'node_3': {'type': 'Identity', 'kind': 'op'},
-                     'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+                     'op_output': { 'kind': 'op', 'op': 'Result'}
                      }
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'node_2': {'type': 'Identity', 'kind': 'op'},
                     'accum': {'type': 'Accum', 'kind': 'op'},
                     'node_3': {'type': 'Identity', 'kind': 'op'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': { 'kind': 'op', 'op': 'Result'}
                     }
 
 

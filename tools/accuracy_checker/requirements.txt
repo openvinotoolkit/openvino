@@ -1,9 +1,0 @@
- numpy
-tqdm
-PyYAML
-pillow
-scikit-learn
-scipy<=0.19
-py-cpuinfo
-shapely
-nibabel

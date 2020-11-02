@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,21 +16,27 @@
 
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.softmax import Softmax
+from mo.ops.softmax import SoftmaxONNX
+from mo.ops.log_softmax import LogSoftmaxONNX
 
 
-class SoftmaxFrontExtractor(FrontExtractorOp):
+class SoftmaxExtractor(FrontExtractorOp):
     op = 'Softmax'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         axis = onnx_attr(node, 'axis', 'i', default=1)
+        SoftmaxONNX.update_node_stat(node, {'axis': axis})
+        return cls.enabled
 
-        attrs = {
-            'axis': axis
-        }
 
-        # update the attributes of the node
-        Softmax.update_node_stat(node, attrs)
-        return __class__.enabled
+class LogSoftmaxExtractor(FrontExtractorOp):
+    op = 'LogSoftmax'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        axis = onnx_attr(node, 'axis', 'i', default=1)
+        LogSoftmaxONNX.update_node_stat(node, {'axis': axis})
+        return cls.enabled

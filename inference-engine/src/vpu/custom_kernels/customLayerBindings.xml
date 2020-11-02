@@ -1,0 +1,507 @@
+<CustomLayer name="ReorgYolo" type="MVCL" version="1">
+    <Kernel entry="reorg_hwc_naive">
+        <Source filename="reorg_hwc_naive.bin"/>
+        <Parameters>
+            <Tensor arg-name="src" type="input" port-index="0" format="BYXF"/>
+            <Tensor arg-name="dst" type="output" port-index="0" format="BYXF"/>
+            <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="C" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="stride" type="int" source="stride"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="F,1,1" local="stride*stride,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="ReorgYolo" type="MVCL" version="1">
+    <Kernel entry="reorg_chw">
+        <Source filename="reorg_chw.bin"/>
+        <Parameters>
+            <Tensor arg-name="src" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="C" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="stride" type="int" source="stride"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="Y*F/(stride*stride),stride*stride,1" local="stride,stride,1"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="RegionYolo" type="MVCL" version="1">
+    <Where do_softmax="1"/>
+    <Kernel entry="region_chw">
+        <Source filename="region_chw.bin"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="classes" type="int" source="classes"/>
+            <Scalar arg-name="coords" type="int" source="coords"/>
+            <Scalar arg-name="num" type="int" source="num"/>
+            <Scalar arg-name="maskSize" type="int" source="3"/>
+            <Scalar arg-name="doSoftmax" type="int" source="do_softmax"/>
+        </Parameters>
+        <WorkSizes global="((X*Y+7)/8)*8,num,1" local="((X*Y+7)/8)*8,1,1" dim="input,0"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="RegionYolo" type="MVCL" version="1">-->
+   <Where do_softmax="0" mask="0,1,2"/>
+   <Kernel entry="region_chw">
+       <Source filename="region_chw.bin"/>
+       <Parameters>
+           <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+           <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+           <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+           <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+           <Scalar arg-name="classes" type="int" source="classes"/>
+           <Scalar arg-name="coords" type="int" source="coords"/>
+           <Scalar arg-name="num" type="int" source="num"/>
+           <Scalar arg-name="maskSize" type="int" source="3"/>
+           <Scalar arg-name="doSoftmax" type="int" source="do_softmax"/>
+       </Parameters>
+       <WorkSizes global="((X*Y+7)/8)*8,3,1" local="((X*Y+7)/8)*8,1,1" dim="input,0"/>
+   </Kernel>
+</CustomLayer>
+
+<CustomLayer name="RegionYolo" type="MVCL" version="1">
+   <Where do_softmax="1"/>
+   <Kernel entry="region_hwc">
+       <Source filename="region_hwc.bin"/>
+       <Parameters>
+           <Tensor arg-name="src" type="input" port-index="0" format="BYXF"/>
+           <Tensor arg-name="dst" type="output" port-index="0" format="BYXF"/>
+           <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+           <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+           <Scalar arg-name="classes" type="int" source="classes"/>
+           <Scalar arg-name="coords" type="int" source="coords"/>
+           <Scalar arg-name="num" type="int" source="num"/>
+           <Scalar arg-name="maskSize" type="int" source="3"/>
+           <Scalar arg-name="doSoftmax" type="int" source="do_softmax"/>
+       </Parameters>
+       <WorkSizes global="((X*Y+7)/8)*8,num,1" local="((X*Y+7)/8)*8,1,1" dim="input,0"/>
+   </Kernel>
+</CustomLayer>
+
+<CustomLayer name="RegionYolo" type="MVCL" version="1">
+   <Where do_softmax="0" mask="0,1,2"/>
+   <Kernel entry="region_hwc">
+       <Source filename="region_hwc.bin"/>
+       <Parameters>
+           <Tensor arg-name="src" type="input" port-index="0" format="BYXF"/>
+           <Tensor arg-name="dst" type="output" port-index="0" format="BYXF"/>
+           <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+           <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+           <Scalar arg-name="classes" type="int" source="classes"/>
+           <Scalar arg-name="coords" type="int" source="coords"/>
+           <Scalar arg-name="num" type="int" source="num"/>
+           <Scalar arg-name="maskSize" type="int" source="3"/>
+           <Scalar arg-name="doSoftmax" type="int" source="do_softmax"/>
+       </Parameters>
+       <WorkSizes global="((X*Y+7)/8)*8,3,1" local="((X*Y+7)/8)*8,1,1" dim="input,0"/>
+   </Kernel>
+</CustomLayer>
+
+<!-- Pixel-wise kernel binding, local work group config is per line in the input tensor  -->
+<CustomLayer name="GRN" type="MVCL" version="1">
+    <Kernel entry="grn">
+        <Source filename="grn.bin"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="C" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="bias" type="float" source="bias"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="X,Y,1" local="X,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<!-- Two stage layer binding, first kernel computes mean and variance, the second one normalizes input tensor-->
+<CustomLayer name="MVN" type="MVCL" version="1">
+    <Kernel entry="reduction_mean" stage="0">
+        <Source filename="mvn_reduction.bin"/>
+        <Parameters>
+            <Tensor arg-name="src" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="mean" type="output_buffer" port-index="0" dim="output,0" size="Y*F*4"/>
+            <Tensor arg-name="variance" type="output_buffer" port-index="1" dim="output,0" size="Y*F*4"/>
+            <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="across_channels" type="int" source="across_channels"/>
+        </Parameters>
+        <WorkSizes dim="output,0" global="1,Y,F" local="1,1,1"/>
+    </Kernel>
+    <Kernel entry="mvn_scale" stage="1">
+        <Source filename="mvn_scale.bin"/>
+        <Parameters>
+            <Tensor arg-name="src" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst" type="output" port-index="0" format="BFYX"/>
+            <Tensor arg-name="mean_part" type="input_buffer" port-index="0" dim="output,0" size="Y*F*4"/>
+            <Tensor arg-name="power_mean" type="input_buffer" port-index="1" dim="output,0" size="Y*F*4"/>
+            <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="H1" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="across_channels" type="int" source="across_channels"/>
+            <Scalar arg-name="normalize_variance" type="int" source="normalize_variance"/>
+            <Scalar arg-name="nparts" type="int" port-index="0" source="I.Y"/>
+        </Parameters>
+        <WorkSizes dim="output,0" global="1,Y,F" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<!-- Single work group kernel for not embarrassingly-parallel use-case -->
+<CustomLayer name="CTCGreedyDecoder" type="MVCL" version="1" max-shaves="1">
+    <Kernel entry="CTCDecoder">
+        <Source filename="ctc.bin"/>
+        <Parameters>
+            <Tensor arg-name="probabilities" type="input" port-index="0" format="FYX"/>
+            <Tensor arg-name="sequence_indicators" type="input" port-index="1" format="BF"/>
+            <Tensor arg-name="output" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="width" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="height" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="channels" type="int" port-index="0" source="I.F"/>
+        </Parameters>
+        <WorkSizes dim="output,0" global="1,1,1" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="ShuffleChannel" type="MVCL" version="1">
+    <!-- artificially added where closure for testing reasons, kernel itself supports arbitrary grouping -->
+    <!-- <Where group="2"/> -->
+    <Kernel entry="ShuffleChannel">
+        <Source filename="shuffle_channels.bin"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="C" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="G" type="int" source="group"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="F,1,1" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<!-- Reference version of generic quantize layer, should be changed to FakeQuantize-->
+<CustomLayer name="FakeQuantize" type="MVCL" version="1">
+    <Kernel entry="quantize">
+        <Source filename="fakequantize.bin"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="input_low" type="input" port-index="1" format="ANY"/>
+            <Tensor arg-name="input_high" type="input" port-index="2" format="ANY"/>
+            <Tensor arg-name="output_low" type="input" port-index="3" format="ANY"/>
+            <Tensor arg-name="output_high" type="input" port-index="4" format="ANY"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="levels" type="int" source="levels"/>
+            <Scalar arg-name="input_low_size" type="int" port-index="1" source="I.F"/>
+            <Scalar arg-name="input_high_size" type="int" port-index="2" source="I.F"/>
+            <Scalar arg-name="output_low_size" type="int" port-index="3" source="I.F"/>
+            <Scalar arg-name="output_high_size" type="int" port-index="4" source="I.F"/>
+            <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="1,Y,F" local="1,Y,1"/>
+    </Kernel>
+</CustomLayer>
+
+<!-- Reference version of generic quantize layer, should be changed to FakeQuantize-->
+<CustomLayer name="FakeQuantizeBin" type="MVCL" version="1">
+    <Where levels="2"/>
+    <Kernel entry="binarization">
+        <Source filename="binarization.bin"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="input_low_high" type="input" port-index="1" format="BFYX"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="switch_out" type="int" source="switch_out"/>
+            <Scalar arg-name="input_low_high_size" type="int" source="input_low_size"/>
+            <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
+            <Tensor arg-name="input_high" type="input" port-index="2" format="BFYX"/>
+            <Tensor arg-name="output_low" type="input" port-index="3" format="BFYX"/>
+            <Tensor arg-name="output_high" type="input" port-index="4" format="BFYX"/>
+            <Scalar arg-name="input_high_size" type="int" source="input_high_size"/>
+            <Scalar arg-name="output_low_size" type="int" source="output_low_size"/>
+            <Scalar arg-name="output_high_size" type="int" source="output_high_size"/>
+            <Data arg-name="src_local" type="local_data" dim="input,0" size="X*Y*2"/>
+            <Data arg-name="dst_local" type="local_data" dim="input,0" size="X*Y*2"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="1,1,F" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="BinaryConvolution" type="MVCL" version="1">
+    <Where kernel="3,3"/>
+    <Kernel entry="binary_convolution">
+        <Source filename="binary_convolution3x3.bin"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Data arg-name="weights_data" type="data" source="weights" format="ANY"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="pad_value" type="float" source="pad_value"/>
+            <Scalar arg-name="IW" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="IH" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="IC" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="DW" type="int" port-index="0" source="dilations"/>
+            <Scalar arg-name="DH" type="int" port-index="1" source="dilations"/>
+            <Scalar arg-name="GC" type="int" source="group"/>
+            <Scalar arg-name="KW" type="int" port-index="0" source="kernel"/>
+            <Scalar arg-name="KH" type="int" port-index="1" source="kernel"/>
+            <Scalar arg-name="PW" type="int" port-index="0" source="pads_begin"/>
+            <Scalar arg-name="PH" type="int" port-index="1" source="pads_begin"/>
+            <Scalar arg-name="SW" type="int" port-index="0" source="strides"/>
+            <Scalar arg-name="SH" type="int" port-index="1" source="strides"/>
+            <Scalar arg-name="OW" type="int" port-index="0" source="O.X"/>
+        </Parameters>
+        <WorkSizes dim="output,0" global="Y,F,1" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="BinaryConvolution" type="MVCL" version="1">
+    <Where kernel="1,1"/>
+    <Kernel entry="binary_convolution">
+        <Source filename="binary_convolution1x1.bin"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Data arg-name="weights_data" type="data" source="weights" format="ANY"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="pad_value" type="float" source="pad_value"/>
+            <Scalar arg-name="IW" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="IH" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="IC" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="DW" type="int" port-index="0" source="dilations"/>
+            <Scalar arg-name="DH" type="int" port-index="1" source="dilations"/>
+            <Scalar arg-name="GC" type="int" source="group"/>
+            <Scalar arg-name="KW" type="int" port-index="0" source="kernel"/>
+            <Scalar arg-name="KH" type="int" port-index="1" source="kernel"/>
+            <Scalar arg-name="PW" type="int" port-index="0" source="pads_begin"/>
+            <Scalar arg-name="PH" type="int" port-index="1" source="pads_begin"/>
+            <Scalar arg-name="SW" type="int" port-index="0" source="strides"/>
+            <Scalar arg-name="SH" type="int" port-index="1" source="strides"/>
+            <Scalar arg-name="OW" type="int" port-index="0" source="O.X"/>
+        </Parameters>
+        <WorkSizes dim="output,0" global="Y,F,1" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<!-- Reference version of generic quantize binary convolution -->
+<!-- An example of a kernel binding that uses data blob from IR -->
+<CustomLayer name="BinaryConvolution" type="MVCL" version="1">
+    <Kernel entry="binary_convolution">
+        <Source filename="binary_convolution.bin"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Data arg-name="weights_data" type="data" source="weights" format="ANY"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="pad_value" type="float" source="pad_value"/>
+            <Scalar arg-name="IW" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="IH" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="IC" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="DW" type="int" port-index="0" source="dilations"/>
+            <Scalar arg-name="DH" type="int" port-index="1" source="dilations"/>
+            <Scalar arg-name="GC" type="int" source="group"/>
+            <Scalar arg-name="KW" type="int" port-index="0" source="kernel"/>
+            <Scalar arg-name="KH" type="int" port-index="1" source="kernel"/>
+            <Scalar arg-name="PW" type="int" port-index="0" source="pads_begin"/>
+            <Scalar arg-name="PH" type="int" port-index="1" source="pads_begin"/>
+            <Scalar arg-name="SW" type="int" port-index="0" source="strides"/>
+            <Scalar arg-name="SH" type="int" port-index="1" source="strides"/>
+        </Parameters>
+        <WorkSizes dim="output,0" global="X,Y,F" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="Resample" type="MVCL" version="1">
+    <Where antialias="0"/>
+    <Kernel entry="resample_nearest">
+        <Source filename="resample_noAA.bin"/>
+        <Parameters>
+            <Tensor arg-name="src" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="iw" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="ih" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="factor" type="float" source="factor"/>
+            <Scalar arg-name="ow" type="int" port-index="0" source="O.X"/>
+            <Scalar arg-name="oh" type="int" port-index="0" source="O.Y"/>
+            <Scalar arg-name="channels" type="int" port-index="0" source="I.F"/>
+        </Parameters>
+        <WorkSizes global="1,Y,1" local="1,1,1" dim="output,0"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="Resample" type="MVCL" version="1">
+    <Where antialias="1"/>
+    <Kernel entry="resample_with_antialias">
+        <Source filename="resample_AA.bin"/>
+        <Parameters>
+            <Tensor arg-name="src" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="iw" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="ih" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="factor" type="float" source="factor"/>
+            <Scalar arg-name="ow" type="int" port-index="0" source="O.X"/>
+            <Scalar arg-name="oh" type="int" port-index="0" source="O.Y"/>
+            <Scalar arg-name="channels" type="int" port-index="0" source="I.F"/>
+        </Parameters>
+        <WorkSizes global="1,round(Y*factor),F" local="1,1,F" dim="input,0"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="Convolution" type="MVCL" version="1">
+    <Where kernel="1,1" dilation="1,1"/>
+    <Kernel entry="Convolution1x1_NCHW">
+       <Source filename="convolution1x1_chw.bin"/>
+       <Parameters>
+           <Tensor arg-name="in" type="input" port-index="0" format="BFYX"/>
+           <Tensor arg-name="out" type="output" port-index="0" format="BFYX"/>
+           <Data arg-name="w" type="data" source="weights" format="ANY"/>
+           <Scalar arg-name="IW" type="int" port-index="0" source="I.X"/>
+           <Scalar arg-name="IH" type="int" port-index="0" source="I.Y"/>
+           <Scalar arg-name="IC" type="int" port-index="0" source="I.F"/>
+           <Scalar arg-name="OW" type="int" port-index="0" source="O.X"/>
+           <Scalar arg-name="OH" type="int" port-index="0" source="O.Y"/>
+           <Scalar arg-name="OC" type="int" port-index="0" source="O.F"/>
+
+           <Scalar arg-name="stride-x" type="int" port-index="0" source="stride"/>
+           <Scalar arg-name="stride-y" type="int" port-index="1" source="stride"/>
+           <Scalar arg-name="pad-x" type="int" port-index="0" source="pads_begin"/>
+           <Scalar arg-name="pad-y" type="int" port-index="1" source="pads_begin"/>
+           <Scalar arg-name="kernel-x" type="int" port-index="0" source="kernel"/>
+           <Scalar arg-name="kernel-y" type="int" port-index="1" source="kernel"/>
+           <Scalar arg-name="output" type="int" port-index="0" source="output"/>
+           <Scalar arg-name="group" type="int" port-index="0" source="group"/>
+       </Parameters>
+       <WorkSizes global="Y,F,B" local="1,1,1" dim="output,0"/>
+   </Kernel>
+</CustomLayer>
+
+<CustomLayer name="Convolution" type="MVCL" version="1">
+    <Where kernel="1,1" dilation="1,1"/>
+    <Kernel entry="Convolution1x1_NHWC">
+       <Source filename="convolution1x1_hwc.bin"/>
+       <Parameters>
+           <Tensor arg-name="in" type="input" port-index="0" format="BYXF"/>
+           <Tensor arg-name="out" type="output" port-index="0" format="BFYX"/>
+           <Data arg-name="w" type="data" source="weights" format="ANY"/>
+           <Scalar arg-name="IW" type="int" port-index="0" source="I.X"/>
+           <Scalar arg-name="IH" type="int" port-index="0" source="I.Y"/>
+           <Scalar arg-name="IC" type="int" port-index="0" source="I.F"/>
+           <Scalar arg-name="OW" type="int" port-index="0" source="O.X"/>
+           <Scalar arg-name="OH" type="int" port-index="0" source="O.Y"/>
+           <Scalar arg-name="OC" type="int" port-index="0" source="O.F"/>
+
+           <Scalar arg-name="stride-x" type="int" port-index="0" source="stride"/>
+           <Scalar arg-name="stride-y" type="int" port-index="1" source="stride"/>
+           <Scalar arg-name="pad-x" type="int" port-index="0" source="pads_begin"/>
+           <Scalar arg-name="pad-y" type="int" port-index="1" source="pads_begin"/>
+           <Scalar arg-name="kernel-x" type="int" port-index="0" source="kernel"/>
+           <Scalar arg-name="kernel-y" type="int" port-index="1" source="kernel"/>
+           <Scalar arg-name="output" type="int" port-index="0" source="output"/>
+           <Scalar arg-name="group" type="int" port-index="0" source="group"/>
+       </Parameters>
+       <WorkSizes global="Y,F,B" local="1,1,1" dim="output,0"/>
+   </Kernel>
+</CustomLayer>
+
+<CustomLayer name="Convolution" type="MVCL" version="1">
+    <Where kernel="3,3" dilation="1,1"/>
+    <Kernel entry="Convolution3x3">
+        <Source filename="convolution3x3.bin"/>
+        <Parameters>
+            <Tensor arg-name="in_param" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="out" type="output" port-index="0" format="BFYX"/>
+            <Data arg-name="w" type="data" source="weights" format="BFYX"/>
+            <Scalar arg-name="IW" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="IH" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="IC" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="OW" type="int" port-index="0" source="O.X"/>
+            <Scalar arg-name="OH" type="int" port-index="0" source="O.Y"/>
+            <Scalar arg-name="OC" type="int" port-index="0" source="O.F"/>
+            <Scalar arg-name="KX" type="int" port-index="0" source="kernel"/>
+            <Scalar arg-name="KY" type="int" port-index="1" source="kernel"/>
+            <Scalar arg-name="stride_x" type="int" port-index="0" source="stride"/>
+            <Scalar arg-name="stride_y" type="int" port-index="1" source="stride"/>
+            <Scalar arg-name="pad_x" type="int" port-index="0" source="pads_begin"/>
+            <Scalar arg-name="pad_y" type="int" port-index="1" source="pads_begin"/>
+            <Scalar arg-name="dilation_x" type="int" port-index="0" source="dilation"/>
+            <Scalar arg-name="dilation_y" type="int" port-index="1" source="dilation"/>
+            <Scalar arg-name="output" type="int" port-index="0" source="output"/>
+
+            <Data arg-name="in_local" type="local_data" dim="input,0" size="X*F*3*2"/>
+            <Data arg-name="out_local" type="local_data" dim="output,0" size="X*F*2"/>
+            <Data arg-name="w_local" type="local_data" dim="input,0" size="3*3*F*2"/>
+        </Parameters>
+        <WorkSizes global="Y,F,B" local="1,1,1" dim="output,0"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="ExperimentalDetectronPriorGridGenerator" type="MVCL" version="1">
+    <Kernel entry="experimental_detectron_prior_grid_generator">
+        <Source filename="detectron_prior_grid_gen.bin"/>
+        <Parameters>
+            <Tensor arg-name="input_priors" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="input_feature_map" type="input" port-index="1" format="BFYX"/>
+            <Tensor arg-name="input_rois" type="input" port-index="2" format="BFYX"/>
+            <Tensor arg-name="output" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="grid_h" type="int" port-index="1" source="I.Y"/>
+            <Scalar arg-name="grid_w" type="int" port-index="1" source="I.X"/>
+            <Scalar arg-name="stride_h" type="float" source="stride_h"/>
+            <Scalar arg-name="stride_w" type="float" source="stride_w"/>
+            <Scalar arg-name="num_priors" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="num_anchors_per_prior" type="int" port-index="0" source="I.X"/>
+        </Parameters>
+        <WorkSizes dim="input,1" global="((X+31)/32)*32,Y,1" local="32,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="Convert" type="MVCL" version="1">
+    <Kernel entry="cvtu8f16">
+        <Source filename="cvtu8f16.bin"/>
+        <Parameters>
+            <Tensor arg-name="src" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="scale" type="float" source="scale"/>
+            <Scalar arg-name="bias" type="float" source="bias"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="X,Y,F" local="X,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="Correlate" type="MVCL" version="1">
+    <Kernel entry="correlate2_half">
+        <Source filename="correlate.bin"/>
+        <Parameters>
+            <Tensor arg-name="bottom0" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="bottom1" type="input" port-index="1" format="BFYX"/>
+            <Tensor arg-name="top" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="topwidth" type="int" source="top_width"/>
+            <Scalar arg-name="topheight" type="int" source="top_height"/>
+            <Scalar arg-name="bottomwidth" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="bottomheight" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="bottomchannels" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="max_displacement" type="int" source="displacement"/>
+            <Scalar arg-name="padding" type="int" source="pad"/>
+            <Scalar arg-name="neighborhood_grid_radius" type="int" source="neighborhood_grid_radius"/>
+            <Scalar arg-name="neighborhood_grid_width" type="int" source="neighborhood_grid_width"/>
+            <Scalar arg-name="kernel_size" type="int" source="kernel_size"/>
+            <Scalar arg-name="stride1" type="int" port-index="0" source="stride"/>
+            <Scalar arg-name="stride2" type="int" port-index="1" source="stride"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="top_height,1,1" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="SpatialTransform" type="MVCL" version="1">
+    <Kernel entry="ocl_st">
+        <Source filename="st.bin"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="theta" type="input" port-index="1" format="ANY"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="C" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="(X+511)/512,Y,1" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>

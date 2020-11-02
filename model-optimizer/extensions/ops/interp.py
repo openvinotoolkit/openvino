@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ from mo.utils.utils import refer_to_faq_msg
 
 class InterpOp(Op):
     op = 'Interp'
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
@@ -36,7 +37,7 @@ class InterpOp(Op):
             'parse_2nd_input': 'value',
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': InterpOp.interp_infer
+            'infer': None
         }
         super().__init__(graph, mandatory_props, attrs)
 

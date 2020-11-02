@@ -1,43 +1,30 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief This is a header file with common inference engine definitions.
+ *
  * @file ie_common.h
  */
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <string>
-#include <ostream>
 #include <algorithm>
 #include <cstdlib>
-#include <details/ie_exception.hpp>
-
-#include "ie_unicode.hpp"
+#include <memory>
+#include <ostream>
+#include <string>
+#include <vector>
+#include <map>
 
 namespace InferenceEngine {
 /**
  * @brief Represents tensor size.
- * The order is opposite to the order in Caffe*: (w,h,n,b) where the most frequently changing element in memory is first.
+ *
+ * The order is opposite to the order in Caffe*: (w,h,n,b) where the most frequently changing element in memory is
+ * first.
  */
 using SizeVector = std::vector<size_t>;
-
-/**
- * @brief This class represents the generic layer.
- */
-class CNNLayer;
-
-/**
- * @brief A smart pointer to the CNNLayer
- */
-using CNNLayerPtr = std::shared_ptr<CNNLayer>;
-/**
- * @brief A smart weak pointer to the CNNLayer
- */
-using  CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
 
 /**
  * @brief The main data representation node
@@ -64,9 +51,9 @@ using DataWeakPtr = std::weak_ptr<Data>;
  * @brief The method holds the user values to enable binding of data per graph node.
  */
 union UserValue {
-    int v_int;
-    float v_float;
-    void *v_ptr;
+    int v_int;  //!< An integer value
+    float v_float;  //!< A floating point value
+    void* v_ptr;  //!< A pointer to a void
 };
 
 /**
@@ -74,60 +61,103 @@ union UserValue {
  * @brief Layouts that the inference engine supports
  */
 enum Layout : uint8_t {
-    ANY = 0,           // "any" layout
+    ANY = 0,  //!< "any" layout
 
     // I/O data layouts
-    NCHW = 1,
-    NHWC = 2,
-    NCDHW = 3,
-    NDHWC = 4,
+    NCHW = 1,  //!< NCHW layout for input / output blobs
+    NHWC = 2,  //!< NHWC layout for input / output blobs
+    NCDHW = 3,  //!< NCDHW layout for input / output blobs
+    NDHWC = 4,  //!< NDHWC layout for input / output blobs
 
     // weight layouts
-    OIHW = 64,
+    OIHW = 64,  //!< NDHWC layout for operation weights
+    GOIHW = 65,  //!< NDHWC layout for operation weights
+    OIDHW = 66,  //!< NDHWC layout for operation weights
+    GOIDHW = 67,  //!< NDHWC layout for operation weights
 
     // Scalar
-    SCALAR = 95,
+    SCALAR = 95,  //!< A scalar layout
 
     // bias layouts
-    C = 96,
+    C = 96,  //!< A bias layout for operation
 
-    // Single image layout (for mean image)
-    CHW = 128,
+    // Single image layouts
+    CHW = 128,  //!< A single image layout (e.g. for mean image)
 
     // 2D
-    HW = 192,
-    NC = 193,
-    CN = 194,
+    HW = 192,  //!< HW 2D layout
+    NC = 193,  //!< HC 2D layout
+    CN = 194,  //!< CN 2D layout
 
-    BLOCKED = 200,
+    BLOCKED = 200,  //!< A blocked layout
 };
-inline std::ostream & operator << (std::ostream &out, const Layout & p) {
+inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
     switch (p) {
-#define PRINT_LAYOUT(name)\
-        case name : out << #name; break;
+#define PRINT_LAYOUT(name) \
+    case name:             \
+        out << #name;      \
+        break;
 
-            PRINT_LAYOUT(ANY);
-            PRINT_LAYOUT(NCHW);
-            PRINT_LAYOUT(NHWC);
-            PRINT_LAYOUT(OIHW);
-            PRINT_LAYOUT(C);
-            PRINT_LAYOUT(CHW);
-            PRINT_LAYOUT(HW);
-            PRINT_LAYOUT(NC);
-            PRINT_LAYOUT(CN);
-            PRINT_LAYOUT(BLOCKED);
+        PRINT_LAYOUT(ANY);
+        PRINT_LAYOUT(NCHW);
+        PRINT_LAYOUT(NHWC);
+        PRINT_LAYOUT(NCDHW);
+        PRINT_LAYOUT(NDHWC);
+        PRINT_LAYOUT(OIHW);
+        PRINT_LAYOUT(C);
+        PRINT_LAYOUT(CHW);
+        PRINT_LAYOUT(HW);
+        PRINT_LAYOUT(NC);
+        PRINT_LAYOUT(CN);
+        PRINT_LAYOUT(BLOCKED);
 #undef PRINT_LAYOUT
-            default:
-                 out << static_cast<int>(p);
-            break;
-        }
-        return out;
+    default:
+        out << static_cast<int>(p);
+        break;
     }
+    return out;
+}
 
+/**
+ * @enum ColorFormat
+ * @brief Extra information about input color format for preprocessing
+ */
+enum ColorFormat : uint32_t {
+    RAW = 0u,  ///< Plain blob (default), no extra color processing required
+    RGB,       ///< RGB color format
+    BGR,       ///< BGR color format, default in DLDT
+    RGBX,      ///< RGBX color format with X ignored during inference
+    BGRX,      ///< BGRX color format with X ignored during inference
+    NV12,      ///< NV12 color format represented as compound Y+UV blob
+    I420,      ///< I420 color format represented as compound Y+U+V blob
+};
+inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
+    switch (fmt) {
+#define PRINT_COLOR_FORMAT(name) \
+    case name:                   \
+        out << #name;            \
+        break;
+
+        PRINT_COLOR_FORMAT(RAW);
+        PRINT_COLOR_FORMAT(RGB);
+        PRINT_COLOR_FORMAT(BGR);
+        PRINT_COLOR_FORMAT(RGBX);
+        PRINT_COLOR_FORMAT(BGRX);
+        PRINT_COLOR_FORMAT(NV12);
+        PRINT_COLOR_FORMAT(I420);
+#undef PRINT_COLOR_FORMAT
+
+    default:
+        out << static_cast<uint32_t>(fmt);
+        break;
+    }
+    return out;
+}
 
 /**
  * @struct InferenceEngineProfileInfo
  * @brief Represents basic inference profiling information per layer.
+ *
  * If the layer is executed using tiling, the sum time per each tile is indicated as the total execution time.
  * Due to parallel execution, the total execution time for all layers might be greater than the total inference time.
  */
@@ -136,12 +166,16 @@ struct InferenceEngineProfileInfo {
      * @brief Defines the general status of the layer
      */
     enum LayerStatus {
-        NOT_RUN,
-        OPTIMIZED_OUT,
-        EXECUTED
+        NOT_RUN,  //!< A layer is not executed
+        OPTIMIZED_OUT,  //!< A layer is optimized out during graph optimization phase
+        EXECUTED  //!< A layer is executed
     };
 
+    /**
+     * @brief Defines a layer status
+     */
     LayerStatus status;
+
     /**
      * @brief The absolute time in microseconds that the layer ran (in total)
      */
@@ -166,7 +200,6 @@ struct InferenceEngineProfileInfo {
      */
     unsigned execution_index;
 };
-
 
 /**
  * @enum StatusCode
@@ -199,60 +232,95 @@ struct ResponseDesc {
     /**
      * @brief A character buffer that holds the detailed information for an error.
      */
-    char msg[256] = {};
+    char msg[4096] = {};
+};
+
+
+/**
+ * @brief Response structure encapsulating information about supported layer
+ */
+struct QueryNetworkResult {
+    /**
+     * @brief A map of supported layers:
+     * - key - a layer name
+     * - value - a device name on which layer is assigned
+     */
+    std::map<std::string, std::string> supportedLayersMap;
+
+    /**
+     * @brief A status code
+     */
+    StatusCode rc = OK;
+
+    /**
+     * @brief Response message
+     */
+    ResponseDesc resp;
 };
 
 /** @brief This class represents StatusCode::GENERIC_ERROR exception */
-class GeneralError : public std::logic_error
-{ using std::logic_error::logic_error; };
+class GeneralError : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::NOT_IMPLEMENTED exception */
-class NotImplemented : public std::logic_error
-{ using std::logic_error::logic_error; };
+class NotImplemented : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::NETWORK_NOT_LOADED exception */
-class NetworkNotLoaded : public std::logic_error
-{ using std::logic_error::logic_error; };
+class NetworkNotLoaded : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::PARAMETER_MISMATCH exception */
-class ParameterMismatch : public std::logic_error
-{ using std::logic_error::logic_error; };
+class ParameterMismatch : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::NOT_FOUND exception */
-class NotFound : public std::logic_error
-{ using std::logic_error::logic_error; };
+class NotFound : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::OUT_OF_BOUNDS exception */
-class OutOfBounds : public std::logic_error
-{ using std::logic_error::logic_error; };
+class OutOfBounds : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::UNEXPECTED exception */
-class Unexpected : public std::logic_error
-{ using std::logic_error::logic_error; };
+class Unexpected : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::REQUEST_BUSY exception */
-class RequestBusy : public std::logic_error
-{ using std::logic_error::logic_error; };
+class RequestBusy : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::RESULT_NOT_READY exception */
-class ResultNotReady : public std::logic_error
-{ using std::logic_error::logic_error; };
+class ResultNotReady : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::NOT_ALLOCATED exception */
-class NotAllocated : public std::logic_error
-{ using std::logic_error::logic_error; };
+class NotAllocated : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 /** @brief This class represents StatusCode::INFER_NOT_STARTED exception */
-class InferNotStarted : public std::logic_error
-{ using std::logic_error::logic_error; };
+class InferNotStarted : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 }  // namespace InferenceEngine
 
 /** @brief This class represents StatusCode::NETWORK_NOT_READ exception */
-class NetworkNotRead : public std::logic_error
-{ using std::logic_error::logic_error; };
+class NetworkNotRead : public std::logic_error {
+    using std::logic_error::logic_error;
+};
 
 #if defined(_WIN32)
-    #define __PRETTY_FUNCTION__ __FUNCSIG__
+#define __PRETTY_FUNCTION__ __FUNCSIG__
 #else
-    #define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
+#define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
 #endif

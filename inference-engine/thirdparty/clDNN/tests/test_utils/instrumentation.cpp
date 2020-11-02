@@ -22,59 +22,13 @@
 #include <vector>
 #include <iostream>
 
-
 namespace instrumentation {
     // initalize dumping directory for whole run
     const std::string logger::dump_dir = DUMP_DIRECTORY;
 
-    static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false)
+    static float convert_half_to_float(cldnn::half_t val)
     {
-#if defined HALF_HALF_HPP
-        return val;
-#else
-        // FP32 parts extracted from FP16.
-        uint32_t sign = (static_cast<uint16_t>(val) & 0x8000U) << 16;
-        uint32_t mantissa = (static_cast<uint16_t>(val) & 0x3FFU) << 13;
-
-        uint32_t exp_val_f16 = (static_cast<uint16_t>(val) & 0x7C00U) >> 10;
-        uint32_t exp;
-        if (exp_val_f16 == 0)
-        {
-            // Handling +/-0 and denormals.
-            if (mantissa == 0)
-            {
-                exp = 0;
-            }
-            else if (flush_denorm_to_zero)
-            {
-                sign = 0;
-                exp = 0;
-                mantissa = 0;
-            }
-            else
-            {
-                // Denorms conversion to normal numbers.
-                exp = 127 - 15;
-                while (!(mantissa & 0x400000U))
-                {
-                    mantissa <<= 1;
-                    --exp;
-                }
-                mantissa = (mantissa << 1) & 0x7FFFFFU;
-                exp <<= 23;
-            }
-        }
-        else
-        {
-            // Handling +/-infinity, NaN and normal numbers.
-            exp = (exp_val_f16 == 0x1FU ? 0xFFU : exp_val_f16 + 127 - 15) << 23;
-        }
-
-        float ret;
-        reinterpret_cast<uint32_t&>(ret) = sign | exp | mantissa;
-
-        return ret;
-#endif
+        return static_cast<float>(val);
     }
 
     float convert_element(float f)
@@ -82,7 +36,7 @@ namespace instrumentation {
         return f;
     }
 
-    float convert_element(half_t h)
+    float convert_element(cldnn::half_t h)
     {
         return convert_half_to_float(h);
     }
@@ -398,7 +352,7 @@ namespace instrumentation {
         }
     }
 
-    void logger::log_memory_to_file(const cldnn::memory& mem, std::string prefix, bool single_batch, cldnn::tensor::value_type batch_id, bool single_feature, cldnn::tensor::value_type feature_id)
+    void logger::log_memory_to_file(const cldnn::memory& mem, std::string prefix, bool single_batch, cldnn::tensor::value_type batch_id, cldnn::tensor::value_type feature_id)
     {
         auto batch = mem.get_layout().size.batch[0];
         auto feature = mem.get_layout().size.feature[0];
@@ -412,7 +366,7 @@ namespace instrumentation {
         if (mem.get_layout().data_type == cldnn::data_types::f32)
             dump<float>(mem, dump_strings);
         else
-            dump<half_t>(mem, dump_strings);
+            dump<cldnn::half_t>(mem, dump_strings);
 
         for (cldnn::tensor::value_type b = 0; b < batch; b++)
             for (cldnn::tensor::value_type f = 0; f < feature; f++)
@@ -434,7 +388,7 @@ namespace instrumentation {
         if (mem.get_layout().data_type == cldnn::data_types::f32)
             dump<float>(mem, stream);
         else
-            dump<half_t>(mem, stream);
+            dump<cldnn::half_t>(mem, stream);
 
         std::string filename((dump_dir + "/" + prefix + ".txt"));
         std::ofstream file_stream(filename);

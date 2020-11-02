@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "broadcast_kernel_selector.h"
 #include "broadcast_kernel_ref.h"
 
-namespace kernel_selector 
-{
-    broadcast_kernel_selector::broadcast_kernel_selector()
-    {
-        Attach<BroadcastKernelRef>();
-    }
+namespace kernel_selector {
+broadcast_kernel_selector::broadcast_kernel_selector() { Attach<BroadcastKernelRef>(); }
 
-    KernelsData broadcast_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::BROADCAST);
-    }
+KernelsData broadcast_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::BROADCAST);
 }
+}  // namespace kernel_selector

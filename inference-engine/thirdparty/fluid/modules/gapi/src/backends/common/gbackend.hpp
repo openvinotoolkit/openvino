@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GBACKEND_HPP
@@ -14,10 +14,8 @@
 #include <ade/node.hpp>
 
 #include "opencv2/gapi/garg.hpp"
-#include "opencv2/gapi/own/mat.hpp"
 
 #include "opencv2/gapi/util/optional.hpp"
-#include "opencv2/gapi/own/scalar.hpp"
 
 #include "compiler/gmodel.hpp"
 
@@ -46,15 +44,15 @@ namespace magazine {
 
 } // namespace magazine
 #if !defined(GAPI_STANDALONE)
-using Mag = magazine::Class<cv::gapi::own::Mat, cv::UMat, cv::gapi::own::Scalar, cv::detail::VectorRef>;
+using Mag = magazine::Class<cv::Mat, cv::UMat, cv::Scalar, cv::detail::VectorRef, cv::detail::OpaqueRef>;
 #else
-using Mag = magazine::Class<cv::gapi::own::Mat, cv::gapi::own::Scalar, cv::detail::VectorRef>;
+using Mag = magazine::Class<cv::Mat, cv::Scalar, cv::detail::VectorRef, cv::detail::OpaqueRef>;
 #endif
 
 namespace magazine
 {
-    void         bindInArg (Mag& mag, const RcDesc &rc, const GRunArg  &arg, bool is_umat = false);
-    void         bindOutArg(Mag& mag, const RcDesc &rc, const GRunArgP &arg, bool is_umat = false);
+    void         GAPI_EXPORTS bindInArg (Mag& mag, const RcDesc &rc, const GRunArg  &arg, bool is_umat = false);
+    void         GAPI_EXPORTS bindOutArg(Mag& mag, const RcDesc &rc, const GRunArgP &arg, bool is_umat = false);
 
     void         resetInternalData(Mag& mag, const Data &d);
     cv::GRunArg  getArg    (const Mag& mag, const RcDesc &ref);
@@ -89,17 +87,10 @@ struct GRuntimeArgs
 template<typename T>
 inline cv::util::optional<T> getCompileArg(const cv::GCompileArgs &args)
 {
-    for (auto &compile_arg : args)
-    {
-        if (compile_arg.tag == cv::detail::CompileArgTag<T>::tag())
-        {
-            return cv::util::optional<T>(compile_arg.get<T>());
-        }
-    }
-    return cv::util::optional<T>();
+    return cv::gapi::getCompileArg<T>(args);
 }
 
-
+void createMat(const cv::GMatDesc& desc, cv::Mat& mat);
 
 }} // cv::gimpl
 

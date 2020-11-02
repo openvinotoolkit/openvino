@@ -16,71 +16,107 @@
 
 #include "include/common.cl"
 #include "include/data_types.cl"
+#include "include/fetch.cl"
+
+#ifdef PARAMETERIZED
+#define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_SAFE)(idx_order)
+#else
+#define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
+#endif
 
 // TODO: move it from layout based to memory based
 KERNEL(activation)(
-#if GRADIENT
-    __global UNIT_TYPE* input_grad,
-    __global UNIT_TYPE* output_grad,
-    __global UNIT_TYPE* input
-#else
-    __global UNIT_TYPE* input, 
-    __global UNIT_TYPE* output
-#endif
-#ifdef PARAMETERIZED 
+    __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#ifdef PARAMETERIZED
     , __global ADDITIONAL_PARAMS_TYPE* params
+#endif
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
     )
 {
-#if defined OUTPUT_LAYOUT_YXFB
-    const unsigned x = get_global_id(1);
-    const unsigned y = get_global_id(2);
+#if OUTPUT_DIMS == 5
+    #define ORDER batch,feature,z,y,x
+#elif OUTPUT_DIMS == 4
+    #define ORDER batch,feature,y,x
+#endif
+
+#if OUTPUT_DIMS == 5
+    const unsigned x = get_global_id(0);
+    const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
 #if OUTPUT_BATCH_NUM == 1
-    const unsigned feature = get_global_id(0);
+    const unsigned feature = (uint)get_global_id(2);
     const unsigned batch = 0;
 #else
-    const unsigned feature = get_global_id(0) % OUTPUT_FEATURE_NUM;
-    const unsigned batch = get_global_id(0) / OUTPUT_FEATURE_NUM;
+    const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
 #endif
 #else
-    const unsigned x = get_global_id(0);
-    const unsigned y = get_global_id(1);
+#if defined OUTPUT_LAYOUT_YXFB || defined OUTPUT_LAYOUT_B_FS_YX_FSV16
+    const unsigned x = (uint)get_global_id(1);
+    const unsigned y = (uint)get_global_id(2);
+#define z 0
 #if OUTPUT_BATCH_NUM == 1
-    const unsigned feature = get_global_id(2);
+    const unsigned feature = (uint)get_global_id(0);
     const unsigned batch = 0;
 #else
-    const unsigned feature = get_global_id(2) % OUTPUT_FEATURE_NUM;
-    const unsigned batch = get_global_id(2) / OUTPUT_FEATURE_NUM;
+    const unsigned feature = (uint)get_global_id(0) % OUTPUT_FEATURE_NUM;
+    const unsigned batch = (uint)get_global_id(0) / OUTPUT_FEATURE_NUM;
+#endif
+#else
+#define z 0
+    const unsigned x = (uint)get_global_id(0);
+    const unsigned y = (uint)get_global_id(1);
+#if OUTPUT_BATCH_NUM == 1
+    const unsigned feature = (uint)get_global_id(2);
+    const unsigned batch = 0;
+#else
+    const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+#endif
 #endif
 #endif
 
-#if GRADIENT
-    const unsigned src_grad_index = batch*INPUT0_BATCH_PITCH + feature*INPUT0_FEATURE_PITCH + y*INPUT0_Y_PITCH + x*INPUT0_X_PITCH + INPUT0_OFFSET;
-    const unsigned src_index = batch*INPUT1_BATCH_PITCH + feature*INPUT1_FEATURE_PITCH + y*INPUT1_Y_PITCH + x*INPUT1_X_PITCH + INPUT1_OFFSET;
-#else
-    const unsigned src_index = batch*INPUT0_BATCH_PITCH + feature*INPUT0_FEATURE_PITCH + y*INPUT0_Y_PITCH + x*INPUT0_X_PITCH + INPUT0_OFFSET;
+#if defined(OUTPUT_LAYOUT_B_FS_YX_FSV16) && OUTPUT_FEATURE_NUM % 16 != 0
+    // b_fs_yx_fsv16 has dispatch features aligned to multiple of 16
+    if (feature >= OUTPUT_FEATURE_NUM)
+        return;
 #endif
-    const unsigned dst_index = batch*OUTPUT_BATCH_PITCH + feature*OUTPUT_FEATURE_PITCH + y*OUTPUT_Y_PITCH + x*OUTPUT_X_PITCH + OUTPUT_OFFSET;
+
+    const unsigned src_index = GET_INDEX(INPUT,0,ORDER);
+    const unsigned dst_index = GET_INDEX(OUTPUT,,ORDER);
 
 #if defined PARAMETERIZED
-    #if   PARAMS_NUM == 2
-        const float nl_m = (float)params[2*feature + 0];
-        const float nl_n = (float)params[2*feature + 1];
+    #if PARAMS_NUM > 2
+        #error Too many params
+    #elif PARAMS_NUM == 2
+        #define NL_M_PARAMETERIZED (float)params[2*feature + 0]
+        #define NL_N_PARAMETERIZED (float)params[2*feature + 1]
     #elif PARAMS_NUM == 1
-        const float nl_m = (float)params[feature];
-        const float nl_n = (float)NL_N;
+        #define NL_M_PARAMETERIZED (float)params[feature]
+        #define NL_N_PARAMETERIZED (float)NL_N
     #else
-        const float nl_m = (float)NL_M;
-        const float nl_n = (float)NL_N;
+        #define NL_M_PARAMETERIZED (float)NL_M
+        #define NL_N_PARAMETERIZED (float)NL_N
+    #endif
+    #define PARAMETERIZED_ACTIVATION_PARAMS NL_M_PARAMETERIZED, NL_N_PARAMETERIZED
+
+    INPUT0_TYPE dst = ACTIVATION_KERNEL(input[src_index], PARAMETERIZED_ACTIVATION_PARAMS);
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[dst_index] = FUSED_OPS_RESULT;
+    #else
+        output[dst_index] = dst;
     #endif
 #else
-    const float nl_m = (float)NL_M;
-    const float nl_n = (float)NL_N;
-#endif
-
-#if GRADIENT
-    output_grad[dst_index] = ACTIVATION(input_grad[src_grad_index], input[src_index], nl_m, nl_n);
-#else
-    output[dst_index] = ACTIVATION(input[src_index], nl_m, nl_n);
+    INPUT0_TYPE dst = ACTIVATION_KERNEL(input[src_index], ACTIVATION_PARAMS);
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[dst_index] = FUSED_OPS_RESULT;
+    #else
+        output[dst_index] = dst;
+    #endif
 #endif
 }

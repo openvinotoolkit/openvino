@@ -2,15 +2,15 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "precomp.hpp"
 
-#include "opencv2/gapi/gcall.hpp"
-#include "opencv2/gapi/gscalar.hpp"
-#include "opencv2/gapi/gkernel.hpp"
-#include "opencv2/gapi/core.hpp"
+#include <opencv2/gapi/gcall.hpp>
+#include <opencv2/gapi/gscalar.hpp>
+#include <opencv2/gapi/gkernel.hpp>
+#include <opencv2/gapi/core.hpp>
 
 #include <tuple>
 #include <numeric>
@@ -301,6 +301,11 @@ GMat resize(const GMat& src, const Size& dsize, double fx, double fy, int interp
     return core::GResize::on(src, dsize, fx, fy, interpolation);
 }
 
+GMatP resizeP(const GMatP& src, const Size& dsize, int interpolation)
+{
+    return core::GResizeP::on(src, dsize, interpolation);
+}
+
 GMat remap(const GMat& src, const Mat& map1, const Mat& map2,
            int interpolation, int borderMode,
            const Scalar& borderValue)
@@ -316,6 +321,11 @@ GMat flip(const GMat& src, int flipCode)
 GMat crop(const GMat& src, const Rect& rect)
 {
     return core::GCrop::on(src, rect);
+}
+
+GMat copy(const GMat& src)
+{
+    return core::GCopy::on(src);
 }
 
 GMat concatHor(const GMat& src1, const GMat& src2)
@@ -353,6 +363,34 @@ GMat convertTo(const GMat& m, int rtype, double alpha, double beta)
 GMat sqrt(const GMat& src)
 {
     return core::GSqrt::on(src);
+}
+
+GMat normalize(const GMat& _src, double a, double b,
+               int norm_type, int ddepth)
+{
+    return core::GNormalize::on(_src, a, b, norm_type, ddepth);
+}
+
+GMat warpPerspective(const GMat& src, const Mat& M, const Size& dsize, int flags,
+                     int borderMode, const Scalar& borderValue)
+{
+    return core::GWarpPerspective::on(src, M, dsize, flags, borderMode, borderValue);
+}
+
+GMat warpAffine(const GMat& src, const Mat& M, const Size& dsize, int flags,
+                int borderMode, const Scalar& borderValue)
+{
+    return core::GWarpAffine::on(src, M, dsize, flags, borderMode, borderValue);
+}
+
+GOpaque<Size> size(const GMat& src)
+{
+    return core::GSize::on(src);
+}
+
+GOpaque<Size> size(const GOpaque<Rect>& r)
+{
+    return core::GSizeR::on(r);
 }
 
 } //namespace gapi

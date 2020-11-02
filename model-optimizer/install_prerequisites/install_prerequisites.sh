@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,16 +30,16 @@ V_ENV=0
 
 for ((i=1;i <= $#;i++)) {
     case "${!i}" in
-        caffe|tf|mxnet|kaldi|onnx)
-            postfix="_"$1""
+        caffe|tf|tf2|mxnet|kaldi|onnx)
+            postfix="_$1"
             ;;
         "venv")
             V_ENV=1
             ;;
         *)
             if [[ "$1" != "" ]]; then
-                echo "\""${!i}"\" is unsupported parameter"
-                echo $"Usage: $0 {caffe|tf|mxnet|kaldi|onnx} {venv}"
+                echo "\"${!i}\" is unsupported parameter"
+                echo $"Usage: $0 {caffe|tf|tf2|mxnet|kaldi|onnx} {venv}"
                 exit 1
             fi
             ;;
@@ -55,12 +55,14 @@ elif [[ -f /etc/lsb-release ]]; then
 fi
 
 if [[ $DISTRO == "centos" ]]; then
-    if command -v python3.5 >/dev/null 2>&1; then
+    if command -v python3.7 >/dev/null 2>&1; then
+        python_binary=python3.7
+    elif command -v python3.6 >/dev/null 2>&1; then
+        python_binary=python3.6
+    elif command -v python3.5 >/dev/null 2>&1; then
         python_binary=python3.5
     fi
-    if command -v python3.6 >/dev/null 2>&1; then
-        python_binary=python3.6
-    fi
+
     if [ -z "$python_binary" ]; then
         sudo -E yum install -y https://centos7.iuscommunity.org/ius-release.rpm
         #sudo -E yum install -y python36u easy_install python36u-pip
@@ -70,24 +72,26 @@ if [[ $DISTRO == "centos" ]]; then
     fi
 elif [[ $DISTRO == "ubuntu" ]]; then
     sudo -E apt update
-    sudo -E apt -y install python3-pip python3-venv libgfortran3
+    sudo -E apt -y install python3-pip python3-venv libgfortran5
+    python_binary=python3
+elif [[ "$OSTYPE" == "darwin"* ]]; then
     python_binary=python3
 fi
 
 
 if [[ $V_ENV -eq 1 ]]; then
-    $python_binary -m venv $SCRIPTDIR/../venv
-    source $SCRIPTDIR/../venv/bin/activate
-    $SCRIPTDIR/../venv/bin/$python_binary -m pip install -r $SCRIPTDIR/../requirements${postfix}.txt
+    "$python_binary" -m venv "$SCRIPTDIR/../venv"
+    source "$SCRIPTDIR/../venv/bin/activate"
+    "$SCRIPTDIR/../venv/bin/$python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     echo
     echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv/bin/activate\""
 else
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        python3 -m pip install -r $SCRIPTDIR/../requirements${postfix}.txt
+        python3 -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     else
-        sudo -E $python_binary -m pip install -r $SCRIPTDIR/../requirements${postfix}.txt
+        sudo -E $python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     fi
-    echo [WARNING] All Model Optimizer dependencies are installed globally.
-    echo [WARNING] If you want to keep Model Optimizer in separate sandbox
-    echo [WARNING] run install_prerequisites.sh venv "{caffe|tf|mxnet|kaldi|onnx}"
+    echo "[WARNING] All Model Optimizer dependencies are installed globally."
+    echo "[WARNING] If you want to keep Model Optimizer in separate sandbox"
+    echo "[WARNING] run install_prerequisites.sh venv \"{caffe|tf|tf2|mxnet|kaldi|onnx}\""
 fi

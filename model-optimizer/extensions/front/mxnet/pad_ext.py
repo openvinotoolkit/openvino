@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 
 import numpy as np
 
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.pad import Pad
+from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from mo.ops.pad import AttributedPad
 
 
 class PadFrontExtractor(FrontExtractorOp):
     op = 'Pad'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         pads = np.array(list(attrs.tuple('pad_width', int, None)))
         pads = pads.reshape([-1, 2])
@@ -38,5 +38,5 @@ class PadFrontExtractor(FrontExtractorOp):
             'fill_value': value,
         }
 
-        Pad.update_node_stat(node, node_attrs)
-        return __class__.enabled
+        AttributedPad.update_node_stat(node, node_attrs)
+        return cls.enabled

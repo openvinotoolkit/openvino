@@ -18,47 +18,29 @@
 
 #include "weight_bias_params.h"
 
-namespace kernel_selector
-{
+namespace kernel_selector {
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // fully_connected_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct fully_connected_params : public weight_bias_params
-    {
-        fully_connected_params() : weight_bias_params(KernelType::FULLY_CONNECTED) {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// fully_connected_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct fully_connected_params : public weight_bias_params {
+    fully_connected_params() : weight_bias_params(KernelType::FULLY_CONNECTED) {}
 
-        bool     int8_quantization = false;
-        bool     output_calibration = false;
-        float    input_quantization_factor = 1.0f;
-        float    output_quantization_factor = 1.0f;
+    QuantizationType quantization = QuantizationType::NONE;
 
-        MultiDataTensor weights_quantization_factors;
-        MultiDataTensor output_calibration_factors;
+    virtual ParamsKey GetParamsKey() const {
+        ParamsKey k = weight_bias_params::GetParamsKey();
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            ParamsKey k = weight_bias_params::GetParamsKey();
+        k.EnableQuantization(quantization);
 
-            if (int8_quantization)
-            {
-                k.EnableInt8Quantization();
-            }
+        return k;
+    }
+};
 
-            if (output_calibration)
-            {
-                k.EnableOutputCalibration();
-            }
-
-            return k;
-        }
-    };
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // fully_connected_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct fully_connected_optional_params : weight_bias_optional_params
-    {
-        fully_connected_optional_params() : weight_bias_optional_params(KernelType::FULLY_CONNECTED) {}
-    };
-}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// fully_connected_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct fully_connected_optional_params : weight_bias_optional_params {
+    fully_connected_optional_params() : weight_bias_optional_params(KernelType::FULLY_CONNECTED) {}
+};
+}  // namespace kernel_selector

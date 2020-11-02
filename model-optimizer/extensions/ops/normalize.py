@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@
 """
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Graph
+from mo.front.common.partial_infer.utils import mark_input_bins
+from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
 
@@ -25,14 +26,32 @@ class NormalizeOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'eps': None,
-            'in_ports_count': 1,
+            'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': copy_shape_infer
+            'infer': self.infer
         }, attrs)
 
+        if 'across_spatial' in self.attrs and isinstance(self.attrs['across_spatial'], str):
+            self.attrs['across_spatial'] = int(self.attrs['across_spatial'])
+
+        if 'channel_shared' in self.attrs and isinstance(self.attrs['channel_shared'], str):
+            self.attrs['channel_shared'] = int(self.attrs['channel_shared'])
+
+        self.attrs['across_spatial'] = bool(self.attrs['across_spatial'])
+        self.attrs['channel_shared'] = bool(self.attrs['channel_shared'])
+
     def supported_attrs(self):
-        return ['eps', 'across_spatial', 'channel_shared']
+        return ['eps', 'eps_mode',
+                ('across_spatial',
+                 lambda node: bool(node.across_spatial) if node.has_valid('across_spatial') else None),
+                ('channel_shared',
+                 lambda node: bool(node.channel_shared) if node.has_valid('channel_shared') else None),
+                ]
+
+    @staticmethod
+    def infer(node: Node):
+        mark_input_bins(node)
+        copy_shape_infer(node)

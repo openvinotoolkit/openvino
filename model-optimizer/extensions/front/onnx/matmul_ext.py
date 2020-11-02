@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,8 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from mo.front.common.partial_infer.inner_product import onnx_matmul_infer
-from mo.ops.inner_product import InnerProduct
+from extensions.ops.MatMul import MatMul
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -22,7 +21,7 @@ class MatMulFrontExtractor(FrontExtractorOp):
     op = 'MatMul'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        InnerProduct.update_node_stat(node, attrs={'op': 'MatMul', 'infer': onnx_matmul_infer, 'type': None})
-        return InnerProduct.enabled
+    @classmethod
+    def extract(cls, node):
+        MatMul.update_node_stat(node)
+        return cls.enabled

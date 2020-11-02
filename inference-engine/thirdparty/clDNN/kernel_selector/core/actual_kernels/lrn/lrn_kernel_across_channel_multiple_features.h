@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +11,30 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
+#include <vector>
 #include "lrn_kernel_base.h"
 
-namespace kernel_selector
-{
-    class LRNKernelAcrossChannelMultipleFeatures : public LRNKernelBase
-    {
-    public:
-        LRNKernelAcrossChannelMultipleFeatures() : LRNKernelBase("lrn_gpu_across_channel_multiple_features") {}
+namespace kernel_selector {
+class LRNKernelAcrossChannelMultipleFeatures : public LRNKernelBase {
+public:
+    using Parent = LRNKernelBase;
+    LRNKernelAcrossChannelMultipleFeatures(const std::string& s = "lrn_gpu_across_channel_multiple_features") : Parent(s) {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-
-    private:
-        bool Validate(const Params& p, const optional_params& o) const override;
-        JitConstants GetJitConstants(const lrn_params& params, DispatchData kd) const override;
-        CommonDispatchData SetDefault(const lrn_params& params) const override;
-    };
-}
+protected:
+    DispatchData SetDefault(const lrn_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
+    bool Validate(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
+};
+}  // namespace kernel_selector

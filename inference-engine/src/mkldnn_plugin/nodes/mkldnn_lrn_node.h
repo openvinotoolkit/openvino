@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNLrnNode : public MKLDNNNode {
 public:
-    MKLDNNLrnNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNLrnNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNLrnNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -28,12 +28,11 @@ public:
     }
 
 private:
-    static Register<MKLDNNLrnNode> reg;
-    bool isAcrossMaps;
-    int size;
-    int k;
-    float alpha;
-    float beta;
+    bool isAcrossMaps = false;
+    int size = 1;
+    int k = 1;
+    float alpha = 1.0f;
+    float beta = 1.0f;
 };
 
 }  // namespace MKLDNNPlugin

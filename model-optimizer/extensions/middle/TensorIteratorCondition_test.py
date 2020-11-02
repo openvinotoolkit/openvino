@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,11 +18,12 @@ import unittest
 import numpy as np
 
 from extensions.middle.TensorIteratorCondition import LoopConditionMatcher
-from mo.utils.unittest.graph import build_graph_with_attrs, compare_graphs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph_with_attrs
 
 
 class TensorIteratorConditionTests(unittest.TestCase):
-    def test(self):
+    def test_not_dynamic(self):
         pattern_matcher = LoopConditionMatcher()
         pattern = pattern_matcher.pattern()
 
@@ -37,7 +38,9 @@ class TensorIteratorConditionTests(unittest.TestCase):
                                                                 ('add_1_y_data', {'value': np.array(1)}),
                                                                 ('add_2_y_data', {'value': np.array(1)}),
                                                                 ('loop_cond_data', {'value': None}),
-                                                                ('Identity_2_data', {'value': None}),
+                                                                ('Identity_2_data', {'value': None}, ),
+                                                                ('Enter_1_less_data', {'value': None},),
+                                                                ('Enter_2_less_data', {'value': None},),
                                                                 ])
 
         pattern_matcher.find_and_replace_pattern(graph)
@@ -66,3 +69,5 @@ class TensorIteratorConditionTests(unittest.TestCase):
             )
         (flag, resp) = compare_graphs(graph, graph_ref, 'loop_cond_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+

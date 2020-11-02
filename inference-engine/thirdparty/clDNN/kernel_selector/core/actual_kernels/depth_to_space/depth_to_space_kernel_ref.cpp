@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,70 +16,51 @@
 
 #include "depth_to_space_kernel_ref.h"
 #include "kernel_selector_utils.h"
+#include <string>
+#include <vector>
 
-namespace kernel_selector
-{
-    ParamsKey DepthToSpaceKernelRef::GetSupportedKey() const
-    {
-        ParamsKey k;
-        k.EnableInputDataType(Datatype::F16);
-        k.EnableInputDataType(Datatype::F32);
-        k.EnableOutputDataType(Datatype::F16);
-        k.EnableOutputDataType(Datatype::F32);
-        k.EnableAllInputLayout();
-        k.EnableAllOutputLayout();
-        k.EnableTensorOffset();
-        k.EnableTensorPitches();
-        k.EnableBatching();
-        return k;
-    }
+namespace kernel_selector {
 
-    CommonDispatchData DepthToSpaceKernelRef::SetDefault(const depth_to_space_params& params, const optional_params&) const
-    {
-        CommonDispatchData runInfo;
-
-        std::vector<size_t> global = { params.output.Batch().v, params.output.Feature().v, params.output.Y().v * params.output.X().v };
-
-        auto local = GetOptimalLocalWorkGroupSizes(global);
-
-        runInfo.gws0 = global[0];
-        runInfo.gws1 = global[1];
-        runInfo.gws2 = global[2];
-
-        runInfo.lws0 = local[0];
-        runInfo.lws1 = local[1];
-        runInfo.lws2 = local[2];
-
-        return runInfo;
-    }
-
-    JitConstants DepthToSpaceKernelRef::GetJitConstants(const depth_to_space_params& params) const
-    {
-        JitConstants jit = MakeBaseParamsJitConstants(params);
-
-        jit.AddConstant(MakeJitConstant("BLOCK_SIZE", params.block_size));
-
-        return jit;
-    }
-
-    KernelsData DepthToSpaceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const
-    {
-        KernelData kd = KernelData::Default<depth_to_space_params>(params);
-        depth_to_space_params& newParams = *static_cast<depth_to_space_params*>(kd.params.get());
-
-        assert(params.GetType() == KernelType::DEPTH_TO_SPACE);
-
-        auto runInfo = SetDefault(newParams, options);
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-        auto cldnn_jit = GetJitConstants(newParams);
-        std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
-        auto& kernel = kd.kernels[0];
-
-        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
-
-        kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
-        return{ kd };
-    }
+ParamsKey DepthToSpaceKernelRef::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableDifferentTypes();
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBatching();
+    return k;
 }
+
+KernelsData DepthToSpaceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+}
+
+JitConstants DepthToSpaceKernelRef::GetJitConstants(const depth_to_space_params& params) const {
+    auto jit = Parent::GetJitConstants(params);
+    auto input = params.inputs[0];
+    auto input_dt = input.GetDType();
+
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (input.Dimentions() == 5) {
+            idx_order = {"batch", "feature", "z", "y", "x"};
+        } else if (input.Dimentions() == 4) {
+            idx_order = {"batch", "feature", "y", "x"};
+        }
+        FusedOpsConfiguration conf = {"", idx_order, "in_val", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    return jit;
+}
+
+}  // namespace kernel_selector

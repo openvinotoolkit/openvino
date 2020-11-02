@@ -24,42 +24,5 @@
             ]
         },
         "match_kind": "points"
-    },
-    {
-        "custom_attributes": {},
-        "id": "ConvFlatten",
-        "inputs": [
-            [
-                {
-                    "node": "flatten/Reshape$",
-                    "port": 0
-                },
-                {
-                    "node": "flatten/Shape$",
-                    "port": 0
-                }
-            ],
-            [
-                {
-                    "node": "flatten/Shape$",
-                    "port": 0
-                },
-                {
-                    "node": "flatten/Reshape$",
-                    "port": 0
-                }
-            ]
-        ],
-        "instances": [
-            "SSD/ssd_head/Flatten/",
-            "SSD/ssd_head/Flatten_1/"
-        ],
-        "match_kind": "scope",
-        "outputs": [
-            {
-                "node": "flatten/Reshape$",
-                "port": 0
-            }
-        ]
     }
 ]

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,5 @@ def get_version():
     if not os.path.isfile(version_txt):
         return "unknown version"
     with open(version_txt) as f:
-        _ = f.readline()
         version = f.readline().replace('\n', '')
     return version

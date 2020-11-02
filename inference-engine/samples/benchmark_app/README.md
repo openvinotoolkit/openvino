@@ -1,29 +1,24 @@
-# Benchmark Application C++ Demo
+# Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
 
-This topic demonstrates how to use the Benchmark Application to estimate deep learning inference performance on
-supported devices. Performance can be measured for two inference modes: synchronous and asynchronous.
+This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
 
-> **NOTE:** This topic describes usage of C++ implementation of the Benchmark Application. For the Python* implementation, refer to [Benchmark Application (Python*)](./inference-engine/ie_bridges/python/sample/benchmark_app/README.md).
+> **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../tools/benchmark_tool/README.md).
 
 
 ## How It Works
 
-> **NOTE:** To achieve benchmark results similar to the official published results, set CPU frequency to 2.9 GHz and GPU frequency to 1 GHz.
+Upon start-up, the application reads command-line parameters and loads a network and images/binary files to the Inference Engine plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend on the mode defined with the `-api` command-line parameter.
 
-Upon start-up, the application reads command-line parameters and loads a network and images to the Inference Engine
-plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend
-on the mode defined with the `-api` command-line parameter.
-
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Specify Input Shapes** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 If you run the application in the synchronous mode, it creates one infer request and executes the `Infer` method.
-If you run the application in the asynchronous mode, it creates as many infer requests as specified in the `-nireq`
-command-line parameter and executes the `StartAsync` method for each of them.
+If you run the application in the asynchronous mode, it creates as many infer requests as specified in the `-nireq` command-line parameter and executes the `StartAsync` method for each of them. If `-nireq` is not set, the application will use the default value for specified device.
 
-The `Wait` method is used to wait for a previous execution of an infer request to complete. A number of execution steps
-is defined by one of the two values:
+A number of execution steps is defined by one of the following parameters:
 * Number of iterations specified with the `-niter` command-line argument
-* Predefined duration if `-niter` is not specified. Predefined duration value depends on device.
+* Time duration specified with the `-t` command-line argument
+* Both of them (execution will continue until both conditions are met)
+* Predefined duration if `-niter` and `-t` are not specified. Predefined duration value depends on a device.
 
 During the execution, the application collects latency for each executed infer request.
 
@@ -37,20 +32,32 @@ Throughput value also depends on batch size.
 The application also collects per-layer Performance Measurement (PM) counters for each executed infer request if you
 enable statistics dumping by setting the `-report_type` parameter to one of the possible values:
 * `no_counters` report includes configuration options specified, resulting FPS and latency.
-* `median_counters` report extends the `no_counters` report and additionally includes median PM counters values for each layer from the network.
-* `detailed_counters` report extends the `median_counters` report and additionally includes per-layer PM counters and latency for each executed infer request.
+* `average_counters` report extends the `no_counters` report and additionally includes average PM counters values for each layer from the network.
+* `detailed_counters` report extends the `average_counters` report and additionally includes per-layer PM counters and latency for each executed infer request.
 
-Depending on the type, the report is stored to `benchmark_no_counters_report.csv`, `benchmark_median_counters_report.csv`,
+Depending on the type, the report is stored to `benchmark_no_counters_report.csv`, `benchmark_average_counters_report.csv`,
 or `benchmark_detailed_counters_report.csv` file located in the path specified in `-report_folder`.
 
-The application also saves executable graph information serialized to a XML file if you specify a path to it with the
+The application also saves executable graph information serialized to an XML file if you specify a path to it with the
 `-exec_graph_path` parameter.
 
 
-## Running
+## Run the Tool
+Note that the benchmark_app usually produces optimal performance for any device out of the box.
+
+**So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:
+```sh
+./benchmark_app -m <model> -i <input> -d CPU
+```
+
+But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md).
+
+As explained in the  [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md) section, for all devices, including new [MULTI device](../../../docs/IE_DG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
+Also if latency of the CPU inference on the multi-socket machines is of concern, please refer to the same
+[Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md) document.
 
 Running the application with the `-h` option yields the following usage message:
-```sh
+```
 ./benchmark_app -h
 InferenceEngine:
         API version ............ <version>
@@ -60,72 +67,122 @@ InferenceEngine:
 benchmark_app [OPTION]
 Options:
 
-    -h                        Print a usage message
-    -i "<path>"               Required. Path to a folder with images or to image files.
-    -m "<path>"               Required. Path to an .xml file with a trained model.
-    -pp "<path>"              Optional. Path to a plugin folder.
-    -d "<device>"             Optional. Specify a target device to infer on: CPU, GPU, FPGA, HDDL or MYRIAD. Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. The application looks for a suitable plugin for the specified device.
+    -h, --help                Print a usage message
+    -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
+    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
+    -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
+                              Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
+                              Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. 
+    The application looks for a suitable plugin for the specified device.
     -l "<absolute_path>"      Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
     -c "<absolute_path>"      Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
     -api "<sync/async>"       Optional. Enable Sync/Async API. Default value is "async".
     -niter "<integer>"        Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
-    -nireq "<integer>"        Optional. Number of infer requests. Default value is 2.
+    -nireq "<integer>"        Optional. Number of infer requests. Default value is determined automatically for a device.
     -b "<integer>"            Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.
     -stream_output            Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multiline output.
+    -t                        Optional. Time, in seconds, to execute topology.
+    -progress                 Optional. Show progress bar (can affect performance measurement). Default values is "false".
+    -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
 
   CPU-specific performance options:
-    -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO cases).
-    -pin "YES"/"NO"           Optional. Enable ("YES" is default value) or disable ("NO") CPU threads pinning for CPU-involved inference.
+    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU or/and GPU in throughput mode
+                              (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
+                              Default value is determined automatically for a device. 
+                              Please note that although the automatic selection usually provides a reasonable performance, 
+                              it still may be non-optimal for some cases, especially for very small networks.
+    -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
+    -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision on platforms with native bfloat16 support. By default, this key sets "true" on platforms with native bfloat16 support and "false" for other platforms. Use "-enforcebf16=false" to disable this feature.
+    -pin "YES"/"NO"/"NUMA"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
+
 
   Statistics dumping options:
-    -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "median_counters" report extends "no_counters" report and additionally includes median PM counters values for each layer from the network. "detailed_counters" report extends "median_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
+    -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
     -report_folder            Optional. Path to a folder where statistics report is stored.
     -exec_graph_path          Optional. Path to a file where to store executable graph information serialized.
+    -pc                       Optional. Report performance counters.
+    -dump_config              Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.
+    -load_config              Optional. Path to XML/YAML/JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-You can run the application for one input layer four-dimensional models that support images as input, for example, public
-AlexNet and GoogLeNet models. To download the pre-trained models, use the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+Application supports topologies with one or more inputs. If a topology is not data-sensitive, you can skip the input parameter. In this case, inputs are filled with random values.
+If a model has only image input(s), please provide a folder with images or a path to an image as input.
+If a model has some specific input(s) (not images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to them as input.
+If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-> **NOTE**: Before running the demo with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
-For example, to perform inference on CPU in the synchronous mode and get estimated performance metrics for AlexNet model,
-run the following command:
+> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> 
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-```sh
-./benchmark_app -i <path_to_image>/inputImage.bmp -m <path_to_model>/alexnet_fp32.xml -d CPU -api sync
-```
+## Examples of Running the Tool
 
-For the asynchronous mode:
-```sh
-./benchmark_app -i <path_to_image>/inputImage.bmp -m <path_to_model>/alexnet_fp32.xml -d CPU -api async
-```
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.  
 
+> **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
-## Demo Output
+1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
+   ```sh
+   cd <INSTAL_DIR>/deployment_tools/open_model_zoo/tools/downloader
+   ```
+   ```sh
+   python3 downloader.py --name googlenet-v1 -o <models_dir>
+   ```
+2. Convert the model to the Inference Engine IR format. Go to the Model Optimizer directory and run the `mo.py` script with specifying the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
+   ```sh
+   cd <INSTALL_DIR>/deployment_tools/model_optimizer
+   ```
+   ```sh
+   python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   ```     
+3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and FPGA devices:
+   
+   * On CPU:
+   ```sh
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
+   ```
+   * On FPGA:
+   ```sh
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d HETERO:FPGA,CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
+   ```
 
-The application outputs latency and throughput. Additionally, if you set the `-report_type` parameter, the application
-outputs statistics report. If you set `-exec_graph_path`, the application reports executable graph information serialized.
-Progress bar shows the progress of each execution step:
+The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
+Additionally, if you set the `-report_type` parameter, the application outputs statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
-```
-[Step 7/8] Start inference asynchronously (100 async inference executions, 4 inference requests in parallel)
-Progress: [....................] 100.00% done
+Below are fragments of sample output for CPU and FPGA devices: 
 
-[Step 8/8] Dump statistics report
-[ INFO ] statistics report is stored to benchmark_detailed_counters_report.csv
-Progress: [....................] 100.00% done
+* For CPU:
+   ```
+   [Step 8/9] Measuring performance (Start inference asyncronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
+   Progress: [....................] 100.00% done
 
-Latency: 73.33 ms
-Throughput: 53.28 FPS
-```
+   [Step 9/9] Dumping statistics report
+   [ INFO ] Statistics collecting was not requested. No reports are dumped.
+   Progress: [....................] 100.00% done
 
-All measurements including per-layer PM counters are reported in milliseconds.
+   Count:      4612 iterations
+   Duration:   60110.04 ms
+   Latency:    50.99 ms
+   Throughput: 76.73 FPS
+   ```
 
+* For FPGA:
+   ```
+   [Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 4 streams for CPU, limits: 120000 ms duration)
+   Progress: [....................] 100% done
+
+   [Step 11/11] Dumping statistics report
+   Count:      102515 iterations
+   Duration:   120007.38 ms
+   Latency:    5.84 ms
+   Throughput: 854.24 FP
+   ```
 
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)
+* [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](@ref omz_tools_downloader_README)

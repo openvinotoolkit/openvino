@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -41,9 +41,8 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
     enabled = True
 
     def run_before(self):
-        from extensions.middle.FusePermutesSequence import FusePermutesSequence
         from extensions.middle.LSTMRNNSequenceToTensorIterator import LSTMToTensorIterator
-        return [FusePermutesSequence, LSTMToTensorIterator]
+        return [LSTMToTensorIterator]
 
     def run_after(self):
         from extensions.middle.pass_separator import MiddleStart
@@ -111,7 +110,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
         concatenated cell states over the whole time sequence -> last cell state
 
         BlockLSTM
-           || out 1 (concatenated cell states comming out of BlockLSTM)
+           || out 1 (concatenated cell states coming out of BlockLSTM)
            \/  in 1
         ConcatV2
            || (concatenation with initial state or another unused data)
@@ -204,6 +203,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
         graph.remove_edge(match['BlockLSTM'].id, match['concatenated_cell_states_data'].id)
         graph.remove_edge(match['gather_1'].id, match['gather_1_data'].id)
 
+        match['BlockLSTM'].add_output_port(attrs['out'])
         graph.add_edge(match['BlockLSTM'].id, match['gather_1_data'].id, **attrs)
 
         """
@@ -265,10 +265,10 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
                     list_of_concatenated_hidden_states_children_node_ids.append(node.id)
 
         if len(list_of_concatenated_hidden_states_children_node_ids) != 1:
-            return  # not supported placement of patten
+            return  # not supported placement of pattern
         conacenated_child_node_id = list_of_concatenated_hidden_states_children_node_ids[0]
         if conacenated_child_node_id != match['after_mul_op_to_the_rest_of_model'].id:
-            return  # not supported placement of patten
+            return  # not supported placement of pattern
 
         gather_indexes = match['gather_0'].in_node(1).value
         if len(gather_indexes) == 1:

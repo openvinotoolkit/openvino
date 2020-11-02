@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,39 +14,39 @@
  limitations under the License.
 """
 
-import networkx as nx
+import numpy as np
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph
 from mo.ops.op import Op
-from mo.front.common.partial_infer.utils import mark_input_bins
 
 
-class PreluOp(Op):
+class PReLU(Op):
     op = 'PReLU'
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
-            'in_ports_count': 1,
+            'op': self.op,
+            'type': self.op,
+            'version': 'opset1',
+
+            'infer': self.infer,
+
+            'force_precision_in_ports': {1: 'float'},
+
+            'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': PreluOp.prelu_shape_infer
         }, attrs)
 
-    def supported_attrs(self):
-        return ['channel_shared', 'filler_type', 'filler_value', 'min', 'max', 'mean', 'std', 'sparse', 'variance_norm']
-
     @staticmethod
-    def prelu_shape_infer(node):
+    def infer(node):
         if len(node.in_nodes()) == 2:
             gamma_vector = node.in_node(1)
-            if len(gamma_vector.shape) == 1 and \
-                   gamma_vector.shape[0] == node.in_node(0).shape[node.graph.graph['layout'].index('C')]:
-                node['channel_shared'] = 0
-            else:
+            if np.all(gamma_vector.shape == [1]):
                 node['channel_shared'] = 1
-            mark_input_bins(node)
-        copy_shape_infer(node)
+            else:
+                node['channel_shared'] = 0
+            node.in_node(1)['correct_data_type'] = True
 
+        copy_shape_infer(node)

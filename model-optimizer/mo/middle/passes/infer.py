@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,10 +20,8 @@ import networkx as nx
 import numpy as np
 
 # TODO remove it
-from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.graph.graph import dict_includes
-from mo.middle.pattern_match import for_each_sub_graph
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg, shrink_str_value
 
@@ -57,10 +55,10 @@ def control_flow_infer(graph: Graph, node_name: str):
                              if 'control_flow_edge' not in attrs or not attrs['control_flow_edge']]
     in_cf_edges_with_data = [(u, v, attrs) for u, v, attrs in in_edges_with_data
                              if 'control_flow_edge' in attrs and attrs['control_flow_edge']]
-    is_executable_df = not all([not graph.node[u]['executable'] for u, _, attrs in in_df_edges_with_data]
-                               if len(in_df_edges_with_data) else [False])
-    is_executable_cf = not any([not graph.node[u]['executable'] for u, _, attrs in in_cf_edges_with_data]
-                               if len(in_cf_edges_with_data) else [False])
+    is_executable_df = all([graph.node[u]['executable'] for u, _, attrs in in_df_edges_with_data]
+                           if len(in_df_edges_with_data) else [True])
+    is_executable_cf = all([graph.node[u]['executable'] for u, _, attrs in in_cf_edges_with_data]
+                           if len(in_cf_edges_with_data) else [True])
     is_executable = is_executable_df and is_executable_cf
 
     node = Node(graph, node_name)
@@ -91,6 +89,8 @@ def partial_infer(graph: Graph, start_node: str = None):
     constant values. Partially or completely defined values are stored in data
     nodes (kind='data').
     """
+    # We have to turn off strict mode due to above we add and remove edeges without attributes that is prohibited
+    graph.strict_mode = False
     cycle_nodes = graph.get_nodes_with_attributes(is_cyclic=True)
     cycle_nodes = [Node(graph, node).out_node().id for node in cycle_nodes]
     ebunch_cyclic = list(graph.out_edges(nbunch=cycle_nodes, data=True, keys=True))
@@ -105,9 +105,10 @@ def partial_infer(graph: Graph, start_node: str = None):
 
     graph.remove_edges_from(ebunch_reconnected)
     graph.add_edges_from(ebunch_cyclic)
+    graph.strict_mode = True
 
     # Mark all nodes as not inferred yet
-    if not start_node is None:
+    if start_node is not None:
         start_index = nodes.index(start_node)
         nx.set_node_attributes(G=graph.subgraph(nodes[start_index:]), name='is_partial_inferred', values=False)
     else:
@@ -124,9 +125,13 @@ def partial_infer(graph: Graph, start_node: str = None):
             node_name = node.soft_get('name')
             if node.has('is_partial_inferred') and not node.is_partial_inferred:
                 if node.has('infer') and not node.infer is None:
-                    log.debug('-' * 20)
-                    log.debug('Partial infer for {}'.format(node.soft_get('name')))
-                    log.debug('Op: {}'.format(node.soft_get('op')))
+                    if debug_logger:
+                        log.debug('-' * 20)
+                        log.debug('Partial infer for {}'.format(node.soft_get('name')))
+                        log.debug('Op: {}'.format(node.soft_get('op')))
+                        log.debug('Inputs:')
+                        log_debug_dict(node.in_nodes(), 'input')
+
                     node.infer(node)
                     out_nodes = node.out_nodes()
 
@@ -137,8 +142,6 @@ def partial_infer(graph: Graph, start_node: str = None):
 
                     # In debug print current node attributes, input shapes/values and output shape/values
                     if debug_logger:
-                        log.debug('Inputs:')
-                        log_debug_dict(node.in_nodes(), 'input')
                         log.debug('Outputs:')
                         log_debug_dict(node.out_nodes(), 'output')
 
@@ -207,7 +210,7 @@ def partial_infer(graph: Graph, start_node: str = None):
 
 def override_batch(graph: Graph, batch: int):
     """
-    Overrides batch for nodes with 'op' param set to 'Placeholder'
+    Overrides batch for nodes with 'op' param set to 'Parameter'
     Parameters
     ----------
     graph: graph to operate on
@@ -215,7 +218,7 @@ def override_batch(graph: Graph, batch: int):
     """
     if batch is not None:
         for node_id, data in graph.nodes(data=True):
-            if 'op' in data and data['op'] == 'Placeholder' and not data.get('fixed_batch', False):
+            if 'op' in data and data['op'] == 'Parameter' and not data.get('fixed_batch', False):
                 if len(data['shape']) == 0 or data['shape'][0] not in (-1, 0, 1):
                     raise Error(('The input layer {} has a shape {} defined in the model. \n\n' +
                                  'When you use -b (--batch) option, Model Optimizer applies its value to the first ' +
@@ -231,7 +234,7 @@ def override_batch(graph: Graph, batch: int):
 
 def override_placeholder_shapes(graph: Graph, user_shapes: dict, batch=None):
     """
-    This function overrides shapes for nodes with 'op' param set to 'Placeholder' with shapes defined by users (only
+    This function overrides shapes for nodes with 'op' param set to 'Parameter' with shapes defined by users (only
     for inputs without in/out port specified).
     And override batch if batch was specified and shape for input is not None.
     :param graph: graph to operate on
@@ -242,7 +245,7 @@ def override_placeholder_shapes(graph: Graph, user_shapes: dict, batch=None):
         # DON'T MOVE UPPER!!! WE NEED TO SET BATCH FIRST
         # user did not specify neither shapes nor inputs, keep models values
         return
-    placeholders = graph.get_nodes_with_attributes(kind='op', op='Placeholder')
+    placeholders = graph.get_nodes_with_attributes(kind='op', op='Parameter')
     for node_id in placeholders:
         node_attrs = graph.node[node_id]
         shape = None
@@ -258,52 +261,47 @@ def override_placeholder_shapes(graph: Graph, user_shapes: dict, batch=None):
             node_attrs['shape'][0] = batch
 
 
-def update_fully_connected_shapes(graph: Graph):
-    nodes = nx.topological_sort(graph)
-    while True:
-        should_infer = False
-        for n in nodes:
-            node = Node(graph, n)
-            if node.has('type') and node.type == 'FullyConnected' and node.in_node(0).shape.size == 3:
-                log.debug("node.in_node(0).shape = {}".format(node.in_node(0).shape))
-                log.debug("channel_dims = {}".format(node.channel_dims))
-                assert (node.in_node(0).shape.size == 3 and node.channel_dims > 0)
-                node.in_node(0).shape = np.delete(node.in_node(0).shape, 1)
-                if node.out_node().shape.size == 3:
-                    node.channel_dims = node.channel_dims - 1
-                    log.debug("Initiated partial infer from update_fully_connected_shapes")
-                    graph = partial_infer(graph, node.in_node(0).id)
-                    # Not working
-                    # graph = mark_dead_nodes(graph)
-                    # graph = eliminate_dead_nodes(graph)
-                    should_infer = True
-                    break
-        if not should_infer:
-            break
-
-
-# Convert MUL operation to Power layer in case when
-# mul op takes two inputs (scalar constant and tensor)
-def convert_mul_add_to_power(graph: Graph):
-    for_each_sub_graph(graph, convert_mul_add_to_power)
-    nodes = list(graph.nodes())
+def type_infer(graph: Graph):
+    nodes = list(nx.topological_sort(graph))
     for n in nodes:
-        # As we remove nodes from graph, we should check that node exists in graph
-        if n in graph:
-            node = Node(graph, n)
-            if node.has('op') and (node.op == 'Mul' or node.op == 'Add') and len(node.in_nodes()) == 2 and \
-                    node.soft_get('can_be_scaleshift') is not False:
-                scalar_idx, tensor_idx = (0, 1) if not node.in_node(0).value is None else (1, 0)
-                if not node.in_node(scalar_idx).value is None and node.in_node(tensor_idx).value is None:
-                    if np.squeeze(node.in_node(scalar_idx).value).ndim == 0:
-                        node['type'] = 'Power'
-                        node['scale'] = node.in_node(scalar_idx).value.item() if node.op == 'Mul' else 1
-                        node['power'] = 1
-                        node['shift'] = node.in_node(scalar_idx).value.item() if node.op == 'Add' else 0
-                        node['op'] = 'Power'
-                        if node.has('operation'):
-                            del node.graph.node[node.id]['operation']
-                        update_ie_fields(graph.node[node.id])
-                        scalar_node = node.in_node(scalar_idx)
-                        graph.remove_edge(scalar_node.id, node.id)
-                        graph.remove_node(scalar_node.id)
+        node = Node(graph, n)
+        if node.kind == 'op':
+            node_name = node.soft_get('name')
+            node_type_infer(node)
+            log.debug('Type infer for node {}: {}'.format(node_name,
+                                                          [port.get_data_type() for port in node.out_ports().values()]))
+            """
+            Save the precision of input ports in the nodes. It is not possible to get the precision after the port
+            re-numbering because the port precision is defined for output port only and for input port it is determined
+            with the output port producing data to the input port. When output port id is changed it is not possible to
+            determine input port precision.
+            """
+            for out_port in node.out_ports().values():
+                for dest_port in out_port.get_destinations():
+                    if not dest_port.node.has_valid('_in_port_precision'):
+                        dest_port.node['_in_port_precision'] = {}
+                    dest_port.node['_in_port_precision'][dest_port.idx] = out_port.get_data_type()
+
+
+def node_type_infer(node):
+    if node.has_valid('type_infer'):
+        node.type_infer(node)
+    elif node.has_valid('data_type'):
+        node.out_port(0).set_data_type(node.data_type)
+    else:
+        copy_type_infer(node)
+
+
+def copy_type_infer(node):
+    for out_port in node.out_ports().values():
+        connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
+        if len(connected_in_ports) != 0:
+            data_type = connected_in_ports[0].get_data_type()
+            if data_type is not None:
+                out_port.set_data_type(data_type)
+            else:
+                src_node = connected_in_ports[0].get_connection().get_source().node
+                node_type_infer(src_node)
+                out_port.set_data_type(connected_in_ports[0].get_data_type())
+        else:
+            raise Error('No input ports of node {} to determine data type'.format(node.soft_get('name')))

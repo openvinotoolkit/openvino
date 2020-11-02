@@ -42,32 +42,21 @@ intel_config_flag_apply_settings(CompilerOptions CMAKE_C_FLAGS ALL_PATTERN ""
 
 set(__CLDNN_Label__api                  "api")
 file(GLOB __CLDNN_Headers__api
-    "${CLDNN__API_DIR}/*.h"
     "${CLDNN__API_DIR}/*.hpp"
   )
 
 set(__CLDNN_Directory__api__cpp         "${CLDNN__API_DIR}/CPP")
 set(__CLDNN_Label__api__cpp             "${__CLDNN_Label__api}\\CPP")
 file(GLOB __CLDNN_Headers__api__cpp
-    "${__CLDNN_Directory__api__cpp}/*.h"
     "${__CLDNN_Directory__api__cpp}/*.hpp"
-  )
-
-set(__CLDNN_Directory__api__c           "${CLDNN__API_DIR}/C")
-set(__CLDNN_Label__api__c               "${__CLDNN_Label__api}\\C")
-file(GLOB __CLDNN_Headers__api__c
-    "${__CLDNN_Directory__api__c}/*.h"
-    "${__CLDNN_Directory__api__c}/*.hpp"
   )
 
 set(__CLDNN_Directory__test_builds      "${CLDNN__CODEGEN_DIR}/test_builds")
 set(__CLDNN_CGDirectory__test_builds    "${CLDNN__CODEGEN_BASEDIR}/test_builds")
 set(__CLDNN_Label__test_builds          "test builds\\codegen")
 set(__CLDNN_File__test_builds__api__cpp "api_cpp_test.cpp")
-set(__CLDNN_File__test_builds__api__c   "api_c_test.c")
 set(__CLDNN_Sources__test_builds
     "${__CLDNN_Directory__test_builds}/${__CLDNN_File__test_builds__api__cpp}"
-    "${__CLDNN_Directory__test_builds}/${__CLDNN_File__test_builds__api__c}"
   )
 
 set(__CLDNN_AllSources
@@ -93,20 +82,10 @@ foreach(__CLDNN_Header ${__CLDNN_Headers__api} ${__CLDNN_Headers__api__cpp})
 endforeach()
 file(APPEND "${__CLDNN_CGFile__api__cpp}" "\n")
 
-# C API testing (C99 compatibility).
-set(__CLDNN_CGFile__api__c "${__CLDNN_CGDirectory__test_builds}/${__CLDNN_File__test_builds__api__c}")
-file(WRITE "${__CLDNN_CGFile__api__c}" "// This file is auto-generated. Please, do not modify it directly.\n\n")
-foreach(__CLDNN_Header ${__CLDNN_Headers__api} ${__CLDNN_Headers__api__c})
-  string(REPLACE ";" "\;" __CLDNN_Header "${__CLDNN_Header}") # [WA#1] Must escape ; again if occurred in item.
-  file(APPEND "${__CLDNN_CGFile__api__c}" "#include \"${__CLDNN_Header}\"\n")
-endforeach()
-file(APPEND "${__CLDNN_CGFile__api__c}" "\n")
-
 # =============================================== Filters ==============================================
 
 source_group("${__CLDNN_Label__api}"         FILES ${__CLDNN_Headers__api})
 source_group("${__CLDNN_Label__api__cpp}"    FILES ${__CLDNN_Headers__api__cpp})
-source_group("${__CLDNN_Label__api__c}"      FILES ${__CLDNN_Headers__api__c})
 source_group("${__CLDNN_Label__test_builds}" FILES ${__CLDNN_Sources__test_builds})
 
 # ===================================== Include/Link directories =======================================
@@ -138,11 +117,6 @@ add_custom_command(OUTPUT "${__CLDNN_Directory__test_builds}/${__CLDNN_File__tes
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${__CLDNN_CGFile__api__cpp}" "${__CLDNN_Directory__test_builds}/${__CLDNN_File__test_builds__api__cpp}"
     DEPENDS "${__CLDNN_CGFile__api__cpp}" ${__CLDNN_Headers__api} ${__CLDNN_Headers__api__cpp}
     COMMENT "Updating file if the file changed (${__CLDNN_File__test_builds__api__cpp}) ..."
-  )
-add_custom_command(OUTPUT "${__CLDNN_Directory__test_builds}/${__CLDNN_File__test_builds__api__c}"
-    COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${__CLDNN_CGFile__api__c}" "${__CLDNN_Directory__test_builds}/${__CLDNN_File__test_builds__api__c}"
-    DEPENDS "${__CLDNN_CGFile__api__c}" ${__CLDNN_Headers__api} ${__CLDNN_Headers__api__c}
-    COMMENT "Updating file if the file changed (${__CLDNN_File__test_builds__api__c}) ..."
   )
 
 # ======================================================================================================

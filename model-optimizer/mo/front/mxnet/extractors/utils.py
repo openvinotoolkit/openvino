@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,11 @@
 """
 
 import mxnet as mx
+import numpy as np
 
+from extensions.ops.elementwise import Elementwise
+from mo.graph.graph import Node, Graph
+from mo.ops.const import Const
 from mo.utils.error import Error
 from mo.utils.str_to import StrTo
 from mo.utils.utils import refer_to_faq_msg
@@ -47,6 +51,11 @@ class AttrDictionary(object):
                 raise ValueError("Missing required parameter: " + key)
         if key in self._dict:
             return self._dict[key]
+        return default
+
+    def dtype(self, key, default=None):
+        if self.is_valid and key in self._dict:
+            return mxnet_str_dtype_to_np(self._dict[key])
         return default
 
     def bool(self, key, default=None):
@@ -140,7 +149,7 @@ def get_json_layer_attrs(json_dic):
     return json_dic[attr]
 
 
-def load_params(input_model, data_names = ('data',)):
+def load_params(input_model, data_names=('data',)):
     arg_params = {}
     aux_params = {}
     arg_keys = []
@@ -150,10 +159,10 @@ def load_params(input_model, data_names = ('data',)):
     if file_format == 'params':
         for key in loaded_weight:
             keys = key.split(':')
-            if len(keys)>1 and 'aux' == keys[0]:
+            if len(keys) > 1 and 'aux' == keys[0]:
                 aux_keys.append(keys[1])
                 aux_params[keys[1]] = loaded_weight[key]
-            elif len(keys)>1 and 'arg' == keys[0]:
+            elif len(keys) > 1 and 'arg' == keys[0]:
                 arg_keys.append(keys[1])
                 arg_params[keys[1]] = loaded_weight[key]
             else:
@@ -191,3 +200,28 @@ def init_rnn_states(model_nodes):
                 if shape:
                     states.update({model_nodes[i[0]]['name']: shape})
     return states
+
+
+def scalar_ops_replacer(graph: Graph, node: Node, elementwise_op_type=Elementwise):
+    scalar_value = Const(graph, dict(value=node.scalar,
+                                     symbol_dict={'name': node.id + '/const'})).create_node()
+    lin_node = elementwise_op_type(graph, dict(name=node.id + '/lin_', symbol_dict={'name': node.id + '/lin_'})
+                                   ).create_node()
+    node.in_port(0).get_connection().set_destination(lin_node.in_port(0))
+    lin_node.in_port(1).get_connection().set_source(scalar_value.out_port(0))
+    node.out_port(0).get_connection().set_source(lin_node.out_port(0))
+    return lin_node
+
+
+MXNET_DATA_TYPES = {
+    'float16': np.float16,
+    'float32': np.float32,
+    'float64': np.float64,
+    'int8': np.int8,
+    'int32': np.int32,
+    'int64': np.int64,
+}
+
+
+def mxnet_str_dtype_to_np(dtype: str):
+    return MXNET_DATA_TYPES[dtype]

@@ -16,19 +16,16 @@
 
 #include "kernel_selector.h"
 
+namespace kernel_selector {
+class border_kernel_selector : public kernel_selector_base {
+public:
+    static border_kernel_selector& Instance() {
+        static border_kernel_selector instance;
+        return instance;
+    }
 
-namespace kernel_selector 
-{
-    class border_kernel_selector : public kernel_selector_base
-    {
-    public:
-        static border_kernel_selector &Instance() {
-            static border_kernel_selector instance;
-            return instance;
-        }
+    border_kernel_selector();
 
-        border_kernel_selector();
-
-        KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    };
-}
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+};
+}  // namespace kernel_selector

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,24 +17,23 @@
 import unittest
 
 import numpy as np
-
 from generator import generator, generate
 
-from mo.graph.graph import Node, Graph, add_opoutput
+from mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs
 from mo.ops.const import Const
 from mo.utils.error import Error
-from mo.utils.unittest.graph import build_graph, compare_graphs
-
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes = {
-    '0': {'name': 'input1', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
-    '1': {'name': 'input2', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+    '0': {'name': 'input1', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+    '1': {'name': 'input2', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
     '2': {'name': 'node_1', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'NotPlaceholder'},
     '3': {'name': 'node_2', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'NotPlaceholder'},
     '4': {'name': 'node_3', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'NotPlaceholder'},
     '5': {'name': 'node_4', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'NotPlaceholder'},
-    '6': {'name': 'output', 'value': None, 'kind': 'op', 'op': 'OpOutput'},
-    'input_3': {'name': 'input_3', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'}
+    '6': {'name': 'output', 'value': None, 'kind': 'op', 'op': 'Result'},
+    'input_3': {'name': 'input_3', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'}
 }
 edges = {
     ('0', '2'),
@@ -82,7 +81,7 @@ class TestEraseNode(unittest.TestCase):
     def test_remove_noop_nodes_middle(self):
         graph = build_graph(
             {
-                'input': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'noop': {'type': 'NoOp', 'value': None, 'kind': 'op'},
                 'output': {'type': 'Identity', 'value': None, 'kind': 'op'},
             },
@@ -102,7 +101,7 @@ class TestEraseNode(unittest.TestCase):
     def test_remove_noop_nodes_middle_2(self):
         graph = build_graph(
             {
-                'input': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'noop': {'type': 'NoOp', 'value': None, 'kind': 'op'},
                 'output_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -115,7 +114,7 @@ class TestEraseNode(unittest.TestCase):
 
         ref_graph = build_graph(
             {
-                'input': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'output_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -132,7 +131,7 @@ class TestEraseNode(unittest.TestCase):
     def test_remove_noop_nodes_check_out_port(self):
         graph = build_graph(
             {
-                'input': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'noop': {'type': 'NoOp', 'value': None, 'kind': 'op'},
                 'output_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -145,7 +144,7 @@ class TestEraseNode(unittest.TestCase):
 
         ref_graph = build_graph(
             {
-                'input': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'output_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -162,7 +161,7 @@ class TestEraseNode(unittest.TestCase):
     def test_remove_noop_nodes_too_many_outputs(self):
         graph = build_graph(
             {
-                'input': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'noop': {'type': 'NoOp', 'value': None, 'kind': 'op'},
                 'output_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -197,7 +196,7 @@ class TestEraseNode(unittest.TestCase):
     def test_remove_noop_nodes_back(self):
         graph = build_graph(
             {
-                'input': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'noop': {'type': 'NoOp', 'value': None, 'kind': 'op'}
             },
             [('input', 'noop')]
@@ -228,9 +227,9 @@ class TestEraseNode(unittest.TestCase):
     def test_remove_noop_error(self):
         graph = build_graph(
             {
-                'input_1': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
-                'input_2': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
-                'input_3': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input_1': {'type': 'Parameter', 'value': None, 'kind': 'op'},
+                'input_2': {'type': 'Parameter', 'value': None, 'kind': 'op'},
+                'input_3': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'noop': {'type': 'NoOp', 'value': None, 'kind': 'op'},
                 'output_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -249,10 +248,10 @@ class TestReplaceNode(unittest.TestCase):
     def test_replace_node_one_consumer(self):
         graph = build_graph(
             {
-                'input_1': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
-                'input_2': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input_1': {'type': 'Parameter', 'value': None, 'kind': 'op'},
+                'input_2': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'old': {'type': 'Identity', 'value': None, 'kind': 'op'},
-                'output': {'op': 'OpOutput', 'value': None, 'kind': 'op'},
+                'output': {'op': 'Result', 'value': None, 'kind': 'op'},
             },
             [('input_1', 'old'),
              ('input_2', 'old'),
@@ -265,14 +264,14 @@ class TestReplaceNode(unittest.TestCase):
 
         self.assertEqual(len(graph.nodes()), 4)
         self.assertEqual(len(graph.edges()), 3)
-        self.assertEqual(new_node.out_node().op, 'OpOutput')
+        self.assertEqual(new_node.out_node().op, 'Result')
         self.assertEqual(len(graph.out_edges('new')), 1)
 
     def test_replace_node_several_consumers(self):
         graph = build_graph(
             {
-                'input_1': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
-                'input_2': {'type': 'Placeholder', 'value': None, 'kind': 'op'},
+                'input_1': {'type': 'Parameter', 'value': None, 'kind': 'op'},
+                'input_2': {'type': 'Parameter', 'value': None, 'kind': 'op'},
                 'old': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                 'output_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -331,13 +330,13 @@ class GetNodesWithPorts(unittest.TestCase):
 
 class TestGraphShapeChecker(unittest.TestCase):
     nodes = {
-        '0': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '0_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-        '1': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '1': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '1_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-        '2': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '2': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '2_data': {'value': None, 'shape': None, 'kind': 'data'},
     }
 
@@ -378,16 +377,16 @@ class TestGraphShapeChecker(unittest.TestCase):
 @generator
 class TestGraphPortsChecker(unittest.TestCase):
     nodes = {
-        '0': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '0_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-        '1': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '1': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '1_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-        '2': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '2': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '2_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-        '3': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '3': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '3_data': {'value': None, 'shape': None, 'kind': 'data'},
     }
 
@@ -423,19 +422,19 @@ class TestGraphPortsChecker(unittest.TestCase):
 class TestNewGraphAPIMiddle(unittest.TestCase):
 
     nodes = {
-        '0': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '0_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-        '1': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '1': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '1_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-        '2': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '2': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '2_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-        '3': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '3': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '3_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-        '4': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '4': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '4_data': {'value': None, 'shape': None, 'kind': 'data'},
 
         'const_1': {'type': 'Const', 'value': None, 'kind': 'op', 'op': 'Const'},
@@ -817,6 +816,64 @@ class TestNewGraphAPIMiddle(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, '0', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
+    def test_connection_set_destination_1(self):
+        # 2
+        #            ,->1-->1_data                    ,->2
+        # 0-->0_data/-->1-->1_data   ==>   0-->0_data/-->1
+        #
+        graph = build_graph(self.nodes, [
+            ('0', '0_data'),
+
+            ('0_data', '1'),
+            ('0_data', '1'),
+        ])
+        graph.__setattr__('stage', 'middle')
+
+        graph_ref = build_graph(self.nodes, [
+            ('0', '0_data'),
+
+            ('0_data', '1'),
+            ('0_data', '2'),
+        ])
+
+        node_1 = Node(graph, '1')
+        node_2 = Node(graph, '2')
+        node_2.add_input_port(0)
+
+        node_1.in_port(1).get_connection().set_destination(node_2.in_port(0))
+
+        (flag, resp) = compare_graphs(graph, graph_ref, '0', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_connection_set_destination_2(self):
+        # 2
+        #            ,->1                    ,->1
+        # 0-->0_data/-->1   ==>   0-->0_data/-->2
+        #
+        graph = build_graph(self.nodes, [
+            ('0', '0_data'),
+
+            ('0_data', '1'),
+            ('0_data', '1'),
+        ])
+        graph.__setattr__('stage', 'middle')
+
+        graph_ref = build_graph(self.nodes, [
+            ('0', '0_data'),
+
+            ('0_data', '1', {'in': 1}),
+            ('0_data', '2'),
+        ])
+
+        node_1 = Node(graph, '1')
+        node_2 = Node(graph, '2')
+        node_2.add_input_port(0)
+
+        node_1.in_port(0).get_connection().set_destination(node_2.in_port(0))
+
+        (flag, resp) = compare_graphs(graph, graph_ref, '0', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
     def test_connection_add_destination_1(self):
         # 3-->3_data                                     ,-->3-->3_data
         #            ,->2-->2_data                      ,-->2-->2_data
@@ -1008,9 +1065,8 @@ class TestNewGraphAPIMiddle(unittest.TestCase):
         }, nodes_with_edges_only=True)
         add_opoutput(graph_ref, '1_data', 0, False)
 
-        from mo.middle.passes.eliminate import graph_clean_up
-        graph_clean_up(graph)
-        graph_clean_up(graph_ref)
+        graph.clean_up()
+        graph_ref.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, '1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -1042,11 +1098,11 @@ class TestNewGraphAPIMiddle(unittest.TestCase):
 
 class TestNewGraphAPIFront(unittest.TestCase):
     nodes = {
-        '0': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
-        '1': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
-        '2': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
-        '3': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
-        '4': {'type': 'Placeholder', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        '0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        '1': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        '2': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        '3': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        '4': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         'const_1': {'type': 'Const', 'value': None, 'kind': 'op', 'op': 'Const'},
     }
 
@@ -1059,8 +1115,8 @@ class TestNewGraphAPIFront(unittest.TestCase):
         #    /-->1
         #   0
         graph = build_graph(self.nodes, [
-            ('0', '1'),
-            ('0', '2'),
+            ('0', '1', {'out': 0}),
+            ('0', '2', {'out': 0}),
         ])
         graph.__setattr__('stage', 'front')
 
@@ -1080,8 +1136,8 @@ class TestNewGraphAPIFront(unittest.TestCase):
         #    /-->1
         #   0
         graph = build_graph(self.nodes, [
-            ('0', '1'),
-            ('0', '2'),
+            ('0', '1', {'out': 0}),
+            ('0', '2', {'out': 0}),
         ])
         graph.__setattr__('stage', 'front')
 
@@ -1104,6 +1160,23 @@ class TestNewGraphAPIFront(unittest.TestCase):
         node_1_in_port = Node(graph, '1').in_port(0)
 
         self.assertEqual(node_0_out_port.get_destination(), node_1_in_port)
+
+    def test_port_get_destination_3(self):
+        graph = build_graph(self.nodes, [
+            ('0', '1', {'out': 0, 'in': 0}),
+            ('0', '2', {'out': 1, 'in': 0}),
+            ('0', '3', {'out': 1, 'in': 0}),
+        ])
+        graph.__setattr__('stage', 'front')
+
+        node_0_out_port_1 = Node(graph, '0').out_port(1)
+        node_2_in_port = Node(graph, '2').in_port(0)
+        node_3_in_port = Node(graph, '3').in_port(0)
+
+        destinations = node_0_out_port_1.get_destinations()
+
+        self.assertTrue((destinations[0] == node_2_in_port and destinations[1] == node_3_in_port) or
+                        (destinations[1] == node_2_in_port and destinations[0] == node_3_in_port))
 
     def test_port_get_source_1(self):
         graph = build_graph(self.nodes, [
@@ -1152,8 +1225,8 @@ class TestNewGraphAPIFront(unittest.TestCase):
         #   0-->0_data/--->2-->2_data  ==> 0-->0_data   1-->1_data
         #                                               2-->2_data
         graph = build_graph(self.nodes, [
-            ('0', '1'),
-            ('0', '2')
+            ('0', '1', {'out': 0}),
+            ('0', '2', {'out': 0})
         ])
         graph.__setattr__('stage', 'front')
 
@@ -1174,8 +1247,8 @@ class TestNewGraphAPIFront(unittest.TestCase):
         #   0-->/--->2  ==> 0-->/    2
         #
         graph = build_graph(self.nodes, [
-            ('0', '1'),
-            ('0', '2')
+            ('0', '1', {'out': 0}),
+            ('0', '2', {'out': 0})
         ])
         graph.__setattr__('stage', 'front')
 
@@ -1222,8 +1295,8 @@ class TestNewGraphAPIFront(unittest.TestCase):
         #   0------>2  ==> 1--->2
         #
         graph = build_graph(self.nodes, [
-            ('0', '2'),
-            ('1', '2')
+            ('0', '2', {'out': 0}),
+            ('1', '2', {'out': 0})
         ])
         graph.__setattr__('stage', 'front')
 
@@ -1260,8 +1333,8 @@ class TestNewGraphAPIFront(unittest.TestCase):
     def test_port_get_connection_1(self):
         graph = build_graph(self.nodes, [
             ('0', '1'),
-            ('1', '2'),
-            ('1', '3'),
+            ('1', '2', {'out': 0}),
+            ('1', '3', {'out': 0}),
         ])
         graph.__setattr__('stage', 'front')
 
@@ -1365,6 +1438,56 @@ class TestNewGraphAPIFront(unittest.TestCase):
 
         node_3.in_port(0).disconnect()
         node_1.in_port(0).get_connection().set_destination(node_3.in_port(0))
+
+        (flag, resp) = compare_graphs(graph, graph_ref, '0', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_connection_set_destination_1(self):
+        # 2
+        #  ,->1          ,->2
+        # 0-->1   ==>   0-->1
+        #
+        graph = build_graph(self.nodes, [
+            ('0', '1', {'out': 0, 'in': 0}),
+            ('0', '1', {'out': 0, 'in': 1}),
+        ])
+        graph.__setattr__('stage', 'front')
+
+        graph_ref = build_graph(self.nodes, [
+            ('0', '1', {'out': 0, 'in': 0}),
+            ('0', '2', {'out': 0, 'in': 0}),
+        ])
+
+        node_1 = Node(graph, '1')
+        node_2 = Node(graph, '2')
+        node_2.add_input_port(0)
+
+        node_1.in_port(1).get_connection().set_destination(node_2.in_port(0))
+
+        (flag, resp) = compare_graphs(graph, graph_ref, '0', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_connection_set_destination_2(self):
+        # 2
+        #  ,->1          ,->1
+        # 0-->1   ==>   0-->2
+        #
+        graph = build_graph(self.nodes, [
+            ('0', '1', {'out': 0, 'in': 0}),
+            ('0', '1', {'out': 0, 'in': 1}),
+        ])
+        graph.__setattr__('stage', 'front')
+
+        graph_ref = build_graph(self.nodes, [
+            ('0', '1', {'out': 0, 'in': 1}),
+            ('0', '2', {'out': 0, 'in': 0}),
+        ])
+
+        node_1 = Node(graph, '1')
+        node_2 = Node(graph, '2')
+        node_2.add_input_port(0)
+
+        node_1.in_port(0).get_connection().set_destination(node_2.in_port(0))
 
         (flag, resp) = compare_graphs(graph, graph_ref, '0', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -1475,3 +1598,33 @@ class TestNewGraphAPIFront(unittest.TestCase):
         self.assertEqual(node_0.out_port(0).get_destinations(), [])
         self.assertEqual(node_1.in_port(0).get_source(), None)
         self.assertEqual(node_2.in_port(0).get_source(), None)
+
+
+class TestDictIncludesCompareAttrs(unittest.TestCase):
+    def test_numpy_scalar(self):
+        self.assertTrue(dict_includes_compare_attrs(2.0, np.array(2.0)))
+        self.assertTrue(dict_includes_compare_attrs(2, np.array(2.0)))
+        self.assertTrue(dict_includes_compare_attrs(np.array(2.0), 2.0))
+        self.assertTrue(dict_includes_compare_attrs(np.array(2.0), 2))
+
+        self.assertFalse(dict_includes_compare_attrs(2.01, np.array(2.0)))
+        self.assertFalse(dict_includes_compare_attrs(2, np.array(2.1)))
+        self.assertFalse(dict_includes_compare_attrs(np.array(2.0), 2.01))
+        self.assertFalse(dict_includes_compare_attrs(np.array(2.1), 2))
+
+    def test_regular_scalars(self):
+        self.assertTrue(dict_includes_compare_attrs(2.0, 2))
+        self.assertFalse(dict_includes_compare_attrs(2, 1.99999999999999))
+
+    def test_lists_numpy(self):
+        self.assertTrue(dict_includes_compare_attrs([4, 2, 3], np.array([4, 2, 3])))
+        self.assertFalse(dict_includes_compare_attrs([4, 2, 3], np.array([1, 2, 3])))
+
+    def test_regular_lists(self):
+        self.assertTrue(dict_includes_compare_attrs([4, 2, 3], [4, 2, 3]))
+        self.assertFalse(dict_includes_compare_attrs([4, 2, 3], [1, 2, 3]))
+        self.assertFalse(dict_includes_compare_attrs([4, 2, 3], [4, 2, 3, 5]))
+
+    def test_regular_string(self):
+        self.assertTrue(dict_includes_compare_attrs("abc", "abc"))
+        self.assertFalse(dict_includes_compare_attrs("abc", "abd"))

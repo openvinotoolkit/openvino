@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,10 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.normalize_ext import NormalizeFrontExtractor
 from extensions.ops.normalize import NormalizeOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.ops.op import Op
 
 
 class FakeNormalizeProtoLayer:
@@ -59,7 +58,6 @@ class TestNormalizeExt(unittest.TestCase):
             'across_spatial': 1,
             'channel_shared': 0,
             'eps': 0.00001,
-            'infer': copy_shape_infer
         }
 
         for key in exp_res.keys():

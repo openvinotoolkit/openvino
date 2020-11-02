@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNTileNode : public MKLDNNNode {
 public:
-    MKLDNNTileNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNTileNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNTileNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -22,7 +22,6 @@ public:
     bool created() const override;
 
 private:
-    static Register<MKLDNNTileNode> reg;
     int axis = 0;
     int tiles = 0;
 };

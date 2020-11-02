@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ from mo.utils.unittest.graph import build_graph
 class TestReluFrontExtractorOp(unittest.TestCase):
     def test_extract_relu_layer(self):
         graph = build_graph(
-            {'node_1': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
              'relu_node': {'type': 'relu', 'kind': 'op', 'op': 'relu', },
-             'node_2': {'type': 'Placeholder', 'kind': 'op'},
+             'node_2': {'type': 'Parameter', 'kind': 'op'},
              },
             [
                 ('node_1', 'relu_node'),

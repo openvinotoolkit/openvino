@@ -2,13 +2,13 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "precomp.hpp"
 
 #include <ade/util/zip_range.hpp>   // util::indexed
-#include "opencv2/gapi/gcompoundkernel.hpp"
+#include <opencv2/gapi/gcompoundkernel.hpp>
 #include "compiler/gobjref.hpp"
 
 // FIXME move to backends
@@ -32,7 +32,11 @@ cv::detail::GCompoundContext::GCompoundContext(const cv::GArgs& in_args)
             {
                 case GShape::GMAT   : m_args[i] = GArg(GMat());    break;
                 case GShape::GSCALAR: m_args[i] = GArg(GScalar()); break;
-                case GShape::GARRAY :/* do nothing - as handled in a special way, see gcompoundkernel.hpp for details */; break;
+                case GShape::GARRAY :
+                case GShape::GOPAQUE:
+                    // do nothing - as handled in a special way, see gcompoundkernel.hpp for details
+                    // same applies to GMatP
+                    break;
                 default: GAPI_Assert(false);
             }
         }
