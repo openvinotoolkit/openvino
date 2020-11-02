@@ -28,18 +28,18 @@ from mo.ops.const import Const
 from mo.ops.strided_slice import StridedSlice
 
 
-def create_ss_interval_border(shape, axes, node: Node, out_port: Port):
-    mask = np.zeros(len(shape))
+def create_ss_interval_border(shape, axes, slice_border: Node, port_to_connect: Port):
+    mask = np.zeros(len(shape), dtype=np.int64)
     first_part = mask[:axes[0]]
     last_part = mask[axes[-1] + 1:]
 
-    concat = create_op_with_const_inputs(node.graph, Concat, port_value_dict={0: first_part, 2: last_part},
+    cast = Cast(slice_border.graph, dict(name='Cast', dst_type=np.int64)).create_node()
+    cast.in_port(0).connect(port_to_connect)
+    concat = create_op_with_const_inputs(slice_border.graph, Concat, port_value_dict={0: first_part, 2: last_part},
                                          op_attrs={'name': 'Concat', 'axis': 0,
                                                    'in_ports_count': 3})
-    cast = Cast(node.graph, dict(name='Cast', dst_type=np.int64)).create_node()
-    out_port.get_connection().set_destination(concat.in_port(1))
-    concat.out_port(0).connect(cast.in_port(0))
-    return cast
+    cast.out_port(0).connect(concat.in_port(1))
+    return concat
 
 
 class ConvertSlice(MiddleReplacementPattern):
@@ -73,6 +73,7 @@ class ConvertSlice(MiddleReplacementPattern):
         axes = node.in_port(3).data.get_value().copy()
         for i, val in enumerate(axes):
             axes[i] = get_canonical_axis_index(input_shape, val)
+        axes.sort()
         start_node = node.in_node(1)
         end_node = node.in_node(2)
 
