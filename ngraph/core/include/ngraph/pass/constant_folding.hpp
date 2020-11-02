@@ -37,15 +37,11 @@ public:
     {
         m_cfmap = cfmap;
         m_enable_shape_inference = true;
-        construct_constant_gather_with_subgraph();
         construct_constant_default();
     }
 
 private:
-    void construct_constant_gather_with_subgraph();
     void construct_constant_default();
-
-    bool cf_is_disabled(const std::shared_ptr<Node>&);
 
     void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
                                             const Output<Node>& replacement);
