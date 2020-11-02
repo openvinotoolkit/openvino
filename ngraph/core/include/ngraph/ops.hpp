@@ -155,7 +155,6 @@
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/squared_difference.hpp"
 #include "ngraph/op/squeeze.hpp"
-#include "ngraph/op/stop_gradient.hpp"
 #include "ngraph/op/strided_slice.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/sum.hpp"
