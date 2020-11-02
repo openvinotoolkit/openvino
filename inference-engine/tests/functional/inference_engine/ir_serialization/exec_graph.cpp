@@ -27,7 +27,11 @@ struct exec_graph_walker : pugi::xml_tree_walker {
     }
 };
 
-// checks if layer & data nodes of two exec graph xml are the same
+// checks if two exec graph xml's are equivalent:
+// - the same count of <layer> and <data> nodes
+// - the same count of attributes of each node
+// - the same name of each attribute (value is not checked, since it can differ
+// beetween different devices)
 std::pair<bool, std::string> compare_docs(pugi::xml_document& doc1,
                                           pugi::xml_document& doc2) {
     exec_graph_walker walker1, walker2;
@@ -42,7 +46,7 @@ std::pair<bool, std::string> compare_docs(pugi::xml_document& doc1,
     }
 
     // for every node
-    for (int i = 0; i < walker1.nodes.size(); i++) {
+    for (int i = 0; i < nodes1_size; i++) {
         auto attr1 = walker1.nodes[i].attributes();
         auto attr2 = walker2.nodes[i].attributes();
         auto attr1_size = std::distance(attr1.begin(), attr1.end());
@@ -63,7 +67,7 @@ std::pair<bool, std::string> compare_docs(pugi::xml_document& doc1,
                 std::string a2_name{a2->name()};
                 std::string a1_value{a1->value()};
                 std::string a2_value{a2->value()};
-                if ((a1_name != a2_name) || (a1_value != a2_value)) {
+                if ((a1_name != a2_name)) {
                     return {false, "Attributes differ in <" + node_name +
                                        "> : " + a1_name + "=" + a1_value +
                                        " != " + a2_name + "=" + a2_value};
@@ -89,27 +93,33 @@ protected:
     }
 };
 
-TEST_F(ExecGraphSerializationTest, ExecutionGraph) {
+TEST_F(ExecGraphSerializationTest, ExecutionGraph_CPU) {
     const std::string source_model =
         IR_SERIALIZATION_MODELS_PATH "addmul_abc.xml";
     const std::string expected_model =
         IR_SERIALIZATION_MODELS_PATH "addmul_abc_execution.xml";
 
     InferenceEngine::Core ie;
-    auto cnnNet = ie.ReadNetwork(source_model);
-    auto execNet = ie.LoadNetwork(cnnNet, "CPU");
-    auto execGraph = execNet.GetExecGraphInfo();
-    InferenceEngine::InferRequest req = execNet.CreateInferRequest();
-    execGraph.serialize(m_out_xml_path, m_out_bin_path);
+    auto devices = ie.GetAvailableDevices();
+    if (std::find(devices.begin(), devices.end(), "CPU") != devices.end()) {
+        auto cnnNet = ie.ReadNetwork(source_model);
+        auto execNet = ie.LoadNetwork(cnnNet, "CPU");
+        auto execGraph = execNet.GetExecGraphInfo();
+        InferenceEngine::InferRequest req = execNet.CreateInferRequest();
+        execGraph.serialize(m_out_xml_path, m_out_bin_path);
 
-    pugi::xml_document expected;
-    pugi::xml_document result;
-    ASSERT_TRUE(expected.load_file(expected_model.c_str()));
-    ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
+        pugi::xml_document expected;
+        pugi::xml_document result;
+        ASSERT_TRUE(expected.load_file(expected_model.c_str()));
+        ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
-    bool success;
-    std::string message;
-    std::tie(success, message) = compare_docs(expected, result);
+        bool success;
+        std::string message;
+        std::tie(success, message) = compare_docs(expected, result);
 
-    ASSERT_TRUE(success) << message;
+        ASSERT_TRUE(success) << message;
+    } else {
+        // no CPU device available so we are ignoring this test
+        GTEST_SKIP();
+    }
 }
