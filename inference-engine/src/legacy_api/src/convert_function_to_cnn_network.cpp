@@ -631,7 +631,28 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-        addSpecificCreator({"Tanh"},
+    addSpecificCreator({"Split"},
+                       [](const std::shared_ptr<::ngraph::Node>& node,
+                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Split",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<SplitLayer>(attrs);
+
+        auto axis_node = node->input_value(1).get_node_shared_ptr();
+        const auto axis_node_const = std::dynamic_pointer_cast<ngraph::op::Constant>(axis_node);
+        if (!axis_node_const) {
+            THROW_IE_EXCEPTION << "Split " << node->get_friendly_name() << " has no axes as Constant";
+        }
+        auto axis = axis_node_const->cast_vector<int64_t>()[0];
+        if (axis < 0) {
+            axis += node->get_input_shape(0).size();
+        }
+        res->params["axis"] = Builder::asString(axis);
+
+        return res;
+    });
+
+    addSpecificCreator({"Tanh"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "TanH",
@@ -957,7 +978,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PSROIPooling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ScaleShiftIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::SquaredDifference>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Split>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Subtract>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TensorIterator>>(),
