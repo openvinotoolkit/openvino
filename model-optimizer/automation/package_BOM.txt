@@ -343,6 +343,8 @@ extensions/front/tf/__init__.py
 extensions/front/tf/activation_ext.py
 extensions/front/tf/argmax_ext.py
 extensions/front/tf/assign_elimination.py
+extensions/front/tf/automl_efficientdet.json
+extensions/front/tf/AutomlEfficientDet.py
 extensions/front/tf/basic_lstm_cell.py
 extensions/front/tf/batch_to_space_ext.py
 extensions/front/tf/BatchMatMul_ext.py
