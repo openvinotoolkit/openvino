@@ -800,13 +800,14 @@ TEST(constant_folding, shape_of_rank_dynamic_v3)
     ASSERT_EQ(result_shape_of->get_friendly_name(), "test");
 }
 
-TEST(constant_folding, const_reverse)
+void const_reverse(const element::Type& axes_elem_type)
 {
     Shape input_shape{3, 3};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
     auto constant = op::Constant::create(element::i32, input_shape, values_in);
-    auto convert = make_shared<op::Reverse>(constant, AxisSet{1});
+    auto axes = op::Constant::create(axes_elem_type, {1}, {1});
+    auto convert = make_shared<op::v1::Reverse>(constant, axes, op::v1::Reverse::Mode::INDEX);
     convert->set_friendly_name("test");
     auto f = make_shared<Function>(convert, ParameterVector{});
 
@@ -814,7 +815,7 @@ TEST(constant_folding, const_reverse)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Reverse>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v1::Reverse>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -825,6 +826,21 @@ TEST(constant_folding, const_reverse)
 
     vector<int32_t> values_expected{3, 2, 1, 6, 5, 4, 9, 8, 7};
     ASSERT_EQ(values_expected, values_out);
+}
+
+TEST(constant_folding, const_reverse)
+{
+    for (auto&& axes_elem_type : {element::i8,
+                                  element::u8,
+                                  element::i16,
+                                  element::u16,
+                                  element::i32,
+                                  element::u32,
+                                  element::i64,
+                                  element::u64})
+    {
+        const_reverse(axes_elem_type);
+    }
 }
 
 TEST(constant_folding, const_reduceprod)
