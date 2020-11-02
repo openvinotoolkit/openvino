@@ -287,22 +287,6 @@ namespace opset1_upgrade
         return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Reverse> node)
-    {
-        // creates a Constant node from the v0::Reverse reversed_axes attribute
-        // and uses it as the second input of v1::Reverse
-        const auto reversed_axes = node->get_reversed_axes();
-
-        const auto reversed_axes_constant = op::Constant::create(
-            element::i64, Shape{reversed_axes.size()}, reversed_axes.to_vector());
-
-        const auto replacement_node = make_shared<op::v1::Reverse>(
-            node->input_value(0), reversed_axes_constant, op::v1::Reverse::Mode::INDEX);
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Select> node)
     {
         auto replacement_node = make_shared<op::v1::Select>(node->input_value(0),

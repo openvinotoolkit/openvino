@@ -1245,17 +1245,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::Reverse:
-        {
-            const op::Reverse* reverse = static_cast<const op::Reverse*>(&node);
-            reference::reverse(args[0]->get_data_ptr<const char>(),
-                               out[0]->get_data_ptr<char>(),
-                               node.get_input_shape(0),
-                               node.get_output_shape(0),
-                               reverse->get_reversed_axes(),
-                               args[0]->get_element_type().size());
-            break;
-        }
         case OP_TYPEID::ReverseSequence:
         {
             const op::ReverseSequence* reverse = static_cast<const op::ReverseSequence*>(&node);
@@ -1514,6 +1503,7 @@ protected:
         case OP_TYPEID::Range:
         case OP_TYPEID::Reshape:
         case OP_TYPEID::Result:
+        case OP_TYPEID::Reverse_v1:
         case OP_TYPEID::Round_v5:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:

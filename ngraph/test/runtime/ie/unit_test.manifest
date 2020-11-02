@@ -303,7 +303,7 @@ slice_scalar
 slice_3d_start_just_oob
 shape_of_scalar
 reverse_0d
-reverse_1d_nochange
+reverse_1d
 reverse_2d_nochange
 reverse_3d_nochange
 product_trivial
@@ -636,7 +636,9 @@ select_v1
 reverse_1d_0
 reverse_2d_0
 reverse_2d_1
+reverse_2d_1_mask
 reverse_2d_01
+reverse_2d_01_mask
 reverse_3d_0
 reverse_3d_1
 reverse_3d_2

@@ -661,7 +661,7 @@ namespace
 
     void op_is_Reverse()
     {
-        op::Reverse node;
+        op::v1::Reverse node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));

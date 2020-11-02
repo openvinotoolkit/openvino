@@ -22,67 +22,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            // clang-format off
-            /// \brief Axis-reverse operation.
-            ///
-            /// Reverses the direction of zero or more axes in a tensor, where "reversing" an axis means
-            /// that at the output tensor.
-            ///
-            /// ## Parameters
-            ///
-            /// |                 | Description              |
-            /// | --------------- | ------------------------ |
-            /// | `reversed_axes` | The axes to be reversed. |
-            ///
-            /// ## Inputs
-            ///
-            /// |       | Type                              | Description                            |
-            /// | ----- | --------------------------------- | -------------------------------------- |
-            /// | `arg` | \f$E[d_1,\dots,d_n]~(n \geq 0)\f$ | An input tensor of any type and shape. |
-            ///
-            /// ## Output
-            ///
-            /// | Type                   | Description                                                                                                                                                               |
-            /// | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-            /// | \f$E[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \texttt{arg}[j_1,\dots,j_n]\f$ and \f$j_k = d_k - i_k - 1\f$ if axis \f$k\f$ is in the reverse set; else \f$j_k = i_k\f$. |
-            // clang-format on
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. "
-                "Use v1::Reverse instead of it.") NGRAPH_API Reverse : public Op
-            {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-            public:
-                static constexpr NodeTypeInfo type_info{"Reverse", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Reverse() = default;
-                /// \brief Constructs a reverse operation.
-                ///
-                /// \param arg The input tensor, some of whose axes are to be reversed.
-                /// \param reversed_axes The axes to reverse.
-                Reverse(const Output<Node>& arg, const AxisSet& reversed_axes);
-
-                void validate_and_infer_types() override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                /// \return The set of axes to reverse.
-                const AxisSet& get_reversed_axes() const { return m_reversed_axes; }
-                void set_reversed_axes(const AxisSet& reversed_axes)
-                {
-                    m_reversed_axes = reversed_axes;
-                }
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-
-            protected:
-                AxisSet m_reversed_axes;
-                NGRAPH_SUPPRESS_DEPRECATED_END
-            };
-        }
-
         namespace v1
         {
             class NGRAPH_API Reverse : public Op
@@ -136,10 +75,6 @@ namespace ngraph
                 Mode m_mode;
             };
         }
-        // default opset version
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Reverse;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     NGRAPH_API

@@ -243,7 +243,8 @@ static void reverse_shape_test(const PartialShape& input_pshape,
     auto x = make_shared<op::Parameter>(element::f32, input_pshape);
 
     shared_ptr<Node> x_new_shape = make_shared<op::v0::ShapeOf>(x);
-    x_new_shape = make_shared<op::Reverse>(x_new_shape, AxisSet{0});
+    x_new_shape = make_shared<op::v1::Reverse>(
+        x_new_shape, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
 
     auto x_reshaped = make_shared<op::v1::Reshape>(x, x_new_shape, true);
 
