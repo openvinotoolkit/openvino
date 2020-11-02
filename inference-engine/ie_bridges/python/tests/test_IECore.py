@@ -51,15 +51,17 @@ def test_load_network_wrong_device():
     assert 'Device with "BLA" name is not registered in the InferenceEngine' in str(e.value)
 
 
-@pytest.mark.skip(reason="IENetwork.layers return not all layers in case of ngraph representation due to inner conversion into legacy representation")
-def test_query_network(device, recwarn):
+def test_query_network(device):
+    import ngraph as ng
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     query_res = ie.query_network(net, device)
-    assert net.layers.keys() == query_res.keys(), "Not all network layers present in query_network results"
+    func_net = ng.function_from_cnn(net)
+    ops_net = func_net.get_ordered_ops()
+    ops_net_names = [op.friendly_name for op in ops_net]
+    assert [key for key in query_res.keys() if key not in ops_net_names] == [], \
+        "Not all network layers present in query_network results"
     assert next(iter(set(query_res.values()))) == device, "Wrong device for some layers"
-    assert len(recwarn) == 1
-    assert recwarn.pop(DeprecationWarning)
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
@@ -98,7 +100,6 @@ def test_unregister_plugin(device):
     assert 'Device with "{}" name is not registered in the InferenceEngine'.format(device) in str(e.value)
 
 
-@pytest.mark.skip(reason="Need to figure out segmentation fault cause.")
 def test_available_devices(device):
     ie = IECore()
     devices = ie.available_devices
@@ -209,17 +210,19 @@ def test_read_net_from_buffer():
     assert isinstance(net, IENetwork)
 
 
-def test_net_from_buffer_valid(recwarn):
+def test_net_from_buffer_valid():
     ie = IECore()
     with open(test_net_bin, 'rb') as f:
         bin = f.read()
     with open(model_path()[0], 'rb') as f:
         xml = f.read()
     net = ie.read_network(model=xml, weights=bin, init_from_buffer=True)
-    net2 = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    for name, layer in net.layers.items():
-        for blob, data in layer.blobs.items():
-            assert np.allclose(data, net2.layers[name].blobs[blob]), \
-                "Incorrect weights for layer {} and blob {}".format(name, blob)
-    assert len(recwarn) == 2
-    assert recwarn.pop(DeprecationWarning)
+    ref_net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.name == ref_net.name
+    assert net.batch_size == ref_net.batch_size
+    ii_net = net.input_info
+    ii_net2 = ref_net.input_info
+    o_net = net.outputs
+    o_net2 = ref_net.outputs
+    assert ii_net.keys() == ii_net2.keys()
+    assert o_net.keys() == o_net2.keys()

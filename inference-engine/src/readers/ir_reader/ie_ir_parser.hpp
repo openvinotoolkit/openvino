@@ -7,12 +7,11 @@
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
 # include <ngraph/op/util/sub_graph_base.hpp>
-# include <legacy/ie_ngraph_utils.hpp>
-# include <cpp/ie_cnn_network.h>
+# include <ie_ngraph_utils.hpp>
 #endif  // IR_READER_V10
 
 #include <ie_blob.h>
-#include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 #include <ie_iextension.h>
 #include <xml_parse_utils.h>
 
@@ -60,6 +59,7 @@ public:
 
 private:
     std::map<std::string, ngraph::OpSet> opsets;
+    const std::vector<IExtensionPtr> _exts;
 
     struct GenericLayerParams {
         struct LayerPortData {
@@ -262,6 +262,12 @@ private:
                 return;
             int64_t value;
             stringToType<int64_t>(val, value);
+            adapter.set(value);
+        }
+
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+            std::vector<int32_t> value;
+            if (!getParameters<int32_t>(node.child("data"), name, value)) return;
             adapter.set(value);
         }
 

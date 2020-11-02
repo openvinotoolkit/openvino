@@ -23,6 +23,7 @@ typedef std::tuple<
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::Layout,        // Output layout
         std::vector<size_t>,            // Input shapes
+        std::vector<size_t>,            // Used outputs indices
         std::string                     // Target device name
 > splitParams;
 
