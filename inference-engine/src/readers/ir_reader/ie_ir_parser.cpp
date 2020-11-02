@@ -437,7 +437,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::v1::Split>>("Split"),
         std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit"),
-        std::make_shared<LayerCreator<ngraph::op::Tanh>>("TanH"),
         std::make_shared<LayerCreator<ngraph::op::TensorIterator>>("TensorIterator"),
         std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop"),
         std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd"),
@@ -1100,15 +1099,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::DepthToSpace>:
         THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
 
     return std::make_shared<ngraph::op::DepthToSpace>(inputs[0], GetStrAttr(dn, "mode"), GetIntAttr(dn, "block_size", 1));
-}
-
-// Tanh layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Tanh>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    return std::make_shared<ngraph::op::Tanh>(inputs[0]);
 }
 
 // Result layer

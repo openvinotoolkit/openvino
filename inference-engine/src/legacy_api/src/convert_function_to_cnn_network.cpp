@@ -631,6 +631,16 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
+        addSpecificCreator({"Tanh"},
+                       [](const std::shared_ptr<::ngraph::Node>& node,
+                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "TanH",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<CNNLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
     addSpecificCreator({"ScatterElementsUpdate"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
@@ -950,7 +960,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Split>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Subtract>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Tanh>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TensorIterator>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::opset5::Loop>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid_IE>>(),
