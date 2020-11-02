@@ -290,11 +290,9 @@ std::string get_node_unique_name(std::unordered_set<std::string>& unique_names,
 }
 
 bool is_exec_graph(const ngraph::Function& f) {
-    bool execGraphInfoSerialization = true;
-
     // go over all operations and check whether performance stat is set
     for (const auto& op : f.get_ops()) {
-        auto& rtInfo = op->get_rt_info();
+        const auto& rtInfo = op->get_rt_info();
         if (rtInfo.find("execTimeMcs") != rtInfo.end()) {
             return true;
         }
@@ -306,7 +304,7 @@ void ngfunction_2_irv10(
     pugi::xml_document& doc, std::vector<uint8_t>& bin,
     const ngraph::Function& f,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
-    bool exec_graph = is_exec_graph(f);
+    const bool exec_graph = is_exec_graph(f);
 
     pugi::xml_node netXml = doc.append_child("net");
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());

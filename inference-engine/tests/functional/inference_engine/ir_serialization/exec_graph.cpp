@@ -27,54 +27,70 @@ struct exec_graph_walker : pugi::xml_tree_walker {
     }
 };
 
+// compare_docs() helper
+std::pair<bool, std::string> compare_nodes(const pugi::xml_node& node1,
+                                           const pugi::xml_node& node2) {
+    // node names must be the same
+    const std::string node1_name{node1.name()};
+    const std::string node2_name{node2.name()};
+    if (node1_name != node2_name) {
+        return {false, "Node name differ: " + node1_name + " != " + node2_name};
+    }
+
+    // node attribute count must be the same
+    const auto attr1 = node1.attributes();
+    const auto attr2 = node2.attributes();
+    const auto attr1_size = std::distance(attr1.begin(), attr1.end());
+    const auto attr2_size = std::distance(attr2.begin(), attr2.end());
+    if (attr1_size != attr2_size) {
+        return {false, "Attribute count differ in <" + node1_name + "> :" +
+                           std::to_string(attr1_size) + " != " +
+                           std::to_string(attr2_size)};
+    }
+
+    // every node attribute name must be the same
+    auto a1 = attr1.begin();
+    auto a2 = attr2.begin();
+    for (int j = 0; j < attr1_size; ++j, ++a1, ++a2) {
+        const std::string a1_name{a1->name()};
+        const std::string a2_name{a2->name()};
+        const std::string a1_value{a1->value()};
+        const std::string a2_value{a2->value()};
+        if ((a1_name != a2_name)) {
+            return {false, "Attributes differ in <" + node1_name + "> : " +
+                               a1_name + "=" + a1_value + " != " + a2_name +
+                               "=" + a2_value};
+        }
+    }
+
+    return {true, ""};
+}
+
 // checks if two exec graph xml's are equivalent:
 // - the same count of <layer> and <data> nodes
 // - the same count of attributes of each node
 // - the same name of each attribute (value is not checked, since it can differ
 // beetween different devices)
-std::pair<bool, std::string> compare_docs(pugi::xml_document& doc1,
-                                          pugi::xml_document& doc2) {
+std::pair<bool, std::string> compare_docs(const pugi::xml_document& doc1,
+                                          const pugi::xml_document& doc2) {
+    // traverse document and prepare vector of <layer> & <data> nodes to compare
     exec_graph_walker walker1, walker2;
     doc1.child("net").child("layers").traverse(walker1);
     doc2.child("net").child("layers").traverse(walker2);
-    auto nodes1_size = walker1.nodes.size();
-    auto nodes2_size = walker2.nodes.size();
 
-    if (nodes1_size != nodes2_size) {
-        return {false, "Node count differ: " + std::to_string(nodes1_size) +
-                           " != " + std::to_string(nodes2_size)};
+    // nodes count must be the same
+    const auto& nodes1 = walker1.nodes;
+    const auto& nodes2 = walker2.nodes;
+    if (nodes1.size() != nodes2.size()) {
+        return {false, "Node count differ: " + std::to_string(nodes1.size()) +
+                           " != " + std::to_string(nodes2.size())};
     }
 
-    // for every node
-    for (int i = 0; i < nodes1_size; i++) {
-        auto attr1 = walker1.nodes[i].attributes();
-        auto attr2 = walker2.nodes[i].attributes();
-        auto attr1_size = std::distance(attr1.begin(), attr1.end());
-        auto attr2_size = std::distance(attr2.begin(), attr2.end());
-        std::string node_name{walker1.nodes[i].name()};
-
-        if (attr1_size != attr2_size) {
-            return {false, "Attribute count differ in <" + node_name + "> :" +
-                               std::to_string(attr1_size) + "!=" +
-                               std::to_string(attr2_size)};
-        }
-        // for every attribute in node
-        if (attr1_size > 0) {
-            auto a1 = attr1.begin();
-            auto a2 = attr2.begin();
-            for (int j = 0; j < attr1_size; j++) {
-                std::string a1_name{a1->name()};
-                std::string a2_name{a2->name()};
-                std::string a1_value{a1->value()};
-                std::string a2_value{a2->value()};
-                if ((a1_name != a2_name)) {
-                    return {false, "Attributes differ in <" + node_name +
-                                       "> : " + a1_name + "=" + a1_value +
-                                       " != " + a2_name + "=" + a2_value};
-                }
-                ++a1;
-                ++a2;
-            }
+    // every node must be equivalent
+    for (int i = 0; i < nodes1.size(); i++) {
+        const auto res = compare_nodes(nodes1[i], nodes2[i]);
+        if (res.first == false) {
+            return res;
         }
     }
     return {true, ""};
