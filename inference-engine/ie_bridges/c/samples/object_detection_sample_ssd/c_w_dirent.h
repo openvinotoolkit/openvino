@@ -24,6 +24,14 @@
 # define _AMD64_
 #endif
 
+#if defined(_M_ARM) && !defined(_ARM_) && !defined(_ARM64_)
+# define _ARM_
+#endif
+
+#if defined(_M_ARM64) && !defined(_ARM_) && !defined(_ARM64_)
+# define _ARM64_
+#endif
+
 #include <string.h>
 #include <windef.h>
 #include <fileapi.h>
