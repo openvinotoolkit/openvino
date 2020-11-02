@@ -400,7 +400,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::Subtract>>("Subtract"),
         std::make_shared<LayerCreator<ngraph::op::MatMul>>("MatMul"),
         std::make_shared<LayerCreator<ngraph::op::v1::Broadcast>>("Broadcast"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Reshape>>("Reshape"),
         std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
         std::make_shared<LayerCreator<ngraph::op::Elu>>("ELU"),
         std::make_shared<LayerCreator<ngraph::op::FakeQuantize>>("FakeQuantize"),
@@ -1117,20 +1116,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::StridedSli
     } else {
         THROW_IE_EXCEPTION << "Incorrect number of inputs " << inputs.size() << " for " << getType() << " layer with name: " << layerParsePrms.name;
     }
-}
-
-// Reshape layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Reshape>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-
-    pugi::xml_node dn = node.child("data");
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::Reshape>(inputs[0], inputs[1], GetBoolAttr(dn, "special_zero"));
 }
 
 // Minimum layer

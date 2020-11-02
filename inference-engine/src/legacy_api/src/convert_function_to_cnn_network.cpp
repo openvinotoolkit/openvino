@@ -611,6 +611,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
+    addSpecificCreator({"Reshape"},
+                       [](const std::shared_ptr<::ngraph::Node>& node,
+                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Reshape",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<ReshapeLayer>(attrs);
+        return res;
+    });
+
     addSpecificCreator({"SeluIE"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
@@ -945,7 +954,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CTCGreedyDecoder>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformableConvolution>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformablePSROIPooling>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Reshape>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Eltwise>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Elu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::FakeQuantize>>(),
