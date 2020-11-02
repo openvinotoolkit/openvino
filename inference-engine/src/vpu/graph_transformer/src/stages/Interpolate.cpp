@@ -10,37 +10,35 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <ngraph/opsets/opset4.hpp>
 
 using namespace InferenceEngine;
 
 namespace vpu {
-enum class InterpolateMode {
-    nearest,
-    linear,
-    linear_onnx,
-    cubic
-};
-
-enum class InterpolateShapeCalcMode {
-    sizes,
-    scales
-};
-
-enum class InterpolateCoordTransMode {
-    half_pixel,
-    pytorch_half_pixel,
-    asymmetric,
-    tf_half_pixel_for_nn,
-    align_corners
-};
-
-enum class InterpolateNearestMode {
-    round_prefer_floor,
-    round_prefer_ceil,
-    floor,
-    ceil,
-    simple
-};
+VPU_DECLARE_ENUM(InterpolateMode,
+    nearest = 0,
+    linear = 1,
+    linear_onnx = 2,
+    cubic = 3
+)
+VPU_DECLARE_ENUM(InterpolateShapeCalcMode,
+    sizes = 0,
+    scales = 1
+)
+VPU_DECLARE_ENUM(InterpolateCoordTransMode,
+    half_pixel = 0,
+    pytorch_half_pixel = 1,
+    asymmetric = 2,
+    tf_half_pixel_for_nn = 3,
+    align_corners = 4
+)
+VPU_DECLARE_ENUM(InterpolateNearestMode,
+    round_prefer_floor = 0,
+    round_prefer_ceil = 1,
+    floor = 2,
+    ceil = 3,
+    simple = 4
+)
 
 namespace {
 class InterpolateStage final : public StageNode {
@@ -53,15 +51,11 @@ private:
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        printf("propagateDataOrderImpl start\n");
         auto input0 = inputEdge(0)->input();
-        auto input1 = inputEdge(1)->input();
-        auto input2 = inputEdge(2)->input();
-        auto input3 = inputEdge(3)->input();
         auto output = outputEdge(0)->output();
 
         orderInfo.setOutput(outputEdge(0), input0->desc().dimsOrder());
-        // orderInfo.setInput(inputEdge(0), DimsOrder::fromNumDims(input0->desc().numDims()));
-        // orderInfo.setOutput(outputEdge(0), DimsOrder::fromNumDims(output->desc().numDims()));
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
@@ -76,45 +70,37 @@ private:
     }
 
     void initialCheckImpl() const override {
+        printf("initialCheckImpl start\n");
         assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::S32}, {DataType::FP16}, {DataType::S32}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto input = inputEdge(0)->input();
-        auto perm = input->desc().dimsOrder().toPermutation();
-        IE_ASSERT(perm.size() <= 4);
-
-        auto antialias = attrs().get<bool>("antialias");
+        auto sampleType = attrs().get<InterpolateMode>("mode");
+        auto sampleShapeCalcMode = attrs().get<InterpolateShapeCalcMode>("shape_calculation_mode");
+        auto& pads_begin = attrs().get<std::vector<size_t>>("pads_begin");
+        auto& pads_end = attrs().get<std::vector<size_t>>("pads_end");
+        auto sampleCoordTransMode = attrs().get<InterpolateCoordTransMode>("coordinate_transformation_mode");
+        auto sampleNearestMode = attrs().get<InterpolateNearestMode>("nearest_mode");
         auto cube_coeff = attrs().get<float>("cube_coeff");
-        auto sampleType = attrs().get<InterpolateMode>("type");
-        auto sampleNearestMode = attrs().get<InterpolateNearestMode>("nearestMode");
-        auto sampleShapeCalcMode = attrs().get<InterpolateShapeCalcMode>("shapeCalcMode");
-        auto sampleCoordTransMode = attrs().get<InterpolateCoordTransMode>("coordTransMode");
-        auto pads_begin = attrs().get<std::vector<int>>("pads_begin");
-        auto pads_end = attrs().get<std::vector<int>>("pads_end");
+        auto antialias = attrs().get<bool>("antialias");
 
-        serializer.append(static_cast<bool>(antialias));
+        serializer.append(static_cast<InterpolateMode>(sampleType));
+        serializer.append(static_cast<InterpolateShapeCalcMode>(sampleShapeCalcMode));
+        serializer.append(static_cast<std::vector<size_t>>(pads_begin));
+        serializer.append(static_cast<std::vector<size_t>>(pads_end));
+        serializer.append(static_cast<InterpolateCoordTransMode>(sampleCoordTransMode));
+        serializer.append(static_cast<InterpolateNearestMode>(sampleNearestMode));
         serializer.append(static_cast<float>(cube_coeff));
-        serializer.append(static_cast<uint32_t>(sampleType));
-        serializer.append(static_cast<uint32_t>(sampleNearestMode));
-        serializer.append(static_cast<uint32_t>(sampleShapeCalcMode));
-        serializer.append(static_cast<uint32_t>(sampleCoordTransMode));
-        serializer.append(static_cast<std::vector<int>>(pads_begin));
-        serializer.append(static_cast<std::vector<int>>(pads_end));
+        serializer.append(static_cast<int>(antialias));
+        printf("serializeParamsImpl end\n");
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        auto input0 = inputEdge(0)->input();
-        auto input1 = inputEdge(1)->input();
-        auto input2 = inputEdge(2)->input();
-        auto input3 = inputEdge(3)->input();
-        auto output = outputEdge(0)->output();
-
-        input0->serializeBuffer(serializer);
-        input1->serializeBuffer(serializer);
-        input2->serializeBuffer(serializer);
-        input3->serializeBuffer(serializer);
-        output->serializeBuffer(serializer);
+        printf("serializeDataImpl start\n");
+        for (int i = 0; i < numInputs(); i++) {
+            inputEdge(i)->input()->serializeBuffer(serializer);
+        }
+        outputEdge(0)->output()->serializeBuffer(serializer);
     }
 };
 
@@ -125,15 +111,13 @@ Stage StageBuilder::addInterpolateStage(
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const DataVector& input,
-        const Data& output,
-        const std::string& origin) {
+        const DataVector& output) {
     Stage interpolateStage = model->addNewStage<InterpolateStage>(
         name,
         StageType::Interpolate,
         layer,
         {input[0], input[1], input[2], input[3]},
         {output});
-    interpolateStage->attrs().set<std::string>("origin", origin);
 
     return interpolateStage;
 }
@@ -145,60 +129,58 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer
 
     ie::details::CaselessEq<std::string> cmp;
 
-    auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, inputs, outputs);
+    auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, {inputs[0], inputs[1], inputs[2], inputs[3]}, {outputs});
+    stage->attrs().set<int>("antialias", layer->GetParamAsBool("antialias", 0));
 
-    stage->attrs().set<bool>("antialias", layer->GetParamAsBool("antialias", 0));
-    stage->attrs().set<float>("cube_coeff", layer->GetParamAsFloat("cube_coeff", 0));
-
-    auto mode = layer->GetParamAsString("type", "nearest");
-    auto nearest_m = layer->GetParamAsString("nearestMode", "round_prefer_floor");
-    auto shape_calc = layer->GetParamAsString("shapeCalcMode", "scales");
-    auto coord_trans = layer->GetParamAsString("coordTransMode", "half_pixel");
+    auto mode = layer->GetParamAsString("mode", "nearest");
+    auto nearest_m = layer->GetParamAsString("nearest_mode", "round_prefer_floor");
+    auto shape_calc = layer->GetParamAsString("shape_calculation_mode", "scales");
+    auto coord_trans = layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
 
     if (cmp(mode, "nearest")) {
-        stage->attrs().set<InterpolateMode>("type", InterpolateMode::nearest);
+        stage->attrs().set<InterpolateMode>("mode", InterpolateMode::nearest);
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " supports only nearest mode";
     }
-
     if (cmp(nearest_m, "round_prefer_floor")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_floor);
+        stage->attrs().set<InterpolateNearestMode>("nearest_mode", InterpolateNearestMode::round_prefer_floor);
     } else if (cmp(nearest_m, "round_prefer_ceil")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_ceil);
+        stage->attrs().set<InterpolateNearestMode>("nearest_mode", InterpolateNearestMode::round_prefer_ceil);
     } else if (cmp(nearest_m, "floor")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::floor);
+        stage->attrs().set<InterpolateNearestMode>("nearest_mode", InterpolateNearestMode::floor);
     } else if (cmp(nearest_m, "ceil")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::ceil);
+        stage->attrs().set<InterpolateNearestMode>("nearest_mode", InterpolateNearestMode::ceil);
     } else if (cmp(nearest_m, "simple")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::simple);
+        stage->attrs().set<InterpolateNearestMode>("nearest_mode", InterpolateNearestMode::simple);
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " does not support this nearest mode";
     }
 
     if (cmp(shape_calc, "scales")) {
-        stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::scales);
+        stage->attrs().set<InterpolateShapeCalcMode>("shape_calculation_mode", InterpolateShapeCalcMode::scales);
     } else if (cmp(shape_calc, "sizes")) {
-        stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::sizes);
+        stage->attrs().set<InterpolateShapeCalcMode>("shape_calculation_mode", InterpolateShapeCalcMode::sizes);
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " does not support this shape calculation mode";
     }
 
     if (cmp(coord_trans, "half_pixel")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::half_pixel);
+        stage->attrs().set<InterpolateCoordTransMode>("coordinate_transformation_mode", InterpolateCoordTransMode::half_pixel);
     } else if (cmp(coord_trans, "pytorch_half_pixel")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::pytorch_half_pixel);
+        stage->attrs().set<InterpolateCoordTransMode>("coordinate_transformation_mode", InterpolateCoordTransMode::pytorch_half_pixel);
     } else if (cmp(coord_trans, "asymmetric")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::asymmetric);
+        stage->attrs().set<InterpolateCoordTransMode>("coordinate_transformation_mode", InterpolateCoordTransMode::asymmetric);
     } else if (cmp(coord_trans, "tf_half_pixel_for_nn")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::tf_half_pixel_for_nn);
+        stage->attrs().set<InterpolateCoordTransMode>("coordinate_transformation_mode", InterpolateCoordTransMode::tf_half_pixel_for_nn);
     } else if (cmp(coord_trans, "align_corners")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::align_corners);
+        stage->attrs().set<InterpolateCoordTransMode>("coordinate_transformation_mode", InterpolateCoordTransMode::align_corners);
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " does not support this coordinate transformation mode";
     }
-  
-    stage->attrs().set<std::vector<int>>("pads_begin", layer->GetParamAsInts("pads_begin"));
-    stage->attrs().set<std::vector<int>>("pads_end", layer->GetParamAsInts("pads_end"));
+    stage->attrs().set<float>("cube_coeff", layer->GetParamAsFloat("cube_coeff", 0));
+    // stage->attrs().set<std::vector<int>>("pads_begin", layer->GetParamAsInts("pads_begin"));
+    // stage->attrs().set<std::vector<int>>("pads_end", layer->GetParamAsInts("pads_end"));
+    printf("PARSE end\n");
 }
 
 }  // namespace vpu

@@ -71,8 +71,7 @@ public:
             const std::string& name,
             const ie::CNNLayerPtr& layer,
             const DataVector& input,
-            const Data& output,
-            const std::string& origin);
+            const DataVector& output);
 
     Stage addPadStage(
             const Model& model,

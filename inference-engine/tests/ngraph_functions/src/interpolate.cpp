@@ -10,11 +10,8 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ngraph::Node> makeInterpolate(const std::vector<ngraph::Output<Node>>& in,
-                                              bool antialias,
-                                              const ngraph::Output<Node>& axes,
-                                              const ngraph::Output<Node>& scales,
-                                              const ngraph::Output<Node>& sizes) {
+std::shared_ptr<ngraph::Node> makeInterpolate(const std::vector<ngraph::Output<Node>>& in, bool antialias) {
+    printf("makeInterpolate\n");
     std::vector<size_t> padBegin(1, 0), padEnd(1, 0);
     float coeff = -0.75;
     ngraph::op::v4::Interpolate::InterpolateMode mode = ngraph::op::v4::Interpolate::InterpolateMode::nearest;
@@ -24,7 +21,7 @@ std::shared_ptr<ngraph::Node> makeInterpolate(const std::vector<ngraph::Output<N
 
     const ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes(mode, shapeCalc, padBegin, padEnd, coordTrans, nearestMode, antialias, coeff);
 
-    return std::make_shared<ngraph::opset4::Interpolate>(in[0], in[1], scales, axes, interpolateAttributes);
+    return std::make_shared<ngraph::opset4::Interpolate>(in[0], in[1], in[2], in[3], interpolateAttributes);
 }
 
 }  // namespace builder
