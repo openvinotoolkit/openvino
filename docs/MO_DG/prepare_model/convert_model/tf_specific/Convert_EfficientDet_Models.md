@@ -21,17 +21,24 @@ cd automl/efficientdet
 ```sh
 git checkout 96e1fee
 ```
-3. Download and extract the model checkpoint [efficientdet-d4.tar.gz](https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz)
+3. Install required dependencies:<br>
+```sh
+python3 -m pip install --upgrade pip
+python3 -m pip install -r automl/efficientdet/requirements.txt
+```
+4. Download and extract the model checkpoint [efficientdet-d4.tar.gz](https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz)
 referenced in the "Pretrained EfficientDet Checkpoints" section of the model repository:<br>
 ```sh
 wget https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz
 tar zxvf efficientdet-d4.tar.gz
 ```
-4. Freeze the model:<br>
+5. Freeze the model:<br>
 ```sh
 python3 model_inspect.py --runmode=saved_model --model_name=efficientdet-d4  --ckpt_path=efficientdet-d4 --saved_model_dir=savedmodeldir
 ```
 As a result the frozen model file `savedmodeldir/efficientdet-d4_frozen.pb` will be generated.
+
+> **NOTE:** If you see an error `AttributeError: module 'tensorflow_core.python.keras.api._v2.keras.initializers' has no attribute 'variance_scaling'` apply the fix from the [patch](https://github.com/google/automl/pull/846).
 
 ### Convert EfficientDet TensorFlow Model to the IR
 
