@@ -688,7 +688,7 @@ namespace
 
     void op_is_Round()
     {
-        op::Round node;
+        op::v5::Round node;
         EXPECT_TRUE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));

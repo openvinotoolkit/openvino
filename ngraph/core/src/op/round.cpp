@@ -22,24 +22,8 @@
 #include "ngraph/runtime/reference/copy.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
-
-constexpr NodeTypeInfo op::Round::type_info;
-
-op::v0::Round::Round(const Output<Node>& arg)
-    : UnaryElementwiseArithmetic(arg)
-{
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node> op::v0::Round::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Round>(new_args.at(0));
-}
 
 namespace roundop
 {
@@ -103,16 +87,6 @@ namespace roundop
         return rc;
     }
 }
-
-bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Round::evaluate");
-    return roundop::evaluate_round(inputs[0],
-                                   outputs[0],
-                                   shape_size(get_output_shape(0)),
-                                   op::v5::Round::RoundMode::HALF_TO_EVEN);
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
 
 NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
 
