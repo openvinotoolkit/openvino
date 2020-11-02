@@ -247,8 +247,6 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             }
         }
 
-        //gnawarn() << "row max bigger than calculated by tool: " << row_max << ", " << fq_ptr_output_high[i] << "\n";
-
         for (uint32_t j = 0; j < num_columns; j++) {
             auto offset = i * num_columns + j;
             auto rounding_value = (ptr_float_weights[i * num_columns + j] > 0) ? 0.5f : -0.5f;
@@ -264,7 +262,6 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
                 (value > std::numeric_limits<int8_t>::max() ||
                 value < std::numeric_limits<int8_t>::min())) {
                 THROW_GNA_EXCEPTION << "unsupported weights range for I8 quantization: " << value;
-            }
 
             if (value > std::numeric_limits<int8_t>::max()) {
                 normalizedWeight = std::numeric_limits<int8_t>::max();

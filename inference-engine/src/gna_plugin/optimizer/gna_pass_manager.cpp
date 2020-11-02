@@ -2030,10 +2030,11 @@ void FuseFQIntoWeightsPass::run() {
 
             // lets find out minimum scale factor among channels
             if (quantized->_weights_quant.GetMinValues().empty()) {
-                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " per channel weigths scales missed";
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " per channel/tensor weigths scales are missed";
             }
             auto getScale = [&quantized](uint32_t i) {
-                return (quantized->_weights_quant.GetLevels() - 1) / (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
+                return (quantized->_weights_quant.GetLevels() - 1) /
+                    (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
             };
 
             float min_channel_scale = getScale(0);
@@ -2042,8 +2043,12 @@ void FuseFQIntoWeightsPass::run() {
             }
 
             // common scale calculation
-            quantized->_weights_quant.SetScale(min_channel_scale * MAX_OUT_MULTIPLIER);
+            auto multiplier = 1.0f;
+            if (quantized->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
+                multiplier = MAX_OUT_MULTIPLIER;
+            }
 
+            quantized->_weights_quant.SetScale(min_channel_scale * multiplier);
             continue;
         }
 
@@ -2111,8 +2116,8 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
                 << "unsupported,per-channel quantisation for layer : " << nextLayer->name;
         }
         float fqLevels = fqLayer.getLevels();
-        float scaleInput = fqLevels / (inputRange.second[0] - inputRange.first[0]);
-        float scaleOutputs = fqLevels / (outputRange.second[0] - outputRange.first[0]);
+        float scaleInput = (fqLevels - 1) / (inputRange.second[0] - inputRange.first[0]);
+        float scaleOutputs = (fqLevels - 1) / (outputRange.second[0] - outputRange.first[0]);
 
         // TODO: proper mapping into scale factors
         auto quantParamsNextLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(nextLayer);

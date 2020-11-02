@@ -120,6 +120,8 @@ inline bool shouldAlwaysAllocate<gna_compound_bias_t>() {
 template <class T>
 class Quant {
 public:
+    template<class ...Args>
+    void operator()(Args && ... args) const { }
 };
 
 template<>

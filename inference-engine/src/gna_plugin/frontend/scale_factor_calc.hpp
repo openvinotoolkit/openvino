@@ -292,6 +292,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         if (!inputQuant) {
             THROW_GNA_EXCEPTION << "layer: " << CNNNetPrevLayer(cnnLayer)->name << "not quantized";
         }
+
         if (layerInfo.isActivation() && !fp32eq(quant->_dst_quant.GetScale(), 1.0f)) {
             return true;
         }
@@ -651,11 +652,8 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 weights_reducer = std::max(1.0, weights_reducer);
             }
             quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weights_reducer);
-        double tmp_dst_quant_scale = quant->_weights_quant.GetScale() * quant->_src_quant.GetScale();
-
         }
 
-        
         double tmp_dst_quant_scale = quant->_weights_quant.GetScale() * quant->_src_quant.GetScale();
         if (weightsSize == 1 &&
             static_cast<uint64_t>(tmp_dst_quant_scale * quant->_src_quant.GetScale()) >
@@ -672,8 +670,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             } else if (quant->_dst_quant.GetScale() * quant->_src_quant.GetScale() /
                 static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_200) {
                 quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * _scale_reduction_40);
-            }
-            else {
+            } else {
                 quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * _scale_reduction_35);
             }
         }

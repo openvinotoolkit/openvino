@@ -11,7 +11,7 @@
 #include <cstdint>
 #include "backend/gna_types.h"
 
-#define MAX_OUT_MULTIPLIER 255
+#define MAX_OUT_MULTIPLIER 230
 #define MAX_VAL_1B_WEIGHT 127
 #define MAX_VAL_2B_WEIGHT 16384
 #define MAX_VAL_2B_FEAT 16384
