@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,24 +73,24 @@ ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_fs_byx_fsv32::SetDefault(const convolution_params& arg,
                                                                                        int autoTuneIndex) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
 
     AutoTuneOption option = GetAutoTuneOptions(arg, autoTuneIndex);
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
-    runInfo.cldnnStyle.blockHeight = option.blockHeight;
-    runInfo.cldnnStyle.blockWidth = option.blockWidth;
+    dispatchData.cldnnStyle.blockHeight = option.blockHeight;
+    dispatchData.cldnnStyle.blockWidth = option.blockWidth;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 16;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 16;
 
-    runInfo.gws0 = CeilDiv(arg.output.X().v, option.blockWidth);
-    runInfo.gws1 = CeilDiv(arg.output.Y().v, option.blockHeight);
-    runInfo.gws2 = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(arg.output.X().v, option.blockWidth);
+    dispatchData.gws[1] = CeilDiv(arg.output.Y().v, option.blockHeight);
+    dispatchData.gws[2] = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_bfyx_to_fs_byx_fsv32::Validate(const Params& p, const optional_params& o) const {
@@ -107,16 +107,16 @@ bool ConvolutionKernel_bfyx_to_fs_byx_fsv32::Validate(const Params& p, const opt
 }
 
 JitConstants ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetJitConstants(const convolution_params& params,
-                                                                     const DispatchData& kd) const {
-    auto jit = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                                     const DispatchData& dispatchData) const {
+    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", kd.cldnnStyle.blockWidth));
-    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", kd.cldnnStyle.blockHeight));
+    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
+    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", dispatchData.cldnnStyle.blockHeight));
 
     auto inputBlockWidth =
-        getInputSize(params.stride.x, params.filterSize.x, params.dilation.x, kd.cldnnStyle.blockWidth);
+        getInputSize(params.stride.x, params.filterSize.x, params.dilation.x, dispatchData.cldnnStyle.blockWidth);
     auto inputBlockHeight =
-        getInputSize(params.stride.y, params.filterSize.y, params.dilation.y, kd.cldnnStyle.blockHeight);
+        getInputSize(params.stride.y, params.filterSize.y, params.dilation.y, dispatchData.cldnnStyle.blockHeight);
 
     auto inputBlockWidthRound = RoundUp(inputBlockWidth, subGroupSize);
 
@@ -125,6 +125,17 @@ JitConstants ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetJitConstants(const convo
     jit.AddConstant(MakeJitConstant("FSV", fsv));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subGroupSize));
     jit.AddConstant(MakeJitConstant("FSV_PER_THREAD", fsvPerThread));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetUnitType(params);
+        FusedOpsConfiguration conf_vec_elem = {"_VEC_ELEM",
+                                               {"b", "fs * FSV + sglid + out_f * SUB_GROUP_SIZE", "or + out_y", "oc + out_x"},
+                                               "tmp_write[out_f]", input_dt, 1 };
+        FusedOpsConfiguration conf_scalar = {"_SCALAR",
+                                             {"b", "fs * FSV + sglid + out_f * SUB_GROUP_SIZE", "or + out_y", "oc + out_x"},
+                                             "out[out_idx]", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec_elem, conf_scalar}));
+    }
 
     return jit;
 }

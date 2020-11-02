@@ -32,6 +32,10 @@ kernel_selector::gather_axis convert_axis(gather::gather_axis axis) {
             return kernel_selector::gather_axis::X;
         case gather::along_y:
             return kernel_selector::gather_axis::Y;
+        case gather::along_z:
+            return kernel_selector::gather_axis::Z;
+        case gather::along_w:
+            return kernel_selector::gather_axis::W;
         case gather::along_f:
             return kernel_selector::gather_axis::FEATURE;
         case gather::along_b:
@@ -69,16 +73,23 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = gather_gpu::create;
-        implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-    }
-    ~attach() = default;
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_gather_gpu::attach_gather_gpu() {
+    auto val_fw = gather_gpu::create;
+    implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
+    
+    implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw);
+    
+    implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
+    implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
+    implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

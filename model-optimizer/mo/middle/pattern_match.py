@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 import logging as log
 
-import networkx as nx
 from networkx.algorithms import isomorphism as ism
 
 from mo.graph.graph import Node, dict_includes, Graph
@@ -44,6 +43,7 @@ def for_each_sub_graph_recursively(graph: Graph, func: callable):
 
         A given function `func` shouldn't contain a recursion for sub-graphs of the second level.
     """
+
     def recursive_helper(sub_graph):
         # user action
         func(sub_graph)
@@ -111,7 +111,7 @@ def check_node_usages_out_of_match(match: dict, node_name_in_match_group: str):
 
 
 def node_match(data1: dict, data2: dict):
-    # We have to skip _in_ports/_out_ports attributes for comparision as they are not comparable
+    # We have to skip _in_ports/_out_ports attributes for comparison as they are not comparable
     return dict_includes(data1, data2, skip_attr_names=['_in_ports', '_out_ports'])
 
 
@@ -129,7 +129,7 @@ def edge_match(datasets1, datasets2):
 
 
 def build_matcher(graph: Graph, nodes: list, edges: list, node_attrs: list = None,
-                         edge_attrs: list = None):
+                  edge_attrs: list = None):
     if node_attrs is not None or edge_attrs is not None:
         log.warning('\'edge_attrs\' or `\'node_attrs\'` parameter was passed to function \'find_pattern_matches\', '
                     'but they are not used anymore. Pattern matching proceeds according to \'nodes\' and \'edges\' '

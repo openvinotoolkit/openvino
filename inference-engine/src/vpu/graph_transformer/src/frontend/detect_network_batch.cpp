@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,80 +8,92 @@
 #include <memory>
 #include <string>
 #include <set>
+#include <map>
 
-#include <details/caseless.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
+
+#include <ngraph/function.hpp>
+#include <ngraph/opsets/opset3.hpp>
 
 #include <vpu/compile_env.hpp>
 
 namespace vpu {
 
-ie::CNNNetwork FrontEnd::detectNetworkBatch(
-        const ie::ICNNNetwork& origNetwork,
-        const Model::Ptr& model) {
+void FrontEnd::detectNetworkBatch(
+        ie::ICNNNetwork& network,
+        const Model& model) {
     VPU_PROFILE(detectNetworkBatch);
 
     const auto& env = CompileEnv::get();
-
-    env.log->debug("Detect network batch");
-    VPU_LOGGER_SECTION(env.log);
-
     ie::details::CaselessEq<std::string> cmp;
 
-    auto batchSize = origNetwork.getBatchSize();
-    env.log->debug("Batch size = %d", batchSize);
+    env.log->trace("Detect network batch");
+    VPU_LOGGER_SECTION(env.log);
+
+    const auto batchSize = network.getBatchSize();
+    env.log->trace("Batch size = %d", batchSize);
+
+    auto checkForDeprecatedCnn = [&network, &env]() {
+        return !network.getFunction()
+               && !env.config.forceDeprecatedCnnConversion
+               && !dynamic_cast<const ie::details::CNNNetworkImpl*>(&network);
+    };
+    VPU_THROW_UNLESS(!checkForDeprecatedCnn(), "Unexpected CNNNetwork format: it was converted to deprecated format prior plugin's call");
 
     if (batchSize == 1 || !env.config.detectBatch) {
-        env.log->debug("Keep original network");
-
-        IE_SUPPRESS_DEPRECATED_START
-        return ie::CNNNetwork(const_cast<ie::ICNNNetwork*>(&origNetwork));
-        IE_SUPPRESS_DEPRECATED_END
+        env.log->trace("Keep original network");
+        return;
     }
 
-    model->setBatchSize(batchSize);
+    model->setBatchSize(checked_cast<int>(batchSize));
 
     //
-    // Create a copy of the original network to reshape it.
+    // Get information about Network inputs and outputs.
     //
 
-    ie::CNNNetwork reshapedNetwork(ie::CNNNetCopy(origNetwork));
+    ie::InputsDataMap inputsInfo;
+    ie::OutputsDataMap outputsInfo;
 
-    auto inputsInfo = reshapedNetwork.getInputsInfo();
-    auto outputsInfo = reshapedNetwork.getOutputsInfo();
+    network.getInputsInfo(inputsInfo);
+    network.getOutputsInfo(outputsInfo);
+
+    std::map<std::string, ie::Precision> outputsPresisions;
+    for (const auto& pair : outputsInfo)
+        outputsPresisions[pair.first] = pair.second->getPrecision();
 
     //
     // Collect input shapes and remove batch from them.
     //
 
-    env.log->debug("Remove batch from inputs");
+    env.log->trace("Remove batch from inputs");
 
     ie::ICNNNetwork::InputShapes inputShapes;
 
     for (const auto& p : inputsInfo) {
         VPU_LOGGER_SECTION(env.log);
 
-        auto info = p.second;
+        const auto info = p.second;
         IE_ASSERT(info != nullptr);
 
-        auto ieData = info->getInputData();
+        const auto ieData = info->getInputData();
         IE_ASSERT(ieData != nullptr);
 
         auto ieShapes = ieData->getTensorDesc().getDims();
-        env.log->debug("Input [%s] : %v", p.first, ieShapes);
+        env.log->trace("Input [%s] : %v", p.first, ieShapes);
 
         switch (ieData->getLayout()) {
-            case ie::Layout::NCHW:
-            case ie::Layout::NHWC:
-            case ie::Layout::NC:
-                ieShapes[0] = 1;
-                break;
-            case ie::Layout::CN:
-                ieShapes[1] = 1;
-                break;
-            default:
-                VPU_THROW_EXCEPTION << "Unexpected input layout : " << ieData->getLayout();
+        case ie::Layout::NCDHW:
+        case ie::Layout::NDHWC:
+        case ie::Layout::NCHW:
+        case ie::Layout::NHWC:
+        case ie::Layout::NC:
+        case ie::Layout::CN:
+            ieShapes[0] = 1;
+            break;
+        default:
+            VPU_THROW_FORMAT("Input %v has unexpected layout %v", ieData->getName(), ieData->getLayout());
         }
 
         inputShapes[ieData->getName()] = ieShapes;
@@ -91,27 +103,60 @@ ie::CNNNetwork FrontEnd::detectNetworkBatch(
     // Special case for DetectionOutput.
     //
 
-    for (const auto& layer : reshapedNetwork) {
-        if (!cmp(layer->type, "DetectionOutput"))
-            continue;
+    if (!network.getFunction()) {
+        for (auto it = ie::details::CNNNetworkIterator(&network); it != ie::details::CNNNetworkIterator(); ++it) {
+            const auto& layer = *it;
 
-        env.log->debug("Found DetectionOutput layer [%s]", layer->name);
+            if (!cmp(layer->type, "DetectionOutput")) {
+                continue;
+            }
 
-        if (layer->outData.empty()) {
-            VPU_LOG_AND_THROW(env.log, "Unsupported layer configuration for %s", layer->name);
+            env.log->trace("Found DetectionOutput layer [%s]", layer->name);
+
+            if (layer->outData.empty()) {
+                VPU_THROW_FORMAT("Unsupported layer %s configuration: no outputs", layer->name);
+            }
+
+            // 1. Don't support if DetectionOutput is not the last layer in network
+            if (!getInputTo(layer->outData.front()).empty()) {
+                VPU_THROW_FORMAT("Unsupported layer %s configuration : it is not a network output", layer->name);
+            }
+
+            // 2. Don't support if there multiple outputs as well
+            if (outputsInfo.size() != 1) {
+                VPU_THROW_FORMAT("Unsupported network configuration : layer %s must be the only output of the network", layer->name);
+            }
+
+            model->attrs().set<bool>("withDetectionOutput", true);
         }
+    } else {
+        const auto layers = network.getFunction()->get_ops();
+        for (const auto& layer : layers) {
+            if (layer->get_type_name() != std::string("DetectionOutput"))
+                continue;
 
-        // 1. Don't support if DetectionOutput is not the last layer in network
-        if (!layer->outData.front()->getInputTo().empty()) {
-            VPU_LOG_AND_THROW(env.log, "Unsupported configuration : layer %s is not a network output", layer->name);
+            env.log->trace("Found DetectionOutput layer [%s]", layer->get_name());
+
+            if (layer->get_output_size() == 0)
+                VPU_THROW_FORMAT("Unsupported layer %s configuration: no outputs", layer->get_name());
+
+            // 1. Don't support if DetectionOutput is not the last layer in network
+            for (const auto& outputHandle : layer->outputs()) {
+                for (const auto& inputHandle : outputHandle.get_target_inputs()) {
+                    auto outNode = inputHandle.get_node();
+                    if (dynamic_cast<::ngraph::opset3::Result *>(outNode)) {
+                        continue;
+                    }
+                    VPU_THROW_FORMAT("Unsupported layer %s configuration : it is not a network output", layer->get_name());
+                }
+            }
+
+            // 2. Don't support if there multiple outputs as well
+            if (outputsInfo.size() != 1) {
+                VPU_THROW_FORMAT("Unsupported network configuration : layer %s must be the only output of the network", layer->get_name());
+            }
+            model->attrs().set<bool>("withDetectionOutput", true);
         }
-
-        // 2. Don't support if there multiple outputs as well
-        if (outputsInfo.size() != 1) {
-            VPU_LOG_AND_THROW(env.log, "Unsupported configuration : layer %s must be the only output of the network", layer->name);
-        }
-
-        model->attrs().set<bool>("withDetectionOutput", true);
     }
 
     //
@@ -121,7 +166,7 @@ ie::CNNNetwork FrontEnd::detectNetworkBatch(
     ie::ICNNNetwork::InputShapes outputShapes;
 
     for (const auto& pair : outputsInfo) {
-        auto ieData = pair.second;
+        const auto ieData = pair.second;
         IE_ASSERT(ieData != nullptr);
 
         outputShapes[pair.first] = ieData->getDims();
@@ -131,35 +176,40 @@ ie::CNNNetwork FrontEnd::detectNetworkBatch(
     // Reshape the network.
     //
 
-    env.log->debug("Reshape the network");
+    env.log->trace("Reshape the network");
 
-    reshapedNetwork.reshape(inputShapes);
+    ie::ResponseDesc desc;
+    const auto status = network.reshape(inputShapes, &desc);
+
+    VPU_THROW_UNLESS(
+        status == ie::StatusCode::OK,
+        "Failed to reshape Network: %v", desc.msg);
 
     //
     // Checks outputs that doesn't change their shape.
     //
 
-    env.log->debug("Checks for unbatched outputs");
+    env.log->trace("Checks for unbatched outputs");
 
-    outputsInfo = reshapedNetwork.getOutputsInfo();
+    network.getOutputsInfo(outputsInfo);
 
     for (const auto& p : outputsInfo) {
         VPU_LOGGER_SECTION(env.log);
 
-        auto ieData = p.second;
+        const auto ieData = p.second;
         IE_ASSERT(ieData != nullptr);
 
-        auto origShape = outputShapes[p.first];
-        auto newShape = ieData->getDims();
+        const auto origShape = outputShapes[p.first];
+        const auto newShape = ieData->getDims();
 
         if (origShape == newShape) {
-            env.log->debug("Output [%s] is unbatched", p.first);
+            env.log->trace("Output [%s] is unbatched", p.first);
 
             _unbatchedOutputs.insert(ieData);
         }
+        // preserve overriden output precision.
+        ieData->setPrecision(outputsPresisions[p.first]);
     }
-
-    return reshapedNetwork;
 }
 
 }  // namespace vpu

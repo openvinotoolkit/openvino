@@ -17,6 +17,8 @@
 
 #include "mvn_kernel_base.h"
 
+#include <vector>
+
 namespace kernel_selector {
 class MVNKernelBfyxOpt : public MVNKernelBase {
 public:
@@ -28,7 +30,15 @@ public:
     using Parent = MVNKernelBase;
 
 private:
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::QUANTIZE,
+            FusedOpType::ELTWISE,
+            FusedOpType::SCALE
+        };
+    }
     DispatchData SetDefault(const mvn_params& params) const override;
-    JitConstants GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData kd) const override;
+    JitConstants GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData dispatchData) const override;
 };
 }  // namespace kernel_selector

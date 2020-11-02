@@ -15,7 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "confiugration.h"
+#include "configuration.h"
 
 namespace cldnn {
 namespace gpu {
@@ -23,14 +23,16 @@ namespace gpu {
 configuration::configuration()
     : enable_profiling(false),
       meaningful_kernels_names(false),
-      device_type(gpu),
-      device_vendor(0x8086),
+      dump_custom_program(false),
+      host_out_of_order(true),
+      use_unifed_shared_memory(false),
       compiler_options(""),
       single_kernel_name(""),
-      host_out_of_order(false),
       log(""),
       ocl_sources_dumps_dir(""),
-      user_context(nullptr),
+      priority_mode(priority_mode_types::disabled),
+      throttle_mode(throttle_mode_types::disabled),
+      queues_num(0),
       tuning_cache_path("cache.json") {}
 }  // namespace gpu
 }  // namespace cldnn

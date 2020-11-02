@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@
 #include "error_handler.h"
 #include "kernel_runner.h"
 
-#include "api/CPP/reorder.hpp"
-#include "api/CPP/input_layout.hpp"
+#include "api/reorder.hpp"
+#include "api/input_layout.hpp"
 #include <memory>
 
 namespace cldnn {
@@ -40,17 +40,11 @@ struct fully_connected_gpu : typed_primitive_gpu_impl<fully_connected> {
 
 protected:
     kernel::kernel_arguments_data get_arguments(typed_primitive_inst<fully_connected>& instance,
-                                                        int32_t) const override {
-        kernel::kernel_arguments_data args;
+                                                        int32_t split) const override {
+        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        args.inputs = {(memory_impl::cptr) &instance.input_memory()};
-        args.output = (memory_impl::cptr) &instance.output_memory();
         args.weights = (memory_impl::cptr) &instance.weights_memory();
         args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory() : nullptr);
-        args.weights_quantization_factors =
-            (memory_impl::cptr) (instance.weights_quantization_factors_term() ? &instance.weights_quantization_factors_memory() : nullptr);
-        args.output_calibration_factors =
-            (memory_impl::cptr) (instance.output_calibration_factors_term() ? &instance.output_calibration_factors_memory() : nullptr);
 
         return args;
     }
@@ -63,32 +57,19 @@ public:
                 arg.get_program());
         fc_optional_params.allowInputReordering = true;
 
-        if (arg.get_primitive()->with_activation)
-            convert_activation_func_params(arg.get_primitive(), fc_params.activation);
-
         fc_params.output = fc_params.output.FlattenFeatureAndSpatials();
 
         const auto primitive = arg.get_primitive();
 
-        if (primitive->weights_quantization_factors.size() > 0) {
-            fc_params.int8_quantization = true;
-            fc_params.weights_quantization_factors.push_back(
-                convert_data_tensor(arg.weights_quantization_factors().get_output_layout())
-                    .FlattenFeatureAndSpatials());
-            fc_params.input_quantization_factor = arg.get_input_qf();
-
-            if (primitive->output_calibration_factors.size() > 0) {
-                fc_params.output_calibration = true;
-                fc_params.output_calibration_factors.push_back(
-                    convert_data_tensor(arg.output_calibration_factors().get_output_layout())
-                        .FlattenFeatureAndSpatials());
-            } else {
-                fc_params.output_quantization_factor = arg.get_output_qf();
-            }
+        if (arg.get_output_layout().data_type == data_types::i8 ||
+            arg.get_output_layout().data_type == data_types::u8) {
+            fc_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
+        } else {
+            fc_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
         fc_optional_params.tuningParams.runner =
-            std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), true);
+            std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
 
         auto& kernel_selector = kernel_selector::fully_connected_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(fc_params, fc_optional_params);
@@ -104,33 +85,36 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = fully_connected_gpu::create;
+namespace detail {
 
-        implementation_map<fully_connected>::add({
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw},
-            // MMAD
-            {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), val_fw},
-            // IMAD
-            {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw},
-            // fs_b_yx_fsv32
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw},
-        });
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_fully_connected_gpu::attach_fully_connected_gpu() {
+    auto val_fw = fully_connected_gpu::create;
+
+    implementation_map<fully_connected>::add({
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw},
+        // MMAD
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv32), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv32), val_fw},
+        // IMAD
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv4), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_yx_bsv16_fsv16), val_fw},
+        // fs_b_yx_fsv32
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw},
+    });
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

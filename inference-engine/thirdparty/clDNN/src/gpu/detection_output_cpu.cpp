@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@
 #include "network_impl.h"
 #include "implementation_map.h"
 #include "math_utils.h"
+#include "register_gpu.hpp"
+#include "cpu_impl_helpers.hpp"
 
 #include <algorithm>
 #include <stdexcept>
@@ -38,20 +40,7 @@ namespace cldnn {
 namespace gpu {
 
 namespace {
-struct bounding_box {
-    float xmin;
-    float ymin;
-    float xmax;
-    float ymax;
-
-    bounding_box() : xmin(0), ymin(0), xmax(0), ymax(0) {}
-
-    bounding_box(const float xmin, const float ymin, const float xmax, const float ymax)
-        : xmin(xmin), ymin(ymin), xmax(xmax), ymax(ymax) {}
-
-    // Computes the area of a bounding box.
-    float area() const { return (xmax - xmin) * (ymax - ymin); }
-};
+    using bounding_box = cldnn::cpu::bounding_box;
 }  // namespace
 
 /************************ Detection Output CPU ************************/
@@ -621,7 +610,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
             a->wait();
         }
 
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_stream_id(), false);
+        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
 
         const int num_of_images = instance.location_memory().get_layout().size.batch[0];  // batch size
 
@@ -648,7 +637,14 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
     static primitive_impl* create(const detection_output_node& arg) { return new detection_output_cpu(arg); }
 };
 
-primitive_impl* runDetectOutCpu(const detection_output_node& arg) { return new detection_output_cpu(arg); }
+namespace detail {
+
+attach_detection_output_gpu::attach_detection_output_gpu() {
+    implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), detection_output_cpu::create);
+    implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), detection_output_cpu::create);
+}
+
+}  // namespace detail
 
 }  // namespace gpu
 }  // namespace cldnn

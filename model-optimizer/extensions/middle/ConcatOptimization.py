@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,11 @@
  limitations under the License.
 """
 
-import networkx as nx
 import logging as log
 
-from mo.graph.graph import Node
+from extensions.middle.fusings import Fusing
+from extensions.middle.pass_separator import PostMiddleStart
+from mo.graph.graph import Node, Graph
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -25,24 +26,26 @@ class ConcatOptimization(MiddleReplacementPattern):
     # This optimization reduces number of edges between Concat operations
     # that significantly reduce memory consumption
 
-    enabled = False
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['cmd_params'].enable_concat_optimization]
 
     def run_after(self):
-        return []
+        return [Fusing]
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def run_before(self):
+        return [PostMiddleStart]
+
+    def find_and_replace_pattern(self, graph: Graph):
         mp = {}
         used = {}
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.kind == 'op' and node.soft_get('type') == 'Concat':
-                in_nodes = tuple([node.in_node(idx).id for idx in range(len(node.in_nodes()))])
-                out_node = (node.id, node.out_node().id)
-                if in_nodes in mp:
-                    log.warning("Something is weird! {} and {}".format(node.id, mp[in_nodes]))
-                else:
-                    mp.update({in_nodes: out_node})
-                    used.update({node.id: {x: False for x in in_nodes}})
+        for node in graph.get_op_nodes(type='Concat'):
+            in_nodes = tuple([node.in_node(idx).id for idx in range(len(node.in_nodes()))])
+            out_node = (node.id, node.out_node().id)
+            if in_nodes in mp:
+                log.warning("Something is weird! {} and {}".format(node.id, mp[in_nodes]))
+            else:
+                mp.update({in_nodes: out_node})
+                used.update({node.id: {x: False for x in in_nodes}})
 
         for key in mp.keys():
             replacers = []
@@ -50,7 +53,6 @@ class ConcatOptimization(MiddleReplacementPattern):
                 for j in range(i + 1, len(key)):
                     arr = tuple(key[i:j + 1])
                     if arr in mp.keys() and arr != key:
-                        # print("Output of {} can be used as input for {} ({})".format(mp[arr][0], mp[key][0], len(arr)))
                         replacers.append((len(arr), arr))
 
             replacers.sort(reverse=True)
@@ -61,7 +63,6 @@ class ConcatOptimization(MiddleReplacementPattern):
                 we_can = True
                 for x in arr:
                     if used[concat_id][x]:
-                        # print("Sorry but {} input was already removed from {}".format(x, concat_id))
                         we_can = False
                         break
 
@@ -91,3 +92,38 @@ class ConcatOptimization(MiddleReplacementPattern):
                     in_node = concat_node.in_nodes()[p]
                     graph[in_node.id][concat_id][0]['in'] = p_id
                     p_id += 1
+
+
+class ConcatOdInputEraserAndPortsReconnect(MiddleReplacementPattern):
+    """
+    The transformation performs two actions with Concat operations:
+    1. Disconnects empty inputs (input tensor has at least one input dimension equal to 0)
+    2. Renumber Concat inputs to be 0, 1, 2,...
+    """
+    enabled = True
+    force_clean_up = True
+
+    def find_and_replace_pattern(self, graph: Graph):
+        for concat in graph.get_op_nodes(type='Concat'):
+            for in_port in concat.in_ports().values():
+                if not in_port.disconnected():
+                    shape = in_port.data.get_shape()
+                    assert shape is not None
+                    if 0 in shape:
+                        concat.delete_input_port(in_port.idx)
+
+            connected_ports = [port for port_idx, port in sorted(concat.in_ports().items()) if not port.disconnected()]
+            assert len(connected_ports), 'Concat "{}" have no inputs after removing inputs with 0 dimensions' \
+                                         ''.format(concat.soft_get('name', concat.id))
+
+            max_port_index = max([port_idx for port_idx in concat.in_ports().keys()])
+            # re-connect input ports sequentially and remove all not used
+            port_idx_to_connect = 0
+            for port_idx in range(max_port_index + 1):
+                if concat.is_in_port_connected(port_idx):
+                    if port_idx != port_idx_to_connect:
+                        concat.add_input_port(port_idx_to_connect, skip_if_exist=True)
+                        concat.in_port(port_idx).get_connection().set_destination(concat.in_port(port_idx_to_connect))
+                    port_idx_to_connect += 1
+                elif port_idx in concat.in_ports():
+                    concat.delete_input_port(port_idx)

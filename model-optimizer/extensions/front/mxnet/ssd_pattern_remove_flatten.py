@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,18 +14,17 @@
  limitations under the License.
 """
 
-import networkx as nx
-
+from extensions.front.flatten_to_reshape import FlattenToReshape
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
-from mo.graph.graph import Graph
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.graph.graph import Graph
 
 
 class SsdPatternRemoveFlatten(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
-        return [SsdPatternRemoveReshape]
+        return [SsdPatternRemoveReshape, FlattenToReshape]
 
     def pattern(self):
         return dict(

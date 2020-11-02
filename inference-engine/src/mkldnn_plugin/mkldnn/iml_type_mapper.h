@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,8 @@ enum impl_desc_type {
     gemm_avx2           = gemm | avx2,
     gemm_avx            = gemm | avx,
     gemm_sse42          = gemm | sse42,
+
+    jit_gemm            = jit | gemm,
 
     jit_avx512_winograd = jit  | avx512 | winograd,
     jit_avx512          = jit  | avx512,

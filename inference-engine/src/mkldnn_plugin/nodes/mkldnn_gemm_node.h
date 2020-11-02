@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,18 +13,18 @@ namespace MKLDNNPlugin {
 
 class MKLDNNGemmNode : public MKLDNNNode {
 public:
-    MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNGemmNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     int getMaxBatch() override;
 
 private:
-    static Register<MKLDNNGemmNode> reg;
     float alpha = 1.0f;
     float beta = 1.0f;
     bool transposeA = false;
@@ -38,6 +38,8 @@ private:
     std::vector<int> aOffsets;
     std::vector<int> bOffsets;
     std::vector<int> cOffsets;
+
+    template<typename T0, typename T1> void process_data();
 };
 
 }  // namespace MKLDNNPlugin

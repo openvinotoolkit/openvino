@@ -1,0 +1,150 @@
+[
+    {
+        "name": "Function_3",
+        "ops": [
+            {
+                "cacheable": true,
+                "element_type": "double",
+                "name": "Parameter_2309",
+                "op": "Parameter",
+                "op_version": 0,
+                "outputs": [
+                    "Parameter_2309_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ]
+            },
+            {
+                "cacheable": true,
+                "element_type": "double",
+                "name": "Parameter_2310",
+                "op": "Parameter",
+                "op_version": 0,
+                "outputs": [
+                    "Parameter_2310_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ]
+            },
+            {
+                "inputs": [
+                    "Parameter_2310"
+                ],
+                "name": "Softmax_2313",
+                "op": "Softmax",
+                "op_version": 0,
+                "outputs": [
+                    "Softmax_2313_0"
+                ],
+                "softmax_axes": [
+                    1
+                ]
+            },
+            {
+                "inputs": [
+                    "Softmax_2313"
+                ],
+                "name": "Log_2314",
+                "op": "Log",
+                "op_version": 0,
+                "outputs": [
+                    "Log_2314_0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Parameter_2309",
+                    "Log_2314"
+                ],
+                "name": "Multiply_2315",
+                "op": "Multiply",
+                "op_version": 0,
+                "outputs": [
+                    "Multiply_2315_0"
+                ]
+            },
+            {
+                "element_type": "int64_t",
+                "name": "Constant_2316",
+                "op": "Constant",
+                "op_version": 0,
+                "outputs": [
+                    "Constant_2316_0"
+                ],
+                "shape": [
+                    1
+                ],
+                "value": [
+                    "1"
+                ]
+            },
+            {
+                "inputs": [
+                    "Multiply_2315",
+                    "Constant_2316"
+                ],
+                "name": "Sum_2317",
+                "op": "Sum",
+                "op_version": 0,
+                "outputs": [
+                    "Sum_2317_0"
+                ],
+                "reduction_axes": [
+                    1
+                ]
+            },
+            {
+                "inputs": [
+                    "Sum_2317"
+                ],
+                "name": "Negative_2318",
+                "op": "Negative",
+                "op_version": 0,
+                "outputs": [
+                    "Negative_2318_0"
+                ]
+            },
+            {
+                "input_order": [
+                    0
+                ],
+                "inputs": [
+                    "Negative_2318"
+                ],
+                "name": "Reshape_2319",
+                "op": "Reshape",
+                "op_version": 0,
+                "output_shape": [
+                    41,
+                    1
+                ],
+                "outputs": [
+                    "Reshape_2319_0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Reshape_2319"
+                ],
+                "name": "Result_2320",
+                "needs_default_layout": true,
+                "op": "Result",
+                "op_version": 0,
+                "outputs": [
+                    "Result_2320_0"
+                ]
+            }
+        ],
+        "parameters": [
+            "Parameter_2309",
+            "Parameter_2310"
+        ],
+        "result": [
+            "Result_2320"
+        ]
+    }
+]

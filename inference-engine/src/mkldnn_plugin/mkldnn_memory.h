@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "inference_engine.hpp"
+#include "ie_layouts.h"
 #include "mkldnn_dims.h"
 #include <mkldnn.hpp>
 #include <string>
@@ -87,6 +87,7 @@ public:
     }
 
     size_t GetSize() const;
+    size_t GetElementsCount() const;
 
     mkldnn::memory::format GetFormat() const {
         return static_cast<mkldnn::memory::format>(prim->get_primitive_desc().desc().data.format);
@@ -101,7 +102,7 @@ public:
     void Create(mkldnn::memory::dims dims, mkldnn::memory::data_type data_type, mkldnn::memory::format format,
                 const void* data = nullptr);
 
-    void Create(const mkldnn::memory::desc& desc, const void* data = nullptr);
+    void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
     void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format format, const void* data, size_t size, bool ftz = true) const;
     void SetData(const MKLDNNMemory& memory, bool ftz = true) const;
@@ -109,10 +110,12 @@ public:
     void FillZero();
 
     static bool IsPlainFormat(mkldnn::memory::format format);
+    static bool IsGroupedFormat(mkldnn::memory::format format);
     static mkldnn::memory::format GetPlainFormat(mkldnn::memory::dims dims);
     static InferenceEngine::Layout GetPlainLayout(mkldnn::memory::dims dims);
     static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format format);
     static mkldnn::memory::format Convert(const InferenceEngine::Layout layout);
+    static InferenceEngine::Precision convertToIePrec(mkldnn::memory::data_type dataType);
 
     static std::string formatToString(mkldnn::memory::format fmt);
 

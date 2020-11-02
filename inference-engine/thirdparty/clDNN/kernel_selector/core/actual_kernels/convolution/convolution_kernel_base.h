@@ -62,12 +62,12 @@ public:
                                                    int autoTuneIndex = -1) const override;
 
 protected:
-    virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const = 0;
+    virtual WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const = 0;
     virtual std::string GetKernelName(const convolution_params&) const { return kernelName; }
     virtual bool NeedPaddedInput() const { return false; }
     bool Validate(const Params& p, const optional_params& o) const override;
-    virtual JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const;
-    virtual JitConstants GetFusedPrimitivesJitConstants(const convolution_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
+    virtual JitConstants GetFusedPrimitivesJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const;
     static bool CheckWorkGroups(const DispatchData&);
     static bool CheckPitchForSplitOnly(const convolution_params& params);
@@ -75,6 +75,12 @@ protected:
                                      const optional_params& options,
                                      const std::string exeMode = DEFAULT,
                                      int autoTuneIndex = -1) const;
+
+    Datatype GetPackedType(Datatype dt, size_t pack_size = 4) const;
+    Datatype GetPackedInputType(const convolution_params& params) const;
+    Datatype GetPackedOutputType(const convolution_params& params) const;
+    Datatype GetActivationType(const convolution_params& params) const;
+    Datatype GetAccumulatorType(const convolution_params& params) const;
 };
 
 bool CovolutionCheckInput(const Params& p, const optional_params& o);

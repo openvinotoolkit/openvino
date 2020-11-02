@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ class GatherTree(Op):
         mandatory_props = {
             'op': __class__.op,
             'type': __class__.op,
+            'version': 'opset1',
             'infer': __class__.infer,
             'in_ports_count': 4,
             'out_ports_count': 1,

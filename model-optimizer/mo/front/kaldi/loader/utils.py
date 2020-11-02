@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,11 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import io
 
-import numpy as np
+import io
 import os
 import struct
+
+import numpy as np
 
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
@@ -28,35 +29,42 @@ end_of_component_tag = '<!EndOfComponent>'
 supported_components = [
     'addshift',
     'affinecomponent',
+    'affinecomponentpreconditionedonline',
     'affinetransform',
+    'backproptruncationcomponent',
+    'batchnormcomponent',
+    'clipgradientcomponent',
     'convolutional1dcomponent',
     'convolutionalcomponent',
     'copy',
+    'elementwiseproductcomponent',
     'fixedaffinecomponent',
+    'fixedscalecomponent',
+    'fixedbiascomponent',
+    'generaldropoutcomponent',
+    'linearcomponent',
+    'logsoftmaxcomponent',
+    'lstmnonlinearitycomponent',
     'lstmprojected',
     'lstmprojectedstreams',
     'maxpoolingcomponent',
+    'naturalgradientaffinecomponent',
+    'naturalgradientperelementscalecomponent',
+    'noopcomponent',
+    'normalizecomponent',
     'parallelcomponent',
+    'pnormcomponent',
+    'rectifiedlinearcomponent',
     'rescale',
     'sigmoid',
+    'sigmoidcomponent',
     'softmax',
     'softmaxcomponent',
+    'specaugmenttimemaskcomponent',
     'splicecomponent',
+    'sumgroupcomponent',
     'tanhcomponent',
-    'normalizecomponent',
-    'affinecomponentpreconditionedonline',
-    'rectifiedlinearcomponent',
-    'batchnormcomponent',
-    'naturalgradientaffinecomponent',
-    'logsoftmaxcomponent',
-    'naturalgradientperelementscalecomponent',
-    'sigmoidcomponent',
-    'tanhcomponent',
-    'elementwiseproductcomponent',
-    'clipgradientcomponent',
-    'noopcomponent',
-    'lstmnonlinearitycomponent',
-    'backproptruncationcomponent',
+    'tdnncomponent',
 ]
 
 
@@ -142,7 +150,7 @@ def read_binary_float_token(file_desc: io.BufferedReader) -> float:
     """
     buffer_size = file_desc.read(1)
     s = file_desc.read(buffer_size[0])
-    return np.fromstring(s, dtype=np.float32)[0]
+    return np.frombuffer(s, dtype=np.float32)[0]
 
 
 def read_string(file_desc: io.BufferedReader) -> int:
@@ -191,6 +199,7 @@ def find_next_component(file_desc: io.BufferedReader) -> str:
     :param file_desc:file descriptor
     :return: string like '<component>'
     """
+    is_start = True
     while True:
         tag = find_next_tag(file_desc)
         # Tag is <NameOfTheLayer>. But we want get without '<' and '>'
@@ -201,6 +210,9 @@ def find_next_component(file_desc: io.BufferedReader) -> str:
             return component_name
         elif tag == '<ComponentName>':
             raise Error('Component has unsupported or not specified type')
+        elif not (is_start and tag == end_of_component_tag) and tag.find('Component') != -1:
+            raise Error('Component has unsupported type {}'.format(tag))
+        is_start = False
 
 
 def get_name_from_path(path: str) -> str:
@@ -280,7 +292,7 @@ def collect_until_whitespace(file_desc: io.BufferedReader):
     return res
 
 
-def collect_until_token(file_desc: io.BufferedReader, token):
+def collect_until_token(file_desc: io.BufferedReader, token, size_search_zone=0):
     """
     Read from file until the token
     :param file_desc: file descriptor
@@ -292,12 +304,12 @@ def collect_until_token(file_desc: io.BufferedReader, token):
         res = collect_until_whitespace(file_desc)
         if res == token or res[-len(token):] == token:
             return
-        size = 0
-        if isinstance(file_desc, io.BytesIO):
+        size = size_search_zone
+        if size == 0 and isinstance(file_desc, io.BytesIO):
             size = len(file_desc.getbuffer())
-        elif isinstance(file_desc, io.BufferedReader):
+        elif size == 0 and isinstance(file_desc, io.BufferedReader):
             size = os.fstat(file_desc.fileno()).st_size
-        if file_desc.tell() == size:
+        if file_desc.tell() >= size:
             raise Error('End of the file. Token {} not found. {}'.format(token, file_desc.tell()))
 
 
@@ -333,8 +345,8 @@ def create_edge_attrs(prev_layer_id: str, next_layer_id: str, in_port=0, out_por
         'in': in_port,
         'name': next_layer_id,
         'fw_tensor_debug_info': [(prev_layer_id, next_layer_id)],
-        'in_attrs': ['in', 'name'],
-        'out_attrs': ['out', 'name'],
+        'in_attrs': ['in', 'permutation'],
+        'out_attrs': ['out', 'permutation'],
         'data_attrs': ['fw_tensor_debug_info']
     }
 
@@ -352,7 +364,7 @@ def read_blob(file_desc: io.BufferedReader, size: int, dtype=np.float32):
         np.int32: 4
     }
     data = file_desc.read(size * dsizes[dtype])
-    return np.fromstring(data, dtype=dtype)
+    return np.frombuffer(data, dtype=dtype)
 
 
 def get_args_for_specifier(string):
@@ -365,6 +377,8 @@ def get_args_for_specifier(string):
     pos = 1
     args = []
     prev_arg_pos = 1
+    pos_close = string.rfind(b')')
+    string = string[:pos_close+1]
     while pos < len(string):
         pos_open = string.find(b'(', pos)
         pos_close = string.find(b')', pos)
@@ -385,7 +399,7 @@ def get_args_for_specifier(string):
                 args.append(string[prev_arg_pos:pos_close+1].strip())
                 prev_arg_pos = string.find(b',', pos_close+1) + 1
                 if prev_arg_pos != 0 and string[prev_arg_pos:-2].replace(b' ', b'').split(b',') != [b'']:
-                    args = args + string[prev_arg_pos:-2].replace(b' ', b'').split(b',')
+                    args = args + string[prev_arg_pos:-1].replace(b' ', b'').split(b',')
                 pos = len(string)
         else:
             if pos_sep < pos_open and open_bracket == 1:

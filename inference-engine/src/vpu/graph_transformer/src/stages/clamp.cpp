@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,36 +9,19 @@
 #include <set>
 #include <string>
 
-#include <vpu/sw/post_op_stage.hpp>
+#include <vpu/stages/post_op_stage.hpp>
 
 namespace vpu {
 
 namespace {
 
 class ClampStage final : public PostOpStage {
+public:
+    using PostOpStage::PostOpStage;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<ClampStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales[0];
-
-            _scaleInfo.setOutput(_outputEdges[0], inputScale);
-
-            attrs().get<float>("min_value") *= inputScale;
-            attrs().get<float>("max_value") *= inputScale;
-        } else {
-            // Clamp can only propagate scaling, not generate.
-            _scaleInfo.setInput(_inputEdges[0], 1.0f);
-            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
-        }
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -52,11 +35,7 @@ protected:
 
 }  // namespace
 
-void FrontEnd::parseClamp(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseClamp(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -67,7 +46,7 @@ void FrontEnd::parseClamp(
 }
 
 Stage StageBuilder::addClampStage(
-            const Model::Ptr& model,
+            const Model& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
             float min,

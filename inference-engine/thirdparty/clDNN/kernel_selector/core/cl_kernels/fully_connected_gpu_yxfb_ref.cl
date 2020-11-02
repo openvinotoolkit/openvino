@@ -34,6 +34,9 @@ KERNEL (fully_connected_gpu_yxfn)(
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
 #endif
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
     )
 {
     const uint x = get_global_id(0);
@@ -55,7 +58,7 @@ KERNEL (fully_connected_gpu_yxfn)(
                     INPUT0_FEATURE_NUM, INPUT0_SIZE_W, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X,
                     FILTER_IFM_NUM, 1, FILTER_SIZE_Z, FILTER_SIZE_Y, FILTER_SIZE_X,
                     INPUT0_DIMS, FILTER_DIMS);
-                uint weight_idx = weight_offset + widx[1]*FILTER_IFM_PITCH + widx[4]*FILTER_Y_PITCH + widx[5]*FILTER_X_PITCH;
+                uint weight_idx = weight_offset + widx[2]*FILTER_IFM_PITCH + widx[5]*FILTER_Y_PITCH + widx[6]*FILTER_X_PITCH;
                 uint input_idx = INPUT0_OFFSET + k*INPUT0_FEATURE_PITCH + j*INPUT0_Y_PITCH + i*INPUT0_X_PITCH + batch_id*INPUT0_BATCH_PITCH;
                 result += input[input_idx] * weights[weight_idx];
             }
@@ -66,5 +69,14 @@ KERNEL (fully_connected_gpu_yxfn)(
 #if BIAS_TERM
     result += biases[neuronIdx];
 #endif
-    output[output_idx] = ACTIVATION(result, ACTIVATION_PARAMS);
+
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
+
+    output[output_idx] = res;
+#else
+    output[output_idx] = ACTIVATION(result, ACTIVATION_PARAMS);;
+#endif
+
 }

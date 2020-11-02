@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/convolution.hpp"
+#include "api/convolution.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -30,22 +30,11 @@ struct typed_program_node<convolution> : public typed_program_node_base<convolut
     using parent = typed_program_node_base<convolution>;
 
 public:
-    struct fused_primitive_desc {
-        std::shared_ptr<const primitive> prim;
-        size_t dep_start_idx;
-        std::vector<primitive_id> deps;
-        cldnn_activation_func_t activation;
-        cldnn_activation_additional_params activation_params;
-    };
-
-
     typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
         : parent(prim, prog),
           split(this->get_primitive()->split()),
           depthwise_sep_opt(false),
           transposed(false),
-          input_qf(this->get_primitive()->input_quantization_factor),
-          output_qf(this->get_primitive()->output_quantization_factor),
           groups(this->get_primitive()->groups),
           deformable_groups(this->get_primitive()->deformable_groups),
           deformable_mode(this->get_primitive()->deformable_mode) {
@@ -85,12 +74,27 @@ public:
         return get_dependency(1 + this->get_split() + idx + get_trans_dep_offset());
     }
 
-    program_node& weights_quantization_factors(size_t idx = 0) const {
+    program_node& weights_zero_points(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
-            throw std::range_error("quantization factor offset too big");
-
+            throw std::range_error("weights zero points offset too big");
 
         return get_dependency(1 + (1 + 1 * bias_term()) * this->get_split() + idx + get_trans_dep_offset());
+    }
+
+    program_node& activations_zero_points(size_t idx = 0) const {
+        if (static_cast<int32_t>(idx) >= this->get_split())
+            throw std::range_error("activations zero points offset too big");
+
+        return get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term()) * this->get_split() + idx +
+                              get_trans_dep_offset());
+    }
+
+    program_node& compensation(size_t idx = 0) const {
+        if (static_cast<int32_t>(idx) >= this->get_split())
+            throw std::range_error("activations zero points offset too big");
+
+        return get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term()) * this->get_split()
+                              + idx + get_trans_dep_offset());
     }
 
     program_node& trans() const {
@@ -100,78 +104,19 @@ public:
         return get_dependency(1);
     }
 
-    program_node& output_calibration_factors(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) >= this->get_split())
-            throw std::range_error("calibration factor offset too big");
-
-        return get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_quantization_term()) * this->get_split() + idx +
-                              get_trans_dep_offset());
-    }
-
-    program_node& fused_eltwise(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) >= this->get_split())
-            throw std::range_error("eltwise offset too big");
-
-        int index = 1 + this->get_split()
-                    + (bias_term() ? this->get_split() : 0)
-                    + (weights_quantization_term() ? this->get_split() : 0)
-                    + (output_calibration_term() ? this->get_split() : 0);
-        return get_dependency(static_cast<size_t>(index));
-    }
-
-    void add_fused_primitive(const program_node *p) {
-        fused_primitive_desc local_desc;
-        local_desc.prim = p->get_primitive();
-        local_desc.dep_start_idx = this->get_dependencies().size();
-        local_desc.activation = cldnn_activation_func_t::activation_none;
-        if (p->get_fused_activation_func() != cldnn_activation_func_t::activation_none) {
-            local_desc.activation = p->get_fused_activation_func();
-            local_desc.activation_params = p->get_fused_activation_params();
-        }
-
-        for (size_t i = 0; i < p->get_dependencies().size(); i++) {
-            auto& dep = p->get_dependency(i);
-            if (dep.id() == this->id())
-                continue;
-
-            this->dependencies.push_back(&dep);
-            local_desc.deps.push_back(dep.id());
-            dep.users.push_back(this);
-        }
-        fused_prims.push_back(local_desc);
-    }
-
-    const std::vector<fused_primitive_desc>& get_fused_primitives() const {
-        return fused_prims;
-    }
-
     bool bias_term() const { return get_primitive()->bias.size() > 0; }
 
-    bool weights_quantization_term() const { return get_primitive()->weights_quantization_factors.size() > 0; }
-
-    bool output_calibration_term() const { return get_primitive()->output_calibration_factors.size() > 0; }
-
-    size_t get_fused_inputs_count() const {
-        size_t count = 0;
-        for (auto& fp : get_fused_primitives()) {
-            count += fp.deps.size();
-        }
-        return count;
-    }
-
-    float get_input_qf() const { return input_qf; }
-    float get_output_qf() const { return output_qf; }
+    bool weights_zero_points_term() const { return get_primitive()->weights_zero_points.size() > 0; }
+    bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
+    bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
 
 private:
     int32_t split;
     bool depthwise_sep_opt;
     bool transposed;
-    float input_qf;
-    float output_qf;
     uint32_t groups;
     uint32_t deformable_groups;
     bool deformable_mode;
-    std::vector<fused_primitive_desc> fused_prims;
 };
 
 using convolution_node = typed_program_node<convolution>;
@@ -207,14 +152,10 @@ public:
         }
     }
 
-    memory_impl& weights_quantization_factors_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
-                throw std::range_error("quantization factors offset too big");
-            return dep_memory(1 + (1 + 1 * bias_term()) * node.get_split() + index + node.get_trans_dep_offset());
-        } else {  // all quantization_factors are in one buffer
-            return dep_memory(2 + 1 * bias_term() + node.get_trans_dep_offset());
-        }
+    memory_impl& weights_zero_points_memory(size_t) const {
+        if (node.get_split() > 1)
+            throw std::range_error("Split is unsupported for quantized convolutions");
+        return dep_memory(2 + 1 * bias_term() + node.get_trans_dep_offset());
     }
 
     memory_impl& trans_memory() const {
@@ -223,35 +164,23 @@ public:
         return dep_memory(1);
     }
 
-    memory_impl& output_calibration_factors_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
-                throw std::range_error("quantization factors offset too big");
-            return dep_memory(1 + (1 + 1 * bias_term() + 1 * weights_quantization_factors_term()) * node.get_split() +
-                              index + node.get_trans_dep_offset());
-        } else {  // all calibration_factors are in one buffer
-            return dep_memory(2 + 1 * bias_term() + 1 * weights_quantization_factors_term() +
-                              node.get_trans_dep_offset());
-        }
+    memory_impl& activations_zero_points_memory(size_t) const {
+        if (node.get_split() > 1)
+            throw std::range_error("Split is unsupported for quantized convolutions");
+        return dep_memory(2 + 1 * bias_term() + 1 * weights_zero_points_term() + node.get_trans_dep_offset());
     }
 
-    memory_impl& fused_memory(size_t dep_id) const {
-        int index = 1 + node.get_split()
-                    + (bias_term() ? node.get_split() : 0)
-                    + (weights_quantization_factors_term() ? node.get_split() : 0)
-                    + (output_calibration_factors_term() ? node.get_split() : 0);
-        return dep_memory(index + dep_id);
+    memory_impl& compensation_memory(size_t) const {
+        if (node.get_split() > 1)
+            throw std::range_error("Split is unsupported for quantized convolutions");
+        return dep_memory(2 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term() + node.get_trans_dep_offset());
     }
 
     bool bias_term() const { return node.bias_term(); }
 
-    bool weights_quantization_factors_term() const { return node.weights_quantization_term(); }
-
-    bool output_calibration_factors_term() const { return node.output_calibration_term(); }
-
-    bool has_fused_primitives() const { return !node.get_fused_primitives().empty(); }
-
-    size_t get_fused_mem_count() const { return node.get_fused_inputs_count(); }
+    bool weights_zero_points_term() const { return node.weights_zero_points_term(); }
+    bool compensation_term() const { return node.compensation_term(); }
+    bool activations_zero_points_term() const { return node.activations_zero_points_term(); }
 };
 
 using convolution_inst = typed_primitive_inst<convolution>;

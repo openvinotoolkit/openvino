@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,11 +20,6 @@ from mo.graph.graph import Graph
 
 class DisableQuantizeValuePropagation(FrontReplacementPattern):
     enabled = True
-    graph_condition = [
-        lambda graph: graph.graph['cmd_params'].keep_quantize_ops_in_IR
-                      and graph.graph['cmd_params'].blobs_as_inputs
-                      or graph.graph['cmd_params'].generate_experimental_IR_V10
-    ]
 
     def run_after(self):
         return [FakeQuantWithMinMaxVarsToQuantize]
@@ -34,9 +29,8 @@ class DisableQuantizeValuePropagation(FrontReplacementPattern):
         return dict(
             nodes=[
                 ('quantize', dict(op='FakeQuantize', levels=lambda levels: levels != 2)),
-                ('conv', dict(type=lambda type: type in ['Convolution', 'FullyConnected', 'MatMul'])),
             ],
-            edges=[('quantize', 'conv', {'in': 1})]
+            edges=[]
         )
 
     @staticmethod

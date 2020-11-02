@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ class Crop(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
             'infer': __class__.infer,
@@ -90,7 +89,11 @@ class Crop(Op):
             if len(node.crop_begin) != len(node.axis) or len(node.crop_end) != len(node.axis):
                 log.error('number of crop_begin/crop_end should match number of axis')
                 return
-            output_shape[node.axis] = output_shape[node.axis] - node.crop_begin - node.crop_end
+            if type(node.axis) in [list, tuple]:
+                for i in range(len(node.axis)):
+                    output_shape[node.axis[i]] = output_shape[node.axis[i]] - node.crop_begin[i] - node.crop_end[i]
+            else:
+                output_shape[node.axis] = output_shape[node.axis] - node.crop_begin - node.crop_end
         else:
             log.error('Crop node {} should have either dim or crop_begin and crop_end attributes'.format(node.name))
             return
@@ -160,4 +163,17 @@ class Crop(Op):
         node.offset = ir_offset
         node['dim'] = dim
         node.out_node().shape = new_shape
+
+        if node.in_node(0).has_valid('value') and not getattr(node.graph.graph['cmd_params'], 'enable_ssd_gluoncv', False):
+            out_value = np.copy(node.in_node(0).value)
+
+            slice_indexes = []
+            for s in out_value.shape:
+                slice_indexes.append(slice(0, s))
+
+            for axis in input_dim:
+                slice_indexes[axis] = slice(0, new_shape[axis])
+                out_value = out_value[tuple(slice_indexes)]
+            node.out_node().value = out_value
+
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])

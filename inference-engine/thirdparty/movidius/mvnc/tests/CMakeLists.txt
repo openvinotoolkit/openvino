@@ -1,90 +1,74 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "MvncTests")
 set(CMAKE_CXX_STANDARD 11)
 
+include(${XLINK_DIR}/XLink.cmake)
+
+set(MVNC_TESTS_COMMON_INCLUDE
+        "cases"
+        "helpers"
+        )
+
+file(GLOB MVNC_TESTS_COMMON_SOURCES
+        "helpers/mvnc_test_helper.cpp"
+        "cases/mvnc_common_test_cases.cpp")
+
 set(PRIVATE_INCLUDE
-        "utils"
-        ${IE_MAIN_SOURCE_DIR}/tests/libs/gtest/googletest/include
-        ${IE_MAIN_SOURCE_DIR}/tests/libs/gtest/googletest/
-        ${LIBUSB_INCLUDE_DIR}
-        "../../shared/include"
-        "../../shared"
-        "../../XLink/shared"
-        "../../watchdog"
-        "../../XLink/pc")
+        ${IE_MAIN_SOURCE_DIR}/tests_new/gtest/googletest/include
+        ${IE_MAIN_SOURCE_DIR}/tests_new/gtest/googletest/
+        ${XLINK_INCLUDE}
+        ${XLINK_PLATFORM_INCLUDE}
+        ${WATCHDOG_INCLUDE})
 
-file(GLOB_RECURSE SHARED "../../shared/*")
+function(add_mvnc_test_target TARGET_NAME TESTS_SOURCES)
+    add_executable(${TARGET_NAME} ${TESTS_SOURCES} ${MVNC_TESTS_COMMON_SOURCES})
 
-if(ENABLE_MYRIAD_NO_BOOT)
-    file(GLOB MVNC_TESTS_SOURCES "mvnc_no_boot_tests.cpp")
-else()
-    file(GLOB MVNC_TESTS_SOURCES "mvnc_tests_usb.cpp"
-                                 "mvnc_tests_common.cpp")
-endif()
-
-if(WIN32)
-    file(GLOB USB_WIN_SOURCES "../../USB_WIN/*")
-    file(GLOB WIN_PTHREAD_SOURCES "../../WinPthread/*")
-    list(APPEND ${MVNC_TESTS_SOURCES} ${USB_WIN_SOURCES} ${WIN_PTHREAD_SOURCES})
-endif()
-
-add_executable(${TARGET_NAME} ${MVNC_TESTS_SOURCES})
-target_include_directories(${TARGET_NAME}
-    PUBLIC
-        "../include"
-    PRIVATE
-        ${PRIVATE_INCLUDE})
-
-if(WIN32)
     target_include_directories(${TARGET_NAME}
+            PUBLIC
+            "../include"
             PRIVATE
-            "../../USB_WIN"
-            "../../WinPthread")
-endif()
+            ${MVNC_TESTS_COMMON_INCLUDE}
+            ${PRIVATE_INCLUDE})
 
-target_compile_definitions(${TARGET_NAME}
-        PRIVATE
+    if(ENABLE_MYRIAD_NO_BOOT)
+        target_compile_definitions(${TARGET_NAME} PRIVATE NO_BOOT)
+    endif()
+
+    target_compile_definitions(${TARGET_NAME}
+            PRIVATE
             __PC__)
 
-target_link_libraries(${TARGET_NAME} gtest gtest_main mvnc)
+    target_link_libraries(${TARGET_NAME} gtest gtest_main mvnc)
+    add_dependencies(${TARGET_NAME} vpu_copy_firmware)
+endfunction()
+
+################# MvncTests ###################
+
+if(ENABLE_MYRIAD_NO_BOOT)
+    set(MVNC_TESTS_SOURCES
+            mvnc_no_boot_tests.cpp
+            cases/mvnc_no_boot_test_cases.cpp
+            )
+else()
+    set(MVNC_TESTS_SOURCES
+            mvnc_tests_common.cpp
+            mvnc_tests_usb.cpp
+            cases/mvnc_usb_test_cases.cpp)
+endif()
+
+add_mvnc_test_target("MvncTests" "${MVNC_TESTS_SOURCES}")
 
 ################# MvncStressTests ###################
 
-set(TARGET_NAME "MvncStressTests")
-set(CMAKE_CXX_STANDARD 11)
-
-file(GLOB MVNC_STRESS_TESTS_SOURCES "mvnc_stress_tests.cpp")
-add_executable(${TARGET_NAME} ${MVNC_STRESS_TESTS_SOURCES} )
-
-target_include_directories(${TARGET_NAME}
-        PUBLIC
-            "../include"
-        PRIVATE
-            ${PRIVATE_INCLUDE})
-
-if(ENABLE_MYRIAD_NO_BOOT)
-    target_compile_definitions(${TARGET_NAME} PRIVATE NO_BOOT)
-endif()
-
-
-target_link_libraries(${TARGET_NAME} gtest gtest_main mvnc)
+set(MVNC_STRESS_TESTS_SOURCES
+        mvnc_stress_tests.cpp
+        cases/mvnc_stress_test_cases.cpp
+        )
+add_mvnc_test_target("MvncStressTests" "${MVNC_STRESS_TESTS_SOURCES}")
 
 ################# MvncUtilsTests ###################
 
-set(TARGET_NAME "MvncUtilsTests")
-set(CMAKE_CXX_STANDARD 11)
-
-file(GLOB MVNC_UTILS_TESTS_SOURCES "mvnc_utils_tests.cpp")
-add_executable(${TARGET_NAME} ${MVNC_UTILS_TESTS_SOURCES} ${SHARED})
-
-target_include_directories(${TARGET_NAME}
-        PUBLIC
-            "../include"
-        PRIVATE
-            ${PRIVATE_INCLUDE})
-
-
-target_link_libraries(${TARGET_NAME} gtest gtest_main mvnc)
+set(MVNC_UTILS_TESTS_SOURCES mvnc_utils_tests.cpp)
+add_mvnc_test_target("MvncUtilsTests" "${MVNC_UTILS_TESTS_SOURCES}")

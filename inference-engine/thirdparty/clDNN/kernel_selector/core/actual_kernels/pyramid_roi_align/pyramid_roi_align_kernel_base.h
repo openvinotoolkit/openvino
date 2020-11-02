@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -22,7 +22,15 @@ namespace kernel_selector {
 // PyramidROIAlign_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct PyramidROIAlign_params : public base_params {
-    PyramidROIAlign_params() : base_params(KernelType::PYRAMID_ROI_ALIGN) {}
+    PyramidROIAlign_params() : base_params(KernelType::PYRAMID_ROI_ALIGN),
+    image_size_x(1), image_size_y(1), sampling_ratio_x(1), sampling_ratio_y(1),
+    pyramid_starting_level(0) {}
+
+    int image_size_x;
+    int image_size_y;
+    int sampling_ratio_x;
+    int sampling_ratio_y;
+    int pyramid_starting_level;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,16 +43,16 @@ struct PyramidROIAlign_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PyramidROIAlignKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class PyramidROIAlignKernelBase : public common_kernel_base {
+class PyramidROIAlignKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~PyramidROIAlignKernelBase() {}
 
     using DispatchData = CommonDispatchData;
 
 protected:
     JitConstants GetJitConstants(const PyramidROIAlign_params& params) const;
-    static DispatchData SetDefault(const PyramidROIAlign_params& params);
+    virtual DispatchData SetDefault(const PyramidROIAlign_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
 };
 }  // namespace kernel_selector

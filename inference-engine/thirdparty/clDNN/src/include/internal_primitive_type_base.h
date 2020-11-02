@@ -26,14 +26,9 @@
 namespace cldnn {
 
 template <class PType>
-struct internal_primitive_type_base : public ::cldnn_primitive_type {
+struct internal_primitive_type_base : public primitive_type {
     static_assert(meta::is_internal_primitive<PType>::value,
                   "Primitive type passed to internal_primitive_type_base should derive from internal_primitive");
-
-    [[noreturn]] std::shared_ptr<primitive> from_dto(const CLDNN_PRIMITIVE_DESC(primitive) *) const override {
-        throw std::runtime_error(
-            "Trying to create an internal primitive from dto - internal primitives are intransferable by design");
-    }
 
     [[noreturn]] std::shared_ptr<cldnn::program_node> create_node(program_impl&,
                                                                   const std::shared_ptr<primitive>) const override {

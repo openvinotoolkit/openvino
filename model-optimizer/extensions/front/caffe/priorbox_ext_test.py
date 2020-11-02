@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@ import numpy as np
 
 from extensions.front.caffe.priorbox_ext import PriorBoxFrontExtractor
 from extensions.ops.priorbox import PriorBoxOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam, FakeParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeMultiParamListFields(FakeMultiParam):

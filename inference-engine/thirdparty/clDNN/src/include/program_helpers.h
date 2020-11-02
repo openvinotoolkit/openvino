@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,8 +65,14 @@ struct program_helpers {
 
     // helper function which creates single-element array if it's given anything
     // other than std::vector.
-    // std::vector case -> does not wrap, returns t as-is
-    static const primitive::fixed_size_vector_ref& wrap_if_single(primitive::fixed_size_vector_ref const& t) {
+    // std::vector case -> does not wrap
+    template <typename T>
+    static std::vector<T>& wrap_if_single(std::vector<T>& t) {
+        return t;
+    }
+
+    template <typename T>
+    static const std::vector<T>& wrap_if_single(const std::vector<T>& t) {
         return t;
     }
 
@@ -103,10 +109,131 @@ struct program_helpers {
     }
     static void merge_buffers(engine_impl& engine,
                               program_node& node,
-                              layout target_layout,
+                              const layout& target_layout,
                               size_t begin_offset,
                               size_t end_offset);
-    static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
+
     static std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2);
+
+    // helper functions for deconvolution optimizations
+    static void reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
+                                              const int channels,
+                                              const int kernel_width,
+                                              const int kernel_height,
+                                              const int scale_factor,
+                                              std::vector<std::vector<std::vector<float> > >& subpixel_weights);
+    template <typename T>
+    static void set_weights_values(T* mem, std::vector<std::vector<std::vector<float> > > args) {
+        for (uint32_t x = 0; x < static_cast<uint32_t>(args.size()); ++x) {
+            for (uint32_t y = 0; y < static_cast<uint32_t>(args[x].size()); ++y) {
+                for (uint32_t z = 0; z < static_cast<uint32_t>(args[x][y].size()); ++z) {
+                    *mem = static_cast<T>(args[x][y][z]);
+                    mem++;
+                }
+            }
+        }
+    }
+    static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
 };
+
+// Base class for performing pattern match style optimizations.
+// Uses CRTP idiom, implementing class should be passed as template parameter `Impl`,
+// and overload match and optimize methods.
+template <typename Impl>
+struct pattern_match_optimization {
+    pattern_match_optimization(program_impl& prog)
+        : prog(prog)
+    {}
+
+    // Returns whether optimization can be performed for specified node.
+    bool match(program_node& node) {
+        return static_cast<Impl*>(this)->match(node);
+    }
+    // Returns whether optimization invalidated the node and no futher optimizations should execute.
+    bool optimize(program_node& node) {
+        // TODO: Add program optimizer class that would take responsibility of modifying program.
+        //       Then use it to provide more complex control over pattern-matches, ie:
+        //       new node added - run applicable optimizations on it as well;
+        //       node deleted - don't do more optimizations;
+        return static_cast<Impl*>(this)->optimize(node);
+    }
+    // Returns whether optimization invalidated the node and no futher optimizations should execute.
+    bool match_and_optimize(program_node& node) {
+        if (!match(node))
+            return false;
+        return optimize(node);
+    }
+
+    program_impl& get_program() { return prog; }
+
+    program_impl& prog;
+};
+
+// Class for pattern-match optimizations that provides support for matching
+// single primitive type `Prim`.
+// Implementing class `Impl` is expected to overload:
+// bool match(typed_program_node<Prim>&)
+// bool optimize(typed_program_node<Prim>&)
+// Uses CRTP idiom, implementing class should be passed as template parameter `Impl`.
+template <typename Impl, typename Prim>
+struct pattern_match_optimization_typed : pattern_match_optimization<pattern_match_optimization_typed<Impl, Prim>> {
+    using base = pattern_match_optimization<pattern_match_optimization_typed<Impl, Prim>>;
+
+    using base::base;
+
+    // Returns whether optimization can be performed for specified node.
+    bool match(program_node& node) {
+        if (!node.is_type<Prim>())
+            return false;
+        return static_cast<Impl*>(this)->match(node.as<Prim>());
+    }
+    // Should be overloaded by implementation class to match specified primitive.
+    bool match(typed_program_node<Prim>& node) {
+        return false;
+    }
+
+    // Returns whether optimization invalidated the node and no futher optimizations should execute.
+    bool optimize(program_node& node) {
+        return static_cast<Impl*>(this)->optimize(node.as<Prim>());
+    }
+    // Should be overloaded by implementation class to optimize specified primitive.
+    bool optimize(typed_program_node<Prim>& node) {
+        return false;
+    }
+};
+
+// Runs pattern-match optimiations passed as arguments on `node`.
+inline bool run_node_optimizations(program_node& /*node*/) {
+    return false;
+}
+
+template <typename Opt, typename... Rest>
+bool run_node_optimizations(program_node& node, Opt&& opt, Rest&&... rest) {
+    if (opt.match_and_optimize(node))
+        return true;
+    return run_node_optimizations(node, std::forward<Rest>(rest)...);
+}
+
+// Runs pattern-match optimizations `Opts` on `node`.
+// Optimizations should have constructor with single argument `program_impl&`.
+template <typename... Opts>
+bool run_node_optimizations(program_impl& p, program_node& node) {
+    return run_node_optimizations<Opts...>(node, Opts(p)...);
+}
+
+// Runs specified pattern-match optimizations on whole program, in processing order.
+template <typename... Opts>
+void run_node_optimizations(program_impl& p, Opts&&... opts) {
+    auto it = p.get_processing_order().begin();
+    while (it != p.get_processing_order().end()) {
+        auto node = *it++;
+        run_node_optimizations(*node, std::forward<Opts>(opts)...);
+    }
+}
+
+template <typename... Opts>
+void run_node_optimizations(program_impl& p) {
+    run_node_optimizations(p, Opts(p)...);
+}
+
 }  // namespace cldnn

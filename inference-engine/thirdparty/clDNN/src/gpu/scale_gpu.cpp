@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,8 +32,8 @@ struct scale_gpu : typed_primitive_gpu_impl<scale> {
     using parent::parent;
 
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t) const override {
-        kernel::kernel_arguments_data args;
+    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
+        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
         args.inputs = {(memory_impl::cptr) &instance.input_memory(), (memory_impl::cptr) &instance.scale_memory()};
         args.output = (memory_impl::cptr) &instance.output_memory();
 
@@ -78,25 +78,75 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = scale_gpu::create;
+namespace detail {
 
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16), val_fw);
-        implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16), val_fw);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_scale_gpu::attach_scale_gpu() {
+    auto val_fw = scale_gpu::create;
+
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::byxf), val_fw);
+
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
+
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), val_fw);
+
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw);
+
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::fs_b_yx_fsv32), val_fw);
+
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bs_fs_yx_bsv16_fsv16), val_fw);
+
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::b_fs_yx_fsv4), val_fw);
+
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::b_fs_yx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv32), val_fw);
+    implementation_map<scale>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::b_fs_zyx_fsv32), val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

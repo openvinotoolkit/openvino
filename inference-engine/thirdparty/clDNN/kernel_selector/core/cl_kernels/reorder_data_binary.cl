@@ -22,7 +22,7 @@
 #error "Data binary reorder: unsupported input layout"
 #endif
 
-#if !OUTPUT_LAYOUT_B_FS_YX_32FP
+#if !OUTPUT_LAYOUT_BFYX && !OUTPUT_LAYOUT_B_FS_YX_32FP
 #error "Data binary reorder: unsupported output layout"
 #endif
 
@@ -39,21 +39,27 @@ KERNEL (reorder_data_binary)(const __global INPUT_REORDER_TYPE* input,
     const uint y = ((uint)(get_global_id(2))) / INPUT0_SIZE_X;
     const uint x = ((uint)(get_global_id(2))) % INPUT0_SIZE_X;
 
+
+#if BINARY_INPUT && BINARY_OUTPUT
+    int input_index = INPUT0_OFFSET
+                    + b * INPUT_PACKED_FEATURES_NUM * INPUT0_FEATURE_PITCH
+                    + f * INPUT0_FEATURE_PITCH
+                    + y * INPUT0_Y_PITCH
+                    + x * INPUT0_X_PITCH;
     int output_index = OUTPUT_OFFSET
                      + b * OUTPUT_PACKED_FEATURES_NUM * OUTPUT_FEATURE_PITCH
                      + f * OUTPUT_FEATURE_PITCH
                      + y * OUTPUT_Y_PITCH
                      + x * OUTPUT_X_PITCH;
 
-#if BINARY_INPUT
-    int input_index = INPUT0_OFFSET
-                    + b * INPUT_PACKED_FEATURES_NUM * INPUT0_FEATURE_PITCH
-                    + f * INPUT0_FEATURE_PITCH
-                    + y * INPUT0_Y_PITCH
-                    + x * INPUT0_X_PITCH;
-
     output[output_index] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(input[input_index]), NL_M, NL_N);
-#else
+#elif BINARY_OUTPUT
+    int output_index = OUTPUT_OFFSET
+                     + b * OUTPUT_PACKED_FEATURES_NUM * OUTPUT_FEATURE_PITCH
+                     + f * OUTPUT_FEATURE_PITCH
+                     + y * OUTPUT_Y_PITCH
+                     + x * OUTPUT_X_PITCH;
+
     OUTPUT_TYPE res = 0x00000000;
     int limit = min((int)IFM_PACK_SIZE, (int)(INPUT0_FEATURE_NUM - f*IFM_PACK_SIZE));
     for (int c = 0; c < limit; c++)
@@ -65,11 +71,31 @@ KERNEL (reorder_data_binary)(const __global INPUT_REORDER_TYPE* input,
                         + y * INPUT0_Y_PITCH
                         + x * INPUT0_X_PITCH;
 
-        // TODO: make sure this is valid in all cases
         int bit = input[input_index] > UNIT_VAL_ZERO ? 1 : 0;
         res |= (bit << c);
     }
     output[output_index] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), NL_M, NL_N);
+#elif BINARY_INPUT
+    int input_index = INPUT0_OFFSET
+                    + b * INPUT_PACKED_FEATURES_NUM * INPUT0_FEATURE_PITCH
+                    + f * INPUT0_FEATURE_PITCH
+                    + y * INPUT0_Y_PITCH
+                    + x * INPUT0_X_PITCH;
+    int res = input[input_index];
+    int limit = min((int)IFM_PACK_SIZE, (int)(INPUT0_FEATURE_NUM - f*IFM_PACK_SIZE));
+    for (int c = 0; c < limit; c++)
+    {
+        int output_index = OUTPUT_OFFSET
+                         + b * OUTPUT_BATCH_PITCH
+                         + (f*IFM_PACK_SIZE + c) * OUTPUT_FEATURE_PITCH
+                         + y * OUTPUT_Y_PITCH
+                         + x * OUTPUT_X_PITCH;
+
+        int bit = (res >> c) & 0x00000001 > 0 ? 1 : -1;
+        output[output_index] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(bit), NL_M, NL_N);
+    }
+#else
+#error "Binary reorder is used without binary tensors"
 #endif
 
 }

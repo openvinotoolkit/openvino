@@ -1,24 +1,34 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- * @brief A header that defines advanced related properties for VPU plugins.
+ * @brief A header that defines advanced related properties for GNA plugin.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
- * @file vpu_plugin_config.hpp
+ * @file gna_config.hpp
  */
 
 #pragma once
 
-#include <string>
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {
 
+/**
+ * @brief GNA plugin configuration
+ */
 namespace GNAConfigParams {
 
+/**
+ * @def GNA_CONFIG_KEY(name)
+ * @brief Shortcut for defining configuration keys
+ */
 #define GNA_CONFIG_KEY(name) InferenceEngine::GNAConfigParams::_CONFIG_KEY(GNA_##name)
+/**
+ * @def GNA_CONFIG_VALUE(name)
+ * @brief Shortcut for defining configuration values
+ */
 #define GNA_CONFIG_VALUE(name) InferenceEngine::GNAConfigParams::GNA_##name
 
 #define DECLARE_GNA_CONFIG_KEY(name) DECLARE_CONFIG_KEY(GNA_##name)
@@ -45,6 +55,11 @@ DECLARE_GNA_CONFIG_KEY(PRECISION);
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
 
 /**
+* @brief information on GNA generation chosen for firmware model dump, can be overridden by GNA3
+*/
+DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
+
+/**
 * @brief GNA proc_type setting that should be one of GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_EXACT
 */
 DECLARE_GNA_CONFIG_KEY(DEVICE_MODE);
@@ -54,6 +69,14 @@ DECLARE_GNA_CONFIG_VALUE(HW);
 DECLARE_GNA_CONFIG_VALUE(SW);
 DECLARE_GNA_CONFIG_VALUE(SW_EXACT);
 DECLARE_GNA_CONFIG_VALUE(SW_FP32);
+DECLARE_GNA_CONFIG_VALUE(GEN);
+DECLARE_GNA_CONFIG_VALUE(GEN_EXACT);
+DECLARE_GNA_CONFIG_VALUE(SSE);
+DECLARE_GNA_CONFIG_VALUE(SSE_EXACT);
+DECLARE_GNA_CONFIG_VALUE(AVX1);
+DECLARE_GNA_CONFIG_VALUE(AVX1_EXACT);
+DECLARE_GNA_CONFIG_VALUE(AVX2);
+DECLARE_GNA_CONFIG_VALUE(AVX2_EXACT);
 
 /**
 * @brief if enabled produced minimum memory footprint for loaded network in GNA memory, default value is YES

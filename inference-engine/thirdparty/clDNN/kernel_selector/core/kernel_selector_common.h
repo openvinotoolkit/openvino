@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -120,20 +120,18 @@ struct ArgumentDescriptor {
         OUTPUT,
         WEIGHTS,
         BIAS,
-        PREV_WEIGHTS_GRADIENT,
-        PREV_BIAS_GRADIENT,
         SCALE_TABLE,
         SLOPE,
         SPLIT,
         INTERNAL_BUFFER,
         SCALAR,
-        WEIGHTS_QUANTIZATION_FACTORS,
-        OUTPUT_CALIBRATION_FACTORS,
         RECURRENT,  // RNN/LSTM/GRU recurrent weights
         HIDDEN,     // RNN/LSTM/GRU hidden input
         CELL,       // LSTM cell input
         LSTM_PACK,  // LSTM packed output
-        LEARNING_RATE,
+        WEIGHTS_ZERO_POINTS,
+        ACTIVATIONS_ZERO_POINTS,
+        COMPENSATION,
         INPUT_OF_FUSED_PRIMITIVE
     };
 
@@ -201,7 +199,7 @@ struct KernelData {
     std::shared_ptr<Params> params;
     std::vector<clKernelData> kernels;
     std::vector<size_t> internalBufferSizes;
-    Datatype intenralBufferDataType = Datatype::UNSUPPORTED;
+    Datatype internalBufferDataType = Datatype::UNSUPPORTED;
     float estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     uint64_t runTime = std::numeric_limits<uint64_t>::max();  // kernel run time in nanoseconds
 
@@ -249,13 +247,16 @@ std::string toString(NormalizeMode mode);
 std::string toString(MVNMode mode);
 std::string toString(WeightsLayout layout);
 std::string toString(ConcatAxis a);
-std::string toString(TileAxis a);
 std::string toString(GatherAxis a);
-std::string toString(SampleType type);
+std::string toString(ScatterUpdateAxis a);
+std::string toString(ResampleType type);
+std::string toString(CoordinateTransformationMode mode);
+std::string toString(NearestMode mode);
 std::string toString(const BorderType type);
 std::string toString(const Tensor::Dim& dim);
 std::string toString(const DataTensor& tensor);
 std::string toString(const WeightsTensor& tensor);
+std::string toString_v2(const DataTensor& tensor);
 std::string toString(const IndexSelectAxis& axis);
 std::string toString(ReduceMode mode);
 inline std::uint64_t create_hash(const unsigned char* begin, const unsigned char* end) {

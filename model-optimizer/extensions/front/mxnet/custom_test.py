@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@
 import unittest
 
 from extensions.front.mxnet.custom import CustomFrontExtractorOp
-from mo.utils.unittest.graph import build_graph
 from mo.front.extractor import FrontExtractorOp, MXNetCustomFrontExtractorOp
 from mo.graph.graph import Node
+from mo.utils.unittest.graph import build_graph
 
 attrs = {'test_attr': 1}
 
 
 class FakeExtractor(MXNetCustomFrontExtractorOp):
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         return True, attrs
 
 
@@ -54,4 +54,4 @@ class TestCustomFrontExtractorOp(unittest.TestCase):
         custom_op = FakeExtractor()
         supported, op_attrs = custom_op.extract(custom_node)
         self.assertTrue(supported)
-        self.assertEquals(op_attrs, attrs)
+        self.assertEqual(op_attrs, attrs)

@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <vector>
 #include <utility>
+#include <stdexcept>
 
 #ifndef NDEBUG
 #include <fstream>

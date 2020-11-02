@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,11 +25,9 @@ ParamsKey ConvolutionKernel_bfyx_1x1::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
-    k.EnableInputLayout(DataLayout::bf8_xy16);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
-    k.EnableOutputLayout(DataLayout::bf8_xy16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDilation();
@@ -43,7 +41,7 @@ ParamsKey ConvolutionKernel_bfyx_1x1::GetSupportedKey() const {
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1::SetDefault(const convolution_params& params, int) const {
-    DispatchData kd = ConvolutionKernelBase::SetDefault(params);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -52,17 +50,17 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1::SetDefault(const
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = Align(x * y, 16) / 16;
-    kd.gws1 = Align(f, 16);
-    kd.gws2 = b;
+    dispatchData.gws[0] = Align(x * y, 16) / 16;
+    dispatchData.gws[1] = Align(f, 16);
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = 1;
-    kd.lws1 = 16;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 16;
+    dispatchData.lws[2] = 1;
 
-    kd.effiency = FORCE_PRIORITY_2;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    return kd;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_bfyx_1x1::Validate(const Params& p, const optional_params& o) const {
@@ -88,8 +86,8 @@ bool ConvolutionKernel_bfyx_1x1::Validate(const Params& p, const optional_params
     return true;
 }
 
-JitConstants ConvolutionKernel_bfyx_1x1::GetJitConstants(const convolution_params& params, const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+JitConstants ConvolutionKernel_bfyx_1x1::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     if (params.output.Feature().v % 16)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));

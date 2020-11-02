@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,58 +27,6 @@ T readFromBlob(const std::vector<char>& blob, uint32_t& offset) {
     offset += sizeof(T);
 
     return *reinterpret_cast<const T*>(srcPtr);
-}
-
-ie::Precision vpuDataTypeToIE(DataType dataType) {
-    auto iePrecision = ie::Precision::UNSPECIFIED;
-
-    switch (dataType) {
-    case DataType::U8:
-        iePrecision = ie::Precision::U8;
-        break;
-    case DataType::FP16:
-        iePrecision = ie::Precision::FP16;
-        break;
-    case DataType::FP32:
-        iePrecision = ie::Precision::FP32;
-        break;
-    default:
-        VPU_THROW_EXCEPTION << "BlobReader error: unsupported dataType " << dataType;
-    }
-
-    return iePrecision;
-}
-
-ie::Layout vpuDimsOrderToIE(DimsOrder dimsOrder) {
-    auto ieLayout = ie::Layout::ANY;
-
-    if (DimsOrder::C == dimsOrder) {
-        ieLayout = ie::Layout::C;
-    } else if (DimsOrder::NC == dimsOrder) {
-        ieLayout = ie::Layout::NC;
-    } else if (DimsOrder::CHW == dimsOrder) {
-        ieLayout = ie::Layout::CHW;
-    } else if (DimsOrder::NCHW == dimsOrder) {
-        ieLayout = ie::Layout::NCHW;
-    } else if (DimsOrder::NHWC == dimsOrder) {
-        ieLayout = ie::Layout::NHWC;
-    } else {
-        VPU_THROW_EXCEPTION << "BlobReader error: unsupported dimsOrder " << toString(dimsOrder);
-    }
-
-    return ieLayout;
-}
-
-ie::SizeVector vpuDimsToIE(const DimValues& dimValues) {
-    auto order = DimsOrder::fromNumDims(dimValues.size());
-    auto perm = order.toPermutation();
-
-    ie::SizeVector ieDims(perm.size());
-    for (int i = 0; i < perm.size(); ++i) {
-        ieDims[ieDims.size() - 1 - i] = dimValues[perm[i]];
-    }
-
-    return ieDims;
 }
 
 }  // namespace
@@ -117,7 +65,7 @@ void BlobReader::parse(const std::vector<char>& blob) {
         // Truncate zeros
         inputName = inputName.c_str();
 
-        auto dataType = static_cast<DataType>(readFromBlob<uint32_t>(blob, inputInfoSecOffset));
+        auto dataType = readFromBlob<DataType>(blob, inputInfoSecOffset);
         auto orderCode = readFromBlob<uint32_t>(blob, inputInfoSecOffset);
 
         auto numDims = readFromBlob<uint32_t>(blob, inputInfoSecOffset);
@@ -126,19 +74,22 @@ void BlobReader::parse(const std::vector<char>& blob) {
         auto perm = dimsOrder.toPermutation();
         IE_ASSERT(perm.size() == numDims);
 
+        auto dimsLocation = readFromBlob<Location>(blob, inputInfoSecOffset);
+        VPU_THROW_UNLESS(dimsLocation == Location::Blob,
+            "BlobReader error while parsing {} input data: only Blob location for input shape is supported, but {} was given",
+            inputName, dimsLocation);
+        auto dimsOffset = _blobHeader.const_data_section_offset + readFromBlob<uint32_t>(blob, inputInfoSecOffset);
+
+        // Skip strides' location and offset
+        inputInfoSecOffset += 2 * sizeof(uint32_t);
+
         DimValues vpuDims;
+
         for (int i = 0; i < perm.size(); ++i) {
-            vpuDims.set(perm[i], readFromBlob<uint32_t>(blob, inputInfoSecOffset));
+            vpuDims.set(perm[i], readFromBlob<uint32_t>(blob, dimsOffset));
         }
 
-        // Skip strides
-        inputInfoSecOffset += perm.size() * sizeof(uint32_t);
-
-        auto iePrecision = vpuDataTypeToIE(dataType);
-        auto ieLayout    = vpuDimsOrderToIE(dimsOrder);
-        auto ieDims = vpuDimsToIE(vpuDims);
-
-        ie::TensorDesc ieDesc(iePrecision, ieDims, ieLayout);
+        ie::TensorDesc ieDesc = DataDesc(dataType, dimsOrder, vpuDims).toTensorDesc();
         ie::Data inputData(inputName, ieDesc);
 
         ie::InputInfo input;
@@ -164,7 +115,7 @@ void BlobReader::parse(const std::vector<char>& blob) {
         // Truncate zeros
         outputName = outputName.c_str();
 
-        auto dataType = static_cast<DataType>(readFromBlob<uint32_t>(blob, outputInfoSecOffset));
+        auto dataType = readFromBlob<DataType>(blob, outputInfoSecOffset);
         auto orderCode = readFromBlob<uint32_t>(blob, outputInfoSecOffset);
 
         auto numDims = readFromBlob<uint32_t>(blob, outputInfoSecOffset);
@@ -173,19 +124,22 @@ void BlobReader::parse(const std::vector<char>& blob) {
         auto perm = dimsOrder.toPermutation();
         IE_ASSERT(perm.size() == numDims);
 
+        auto dimsLocation = readFromBlob<Location>(blob, outputInfoSecOffset);
+        VPU_THROW_UNLESS(dimsLocation == Location::Blob,
+            "BlobReader error while parsing {} output data: only Blob location for output shape is supported, but {} was given",
+            outputName, dimsLocation);
+        auto dimsOffset = _blobHeader.const_data_section_offset + readFromBlob<uint32_t>(blob, outputInfoSecOffset);
+
+        // Skip strides' location and offset
+        outputInfoSecOffset += 2 * sizeof(uint32_t);
+
         DimValues vpuDims;
+
         for (int i = 0; i < perm.size(); ++i) {
-            vpuDims.set(perm[i], readFromBlob<uint32_t>(blob, outputInfoSecOffset));
+            vpuDims.set(perm[i], readFromBlob<uint32_t>(blob, dimsOffset));
         }
 
-        // Skip strides
-        outputInfoSecOffset += perm.size() * sizeof(uint32_t);
-
-        auto iePrecision = vpuDataTypeToIE(dataType);
-        auto ieLayout    = vpuDimsOrderToIE(dimsOrder);
-        auto ieDims = vpuDimsToIE(vpuDims);
-
-        ie::TensorDesc ieDesc(iePrecision, ieDims, ieLayout);
+        ie::TensorDesc ieDesc = DataDesc(dataType, dimsOrder, vpuDims).toTensorDesc();
         ie::Data outputData(outputName, ieDesc);
 
         _networkOutputs[outputData.getName()]    = std::make_shared<ie::Data>(outputData);

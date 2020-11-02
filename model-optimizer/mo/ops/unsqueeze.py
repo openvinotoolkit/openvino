@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -32,14 +32,14 @@ class Unsqueeze(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
-            'op': __class__.op,
-            'type': __class__.op,
+            'op': self.op,
+            'type': self.op,
+            'version': 'opset1',
             'unsqueeze_dims': None,
             'reinterp_shape': True,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }, attrs)
 
     @staticmethod
@@ -68,9 +68,9 @@ class Unsqueeze(Op):
         for dim in unsqueeze_dims:
             output_shape = np.insert(output_shape, dim, 1)
 
-        node.out_port(0).data.set_shape(int64_array(output_shape))
-
         if input_value is not None:
-            node.out_port(0).data.set_value(np.reshape(input_value, output_shape))
+            node.out_port(0).data.set_value(input_value.reshape(output_shape))
+        else:
+            node.out_port(0).data.set_shape(int64_array(output_shape))
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,36 +25,41 @@
 #include <array>
 #include <string>
 #include <utility>
+#include <stdexcept>
 
 namespace kernel_selector {
-#define KERNEL_SELECTOR_TENSOR_DIM_MAX 8
+#define KERNEL_SELECTOR_TENSOR_DIM_MAX 9
 
 namespace Tensor {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // DataLayout
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum DataLayout {
-    f = 0,                 // 1D
-    bf,                    // 1D+batch
-    fb,                    // 1D+batch
-    bfyx,                  // 3D+batch
-    yxfb,                  // 3D+batch
-    byxf,                  // 3D+batch
-    fyxb,                  // 3D+batch
-    bfyx_f16,              // 3D+batch
-    bs_f_bsv8__af8,        // for optimized FC
-    bs_f_bsv16__af8,       // for optimized FC
-    bf8_xy16,              // for optimized conv1x1
-    winograd_2x3_s1_data,  // winograd convolution input, F(2,3) -- filter 3x3 with stride 1
-    byxf_af32,             // for MMAD convolution
-    byx8_f4,               // for MMAD convolution
-    fs_bs_yx_bsv4_fsv32,   // for batched MMAD
-    b_fs_yx_fsv4,          // reordering format for swizzled input for convolution using IMAD
-    bfzyx,                 // batch+feature+3D spatial
-    fs_b_yx_fsv32,         // for FP16 kernels, 32 features to avoid partial writes
-    b_fs_yx_32fp,          // bfyx with blocks of 16 packed binary input channels
-    bfwzyx,                // batch, feature, 4D spatial
-    DataLayoutCount        // NUMBER OF ELEMENTS IN ENUM
+    f = 0,                  // 1D
+    bf,                     // 1D+batch
+    fb,                     // 1D+batch
+    bfyx,                   // 3D+batch
+    yxfb,                   // 3D+batch
+    byxf,                   // 3D+batch
+    fyxb,                   // 3D+batch
+    bfxy,                   // 3D+batch
+    b_fs_yx_fsv16,          // 3D+batch
+    b_fs_zyx_fsv16,         // batch, feature, 3D spatial. Blocks of 16 input channels
+    b_fs_yx_fsv32,          // 3D+batch
+    b_fs_zyx_fsv32,         // 4D+batch
+    bs_fs_yx_bsv16_fsv16,   // batch, feature, 2D spatial. Blocks of 16 batch and channels
+    bs_fs_zyx_bsv16_fsv16,  // batch, feature, 3D spatial. Blocks of 16 batch and channels
+    bs_f_bsv8__af8,         // for optimized FC
+    bs_f_bsv16__af8,        // for optimized FC
+    winograd_2x3_s1_data,   // winograd convolution input, F(2,3) -- filter 3x3 with stride 1
+    b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
+    bfzyx,                  // batch+feature+3D spatial
+    fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
+    b_fs_yx_32fp,           // bfyx with blocks of 16 packed binary input channels
+    bfwzyx,                 // batch, feature, 4D spatial
+    nv12,                   // media nv12 layout
+    image_2d_rgba,          // image2d RGBA
+    DataLayoutCount         // NUMBER OF ELEMENTS IN ENUM
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,13 +74,23 @@ enum WeightsLayout {
     yxio,
     os_iyx_osv16,
     os_iyx_osv32,
+    os_iyx_osv32__ai32,
     os_iyx_osv64,
-    oiyx_o16,
-    o_i_yx_i16_o16,
+    os_is_zyx_isv16_osv16,
+    is_os_zyx_isv16_osv16,
+    is_os_yx_isv16_osv16,
+    os_is_zyx_isv8_osv16_isv2,
+    os_is_yx_isv8_osv16_isv2,
+    os_is_yx_isv16_osv16,
+    os_zyxi_osv16,
     os_iyx_osv16_rotate_180,
     os_i_osv8__ai8,  // TODO can we drop the alignment form layout name?
     os_i_osv16__ai8,
     os_i_osv16,
+    os_is_yx_osv16_isv16,           // wieghts for int8 blocked conv
+    os_is_zyx_osv16_isv16,
+    os_is_zyx_osv32_isv16,
+    os_is_zyx_osv64_isv16,
     i_yxs_os_yxsv2_osv16,
     iy_xs_os_xsv2_osv16__ao32,
     iy_xs_os_xsv2_osv8__ao32,
@@ -88,7 +103,13 @@ enum WeightsLayout {
                                              // 3x3 with stride 1
     image_2d_weights_winograd_6x3_s1_xfbyb,  // image 2d winograd convolution weights for fused kernel, F(2, 3) --filter
                                              // 3x3 with stride 1
+    dlstm_dir_io,                            // dlstm weights layout direction, input_size, 4* hiden_size
     os_is_yx_isa8_osv8_isv4,                 // for MMAD convolution
+    os_is_zyx_isa8_osv8_isv4,                // for MMAD convolution
+    os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+                                                 // 1,5...
+    os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+                                                  // 1,5...
     os_is_yx_isa8_osv8_isv4_swizzled_by_4,   // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                              // 1,5...
     is_o_yx_isv32,                           // for MMAD 1x1 convolutions
@@ -96,11 +117,47 @@ enum WeightsLayout {
     os_is_y_x8_osv8_isv4,           // for MMAD convolutions
     os_is_y_x8_osv8_isv4_swizzled_by_4,  // for MMAD 1x1 convolutions swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                          // 1,5...
-    bf_lyx_yx,                           // local convolution
     os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
+    os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzeled ofm (0, 2, 4..), (1, 3, 5...)
+    os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
+    os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
     oizyx,
-    os_is_yx_osv32_isv32p,  // 2 blocks: 16 packed binary in channels and 16 output channels
-    WeightsLayoutCount      // NUMBER OF ELEMENTS IN ENUM
+    os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
+    os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
+    os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
+    goiyx,
+    goizyx,
+    gyxio,
+    g_os_iyx_osv16,
+    g_os_iyx_osv32,
+    gs_oiyx_gsv16,
+    gs_oizyx_gsv16,
+    gs_oiyx_gsv32,
+    g_os_iyx_osv16_rotate_180,
+    gi_yxs_os_yxsv2_osv16,
+    g_is_os_zyx_isv16_osv16,
+    g_is_os_yx_isv16_osv16,
+    g_os_is_zyx_isv8_osv16_isv2,
+    g_os_is_yx_isv8_osv16_isv2,
+    g_os_is_zyx_isv16_osv16,
+    g_os_is_zyx_osv16_isv16,
+    giy_xs_os_xsv2_osv16__ao32,
+    giy_xs_os_xsv2_osv8__ao32,
+    g_os_is_yx_isv16_osv16,
+    gs_oi_yxs_gsv4_yxsv4,                // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv4 format)
+    gs_oi_yxs_gsv16_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv16 format)
+    gs_oi_yxs_gsv32_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv32 format)
+
+    g_os_is_yx_osv16_isv4,
+
+    g_os_zyx_is_osv16_isv4,
+    g_os_zyx_is_osv16_isv16,
+    g_os_zyx_is_osv16_isv32,
+    g_os_zyx_is_osv32_isv4,
+    g_os_zyx_is_osv32_isv16,
+    g_os_zyx_is_osv32_isv32,
+
+    WeightsLayoutCount                   // NUMBER OF ELEMENTS IN ENUM
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,7 +188,7 @@ using NDims = std::vector<Dim>;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class DataChannelName { X = 0, Y = 1, Z = 2, W = 3, FEATURE = 4, BATCH = 5, COUNT = 6 };
 
-enum class WeightsChannelName { X = 0, Y = 1, Z = 2, IFM = 3, OFM = 4, LX = 5, LY = 6, COUNT = 7 };
+enum class WeightsChannelName { X = 0, Y = 1, Z = 2, IFM = 3, OFM = 4, LX = 5, LY = 6, G = 7, COUNT = 8 };
 
 inline bool SimpleLayout(WeightsLayout l) {
     switch (l) {
@@ -142,6 +199,7 @@ inline bool SimpleLayout(WeightsLayout l) {
         case WeightsLayout::iyxo:
         case WeightsLayout::yxio:
         case WeightsLayout::oizyx:
+        case WeightsLayout::dlstm_dir_io:
             return true;
         default:
             return false;
@@ -164,6 +222,12 @@ inline bool SimpleLayout(DataLayout l) {
     }
 }
 
+inline bool GroupedLayout(WeightsLayout l);
+
+inline bool GroupedLayout(DataLayout) {
+    return false;
+}
+
 inline bool IsImageType(WeightsLayout l) {
     switch (l) {
         case WeightsLayout::image_2d_weights_c4_fyx_b:
@@ -173,6 +237,15 @@ inline bool IsImageType(WeightsLayout l) {
             return true;
         default:
             return false;
+    }
+}
+
+inline bool IsDynamicLSTMType(WeightsLayout l) {
+    switch (l) {
+    case WeightsLayout::dlstm_dir_io:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -373,6 +446,7 @@ public:
     uint32_t ElementSize() const override { return BytesPerElement(dtype); }
     size_t Dimentions() const { return dims.size(); }
     bool SimpleLayout() const { return Tensor::SimpleLayout(layout); }
+    bool GroupedLayout() const { return Tensor::GroupedLayout(layout); }
 
     bool operator==(const TensorBaseT& t) const {
         bool same = dtype == t.dtype && layout == t.layout && paddedVal == t.paddedVal && viewOffset == t.viewOffset &&
@@ -467,7 +541,7 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
         : TensorBaseT<WeightsType, WeightsLayout>(GetSimpleDims(d, l), dt, l) {}
 
     WeightsTensor TransformIgnorePadding(WeightsLayout l) const { return TransformIgnorePadding(l, dtype); }
-    WeightsTensor TransformIgnorePadding(WeightsLayout l, WeightsType t) const;
+    WeightsTensor TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g = 1, bool should_split = true) const;
 
     Dim X() const { return Extract(layout, WeightsChannelName::X, dims); }
     Dim Y() const { return Extract(layout, WeightsChannelName::Y, dims); }
@@ -476,6 +550,7 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
     Dim OFM() const { return Extract(layout, WeightsChannelName::OFM, dims); }
     Dim LX() const { return Extract(layout, WeightsChannelName::LX, dims); }
     Dim LY() const { return Extract(layout, WeightsChannelName::LY, dims); }
+    Dim G() const { return Extract(layout, WeightsChannelName::G, dims); }
 
     static inline Dim Extract(WeightsLayout l, WeightsChannelName channel, const NDims& d) {
         return TensorBaseT::Extract(weightsChannelArray, l, channel, d);
@@ -483,6 +558,10 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
 
     static inline int Channelndex(WeightsLayout l, WeightsChannelName channel) {
         return TensorBaseT::ChannelIndex(weightsChannelArray, l, channel);
+    }
+
+    static inline bool DoesGroupDimExist(WeightsLayout l) {
+        return TensorBaseT::ChannelIndex(weightsChannelArray, l, WeightsChannelName::G) != -1;
     }
 
     static inline uint32_t ChannelsCount(WeightsLayout l) { return TensorBaseT::ChannelsCount(weightsChannelArray, l); }
@@ -494,5 +573,10 @@ private:
     static WeightsChannelArray weightsChannelArray;
     static NDims GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l);
 };
+
+inline bool GroupedLayout(WeightsLayout l) {
+    return WeightsTensor::DoesGroupDimExist(l);
+}
+
 }  // namespace Tensor
 }  // namespace kernel_selector

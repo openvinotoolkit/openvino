@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,11 +15,12 @@
 """
 
 from extensions.ops.ReduceOps import reduce_map
+from extensions.ops.range import Range
+from extensions.ops.rank import Rank
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph
 from mo.ops.const import Const
-from mo.utils.error import Error
 
 
 class ReduceAxisNormalizer(FrontReplacementSubgraph):
@@ -45,11 +46,27 @@ class ReduceAxisNormalizer(FrontReplacementSubgraph):
         node = match['reduce']
         connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
         if len(connected_in_ports) == 1:
+            node_name = node.soft_get('name', node.id)
+
+            # if the 'axis' is None then we still add a second input to the layer with a 1D array with 1 element equal
+            # to None. The infer function handles this case because the input shape is known at this stage only
             if node.has('axis'):
-                const = Const(graph, {'value': node.axis}).create_node()
+                const = Const(graph, {'name': node_name + '/axis', 'value': node.axis}).create_node()
                 node.add_input_port(1, skip_if_exist=True)
                 const.out_port(0).connect(node.in_port(1))
                 del graph.node[node.id]['axis']
             else:
-                raise Error('Can not deduce `reduce_axis` for {}: only one in_port and no `axis` parameter.'
-                            ''.format(node.op))
+                # The default (if there is no 'axis') is to reduce over all the dimensions of the input tensor.
+
+                begin_of_range = Const(graph, dict(name=node_name + '/range_begin_', value=0)).create_node()
+                step = Const(graph, dict(name=node_name + '/range_step_', value=1)).create_node()
+                end_of_range = Rank(graph, dict(name=node_name + '/range_end_')).create_node()
+                axes = Range(graph, dict(name=node_name + '/axes_')).create_node()
+
+                begin_of_range.out_port(0).connect(axes.in_port(0))
+                end_of_range.out_port(0).connect(axes.in_port(1))
+                step.out_port(0).connect(axes.in_port(2))
+
+                node.add_input_port(1, skip_if_exist=True)
+                axes.out_port(0).connect(node.in_port(1))
+                node.in_port(0).get_connection().get_source().connect(end_of_range.in_port(0))

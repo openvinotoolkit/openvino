@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,13 @@ namespace MKLDNNPlugin {
 
 class MKLDNNRNN : public MKLDNNNode {
 public:
-    MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNRNN() override = default;
 
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-
+    using MKLDNNNode::createDescriptor;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc,
                           const std::vector<mkldnn::memory::format> &outputFormats);
@@ -32,8 +32,6 @@ private:
     void fillSeqDesc();
 
 private:
-    static Register<MKLDNNRNN> reg;
-
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 

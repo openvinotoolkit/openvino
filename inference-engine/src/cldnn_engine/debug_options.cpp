@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -321,21 +321,6 @@ bool DebugOptions::IsWAActive(std::string name) {
 #else
     return false;
 #endif  // NDEBUG
-}
-
-std::string DebugOptions::IELayoutToString(InferenceEngine::Layout layout) {
-    switch (layout) {
-    case InferenceEngine::ANY: return "ANY";
-    case InferenceEngine::NCHW: return "NCHW";
-    case InferenceEngine::NHWC: return "NHWC";
-    case InferenceEngine::NCDHW: return "NCDHW";
-    case InferenceEngine::OIHW: return "OIHW";
-    case InferenceEngine::C: return "C";
-    case InferenceEngine::CHW: return "CHW";
-    case InferenceEngine::HW: return "HW";
-    case InferenceEngine::NC: return "NC";
-    default: return "Unknown";
-    }
 }
 
 };  // namespace CLDNNPlugin

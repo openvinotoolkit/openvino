@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,9 +15,10 @@
 """
 
 import logging as log
+
 import numpy as np
 
-from mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
+from mo.front.common.layout import get_batch_dim, get_features_dim, shape_for_layout
 from mo.graph.graph import Node
 
 

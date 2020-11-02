@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,10 +38,9 @@ ParamsKey BinaryConvolutionKernelRef::GetSupportedKey() const {
     return k;
 }
 
-BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelRef::SetDefault(
-    const binary_convolution_params& params,
-    int) const {
-    DispatchData kd = BinaryConvolutionKernelBase::SetDefault(params);
+BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelRef::SetDefault(const binary_convolution_params& params,
+                                                                                 int) const {
+    DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -50,22 +49,22 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelRef::SetDefault
     auto y = out.Y().v;
     auto x = out.X().v;
 
-    kd.gws0 = b;
-    kd.gws1 = f;
-    kd.gws2 = x * y;
+    dispatchData.gws[0] = b;
+    dispatchData.gws[1] = f;
+    dispatchData.gws[2] = x * y;
 
-    kd.lws0 = 1;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
-    return kd;
+    return dispatchData;
 }
 
 JitConstants BinaryConvolutionKernelRef::GetJitConstants(const binary_convolution_params& params,
-                                                         const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                         const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     int pad_physical_val = params.pad_value == -1.0f ? 0x00000000 : 0xFFFFFFFF;
     int leftovers_mask = (0xFFFFFFFF >> (32 - params.inputs[0].Feature().v % 32));
@@ -100,47 +99,9 @@ JitConstants BinaryConvolutionKernelRef::GetFusedPrimitivesJitConstants(const bi
                                                                         const DispatchData& /*kd*/) const {
     JitConstants jit = {};
 
-    size_t op_id = 0;
-    std::string input_decls = "";
-    std::string eltwise_fused_ops = "";
-    for (auto& fused_dep : params.fused_ops) {
-        std::string op_type = "";
-        switch (fused_dep.type) {
-            case binary_convolution_params::fused_operation_desc::Type::SCALE: {
-                op_type = "scale";
-                // Variables that are supposed to be defined:
-                // f (int) - index of output feature channel
-                // res (float, half) - results of layer without any fusions
-                if (fused_dep.tensors.size() == 1) {
-                    eltwise_fused_ops += "res = (res*" + op_type + "_input0[f]);";
-                } else {
-                    eltwise_fused_ops += "res = (res*" + op_type + "_input0[f] + " + op_type + "_input1[f]);";
-                }
-                break;
-            }
-            default:
-                throw std::invalid_argument("Invalid fused op in binary_convolution kernel: " + params.layerID);
-        }
-
-        for (size_t op_input_id = 0; op_input_id < fused_dep.tensors.size(); op_input_id++) {
-            std::string name = "FUSED_OP_" + std::to_string(op_id) + "_INPUT" + std::to_string(op_input_id);
-            jit.AddConstant(MakeJitConstant(name, fused_dep.tensors[op_input_id]));
-            input_decls += "const __global " + toCLType(fused_dep.tensors[op_input_id].GetDType()) + "* " + op_type +
-                           "_input" + std::to_string(op_input_id) + ",";
-        }
-
-        if (fused_dep.activation.function != ActivationFunction::NONE) {
-            std::string temp_op_type = op_type;
-            for (auto& ch : temp_op_type) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-            std::string suffix = "_" + temp_op_type;
-
-            jit.Merge(MakeActivationJitConstants(fused_dep.activation, suffix));
-            eltwise_fused_ops += "res = ACTIVATION" + suffix + "(res, ACTIVATION_PARAMS" + suffix + ");";
-        }
-        op_id++;
-    }
-    jit.AddConstant(MakeJitConstant("FUSED_OPS_DECLS", input_decls));
-    jit.AddConstant(MakeJitConstant("DO_ELTWISE_FUSED_OPS", eltwise_fused_ops));
+    auto input_dt = GetUnitType(params);
+    FusedOpsConfiguration conf = {"", {"b", "f", "y", "x"}, "res", input_dt, 1 };
+    jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
 
     return jit;
 }

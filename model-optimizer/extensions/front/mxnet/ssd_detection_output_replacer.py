@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,15 +13,16 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.front.flatten_to_reshape import FlattenToReshape
+from extensions.front.split_normalizer import AttributedSplitToSplit
 from extensions.ops.DetectionOutput import DetectionOutput
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import find_pattern_matches
-from mo.ops.result import Result
 from mo.ops.reshape import Reshape
+from mo.ops.result import Result
 
 
 class SsdPatternDetectionOutputReplacer(FrontReplacementSubgraph):
@@ -67,7 +68,7 @@ class SsdPatternDetectionOutputReplacer(FrontReplacementSubgraph):
             nodes=[
                 ('power', dict(op='Mul')),
                 ('anchor', dict(op='Const')),
-                ('slice_like', dict(op='Crop')),
+                ('slice_like', dict(op='slice_like')),
                 ('reshape1', dict(op='Reshape')),
                 ('reshape2', dict(op='Reshape')),
                 ('reshape3', dict(op='Reshape')),
@@ -86,6 +87,12 @@ class SsdPatternDetectionOutputReplacer(FrontReplacementSubgraph):
         )
     ]
 
+    def run_before(self):
+        return [FlattenToReshape]
+
+    def run_after(self):
+        return [AttributedSplitToSplit]
+
     def pattern(self):
         return dict(
             nodes=[
@@ -96,7 +103,7 @@ class SsdPatternDetectionOutputReplacer(FrontReplacementSubgraph):
 
     def reshape_priorboxes(self, concat):
         for i, node in concat.in_nodes().items():
-            reshape_node = create_op_node_with_second_input(concat.graph, Reshape, int64_array([0, 2, -1]),
+            reshape_node = create_op_node_with_second_input(concat.graph, Reshape, int64_array([1, -1]),
                                                             dict(name=concat.name + str(i) + '/PriorBoxReshape_'))
             node.out_port(0).disconnect()
             node.out_port(0).connect(reshape_node.in_port(0))

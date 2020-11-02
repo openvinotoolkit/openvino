@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,3 +16,6 @@ ie_add_sample(NAME hello_reshape_ssd
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
               HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/reshape_ssd_extension.hpp"
               OPENCV_DEPENDENCIES imgcodecs)
+
+find_package(ngraph REQUIRED)
+target_link_libraries(hello_reshape_ssd PRIVATE ${NGRAPH_LIBRARIES})

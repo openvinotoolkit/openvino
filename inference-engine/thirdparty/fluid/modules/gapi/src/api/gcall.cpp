@@ -7,7 +7,7 @@
 
 #include "precomp.hpp"
 #include <cassert>
-#include "opencv2/gapi/gcall.hpp"
+#include <opencv2/gapi/gcall.hpp>
 #include "api/gcall_priv.hpp"
 
 // GCall private implementation ////////////////////////////////////////////////
@@ -62,6 +62,11 @@ cv::GScalar cv::GCall::yieldScalar(int output)
 cv::detail::GArrayU cv::GCall::yieldArray(int output)
 {
     return cv::detail::GArrayU(m_priv->m_node, output);
+}
+
+cv::detail::GOpaqueU cv::GCall::yieldOpaque(int output)
+{
+    return cv::detail::GOpaqueU(m_priv->m_node, output);
 }
 
 cv::GCall::Priv& cv::GCall::priv()

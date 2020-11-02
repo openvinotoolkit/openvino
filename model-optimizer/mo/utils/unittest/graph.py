@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,16 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-from collections import deque
+from argparse import Namespace
 from copy import deepcopy
-from numbers import Number
 
 import networkx as nx
-import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import all_edges_in_nodes
+from mo.ops.const import Const
 from mo.utils.error import Error
 
 
@@ -126,8 +125,10 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
 
     for node_id in graph.nodes():
         node = Node(graph, node_id)
-        check_and_update_ports(node, [graph.get_edge_data(edge[0], node_id)[0] for edge in graph.in_edges(node_id)], True)
-        check_and_update_ports(node, [graph.get_edge_data(node_id, edge[1])[0] for edge in graph.out_edges(node_id)], False)
+        check_and_update_ports(node, [graph.get_edge_data(edge[0], node_id)[0] for edge in graph.in_edges(node_id)],
+                               True)
+        check_and_update_ports(node, [graph.get_edge_data(node_id, edge[1])[0] for edge in graph.out_edges(node_id)],
+                               False)
 
     for node in graph.get_op_nodes():
         # Add in_ports attribute
@@ -142,7 +143,8 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
     return graph
 
 
-def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, nodes_with_edges_only: bool = False):
+def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, nodes_with_edges_only: bool = False,
+                cli: Namespace = Namespace(static_shape=False, data_type='FP32')):
     """
     Build the Graph with specific nodes and edges.
     :param nodes_attrs: dictionary where key is the node name and the value is the dictionary with node attributes.
@@ -150,6 +152,7 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
     :param update_attributes: optional dictionary which specifies nodes names and their attributes to be updated. The
     key is a node name to update attribute and the value is a dictionary with attribute name and its value.
     :param nodes_with_edges_only: add nodes which has at least one incoming or outcoming edge.
+    :param cli: Namespace with cli keys to associate with the graph
     :return: generated graph.
     """
     graph = Graph()
@@ -198,24 +201,27 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
     for node in graph.get_op_nodes():
         # Add in_ports attribute
         in_edges = node.in_edges()
-        for i in range(len(in_edges)):
-            node.add_input_port(idx=i)
+        for attr in in_edges.values():
+            node.add_input_port(idx=attr['in'])
 
         # Add out_ports attribute
         out_edges = node.out_edges()
-        for i in range(len(out_edges)):
-            node.add_output_port(idx=i)
+        for attr in out_edges.values():
+            node.add_output_port(idx=attr['out'])
 
+    graph.graph['cmd_params'] = cli
     return graph
 
 
-def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attributes: dict = None):
+def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attributes: dict = None,
+                                cli: Namespace = Namespace(static_shape=False, data_type='FP32')):
     """
     Build the Graph with specific nodes and edges.
     :param nodes_attrs: dictionary where key is the node name and the value is the dictionary with node attributes.
     :param edges: list of pairs with start and end node names of the edge.
     :param update_attributes: optional dictionary which specifies nodes names and their attributes to be updated. The
     key is a node name to update attribute and the value is a dictionary with attribute name and its value.
+    :param cli: Namespace with cli keys to associate with the graph
     :return: generated graph.
     """
     graph = Graph()
@@ -230,126 +236,39 @@ def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attribute
             assert (node_name in graph.nodes())
             for attr, value in new_attrs.items():
                 graph.node[node_name][attr] = value
+
+    for node in graph.get_op_nodes():
+        # Add in_ports attribute
+        in_edges = node.in_edges()
+        for attr in in_edges.values():
+            node.add_input_port(idx=attr['in'])
+
+        # Add out_ports attribute
+        out_edges = node.out_edges()
+        for attr in out_edges.values():
+            node.add_output_port(idx=attr['out'])
+
+    graph.graph['cmd_params'] = cli
     return graph
 
 
-def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref=None, check_op_attrs=False):
-    if last_node_ref is None:
-        last_node_ref = last_node
+class FakeAttr:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
-    q = deque([last_node])
-    q_ref = deque([last_node_ref])
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
 
-    checked_nodes = []
-    checked_nodes_ref = []
-
-    while len(q_ref) != 0:
-        if len(q) == 0:
-            return False, 'Graphs have different number of nodes'
-        node = Node(graph, q.popleft())
-        node_ref = Node(graph_ref, q_ref.popleft())
-
-        checked_nodes.append(node.id)
-        checked_nodes_ref.append(node_ref.id)
-
-        # Check that nodes has same amount of output nodes
-        if len(node_ref.out_nodes()) != len(node.out_nodes()):
-            return False, 'Current node "{}" and reference node "{}" have different amount of output nodes: {} vs {}'.\
-                format(node.id, node_ref.id, len(node_ref.out_nodes()), len(node.out_nodes()))
-
-        # Check that nodes has same amount of input nodes
-        if len(node_ref.in_nodes()) != len(node.in_nodes()):
-            return False, 'Current node "{}" and reference node "{}" have different amount of input nodes: {} vs {}'.\
-                format(node.id, node_ref.id, len(node_ref.in_nodes()), len(node.in_nodes()))
-
-        # Check that nodes has same 'kind'
-        if node_ref.kind != node.kind:
-            return False, 'Current node "{}" and reference node "{}" have different kind parameter'.\
-                format(node.id, node_ref.id)
-
-        # Check can_be_fused attr
-        if node_ref.has_valid('can_be_fused'):
-            if node_ref.soft_get('can_be_fused') != node.soft_get('can_be_fused'):
-                return False, 'Current node "{}" and reference node "{}" have different "can_be_fused" parameter ' \
-                              '{} and {}'.format(node.id, node_ref.id, node.soft_get('can_be_fused'),
-                                                 node_ref.soft_get('can_be_fused'))
-
-        if node_ref.kind == 'op':
-            # Check that nodes has same operation
-            if check_op_attrs:
-                for attr in graph_ref.node[node_ref.id]:
-                    if graph_ref.node[node_ref.id][attr] is None or attr in ['name', 'id', '_in_ports', '_out_ports',
-                                                                             'infer', 'IE']:
-                        continue
-                    if attr not in graph.node[node.id]:
-                        return False, 'Current node "{}" has missing attribute {}'.format(node.id, attr)
-
-                    if type(graph_ref.node[node_ref.id][attr]) in [np.ndarray, list]:
-                        if not np.array_equal(graph.node[node.id][attr], graph_ref.node[node_ref.id][attr]):
-                            return False, 'Current node "{}" and reference node "{}" have different attr "{}" : ' \
-                                          '{} and {}'.format(node.id, node_ref.id, attr, graph.node[node.id][attr],
-                                                             graph_ref.node[node_ref.id][attr])
-                    elif isinstance(graph.node[node.id][attr], Number):
-                        eps = 5e-2 if node.has('precision') and node['precision'] == 'FP16' else 1e-4
-                        if abs(graph.node[node.id][attr] - graph_ref.node[node_ref.id][attr]) > eps:
-                            return False, '{} and {} has different attr {} : {} and {}'.format(
-                                node.id, node_ref.id, attr, graph.node[node.id][attr],
-                                graph_ref.node[node_ref.id][attr])
-                    elif graph.node[node.id][attr] != graph_ref.node[node_ref.id][attr]:
-                        return False, 'Current node "{}" and reference node "{}" have different attr "{}" : {} and {}'.format(
-                            node.id, node_ref.id, attr, graph.node[node.id][attr],
-                            graph_ref.node[node_ref.id][attr])
-
-        else:
-            if node_ref.has_valid('shape') and not node.has_valid('shape'):
-                return False, '{} has None shape'.format(node.id)
-            if node_ref.has_valid('value') and not node.has_valid('value'):
-                return False, '{} has None value'.format(node.id)
-
-            # Check that nodes has same shape and value
-            if node_ref.has_valid('shape') and node_ref.shape is not None and not np.array_equal(node_ref.shape,
-                                                                                                 node.shape):
-                return False, 'Current node "{}" and reference node "{}" have different shapes {} and {}'.\
-                    format(node.id, node_ref.id, node.shape, node_ref.shape)
-
-            if node_ref.has_valid('value') and node_ref.value is not None:
-                eps = 5e-2 if np.asarray(node.value).dtype == 'float16' else 1e-4
-                if not np.allclose(node_ref.value, node.value, rtol=eps, atol=eps):
-                    return False, 'Current node "{}" and reference node "{}" have different values \n{} \nand \n{}'.\
-                        format(node.id, node_ref.id, node.value, node_ref.value)
-        ports = sorted(node.in_nodes().keys()) if node.kind == 'op' else None
-        in_nodes = [node.in_node(k) for k in ports] if node.kind == 'op' else node.in_nodes()
-        for in_node in in_nodes:
-            if in_node.id not in checked_nodes and in_node.id not in q:
-                q.append(in_node.id)
-
-        ports_ref = sorted(node_ref.in_nodes().keys()) if node_ref.kind == 'op' else None
-        if ports != ports_ref:
-            return False, 'Current node "{}" and reference node "{}" have different ports'.format(node.id, node_ref.id)
-
-        in_nodes = [node_ref.in_node(k) for k in ports] if node_ref.kind == 'op' else node_ref.in_nodes()
-        for in_node in in_nodes:
-            if in_node.id not in checked_nodes_ref and in_node.id not in q_ref:
-                q_ref.append(in_node.id)
-
-        out_nodes = node.out_nodes().values() if node.kind == 'op' else node.out_nodes()
-        for out_node in out_nodes:
-            if out_node.id not in checked_nodes and out_node.id not in q:
-                q.append(out_node.id)
-
-        out_nodes = node_ref.out_nodes().values() if node_ref.kind == 'op' else node_ref.out_nodes()
-        for out_node in out_nodes:
-            if out_node.id not in checked_nodes_ref and out_node.id not in q_ref:
-                q_ref.append(out_node.id)
-
-    return True, ''
+    def __getitem__(self, item):
+        return getattr(self, item)
 
 
 class FakeNode:
     def __init__(self, pl, ml):
         self.pb = pl
         self.model_pb = ml
-        self.graph = None
+        self.graph = FakeAttr()
+        self.graph.graph = {}
         self.update_node = lambda: None
 
     def __setitem__(self, key, value):
@@ -357,3 +276,100 @@ class FakeNode:
 
     def __getitem__(self, item):
         return getattr(self, item)
+
+
+# regular units
+regular_op = lambda name, kwargs: {name: {'kind': 'op', 'type': 'NoType', **kwargs}}
+
+valued_data = lambda name, value: {name: {'kind': 'data', 'value': value,
+                                          'shape': int64_array(value.shape) if value is not None else None}}
+shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
+                                          'shape': int64_array(shape) if shape is not None else None}}
+empty_data = lambda name: valued_data(name, None)
+
+result = lambda name=None: {name if name is not None else 'output': {'kind': 'op', 'type': 'Result', 'op': 'Result'}}
+
+regular_op_with_shaped_data = lambda name, shape, kwargs: {**regular_op(name, kwargs),
+                                                           **shaped_data(name + '_d', shape)}
+regular_op_with_empty_data = lambda name, kwargs: {**regular_op(name, kwargs), **empty_data(name + '_d')}
+
+# constants
+const = lambda name, value: {name: {'kind': 'op', 'value': value, 'shape': int64_array(value.shape),
+                                    'type': 'Const', 'infer': Const.infer, 'op': 'Const'}}
+fake_const = lambda name, shape: {name: {'kind': 'op', 'value': None, 'infer': Const.infer,
+                                         'shape': int64_array(shape) if shape is not None else None}}
+shaped_const_with_data = lambda name, shape: {**fake_const(name, shape), **shaped_data(name + '_d', shape)}
+
+valued_const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
+
+
+def extract_port_from_string(node_name: str):
+    """
+    Extracts port and node name from string
+
+    Raises if node name was not provided in the expected format:
+    NODE:OUT_PORT
+        or
+    IN_PORT:NODE
+
+    :param node_name: string value provided by user
+    :return: node name, input port and output port
+    """
+    parts = node_name.split(':')
+    if len(parts) > 2:
+        raise Error("Please provide only one port number for {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, "
+                    "where IN_PORT and OUTPUT_PORT are integers".format(node_name))
+    if len(parts) == 1:
+        return node_name, None, None
+    else:
+        in_port, out_port, name = None, None, None
+        try:
+            in_port, name = int(parts[0]), parts[1]
+        except ValueError:
+            try:
+                out_port, name = int(parts[1]), parts[0]
+            except ValueError:
+                raise Error("Non integer port number in {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, where "
+                            "IN_PORT and OUTPUT_PORT are integers".format(node_name))
+        return name, in_port, out_port
+
+
+def get_name_and_port(tensor_name):
+    node_name, in_port, out_port = extract_port_from_string(tensor_name)
+
+    assert in_port is None or out_port is None
+
+    if in_port is not None:
+        return node_name, in_port
+    elif out_port is not None:
+        return node_name, out_port
+    else:
+        return node_name, 0
+
+
+def connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=False):
+    # ports could be skipped -- then zero in/out ports would be used
+    # first_tensor_name = first_op_name:out_port
+    # second_tensor_name = in_port:second_op_name
+    # if skip_data is True connect directly from data node with postfix '_d' to second
+    # if front_phase is True connect nodes directly without postfixes and data nodes
+
+    first_op_name, out_port = get_name_and_port(first_tensor_name)
+    second_op_name, in_port = get_name_and_port(second_tensor_name)
+
+    if skip_data:
+        return [(first_op_name + '_d', second_op_name, {'in': in_port})]
+    if front_phase:
+        return [(first_op_name, second_op_name, {'out': out_port, 'in': in_port})]
+    return [
+        (first_op_name, first_op_name + '_d', {'out': out_port}),
+        (first_op_name + '_d', second_op_name, {'in': in_port}),
+    ]
+
+
+def connect_data(first_tensor_name, second_tensor_name):
+    return connect(first_tensor_name, second_tensor_name, skip_data=True)
+
+
+def connect_front(first_tensor_name, second_tensor_name):
+    return connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=True)

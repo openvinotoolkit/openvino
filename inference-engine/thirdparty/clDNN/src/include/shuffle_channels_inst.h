@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/shuffle_channels.hpp"
+#include "api/shuffle_channels.hpp"
 #include "primitive_inst.h"
 #include <string>
 

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,8 +24,29 @@ ParamsKey ReorderKernelFastBatch1::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
-    k.EnableAllInputLayout();
-    k.EnableAllOutputLayout();
+
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::byxf);
+    k.EnableInputLayout(DataLayout::fyxb);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfwzyx);
+    k.EnableInputLayout(DataLayout::bs_f_bsv8__af8);
+    k.EnableInputLayout(DataLayout::bs_f_bsv16__af8);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableOutputLayout(DataLayout::fyxb);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
+    k.EnableOutputLayout(DataLayout::bs_f_bsv8__af8);
+    k.EnableOutputLayout(DataLayout::bs_f_bsv16__af8);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -71,21 +92,21 @@ JitConstants ReorderKernelFastBatch1::GetJitConstants(const reorder_params& para
 }
 
 ReorderKernelFastBatch1::DispatchData ReorderKernelFastBatch1::SetDefault(const reorder_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& output = params.output;
 
     unsigned int gws = (unsigned int)output.LogicalSize();
 
-    kd.gws0 = Align(gws, 32);
-    kd.gws1 = 1;
-    kd.gws2 = 1;
+    dispatchData.gws[0] = Align(gws, 32);
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
 
-    kd.lws0 = 32;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 32;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ReorderKernelFastBatch1::GetKernelsData(const Params& params, const optional_params& options) const {

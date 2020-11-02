@@ -1,31 +1,67 @@
-﻿// Copyright (C) 2018-2019 Intel Corporation
+﻿// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
-#include "details/ie_exception.hpp"
+#include <cstring>
 #include <fstream>
 #include <string>
-#include <cstring>
-
-#include <w_unistd.h>
 
 #ifdef __MACH__
-    #include <mach/clock.h>
-    #include <mach/mach.h>
+#include <mach/clock.h>
+#include <mach/mach.h>
 #endif
 
-#include "details/os/os_filesystem.hpp"
+#include <file_utils.h>
+#include <details/ie_exception.hpp>
 
-#if defined(WIN32) || defined(WIN64)
-    // Copied from linux libc sys/stat.h:
-    #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
-    #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#ifndef _WIN32
+# include <limits.h>
+# include <unistd.h>
+# include <dlfcn.h>
+# ifdef ENABLE_UNICODE_PATH_SUPPORT
+#  include <locale>
+#  include <codecvt>
+# endif
+#else
+# if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
+#  error "Only WINAPI_PARTITION_DESKTOP is supported, because of GetModuleHandleEx[A|W]"
+# endif
+# include <Windows.h>
 #endif
 
-long long FileUtils::fileSize(const char *charfilepath) {
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+std::string FileUtils::wStringtoMBCSstringChar(const std::wstring& wstr) {
+#ifdef _WIN32
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);  // NOLINT
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);  // NOLINT
+    return strTo;
+#else
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
+    return wstring_decoder.to_bytes(wstr);
+#endif
+}
+
+std::wstring FileUtils::multiByteCharToWString(const char* str) {
+#ifdef _WIN32
+    int strSize = static_cast<int>(std::strlen(str));
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
+    return wstrTo;
+#else
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
+    std::wstring result = wstring_encoder.from_bytes(str);
+    return result;
+#endif
+}
+
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
+
+long long FileUtils::fileSize(const char* charfilepath) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = InferenceEngine::details::multiByteCharToWString(charfilepath);
+    std::wstring widefilename = FileUtils::multiByteCharToWString(charfilepath);
     const wchar_t* fileName = widefilename.c_str();
 #else
     const char* fileName = charfilepath;
@@ -34,53 +70,81 @@ long long FileUtils::fileSize(const char *charfilepath) {
     return in.tellg();
 }
 
-void FileUtils::readAllFile(const std::string &string_file_name, void *buffer, size_t maxSize) {
-    std::ifstream inputFile;
+namespace InferenceEngine {
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring file_name = InferenceEngine::details::multiByteCharToWString(string_file_name.c_str());
-#else
-    std::string file_name = string_file_name;
-#endif
+namespace {
 
-    inputFile.open(file_name, std::ios::binary | std::ios::in);
-    if (!inputFile.is_open()) THROW_IE_EXCEPTION << "cannot open file " << string_file_name;
-    if (!inputFile.read(reinterpret_cast<char *>(buffer), maxSize)) {
-        inputFile.close();
-        THROW_IE_EXCEPTION << "cannot read " << maxSize << " bytes from file " << string_file_name;
+template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C> >
+std::basic_string<C> getPathName(const std::basic_string<C>& s) {
+    size_t i = s.rfind(FileUtils::FileTraits<C>::FileSeparator, s.length());
+    if (i != std::string::npos) {
+        return (s.substr(0, i));
     }
 
-    inputFile.close();
+    return {};
 }
 
-std::string FileUtils::folderOf(const std::string &filepath) {
-    auto pos = filepath.rfind(FileSeparator);
-    if (pos == std::string::npos) pos = filepath.rfind(FileSeparator2);
-    if (pos == std::string::npos) return "";
-    return filepath.substr(0, pos);
+}  // namespace
+
+static std::string getIELibraryPathA() {
+#ifdef _WIN32
+    CHAR ie_library_path[MAX_PATH];
+    HMODULE hm = NULL;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        reinterpret_cast<LPSTR>(getIELibraryPath), &hm)) {
+        THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
+    }
+    GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
+    return getPathName(std::string(ie_library_path));
+#elif defined(__APPLE__) || defined(__linux__)
+# ifdef USE_STATIC_IE
+#  ifdef __APPLE__
+    Dl_info info;
+    dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
+    std::string path = getPathName(std::string(info.dli_fname)).c_str();
+#  else
+    char result[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+    std::string path = getPathName(std::string(result, (count > 0) ? count : 0));
+#  endif  // __APPLE__
+    return FileUtils::makePath(path, std::string( "lib"));
+# else
+    Dl_info info;
+    dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
+    return getPathName(std::string(info.dli_fname)).c_str();
+# endif  // USE_STATIC_IE
+#else
+# error "Unsupported OS"
+#endif  // _WIN32
 }
 
-std::string FileUtils::makePath(const std::string &folder, const std::string &file) {
-    if (folder.empty()) return file;
-    return folder + FileSeparator + file;
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+std::wstring getIELibraryPathW() {
+#ifdef _WIN32
+    WCHAR ie_library_path[MAX_PATH];
+    HMODULE hm = NULL;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        reinterpret_cast<LPCWSTR>(getIELibraryPath), &hm)) {
+        THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
+    }
+    GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path) / sizeof(ie_library_path[0]));
+    return getPathName(std::wstring(ie_library_path));
+#elif defined(__linux__) || defined(__APPLE__)
+    return ::FileUtils::multiByteCharToWString(getIELibraryPathA().c_str());
+#else
+# error "Unsupported OS"
+#endif
 }
 
-std::string FileUtils::fileNameNoExt(const std::string &filepath) {
-    auto pos = filepath.rfind('.');
-    if (pos == std::string::npos) return filepath;
-    return filepath.substr(0, pos);
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
+
+std::string getIELibraryPath() {
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    return FileUtils::wStringtoMBCSstringChar(getIELibraryPathW());
+#else
+    return getIELibraryPathA();
+#endif
 }
 
-std::string FileUtils::fileExt(const char *filename) {
-    return fileExt(std::string(filename));
-}
-
-std::string FileUtils::fileExt(const std::string &filename) {
-    auto pos = filename.rfind('.');
-    if (pos == std::string::npos) return "";
-    return filename.substr(pos + 1);
-}
-
-bool FileUtils::isSharedLibrary(const std::string& fileName) {
-    return 0 == strncasecmp(fileExt(fileName).c_str(), SharedLibraryExt, strlen(SharedLibraryExt));
-}
+}  // namespace InferenceEngine

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,8 @@ namespace MKLDNNPlugin {
 
 class MKLDNNBatchNormalizationNode : public MKLDNNNode {
 public:
-    MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+            MKLDNNWeightsSharing::Ptr &cache);
 
     ~MKLDNNBatchNormalizationNode() override = default;
     void initSupportedPrimitiveDescriptors() override;
@@ -24,13 +25,12 @@ public:
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
     void createPrimitive() override;
     bool created() const override;
-    bool fusedWithScale() const {return fusedWith.size() == 1 && fusedWith[0]->getType() == Depthwise
+    bool fusedWithScale() const {return fusedWith.size() == 1 && fusedWith[0]->getType() == Eltwise
                                         && fusedWith[0]->getCnnLayer()->type == "ScaleShift";}
 
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 private:
-    static Register<MKLDNNBatchNormalizationNode> reg;
     float eps = 0.0f;
     MKLDNNMemoryDesc GetVarianceDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;
     MKLDNNMemoryDesc GetMeanDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;

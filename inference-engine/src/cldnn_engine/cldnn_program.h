@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,39 +13,24 @@
 #include <algorithm>
 
 #include <cpp/ie_cnn_network.h>
+#include <legacy/ie_layers.h>
 #include <cpp_interfaces/exception2status.hpp>
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
-#include <inference_engine.hpp>
 
 #include "debug_options.h"
 #include "cldnn_custom_layer.h"
 #include "cldnn_config.h"
 
-#include <CPP/engine.hpp>
-#include <CPP/memory.hpp>
-#include <CPP/topology.hpp>
-#include <CPP/primitive.hpp>
-#include <CPP/softmax.hpp>
-#include <CPP/upsampling.hpp>
-#include <CPP/pooling.hpp>
-#include <CPP/eltwise.hpp>
-#include <CPP/concatenation.hpp>
-#include <CPP/detection_output.hpp>
-
-#ifndef NDEBUG
-#include <iostream>
-#include <iomanip>
-
-#define THROW_CLDNN_EXCEPTION(desc)\
-do { \
-InferenceEngineException ex(__FILE__, __LINE__);\
-std::cout << desc << "\n---\nException detected at " << __FILE__ << ":" << \
-__LINE__ << " (" << __FUNCTION__ << ")\n---\n" << std::endl; THROW_IE_EXCEPTION << desc; } while (0);
-#else
-#define THROW_CLDNN_EXCEPTION(desc) THROW_IE_EXCEPTION << desc;
-#endif  // NDEBUG
-#define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
+#include <api/engine.hpp>
+#include <api/memory.hpp>
+#include <api/topology.hpp>
+#include <api/primitive.hpp>
+#include <api/softmax.hpp>
+#include <api/resample.hpp>
+#include <api/pooling.hpp>
+#include <api/eltwise.hpp>
+#include <api/concatenation.hpp>
+#include <api/detection_output.hpp>
 
 namespace CLDNNPlugin {
 template<typename LayerTypePtr>
@@ -88,6 +73,7 @@ struct PerfCounter {
     uint64_t cpu_uSec;
     uint32_t num;
     std::string layerType;
+    std::string parentPrimitive;
 
 public:
     PerfCounter() : realTime_uSec(0), cpu_uSec(0), num(0),
@@ -104,6 +90,7 @@ public:
 
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
+    std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
 
@@ -122,6 +109,11 @@ public:
     const std::map<std::string, cldnn::layout>& getInputLayouts() const { return inputLayouts; }
     int GetMaxBatchSizeForSingleProgram();
 
+    void AddPrimitiveToProfiler(cldnn::primitive_id id, const InferenceEngine::CNNLayerPtr &layer,
+                                cldnn::primitive_id customOutputId = "");
+
+    void AddInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
+                                     const InferenceEngine::CNNLayerPtr &layer);
 
     // internal types
     enum LayerType {
@@ -148,6 +140,7 @@ public:
         SoftMax,
         Power,
         Split,
+        VariadicSplit,
         Concatenate,
         Eltwise,
         SimplerNMS,
@@ -158,6 +151,7 @@ public:
         DetectionOutput,
         Normalize,
         Reshape,
+        Transpose,
         Permute,
         Flatten,
         BatchNormalization,
@@ -167,8 +161,9 @@ public:
         PSROIPooling,
         Clamp,
         Copy,
-        Upsampling,
         Resample,
+        Interp,
+        Interpolate,
         RegionYolo,
         ReorgYolo,
         ConstantBlob,
@@ -182,6 +177,9 @@ public:
         RNN,
         Gather,
         DepthToSpace,
+        SpaceToDepth,
+        BatchToSpace,
+        SpaceToBatch,
         ShuffleChannels,
         StridedSlice,
         Broadcast,
@@ -194,8 +192,10 @@ public:
         TopK,
         Floor,
         Ceil,
+        Ceiling,
         Erf,
         HardSigmoid,
+        HSigmoid,
         Log,
         Neg,
         Reciprocal,
@@ -203,9 +203,32 @@ public:
         Sign,
         SoftPlus,
         SoftSign,
+        Swish,
+        HSwish,
+        Mish,
+        Gelu,
+        Sin,
+        Sinh,
+        Cos,
+        Cosh,
         Tan,
         Gemm,
         OneHot,
+        Convert,
+        ConvertLike,
+        GatherTree,
+        ExperimentalDetectronROIFeatureExtractor,
+        NonMaxSuppression,
+        Select,
+        GRN,
+        CTCGreedyDecoder,
+        PriorBoxClustered,
+        CumSum,
+        Round,
+        EmbeddingBagPackedSum,
+        EmbeddingBagOffsetsSum,
+        EmbeddingSegmentsSum,
+        ExtractImagePatches,
         NO_TYPE
     };
     using GenericBlobMap = std::map<cldnn::primitive_id, cldnn::primitive_id>;
@@ -223,7 +246,8 @@ private:
                          const std::string& layerType,
                          bool isCPU = false,
                          InferenceEngine::InferenceEngineProfileInfo::LayerStatus status
-                         = InferenceEngine::InferenceEngineProfileInfo::EXECUTED);
+                         = InferenceEngine::InferenceEngineProfileInfo::EXECUTED,
+                         std::string parentId = "");
 
     static const cldnn::primitive_id m_preProcessTag;
     static const cldnn::primitive_id m_weightsTag;
@@ -245,9 +269,7 @@ private:
     cldnn::format m_defaultFormat;
     void InitFormat(InferenceEngine::ICNNNetwork &network);
 
-    static cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p);
-    static cldnn::format     FormatFromLayout(InferenceEngine::Layout l);
-    static cldnn::upsampling_sample_type UpsamplingTypeFromString(const std::string& str);
+    static cldnn::resample_type ResampleTypeFromString(const std::string &str);
 
     void Load(InferenceEngine::ICNNNetwork &network);
     static cldnn::pooling_mode PoolingModeFromIEPooling(InferenceEngine::PoolingLayer::PoolType pt, bool excludePadding = false);
@@ -272,11 +294,6 @@ private:
                                            const InferenceEngine::BatchNormalizationLayer* bnLayer,
                                            cldnn::primitive_id& weightsPrimID,
                                            cldnn::primitive_id& biasesPrimID);
-    void CreateQuantizationPrimitives(cldnn::topology& topology,
-                                      const InferenceEngine::CNNLayerPtr& layer,
-                                      std::vector<cldnn::primitive_id>& weightsQuantizationPrimID,
-                                      bool supportsDequantization,
-                                      size_t split = 1);
     void AddPreProcessPrimitive(InferenceEngine::InputInfo::Ptr inputInfo);
     void AddInputPrimitive(cldnn::topology& topology,
                            InferenceEngine::InputInfo::Ptr inputInfo, InferenceEngine::Precision inputPrecision, const std::string inputName);
@@ -317,7 +334,7 @@ private:
     void CreateEltwisePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateConcatenatePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateSplitPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
-    void CreateFusedSplitConvMergePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateFusedSplitConvMergePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, bool useGroups = true);
     void CreatePowerPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateSoftMaxPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateFullyConnectedPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
@@ -330,8 +347,9 @@ private:
     void CreateProposalPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreatePSROIPoolingPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateCopyPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
-    void CreateUpsamplingPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateResamplePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateYOLO2RegionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateYOLO2ReorgPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateArgMaxMinPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, const LayerType type);
@@ -348,6 +366,9 @@ private:
     void CreateCustomLayerPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, CLDNNCustomLayerPtr customLayer);
     void CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateSpaceToBatchPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateBroadcastPrimitive(cldnn::topology &topology, InferenceEngine::CNNLayerPtr &layer);
@@ -357,6 +378,21 @@ private:
     void CreateGemmPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateReducePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateOneHotPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateGatherTreePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateConvertPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateConvertLikePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreatePyramidRoIAlignPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateSelectPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateGRNPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateRoundPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateExtractImagePatchesPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
 };
 
 }  // namespace CLDNNPlugin

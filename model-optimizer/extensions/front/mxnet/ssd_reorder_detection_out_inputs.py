@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,12 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
-
-from mo.graph.graph import Graph
-from mo.front.common.replacement import FrontReplacementPattern
-from extensions.front.mxnet.ssd_pattern_remove_transpose import SsdPatternRemoveTranspose
 from extensions.front.mxnet.ssd_pattern_flatten_softmax_activation import SsdPatternFlattenSoftmaxActivation
+from extensions.front.mxnet.ssd_pattern_remove_transpose import SsdPatternRemoveTranspose
+from mo.front.common.replacement import FrontReplacementPattern
+from mo.graph.graph import Graph
 
 
 class SsdReorderDetectionOutInputs(FrontReplacementPattern):

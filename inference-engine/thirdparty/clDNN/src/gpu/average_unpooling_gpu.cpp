@@ -67,31 +67,29 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                                   average_unpooling_gpu::create);
-        implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                                   average_unpooling_gpu::create);
-        implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                                   average_unpooling_gpu::create);
-        implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                                   average_unpooling_gpu::create);
-        implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
-                                                   average_unpooling_gpu::create);
-        implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb),
-                                                   average_unpooling_gpu::create);
-        implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                                   average_unpooling_gpu::create);
-        implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                                   average_unpooling_gpu::create);
-        implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf),
-                                                   average_unpooling_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_average_unpooling_gpu::attach_average_unpooling_gpu() {
+    implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                                average_unpooling_gpu::create);
+    implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                                average_unpooling_gpu::create);
+    implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                                average_unpooling_gpu::create);
+    implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                                average_unpooling_gpu::create);
+    implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
+                                                average_unpooling_gpu::create);
+    implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb),
+                                                average_unpooling_gpu::create);
+    implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                                average_unpooling_gpu::create);
+    implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                                average_unpooling_gpu::create);
+    implementation_map<average_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf),
+                                                average_unpooling_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

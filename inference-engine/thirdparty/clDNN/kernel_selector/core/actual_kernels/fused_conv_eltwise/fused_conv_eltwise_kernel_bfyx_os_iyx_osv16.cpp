@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -116,7 +116,8 @@ fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetAutoTuneOptions(const Params& p,
 
     AutoTuneOption option = {0, 0, 0, DEFAULT};
 
-    const convolution_params& cp = static_cast<const convolution_params&>(p);
+    const fused_conv_eltwise_params& f_cp = static_cast<const fused_conv_eltwise_params&>(p);
+    auto& cp = f_cp.conv;
 
     if (cp.stride.x == 1 && cp.stride.y == 1) {
         if (cp.filterSize.x == 1 && cp.filterSize.y == 1) {
@@ -126,8 +127,8 @@ fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetAutoTuneOptions(const Params& p,
         // if less than 16 values is required to compute one single row of output
         // then each WI shall compute one single row to maximize reuse within SIMD subgroup (this gives very nice
         // performance results)
-        } else if (cp.output.X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
-            option.blockWidth = cp.output.X().v;
+        } else if (f_cp.output.X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
+            option.blockWidth = f_cp.output.X().v;
             option.blockHeight = 1;
             option.prefetch = 4;
         } else if (cp.filterSize.x < 5 && cp.filterSize.y < 5) {
@@ -147,53 +148,51 @@ fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetAutoTuneOptions(const Params& p,
         option.blockWidth = 4;
         option.blockHeight = 3;
         option.prefetch = 5;
-        // run_info.effiency = FORCE_PRIORITY_7; // GEMM is better
     }
 
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
     // sizes
-    if (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.output.Batch().v != 1) {
-        shrink_blocks_to_output_size(cp.output.X().v, cp.output.Y().v, option.blockWidth, option.blockHeight);
+    if (cp.filterSize.x != 1 || cp.filterSize.y != 1 || f_cp.output.Batch().v != 1) {
+        shrink_blocks_to_output_size(f_cp.output.X().v, f_cp.output.Y().v, option.blockWidth, option.blockHeight);
     }
-
     return option;
 }
 
 fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::SetDefault(
     const fused_conv_eltwise_params& cp,
     int autoTuneIndex) const {
-    DispatchData runInfo = fused_conv_eltwise_kernel_base::SetDefault(cp);
+    DispatchData dispatchData = fused_conv_eltwise_kernel_base::SetDefault(cp);
 
     const auto of_maps = cp.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
-    runInfo.cldnnStyle.blockWidth = tuneOptions.blockWidth;
-    runInfo.cldnnStyle.blockHeight = tuneOptions.blockHeight;
-    runInfo.cldnnStyle.prefetch = tuneOptions.prefetch;
+    dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
+    dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
+    dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    auto input_block_dims = get_bfyx_req_input_block_dims(runInfo.cldnnStyle.blockWidth,
-                                                          runInfo.cldnnStyle.blockHeight,
+    auto input_block_dims = get_bfyx_req_input_block_dims(dispatchData.cldnnStyle.blockWidth,
+                                                          dispatchData.cldnnStyle.blockHeight,
                                                           cp.conv.filterSize,
                                                           cp.conv.stride,
                                                           cp.conv.dilation,
                                                           sub_group_size,
-                                                          runInfo.fp16UnitUsed ? sub_group_size : sub_group_size / 2,
+                                                          cp.output.GetDType() == Datatype::F16 ? sub_group_size : sub_group_size / 2,
                                                           sub_group_size);
-    runInfo.cldnnStyle.inputBlockArraySize = input_block_dims.first;
-    runInfo.cldnnStyle.inputBlockWidth = input_block_dims.second;
+    dispatchData.cldnnStyle.inputBlockArraySize = input_block_dims.first;
+    dispatchData.cldnnStyle.inputBlockWidth = input_block_dims.second;
 
-    runInfo.gws0 = CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth);
-    runInfo.gws1 = CeilDiv(cp.output.Y().v, runInfo.cldnnStyle.blockHeight);
-    runInfo.gws2 = of_threads_per_batch * cp.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth);
+    dispatchData.gws[1] = CeilDiv(cp.output.Y().v, dispatchData.cldnnStyle.blockHeight);
+    dispatchData.gws[2] = of_threads_per_batch * cp.output.Batch().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = sub_group_size;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = sub_group_size;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::Validate(const Params& p, const optional_params& o) const {
@@ -205,19 +204,19 @@ bool fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::Validate(const Params& p, cons
 }
 
 JitConstants fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetJitConstants(const fused_conv_eltwise_params& params,
-                                                                          const DispatchData& runInfo) const {
+                                                                          const DispatchData& dispatchData) const {
     const auto of_maps = params.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
     size_t leftovers = of_threads_per_batch - of_maps;
 
-    auto jit = Parent::GetJitConstants(params, runInfo);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws2));
-    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", runInfo.cldnnStyle.blockWidth));
-    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", runInfo.cldnnStyle.blockHeight));
-    jit.AddConstant(MakeJitConstant("IN_BLOCK_ARRAY_SIZE", runInfo.cldnnStyle.inputBlockArraySize));
-    jit.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", runInfo.cldnnStyle.inputBlockWidth));
-    jit.AddConstant(MakeJitConstant("PREFETCH", runInfo.cldnnStyle.prefetch));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
+    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
+    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", dispatchData.cldnnStyle.blockHeight));
+    jit.AddConstant(MakeJitConstant("IN_BLOCK_ARRAY_SIZE", dispatchData.cldnnStyle.inputBlockArraySize));
+    jit.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
+    jit.AddConstant(MakeJitConstant("PREFETCH", dispatchData.cldnnStyle.prefetch));
 
     if (leftovers) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS", leftovers));
@@ -226,12 +225,12 @@ JitConstants fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetJitConstants(const 
     return jit;
 }
 
-std::vector<WeightsLayout> fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetSupportedWeightLayouts(
-    const fused_conv_eltwise_params& params) const {
+WeightsLayout fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetPreferreddWeightsLayout(
+        const fused_conv_eltwise_params &params) const {
     if (!params.conv.transposed) {
-        return {WeightsLayout::os_iyx_osv16};
+        return WeightsLayout::os_iyx_osv16;
     } else {
-        return {WeightsLayout::os_iyx_osv16_rotate_180};
+        return WeightsLayout::os_iyx_osv16_rotate_180;
     }
 }
 

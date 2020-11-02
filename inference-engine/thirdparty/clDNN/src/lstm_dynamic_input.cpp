@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm_dynamic_input_type_id() {
+primitive_type_id lstm_dynamic_input::type_id() {
     static primitive_type_base<lstm_dynamic_input> instance;
     return &instance;
 }
@@ -96,7 +96,7 @@ lstm_dynamic_input_inst::typed_primitive_inst(network_impl& network, lstm_dynami
                                   "weights format",
                                   node.weights().get_output_layout().format.value,
                                   "expected bfyx format",
-                                  format::bfyx);
+                                  format::oiyx, format::lstm_weights_dio, format::bfyx);
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Weights batch size",
                           weights_tensor.batch[0],

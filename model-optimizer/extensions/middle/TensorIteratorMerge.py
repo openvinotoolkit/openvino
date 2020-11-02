@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,7 +24,8 @@ from mo.graph.graph import Node, Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.op import Op
-from mo.ops.reshape import Reshape
+from mo.ops.squeeze import Squeeze
+from mo.ops.unsqueeze import Unsqueeze
 from mo.utils.graph import sub_graph_between_nodes, invert_sub_graph_between_nodes
 
 stop_nodes = ['TensorIteratorInput', 'TensorIteratorOutput', 'TensorIteratorBackEdge', 'TensorIteratorCondition']
@@ -119,21 +120,22 @@ class TensorIteratorMerge(MiddleReplacementPattern):
     def replace_pattern(graph, match: dict):
         # Here we will found all parts of TI: condition, inputs/outputs, back edges, body and create TensorIterator Op
         # and make all checks needed for TensorIteator work
-        cond_data = match['condition'].out_node(0)
-        time_data = match['condition'].out_node(1) if len(match['condition'].out_nodes()) > 1 else None
+        cond_data = match['condition'].out_node(0) if not match['condition'].out_port(0).disconnected() else None
+        time_data = match['condition'].out_node(1) if len(match['condition'].out_nodes()) >= 1 else None
         name = match['condition'].name
 
         back_edges = []
         inputs = []
         outputs = []
 
-        for node in cond_data.out_nodes():
-            if node['kind'] == 'op' and node['op'] == 'TensorIteratorBackEdge':
-                back_edges.append(node.id)
-            elif node['kind'] == 'op' and node['op'] == 'TensorIteratorInput':
-                inputs.append(node.id)
-            elif node['kind'] == 'op' and node['op'] == 'TensorIteratorOutput':
-                outputs.append(node.id)
+        if cond_data is not None:
+            for node in cond_data.out_nodes():
+                if node['kind'] == 'op' and node['op'] == 'TensorIteratorBackEdge':
+                    back_edges.append(node.id)
+                elif node['kind'] == 'op' and node['op'] == 'TensorIteratorInput':
+                    inputs.append(node.id)
+                elif node['kind'] == 'op' and node['op'] == 'TensorIteratorOutput':
+                    outputs.append(node.id)
 
         if time_data is not None:
             for node in time_data.out_nodes():
@@ -146,12 +148,14 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                     assert False
         condition = match['condition']
         tensor_sequence_length = condition.in_node(0)
-        graph.remove_nodes_from([condition.id, cond_data.id, tensor_sequence_length.id])
-        if time_data is not None:
-            graph.remove_nodes_from([time_data.id])
+
+        nodes_to_remove = [n.id for n in (condition, cond_data, time_data, tensor_sequence_length) if n is not None]
+        graph.remove_nodes_from(nodes_to_remove)
 
         body_nodes, extra_inputs = get_body(graph, inputs, outputs)
-        body_nodes = list(set(body_nodes) - set([cond_data]))
+
+        if cond_data is not None:
+            body_nodes = list(set(body_nodes) - set([cond_data]))
 
         inputs += extra_inputs
 
@@ -280,14 +284,10 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                 assert not ext_inp['internal_data_id'].has_valid('value')
                 new_input_data = Op._create_data_node(body, ext_inp['internal_data_id'].name + '/UnsqueezedInput',
                                                       dict(shape=np.insert(shape, ext_inp['axis'], 1)))
-                dim = shape.copy()
-                # try to do it dynamically reshapable along one of the axis
-                # it is practically useful to reshape along batch dimension, but here we cannot detect where it is
-                # so, we are guessing based on other transformations that it is the major dimension
-                dim[0] = -1
-                reshape_op = Reshape(body, dict(name=ext_inp['internal_data_id'].name + '/InputSqueeze'))
+
+                reshape_op = Squeeze(body, dict(name=ext_inp['internal_data_id'].name + '/InputSqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_inp['internal_data_id'].name + '/ReshapeDim',
-                                                'value': dim}).create_node_with_data()
+                                                'value': ext_inp['axis']}).create_node_with_data()
                 reshape_op.create_node_with_data([new_input_data, reshape_dim_data],
                                                  data_nodes=[ext_inp['internal_data_id']])
                 ext_inp['internal_data_id'] = new_input_data
@@ -317,19 +317,18 @@ class TensorIteratorMerge(MiddleReplacementPattern):
 
             if ext_out['axis'] is not None:
                 # Insert unsqueezing resize at output port that has partitioning
-                dim = ext_out['internal_data_id'].shape.copy()
-                # trying to make it dynamically reshapable (see related comment above for the first Reshape)
-                dim[0] = -1
                 assert not ext_out['internal_data_id'].has_valid('value')
-                reshape_op = Reshape(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze'))
+                reshape_op = Unsqueeze(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_out['internal_data_id'].name + '/ReshapeDim',
-                                                'value': np.insert(dim, ext_out['axis'], 1)}).create_node_with_data()
+                                                'value': ext_out['axis']}).create_node_with_data()
                 ext_out['internal_data_id'] = reshape_op.create_node_with_data([ext_out['internal_data_id'],
                                                                                 reshape_dim_data])
 
             # TODO: add here working with simple outputs
 
-            add_opoutput(body, ext_out['internal_data_id'].id, 0, False)
+            if not any([out_node.soft_get('op', None) == 'Result' for out_node in ext_out['internal_data_id'].out_nodes()]):
+                add_opoutput(body, ext_out['internal_data_id'].id, 0, False)
+
             # assert len(ext_out['internal_data_id'].out_nodes()) == 0
             assert len(ext_out['internal_data_id'].in_nodes()) == 1
             if not 'internal_layer_id' in ext_out['internal_data_id'].in_node():
@@ -376,3 +375,8 @@ class TensorIteratorMerge(MiddleReplacementPattern):
 
         for i, out in enumerate(ti_outs):
             out.in_edge()['external_port_id'] = external_outputs[i]['external_port_id']
+
+        ti = ti_outs[0].in_node()
+        TensorIterator.cover_body_input_data_nodes_with_parameter_ops(ti)
+        TensorIterator.cover_body_constant_data_nodes_with_const_ops(ti)
+        TensorIterator.normalize_internal_ids(ti)

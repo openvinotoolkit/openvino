@@ -151,7 +151,7 @@ KERNEL(fused_conv_eltwise_gpu_yxfb_yxio_b16)(
 #endif
     for(uint s = 0; s < BATCHES_PER_WORK_ITEM; s++)
     {
-        _data[s] = ACTIVATION(_data[s], ACTIVATION_PARAMS);
+        _data[s] = ACTIVATION_CONV(_data[s], ACTIVATION_PARAMS_CONV);
     }
 
 #if defined(USE_BLOCK_READ_2) || defined(USE_BLOCK_READ_1)

@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ncCommPrivate.h"
-#include "mvnc_tests_common.hpp"
+#include "mvnc_test_helper.h"
+
+#include <gtest/gtest.h>
 #include <fstream>
 
 extern "C" {
-#include "mvStringUtils.h"
+#include "XLinkStringUtils.h"
 }
 
 class MvncUtilsTest : public ::testing::Test {
@@ -23,7 +25,7 @@ protected:
 };
 
 TEST_F(MvncUtilsTest, CanGetSpecialFWIfUniversalIsNotPresent) {
-    mvcmdExpectedPath = tmpDir + "/MvNCAPI-ma2480.mvcmd";
+    mvcmdExpectedPath = tmpDir + "/usb-ma248x.mvcmd";
 
     std::ofstream mvcmd;
     mvcmd.open(mvcmdExpectedPath, std::ios::out);
@@ -31,14 +33,17 @@ TEST_F(MvncUtilsTest, CanGetSpecialFWIfUniversalIsNotPresent) {
     char mvcmdFilePath[MAX_PATH] = "";
     mv_strcpy(mvcmdFilePath, MAX_PATH, tmpDir.c_str());
 
-    const char *dummyDevAddr2480 = "0-ma2480";
+    deviceDesc_t dummyDevDesc2480;
+    strcpy(dummyDevDesc2480.name, "0-ma2480");
+    dummyDevDesc2480.protocol = X_LINK_USB_VSC;
+    dummyDevDesc2480.platform = X_LINK_MYRIAD_X;
 
-    ASSERT_EQ(NC_OK, getFirmwarePath(mvcmdFilePath, dummyDevAddr2480));
+    ASSERT_EQ(NC_OK, getFirmwarePath(mvcmdFilePath, MAX_PATH, dummyDevDesc2480));
     ASSERT_STRCASEEQ(mvcmdExpectedPath.c_str(), mvcmdFilePath);
 }
 
 TEST_F(MvncUtilsTest, CanGetUniversalFWIfItExists) {
-    mvcmdExpectedPath = tmpDir + "/MvNCAPI-ma2x8x.mvcmd";
+    mvcmdExpectedPath = tmpDir + "/usb-ma2x8x.mvcmd";
 
     std::ofstream mvcmd;
     mvcmd.open(mvcmdExpectedPath, std::ios::out);
@@ -46,8 +51,11 @@ TEST_F(MvncUtilsTest, CanGetUniversalFWIfItExists) {
     char mvcmdFilePath[MAX_PATH] = "";
     mv_strcpy(mvcmdFilePath, MAX_PATH, tmpDir.c_str());
 
-    const char *dummyDevAddr2480 = "0-ma2480";
+    deviceDesc_t dummyDevDesc2480;
+    strcpy(dummyDevDesc2480.name, "0-ma2480");
+    dummyDevDesc2480.protocol = X_LINK_USB_VSC;
+    dummyDevDesc2480.platform = X_LINK_MYRIAD_X;
 
-    ASSERT_EQ(NC_OK, getFirmwarePath(mvcmdFilePath, dummyDevAddr2480));
+    ASSERT_EQ(NC_OK, getFirmwarePath(mvcmdFilePath, MAX_PATH, dummyDevDesc2480));
     ASSERT_STRCASEEQ(mvcmdExpectedPath.c_str(), mvcmdFilePath);
 }

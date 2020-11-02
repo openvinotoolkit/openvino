@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 
 
 #include "fully_connected_kernel_fb_io_b8_f8.h"
+#include <algorithm>
 
 namespace kernel_selector {
 ParamsKey FullyConnected_fb_io_b8_f8::GetSupportedKey() const {
@@ -33,20 +34,32 @@ ParamsKey FullyConnected_fb_io_b8_f8::GetSupportedKey() const {
     return k;
 }
 
+size_t FullyConnected_fb_io_b8_f8::GetBatchesPerWorkItem(const fully_connected_params& params) const {
+    auto batch_size = params.output.Batch().v;
+
+    if (batch_size % 32 == 0)
+        return std::min(batch_size, static_cast<size_t>(32U));
+
+    if (batch_size % 16 == 0)
+        return std::min(batch_size, static_cast<size_t>(16U));
+
+    return std::min(batch_size, static_cast<size_t>(8U));
+}
+
 FullyConnected_fb_io_b8_f8::DispatchData FullyConnected_fb_io_b8_f8::SetDefault(const fully_connected_params& arg,
                                                                                 int) const {
-    auto kd = FullyConnectedBlockKernelBase::SetDefault(arg);
+    auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
     const auto& output = arg.output;
 
     size_t groups_per_batches = GetLocalGroupsSize(arg);
-    kd.gws0 =
+    dispatchData.gws[0] =
         Align(output.LogicalSize() / (GetNeuronsPerWorkItem(arg) * GetBatchesPerWorkItem(arg) * groups_per_batches), 8);
-    kd.gws1 = groups_per_batches;
-    kd.lws0 = 8;
-    kd.lws1 = 1;
+    dispatchData.gws[1] = groups_per_batches;
+    dispatchData.lws[0] = 8;
+    dispatchData.lws[1] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 bool FullyConnected_fb_io_b8_f8::Validate(const Params& p, const optional_params& o) const {
@@ -87,7 +100,7 @@ KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params, con
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd =
-            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, {WeightsLayout::io}, estimated_time, static_cast<int>(i));
+            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, WeightsLayout::io, estimated_time, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

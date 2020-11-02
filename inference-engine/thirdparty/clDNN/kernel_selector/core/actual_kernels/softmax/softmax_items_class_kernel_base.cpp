@@ -22,6 +22,7 @@ ParamsKey SoftmaxItemsClassKernelBase::GetDefaultSupportedKey() {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::bf);
@@ -29,11 +30,16 @@ ParamsKey SoftmaxItemsClassKernelBase::GetDefaultSupportedKey() {
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::f);
     k.EnableOutputLayout(DataLayout::f);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::fb);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableSoftmaxDim(SoftmaxDim::X);
     k.EnableSoftmaxDim(SoftmaxDim::Y);
     k.EnableSoftmaxDim(SoftmaxDim::Z);
@@ -59,8 +65,8 @@ std::vector<size_t> SoftmaxItemsClassKernelBase::GetSoftmaxDimGlobalSizes(Softma
     }
 }
 
-JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& params, DispatchData kd) const {
-    auto jit = SoftmaxKernelBase::GetJitConstants(params, kd);
+JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
+    auto jit = SoftmaxKernelBase::GetJitConstants(params, dispatchData);
 
     switch (params.dim) {
         case SoftmaxDim::X:

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import numpy as np
 
 from extensions.front.kaldi.replace_lstm_nonlinearity import ReplaceLstmNonLinearityPattern
 from mo.graph.graph import Node
-from mo.middle.passes.fusing.fuse_linear_ops_test import compare_graphs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph
 
 

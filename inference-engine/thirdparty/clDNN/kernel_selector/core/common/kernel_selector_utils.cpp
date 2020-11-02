@@ -21,6 +21,8 @@
 
 namespace kernel_selector {
 
+enum WeightsFormatSupportType { SUPPORTED, REORDER_NEEDED, UNSUPPORTED };
+
 static WeightsType DataTypeToWeightsType(Datatype t) {
     switch (t) {
         case Datatype::UINT8:
@@ -38,24 +40,34 @@ static WeightsType DataTypeToWeightsType(Datatype t) {
     }
 }
 
-static bool CheckWeights(const WeightsTensor& tensor,
-                         WeightsType reqType,
-                         std::vector<WeightsLayout> reqLayouts,
-                         const ParamsKey& paramsKey) {
+static WeightsFormatSupportType CheckWeights(const weight_bias_params& newParams,
+                                             WeightsType reqType,
+                                             WeightsLayout reqLayouts,
+                                             const ParamsKey& paramsKey,
+                                             bool rotate) {
+    // validate if weights type is image and if device supports requested sizes
+    if (Tensor::IsImageType(reqLayouts)) {
+        if (!CheckImageSize(newParams, reqLayouts))
+            return UNSUPPORTED;
+    }
+
+    const auto& tensor = newParams.weights;
+    const auto pitchesDifferFromLS = tensor.PitchesDifferFromLogicalDims();
+    bool reorderNeeded = false;
+
     if ((reqType != tensor.GetDType()) && !(paramsKey.isEnabledDifferentInputWeightsTypes())) {
-        return false;
+        reorderNeeded |= true;
     }
 
-    bool bProperWeightsLayout = std::find(reqLayouts.begin(), reqLayouts.end(), tensor.GetLayout()) != reqLayouts.end();
-    if (!bProperWeightsLayout && tensor.PitchesDifferFromLogicalDims() == false) {
-        bProperWeightsLayout =
-            (std::find(reqLayouts.begin(), reqLayouts.end(), WeightsLayout::io) != reqLayouts.end() &&
-             tensor.GetLayout() == WeightsLayout::iyxo) ||
-            (std::find(reqLayouts.begin(), reqLayouts.end(), WeightsLayout::oi) != reqLayouts.end() &&
-             tensor.GetLayout() == WeightsLayout::oiyx);
+    reorderNeeded |= tensor.GetLayout() != reqLayouts;
+    reorderNeeded |= rotate;
+
+    if (reorderNeeded && !pitchesDifferFromLS && !rotate) {
+        reorderNeeded = !((reqLayouts == WeightsLayout::io && tensor.GetLayout() == WeightsLayout::iyxo) ||
+                          (reqLayouts == WeightsLayout::oi && tensor.GetLayout() == WeightsLayout::oiyx));
     }
 
-    return bProperWeightsLayout;
+    return reorderNeeded ? REORDER_NEEDED : SUPPORTED;
 }
 
 std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensions, const WeightsLayout layout) {
@@ -91,49 +103,53 @@ bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout lay
 
 bool UpdateWeightsParams(weight_bias_params& newParams,
                          const optional_params& options,
-                         std::vector<WeightsLayout> layouts,
+                         WeightsLayout reqLayout,
                          WeightsReorderParams& weightsReorderParams,
-                         const ParamsKey& paramsKey) {
-    // validate if weights type is image and if device supports requested sizes
-    for (auto& requested_layout : layouts) {
-        if (Tensor::IsImageType(requested_layout)) {
-            if (!CheckImageSize(newParams, requested_layout))
-                return false;
-        }
-    }
-    const weight_bias_optional_params& optParams = static_cast<const weight_bias_optional_params&>(options);
-
-    const auto dtype = DataTypeToWeightsType(newParams.inputs[0].GetDType());
-    bool bProperWeights = CheckWeights(newParams.weights, dtype, layouts, paramsKey);
-    if (!bProperWeights) {
-        if (!optParams.allowStaticInputReordering) {
+                         const ParamsKey& paramsKey,
+                         size_t groups,
+                         bool rotate) {
+    const auto& optParams = static_cast<const weight_bias_optional_params&>(options);
+    const auto inType = DataTypeToWeightsType(newParams.inputs[0].GetDType());
+    const auto dtype = paramsKey.isEnabledDifferentInputWeightsTypes() ? newParams.weights.GetDType() : inType;
+    switch (CheckWeights(newParams, inType, reqLayout, paramsKey, rotate)) {
+        case SUPPORTED:
+            return true;
+        case UNSUPPORTED:
             return false;
+        case REORDER_NEEDED: {
+            if (!optParams.allowStaticInputReordering) {
+                return false;
+            }
+
+            auto& reorderKS = ReorderWeightsKernelSelctor::Instance();
+            reorder_weights_params r_params;
+
+            r_params.layerID = newParams.layerID + "_reorder_";
+            r_params.input = newParams.weights;
+            r_params.output = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups, false);
+            r_params.rotate_180 = rotate;
+            r_params.engineInfo = newParams.engineInfo;
+
+            reorder_optional_params op;
+            KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
+
+            if (kernels_data.empty()) {
+                throw std::runtime_error("No suitable kernel found for weights reorder from " +
+                                         toString(r_params.input.GetLayout()) + " to " +
+                                         toString(r_params.output.GetLayout()) +
+                                         (rotate ? " with rotate" : ""));
+            }
+
+            weightsReorderParams.engine = WeightsReorderParams::Engine::GPU;
+            weightsReorderParams.clKernel = std::make_shared<clKernelData>(kernels_data[0].kernels[0]);
+            weightsReorderParams.dest = r_params.output;
+
+            newParams.weights = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups);
+            return true;
         }
-
-        auto& reorderKS = ReorderWeightsKernelSelctor::Instance();
-        reorder_weights_params r_params;
-
-        r_params.layerID = newParams.layerID + "_reorder_";
-        r_params.input = newParams.weights;
-        r_params.output = newParams.weights.TransformIgnorePadding(layouts[0], dtype);
-
-        reorder_optional_params op;
-        KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
-
-        if (kernels_data.empty()) {
-            throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                     toString(r_params.input.GetLayout()) + " to " +
-                                     toString(r_params.output.GetLayout()));
-        }
-
-        weightsReorderParams.engine = WeightsReorderParams::Engine::GPU;
-        weightsReorderParams.clKernel = std::make_shared<clKernelData>(kernels_data[0].kernels[0]);
-        weightsReorderParams.dest = r_params.output;
-
-        newParams.weights = r_params.output;
     }
 
-    return true;
+    return false;
 }
 
 JitConstants GetTensorFriendlyWorkGroupsJit(const DataTensor& t) {
@@ -192,8 +208,8 @@ std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t) {
     return sizes;
 }
 
-std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws) {
-    const size_t lws_max = 256;
+std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info) {
+    const size_t lws_max = info.maxWorkGroupSize;
     const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
     size_t total_lws = 1;
     std::vector<size_t> lws;
@@ -217,13 +233,28 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
     if (params.inputs.size()) {
         no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
 
-        if (params.inputs[0].GetLayout() == DataLayout::bfyx_f16 && params.inputs[0].Feature().v % 16 != 0)
+        if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[0].Feature().v % 16 != 0) ||
+            (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
             return false;
+
+        if (params.fused_ops.size()) {
+            for (auto fused_op : params.fused_ops) {
+                for (size_t in = 0; in < fused_op.tensors.size(); in++) {
+                    if (fused_op.tensors[in].LogicalSize() == 1)
+                        continue;
+                    if ((fused_op.tensors[in].GetLayout() == DataLayout::b_fs_yx_fsv16 && fused_op.tensors[in].Feature().v % 16 != 0) ||
+                        (fused_op.tensors[in].GetLayout() == DataLayout::b_fs_zyx_fsv16 && fused_op.tensors[in].Feature().v % 16 != 0))
+                        return false;
+                    no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == fused_op.tensors[in]);
+                }
+            }
+        }
 
         for (size_t i = 1; i < params.inputs.size(); i++) {
             no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.inputs[i]);
 
-            if (params.inputs[i].GetLayout() == DataLayout::bfyx_f16 && params.inputs[i].Feature().v % 16 != 0)
+            if ((params.inputs[i].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[i].Feature().v % 16 != 0) ||
+                (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
                 return false;
         }
 

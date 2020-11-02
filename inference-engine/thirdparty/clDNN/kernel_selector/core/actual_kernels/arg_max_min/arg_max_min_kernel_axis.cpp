@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,11 +29,24 @@ size_t getOperationNumber(const arg_max_min_params& params) {
     }
 }
 
+size_t getSortSize(const arg_max_min_params& params) {
+    switch (params.argMaxMinAxis) {
+        case ArgMaxMinAxis::BATCH: return params.inputs[0].Batch().v;
+        case ArgMaxMinAxis::FEATURE: return params.inputs[0].Feature().v;
+        case ArgMaxMinAxis::Z: return params.inputs[0].Z().v;
+        case ArgMaxMinAxis::Y: return params.inputs[0].Y().v;
+        case ArgMaxMinAxis::X: return params.inputs[0].X().v;
+        default:
+            throw std::invalid_argument("Unsupported axis");
+    }
+}
+
 ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::INT32);
     k.EnableAllOutputDataType();
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -48,26 +61,36 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     k.EnableArgMaxMinAxis(ArgMaxMinAxis::FEATURE);
     k.EnableDifferentTypes();
     k.EnableBatching();
+    k.EnableTensorPitches();
     return k;
+}
+
+bool ArgMaxMinKernelAxis::Validate(const Params& p, const optional_params& o) const {
+    if (!ArgMaxMinKernelBase::Validate(p, o)) {
+        return false;
+    }
+
+    const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
+
+    if (params.inputs.size() > 1) {
+        if (params.inputs[1].PitchesDifferFromLogicalDims() || params.output.PitchesDifferFromLogicalDims())
+            return false;
+    }
+
+    return true;
 }
 
 KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
-
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
 
-    DispatchData runInfo;
-    runInfo.fp16UnitUsed = orgParams.inputs[0].GetDType() == Datatype::F16;
+    size_t sort_size = orgParams.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(orgParams) : 1;
 
-    runInfo.gws0 = Align(getOperationNumber(orgParams), 32);
-    runInfo.gws1 = 1;
-    runInfo.gws2 = 1;
-
-    runInfo.lws0 = 32;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    DispatchData dispatchData;
+    dispatchData.gws = { Align(getOperationNumber(orgParams), 32), sort_size, 1 };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
 
@@ -76,13 +99,13 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     if (orgParams.outputs_num == 2) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
-    kd.estimatedTime = FORCE_PRIORITY_9;
+    kd.estimatedTime = FORCE_PRIORITY_3;
 
     return {kd};
 }

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  limitations under the License.
 """
 
-import numpy as np
-import logging as log
 import networkx as nx
+import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
@@ -81,6 +80,9 @@ def eltwise_infer(node, op=None, **kwargs):
                 output_shape[ei] = -1
     node.out_node().shape = output_shape
 
+    if node.has_and_set('stop_value_propagation'):
+        return
+
     if op is None or any([v is None for v in values]):
         return
 
@@ -90,3 +92,10 @@ def eltwise_infer(node, op=None, **kwargs):
         node.out_node().value = values[0]
         for i in range(len(values) - 1):
             node.out_node().value = op(node.out_node().value, values[i + 1])
+
+
+def bias_add_infer(node, op):
+    if node.in_port(0).data.get_value() is not None and node.in_port(1).data.get_value() is not None and op is not None:
+        node.out_port(0).data.set_value(op(node.in_port(0).data.get_value(), node.in_port(1).data.get_value()))
+    else:
+        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())

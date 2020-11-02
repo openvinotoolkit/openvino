@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,10 +27,8 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         MakeJitConstant("BETA", params.beta),
         MakeJitConstant("TRANSPOSE_INPUT0", params.transpose_input0),
         MakeJitConstant("TRANSPOSE_INPUT1", params.transpose_input1),
+        MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE),
     });
-
-    auto acc_type = GetAccumulatorType(params);
-    jit.Merge(MakeTypeJitConstants(acc_type, "ACCUMULATOR"));
 
     return jit;
 }
@@ -38,34 +36,25 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
 GemmKernelBase::DispatchData GemmKernelBase::SetDefault(const gemm_params& params) const {
     const auto& output = params.output;
 
-    DispatchData kd;
-
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
+    DispatchData dispatchData;
 
     auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
-    std::vector<size_t> global = { output.X().v, output.Y().v, total_batches };
+    dispatchData.gws = { output.X().v, output.Y().v, total_batches };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    const auto& local = GetOptimalLocalWorkGroupSizes(global);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                                                  const optional_params& options,
                                                  float estimated_time) const {
-    assert(params.GetType() == KernelType::GEMM);
+    if (!Validate(params, options)) {
+        return KernelsData();
+    }
 
     const auto& prim_params = static_cast<const gemm_params&>(params);
 
-    auto run_info = SetDefault(prim_params);
+    auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<gemm_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
@@ -74,7 +63,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
 
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel,
-                     run_info,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,
@@ -82,15 +71,37 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      DEFAULT,
                      false,
                      false,
-                     (uint32_t)prim_params.inputs.size());
+                     (uint32_t)prim_params.inputs.size(),
+                     GetFusedPrimitiveInputsCount(params));
 
     k_data.estimatedTime = estimated_time;
 
     return {k_data};
 }
 
-Datatype GemmKernelBase::GetAccumulatorType(const gemm_params& params) const {
-    // TODO Proper logic when added support for output type forcing or quantization.
+JitConstants GemmKernelBase::GetFusedPrimitivesJitConstants(const gemm_params&, const DispatchData&) const {
+    return {};
+}
+
+bool GemmKernelBase::Validate(const Params& p, const optional_params&) const {
+    const gemm_params& params = static_cast<const gemm_params&>(p);
+
+    if (params.GetType() != KernelType::GEMM) {
+        return false;
+    }
+
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
+    return true;
+}
+
+Datatype GemmKernelBase::GetActivationType(const gemm_params& params) const {
+    if (params.quantization != QuantizationType::NONE)
+        return Datatype::F32;
+
     return GetUnitType(params);
 }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,23 +35,43 @@ ParamsKey DeconvolutionKernel_bfyx_opt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
-    k.EnableGradient();
+    k.EnableGroupedConvolution();
     return k;
 }
 
 CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
     auto wg_size = 16;
 
-    kd.gws0 = Align(params.output.X().v, wg_size * params.stride.x);
-    kd.gws1 = params.output.Y().v;
-    kd.gws2 = params.output.Batch().v * params.output.Feature().v;
-    kd.lws0 = wg_size;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
-    kd.effiency = FORCE_PRIORITY_6;
-    return kd;
+    dispatchData.gws[0] = Align(params.output.X().v, wg_size * params.stride.x);
+    dispatchData.gws[1] = params.output.Y().v;
+    dispatchData.gws[2] = params.output.Batch().v * params.output.Feature().v;
+
+    dispatchData.lws[0] = wg_size;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
+
+    dispatchData.efficiency = FORCE_PRIORITY_6;
+    return dispatchData;
 }
+
+JitConstants DeconvolutionKernel_bfyx_opt::GetJitConstants(const deconvolution_params& params) const {
+    auto jit = Parent::GetJitConstants(params);
+
+    if (!params.fused_ops.empty()) {
+        auto fused_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = {
+            "",
+            {"batch_offset", "ofm_offset", "id_y", "id_x"},
+            "result",
+            fused_dt,
+            1,
+            LoadType::LT_UNALIGNED,
+            BoundaryCheck::DISABLED };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+    return jit;
+}
+
 }  // namespace kernel_selector

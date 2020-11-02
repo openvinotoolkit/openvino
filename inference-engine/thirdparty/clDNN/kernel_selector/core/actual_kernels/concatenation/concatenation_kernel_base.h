@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -26,6 +26,7 @@ struct concatenation_params : public base_params {
 
     ConcatAxis axis = ConcatAxis::FEATURE;
     bool isAligned = true;
+    size_t misalignment = 0;
 
     virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
@@ -57,9 +58,9 @@ struct concatenation_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ConcatenationKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class ConcatenationKernelBase : public common_kernel_base {
+class ConcatenationKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~ConcatenationKernelBase() {}
 
     using DispatchData = CommonDispatchData;
@@ -71,5 +72,8 @@ protected:
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     int32_t GetConcatChannelIndex(const concatenation_params& params) const;
     Tensor::DataChannelName GetConcatChannel(const concatenation_params& params) const;
+    virtual size_t GetAlignment(const concatenation_params& /*params*/) const {
+        return 1;
+    }
 };
 }  // namespace kernel_selector

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -127,7 +127,7 @@ class TestFakeQuantizeOp(unittest.TestCase):
         exp_node = Node(graph, 'quantize')
         FakeQuantize.infer(exp_node)
         quantize_shape = np.array([4])
-        quantize_value = np.array([0, 1, 0, 1], dtype=np.float32)
+        quantize_value = np.array([1, 1, 0, 1], dtype=np.float32)
         res_shape = graph.node['node_out_1']['shape']
         res_value = graph.node['node_out_1']['value']
         for i in range(0, len(quantize_shape)):

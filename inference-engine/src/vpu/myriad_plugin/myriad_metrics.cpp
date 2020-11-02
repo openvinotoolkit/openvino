@@ -1,13 +1,17 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "myriad_metrics.h"
+
 #include <algorithm>
 
+#include <vpu/utils/error.hpp>
+
 using namespace vpu::MyriadPlugin;
-using namespace InferenceEngine::VPUConfigParams;
-using namespace InferenceEngine::PluginConfigParams;
+using namespace InferenceEngine;
+using namespace VPUConfigParams;
+using namespace PluginConfigParams;
 
 //------------------------------------------------------------------------------
 // Implementation of methods of class MyriadMetrics
@@ -20,25 +24,31 @@ MyriadMetrics::MyriadMetrics() {
         METRIC_KEY(SUPPORTED_METRICS),
         METRIC_KEY(SUPPORTED_CONFIG_KEYS),
         METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)
+        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+        METRIC_KEY(DEVICE_THERMAL),
     };
 
+IE_SUPPRESS_DEPRECATED_START
     _supportedConfigKeys = {
+        MYRIAD_ENABLE_HW_ACCELERATION,
+        MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
+        MYRIAD_CUSTOM_LAYERS,
+        MYRIAD_ENABLE_FORCE_RESET,
+
+        // deprecated
         KEY_VPU_HW_STAGES_OPTIMIZATION,
-        KEY_VPU_LOG_LEVEL,
         KEY_VPU_PRINT_RECEIVE_TENSOR_TIME,
-        KEY_VPU_NETWORK_CONFIG,
-        KEY_VPU_COMPUTE_LAYOUT,
         KEY_VPU_CUSTOM_LAYERS,
-        KEY_VPU_IGNORE_IR_STATISTIC,
         KEY_VPU_MYRIAD_FORCE_RESET,
         KEY_VPU_MYRIAD_PLATFORM,
-        KEY_EXCLUSIVE_ASYNC_REQUESTS,
-        KEY_LOG_LEVEL,
-        KEY_PERF_COUNT,
-        KEY_CONFIG_FILE,
-        KEY_DEVICE_ID
+
+        CONFIG_KEY(LOG_LEVEL),
+        CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
+        CONFIG_KEY(PERF_COUNT),
+        CONFIG_KEY(CONFIG_FILE),
+        CONFIG_KEY(DEVICE_ID)
     };
+IE_SUPPRESS_DEPRECATED_END
 
     _optimizationCapabilities = { METRIC_VALUE(FP16) };
     _rangeForAsyncInferRequests = RangeType(3, 6, 1);
@@ -86,22 +96,27 @@ std::string MyriadMetrics::FullName(std::string deviceName) const {
     return deviceName;
 }
 
-const std::vector<std::string>& MyriadMetrics::SupportedMetrics() const {
+float MyriadMetrics::DevicesThermal(const DevicePtr& device) const {
+    VPU_THROW_UNLESS(device != nullptr, "No device specified to get its thermal");
+    return MyriadExecutor::GetThermal(device);
+}
+
+const std::unordered_set<std::string>& MyriadMetrics::SupportedMetrics() const {
     return _supportedMetrics;
 }
 
-const std::vector<std::string>& MyriadMetrics::SupportedConfigKeys() const {
+const std::unordered_set<std::string>& MyriadMetrics::SupportedConfigKeys() const {
     return _supportedConfigKeys;
 }
 
-const std::vector<std::string>& MyriadMetrics::OptimizationCapabilities() const {
+const std::unordered_set<std::string>& MyriadMetrics::OptimizationCapabilities() const {
     return _optimizationCapabilities;
 }
 
 RangeType MyriadMetrics::RangeForAsyncInferRequests(
     const std::map<std::string, std::string>& config) const {
 
-    auto throughput_streams_str = config.find(KEY_VPU_MYRIAD_THROUGHPUT_STREAMS);
+    auto throughput_streams_str = config.find(ie::MYRIAD_THROUGHPUT_STREAMS);
     if (throughput_streams_str != config.end()) {
         try {
             int throughput_streams = std::stoi(throughput_streams_str->second);
@@ -110,7 +125,7 @@ RangeType MyriadMetrics::RangeForAsyncInferRequests(
             }
         }
         catch(...) {
-            THROW_IE_EXCEPTION << "Invalid config value for VPU_MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
+            THROW_IE_EXCEPTION << "Invalid config value for MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
         }
     }
 

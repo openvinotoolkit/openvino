@@ -2,10 +2,7 @@
 
 ## General
 `openvino.tools` package includes:
-* openvino.tools.accuracy_checker
 * openvino.tools.benchmark
-* openvino.tools.calibration
-* openvino.tools.utils
 
 Please, refer to https://docs.openvinotoolkit.org for details.
 
@@ -57,7 +54,7 @@ deactivate
 The next step is installing package prerequisites.
 
 ```bash
-python3 -m pip install -r benchmark/requirements.txt calibration/requirements.txt
+python3 -m pip install -r benchmark/requirements.txt
 ```
 
 ### Configuration

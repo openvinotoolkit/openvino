@@ -22,5 +22,7 @@ public:
     PyramidROIAlignKernelRef() : PyramidROIAlignKernelBase("pyramid_roi_align_gpu_ref") {}
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+protected:
+    DispatchData SetDefault(const PyramidROIAlign_params& params) const override;
 };
 }  // namespace kernel_selector

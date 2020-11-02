@@ -21,7 +21,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lrn_type_id() {
+primitive_type_id lrn::type_id() {
     static primitive_type_base<lrn> instance;
     return &instance;
 }
@@ -29,7 +29,17 @@ primitive_type_id lrn_type_id() {
 layout lrn_inst::calc_output_layout(lrn_node const& node) {
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
            "Output data type forcing is not supported for lrn_node!");
-    return node.input().get_non_padded_output_layout();
+    auto input_layout = node.input().get_output_layout();
+    auto output_type = input_layout.data_type;
+
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    }
+
+    auto result = node.input().get_non_padded_output_layout();
+    result.data_type = output_type;
+
+    return result;
 }
 
 std::string lrn_inst::to_string(lrn_node const& node) {
@@ -39,7 +49,7 @@ std::string lrn_inst::to_string(lrn_node const& node) {
     auto k = desc->k;
     auto alpha = desc->alpha;
     auto beta = desc->beta;
-    auto norm_region = desc->norm_region == cldnn_lrn_norm_region::cldnn_lrn_norm_region_across_channel
+    auto norm_region = desc->norm_region == lrn_norm_region::lrn_norm_region_across_channel
                            ? "across channel"
                            : "within channel";
     auto& input = node.input();

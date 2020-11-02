@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,21 +25,21 @@ class OneHot(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset1',
             'axis': -1,
-            'infer': __class__.infer,
-            'on_value': None,
-            'off_value': None,
+            'infer': self.infer,
             'out_ports_count': 1,
             'in_ports_count': 4,
+            'data_type': None,
+            'force_precision_in_ports': {1: 'int64'},
+            'type_infer': self.type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
-        return [
-            'axis', 'on_value', 'off_value', 'depth'
-        ]
+        return ['axis']
 
     @staticmethod
     def infer(node: Node):
@@ -50,46 +50,49 @@ class OneHot(Op):
         assert_msg = "OneHot `{0}` ({1} input port value) should be scalar: node: `{2}`, {0} value: `{3}`"
         depth = node.in_port(1).data.get_value()
         assert depth is not None and depth.ndim == 0, assert_msg.format('depth', '1', node.name, depth)
-        on_value = node.in_port(2).data.get_value()
-        assert on_value is not None and on_value.ndim == 0, assert_msg.format('on_value', '2', node.name, on_value)
-        off_value = node.in_port(3).data.get_value()
-        assert off_value is not None and off_value.ndim == 0, assert_msg.format('off_value', '3', node.name, off_value)
-
         depth = depth.item(0)
-        on_value = np.float(on_value.item(0))
-        off_value = np.float(off_value.item(0))
 
         assert node.has_valid('axis')
         axis = node['axis']
         assert -1 <= axis <= dim
-        assert 0 <= dim <= 2
+
+        # If axis == -1 we need to insert new depth dimension in the end of indices_shape shape
+        axis = dim if axis == -1 else axis
 
         if dim == 0:
             # scalar indices case
             output_shape = [depth]
-        elif dim == 1:
-            # vector indices case
-            features = indices_shape[0]
-            if axis in [-1, 1]:
-                output_shape = [features, depth]
-            else:  # axis == 0
-                output_shape = [depth, features]
-        else:  # dim == 2
-            # matrix indices case
-            batch, features = indices_shape
-            if axis in [-1, 2]:
-                output_shape = [batch, features, depth]
-            elif axis == 1:
-                output_shape = [batch, depth, features]
-            else:  # axis == 0
-                output_shape = [depth, batch, features]
+        else:  # dim >= 1
+            # vector/matrix indices case
+            output_shape = np.insert(indices_shape, axis, depth)
 
         node.out_port(0).data.set_shape(output_shape)
 
-        node['depth'] = depth
-        node['on_value'] = on_value
-        node['off_value'] = off_value
+        indices = node.in_port(0).data.get_value()
+        depth = node.in_port(1).data.get_value()
+        on_value = node.in_port(2).data.get_value()
+        off_value = node.in_port(3).data.get_value()
 
-        node.in_port(1).disconnect()
-        node.in_port(2).disconnect()
-        node.in_port(3).disconnect()
+        if indices is not None and depth is not None and on_value is not None and off_value is not None:
+            onehot_value = np.full(output_shape, off_value)
+
+            for idx in np.ndindex(tuple(indices_shape)):
+                if axis == 0:
+                    hot_idx = indices[idx], *idx
+                elif (axis > 0) and (axis < len(output_shape) - 1):
+                    hot_idx = *idx[:axis], indices[idx], *idx[axis:]
+                elif axis == len(output_shape) - 1:
+                    hot_idx = *idx, indices[idx]
+
+                if -depth <= indices[idx] < depth:
+                    onehot_value[hot_idx] = on_value
+
+            node.out_port(0).data.set_value(onehot_value)
+
+        # This operation should be inferred in original layout
+        node['reinterp_shape'] = True
+        node['NCHW'] = True
+
+    @staticmethod
+    def type_infer(node: Node):
+        node.out_port(0).set_data_type(node.in_port(2).get_data_type())

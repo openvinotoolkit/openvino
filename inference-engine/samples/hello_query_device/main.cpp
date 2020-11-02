@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <set>
 #include <cstdlib>
 
 #include <samples/common.hpp>
@@ -92,15 +93,20 @@ int main(int argc, char *argv[]) {
             std::cout << "\tMetrics: " << std::endl;
             std::vector<std::string> supportedMetrics = ie.GetMetric(device, METRIC_KEY(SUPPORTED_METRICS));
             for (auto && metricName : supportedMetrics) {
-                std::cout << "\t\t" << metricName << " : " << std::flush;
-                printParameterValue(ie.GetMetric(device, metricName));
+                if (metricName != METRIC_KEY(AVAILABLE_DEVICES)) {
+                    std::cout << "\t\t" << metricName << " : " << std::flush;
+                    printParameterValue(ie.GetMetric(device, metricName));
+                }
             }
 
-            std::cout << "\tDefault values for device configuration keys: " << std::endl;
-            std::vector<std::string> supportedConfigKeys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-            for (auto && configKey : supportedConfigKeys) {
-                std::cout << "\t\t" << configKey << " : " << std::flush;
-                printParameterValue(ie.GetConfig(device, configKey));
+            if (std::find(supportedMetrics.begin(), supportedMetrics.end(),
+                METRIC_KEY(SUPPORTED_CONFIG_KEYS)) != supportedMetrics.end()) {
+                std::cout << "\tDefault values for device configuration keys: " << std::endl;
+                std::vector<std::string> supportedConfigKeys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                for (auto && configKey : supportedConfigKeys) {
+                    std::cout << "\t\t" << configKey << " : " << std::flush;
+                    printParameterValue(ie.GetConfig(device, configKey));
+                }
             }
 
             std::cout << std::endl;

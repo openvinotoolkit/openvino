@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm_dynamic_timeloop_type_id() {
+primitive_type_id lstm_dynamic_timeloop::type_id() {
     static primitive_type_base<lstm_dynamic_timeloop> instance;
     return &instance;
 }
@@ -78,7 +78,6 @@ void lstm_dynamic_timeloop_node::reverse_optional_outputs_connections() {
         myprog.get_outputs().push_back(this);
     }
 }
-
 
 size_t lstm_dynamic_timeloop_node::get_dependency_idx(std::string val) const {
     auto ret = get_param_list_index(val);

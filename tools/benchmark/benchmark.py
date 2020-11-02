@@ -1,169 +1,162 @@
 """
-Copyright (C) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
       http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 """
+import os
+from datetime import datetime
+from statistics import median
+from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
 
-import numpy
-import datetime
-
-import openvino.inference_engine as ie
-
-from ..accuracy_checker.accuracy_checker.config import ConfigReader
-from ..accuracy_checker.accuracy_checker.evaluators.model_evaluator import ModelEvaluator
-from ..accuracy_checker.accuracy_checker.progress_reporters import PrintProgressReporter, TQDMReporter
-
-from ..network import Network
-
-from .configuration import Configuration
-from .logging import info
-
-
-class BenchmarkCallback:
-    def __init__(self, configuration: Configuration, network: Network=None, iterations_count:int=1000):
-        self._latency = None
-        self._configuration = configuration
-        self._network = network
-        self._iterations_count = iterations_count if iterations_count else 1000
-
-    def output_callback(self, value, latency = None):
-        pass
-
-
-    def benchmark_callback(self, network_inputs_data):
-        latencies = list()
-
-        if self._network:
-            ie_network = self._network.ie_network
-        else:
-            ie_network = ie.IENetwork(self._configuration.model, self._configuration.weights)
-
-        do_reshape = False
-        for name in ie_network.inputs.keys():
-            if name in network_inputs_data and \
-                    tuple(ie_network.inputs[name].shape) != network_inputs_data[name].shape:
-                do_reshape = True
-                break
-
-        if do_reshape:
-            new_shapes = {layer_name: data.shape for layer_name, data in network_inputs_data.items()}
-            ie_network.reshape(new_shapes)
-
-        plugin = ie.IEPlugin(self._configuration.device)
-        if self._configuration.cpu_extension:
-            plugin.add_cpu_extension(self._configuration.cpu_extension)
-        exec_network = plugin.load(ie_network)
-
-        # warming up
-        exec_network.infer(network_inputs_data)
-
-        for i in range(self._iterations_count):
-            start = datetime.datetime.now()
-            exec_network.infer(network_inputs_data)
-            latencies.append((datetime.datetime.now() - start).microseconds)
-        self._latency = numpy.mean(latencies) / 1000000.0
-
-        del ie_network
-        del exec_network
-        del plugin
-
-
-    @property
-    def latency(self) -> float:
-        return self._latency
-
-
-class BenchmarkResult:
-    def __init__(self, latency):
-        self._latency = latency
-
-    @property
-    def latency(self) -> float:
-        return self._latency
-
-
-class InferOptions:
-    def __init__(self, iterations_count=1000):
-        self._iterations_count = iterations_count
-
-    @property
-    def iterations_count(self) -> int:
-        return self._iterations_count
-
+from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
+from .utils.logging import logger
+from .utils.utils import get_duration_seconds
+from .utils.statistics_report import StatisticsReport
 
 class Benchmark:
-    def __init__(self, configuration: Configuration):
-        if configuration is None:
-            raise ValueError("configuration is None")
+    def __init__(self, device: str, number_infer_requests: int = None, number_iterations: int = None,
+                 duration_seconds: int = None, api_type: str = 'async'):
+        self.device = device
+        self.ie = IECore()
+        self.nireq = number_infer_requests
+        self.niter = number_iterations
+        self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
+        self.api_type = api_type
 
-        self._configuration = configuration
-        pass
+    def __del__(self):
+        del self.ie
 
-    def run(
-        self,
-        network: Network = None,
-        statistics=None,
-        quantization_levels=None,
-        iterations_count:int = 1000) -> BenchmarkResult:
+    def add_extension(self, path_to_extension: str=None, path_to_cldnn_config: str=None):
+        if path_to_cldnn_config:
+            self.ie.set_config({'CONFIG_FILE': path_to_cldnn_config}, GPU_DEVICE_NAME)
+            logger.info('GPU extensions is loaded {}'.format(path_to_cldnn_config))
 
-        model = self._configuration.config['models'][0]
-        launcher_config = model['launchers'][0]
-        dataset_config = model['datasets'][0]
+        if path_to_extension:
+            self.ie.add_extension(extension_path=path_to_extension, device_name=CPU_DEVICE_NAME)
+            logger.info('CPU extensions is loaded {}'.format(path_to_extension))
 
-        model_evaluator = ModelEvaluator.from_configs(launcher_config, dataset_config)
-        try:
-            if network:
-                del model_evaluator.launcher.network
-                del model_evaluator.launcher.exec_network
-                model_evaluator.launcher.network = network.ie_network
-                model_evaluator.launcher.exec_network = model_evaluator.launcher.plugin.load(network.ie_network)
+    def get_version_info(self) -> str:
+        logger.info('InferenceEngine:\n{: <9}{:.<24} {}'.format('', 'API version', get_version()))
+        version_string = 'Device info\n'
+        for device, version in self.ie.get_versions(self.device).items():
+            version_string += '{: <9}{}\n'.format('', device)
+            version_string += '{: <9}{:.<24}{} {}.{}\n'.format('', version.description, ' version', version.major,
+                                                               version.minor)
+            version_string += '{: <9}{:.<24} {}\n'.format('', 'Build', version.build_number)
+        return version_string
 
-            ie_network = model_evaluator.launcher.network
+    def set_config(self, config = {}):
+        for device in config.keys():
+            self.ie.set_config(config[device], device)
 
-            if statistics:
-                network_stats = {}
-                for layer_name, node_statistic in statistics.items():
-                    network_stats[layer_name] = ie.LayerStats(
-                        min=tuple(node_statistic.min_outputs),
-                        max=tuple(node_statistic.max_outputs))
-                ie_network.stats.update(network_stats)
+    def read_network(self, path_to_model: str):
+        model_filename = os.path.abspath(path_to_model)
+        head, ext = os.path.splitext(model_filename)
+        weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
+        ie_network = self.ie.read_network(model_filename, weights_filename)
+        return ie_network
 
-            if quantization_levels:
-                for layer_name, value in quantization_levels.items():
-                    params = ie_network.layers[layer_name].params
-                    params["quantization_level"] = value
-                    ie_network.layers[layer_name].params = params
+    def load_network(self, ie_network: IENetwork, config = {}):
+        exe_network = self.ie.load_network(ie_network,
+                                           self.device,
+                                           config=config,
+                                           num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
+        # Number of requests
+        self.nireq = len(exe_network.requests)
 
-            if model_evaluator.dataset.size != 1:
-                info("only one first image is used from dataset annotation to perform benchmark")
-                model_evaluator.dataset.size = 1
+        return exe_network
 
-            process_dataset_callback = BenchmarkCallback(
-                configuration=self._configuration,
-                network=network,
-                iterations_count=iterations_count)
+    def import_network(self, path_to_file : str, config = {}):
+        exe_network = self.ie.import_network(model_file=path_to_file,
+                                             device_name=self.device,
+                                             config=config,
+                                             num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
+        # Number of requests
+        self.nireq = len(exe_network.requests)
+        return exe_network
 
-            model_evaluator.process_dataset(
-                None,
-                progress_reporter=None,
-                output_callback=process_dataset_callback.output_callback,
-                benchmark=process_dataset_callback.benchmark_callback)
+    def first_infer(self, exe_network):
+        infer_request = exe_network.requests[0]
 
-            if len(model_evaluator.launcher.exec_network.requests) != 1:
-                raise ValueError("unexpected network requests count")
+        # warming up - out of scope
+        if self.api_type == 'sync':
+            infer_request.infer()
+        else:
+            infer_request.async_infer()
+            status = exe_network.wait()
+            if status != StatusCode.OK:
+                raise Exception("Wait for all requests is failed with status code {}!".format(status))
+        return infer_request.latency
 
-            latency = process_dataset_callback.latency
-        finally:
-            model_evaluator.release()
+    def infer(self, exe_network, batch_size, progress_bar=None):
+        progress_count = 0
+        infer_requests = exe_network.requests
 
-        return BenchmarkResult(latency)
+        start_time = datetime.utcnow()
+        exec_time = 0
+        iteration = 0
+
+        times = []
+        in_fly = set()
+        # Start inference & calculate performance
+        # to align number if iterations to guarantee that last infer requests are executed in the same conditions **/
+        while (self.niter and iteration < self.niter) or \
+              (self.duration_seconds and exec_time < self.duration_seconds) or \
+              (self.api_type == 'async' and iteration % self.nireq):
+            if self.api_type == 'sync':
+                infer_requests[0].infer()
+                times.append(infer_requests[0].latency)
+            else:
+                infer_request_id = exe_network.get_idle_request_id()
+                if infer_request_id < 0:
+                    status = exe_network.wait(num_requests=1)
+                    if status != StatusCode.OK:
+                        raise Exception("Wait for idle request failed!")
+                    infer_request_id = exe_network.get_idle_request_id()
+                    if infer_request_id < 0:
+                        raise Exception("Invalid request id!")
+                if infer_request_id in in_fly:
+                    times.append(infer_requests[infer_request_id].latency)
+                else:
+                    in_fly.add(infer_request_id)
+                infer_requests[infer_request_id].async_infer()
+            iteration += 1
+
+            exec_time = (datetime.utcnow() - start_time).total_seconds()
+
+            if progress_bar:
+              if self.duration_seconds:
+                  # calculate how many progress intervals are covered by current iteration.
+                  # depends on the current iteration time and time of each progress interval.
+                  # Previously covered progress intervals must be skipped.
+                  progress_interval_time = self.duration_seconds / progress_bar.total_num
+                  new_progress = int(exec_time / progress_interval_time - progress_count)
+                  progress_bar.add_progress(new_progress)
+                  progress_count += new_progress
+              elif self.niter:
+                  progress_bar.add_progress(1)
+
+        # wait the latest inference executions
+        status = exe_network.wait()
+        if status != StatusCode.OK:
+            raise Exception("Wait for all requests is failed with status code {}!".format(status))
+
+        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        for infer_request_id in in_fly:
+            times.append(infer_requests[infer_request_id].latency)
+        times.sort()
+        latency_ms = median(times)
+        fps = batch_size * 1000 / latency_ms if self.api_type == 'sync' else batch_size * iteration / total_duration_sec
+        if progress_bar:
+            progress_bar.finish()
+        return fps, latency_ms, total_duration_sec, iteration

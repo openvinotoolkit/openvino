@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -43,18 +43,29 @@ struct activation_optional_params : optional_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// activation_fuse_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct activation_fuse_params : fuse_params {
+    explicit activation_fuse_params(base_activation_params param)
+    : fuse_params(KernelType::ACTIVATION)
+    , param(param) {}
+
+    base_activation_params param;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ActivationKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class ActivationKernelBase : public common_kernel_base {
+class ActivationKernelBase : public KernelBaseOpenCL {
 public:
     using DispatchData = CommonDispatchData;
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
 
     virtual ~ActivationKernelBase() {}
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
-    virtual JitConstants GetJitConstants(const activation_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const activation_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const activation_params& arg) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
 };

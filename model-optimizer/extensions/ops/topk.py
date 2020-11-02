@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,10 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.graph.graph import Graph
+from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
 
@@ -27,17 +30,29 @@ class TopK(Op):
         super().__init__(graph, {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset3',
             'infer': self.infer,
+            'type_infer': self.type_infer,
+
+            'index_element_type': np.int32,
             'axis': None,
-            'mode': None,
+            'mode': 'max',
             'sort': 'none',
-            'force_precision_in_ports': {1: 'int32'},
+            'force_precision_in_ports': {
+                1: 'int32'},
             'in_ports_count': 3,
             'out_ports_count': 2,
         }, attrs)
 
     def backend_attrs(self):
-        return ['axis', 'mode', 'sort']
+        version = self.get_opset()
+        if version == 'opset3':
+            return ['axis', 'mode', 'sort',
+                    ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))]
+        elif version == 'opset1':
+            return ['axis', 'mode', 'sort']
+        else:
+            raise Error('Unknown opset version "{}"'.format(version))
 
     @staticmethod
     def infer(node):
@@ -67,3 +82,11 @@ class TopK(Op):
         if node.in_port(0).data.get_value() is not None:
             # TODO implement value propagation
             pass
+
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(node.in_port(0).get_data_type())
+        if node.get_opset() == 'opset3':
+            node.out_port(1).set_data_type(node.index_element_type)
+        else:
+            node.out_port(1).set_data_type(np.int32)

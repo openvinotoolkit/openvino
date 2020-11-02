@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 """
 
 from extensions.ops.activation_ops import Elu, LeakyReLU, ReLU
-from extensions.ops.prelu import PreluOp
+from extensions.ops.prelu import PReLU
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.utils.error import Error
@@ -26,8 +26,8 @@ class LeakyReLUFrontExtractor(FrontExtractorOp):
     op = 'LeakyReLU'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         act_type = attrs.str('act_type', 'leaky')
         if act_type == 'prelu':
@@ -40,7 +40,7 @@ class LeakyReLUFrontExtractor(FrontExtractorOp):
                            'std': 0,
                            'sparse': -1,
                            'variance_norm': "caffe.FillerParameter.FAN_IN"}
-            PreluOp.update_node_stat(node, prelu_attrs)
+            PReLU.update_node_stat(node, prelu_attrs)
         elif act_type == 'elu':
             alpha = attrs.float('slope', 0.25)
             Elu.update_node_stat(node, {'alpha': alpha})

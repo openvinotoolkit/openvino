@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ class Result(Op):
         super().__init__(graph, {
             'op': __class__.op,
             'type': __class__.op,
+            'version': 'opset1',
             'infer': lambda x: None,
             'value': None,
             'data_type': None,

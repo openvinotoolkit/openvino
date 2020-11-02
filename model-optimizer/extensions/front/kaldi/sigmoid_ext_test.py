@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 """
 
 from extensions.front.kaldi.sigmoid_ext import SigmoidFrontExtractor
-from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from extensions.ops.activation_ops import Sigmoid
+from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from mo.ops.op import Op
 
 

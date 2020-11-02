@@ -17,7 +17,7 @@
 #pragma once
 
 #include "ocl_base_event.h"
-#include "api/CPP/profiling.hpp"
+#include "api/profiling.hpp"
 #include <memory>
 #include <list>
 
@@ -43,7 +43,7 @@ struct user_event : public base_event, public cldnn::user_event {
             _set = set;
         }
     }
-    bool get_profiling_info_impl(std::list<cldnn_profiling_interval>& info) override;
+    bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 
 protected:
     cldnn::instrumentation::timer<> _timer;

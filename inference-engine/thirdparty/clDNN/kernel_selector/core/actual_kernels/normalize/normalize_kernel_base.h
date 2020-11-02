@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -48,9 +47,9 @@ struct normalize_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NormalizeKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class NormalizeKernelBase : public common_kernel_base {
+class NormalizeKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~NormalizeKernelBase() {}
 
     using DispatchData = CommonDispatchData;
@@ -59,5 +58,12 @@ protected:
     JitConstants GetJitConstants(const normalize_params& params) const;
     DispatchData SetDefault(const normalize_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE,
+                 FusedOpType::ACTIVATION,
+                 FusedOpType::SCALE };
+    }
+    bool Validate(const Params& params, const optional_params&) const override;
+    Datatype GetActivationType(const normalize_params& params) const;
 };
 }  // namespace kernel_selector

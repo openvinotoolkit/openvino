@@ -27,22 +27,24 @@ struct mutable_data_gpu : public typed_primitive_gpu_impl<mutable_data> {
 
 public:
     bool validate_impl(const typed_primitive_inst<mutable_data>& instance) const override {
-        auto net_stream_id = instance.get_network().get_stream_id();
-        auto mem_stream_id = instance.output_memory().get_stream_id();
+        bool is_primary = instance.get_network().is_primary_stream();
 
-        bool res = net_stream_id == mem_stream_id;
+        auto net_id = instance.get_network().get_id();
+        auto mem_net_id = instance.output_memory().get_net_id();
+
+        bool res = is_primary || net_id == mem_net_id;
         return res;
     }
 
     static primitive_impl* create(mutable_data_node const& arg) { return new mutable_data_gpu(arg, {}); }
 };
 
-namespace {
-struct attach {
-    attach() { implementation_map<mutable_data>::add({{engine_types::ocl, mutable_data_gpu::create}}); }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_mutable_data_gpu::attach_mutable_data_gpu() {
+    implementation_map<mutable_data>::add({{engine_types::ocl, mutable_data_gpu::create}});
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

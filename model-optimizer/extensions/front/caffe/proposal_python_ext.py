@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 """
 import logging as log
 
+from extensions.ops.proposal import ProposalOp
 from mo.front.extractor import CaffePythonFrontExtractorOp
-from mo.ops.op import Op
 
 
 class ProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):
@@ -41,11 +41,11 @@ class ProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):
             del attrs['scales']
 
         update_attrs.update(attrs)
-        CaffePythonFrontExtractorOp.check_param(Op.get_op_class_by_name('Proposal'), update_attrs)
-        Op.get_op_class_by_name('Proposal').update_node_stat(node, update_attrs)
+        CaffePythonFrontExtractorOp.check_param(ProposalOp, update_attrs)
+        ProposalOp.update_node_stat(node, update_attrs)
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         defaults = {
             'feat_stride': 16,
             'base_size': 16,
@@ -56,16 +56,16 @@ class ProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):
             'post_nms_topn': 300,
             'nms_thresh': 0.7
         }
-        __class__.extract_proposal_params(node, defaults)
-        return __class__.enabled
+        cls.extract_proposal_params(node, defaults)
+        return cls.enabled
 
 
 class SSHProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):
     op = 'SSH.layers.proposal_layer.ProposalLayer'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         defaults = {
             'feat_stride': 16,
             'base_size': 16,
@@ -77,4 +77,4 @@ class SSHProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):
             'nms_thresh': 1.0
         }
         ProposalPythonFrontExtractor.extract_proposal_params(node, defaults)
-        return __class__.enabled
+        return cls.enabled

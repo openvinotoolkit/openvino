@@ -21,7 +21,8 @@
 #include "kernel_selector_helper.h"
 #include "activation/activation_kernel_selector.h"
 #include "activation/activation_kernel_base.h"
-#include "api/CPP/activation.hpp"
+#include "api/activation.hpp"
+#include "register_gpu.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -46,14 +47,14 @@ struct activation_gpu : typed_primitive_gpu_impl<activation> {
         auto activation_optional_params =
             get_default_optional_params<kernel_selector::activation_optional_params>(arg.get_program());
 
-        convert_new_activation_func(arg.get_primitive(), activation_params.activation);
+        convert_new_activation_func(arg.get_primitive(), activation_params.activations);
 
         if (arg.is_parameterized()) {
             const auto& slope_layout = arg.slope_input().get_output_layout();
             const auto& output_layout = arg.get_output_layout();
 
             const auto params_num =
-                kernel_selector::GetActivationAdditionalParamsNumber(activation_params.activation.function);
+                kernel_selector::GetActivationAdditionalParamsNumber(activation_params.activations[0].function);
 
             CLDNN_ERROR_LESS_THAN(arg.id(),
                                   "Slope layout size count",
@@ -78,36 +79,58 @@ struct activation_gpu : typed_primitive_gpu_impl<activation> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = activation_gpu::create;
+namespace detail {
 
-        implementation_map<activation>::add({
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), val_fw},
-            // block f16 format
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16), val_fw},
-            // 3D
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw},
-        });
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_activation_gpu::attach_activation_gpu() {
+    auto val_fw = activation_gpu::create;
+
+    implementation_map<activation>::add({
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb), val_fw},
+        // block f16 format
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw},
+        // 3D
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw},
+        { std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_zyx_bsv16_fsv16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), val_fw },
+        // bfwzyx
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), val_fw},
+        // fs_b_yx_fsv32
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw},
+    });
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

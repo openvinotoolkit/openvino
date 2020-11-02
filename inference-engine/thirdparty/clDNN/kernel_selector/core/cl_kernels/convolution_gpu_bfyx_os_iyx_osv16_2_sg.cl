@@ -76,7 +76,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16_2_sg)(
 {
     const uint oc  = (uint)get_global_id(0) * OUTPUT_BLOCK_WIDTH;  // oc = Output Column
     const uint or  = (uint)get_global_id(1) * OUTPUT_BLOCK_HEIGHT; // or = Output Row
-    const uint fm  = get_group_id(2) * SUB_GROUP_SIZE + get_sub_group_local_id();//get_global_id(2);                    // fm = Feature Map = od = Output Depth
+    const uint fm  = (uint)get_group_id(2) * SUB_GROUP_SIZE + get_sub_group_local_id();//get_global_id(2);                    // fm = Feature Map = od = Output Depth
     const uint lid = get_sub_group_local_id();
 
     const uint ifm_part = get_sub_group_id();

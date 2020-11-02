@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNDeformableConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNDeformableConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNDeformableConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNDeformableConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -29,7 +29,7 @@ public:
     }
 
 private:
-    static Register<MKLDNNDeformableConvolutionNode> reg;
+    static Registrar<MKLDNNDeformableConvolutionNode> reg;
     bool withBiases = false;
     bool isDW = false;
     bool isMerged = false;

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,24 +57,21 @@ protected:
 
         args.weights = (memory_impl::cptr) &instance.weights_memory(split);
         args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory(split) : nullptr);
-        args.weights_quantization_factors = (memory_impl::cptr) (instance.weights_quantization_factors_term()
-                                                ? &instance.weights_quantization_factors_memory(split)
-                                                : nullptr);
-        args.output_calibration_factors = (memory_impl::cptr)
-            (instance.output_calibration_factors_term() ? &instance.output_calibration_factors_memory(split) : nullptr);
+        args.weights_zero_points = (memory_impl::cptr) (instance.weights_zero_points_term() ? &instance.weights_zero_points_memory(split)
+                                                                                            : nullptr);
+        args.activations_zero_points = (memory_impl::cptr) (instance.activations_zero_points_term()
+                                       ? &instance.activations_zero_points_memory(split)
+                                       : nullptr);
+        args.compensation = (memory_impl::cptr) (instance.compensation_term()
+                                       ? &instance.compensation_memory(split)
+                                       : nullptr);
 
-        if (instance.has_fused_primitives()) {
-            size_t count = instance.get_fused_mem_count();
-            for (size_t i = 0; i < count; i++) {
-                args.fused_op_inputs.push_back((memory_impl::cptr) &instance.fused_memory(i));
-            }
-        }
         return args;
     }
 
     int32_t get_split() const override { return _outer.get_split(); }
-
     uint32_t get_groups() const override { return _outer.get_groups(); }
+    bool get_depthwise_sep_opt() const override { return _outer.get_depthwise_sep_opt(); }
 
 public:
     static primitive_impl* create(const convolution_node& arg) {
@@ -89,48 +86,26 @@ public:
         const auto& input_offset = primitive->input_offset;
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
-
-        const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
-        const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
-
         const auto transposed = arg.get_transposed();
 
-        assert(arg.get_output_layout().size.feature[0] / primitive->split() == weights_layout.size.batch[0]);
+        assert(arg.get_output_layout().size.feature[0] == weights_layout.size.batch[0] * weights_layout.size.group[0]);
 
-        auto conv_params = get_weights_bias_default_params<kernel_selector::convolution_params>(
-            arg,
-            (groups > 1 && !depthwise_separable_opt) ? groups : actual_split,
-            groups);
+        auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
+            arg, split, 1);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
-
-        // TODO: change the way of handling groups
-        // Plugin should always pass weights in goiyx or goizyx layout for forward conv as a single input
-        // cldnn optimizer then should transform this layouts to other ones and split if necessary
-        // This WA is required to keep correct logical size of tensors for weights reorder
-        if (conv_params.inputs[0].GetLayout() == kernel_selector::DataLayout::bfyx_f16) {
-            conv_params.weights = convert_weights_tensor(
-                layout(weights_layout.data_type, weights_layout.format,
-                {weights_layout.size.batch[0], weights_layout.size.feature[0], weights_layout.size.spatial[0], weights_layout.size.spatial[1]}));
-        }
 
         const auto additional_offset = tensor::max(input_offset, (tensor) 0);
         if (additional_offset != (tensor) 0) {
             conv_params.inputs[0] =
-                convert_data_tensor(input_layout,
-                                    (groups > 1 && !depthwise_separable_opt) ? groups : actual_split,
-                                    additional_offset);
+                convert_data_tensor(input_layout, split, additional_offset);
         }
-
-        if (primitive->with_activation)
-            convert_activation_func_params(primitive, conv_params.activation);
 
         if (primitive->deformable_mode) {
             conv_params.inputs.push_back(convert_data_tensor(arg.trans().get_output_layout()));
             conv_params.deformable_mode = true;
         }
 
-        conv_params.depthwise_separable_opt = depthwise_separable_opt;
         conv_params.transposed = transposed;
         conv_params.deformable_groups = deformable_groups;
 
@@ -152,54 +127,37 @@ public:
                                 (uint32_t)dilation.spatial[1],
                                 (uint32_t)dilation.spatial[2]};
 
-        if (primitive->weights_quantization_factors.size() > 0) {
-            conv_params.int8_quantization = true;
-            conv_params.weights_quantization_factors.push_back(
-                convert_data_tensor(arg.weights_quantization_factors().get_output_layout())
-                    .FlattenFeatureAndSpatials());
-            conv_params.input_quantization_factor = arg.get_input_qf();
-
-            if (primitive->output_calibration_factors.size() > 0) {
-                conv_params.output_calibration = true;
-                conv_params.output_calibration_factors.push_back(
-                    convert_data_tensor(arg.output_calibration_factors().get_output_layout())
-                        .FlattenFeatureAndSpatials());
+        if ((arg.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+             arg.get_dependency(0).get_output_layout().data_type == data_types::i8) &&
+            arg.get_dependency(1).get_output_layout().data_type == data_types::i8) {
+            if (!primitive->weights_zero_points.empty() && !primitive->activations_zero_points.empty()) {
+                conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS;
+            } else if (!primitive->weights_zero_points.empty()) {
+                conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_WEIGHTS;
+            } else if (!primitive->activations_zero_points.empty()) {
+                conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_DATA;
             } else {
-                conv_params.output_quantization_factor = arg.get_output_qf();
+                conv_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
             }
+        } else {
+            conv_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        for (auto& fused_prim : arg.get_fused_primitives()) {
-            using op_type = kernel_selector::convolution_params::fused_operation_desc::Type;
-            kernel_selector::convolution_params::fused_operation_desc desc;
-            if (fused_prim.prim->type == eltwise::type_id()) {
-                desc.type = op_type::ELTWISE;
-            } else {
-                CLDNN_ERROR_MESSAGE(arg.id(), "Invalid fused primitive type in convolution node");
-            }
-
-            desc.dep_idx_start = fused_prim.dep_start_idx;
-            desc.dep_size = fused_prim.deps.size();
-
-            for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
-                desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout()));
-            }
-
-            if (fused_prim.activation != cldnn_activation_func_t::activation_none) {
-                desc.activation.m = fused_prim.activation_params.a;
-                desc.activation.n = fused_prim.activation_params.b;
-                desc.activation.function = get_kernel_selector_activation_param(fused_prim.activation);
-            }
-            conv_params.fused_ops.push_back(desc);
-        }
+        auto format = arg.get_output_layout().format;
+        if (format == format::b_fs_zyx_fsv16 ||
+            format == format::bs_fs_zyx_bsv16_fsv16 ||
+            format == format::bs_fs_yx_bsv16_fsv16 ||
+            format == format::b_fs_zyx_fsv32)
+            conv_optional_params.allowInputReordering = true;
 
         auto& kernel_selector = kernel_selector::convolution_kernel_selector::Instance();
 
         const auto& tuning_config = arg.get_program().get_options().get<build_option_type::tuning_config>();
 
-        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache) {
+        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
+            tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
             conv_optional_params.tuningParams.runner =
-                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), true);
+                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true, true);
         }
 
         kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
@@ -214,67 +172,57 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(
-            std::make_tuple(engine_types::ocl, data_types::f32, format::winograd_2x3_s1_data),
-            convolution_gpu::create);
-        implementation_map<convolution>::add(
-            std::make_tuple(engine_types::ocl, data_types::f16, format::winograd_2x3_s1_data),
-            convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bf8_xy16),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bf8_xy16),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                             convolution_gpu::create);
-        // block f16 format
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16),
-                                             convolution_gpu::create);
-        // MMAD
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byx8_f4),
-                                             convolution_gpu::create);
+namespace detail {
 
-        implementation_map<convolution>::add(
-            std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32),
-            convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4),
-                                             convolution_gpu::create);
-        implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32),
-                                             convolution_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_convolution_gpu::attach_convolution_gpu() {
+    auto val_fw = convolution_gpu::create;
+
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::winograd_2x3_s1_data), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::winograd_2x3_s1_data), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
+    // block f16 format
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), val_fw);
+    // block i8 format
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv16), val_fw);
+    // MMAD
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw);
+
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv32), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv32), val_fw);
+
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv32), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv32), val_fw);
+
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

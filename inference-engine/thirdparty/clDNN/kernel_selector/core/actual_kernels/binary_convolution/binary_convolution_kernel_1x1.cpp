@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #include <iostream>
 #include "binary_convolution_kernel_1x1.h"
 #include <string>
+#include <core/actual_kernels/activation/activation_kernel_base.h>
 
 namespace kernel_selector {
 
@@ -42,10 +43,8 @@ ParamsKey BinaryConvolutionKernel1x1::GetSupportedKey() const {
     return k;
 }
 
-BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1::SetDefault(
-    const binary_convolution_params& params,
-    int) const {
-    DispatchData kd = BinaryConvolutionKernelBase::SetDefault(params);
+BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1::SetDefault(const binary_convolution_params& params, int) const {
+    DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -54,17 +53,17 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1::SetDefault
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = Align(x * y, sub_group_size);
-    kd.gws1 = CeilDiv(f, 2 * sub_group_size);  // 1 WI calcs 32 OC
-    kd.gws2 = b;
+    dispatchData.gws[0] = Align(x * y, sub_group_size);
+    dispatchData.gws[1] = CeilDiv(f, 2 * sub_group_size);  // 1 WI calcs 32 OC
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = sub_group_size;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = sub_group_size;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.effiency = FORCE_PRIORITY_1;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    return kd;
+    return dispatchData;
 }
 
 bool BinaryConvolutionKernel1x1::Validate(const Params& p, const optional_params& o) const {
@@ -88,8 +87,8 @@ bool BinaryConvolutionKernel1x1::Validate(const Params& p, const optional_params
 }
 
 JitConstants BinaryConvolutionKernel1x1::GetJitConstants(const binary_convolution_params& params,
-                                                         const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                         const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_NUM_PACKED", CeilDiv(params.inputs[0].Feature().v, ic_pack_size)));
@@ -114,11 +113,16 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
                                                                         const DispatchData& /*kd*/) const {
     JitConstants jit = {};
 
+    auto input_dt = GetUnitType(params);
+    FusedOpsConfiguration conf = {"", {"b", "(f_block*16 + oc)", "y", "x"}, "res", input_dt, 1 };
+    jit.Merge(MakeFusedOpsDeclsJitConstants(params, {conf}));
+
     size_t op_id = 0;
     std::string input_decls = "";
     std::string eltwise_fused_ops = "";
     std::string prepare_data = "";
     for (auto& fused_dep : params.fused_ops) {
+        auto fused_dep_codegen = FusedOpsCodeGenerator(fused_dep);
         auto get_aligned_load2 = [&](std::string ptr, std::string byte_offset) -> std::string {
             if (fused_dep.tensors[0].GetDType() == Datatype::F32)
                 return "(intel_sub_group_block_read2((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
@@ -131,98 +135,94 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
             return "(intel_sub_group_shuffle(" + var + ", " + lid + "))";
         };
 
-        std::string op_type = "";
-        std::string op_prefix = "FUSED_OP_" + std::to_string(op_id) + "_INPUT";
-        switch (fused_dep.type) {
-            case binary_convolution_params::fused_operation_desc::Type::SCALE: {
-                op_type = "scale";
-                std::string data_type = op_prefix + "0_TYPE";
-                std::string vec_data_type = "MAKE_VECTOR_TYPE(" + data_type + ", 2)";
+        std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);
+        std::string vec_data_type = fused_dep_codegen.GetInputTypeName(0, 2);
+        std::string sc = "sc" + std::to_string(op_id);
+        std::string sh = "sh" + std::to_string(op_id);
+        switch (fused_dep.GetType()) {
+            case KernelType::SCALE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
-
                 if (fused_dep.tensors.size() == 1) {
-                    std::string var_name = op_type + std::to_string(op_id) + "_scales";
-                    prepare_data += vec_data_type + var_name + cast_type +
-                                    get_aligned_load2(op_type + "_input0", "f_block*OC_BLOCK_SIZE") + ";";
-                    eltwise_fused_ops += data_type + " sc = (oc < 16) ? " + get_shuffle(var_name + ".s0", "oc") +
-                                         " : " + get_shuffle(var_name + ".s1", "oc") + ";";
-                    eltwise_fused_ops += "res = res*sc;";
+                    std::string var_name = fused_dep_codegen.GetInputVarName(0);
+                    prepare_data += "\\\n\t" + vec_data_type + " " + var_name + " = " + cast_type +
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+                    eltwise_fused_ops += "\\\n\t" + data_type + " " + sc + " = (oc < 16) ? " +
+                                    get_shuffle(var_name + ".s0", "oc") + " : " + get_shuffle(var_name + ".s1", "oc") + ";";
+                    eltwise_fused_ops += "\\\n\tres = res*" + sc + ";";
                 } else {
-                    std::string var0_name = op_type + std::to_string(op_id) + "_scales";
-                    std::string var1_name = op_type + std::to_string(op_id) + "_shifts";
-                    prepare_data += vec_data_type + " " + var0_name + " = " + cast_type +
-                                    get_aligned_load2(op_type + "_input0", "f_block*OC_BLOCK_SIZE") + ";";
-                    prepare_data += vec_data_type + " " + var1_name + " = " + cast_type +
-                                    get_aligned_load2(op_type + "_input1", "f_block*OC_BLOCK_SIZE") + ";";
-                    eltwise_fused_ops += data_type + " sc = (oc < 16) ? " + get_shuffle(var0_name + ".s0", "oc") +
-                                         " : " + get_shuffle(var0_name + ".s1", "oc") + ";";
-                    eltwise_fused_ops += data_type + " sh = (oc < 16) ? " + get_shuffle(var1_name + ".s0", "oc") +
-                                         " : " + get_shuffle(var1_name + ".s1", "oc") + ";";
-                    eltwise_fused_ops += "res = res*sc + sh;";
+                    std::string var0_name = fused_dep_codegen.GetInputVarName(0);
+                    std::string var1_name = fused_dep_codegen.GetInputVarName(1);
+                    prepare_data += "\\\n\t" + vec_data_type + " " + var0_name + " = " + cast_type +
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+                    prepare_data += "\\\n\t" + vec_data_type + " " + var1_name + " = " + cast_type +
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(1), "f_block*OC_BLOCK_SIZE") + ";";
+                    eltwise_fused_ops += "\\\n\t" + data_type + " " + sc +" = (oc < 16) ? " +
+                                    get_shuffle(var0_name + ".s0", "oc") + " : " + get_shuffle(var0_name + ".s1", "oc") + ";";
+                    eltwise_fused_ops += "\\\n\t" + data_type + " " + sh + " = (oc < 16) ? " +
+                                    get_shuffle(var1_name + ".s0", "oc") + " : " + get_shuffle(var1_name + ".s1", "oc") + ";";
+                    eltwise_fused_ops += "\\\n\tres = res*" + sc + " + " + sh + ";";
                 }
 
                 break;
             }
-            case binary_convolution_params::fused_operation_desc::Type::QUANTIZE: {
-                op_type = "quantize";
-                std::string data_type = op_prefix + "0_TYPE";
-                std::string vec_data_type = "MAKE_VECTOR_TYPE(" + data_type + ", 2)";
-                std::string cast_type_in = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
+            case KernelType::QUANTIZE: {
+                std::string var_name_in = fused_dep_codegen.GetInputVarName(0);
+                std::string var_name_out = fused_dep_codegen.GetInputVarName(3);
+                std::string cast_type_vec = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
+                std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float" : "as_half";
 
-                std::string var_name_in = op_type + std::to_string(op_id) + "_threshold";
-                std::string var_name_out = op_type + std::to_string(op_id) + "_out";
-                prepare_data += vec_data_type + " " + var_name_in + " = " + cast_type_in +
-                                get_aligned_load2(op_type + "_input0", "f_block*OC_BLOCK_SIZE") + ";";
-                prepare_data += "int packed_res = 0;";
+                prepare_data += "\\\n\tint packed_res = 0;";
+                if (fused_dep.tensors[0].Feature().v == params.output.Feature().v) {
+                    prepare_data += "\\\n\t" + vec_data_type + " " + var_name_in + " = " + cast_type_vec +
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+                    eltwise_fused_ops += "\\\n\t" + data_type + " thresh = (oc < 16) ? " + get_shuffle(var_name_in + ".s0", "oc") +
+                                         " : " + get_shuffle(var_name_in + ".s1", "oc") + ";";
+                } else {
+                    prepare_data += "\\\n\t" + data_type + " " + var_name_in + " = " + cast_type +
+                                 + "(" + fused_dep_codegen.GetInputPtrName(0) + "[0]);";
+                    eltwise_fused_ops += "\\\n\t" + data_type + " thresh = " + var_name_in + ";";
+                }
 
-                eltwise_fused_ops += data_type + " thresh = (oc < 16) ? " + get_shuffle(var_name_in + ".s0", "oc") +
-                                     " : " + get_shuffle(var_name_in + ".s1", "oc") + ";";
 
                 if (fused_dep.tensors[2].Feature().v == params.output.Feature().v) {
                     // Per-channel output value
-                    std::string cast_type_out = (fused_dep.tensors[3].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
-                    prepare_data += vec_data_type + " " + var_name_out + " = " + cast_type_out +
-                                    get_aligned_load2(op_type + "_input3", "f_block*OC_BLOCK_SIZE") + ";";
-                    eltwise_fused_ops += data_type + " out_val = (oc < 16) ? " + get_shuffle(var_name_out + ".s0", "oc") +
+                    prepare_data += "\\\n\t" + vec_data_type + " " + var_name_out + " = " + cast_type_vec +
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(3), "f_block*OC_BLOCK_SIZE") + ";";
+                    eltwise_fused_ops +="\\\n\t" + data_type + " out_val = (oc < 16) ? " + get_shuffle(var_name_out + ".s0", "oc") +
                                          " : " + get_shuffle(var_name_out + ".s1", "oc") + ";";
                 } else {
                     // Per-tensor output value
-                    std::string cast_type_out = (fused_dep.tensors[3].GetDType() == Datatype::F32) ? "as_float" : "as_half";
-                    prepare_data += data_type + " " + var_name_out + " = " + cast_type_out +
-                                    +"(" + op_type + "_input3[0]);";
-                    eltwise_fused_ops += data_type + " out_val = " + var_name_out + ";";
+                    prepare_data += "\\\n\t" + data_type + " " + var_name_out + " = " + cast_type +
+                                    + "(" + fused_dep_codegen.GetInputPtrName(3) + "[0]);";
+                    eltwise_fused_ops += "\\\n\t" + data_type + " out_val = " + var_name_out + ";";
                 }
-                eltwise_fused_ops += "if (out_val == 1) ";
-                eltwise_fused_ops += "packed_res |= (res > thresh) << oc;";
-                eltwise_fused_ops += "else ";
-                eltwise_fused_ops += "packed_res |= (res <= thresh) << oc;";
+                eltwise_fused_ops += "\\\n\tif (out_val == 1) ";
+                eltwise_fused_ops += "\\\n\t\tpacked_res |= (res > thresh) << oc;";
+                eltwise_fused_ops += "\\\n\telse ";
+                eltwise_fused_ops += "\\\n\t\tpacked_res |= (res <= thresh) << oc;";
 
+                break;
+            }
+            case KernelType::ACTIVATION: {
+                auto p = fused_dep.GetOpParams<activation_fuse_params>();
+                base_activation_params activation = p->param;
+                if (activation.function != ActivationFunction::NONE) {
+                    auto suffix = "_FUSED_OP" + std::to_string(op_id);
+
+                    jit.Merge(MakeActivationJitConstants(activation, fused_dep.output_tensor.GetDType(), suffix));
+                    eltwise_fused_ops += "\\\n\tres = ACTIVATION" + suffix + "((OUTPUT_TYPE)res, ACTIVATION_PARAMS" + suffix + ");";
+                }
                 break;
             }
             default:
                 throw std::invalid_argument("Invalid fused op in binary_convolution kernel: " + params.layerID);
         }
 
-        for (size_t op_input_id = 0; op_input_id < fused_dep.tensors.size(); op_input_id++) {
-            std::string name = op_prefix + std::to_string(op_input_id);
-            jit.AddConstant(MakeJitConstant(name, fused_dep.tensors[op_input_id]));
-            input_decls += "const __global " + toCLType(fused_dep.tensors[op_input_id].GetDType()) + "* " + op_type +
-                           "_input" + std::to_string(op_input_id) + ",";
-        }
-
-        if (fused_dep.activation.function != ActivationFunction::NONE) {
-            std::string temp_op_type = op_type;
-            for (auto& ch : temp_op_type) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-            std::string suffix = "_" + temp_op_type;
-
-            jit.Merge(MakeActivationJitConstants(fused_dep.activation, suffix));
-            eltwise_fused_ops += "res = ACTIVATION" + suffix + "(res, ACTIVATION_PARAMS" + suffix + ");";
-        }
         op_id++;
     }
-    jit.AddConstant(MakeJitConstant("FUSED_OPS_DECLS", input_decls));
     jit.AddConstant(MakeJitConstant("DO_ELTWISE_FUSED_OPS", eltwise_fused_ops));
     jit.AddConstant(MakeJitConstant("FUSED_OPS_PREPARE_DATA", prepare_data));
+    jit.AddConstant(MakeJitConstant("CUSTOM_FUSED_OPS", true));
 
     return jit;
 }

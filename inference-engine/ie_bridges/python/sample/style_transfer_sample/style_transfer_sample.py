@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
- Copyright (C) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,34 +21,33 @@ from argparse import ArgumentParser, SUPPRESS
 import cv2
 import numpy as np
 import logging as log
-from time import time
-from openvino.inference_engine import IENetwork, IECore
+from openvino.inference_engine import IECore
 
 
 def build_argparser():
     parser = ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
-    args.add_argument("-m", "--model", help="Path to an .xml file with a trained model.", required=True, type=str)
-    args.add_argument("-i", "--input", help="Path to a folder with images or path to an image files", required=True,
+    args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.", required=True, type=str)
+    args.add_argument("-i", "--input", help="Required. Path to a folder with images or path to an image files", required=True,
                       type=str, nargs="+")
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. "
                            "Absolute MKLDNN (CPU)-targeted custom layers. Absolute path to a shared library with the "
                            "kernels implementations", type=str, default=None)
     args.add_argument("-d", "--device",
-                      help="Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD is acceptable. Sample "
+                      help="Optional. Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD is acceptable. Sample "
                            "will look for a suitable plugin for device specified. Default value is CPU", default="CPU",
                       type=str)
-    args.add_argument("-nt", "--number_top", help="Number of top results", default=10, type=int)
+    args.add_argument("-nt", "--number_top", help="Optional. Number of top results", default=10, type=int)
     args.add_argument("--mean_val_r", "-mean_val_r",
-                      help="Mean value of red chanel for mean value subtraction in postprocessing ", default=0,
+                      help="Optional. Mean value of red chanel for mean value subtraction in postprocessing ", default=0,
                       type=float)
     args.add_argument("--mean_val_g", "-mean_val_g",
-                      help="Mean value of green chanel for mean value subtraction in postprocessing ", default=0,
+                      help="Optional. Mean value of green chanel for mean value subtraction in postprocessing ", default=0,
                       type=float)
     args.add_argument("--mean_val_b", "-mean_val_b",
-                      help="Mean value of blue chanel for mean value subtraction in postprocessing ", default=0,
+                      help="Optional. Mean value of blue chanel for mean value subtraction in postprocessing ", default=0,
                       type=float)
     return parser
 
@@ -56,38 +55,34 @@ def build_argparser():
 def main():
     log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
     args = build_argparser().parse_args()
-    model_xml = args.model
-    model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
     # Plugin initialization for specified device and load extensions library if specified
     log.info("Creating Inference Engine")
     ie = IECore()
     if args.cpu_extension and 'CPU' in args.device:
         ie.add_extension(args.cpu_extension, "CPU")
-    # Read IR
-    log.info("Loading network files:\n\t{}\n\t{}".format(model_xml, model_bin))
-    net = IENetwork(model=model_xml, weights=model_bin)
 
-    if "CPU" in args.device:
-        supported_layers = ie.query_network(net, "CPU")
-        not_supported_layers = [l for l in net.layers.keys() if l not in supported_layers]
-        if len(not_supported_layers) != 0:
-            log.error("Following layers are not supported by the plugin for specified device {}:\n {}".
-                      format(args.device, ', '.join(not_supported_layers)))
-            log.error("Please try to specify cpu extensions library path in sample's command line parameters using -l "
-                      "or --cpu_extension command line argument")
-            sys.exit(1)
+    # Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+    model = args.model
+    model_bin = None
+    model_name, model_ext = os.path.splitext(model)
+    log.info(f"Loading network files:\n\t{model}")
+    if model_ext == ".xml":
+        # Read .bin weights for IR format only
+        model_bin = model_name + ".bin"
+        log.info(f"\n\t{model_bin}")
+    net = ie.read_network(model=model, weights=model_bin)
 
-    assert len(net.inputs.keys()) == 1, "Sample supports only single input topologies"
+    assert len(net.input_info.keys()) == 1, "Sample supports only single input topologies"
     assert len(net.outputs) == 1, "Sample supports only single output topologies"
 
     log.info("Preparing input blobs")
-    input_blob = next(iter(net.inputs))
+    input_blob = next(iter(net.input_info))
     out_blob = next(iter(net.outputs))
     net.batch_size = len(args.input)
 
     # Read and pre-process input images
-    n, c, h, w = net.inputs[input_blob].shape
+    n, c, h, w = net.input_info[input_blob].input_data.shape
     images = np.ndarray(shape=(n, c, h, w))
     for i in range(n):
         image = cv2.imread(args.input[i])

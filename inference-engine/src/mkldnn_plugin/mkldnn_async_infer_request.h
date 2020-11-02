@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,16 +11,15 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNAsyncInferRequest : virtual public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class MKLDNNAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     MKLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr &inferRequest,
                             const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
-                            const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
                             const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
 
-    ~MKLDNNAsyncInferRequest() override;
+    void Infer_ThreadUnsafe() override;
 
-    void Infer() override;
+    ~MKLDNNAsyncInferRequest() override;
 };
 
 }  // namespace MKLDNNPlugin

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,57 +16,58 @@
 #include "include/include_all.cl"
 
 #if MAX_POOLING || MAX_WITH_ARGMAX_POOLING
-    #define UNIT_INIT_VAL UNIT_VAL_MIN
-#elif AVG_POOLING
-    #define UNIT_INIT_VAL UNIT_VAL_ZERO
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
+#elif defined AVG_POOLING
+    #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #else
-#error
+    #error
 #endif
 
-
-inline UNIT_TYPE FUNC(apply_pooling)(UNIT_TYPE tmp, UNIT_TYPE in)
+inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING || MAX_WITH_ARGMAX_POOLING
-    return max(tmp, in);
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
 #endif
 }
 
-KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
+KERNEL(pooling_gpu)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
 #if MAX_WITH_ARGMAX_POOLING
-, __global float* arg_max
+    , __global float* arg_max
+#endif
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
 )
 {
-
     const uint x    = (uint)get_global_id(0);
     const uint y    = (uint)get_global_id(1) * POOL_SIZE_Y;
     const uint bf   = (uint)get_global_id(2);
     const uint f    = bf % INPUT0_FEATURE_NUM;
     const uint b    = bf / INPUT0_FEATURE_NUM;
-    
+
     if ((x >= OUTPUT_SIZE_X) || (y >= OUTPUT_SIZE_Y))
         return;
 
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
-    
-    UNIT_TYPE result = UNIT_INIT_VAL;
-    
+
     uint input_idx = GET_DATA_INDEX(INPUT0, b, f, offset_y, offset_x);
-    UNIT_TYPE max_x[BLOCK_SIZE_Y];
-    UNIT_TYPE out[POOL_SIZE_Y];
+    ACCUMULATOR_TYPE max_x[BLOCK_SIZE_Y];
+    ACCUMULATOR_TYPE result[POOL_SIZE_Y];
 
 #if MAX_WITH_ARGMAX_POOLING
     uint arg_max_x[BLOCK_SIZE_Y] = { 0 };
-    uint arg_max_out[POOL_SIZE_Y] = { 0 };
+    uint arg_max_result[POOL_SIZE_Y] = { 0 };
     uint input_idx_bfyx_no_padding = offset_x + INPUT0_SIZE_X * (offset_y + INPUT0_SIZE_Y * (f + INPUT0_FEATURE_NUM * b));
 #endif
 
     for(uint i = 0; i < BLOCK_SIZE_Y; i++)
     {
-        max_x[i] = UNIT_INIT_VAL;
+        max_x[i] = INIT_VAL;
     }
 
     // we do max in "x" dimension
@@ -79,7 +80,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
             if(input[input_idx] > max_x[j])
                 arg_max_x[j] = input_idx_bfyx_no_padding;
 #endif
-            max_x[j] = FUNC_CALL(apply_pooling)(max_x[j], input[input_idx]);
+            max_x[j] = FUNC_CALL(apply_pooling)(max_x[j], TO_ACCUMULATOR_TYPE(input[input_idx]));
             input_idx += INPUT0_X_PITCH;
 
 #if MAX_WITH_ARGMAX_POOLING
@@ -96,10 +97,10 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 
     for(uint i = 0; i < POOL_SIZE_Y; i++)
     {
-        out[i] = max_x[i * STRIDE_SIZE_Y];
+        result[i] = max_x[i * STRIDE_SIZE_Y];
 
 #if MAX_WITH_ARGMAX_POOLING
-        arg_max_out[i] = arg_max_x[i * STRIDE_SIZE_Y];
+        arg_max_result[i] = arg_max_x[i * STRIDE_SIZE_Y];
 #endif
     }
 
@@ -110,11 +111,11 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
         {
 
 #if MAX_WITH_ARGMAX_POOLING
-            if(max_x[j + i * STRIDE_SIZE_Y] > out[i])
-                arg_max_out[i] = arg_max_x[j + i * STRIDE_SIZE_Y];
+            if(max_x[j + i * STRIDE_SIZE_Y] > result[i])
+                arg_max_result[i] = arg_max_x[j + i * STRIDE_SIZE_Y];
 #endif
 
-            out[i] = FUNC_CALL(apply_pooling)(out[i], max_x[j + i * STRIDE_SIZE_Y]);
+            result[i] = FUNC_CALL(apply_pooling)(result[i], max_x[j + i * STRIDE_SIZE_Y]);
         }
     }
 
@@ -124,22 +125,31 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
     uint arg_max_pos = GET_DATA_INDEX(INPUT1, b, f, y, x);
 #endif
 
+    OUTPUT_TYPE final_result;
+    ACTIVATION_TYPE pool_result;
+
     for(uint i = 0; i < POOL_SIZE_Y; i++)
     {
         if((y + i) < OUTPUT_SIZE_Y)
         {
 #if defined AVG_POOLING
-            out[i] /= (UNIT_TYPE)(POOL_SIZE_Y * POOL_SIZE_X);
+            result[i] /= TO_ACCUMULATOR_TYPE(POOL_SIZE_Y * POOL_SIZE_X);
 #endif
-            output[output_pos] = ACTIVATION(out[i], ACTIVATION_PARAMS);
+            pool_result = TO_ACTIVATION_TYPE(result[i]);
+        #if HAS_FUSED_OPS
+            FUSED_OPS;
+            final_result = FUSED_OPS_RESULT;
+        #else
+            final_result = TO_OUTPUT_TYPE(ACTIVATION(pool_result, ACTIVATION_PARAMS));
+        #endif
+            output[output_pos] = final_result;
             output_pos += OUTPUT_Y_PITCH;
-
 #if MAX_WITH_ARGMAX_POOLING
-            arg_max[arg_max_pos] = arg_max_out[i];
+            arg_max[arg_max_pos] = arg_max_result[i];
             arg_max_pos += INPUT1_Y_PITCH;
 #endif
         }
     }
 }
 
-#undef UNIT_INIT_VAL
+#undef INIT_VAL

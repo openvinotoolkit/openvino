@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,6 +18,11 @@ import numpy as np
 
 from mo.graph.graph import Node
 from mo.utils.error import Error
+
+
+def onnx_node_has_attr(node: Node, name: str):
+    attrs = [a for a in node.pb.attribute if a.name == name]
+    return len(attrs) != 0
 
 
 def onnx_attr(node: Node, name: str, field: str, default=None, dst_type=None):
@@ -40,6 +45,12 @@ def onnx_attr(node: Node, name: str, field: str, default=None, dst_type=None):
             return res
 
 
+def onnx_get_num_outputs(node: Node):
+    """ Retrieves number of outputs for ONNX operation.
+    """
+    return len(node.pb.output)
+
+
 def get_backend_pad(pads, spatial_dims, axis):
     return [x[axis] for x in pads[spatial_dims]]
 
@@ -51,22 +62,26 @@ def get_onnx_autopad(auto_pad):
     return auto_pad
 
 
+def get_onnx_opset_version(node: Node):
+    return node.graph.graph.get('fw_opset_version', 0)
+
+
 def get_onnx_datatype_as_numpy(value):
     datatype_to_numpy = {
-                         1: np.float32,
-                         9: np.bool,
-                         11: np.double,
-                         10: np.float16,
-                         5: np.int16,
-                         6: np.int32,
-                         7: np.int64,
-                         3: np.int8,
-                         8: np.ubyte,
-                         4: np.uint16,
-                         12: np.uint32,
-                         13: np.uint64,
-                         2: np.uint8,
-                         }
+        1: np.float32,
+        9: np.bool,
+        11: np.double,
+        10: np.float16,
+        5: np.int16,
+        6: np.int32,
+        7: np.int64,
+        3: np.int8,
+        8: np.ubyte,
+        4: np.uint16,
+        12: np.uint32,
+        13: np.uint64,
+        2: np.uint8,
+    }
     try:
         return datatype_to_numpy[value]
     except KeyError:

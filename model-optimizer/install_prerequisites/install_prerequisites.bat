@@ -1,5 +1,5 @@
 @echo off
-:: Copyright (c) 2018 Intel Corporation
+:: Copyright (C) 2018-2020 Intel Corporation
 ::
 ::  Licensed under the Apache License, Version 2.0 (the "License");
 ::  you may not use this file except in compliance with the License.
@@ -55,6 +55,9 @@ IF /I "%1%" EQU "" (
     IF /I "%1%" EQU "tf" (
         set postfix=_tf
     ) ELSE (
+    IF /I "%1%" EQU "tf2" (
+        set postfix=_tf2
+    ) ELSE (
     IF /I "%1%" EQU "mxnet" (
         set postfix=_mxnet
     ) ELSE (
@@ -66,6 +69,7 @@ IF /I "%1%" EQU "" (
     ) ELSE (
            echo Unsupported framework
            goto error
+      )
      )
     )
    )
@@ -74,7 +78,7 @@ IF /I "%1%" EQU "" (
 )
 
 
-pip install --user -r ..\requirements%postfix%.txt
+pip3 install --user -r ..\requirements%postfix%.txt
 
 echo *****************************************************************************************
 echo Warning: please expect that Model Optimizer conversion might be slow.

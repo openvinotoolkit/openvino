@@ -16,19 +16,19 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/lstm.hpp"
-#include <api/CPP/split.hpp>
-#include <api/CPP/crop.hpp>
-#include <api/CPP/reshape.hpp>
-#include <api/CPP/concatenation.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/tensor.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/lstm.hpp"
+#include <api/split.hpp>
+#include <api/crop.hpp>
+#include <api/reshape.hpp>
+#include <api/concatenation.hpp>
+#include <api/topology.hpp>
+#include <api/tensor.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include <api/CPP/data.hpp>
+#include <api/data.hpp>
 #include "instrumentation.h"
 #include <test_utils/float16.h>
 
@@ -52,10 +52,10 @@ namespace {
 
 struct offset_order {
     size_t it, ot, ft, zt;
-    offset_order(size_t scale, const cldnn_lstm_offset_order& t = cldnn_lstm_offset_order_iofz) {
-        static const std::map<cldnn_lstm_offset_order, std::vector<size_t>> offset_map{
-            { cldnn_lstm_offset_order_iofz,{ 0, 1, 2, 3 } },
-            { cldnn_lstm_offset_order_ifoz,{ 0, 2, 1, 3 } }
+    offset_order(size_t scale, const lstm_weights_order& t = lstm_weights_order::iofz) {
+        static const std::map<lstm_weights_order, std::vector<size_t>> offset_map{
+            { lstm_weights_order::iofz,{ 0, 1, 2, 3 } },
+            { lstm_weights_order::ifoz,{ 0, 2, 1, 3 } }
         };
         std::vector<size_t> v = offset_map.at(t);
         it = v[0] * scale;
@@ -64,7 +64,7 @@ struct offset_order {
         zt = v[3] * scale;
     }
 };
-cldnn_lstm_offset_order default_offset_type = cldnn_lstm_offset_order_iofz;
+lstm_weights_order default_offset_type = lstm_weights_order::iofz;
 
 template<typename T>
 T clip(T val, T threshold) {
@@ -74,7 +74,6 @@ T clip(T val, T threshold) {
     }
     return val;
 }
-
 
 template <typename T>
 VVVVF<T> lstm_gemm_reference(VVVVF<T>& input, VVVVF<T>& weights, VVVVF<T>& recurrent, VVVVF<T>& bias, VVVVF<T>& hidden,
@@ -212,8 +211,6 @@ void lstm_reference(VVVVF<T>& input, VVVVF<T>& hidden, VVVVF<T>& cell,
     last_hidden = hidden;
     last_cell = cell;
 }
-
-
 
 template<typename T>
 void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size, int input_size, int hidden_size,
@@ -413,7 +410,6 @@ void generate_lstm_topology(topology& t, memory& input, memory& hidden, memory& 
     t.add(concatenation("concatenation", output_ids_offsets, concatenation::along_f));
 }
 
-
 template<typename T>
 void generic_lstm_custom_gpu_test(int sequence_len, int direction, int batch_size, int input_size, int hidden_size,
     bool hasBias = true, bool hasInitialHidden = true, bool hasInitialCell = true) {
@@ -609,13 +605,13 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
             topology.add(lstm(lstm_id, lstm_inputs, weights_id, recurrent_id,
                             hasBias ? biases_id : "", hasInitialHidden ? hidden_id : "", hasInitialCell ? cell_id : "", "",
                             clip_threshold, input_forget, {}, {},
-                            cldnn_lstm_output::cldnn_lstm_output_sequence, default_offset_type));
+                            lstm_output_selection::sequence, default_offset_type));
         }
         else {
             topology.add(lstm(lstm_id, { prev_lstm_id }, weights_id, recurrent_id,
                             hasBias ? biases_id : "", hasInitialHidden ? hidden_id : "", hasInitialCell ? cell_id : "", "",
                             clip_threshold, input_forget, {}, {},
-                            cldnn_lstm_output::cldnn_lstm_output_sequence, default_offset_type));
+                            lstm_output_selection::sequence, default_offset_type));
         }
         prev_lstm_id = lstm_id;
     }
@@ -662,7 +658,7 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
 
 // -------------------------------------------------------
 template<typename T>
-void lstm_gpu_output_test(const cldnn_lstm_output& output_selection, int directions) {
+void lstm_gpu_output_test(const lstm_output_selection& output_selection, int directions) {
     int layers = 1;
     int sequence_len = 4;
     int batch_size = 3;
@@ -671,7 +667,7 @@ void lstm_gpu_output_test(const cldnn_lstm_output& output_selection, int directi
 
     std::cout << "Layers = " << layers << " Input Size = " << input_size << " Hidden Size = " << hidden_size
             << " Sequence Len = " << sequence_len << " Directions = " << directions << " Batch Size = " << batch_size
-			<< " Output selection: " << output_selection << std::endl;
+			<< " Output selection: " << static_cast<int>(output_selection) << std::endl;
     int min_random = -2, max_random = 2;
 
     VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
@@ -712,10 +708,10 @@ void lstm_gpu_output_test(const cldnn_lstm_output& output_selection, int directi
     set_values(hidden, ref_hidden_vec);
     set_values(cell, ref_cell_vec);
 
-    bool emit_last_cell = output_selection == cldnn_lstm_output_hidden_cell ||
-                          output_selection == cldnn_lstm_output_sequence_cell;
-    bool emit_last_hidden = output_selection == cldnn_lstm_output_hidden ||
-                            output_selection == cldnn_lstm_output_hidden_cell;
+    bool emit_last_cell = output_selection == lstm_output_selection::hidden_cell ||
+                          output_selection == lstm_output_selection::sequence_cell;
+    bool emit_last_hidden = output_selection == lstm_output_selection::hidden ||
+                            output_selection == lstm_output_selection::hidden_cell;
 
     topology topology;
     std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
@@ -820,7 +816,6 @@ void lstm_gpu_output_test(const cldnn_lstm_output& output_selection, int directi
     }
 }
 
-
 // -------------------------------------------------------
 template<typename T>
 void lstm_gpu_format_test(const cldnn::format& format, int directions) {
@@ -830,11 +825,11 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
     int input_size = 4;
     int hidden_size = 5;
 
-    cldnn_lstm_output output_selection = cldnn_lstm_output::cldnn_lstm_output_sequence;
+    lstm_output_selection output_selection = lstm_output_selection::sequence;
 
     std::cout << "Layers = " << layers << " Input Size = " << input_size << " Hidden Size = " << hidden_size
             << " Sequence Len = " << sequence_len << " Directions = " << directions << " Batch Size = " << batch_size
-            << " Output selection: " << output_selection << std::endl;
+            << " Output selection: " << static_cast<int>(output_selection) << std::endl;
     int min_random = -2, max_random = 2;
 
     VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
@@ -875,10 +870,10 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
     set_values(hidden, ref_hidden_vec);
     set_values(cell, ref_cell_vec);
 
-    bool emit_last_cell = output_selection == cldnn_lstm_output_hidden_cell ||
-                          output_selection == cldnn_lstm_output_sequence_cell;
-    bool emit_last_hidden = output_selection == cldnn_lstm_output_hidden ||
-                            output_selection == cldnn_lstm_output_hidden_cell;
+    bool emit_last_cell = output_selection == lstm_output_selection::hidden_cell ||
+                          output_selection == lstm_output_selection::sequence_cell;
+    bool emit_last_hidden = output_selection == lstm_output_selection::hidden ||
+                            output_selection == lstm_output_selection::hidden_cell;
 
     topology topology;
     std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
@@ -1071,7 +1066,7 @@ void lstm_gpu_users_test() {
     topology.add(input_layout("cell", cell.get_layout()));
     topology.add(lstm("lstm", lstm_inputs, "weights", "recurrent",
                       "biases", "hidden", "cell", "", 0, false, {}, {},
-                      cldnn_lstm_output::cldnn_lstm_output_hidden, default_offset_type));
+                      lstm_output_selection::hidden, default_offset_type));
     std::vector<primitive_id> output_ids_offsets {"lstm", "hidden"};
     topology.add(concatenation("concatenation", output_ids_offsets, concatenation::along_f));
 
@@ -1216,13 +1211,13 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
             topology.add(lstm(lstm_id, { "input" }, weights_id, recurrent_id,
 				has_bias ? biases_id : "", has_initial_hidden ? hidden_id : "", has_initial_cell ? cell_id : "", "",
 				clip_threshold, input_forget, {}, {},
-				cldnn_lstm_output::cldnn_lstm_output_sequence_cell, default_offset_type));
+				lstm_output_selection::sequence_cell, default_offset_type));
 		}
 		else {
 			topology.add(lstm(lstm_id, { prev_node_id }, weights_id, recurrent_id,
 				has_bias ? biases_id : "", has_initial_hidden ? hidden_id : "", has_initial_cell ? cell_id : "", "",
 				clip_threshold, input_forget, {}, {},
-				cldnn_lstm_output::cldnn_lstm_output_sequence_cell, default_offset_type));
+				lstm_output_selection::sequence_cell, default_offset_type));
 		}
 
         // Crop out the whole output sequence element
@@ -1277,7 +1272,7 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 template<typename T>
 void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
                          int directions, size_t layers, size_t chains, int sequence_len,
-                         const cldnn_lstm_output& output_selection)
+                         const lstm_output_selection& output_selection)
 {
     int min_random = -2, max_random = 2;
     bool has_bias = false;
@@ -1288,7 +1283,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
 
     std::cout << "Layers = " << layers << " Input Size = " << input_size << " Hidden Size = " << hidden_size
         << " Sequence Len = " << sequence_len << " Directions = " << directions << " Batch Size = " << batch_size
-        << " Output selection: " << output_selection << std::endl;
+        << " Output selection: " << static_cast<int>(output_selection) << std::endl;
 
     VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
     std::vector<std::vector< VVVVF<T>>> ref_weights;
@@ -1466,8 +1461,8 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
     }
     topology.add(split("inputSplit", "input", input_ids_offsets));
 
-    bool emit_last_hidden = output_selection == cldnn_lstm_output_hidden
-        || output_selection == cldnn_lstm_output_hidden_cell;
+    bool emit_last_hidden = output_selection == lstm_output_selection::hidden
+        || output_selection == lstm_output_selection::hidden_cell;
 
     std::vector<cldnn::primitive_id> output_sequence_ids;
     std::vector<cldnn::primitive_id> last_hidden_ids;
@@ -1500,7 +1495,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
 
             primitive_id initial_hidden_id;
             primitive_id initial_cell_id;
-            cldnn_lstm_output output_selection_per_layer;
+            lstm_output_selection output_selection_per_layer;
 
             topology.add(data(weights_id, weights[chain][layer]));
             topology.add(data(recurrent_id, recurrent[chain][layer]));
@@ -1528,7 +1523,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
             // last hidden and last cell
             if (layer < layers - 1)
             {
-                output_selection_per_layer = cldnn_lstm_output::cldnn_lstm_output_sequence_cell;
+                output_selection_per_layer = lstm_output_selection::sequence_cell;
             }
             else
             {
@@ -1650,7 +1645,6 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
         }
     }
 }
-
 
 TEST(lstm_gemm_gpu, generic_lstm_gemm_test_f32) {
     generic_lstm_gemm_gpu_test<float>(1, 1, 3, 6, 2, true, true);
@@ -1785,9 +1779,9 @@ TEST(lstm_gpu, generic_lstm_clip_input_forget_f32) {
 }
 
 TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f32) {
-    default_offset_type = cldnn_lstm_offset_order_ifoz;
+    default_offset_type = lstm_weights_order::ifoz;
     generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true);
-    default_offset_type = cldnn_lstm_offset_order_iofz;
+    default_offset_type = lstm_weights_order::iofz;
 }
 
 TEST(lstm_gpu, generic_lstm_canonical_f32) {
@@ -1830,35 +1824,35 @@ TEST(lstm_gpu, generic_lstm_stacked_seq_bi_f32) {
 
 // optional outputs support
 TEST(lstm_gpu, output_test_sequence_f32) {
-    lstm_gpu_output_test<float>(cldnn_lstm_output::cldnn_lstm_output_sequence, 1);
+    lstm_gpu_output_test<float>(lstm_output_selection::sequence, 1);
 }
 
 TEST(lstm_gpu, output_test_hidden_f32) {
-    lstm_gpu_output_test<float>(cldnn_lstm_output::cldnn_lstm_output_hidden, 1);
+    lstm_gpu_output_test<float>(lstm_output_selection::hidden, 1);
 }
 
 TEST(lstm_gpu, output_test_hidden_cell_f32) {
-    lstm_gpu_output_test<float>(cldnn_lstm_output::cldnn_lstm_output_hidden_cell, 1);
+    lstm_gpu_output_test<float>(lstm_output_selection::hidden_cell, 1);
 }
 
 TEST(lstm_gpu, output_test_sequence_cell_f32) {
-    lstm_gpu_output_test<float>(cldnn_lstm_output::cldnn_lstm_output_sequence_cell, 1);
+    lstm_gpu_output_test<float>(lstm_output_selection::sequence_cell, 1);
 }
 
 TEST(lstm_gpu, output_test_sequence_bi_f32) {
-    lstm_gpu_output_test<float>(cldnn_lstm_output::cldnn_lstm_output_sequence, 2);
+    lstm_gpu_output_test<float>(lstm_output_selection::sequence, 2);
 }
 
 TEST(lstm_gpu, output_test_hidden_bi_f32) {
-    lstm_gpu_output_test<float>(cldnn_lstm_output::cldnn_lstm_output_hidden, 2);
+    lstm_gpu_output_test<float>(lstm_output_selection::hidden, 2);
 }
 
 TEST(lstm_gpu, output_test_hidden_cell_bi_f32) {
-    lstm_gpu_output_test<float>(cldnn_lstm_output::cldnn_lstm_output_hidden_cell, 2);
+    lstm_gpu_output_test<float>(lstm_output_selection::hidden_cell, 2);
 }
 
 TEST(lstm_gpu, output_test_sequence_cell_bi_f32) {
-    lstm_gpu_output_test<float>(cldnn_lstm_output::cldnn_lstm_output_sequence_cell, 2);
+    lstm_gpu_output_test<float>(lstm_output_selection::sequence_cell, 2);
 }
 
 // format tests
@@ -1902,7 +1896,7 @@ TEST(lstm_gpu, generic_lstm_chained_unidirectional_f32) {
     // chains = 1
     // sequence length = 1
     // output selection = output sequence and cell
-    lstm_gpu_chain_test<float>(1, 2, 4, 1, 1, 2, 1, cldnn_lstm_output::cldnn_lstm_output_sequence_cell);
+    lstm_gpu_chain_test<float>(1, 2, 4, 1, 1, 2, 1, lstm_output_selection::sequence_cell);
 }
 
 TEST(lstm_gpu, generic_lstm_chained_bidirectional_f32) {
@@ -1914,7 +1908,7 @@ TEST(lstm_gpu, generic_lstm_chained_bidirectional_f32) {
     // chains = 1
     // sequence length = 1
     // output selection = output sequence and cell
-    lstm_gpu_chain_test<float>(1, 2, 4, 2, 1, 1, 1, cldnn_lstm_output::cldnn_lstm_output_sequence_cell);
+    lstm_gpu_chain_test<float>(1, 2, 4, 2, 1, 1, 1, lstm_output_selection::sequence_cell);
 }
 
 TEST(lstm_gpu, generic_lstm_chained_no_stack_bidirectional_f32) {
@@ -1926,7 +1920,7 @@ TEST(lstm_gpu, generic_lstm_chained_no_stack_bidirectional_f32) {
     // chains = 2
     // sequence length = 5
     // output selection = output sequence and cell
-    lstm_gpu_chain_test<float>(2, 2, 4, 2, 1, 2, 5, cldnn_lstm_output::cldnn_lstm_output_sequence_cell);
+    lstm_gpu_chain_test<float>(2, 2, 4, 2, 1, 2, 5, lstm_output_selection::sequence_cell);
 }
 
 TEST(lstm_gpu, generic_lstm_chained_stacked_bidirectional_f32) {
@@ -1938,7 +1932,7 @@ TEST(lstm_gpu, generic_lstm_chained_stacked_bidirectional_f32) {
     // chains = 2
     // sequence length = 5
     // output selection = output sequence and cell
-    lstm_gpu_chain_test<float>(2, 2, 4, 2, 4, 2, 5, cldnn_lstm_output::cldnn_lstm_output_sequence_cell);
+    lstm_gpu_chain_test<float>(2, 2, 4, 2, 4, 2, 5, lstm_output_selection::sequence_cell);
 }
 
 // FP16 Half precision tests
@@ -2023,9 +2017,9 @@ TEST(lstm_gpu, generic_lstm_clip_input_forget_f16) {
 }
 
 TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f16) {
-    default_offset_type = cldnn_lstm_offset_order_ifoz;
+    default_offset_type = lstm_weights_order::ifoz;
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true);
-    default_offset_type = cldnn_lstm_offset_order_iofz;
+    default_offset_type = lstm_weights_order::iofz;
 }
 
 TEST(lstm_gpu, generic_lstm_canonical_f16) {

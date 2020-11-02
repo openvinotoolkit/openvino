@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -44,7 +44,6 @@ class RPNProposalMXNetFrontExtractor(MXNetCustomFrontExtractorOp):
             'pre_nms_topn': pre_nms_topn,
             'post_nms_topn': post_nms_topn,
             'nms_thresh': nms_thresh,
-            'for_deformable': 1,
         }
 
         ProposalOp.update_node_stat(node, node_attrs)

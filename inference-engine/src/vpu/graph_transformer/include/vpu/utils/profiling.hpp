@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,14 @@
 #include <unordered_map>
 #include <set>
 
-#include <ie_profiling.hpp>
 
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/logger.hpp>
+#include <vpu/utils/ie_itt.hpp>
 
 namespace vpu {
 
-#if ENABLE_PROFILING_RAW
+#ifdef ENABLE_PROFILING_RAW
 
 struct CompileEnv;
 
@@ -90,11 +90,11 @@ private:
 };
 
 #define VPU_PROFILER_SECTION(name) vpu::Profiler::Section VPU_COMBINE(profileSec, __LINE__) (# name)
-#define VPU_PROFILE(name) IE_PROFILING_AUTO_SCOPE(VPU_ ## name); VPU_PROFILER_SECTION(name)
+#define VPU_PROFILE(name) OV_ITT_SCOPED_TASK(vpu::itt::domains::VPU, "VPU_" #name); VPU_PROFILER_SECTION(name)
 
 #else
 
-#define VPU_PROFILE(name) IE_PROFILING_AUTO_SCOPE(VPU_ ## name)
+#define VPU_PROFILE(name) OV_ITT_SCOPED_TASK(vpu::itt::domains::VPU, "VPU_" #name);
 
 #endif  // ENABLE_PROFILING_RAW
 

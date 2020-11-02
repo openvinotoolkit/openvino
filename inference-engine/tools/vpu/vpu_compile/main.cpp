@@ -1,17 +1,5 @@
-//
-// Copyright (C) 2018-2019 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cstdlib>
@@ -28,7 +16,7 @@
 #include "inference_engine.hpp"
 #include <vpu/private_plugin_config.hpp>
 #include "samples/common.hpp"
-#include "vpu/utils/string.hpp"
+#include <vpu/utils/string.hpp>
 
 #include "vpu_tools_common.hpp"
 
@@ -37,17 +25,15 @@ static constexpr char model_message[] = "Required. Path to xml model.";
 static constexpr char plugin_path_message[] = "Optional. Path to a plugin folder.";
 static constexpr char output_message[] = "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
 static constexpr char config_message[] = "Optional. Path to the configuration file. Default value: \"config\".";
-static constexpr char platform_message[] = "Optional. Specifies movidius platform."
-                                           " Supported values: VPU_MYRIAD_2450, VPU_MYRIAD_2480."
-                                           " Overwrites value from config.\n"
-"                                             This option must be used in order to compile blob"
-                                           " without a connected Myriad device.";
 static constexpr char number_of_shaves_message[] = "Optional. Specifies number of shaves."
                                                    " Should be set with \"VPU_NUMBER_OF_CMX_SLICES\"."
                                                    " Overwrites value from config.";
 static constexpr char number_of_cmx_slices_message[] = "Optional. Specifies number of CMX slices."
                                                        " Should be set with \"VPU_NUMBER_OF_SHAVES\"."
                                                        " Overwrites value from config.";
+static constexpr char tiling_cmx_limit_message[] = "Optional. Specifies CMX limit for data tiling."
+                                                   " Value should be equal or greater than -1."
+                                                   " Overwrites value from config.";
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of network."
                                                    " Supported values: FP32, FP16, U8. Default value: FP16.";
 static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of network."
@@ -67,9 +53,9 @@ DEFINE_string(c, "config", config_message);
 DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
 DEFINE_string(iop, "", iop_message);
-DEFINE_string(VPU_MYRIAD_PLATFORM, "", platform_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
+DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
 
 static void showUsage() {
     std::cout << std::endl;
@@ -83,9 +69,9 @@ static void showUsage() {
     std::cout << "    -ip                          <value>     "   << inputs_precision_message     << std::endl;
     std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message                  << std::endl;
-    std::cout << "    -VPU_MYRIAD_PLATFORM         <value>     "   << platform_message             << std::endl;
     std::cout << "    -VPU_NUMBER_OF_SHAVES        <value>     "   << number_of_shaves_message     << std::endl;
     std::cout << "    -VPU_NUMBER_OF_CMX_SLICES    <value>     "   << number_of_cmx_slices_message << std::endl;
+    std::cout << "    -VPU_TILING_CMX_LIMIT_KB     <value>     "   << tiling_cmx_limit_message     << std::endl;
     std::cout << std::endl;
 }
 
@@ -119,28 +105,20 @@ static bool parseCommandLine(int *argc, char ***argv) {
 static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
     auto config = parseConfig(configFile);
 
-    if (!FLAGS_VPU_MYRIAD_PLATFORM.empty()) {
-        config[VPU_MYRIAD_CONFIG_KEY(PLATFORM)] = FLAGS_VPU_MYRIAD_PLATFORM;
-    }
+    IE_SUPPRESS_DEPRECATED_START
+        config[VPU_MYRIAD_CONFIG_KEY(PLATFORM)] = "VPU_MYRIAD_2480";
+    IE_SUPPRESS_DEPRECATED_END
 
     if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
-        config[VPU_CONFIG_KEY(NUMBER_OF_SHAVES)] = FLAGS_VPU_NUMBER_OF_SHAVES;
+        config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
     }
 
     if (!FLAGS_VPU_NUMBER_OF_CMX_SLICES.empty()) {
-        config[VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES)] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
+        config[InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
     }
 
-    auto modelConfigFile = fileNameNoExt(xmlFileName) + ".conf.xml";
-    {
-        std::ifstream file(modelConfigFile);
-        if (!file.is_open()) {
-            modelConfigFile.clear();
-        }
-    }
-
-    if (!modelConfigFile.empty()) {
-        config[VPU_CONFIG_KEY(NETWORK_CONFIG)] = "file=" + modelConfigFile;
+    if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
+        config[InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
     }
 
     return config;
@@ -201,22 +179,30 @@ static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
 }
 
 void setPrecisions(const InferenceEngine::CNNNetwork &network, const std::string &iop) {
-    auto precisions = parsePrecisions(iop);
+    auto user_precisions_map = parsePrecisions(iop);
     auto inputs = network.getInputsInfo();
     auto outputs = network.getOutputsInfo();
 
-    for (auto &&layer : precisions) {
-        auto name = layer.first;
+    for (auto &&item : user_precisions_map) {
+        std::string layer_name = item.first;
+        std::string user_precision = item.second;
 
-        auto input_precision = inputs.find(name);
-        auto output_precision = outputs.find(name);
+        auto input = inputs.find(layer_name);
+        auto output = outputs.find(layer_name);
 
-        if (input_precision != inputs.end()) {
-            input_precision->second->setPrecision(getInputPrecision(layer.second));
-        } else if (output_precision != outputs.end()) {
-            output_precision->second->setPrecision(getOutputPrecision(layer.second));
+        if (input != inputs.end()) {
+            const auto input_precision = input->second->getPrecision();
+            if ((isFloat(input_precision) && isFloat(getInputPrecision(user_precision))) ||
+                (isFP16(input_precision) && isU8(getInputPrecision(user_precision)))) {
+                input->second->setPrecision(getInputPrecision(user_precision));
+            }
+        } else if (output != outputs.end()) {
+            auto output_precision = output->second->getPrecision();
+            if (isFloat(output_precision) && isFloat(getOutputPrecision(user_precision))) {
+                output->second->setPrecision(getOutputPrecision(user_precision));
+            }
         } else {
-            throw std::logic_error(name + " is not an input neither output");
+            throw std::logic_error(layer_name + " is not an input neither output");
         }
     }
 }
@@ -229,14 +215,21 @@ static void processPrecisions(InferenceEngine::CNNNetwork &network,
     if (!inputs_precision.empty()) {
         auto precision = getInputPrecision(inputs_precision);
         for (auto &&layer : network.getInputsInfo()) {
-            layer.second->setPrecision(precision);
+            const auto layerPrecision = layer.second->getPrecision();
+            if ((isFloat(layerPrecision) && isFloat(precision)) ||
+                (isFP16(layerPrecision) && isU8(precision))) {
+                layer.second->setPrecision(precision);
+            }
         }
     }
 
     if (!outputs_precision.empty()) {
         auto precision = getOutputPrecision(outputs_precision);
         for (auto &&layer : network.getOutputsInfo()) {
-            layer.second->setPrecision(precision);
+            const auto layerPrecision = layer.second->getPrecision();
+            if (isFloat(layerPrecision) && isFloat(precision)) {
+                layer.second->setPrecision(precision);
+            }
         }
     }
 

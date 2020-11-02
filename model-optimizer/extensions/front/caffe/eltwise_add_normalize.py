@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,18 +17,17 @@ import numpy as np
 
 from extensions.front.eltwise_n import EltwiseNReplacement
 from extensions.ops.elementwise import Mul
-from mo.front.common.replacement import FrontReplacementOp
+from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
 
 
-class EltwiseAddNormalize(FrontReplacementOp):
+class EltwiseAddNormalize(FrontReplacementPattern):
     """
     The Caffe layer "Eltwise" with operation SUM has optional attribute "coeff" which specifies the constant to multiply
     the inputs before applying. This transformation inserts Mul operation to the inputs and removes the "coeff"
     attribute from the node.
     """
-    op = 'Add'
     enabled = True
 
     def run_before(self):
@@ -42,17 +41,17 @@ class EltwiseAddNormalize(FrontReplacementOp):
             node.in_port(port).get_connection().insert_node(mul_node)
             const_node.out_port(0).connect(mul_node.in_port(1))
 
-    def replace_sub_graph(self, graph: Graph, match: dict):
-        eltwise_node = match['op']
-        if eltwise_node.has_valid('coeff') and len(eltwise_node.coeff):
-            coeff = eltwise_node.coeff
+    def find_and_replace_pattern(self, graph: Graph):
+        for eltwise_node in graph.get_op_nodes(op='EltwiseN', operation='sum') + graph.get_op_nodes(op='Add'):
+            if eltwise_node.has_valid('coeff') and len(eltwise_node.coeff):
+                coeff = eltwise_node.coeff
 
-            for i in range(len(coeff)):
-                __class__.__insert_mul_node_with_coeff(eltwise_node, i, coeff[i])
+                for i in range(len(coeff)):
+                    __class__.__insert_mul_node_with_coeff(eltwise_node, i, coeff[i])
 
-            eltwise_node.coeff = None
+                eltwise_node.coeff = None
+                if len(coeff) > 2:
+                    eltwise_node.op = "EltwiseN"
+                    eltwise_node.type = "EltwiseN"
+                    eltwise_node['operation'] = "sum"
 
-            if len(coeff) > 2:
-                eltwise_node.op = "EltwiseN"
-                eltwise_node.type = "EltwiseN"
-                eltwise_node['operation'] = "sum"

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,14 +15,13 @@
 """
 
 import logging as log
-
 import math
+
 import numpy as np
 
-from extensions.back.FuseReshapesSequence import FuseReshapesSequence
 from extensions.back.FuseTransposesSequence import FuseTransposesSequence
-from extensions.back.RemoveRedundantReshapes import RemoveRedundantReshapes
-from extensions.ops.transpose import Transpose
+from extensions.middle.FuseReshapesSequence import FuseReshapesSequence
+from extensions.middle.RemoveRedundantReshapes import RemoveRedundantReshapes
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
@@ -187,8 +186,7 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
         return [ReshapeMutation]
 
     def run_after(self):
-        from extensions.back.TileReshaper import TileReshaper
-        return [FuseTransposesSequence, TileReshaper]
+        return [FuseTransposesSequence]
 
     def is_node_match_for_optimization(self, node: Node):
         """

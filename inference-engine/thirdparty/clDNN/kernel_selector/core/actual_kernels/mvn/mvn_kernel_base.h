@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <string>
 
@@ -52,9 +52,9 @@ struct mvn_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MVNKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class MVNKernelBase : public common_kernel_base {
+class MVNKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~MVNKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
@@ -67,9 +67,11 @@ public:
     };
 
 protected:
-    virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData kd) const;
+    bool Validate(const Params&, const optional_params&) const override;
+    virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const mvn_params& params) const;
     virtual std::string GetKernelName(const mvn_params&) const { return kernelName; }
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    Datatype GetActivationType(const mvn_params& params) const;
 };
 }  // namespace kernel_selector

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,15 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from extensions.ops.identity import Identity
 from mo.front.extractor import FrontExtractorOp
-from extensions.ops.identity import IdentityOp
 
 
 class ClipGradientComponentFrontExtractor(FrontExtractorOp):
     op = 'clipgradientcomponent'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        IdentityOp.update_node_stat(node, {})
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        Identity.update_node_stat(node, {})
+        return cls.enabled

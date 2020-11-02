@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,20 +19,21 @@ from math import sqrt
 
 import numpy as np
 
-from extensions.back.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
-    mark_input_as_in_correct_layout, \
-    mark_output_as_in_correct_layout
 from extensions.front.Pack import Pack
 from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
-from extensions.front.div import Div
+from extensions.front.split_normalizer import SqueezeAxis
 from extensions.front.standalone_const_eraser import StandaloneConstEraser
-from extensions.front.sub import Sub
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
-from extensions.front.tf.Unpack import Unpack
+from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
+from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
+from extensions.front.tf.pad_tf_to_pad import PadTFToPad
+from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
+    mark_input_as_in_correct_layout, mark_output_as_in_correct_layout
 from extensions.ops.DetectionOutput import DetectionOutput
 from extensions.ops.ReduceOps import ReduceMean
 from extensions.ops.activation_ops import Sigmoid
 from extensions.ops.elementwise import Mul
+from extensions.ops.gather import Gather
 from extensions.ops.parameter import Parameter
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
 from extensions.ops.proposal import ProposalOp
@@ -40,19 +41,18 @@ from extensions.ops.psroipooling import PSROIPoolingOp
 from extensions.ops.transpose import Transpose
 from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.weights import swap_weights_xy
 from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
-    squeeze_reshape_and_concat, add_fake_background_loc, create_op_node_with_second_input
+    mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.crop import Crop
 from mo.ops.op import PermuteAttrs
-from mo.ops.result import Result
 from mo.ops.reshape import Reshape
+from mo.ops.result import Result
 from mo.ops.roipooling import ROIPooling
 from mo.ops.shape import Shape
 from mo.ops.softmax import Softmax
@@ -160,7 +160,8 @@ def _relax_reshape_nodes(graph: Graph, pipeline_config: PipelineConfig):
     for ssd_head_ind in range(num_layers):
         input_node = _find_ssd_head_node(graph, ssd_head_ind, 'box')
         assert (input_node is not None)
-        old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity'])
+        old_reshape_node = _skip_node_of_type(input_node.out_node(),
+                                              ['Identity', 'FakeQuantWithMinMaxVars', 'FakeQuantize'])
         assert old_reshape_node.op == 'Reshape'
         reshape_size_node = Const(graph, {'value': int64_array([0, -1, 1, 4])}).create_node([])
         new_reshape_op = Reshape(graph, {'name': input_node.id + '/Reshape'})
@@ -170,7 +171,9 @@ def _relax_reshape_nodes(graph: Graph, pipeline_config: PipelineConfig):
         # fix hard-coded value for the number of items in tensor produced by the convolution to make topology reshapable
         input_node = _find_ssd_head_node(graph, ssd_head_ind, 'class')
         assert (input_node is not None)
-        old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity'])
+        old_reshape_node = _skip_node_of_type(input_node.out_node(),
+                                              ['Identity', 'FakeQuantWithMinMaxVars', 'FakeQuantize'])
+
         assert old_reshape_node.op == 'Reshape'
         reshape_size_node_2 = Const(graph, {'value': int64_array([0, -1, num_classes + 1])}).create_node([])
         new_reshape_op_2 = Reshape(graph, {'name': input_node.id + '/Reshape'})
@@ -191,6 +194,9 @@ def _create_prior_boxes_node(graph: Graph, pipeline_config: PipelineConfig):
     max_scale = pipeline_config.get_param('ssd_anchor_generator_max_scale')
     num_layers = pipeline_config.get_param('ssd_anchor_generator_num_layers')
     aspect_ratios = pipeline_config.get_param('ssd_anchor_generator_aspect_ratios')
+    if not isinstance(aspect_ratios, list):
+        aspect_ratios = [aspect_ratios]
+
     # prior boxes have to be generated using the image size used for training
     image_height = pipeline_config.get_param('resizer_image_height')
     image_width = pipeline_config.get_param('resizer_image_width')
@@ -203,7 +209,11 @@ def _create_prior_boxes_node(graph: Graph, pipeline_config: PipelineConfig):
     if pipeline_config.get_param('ssd_anchor_generator_reduce_lowest') is not None:
         reduce_boxes_in_lowest_layer = pipeline_config.get_param('ssd_anchor_generator_reduce_lowest')
 
-    scales = [min_scale + (max_scale - min_scale) * i / (num_layers - 1) for i in range(num_layers)] + [1.0]
+    if pipeline_config.get_param('ssd_anchor_generator_scales') is not None:
+        scales = pipeline_config.get_param('ssd_anchor_generator_scales') + [1.0]
+    else:
+        scales = [min_scale + (max_scale - min_scale) * i / (num_layers - 1) for i in range(num_layers)] + [1.0]
+
     prior_box_nodes = []
     for ssd_head_ind in range(num_layers):
         ssd_head_node = _find_ssd_head_node(graph, ssd_head_ind, 'box')
@@ -216,8 +226,10 @@ def _create_prior_boxes_node(graph: Graph, pipeline_config: PipelineConfig):
             widths = [scales[ssd_head_ind] * sqrt(ar) for ar in aspect_ratios]
             heights = [scales[ssd_head_ind] / sqrt(ar) for ar in aspect_ratios]
 
-            widths += [sqrt(scales[ssd_head_ind] * scales[ssd_head_ind + 1])]
-            heights += [sqrt(scales[ssd_head_ind] * scales[ssd_head_ind + 1])]
+            interpolated_scale_ar = pipeline_config.get_param('ssd_anchor_generator_interpolated_scale_aspect_ratio')
+            if interpolated_scale_ar > 0.0:
+                widths += [sqrt(scales[ssd_head_ind] * scales[ssd_head_ind + 1]) * interpolated_scale_ar]
+                heights += [sqrt(scales[ssd_head_ind] * scales[ssd_head_ind + 1]) / interpolated_scale_ar]
         widths = [w * image_width * base_anchor_size[1] for w in widths]
         heights = [h * image_height * base_anchor_size[0] for h in heights]
 
@@ -281,6 +293,67 @@ def _create_multiscale_prior_boxes_node(graph: Graph, pipeline_config: PipelineC
     else:
         concat_prior_boxes_op = Concat(graph, {'axis': -1, 'in_ports_count': len(prior_box_nodes)})
         return concat_prior_boxes_op.create_node(prior_box_nodes, {'name': 'ConcatPriorBoxesClustered'})
+
+
+def insert_weights_swap_xy_sub_graph(graph: Graph, connection):
+    """
+    Inserts a sub-graph of operations which does the following:
+    1. Reshapes the input tensor (should be convolution weights/biases) to [-1, 2].
+    2. Swaps slices of data [:, 0] and [:, 1].
+    3. Reshapes tensor to the initial shape.
+    """
+    weights_producer = connection.get_source()
+    name = weights_producer.node.soft_get('name', weights_producer.node.id)
+
+    # this Shape operation must be inferred and constant folded
+    origin_shape = Shape(graph, {'name': name + '/OriginShape', 'force_dead_node': True}).create_node()
+    origin_shape.in_port(0).connect(weights_producer)
+
+    reshaped = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 2]), {'name': name + '/Reshape2D'})
+    reshaped.in_port(0).connect(weights_producer)
+
+    swapped_weight = Gather(graph, {'name': name + '/SwappedWeights'}).create_node()
+    gather_indices = Const(graph,
+                           {'name': swapped_weight.name + '/Indices', 'value': int64_array([1, 0])}).create_node()
+    gather_axis = Const(graph, {'name': swapped_weight.name + '/Axis', 'value': int64_array(1)}).create_node()
+    swapped_weight.in_port(0).connect(reshaped.out_port(0))
+    swapped_weight.in_port(1).connect(gather_indices.out_port(0))
+    swapped_weight.in_port(2).connect(gather_axis.out_port(0))
+
+    reshape_back = Reshape(graph, {'name': name + '/ReshapeBack'}).create_node()
+    reshape_back.in_port(0).connect(swapped_weight.out_port(0))
+    reshape_back.in_port(1).connect(origin_shape.out_port(0))
+
+    connection.set_source(reshape_back.out_port(0))
+
+
+def swap_weights_xy(graph: Graph, nodes: list):
+    """
+    The function changes weights of the nodes from the 'nodes' list which are used with calculations with coordinates of
+    some objects. The function should be used when it is necessary to virtually change the layout of data from XY to YX.
+    The node from the 'nodes' list should be some sort of convolution node or matrix multiplication.
+    The function also swaps weights in the following Add and BiasAdd operations.
+    :param graph: graph with the topology.
+    :param nodes: list of Node objects to change the weights in them.
+    :return: None
+    """
+    producers_ports = set()
+    for node in nodes:
+        # need to skip the FakeQuantize node if it exists
+        weights_producer = node.in_port(1).get_source()
+        if weights_producer.node.soft_get('type') == 'FakeQuantize':
+            weights_producer = weights_producer.node.in_port(0).get_source()
+        producers_ports.add(weights_producer)
+
+    for producers_port in producers_ports:
+        log.debug('Swapping weights for node "{}"'.format(producers_port.node.name))
+        insert_weights_swap_xy_sub_graph(graph, producers_port.get_connection())
+
+    for node in nodes:
+        # swap biases
+        for m in [n.node for n in node.out_port(0).get_destinations()]:
+            if m.soft_get('type') in ['Add', 'BiasAdd']:
+                insert_weights_swap_xy_sub_graph(graph, m.in_port(1).get_connection())
 
 
 def skip_nodes_by_condition(current_node: Node, condition: callable):
@@ -374,7 +447,7 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
                                                                                user_defined_width,
                                                                                resizer_min_dimension,
                                                                                resizer_max_dimension)
-            if scaled_height != user_defined_height or scaled_width != scaled_width:
+            if scaled_height != user_defined_height or scaled_width != user_defined_width:
                 log.error('The model resizes the input image keeping aspect ratio with min dimension {}, max '
                           'dimension {}. The provided input height {}, width {} is transformed to height {}, width '
                           '{}.'.format(resizer_min_dimension, resizer_max_dimension, user_defined_height,
@@ -399,7 +472,11 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
     replacement_id = 'ObjectDetectionAPIPreprocessorReplacement'
 
     def run_before(self):
-        return [Pack, Sub, TransposeOrderNormalizer]
+        # PadTFToPad inserts Transpose ops for Pad ops inside the sub-graph corresponding to DetectionOutput.
+        # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
+        # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
+        # results in TransposeOrderNormalizer transformation failure.
+        return [Pack, TransposeOrderNormalizer, PadTFToPad]
 
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         new_nodes_to_remove = match.matched_nodes_names()
@@ -471,30 +548,32 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
     replacement_id = 'ObjectDetectionAPIDetectionOutputReplacement'
 
     def run_before(self):
-        return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement, Unpack, Sub, TransposeOrderNormalizer]
+        return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement, SqueezeAxis, TransposeOrderNormalizer]
 
     def run_after(self):
-        return [ObjectDetectionAPIProposalReplacement, CropAndResizeReplacement]
+        return [ObjectDetectionAPIProposalReplacement, CropAndResizeReplacement, FakeQuantWithMinMaxVarsToQuantize]
 
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         new_nodes_to_remove = match.matched_nodes_names().copy()
         outputs = ['detection_boxes', 'detection_scores', 'num_detections']
         for output in outputs:
-            children = Node(graph, output).out_nodes()
-            if len(children) != 1:
-                log.warning('Output {} has {} children. It should have only one output: with op==`Result`'
-                            ''.format(output, len(children)))
-            elif children[list(children.keys())[0]].op == 'Result':
-                new_nodes_to_remove.append(children[list(children.keys())[0]].id)
-            else:
-                continue
+            if output in graph.nodes:
+                children = Node(graph, output).out_nodes()
+                if len(children) != 1:
+                    log.warning('Output {} has {} children. It should have only one output: with op==`Result`'
+                                ''.format(output, len(children)))
+                elif children[list(children.keys())[0]].op == 'Result':
+                    new_nodes_to_remove.append(children[list(children.keys())[0]].id)
         new_nodes_to_remove.extend(outputs)
         return new_nodes_to_remove
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         # the DetectionOutput in IE produces single tensor, but in TF it produces four tensors, so we need to create
         # only one output edge match
-        return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
+        if match.outputs_count() >= 1:
+            return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
+        else:
+            return {list(graph.graph.get("packed_outputs").keys())[0]: new_sub_graph['detection_output_node'].id}
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
         argv = graph.graph['cmd_params']
@@ -605,10 +684,6 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         mark_as_correct_data_layout(reshape_priors_node)
 
         detection_output_op = DetectionOutput(graph, {})
-        if coordinates_swap_method == 'swap_weights':
-            # update infer function to re-pack weights
-            detection_output_op.attrs['old_infer'] = detection_output_op.attrs['infer']
-            detection_output_op.attrs['infer'] = __class__.do_infer
         for key in ('clip_before_nms', 'clip_after_nms'):
             if key in match.custom_replacement_desc.custom_attributes:
                 detection_output_op.attrs[key] = int(match.custom_replacement_desc.custom_attributes[key])
@@ -626,6 +701,9 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         # sets specific name to the node so we can find it in other replacers
         detection_output_node.name = 'detection_output'
 
+        if coordinates_swap_method == 'swap_weights':
+            swap_weights_xy(graph, backward_bfs_for_operation(detection_output_node.in_node(0), ['MatMul', 'Conv2D']))
+
         output_op = Result(graph, dict(name='do_OutputOp'))
         output_op.create_node([detection_output_node])
 
@@ -634,13 +712,6 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
               'documentation for information about this layer.')
 
         return {'detection_output_node': detection_output_node}
-
-    @staticmethod
-    def do_infer(node):
-        node.old_infer(node)
-        # compared to the IE's DetectionOutput, the TF keeps the locations in YXYX, need to get back to the XYXY
-        # for last matmul/Conv2D that operate the locations need to swap the X and Y for output feature weights & biases
-        swap_weights_xy(backward_bfs_for_operation(node.in_node(0), ['MatMul', 'Conv2D']))
 
 
 class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFromConfigFileSubGraph):
@@ -665,6 +736,9 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
             raise Error("Found the following nodes '{}' with 'detection_output' but there should be exactly 1.".
                         format(detection_output_nodes_ids))
         detection_output_node = Node(graph, detection_output_nodes_ids[0])
+        output_nodes = [port.node for port in detection_output_node.out_port(0).get_destinations() if port.node.soft_get('type') == 'Result']
+        if len(output_nodes) == 1:
+            graph.remove_node(output_nodes[0].id)
 
         # add reshape of Detection Output so it can be an output of the topology
         reshape_detection_output_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 7]),
@@ -718,19 +792,12 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
         return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement]
 
     def transform_graph(self, graph: Graph, replacement_descriptions):
-        output_node = None
-        op_outputs = [n for n, d in graph.nodes(data=True) if 'op' in d and d['op'] == 'Result']
+        op_outputs = graph.get_op_nodes(op='Result')
         for op_output in op_outputs:
-            last_node = Node(graph, op_output).in_node(0)
+            last_node = op_output.in_port(0).get_source().node
             if last_node.name.startswith('SecondStageBoxPredictor'):
-                sigmoid_node = Sigmoid(graph, dict(name=last_node.id + '/sigmoid')).create_node([last_node])
-                sigmoid_node.name = 'masks'
-
-                if output_node is not None:
-                    raise Error('Identified two possible outputs from the topology. Cannot proceed.')
-                # add special node of type "Output" that is a marker for the output nodes of the topology
-                output_op = Result(graph, dict(name=sigmoid_node.name + '/OutputOp'))
-                output_node = output_op.create_node([sigmoid_node])
+                sigmoid_node = Sigmoid(graph, dict(name='masks')).create_node()
+                op_output.in_port(0).get_connection().insert_node(sigmoid_node)
 
         print('The predicted masks are produced by the "masks" layer for each bounding box generated with a '
               '"detection_output" layer.\n Refer to IR catalogue in the documentation for information '
@@ -750,7 +817,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         return [ObjectDetectionAPIPreprocessorReplacement]
 
     def run_before(self):
-        return [Sub, CropAndResizeReplacement, TransposeOrderNormalizer]
+        return [CropAndResizeReplacement, TransposeOrderNormalizer]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['proposal_node'].id}
@@ -898,13 +965,10 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
     replacement_id = 'ObjectDetectionAPISSDPostprocessorReplacement'
 
     def run_after(self):
-        return [ObjectDetectionAPIPreprocessorReplacement]
+        return [ObjectDetectionAPIPreprocessorReplacement, FakeQuantWithMinMaxVarsToQuantize]
 
     def run_before(self):
-        # the replacer uses node of type "RealDiv" as one of the start points, but Model Optimizer replaces nodes of
-        # type "RealDiv" with a new ones, so it is necessary to replace the sub-graph before replacing the "RealDiv"
-        # nodes
-        return [Div, StandaloneConstEraser, TransposeOrderNormalizer]
+        return [StandaloneConstEraser, TransposeOrderNormalizer, TFSliceToSliceReplacer]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         # the DetectionOutput in IE produces single tensor, but in TF it produces two tensors, so create only one output
@@ -944,8 +1008,11 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
                                                              {'name': 'do_reshape_conf'}, activation_conf_node)
         mark_as_correct_data_layout(reshape_conf_node)
 
-        if pipeline_config.get_param('ssd_anchor_generator_num_layers') is not None or \
-                pipeline_config.get_param('multiscale_anchor_generator_min_level') is not None:
+        custom_attributes = match.custom_replacement_desc.custom_attributes
+        if ('disable_prior_boxes_layers_generator' not in custom_attributes or
+            not custom_attributes['disable_prior_boxes_layers_generator']) and \
+                (pipeline_config.get_param('ssd_anchor_generator_num_layers') is not None or
+                 pipeline_config.get_param('multiscale_anchor_generator_min_level') is not None):
             # change the Reshape operations with hardcoded number of output elements of the convolution nodes to be
             # reshapable
             _relax_reshape_nodes(graph, pipeline_config)
@@ -961,21 +1028,29 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
 
         # creates DetectionOutput Node object from Op class
         detection_output_op = DetectionOutput(graph, match.custom_replacement_desc.custom_attributes)
+        for key in ('clip_before_nms', 'clip_after_nms'):
+            if key in match.custom_replacement_desc.custom_attributes:
+                detection_output_op.attrs[key] = int(match.custom_replacement_desc.custom_attributes[key])
         detection_output_op.attrs['old_infer'] = detection_output_op.attrs['infer']
         detection_output_op.attrs['infer'] = __class__.do_infer
         detection_output_node = detection_output_op.create_node(
             [reshape_loc_node, reshape_conf_node, priors_node],
             dict(name=detection_output_op.attrs['type'],
-                 clip=1,
                  confidence_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_score_threshold'),
                  top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_detections_per_class'),
                  keep_top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_total_detections'),
                  nms_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_iou_threshold')))
 
+        # compared to the IE's DetectionOutput, the TF keeps the locations in YXYX, need to get back to the XYXY
+        # for last convolutions that operate the locations need to swap the X and Y for output feature weights & biases
+        conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'])
+        swap_weights_xy(graph, conv_nodes)
+
         return {'detection_output_node': detection_output_node}
 
     @staticmethod
     def do_infer(node: Node):
+        graph = node.graph
         prior_boxes = node.in_node(2).value
         if prior_boxes is not None:
             argv = node.graph.graph['cmd_params']
@@ -997,17 +1072,9 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
             node.in_node(2).value = prior_boxes
 
         node.old_infer(node)
-        # compared to the IE's DetectionOutput, the TF keeps the locations in YXYX, need to get back to the XYXY
-        # for last convolutions that operate the locations need to swap the X and Y for output feature weights & biases
-        conv_nodes = backward_bfs_for_operation(node.in_node(0), ['Conv2D'])
-        swap_weights_xy(conv_nodes)
-        squeeze_reshape_and_concat(conv_nodes)
 
-        for node_name in node.graph.nodes():
-            node = Node(node.graph, node_name)
-            if node.has_and_set('swap_xy_count') and len(node.out_nodes()) != node['swap_xy_count']:
-                raise Error('The weights were swapped for node "{}", but this weight was used in other nodes.'.format(
-                    node.name))
+        conv_nodes = backward_bfs_for_operation(node.in_node(0), ['Conv2D'])
+        mark_squeeze_reshape_concat_before_detection_output(conv_nodes)
 
 
 class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral):

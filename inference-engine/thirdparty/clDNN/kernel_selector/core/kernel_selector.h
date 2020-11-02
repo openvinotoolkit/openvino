@@ -50,6 +50,8 @@ protected:
                                               const optional_params& options,
                                               KernelType kType) const;
 
+    KernelList GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const;
+
     KernelList implementations;
     ForceList forceKernels;
 

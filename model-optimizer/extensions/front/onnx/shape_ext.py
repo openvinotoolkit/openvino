@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.shape import Shape
@@ -22,7 +23,7 @@ class ShapeFrontExtractor(FrontExtractorOp):
     op = 'Shape'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        Shape.update_node_stat(node)
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        Shape.update_node_stat(node, {'output_type': np.int64})
+        return cls.enabled

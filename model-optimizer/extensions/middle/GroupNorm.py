@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,12 +18,14 @@ from typing import Dict
 
 import numpy as np
 
+from extensions.ops.Cast import Cast
+from extensions.ops.elementwise import Mul, Add
 from extensions.ops.mvn import MVN
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
-from extensions.ops.elementwise import Mul, Add
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
 from mo.utils.shape import node_to_get_spatial_dimensions_value, node_to_get_features_dimension_value, \
@@ -52,14 +54,25 @@ class GroupNormToMVN(MiddleReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         group_norm_node = match['op']
+        group_norm_num_input_dims = len(group_norm_node.in_port(0).data.get_shape())
 
         # node computing initial GroupNorm input shape
         initial_shape_op_node = Shape(graph, {'name': group_norm_node.name + '/Shape'}).create_node()
         initial_shape_op_node.in_port(0).connect(group_norm_node.in_port(0).get_source())
 
-        initial_batch_dim_node = node_to_get_batch_value(initial_shape_op_node)
-        initial_features_dim_node = node_to_get_features_dimension_value(initial_shape_op_node)
-        initial_spatial_dims_node = node_to_get_spatial_dimensions_value(initial_shape_op_node)
+        initial_shape_op_node_float = Cast(
+            graph, {'name': initial_shape_op_node.name + '/to_float',
+                    'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node()
+        initial_shape_op_node.out_port(0).connect(initial_shape_op_node_float.in_port(0))
+
+        initial_batch_dim_node = node_to_get_batch_value(initial_shape_op_node_float)
+        initial_features_dim_node = node_to_get_features_dimension_value(initial_shape_op_node_float)
+        initial_spatial_dims_node_int = node_to_get_spatial_dimensions_value(initial_shape_op_node)
+        initial_spatial_dims_node = Cast(
+            graph, {'name': initial_spatial_dims_node_int.name + '/to_float',
+                    'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node()
+        initial_spatial_dims_node_int.out_port(0).connect(initial_spatial_dims_node.in_port(0))
+
         group_size_node = Const(graph, {'value': int64_array([group_norm_node.num_groups]),
                                         'name': group_norm_node.name + '/GroupSize'}).create_node()
 
@@ -76,22 +89,28 @@ class GroupNormToMVN(MiddleReplacementPattern):
         batch_mul_group_size_node.in_port(1).connect(group_size_node.out_port(0))
 
         # create new node which concatenates several dims to one
-        new_shape_node = new_shape_node_from_shape_nodes([batch_mul_group_size_node, c_div_g_node,
-                                                          initial_spatial_dims_node])
+        new_shape_node_float = new_shape_node_from_shape_nodes([batch_mul_group_size_node, c_div_g_node,
+                                                                initial_spatial_dims_node])
+        new_shape_node = Cast(graph,
+                              {'name': new_shape_node_float.name + '/to_int64', 'dst_type': np.int64}).create_node()
+        new_shape_node_float.out_port(0).connect(new_shape_node.in_port(0))
 
         reshape_for_mvn_node = Reshape(graph, {}).create_node()
 
         group_norm_node.in_port(0).get_connection().set_destination(reshape_for_mvn_node.in_port(0))
         reshape_for_mvn_node.in_port(1).connect(new_shape_node.out_port(0))
 
-        # Reshape the gamma and beta constants to correct layout from [C] to [1,C,1,1]
+        # Reshape the gamma and beta constants to correct layout from [C] to [1,C], [1,C,1], [1,C,1,1] etc
+        gamma_beta_shape = np.ones([group_norm_num_input_dims], dtype=np.int64)
+        gamma_beta_shape[1] = -1
+
         gamma_value = group_norm_node.in_port(1).get_source().data.get_value()
         beta_value = group_norm_node.in_port(2).get_source().data.get_value()
         assert gamma_value is not None, 'The gamma should be constant'
         assert beta_value is not None, 'The beta should be constant'
-        gamma_value = np.reshape(gamma_value, [1, -1, 1, 1])
+        gamma_value = np.reshape(gamma_value, gamma_beta_shape)
         group_norm_node.in_port(1).get_source().data.set_value(gamma_value)
-        beta_value = np.reshape(beta_value, [1, -1, 1, 1])
+        beta_value = np.reshape(beta_value, gamma_beta_shape)
         group_norm_node.in_port(2).get_source().data.set_value(beta_value)
 
         # MVN

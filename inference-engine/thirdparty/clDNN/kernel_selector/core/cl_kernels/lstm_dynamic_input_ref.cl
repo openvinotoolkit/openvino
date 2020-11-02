@@ -26,8 +26,8 @@ KERNEL(lstm_dynamic_input_ref)(
     )
 {
     const uint y        = get_global_id(0);
-    const uint batch    = get_global_id(1) % INPUT0_BATCH_NUM;
-    const uint dir      = get_global_id(1) / INPUT0_BATCH_NUM;
+    const uint batch    = (uint)get_global_id(1) % INPUT0_BATCH_NUM;
+    const uint dir      = (uint)get_global_id(1) / INPUT0_BATCH_NUM;
     const uint timestep = get_global_id(2);
 
     if(timestep > (uint)dyn_lengths[batch])
@@ -37,7 +37,7 @@ KERNEL(lstm_dynamic_input_ref)(
     for(uint x = 0; x < INPUT0_SIZE_X; ++x )
     {
         const uint input_idx   = GET_DATA_INDEX(INPUT0, batch, timestep, dir, x);
-        const uint weights_idx = GET_DATA_INDEX(WEIGHTS, 0, dir, y, x);
+        const uint weights_idx = GET_FILTER_INDEX(WEIGHTS, 0, 0, dir, y, x);
         dot_prod += (ACCUMULATOR_TYPE)(input[input_idx] * weights[weights_idx]);
     }
 

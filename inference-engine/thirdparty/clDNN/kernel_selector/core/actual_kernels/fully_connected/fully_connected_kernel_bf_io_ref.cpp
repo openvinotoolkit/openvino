@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#include <vector>
 
 #include "fully_connected_kernel_bf_io_ref.h"
 
@@ -32,13 +32,24 @@ ParamsKey FullyConnected_bf_io_ref::GetSupportedKey() const {
     return k;
 }
 
+JitConstants FullyConnected_bf_io_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetUnitType(params);
+        FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "result", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+    return jit;
+}
+
 KernelsData FullyConnected_bf_io_ref::GetKernelsData(const Params& params, const optional_params& optParams) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     optParams,
                                                     DataLayout::bf,
-                                                    {WeightsLayout::io},
+                                                    WeightsLayout::io,
                                                     DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
@@ -48,4 +59,5 @@ KernelsData FullyConnected_bf_io_ref::GetKernelsData(const Params& params, const
 
     return res;
 }
+
 }  // namespace kernel_selector

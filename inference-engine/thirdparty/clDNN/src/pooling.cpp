@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,14 +22,12 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id pooling_type_id() {
+primitive_type_id pooling::type_id() {
     static primitive_type_base<pooling> instance;
     return &instance;
 }
 
 layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for pooling_node!");
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
@@ -37,6 +35,21 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
     auto input_offset = desc->input_offset;
     auto stride = desc->stride;
     auto window_size = desc->size;
+
+    // auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_layout.data_type;
+    // FIXME: dirty hack. Replace it with optional output data type (above) once IE returns correct precision on edges
+    auto output_type = input_layout.data_type;
+
+    if (output_type == data_types::u8 || output_type == data_types::i8) {
+        if (desc->mode == pooling_mode::average_no_padding || desc->mode == pooling_mode::average) {
+            output_type = data_types::f32;
+        }
+    }
+
+
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    }
 
     if (!desc->argmax.empty())
         CLDNN_ERROR_NOT_EQUAL(node.id(),
@@ -136,26 +149,32 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                           0,
                           "Input offset in batch is not supported");
 
-    if (input_layout.format == format::bfzyx) {
+    if (input_layout.format.spatial_num() == 3) {
         // 3D
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
-                                       "stride spatial Z",
-                                       stride.spatial[1],
-                                       "",
-                                       0,
-                                       "Stride spatial Z must be positive (>= 1)");
+                               "stride spatial Z",
+                               stride.spatial[1],
+                               "",
+                               0,
+                               "Stride spatial Z must be positive (>= 1)");
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
-                                       "window size spatial Z",
-                                       window_size.spatial[2],
-                                       "",
-                                       0,
-                                       "Size Z (of pooling window) must be positive (>= 1)");
+                               "window size spatial Z",
+                               window_size.spatial[2],
+                               "",
+                               0,
+                               "Size Z (of pooling window) must be positive (>= 1)");
         CLDNN_ERROR_GREATER_THAN(node.id(),
-                                 "Input offset spatial Z",
-                                 2 * input_offset.spatial[2],
-                                 "input layout size spatial Z",
-                                 input_layout.size.spatial[2],
-                                 "Input offset is greater than input data range. There is no input data to process");
+                               "Input offset spatial Z",
+                               2 * input_offset.spatial[2],
+                               "input layout size spatial Z",
+                               input_layout.size.spatial[2],
+                               "Input offset is greater than input data range. There is no input data to process");
+        CLDNN_ERROR_GREATER_THAN(node.id(),
+                               "Negate input offset spatial Z",
+                               -input_offset.spatial[2],
+                               "input window size spatial Z",
+                               window_size.spatial[2],
+                               "First pool is outside of image. please reduce input offset Z");
     }
 
     if (desc->with_output_size) {
@@ -183,7 +202,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
-        return {input_layout.data_type, input_layout.format, output_size};
+        return {output_type, input_layout.format, output_size};
     }
 
     // TODO: Check compatibility of output size calculation (with caffe).
@@ -200,7 +219,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                        output_range.spatial[0],
                        output_range.spatial[1],
                        output_range.spatial[2]);
-    return {input_layout.data_type, input_layout.format, output_size};
+    return {output_type, input_layout.format, output_size};
 }
 
 std::string pooling_inst::to_string(pooling_node const& node) {

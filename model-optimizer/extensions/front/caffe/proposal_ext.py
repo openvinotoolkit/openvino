@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,17 +15,17 @@
 """
 import numpy as np
 
+from extensions.ops.proposal import ProposalOp
 from mo.front.caffe.collect_attributes import merge_attrs
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
 
 
 class ProposalFrontExtractor(FrontExtractorOp):
     op = 'Proposal'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         proto_layer = node.pb
         param = proto_layer.proposal_param
         update_attrs = {
@@ -41,5 +41,5 @@ class ProposalFrontExtractor(FrontExtractorOp):
 
         mapping_rule = merge_attrs(param, update_attrs)
         # update the attributes of the node
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        ProposalOp.update_node_stat(node, mapping_rule)
+        return cls.enabled

@@ -2,14 +2,18 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #include "precomp.hpp"
 
-#include "opencv2/gapi/imgproc.hpp"
-#include "opencv2/gapi/cpu/imgproc.hpp"
-#include "backends/cpu/gcpuimgproc.hpp"
+#include <opencv2/gapi/imgproc.hpp>
+#include <opencv2/gapi/cpu/imgproc.hpp>
+#include <opencv2/gapi/cpu/gcpukernel.hpp>
+#include <opencv2/gapi/gcompoundkernel.hpp>
+
+#include "backends/fluid/gfluidimgproc_func.hpp"
+
 
 namespace {
     cv::Mat add_border(const cv::Mat& in, const int ksize, const int borderType, const cv::Scalar& bordVal){
@@ -162,6 +166,24 @@ GAPI_OCV_KERNEL(GCPUSobelXY, cv::gapi::imgproc::GSobelXY)
     }
 };
 
+GAPI_OCV_KERNEL(GCPULaplacian, cv::gapi::imgproc::GLaplacian)
+{
+    static void run(const cv::Mat& in, int ddepth, int ksize, double scale,
+                    double delta, int borderType, cv::Mat &out)
+    {
+        cv::Laplacian(in, out, ddepth, ksize, scale, delta, borderType);
+    }
+};
+
+GAPI_OCV_KERNEL(GCPUBilateralFilter, cv::gapi::imgproc::GBilateralFilter)
+{
+    static void run(const cv::Mat& in, int d, double sigmaColor,
+                    double sigmaSpace, int borderType, cv::Mat &out)
+    {
+        cv::bilateralFilter(in, out, d, sigmaColor, sigmaSpace, borderType);
+    }
+};
+
 GAPI_OCV_KERNEL(GCPUEqualizeHist, cv::gapi::imgproc::GEqHist)
 {
     static void run(const cv::Mat& in, cv::Mat &out)
@@ -175,6 +197,17 @@ GAPI_OCV_KERNEL(GCPUCanny, cv::gapi::imgproc::GCanny)
     static void run(const cv::Mat& in, double thr1, double thr2, int apSize, bool l2gradient, cv::Mat &out)
     {
         cv::Canny(in, out, thr1, thr2, apSize, l2gradient);
+    }
+};
+
+GAPI_OCV_KERNEL(GCPUGoodFeatures, cv::gapi::imgproc::GGoodFeatures)
+{
+    static void run(const cv::Mat& image, int maxCorners, double qualityLevel, double minDistance,
+                    const cv::Mat& mask, int blockSize, bool useHarrisDetector, double k,
+                    std::vector<cv::Point2f> &out)
+    {
+        cv::goodFeaturesToTrack(image, out, maxCorners, qualityLevel, minDistance,
+                                mask, blockSize, useHarrisDetector, k);
     }
 };
 
@@ -276,6 +309,124 @@ GAPI_OCV_KERNEL(GCPURGB2GrayCustom, cv::gapi::imgproc::GRGB2GrayCustom)
     }
 };
 
+GAPI_OCV_KERNEL(GCPUBayerGR2RGB, cv::gapi::imgproc::GBayerGR2RGB)
+{
+    static void run(const cv::Mat& in, cv::Mat &out)
+    {
+        cv::cvtColor(in, out, cv::COLOR_BayerGR2RGB);
+    }
+};
+
+GAPI_OCV_KERNEL(GCPURGB2HSV, cv::gapi::imgproc::GRGB2HSV)
+{
+    static void run(const cv::Mat& in, cv::Mat &out)
+    {
+        cv::cvtColor(in, out, cv::COLOR_RGB2HSV);
+    }
+};
+
+GAPI_OCV_KERNEL(GCPURGB2YUV422, cv::gapi::imgproc::GRGB2YUV422)
+{
+    static void run(const cv::Mat& in, cv::Mat &out)
+    {
+        out.create(in.size(), CV_8UC2);
+
+        for (int i = 0; i < in.rows; ++i)
+        {
+            const uchar* in_line_p  = in.ptr<uchar>(i);
+            uchar* out_line_p = out.ptr<uchar>(i);
+            cv::gapi::fluid::run_rgb2yuv422_impl(out_line_p, in_line_p, in.cols);
+        }
+    }
+};
+
+static void toPlanar(const cv::Mat& in, cv::Mat& out)
+{
+    GAPI_Assert(out.depth() == in.depth());
+    GAPI_Assert(out.channels() == 1);
+    GAPI_Assert(in.channels() == 3);
+    GAPI_Assert(out.cols == in.cols);
+    GAPI_Assert(out.rows == 3*in.rows);
+
+    std::vector<cv::Mat> outs(3);
+    for (int i = 0; i < 3; i++) {
+        outs[i] = out(cv::Rect(0, i*in.rows, in.cols, in.rows));
+    }
+    cv::split(in, outs);
+}
+
+
+GAPI_OCV_KERNEL(GCPUNV12toRGBp, cv::gapi::imgproc::GNV12toRGBp)
+{
+    static void run(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out)
+    {
+        cv::Mat rgb;
+        cv::cvtColorTwoPlane(inY, inUV, rgb, cv::COLOR_YUV2RGB_NV12);
+        toPlanar(rgb, out);
+    }
+};
+
+G_TYPED_KERNEL(GYUV2Gray, <cv::GMat(cv::GMat)>, "yuvtogray") {
+    static cv::GMatDesc outMeta(cv::GMatDesc in) {
+        GAPI_Assert(in.depth  == CV_8U);
+        GAPI_Assert(in.planar == false);
+        GAPI_Assert(in.size.width  % 2 == 0);
+        GAPI_Assert(in.size.height % 3 == 0);
+
+        /* YUV format for this kernel:
+         * Y Y Y Y Y Y Y Y
+         * Y Y Y Y Y Y Y Y
+         * Y Y Y Y Y Y Y Y
+         * Y Y Y Y Y Y Y Y
+         * U V U V U V U V
+         * U V U V U V U V
+         */
+
+        return {CV_8U, 1, cv::Size{in.size.width, in.size.height - (in.size.height / 3)}, false};
+    }
+};
+
+GAPI_OCV_KERNEL(GCPUYUV2Gray, GYUV2Gray)
+{
+    static void run(const cv::Mat& in, cv::Mat& out)
+    {
+        cv::cvtColor(in, out, cv::COLOR_YUV2GRAY_NV12);
+    }
+};
+
+G_TYPED_KERNEL(GConcatYUVPlanes, <cv::GMat(cv::GMat, cv::GMat)>, "concatyuvplanes") {
+    static cv::GMatDesc outMeta(cv::GMatDesc y, cv::GMatDesc uv) {
+        return {CV_8U, 1, cv::Size{y.size.width, y.size.height + uv.size.height}, false};
+    }
+};
+
+GAPI_OCV_KERNEL(GCPUConcatYUVPlanes, GConcatYUVPlanes)
+{
+    static void run(const cv::Mat& in_y, const cv::Mat& in_uv, cv::Mat& out)
+    {
+        cv::Mat uv_planar(in_uv.rows, in_uv.cols * 2, CV_8UC1, in_uv.data);
+        cv::vconcat(in_y, uv_planar, out);
+    }
+};
+
+GAPI_COMPOUND_KERNEL(GCPUNV12toGray, cv::gapi::imgproc::GNV12toGray)
+{
+    static cv::GMat expand(cv::GMat y, cv::GMat uv)
+    {
+        return GYUV2Gray::on(GConcatYUVPlanes::on(y, uv));
+    }
+};
+
+GAPI_OCV_KERNEL(GCPUNV12toBGRp, cv::gapi::imgproc::GNV12toBGRp)
+{
+    static void run(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out)
+    {
+        cv::Mat rgb;
+        cv::cvtColorTwoPlane(inY, inUV, rgb, cv::COLOR_YUV2BGR_NV12);
+        toPlanar(rgb, out);
+    }
+};
+
 cv::gapi::GKernelPackage cv::gapi::imgproc::cpu::kernels()
 {
     static auto pkg = cv::gapi::kernels
@@ -289,7 +440,10 @@ cv::gapi::GKernelPackage cv::gapi::imgproc::cpu::kernels()
         , GCPUDilate
         , GCPUSobel
         , GCPUSobelXY
+        , GCPULaplacian
+        , GCPUBilateralFilter
         , GCPUCanny
+        , GCPUGoodFeatures
         , GCPUEqualizeHist
         , GCPURGB2YUV
         , GCPUYUV2RGB
@@ -303,6 +457,14 @@ cv::gapi::GKernelPackage cv::gapi::imgproc::cpu::kernels()
         , GCPUBGR2Gray
         , GCPURGB2Gray
         , GCPURGB2GrayCustom
+        , GCPUBayerGR2RGB
+        , GCPURGB2HSV
+        , GCPURGB2YUV422
+        , GCPUYUV2Gray
+        , GCPUNV12toRGBp
+        , GCPUNV12toBGRp
+        , GCPUNV12toGray
+        , GCPUConcatYUVPlanes
         >();
     return pkg;
 }

@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api_impl.h"
+#include "api/event.hpp"
 #include "refcounted_obj.h"
 
 #include <list>
@@ -33,18 +33,23 @@ public:
     void wait();
     bool is_set();
     virtual bool is_valid() const { return _attached; }
-    virtual void reset() { _attached = false; }
+    virtual void reset() {
+        _attached = false;
+        _set = false;
+        _profiling_captured = false;
+        _profiling_info.clear();
+    }
     // returns true if handler has been successfully added
-    bool add_event_handler(cldnn_event_handler handler, void* data);
+    bool add_event_handler(event_handler handler, void* data);
 
-    const std::list<cldnn_profiling_interval>& get_profiling_info();
+    const std::list<instrumentation::profiling_interval>& get_profiling_info();
 
 private:
     std::mutex _handlers_mutex;
-    std::list<std::pair<cldnn_event_handler, void*>> _handlers;
+    std::list<std::pair<event_handler, void*>> _handlers;
 
     bool _profiling_captured = false;
-    std::list<cldnn_profiling_interval> _profiling_info;
+    std::list<instrumentation::profiling_interval> _profiling_info;
 
 protected:
     bool _set = false;
@@ -54,11 +59,11 @@ protected:
 
     virtual void wait_impl() = 0;
     virtual bool is_set_impl() = 0;
-    virtual bool add_event_handler_impl(cldnn_event_handler, void*) { return true; }
+    virtual bool add_event_handler_impl(event_handler, void*) { return true; }
 
     // returns whether profiling info has been captures successfully and there's no need to call this impl a second time
     // when user requests to get profling info
-    virtual bool get_profiling_info_impl(std::list<cldnn_profiling_interval>&) { return true; }
+    virtual bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>&) { return true; }
 };
 
 struct user_event : virtual public event_impl {
@@ -78,5 +83,3 @@ private:
 };
 
 }  // namespace cldnn
-
-API_CAST(::cldnn_event, cldnn::event_impl)

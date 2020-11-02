@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import numpy as np
 from extensions.front.caffe.eltwise_add_normalize import EltwiseAddNormalize
 from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.passes.eliminate_test import build_graph
-from mo.middle.passes.fusing.fuse_linear_ops_test import compare_graphs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 input_shape = int64_array([1, 4, 10])
 const_1_value = np.array([2.0])

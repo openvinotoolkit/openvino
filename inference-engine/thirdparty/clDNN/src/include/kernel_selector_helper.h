@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,22 @@
 
 #pragma once
 
-#include "api/C/cldnn.h"
-#include "api/CPP/tensor.hpp"
+#include "api/cldnn.hpp"
+#include "api/tensor.hpp"
+#include "api/eltwise.hpp"
+#include "api/scale.hpp"
+#include "api/quantize.hpp"
+#include "api/activation.hpp"
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
+#include "error_handler.h"
 
 #include <cstdint>
 #include <string>
+#include <vector>
+#include <memory>
 
 using namespace cldnn;
 
@@ -66,12 +73,18 @@ using softmax_dim = kernel_selector::SoftmaxDim;
 using mean_subtruct_mode = kernel_selector::MeanSubtractMode;
 using mean_op = kernel_selector::MeanOp;
 using concat_axis = kernel_selector::ConcatAxis;
-using tile_axis = kernel_selector::TileAxis;
 using tuning_mode = kernel_selector::TuningMode;
-using sample_type = kernel_selector::SampleType;
+using sample_type = kernel_selector::ResampleType;
+using coordinate_transformation_mode = kernel_selector::CoordinateTransformationMode;
+using nearest_mode = kernel_selector::NearestMode;
+using shape_calculation_mode = kernel_selector::ShapeCalculationMode;
+using interpolate_axis = kernel_selector::InterpolateAxis;
 using border_type = kernel_selector::BorderType;
 using gather_axis = kernel_selector::GatherAxis;
+using scatter_update_axis = kernel_selector::ScatterUpdateAxis;
 using reduce_mode = kernel_selector::ReduceMode;
+using cum_sum_axis = kernel_selector::CumSumAxis;
+using depth_to_space_mode = kernel_selector::DepthToSpaceMode;
 
 using data_tensor = kernel_selector::DataTensor;
 using weights_tensor = kernel_selector::WeightsTensor;
@@ -85,7 +98,6 @@ using params = kernel_selector::Params;
 using weights_reorder_params = kernel_selector::WeightsReorderParams;
 using generic_kernel_params = kernel_selector::GenericKernelParams;
 
-struct training_params;
 }  // namespace kernel_selector
 
 kernel_selector::data_type to_data_type(data_types dt);
@@ -101,9 +113,7 @@ std::string to_host_version(const cldnn::version_t& version);
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split = 1, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
-kernel_selector::activation_function get_kernel_selector_activation_param(cldnn_activation_func activation_func);
-kernel_selector::activation_function get_kernel_selector_activation_grad_param(
-    cldnn_activation_grad_func activation_grad_func);
+kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 
 template <typename T = std::uint32_t>
 kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
@@ -117,28 +127,29 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
 }
 
 template <typename p_type>
-inline void convert_activation_func_params(const p_type primitive, kernel_selector::base_activation_params& params) {
+inline void convert_activation_func_params(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
     const float negative_slope = primitive->activation_negative_slope;
     if (negative_slope != 0.0f) {
-        params.m = negative_slope;
-        params.function = kernel_selector::activation_function::RELU_NEGATIVE_SLOPE;
+        params.emplace_back(kernel_selector::activation_function::RELU_NEGATIVE_SLOPE, negative_slope, 0.0f);
     } else {
-        params.function = kernel_selector::activation_function::RELU;
+        params.emplace_back(kernel_selector::activation_function::RELU, 0.0f, 0.0f);
     }
 }
 
 template <typename arg_t>
-inline void convert_fused_activation_func_params(const arg_t& arg, kernel_selector::base_activation_params& params) {
-    params.m = arg.get_fused_activation_params().a;
-    params.n = arg.get_fused_activation_params().b;
-    params.function = get_kernel_selector_activation_param(arg.get_fused_activation_func());
+inline void convert_fused_activation_func_params(const arg_t& arg, std::vector<kernel_selector::base_activation_params>& params) {
+    for (size_t i = 0; i < arg.get_fused_activations_funcs().size(); i++) {
+        params.emplace_back(get_kernel_selector_activation_param(arg.get_fused_activations_funcs()[i]),
+                            arg.get_fused_activations_params()[i].a,
+                            arg.get_fused_activations_params()[i].b);
+    }
 }
 
 template <typename p_type>
-inline void convert_new_activation_func(const p_type primitive, kernel_selector::base_activation_params& params) {
-    params.function = get_kernel_selector_activation_param(primitive->activation_func);
-    params.m = primitive->additional_params.a;
-    params.n = primitive->additional_params.b;
+inline void convert_new_activation_func(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
+    params.insert(params.begin(), {get_kernel_selector_activation_param(primitive->activation_function),
+                                   primitive->additional_params.a,
+                                   primitive->additional_params.b});
 }
 
 void set_params(const program_node& node, kernel_selector::params& params);
@@ -157,7 +168,26 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
 
     params.layerID = arg.id();
 
-    convert_fused_activation_func_params(arg, params.activation);
+    convert_fused_activation_func_params(arg, params.activations);
+    size_t op_id = 0;
+    for (auto& fused_prim : arg.get_fused_primitives()) {
+        kernel_selector::fused_operation_desc desc;
+        desc.op_params = fused_prim.node->get_fuse_params();
+        if (!desc.op_params) {
+            CLDNN_ERROR_MESSAGE(arg.id(), "Invalid fused operation (" + fused_prim.node->id() + ") of type " +
+                                           fused_prim.node->get_primitive()->type_string() );
+        }
+        desc.dep_idx_start = fused_prim.dep_start_idx;
+        desc.dep_size = fused_prim.deps.size();
+        desc.op_id = op_id++;
+        desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
+
+        for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
+            desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout()));
+        }
+
+        params.fused_ops.push_back(desc);
+    }
 
     return params;
 }
@@ -166,42 +196,41 @@ template <typename params_t, typename arg_t>
 inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
     params_t params = get_default_params<params_t>(arg, split);
     const auto& weights_layout = arg.weights().get_output_layout();
-    if (groups == 1) {
-        params.weights = convert_weights_tensor(weights_layout);
-    } else {
-        params.weights = convert_weights_tensor(layout(weights_layout.data_type,
-                                                       weights_layout.format,
-                                                       {weights_layout.size.batch[0] / static_cast<int>(groups),
-                                                        weights_layout.size.feature[0],
-                                                        weights_layout.size.spatial[0],
-                                                        weights_layout.size.spatial[1]}));
-    }
+    params.weights = convert_weights_tensor(weights_layout);
 
     if (arg.bias_term()) {
-        const auto& bias_layout = arg.bias().get_output_layout();
+        auto bias_layout = arg.bias().get_output_layout();
         // bias per output is not supported on cldnn
-        if (groups == 1) {
-            params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
-        } else {
-            params.bias.push_back(convert_data_tensor(layout(bias_layout.data_type,
-                                                             bias_layout.format,
-                                                             {bias_layout.size.batch[0],
-                                                              bias_layout.size.feature[0],
-                                                              bias_layout.size.spatial[0] / static_cast<int>(groups),
-                                                              bias_layout.size.spatial[1]}))
-                                      .FlattenFeatureAndSpatials());
+        if (groups != 1) {
+            bias_layout.size.feature[0] /= static_cast<int>(groups);
         }
+        params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
     }
 
     return params;
 }
 
-void set_learning_params(const program_node& node, kernel_selector::training_params& params, bool use_momentum);
-
 template <typename params_t, typename arg_t>
-inline params_t get_default_learning_params(const arg_t& arg, uint32_t split = 1) {
-    params_t params = get_weights_bias_default_params<params_t>(arg, split);
-    set_learning_params(arg, params, arg.use_momentum());
+params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
+    params_t params = get_weights_bias_default_params<params_t>(arg, split, groups);
+
+    if (arg.weights_zero_points_term()) {
+        params.weights_zero_points.push_back(
+            convert_data_tensor(arg.weights_zero_points().get_output_layout())
+            .FlattenFeatureAndSpatials());
+    }
+
+    if (arg.activations_zero_points_term()) {
+        params.activations_zero_points.push_back(
+            convert_data_tensor(arg.activations_zero_points().get_output_layout())
+            .FlattenFeatureAndSpatials());
+    }
+
+    if (arg.compensation_term()) {
+        params.compensation.push_back(
+            convert_data_tensor(arg.compensation().get_output_layout()).FlattenFeatureAndSpatials());
+    }
+
     return params;
 }
 
@@ -217,9 +246,4 @@ inline optional_params_t get_default_optional_params(const program_impl& program
 template <typename optional_params_t>
 inline optional_params_t get_default_weights_bias_optional_params(const program_impl& program) {
     return get_default_optional_params<optional_params_t>(program);
-}
-
-template <typename optional_params_t>
-inline optional_params_t get_default_learning_optional_params(const program_impl& program) {
-    return get_default_weights_bias_optional_params<optional_params_t>(program);
 }

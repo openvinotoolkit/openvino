@@ -36,7 +36,7 @@ void propagate_constants::run(program_impl& p) {
             handle_constant(p, *node);
     }
 
-    auto&& to_replace = calculate(p.get_engine());
+    auto&& to_replace = calculate(p.get_engine(), p.get_options());
 
     // remove all nodes which are no longer relevant, i.e. nodes which:
     // 1. are constants, and
@@ -79,12 +79,9 @@ void propagate_constants::run(program_impl& p) {
     // with recomputed cldnn::data
     for (auto& cout : to_replace) {
         auto& id_to_replace = cout.first;
+        auto mem_impl = cout.second;
 
-        // TODO: do not use API primitives internally and get rid of this last 'cldnn::memory' internal usage
-        memory api_memory = details::memory_c_to_cpp_converter::convert(api_cast(cout.second.get()));
-        // c-cpp converter does not retain since normally it is done inside API-impl layer (cldnn.cpp) so we need to do
-        // it manually
-        cout.second->add_ref();
+        memory api_memory = memory(mem_impl.detach());
 
         auto const_data =
             std::make_shared<data>("_cldnn_const_prop_" + id_to_replace, api_memory /* <<< REMOVE ME WHEN POSSIBLE */);
@@ -122,11 +119,10 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-std::list<std::pair<primitive_id, memory_impl::ptr>> propagate_constants::calculate(engine_impl& engine) {
+std::list<std::pair<primitive_id, memory_impl::ptr>> propagate_constants::calculate(engine_impl& engine, build_options bo) {
     if (!has_non_trivial_constants)
         return {};
 
-    build_options bo;
     bo.set_option(build_option::optimize_data(false));
     bo.set_option(build_option::outputs(const_outputs));
     network_impl::ptr net = engine.build_network(nodes, bo, true);

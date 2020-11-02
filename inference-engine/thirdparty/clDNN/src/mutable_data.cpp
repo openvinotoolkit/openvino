@@ -26,7 +26,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id mutable_data_type_id() {
+primitive_type_id mutable_data::type_id() {
     static primitive_type_base<mutable_data> instance;
     return &instance;
 }
@@ -34,19 +34,25 @@ primitive_type_id mutable_data_type_id() {
 namespace {
 memory_impl::ptr attach_or_copy_data(network_impl& network, memory_impl& mem) {
     auto& engine = network.get_engine();
-    if (mem.is_allocated_by(engine) && network.get_stream_id() == mem.get_stream_id())
-        return (memory_impl::ptr) &mem;
+    auto own_id = network.get_id();
 
-    memory_impl::ptr result = engine.allocate_memory(mem.get_layout(), network.get_stream_id());
+    if (mem.is_allocated_by(engine) &&
+        (own_id == mem.get_net_id() || network.is_primary_stream())) {
+        mem.set_net(own_id);
+        return (memory_impl::ptr) & mem;
+    }
+
+    memory_impl::ptr result = engine.allocate_memory(mem.get_layout(), network.get_id(), false);
     mem_lock<char> src(mem);
     mem_lock<char> dst(result);
     std::copy(src.begin(), src.end(), dst.begin());
+
     return result;
 }
 }  // namespace
 
 mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim, program_impl& prog)
-    : parent(dprim, prog), mem(api_cast(dprim->mem.get())) {
+    : parent(dprim, prog), mem(dprim->mem.get()) {
     recalc_output_layout(false);
     can_share_buffer(false);
     fill_memory();

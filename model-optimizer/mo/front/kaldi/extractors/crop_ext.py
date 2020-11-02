@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ class CropFrontExtractor(FrontExtractorOp):
     op = 'Crop'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
 
         mapping_rule = {
@@ -33,4 +33,4 @@ class CropFrontExtractor(FrontExtractorOp):
         }
 
         Crop.update_node_stat(node, attrs=mapping_rule)
-        return __class__.enabled
+        return cls.enabled

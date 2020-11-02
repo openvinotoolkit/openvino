@@ -23,7 +23,7 @@
 #include <memory>
 
 namespace cldnn {
-primitive_type_id max_unpooling_type_id() {
+primitive_type_id max_unpooling::type_id() {
     static primitive_type_base<max_unpooling> instance;
     return &instance;
 }

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,54 +18,54 @@ import unittest
 
 import numpy as np
 
-from mo.middle.passes.eliminate import graph_clean_up
 from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # ScaleShift layer
     'scaleshift_1': {'type': 'ScaleShift', 'kind': 'op', 'op': 'ScaleShift'},
-    'const_scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'data'},
-    'const_scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'scaleshift_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Mul and Add operations
     'mul_1': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True},
-    'const_mul_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_mul_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'mul_1_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'mul_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_1': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
-    'const_add_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_add_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'add_1_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Mul2 and Add2 operations
     'mul_2': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True},
-    'const_mul_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_mul_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'mul_2_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'mul_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_2': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
-    'const_add_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_add_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'add_2_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Mul3 and Add3 operations
     'mul_3': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True},
-    'const_mul_3_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_mul_3_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'mul_3_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'mul_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_3': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
-    'const_add_3_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_add_3_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'add_3_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Mul4 and Add4 operations
     'mul_4': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True},
-    'const_mul_4_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_mul_4_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'mul_4_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'mul_4_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_4': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
-    'const_add_4_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_add_4_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'add_4_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_4_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Concat1 operation
@@ -73,22 +73,22 @@ nodes_attributes = {
     'concat_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Convolutions
     'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'Conv2D', 'layout': 'NHWC'},
-    'const_conv_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_conv_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'conv_1_w': {'value': None, 'shape': None, 'kind': 'data'},
-    'const_conv_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_conv_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'conv_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2': {'type': 'Convolution', 'kind': 'op', 'op': 'Conv2D', 'layout': 'NHWC'},
-    'const_conv_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_conv_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'conv_2_w': {'value': None, 'shape': None, 'kind': 'data'},
-    'const_conv_2_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_conv_2_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'conv_2_b': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     # FullyConnected
-    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
-    'const_fc_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'FullyConnected', 'layout': 'NHWC'},
+    'const_fc_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'fc_1_w': {'value': None, 'shape': None, 'kind': 'data'},
-    'const_fc_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_fc_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'fc_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Placeholders
@@ -96,7 +96,7 @@ nodes_attributes = {
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'placeholder_3': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'op_output': { 'kind': 'op', 'op': 'Result'}
+    'op_output': {'kind': 'op', 'op': 'Result'}
 }
 
 
@@ -162,7 +162,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                        "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -238,7 +238,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                 nodes_with_edges_only=True)
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -314,7 +314,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                 nodes_with_edges_only=True)
 
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -391,7 +391,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -456,7 +456,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
@@ -527,7 +527,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
@@ -598,7 +598,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -646,7 +646,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -707,7 +707,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -768,7 +768,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -843,7 +843,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -916,7 +916,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -997,7 +997,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node),
                                                                                  len(graph_ref.node)))

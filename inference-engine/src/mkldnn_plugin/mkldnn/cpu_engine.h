@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "inference_engine.hpp"
 #include "desc_layer.h"
 #include "desc_tensor.h"
 #include "desc_tensor_comb.h"

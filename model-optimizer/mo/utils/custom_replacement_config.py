@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ import json
 import logging as log
 import os
 from re import compile, match
-
-import networkx as nx
 
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error

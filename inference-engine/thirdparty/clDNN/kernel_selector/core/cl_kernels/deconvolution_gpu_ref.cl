@@ -15,33 +15,33 @@
 #include "include/include_all.cl"
 
 KERNEL(deconvolution_gpu_yxfb_ref)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output,
-    const __global UNIT_TYPE* filter,
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    const __global FILTER_TYPE* filter,
 #if BIAS_TERM
-    const __global UNIT_TYPE* bias,
+    const __global BIAS_TYPE* bias,
+#endif
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
 #endif
     uint split_idx
-#if FUSED_ELTWISE
-	, const __global UNIT_TYPE* fuse_input
-#endif
-	)
+    )
 {
-    UNIT_TYPE result = UNIT_VAL_ZERO;
+    ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
 
 #if DIM_ORDER_XYBF == 1
-    const uint out_x        = get_global_id(0);    
+    const uint out_x        = get_global_id(0);
 #if  OUTPUT_SIZE_Z == 1
     const uint out_y        = get_global_id(1);
     const uint out_z        = 0;
 #else // 3D
-    const uint out_y        = get_global_id(1) % OUTPUT_SIZE_Y;
-    const uint out_z        = get_global_id(1) / OUTPUT_SIZE_Y;
+    const uint out_y        = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint out_z        = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
 #endif // 2D/3D
     const uint b_f          = get_global_id(2);
     const uint batch_offset = b_f / OUTPUT_FEATURE_NUM;
     const uint ofm_offset   = b_f % OUTPUT_FEATURE_NUM;
-    
+
     if (out_x >= OUTPUT_SIZE_X)
         return;
 #else
@@ -51,28 +51,29 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
     const uint out_y         = (uint)get_global_id(2);
     const uint out_z        = 0;
 #else // 3D
-    const uint out_y        = get_global_id(2) % OUTPUT_SIZE_Y;
-    const uint out_z        = get_global_id(2) / OUTPUT_SIZE_Y;
+    const uint out_y        = (uint)get_global_id(2) % OUTPUT_SIZE_Y;
+    const uint out_z        = (uint)get_global_id(2) / OUTPUT_SIZE_Y;
 #endif // 2D/3D
     const uint ofm_offset    = b_f / INPUT0_BATCH_NUM;
     const uint batch_offset  = b_f % INPUT0_BATCH_NUM;
-#endif 
+#endif
 
     const int x = (int)out_x + PADDING_SIZE_X - (FILTER_SIZE_X - 1);
     const int y = (int)out_y + PADDING_SIZE_Y - (FILTER_SIZE_Y - 1);
     const int z = (int)out_z + PADDING_SIZE_Z - (FILTER_SIZE_Z - 1);
-    
-#if DEPTHWISE_SEPARABLE_OPT
-    const uint in_split_offset = (ofm_offset / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+
+#if GROUPED || DEPTHWISE_SEPARABLE_OPT
+    const uint g = (ofm_offset / FILTER_OFM_NUM);
+    const uint of = (ofm_offset % FILTER_OFM_NUM);
+    const uint filter_offset = g * FILTER_GROUPS_PITCH;
 #else
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-#endif
-    const uint input_offset = INPUT0_OFFSET + batch_offset*INPUT0_BATCH_PITCH + in_split_offset;
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    const uint filter_offset = split_idx * FILTER_LENGTH;
-#else
+    const uint g = 0;
+    const uint of = ofm_offset;
     const uint filter_offset = 0;
 #endif
+
+    const uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+    const uint input_offset = INPUT0_OFFSET + batch_offset*INPUT0_BATCH_PITCH + in_split_offset;
 
     for (uint k = 0; k < FILTER_SIZE_Z; k++)
     {
@@ -83,7 +84,7 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
         {
             for (uint i = 0; i < FILTER_SIZE_Y; i++)
             {
-                    const int input_offset_y = y + i;
+                const int input_offset_y = y + i;
                 const bool zero_y = (input_offset_y >= INPUT0_SIZE_Y * STRIDE_SIZE_Y) || (input_offset_y < 0) || ((input_offset_y % STRIDE_SIZE_Y) != 0);
 
                 if(!zero_y)
@@ -98,25 +99,28 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
                             uint fixed_input_offset_x = (uint)input_offset_x / STRIDE_SIZE_X;
                             uint fixed_input_offset_y = (uint)input_offset_y / STRIDE_SIZE_Y;
                             uint fixed_input_offset_z = (uint)input_offset_z / STRIDE_SIZE_Z;
-                            uint input_idx = input_offset + (uint)fixed_input_offset_x*INPUT0_X_PITCH + (uint)fixed_input_offset_y*INPUT0_Y_PITCH + (uint)fixed_input_offset_z*INPUT0_Z_PITCH;
 
-#if GRADIENT
-                            uint filter_idx = filter_offset + ofm_offset*FILTER_IFM_PITCH + (FILTER_SIZE_Z - k - 1)*FILTER_Z_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
-                            for (uint h = 0; h < FILTER_OFM_NUM; h++)
-                            {
-                                result = fma(input[input_idx], filter[filter_idx], result);
-                                filter_idx += FILTER_OFM_PITCH;
-                                input_idx += INPUT0_FEATURE_PITCH;
-                            }
-#else
-                            uint filter_idx = filter_offset + ofm_offset*FILTER_OFM_PITCH + (FILTER_SIZE_Z - k - 1)*FILTER_Z_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
-                            for (uint h = 0; h < FILTER_IFM_NUM; h++)
-                            {
-                                result = fma(input[input_idx], filter[filter_idx], result);
-                                filter_idx += FILTER_IFM_PITCH;
-                                input_idx += INPUT0_FEATURE_PITCH;
-                            }
+                            uint input_idx;
+#if INPUT0_SIMPLE
+                            input_idx = input_offset + (uint)fixed_input_offset_x*INPUT0_X_PITCH + (uint)fixed_input_offset_y*INPUT0_Y_PITCH + (uint)fixed_input_offset_z*INPUT0_Z_PITCH;
 #endif
+
+                            uint filter_idx = filter_offset + of*FILTER_OFM_PITCH + (FILTER_SIZE_Z - k - 1)*FILTER_Z_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
+                            for (uint h = 0; h < FILTER_IFM_NUM; h++) {
+#if !INPUT0_SIMPLE
+#   if INPUT0_DIMS <= 4
+                                input_idx = INPUT0_GET_INDEX(batch_offset, h + g*FILTER_IFM_NUM, fixed_input_offset_y, fixed_input_offset_x);
+#   elif INPUT0_DIMS == 5
+                                input_idx = INPUT0_GET_INDEX(batch_offset, h + g*FILTER_IFM_NUM, fixed_input_offset_z, fixed_input_offset_y, fixed_input_offset_x);
+#   endif
+#endif
+
+                                acc += TO_ACCUMULATOR_TYPE(input[input_idx]) * TO_ACCUMULATOR_TYPE(filter[filter_idx]);
+                                filter_idx += FILTER_IFM_PITCH;
+#if INPUT0_SIMPLE
+                                input_idx += INPUT0_FEATURE_PITCH;
+#endif
+                            }
                         }
                     }
                 }
@@ -124,27 +128,27 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
         }
     }
 
+    ACTIVATION_TYPE pre_activation = TO_ACTIVATION_TYPE(acc);
 #if BIAS_TERM
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    const uint bias_offset = split_idx * BIAS_LENGTH;
-#else
-    const uint bias_offset = 0;
+    pre_activation += TO_ACTIVATION_TYPE(bias[ofm_offset]);
 #endif
-    result += bias[ofm_offset + bias_offset];
-#endif
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
-    const uint dst_index = OUTPUT_OFFSET + out_split_offset + batch_offset*OUTPUT_BATCH_PITCH + ofm_offset*OUTPUT_FEATURE_PITCH + out_z*OUTPUT_Z_PITCH + out_y*OUTPUT_Y_PITCH + out_x*OUTPUT_X_PITCH;
-#if FUSED_ELTWISE
-    const uint fused_index = INPUT1_OFFSET + split_idx * INPUT1_FEATURE_PITCH * FILTER_OFM_NUM + batch_offset*INPUT1_BATCH_PITCH + ofm_offset*INPUT1_FEATURE_PITCH + out_z*INPUT1_Z_PITCH + out_y*INPUT1_Y_PITCH + out_x*INPUT1_X_PITCH;
-#if !GRADIENT
-	output[dst_index] = ACTIVATION(result + fuse_input[fused_index], ACTIVATION_PARAMS);
+    ACTIVATION_TYPE post_activation = ACTIVATION(pre_activation, ACTIVATION_PARAMS);
+
+    OUTPUT_TYPE result;
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    result = FUSED_OPS_RESULT;
 #else
-	output[dst_index] = result + fuse_input[fused_index];
+    result = TO_OUTPUT_TYPE(post_activation);
 #endif
 
+#if OUTPUT_DIMS <= 4
+    const uint dst_index = OUTPUT_GET_INDEX(batch_offset, g * FILTER_OFM_NUM + of, out_y, out_x);
+#elif OUTPUT_DIMS == 5
+    const uint dst_index = OUTPUT_GET_INDEX(batch_offset, g * FILTER_OFM_NUM + of, out_z, out_y, out_x);
 #else
-    output[dst_index] = ACTIVATION(result, ACTIVATION_PARAMS);
+#   error deconvolution_gpu_ref.cl - Unsupported number of output dimensions.
 #endif
+
+    output[dst_index] = result;
 }
-
-#undef ACTIVATION

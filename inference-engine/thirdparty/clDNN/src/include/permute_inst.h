@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/permute.hpp"
+#include "api/permute.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,29 +20,21 @@ namespace kernel_selector {
 
 JitConstants PyramidROIAlignKernelBase::GetJitConstants(const PyramidROIAlign_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
+
+    jit.AddConstant(MakeJitConstant("IMAGE_SIZE_X", params.image_size_x));
+    jit.AddConstant(MakeJitConstant("IMAGE_SIZE_Y", params.image_size_y));
+    jit.AddConstant(MakeJitConstant("SAMPLING_RATIO_X", params.sampling_ratio_x));
+    jit.AddConstant(MakeJitConstant("SAMPLING_RATIO_Y", params.sampling_ratio_y));
+    jit.AddConstant(MakeJitConstant("PYRAMID_STARTING_LEVEL", params.pyramid_starting_level));
+
     return jit;
 }
 
-PyramidROIAlignKernelBase::DispatchData PyramidROIAlignKernelBase::SetDefault(const PyramidROIAlign_params& params) {
-    const auto& boxes = params.inputs.at(0);
-    DispatchData kd;
-
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
-    std::vector<size_t> global;
-    global = {boxes.Y().v, 1, 1};
-
-    const auto& local = GetOptimalLocalWorkGroupSizes(global);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+PyramidROIAlignKernelBase::DispatchData PyramidROIAlignKernelBase::SetDefault(const PyramidROIAlign_params& params) const {
+    DispatchData dispatchData;
+    dispatchData.gws = {1, 1, 1};
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    return dispatchData;
 }
 
 KernelsData PyramidROIAlignKernelBase::GetCommonKernelsData(const Params& params,
@@ -52,7 +44,7 @@ KernelsData PyramidROIAlignKernelBase::GetCommonKernelsData(const Params& params
 
     const auto& prim_params =
         static_cast<const PyramidROIAlign_params&>(params);
-    auto run_info = SetDefault(prim_params);
+    auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<PyramidROIAlign_params>(params);
     auto cldnn_jit = GetJitConstants(prim_params);
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, options);
@@ -60,7 +52,7 @@ KernelsData PyramidROIAlignKernelBase::GetCommonKernelsData(const Params& params
 
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel,
-                     run_info,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,

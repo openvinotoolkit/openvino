@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id reverse_sequence_type_id() {
+primitive_type_id reverse_sequence::type_id() {
     static primitive_type_base<reverse_sequence> instance;
     return &instance;
 }

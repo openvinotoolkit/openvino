@@ -1,14 +1,21 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <thread>
 #include "mvnc.h"
-#include "mvnc_tests_common.hpp"
+#include "mvnc_data.h"
+#include "ncPrivateTypes.h"
+#include "mvnc_common_test_cases.h"
 
-//  ***********************************************  //
-//              Platform independent tests           //
-
+//------------------------------------------------------------------------------
+//      MvncTestsCommon Tests
+//      Platform independent tests
+//------------------------------------------------------------------------------
 TEST_F(MvncTestsCommon, DoubleCheckOfAvailableDevicesCount) {
+    if (availableDevices_ == 0)
+        GTEST_SKIP();
+
     const int min_name_size = 2;
 
     struct ncDeviceDescr_t act_devices[NC_MAX_DEVICES] = {};
@@ -39,14 +46,47 @@ TEST_F(MvncTestsCommon, AvailableDevicesSholdReturnErrorIfCountPtrIsNULL) {
     ASSERT_ERROR(ncAvailableDevices(act_devices, NC_MAX_DEVICES, NULL));
 }
 
+TEST_F(MvncTestsCommon, CanGetPCIeAndUSB) {
+    if (!(getAmountOfUSBDevices() && getAmountOfPCIeDevices()))
+        GTEST_SKIP_("USB and PCIe not available");
 
-//  ***********************************************  //
-//             Tests using both platforms            //
+    struct ncDeviceDescr_t act_devices[NC_MAX_DEVICES] = {};
+    int act_devicesCount = 0;
+    ASSERT_NO_ERROR(ncAvailableDevices(act_devices, NC_MAX_DEVICES, &act_devicesCount));
+
+    bool usb_device_found = false;
+    bool pcie_device_found = false;
+
+    for (int i = 0; i < act_devicesCount; ++i) {
+        if (isMyriadUSBDevice(act_devices[i].name)) {
+            usb_device_found = true;
+        } else if (isMyriadPCIeDevice(act_devices[i].name)) {
+            pcie_device_found = true;
+        }
+    }
+
+    EXPECT_TRUE(usb_device_found);
+    EXPECT_TRUE(pcie_device_found);
+}
+
+TEST_F(MvncTestsCommon, ShouldFailToSetNegativeTimeout) {
+    ASSERT_ERROR(ncSetDeviceConnectTimeout(-1));
+}
+
+//------------------------------------------------------------------------------
+//      MvncTestsCommon Tests
+//      PCIe + USB Tests
+//------------------------------------------------------------------------------
 
 /**
  * @brief Test that USB and PCIe works at the same time. USB first
  */
 TEST_F(MvncTestsCommon, OpenUSBThenPCIEAndClose) {
+    if (getAmountOfPCIeDevices() == 0)
+        GTEST_SKIP() << "PCIe devices not found";
+    if (getAmountOfUSBDevices() == 0)
+        GTEST_SKIP() << "USB devices not found";
+
     ncDeviceHandle_t *deviceHandle_USB = nullptr;
     ncDeviceHandle_t *deviceHandle_PCIe = nullptr;
     std::string actDeviceName;
@@ -54,10 +94,7 @@ TEST_F(MvncTestsCommon, OpenUSBThenPCIEAndClose) {
     deviceDesc.protocol = NC_USB;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_TRUE(getAmountOfPCIeDevices() > 0) << "PCIe devices not found";
-    ASSERT_TRUE(getAmountOfUSBDevices() > 0) << "USB devices not found";
-
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_USB, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_USB, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle_USB->private_data->dev_addr;
     ASSERT_TRUE(actDeviceName.size());
@@ -65,21 +102,26 @@ TEST_F(MvncTestsCommon, OpenUSBThenPCIEAndClose) {
 
     // Open PCIe device
     deviceDesc.protocol = NC_PCIE;
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_PCIe, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_PCIe, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle_PCIe->private_data->dev_addr;
     ASSERT_TRUE(actDeviceName.size());
     ASSERT_TRUE(isMyriadPCIeDevice(actDeviceName));
 
     // Close all
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_PCIe));
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_USB));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_PCIe, m_watchdogHndl));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_USB, m_watchdogHndl));
 }
 
 /**
  * @brief Test that USB and PCIe works at the same time. PCIe first
  */
 TEST_F(MvncTestsCommon, OpenPCIEThenUSBAndClose) {
+    if (getAmountOfPCIeDevices() == 0)
+        GTEST_SKIP() << "PCIe devices not found";
+    if (getAmountOfUSBDevices() == 0)
+        GTEST_SKIP() << "USB devices not found";
+
     ncDeviceHandle_t *deviceHandle_USB = nullptr;
     ncDeviceHandle_t *deviceHandle_PCIe = nullptr;
     std::string actDeviceName;
@@ -87,12 +129,8 @@ TEST_F(MvncTestsCommon, OpenPCIEThenUSBAndClose) {
     deviceDesc.protocol = NC_PCIE;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_TRUE(getAmountOfPCIeDevices() > 0) << "PCIe devices not found";
-    ASSERT_TRUE(getAmountOfUSBDevices() > 0) <<"USB devices not found";
-
     // Open PCIe device
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_PCIe, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_PCIe, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle_PCIe->private_data->dev_addr;
     ASSERT_TRUE(actDeviceName.size());
@@ -100,8 +138,7 @@ TEST_F(MvncTestsCommon, OpenPCIEThenUSBAndClose) {
 
     // Open USB device
     deviceDesc.protocol = NC_USB;
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_USB, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_USB, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle_USB->private_data->dev_addr;
     ASSERT_TRUE(actDeviceName.size());
@@ -109,42 +146,27 @@ TEST_F(MvncTestsCommon, OpenPCIEThenUSBAndClose) {
 
 
     // Close all
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_PCIe));
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_USB));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_PCIe, m_watchdogHndl));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_USB, m_watchdogHndl));
 }
 
-//  ***********************************************  //
-//              Open Device TESTS                    //
-class MvncOpenDevice :  public MvncTestsCommon,
-                        public testing::WithParamInterface<ncDeviceProtocol_t> {
-public:
-    int available_devices = 0;
-protected:
-    ~MvncOpenDevice() override = default;
-    void SetUp() override {
-        MvncTestsCommon::SetUp();
-
-        _deviceProtocol = GetParam();
-        available_devices = getAmountOfDevices(_deviceProtocol);
-        ASSERT_TRUE(available_devices > 0) << ncProtocolToStr(_deviceProtocol)
-                << " devices not found";
-    }
-
-    ncDeviceProtocol_t _deviceProtocol = NC_ANY_PROTOCOL;
-};
-
+//------------------------------------------------------------------------------
+//      MvncOpenDevice Tests
+//------------------------------------------------------------------------------
 /**
 * @brief Open any device and close it
 */
 TEST_P(MvncOpenDevice, OpenAndClose) {
+    if (availableDevices_ == 0)
+        GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
+
     ncDeviceHandle_t*   deviceHandle = nullptr;
     std::string         deviceName;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
     ASSERT_TRUE(deviceHandle != nullptr);
     ASSERT_TRUE(deviceHandle->private_data != nullptr);
@@ -155,20 +177,22 @@ TEST_P(MvncOpenDevice, OpenAndClose) {
 
     ASSERT_TRUE(isSameProtocolDevice(deviceName, _deviceProtocol));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 }
 
 /**
  * @brief Check that all field of deviceHandle would be initialized
  */
 TEST_P(MvncOpenDevice, AllHandleFieldsInitialized) {
+    if (availableDevices_ == 0)
+        GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
+
     ncDeviceHandle_t*   deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc,
-                                 watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
     ASSERT_TRUE(deviceHandle != nullptr);
 
@@ -178,7 +202,7 @@ TEST_P(MvncOpenDevice, AllHandleFieldsInitialized) {
     ASSERT_TRUE(device->dev_addr_booted != nullptr);
     ASSERT_TRUE(device->xlink != nullptr);
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 }
 
 /**
@@ -187,6 +211,9 @@ TEST_P(MvncOpenDevice, AllHandleFieldsInitialized) {
  * already has allocated device
 */
 TEST_P(MvncOpenDevice, OpenTwiceSameHandler) {
+    if (availableDevices_ == 0)
+        GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
+
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
@@ -199,16 +226,16 @@ TEST_P(MvncOpenDevice, OpenTwiceSameHandler) {
     unsigned int data_lenght_second = MAX_DEV_NAME;
 
     // First open, get device name
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle, NC_RO_DEVICE_NAME,
                                       dev_addr_first_open, &data_lenght_first));
 
     // Second open, get device name
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle, NC_RO_DEVICE_NAME,
                                       dev_addr_second_open, &data_lenght_second));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
     // Should be the same device
     ASSERT_STREQ(dev_addr_first_open, dev_addr_second_open);
 }
@@ -219,6 +246,8 @@ TEST_P(MvncOpenDevice, OpenTwiceSameHandler) {
  */
  // Fixme Test only for one device
 TEST_P(MvncOpenDevice, DISABLED_OpenSameDeviceTwiceDifferentHandlers) {
+    if (availableDevices_ == 0)
+        GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
 
     ncDeviceHandle_t *deviceHandle1 = nullptr;
     ncDeviceHandle_t *deviceHandle2 = nullptr;
@@ -227,14 +256,12 @@ TEST_P(MvncOpenDevice, DISABLED_OpenSameDeviceTwiceDifferentHandlers) {
     deviceDesc.protocol = _deviceProtocol;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle1, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle1, deviceDesc, m_ncDeviceOpenParams));
 
     // Till we don't have multiple device support, this function would try to open same device
-    ASSERT_ERROR(ncDeviceOpen(&deviceHandle2, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_ERROR(ncDeviceOpen(&deviceHandle2, deviceDesc, m_ncDeviceOpenParams));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle1));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle1, m_watchdogHndl));
 }
 
 
@@ -243,6 +270,9 @@ TEST_P(MvncOpenDevice, DISABLED_OpenSameDeviceTwiceDifferentHandlers) {
  * @note Mostly this test important for PCIe and connect to booted option, as in that cases XLinkReset have another behavior
  */
 TEST_P(MvncOpenDevice, OpenTwiceWithOneXLinkInitializion) {
+    if (availableDevices_ == 0)
+        GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
+
     ncDeviceHandle_t *deviceHandle = nullptr;
     std::string actDeviceName;
 
@@ -250,124 +280,81 @@ TEST_P(MvncOpenDevice, OpenTwiceWithOneXLinkInitializion) {
     deviceDesc.protocol = _deviceProtocol;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle->private_data->dev_addr;
     ASSERT_TRUE(isSameProtocolDevice(actDeviceName, _deviceProtocol));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 
     // Second open
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle->private_data->dev_addr;
     ASSERT_TRUE(isSameProtocolDevice(actDeviceName, _deviceProtocol));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 }
 
-//  ***********************************************  //
-//                Logging TESTS                      //
-class MvncLoggingTests :  public MvncOpenDevice {
-public:
-    char buff[BUFSIZ] = {};
-protected:
-    ncDeviceHandle_t * _deviceHandles[MAX_DEVICES] = {nullptr};
-    ncDeviceDescr_t _deviceDesc = {};
+TEST_P(MvncOpenDevice, WatchdogShouldResetDeviceWithoutConnection) {
+    if (availableDevices_ == 0)
+        GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
 
-    void SetUp() override {
-        MvncOpenDevice::SetUp();
+    ncDeviceHandle_t*   deviceHandle = nullptr;
+    std::string         deviceName;
+    deviceDesc_t deviceDescToBoot = {};
+    deviceDesc_t in_deviceDesc = {};
+    in_deviceDesc.protocol = convertProtocolToXlink(_deviceProtocol);
+    in_deviceDesc.platform = convertPlatformToXlink(NC_ANY_PLATFORM);
+    int expectAvailableDevices = getAmountOfDevices(_deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED);
 
-        _deviceDesc.protocol = _deviceProtocol;
-        _deviceDesc.platform = NC_ANY_PLATFORM;
-
-        for (int index = 0; index < available_devices; ++index) {
-            ASSERT_NO_ERROR(ncDeviceOpen(&_deviceHandles[index], _deviceDesc, watchdogInterval, firmwarePath));
-        }
-
-        setbuf(stdout, buff);
-        fprintf(stdout, "[workaround for getting full content from XLink]\n");
+    XLinkError_t rc = X_LINK_ERROR;
+    auto waittm = std::chrono::system_clock::now() + std::chrono::seconds(5);
+    while ((rc != X_LINK_SUCCESS) && (std::chrono::system_clock::now() < waittm)) {
+        rc = XLinkFindFirstSuitableDevice(X_LINK_UNBOOTED, in_deviceDesc, &deviceDescToBoot);
     }
 
-    void TearDown() override {
-        for (int index = 0; index < available_devices; ++index) {
-            ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandles[index]));
-        }
-    }
+    bootOptions_t bootOptions = {0};
+    bootOptions.wdEnable = 1;
 
-    ~MvncLoggingTests() override = default;
-};
+    auto pathToFirmware = getMyriadFirmwarePath(deviceDescToBoot);
+    ASSERT_EQ(bootDevice(&deviceDescToBoot, pathToFirmware.c_str(), bootOptions), NC_OK);
 
+    std::this_thread::sleep_for(5_sec);
+    ASSERT_EQ(expectAvailableDevices - 1,
+        getAmountOfDevices(_deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED));
+
+    std::this_thread::sleep_for(15_sec);
+    ASSERT_EQ(expectAvailableDevices,
+        getAmountOfDevices(_deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED));
+}
+
+//------------------------------------------------------------------------------
+//      MvncLoggingTests Tests
+//------------------------------------------------------------------------------
 TEST_P(MvncLoggingTests, ShouldNotPrintErrorMessagesIfCanNotOpenDevice) {
-    setLogLevel(MVLOG_ERROR);
-    ncDeviceHandle_t * deviceHandle = nullptr;
+    if (availableDevices_ == 0)
+        GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
 
-    ASSERT_ERROR(ncDeviceOpen(&deviceHandle, _deviceDesc, watchdogInterval, firmwarePath));
-
-    std::string content(buff);
-    auto found=content.find(mvLogHeader[MVLOG_ERROR]);
-    ASSERT_TRUE(found == std::string::npos);
-}
-
-TEST_P(MvncLoggingTests, ShouldPrintWarningMessagesIfCanNotOpenDeviceAndMvLogLevelIsInfo) {
     setLogLevel(MVLOG_INFO);
     ncDeviceHandle_t * deviceHandle = nullptr;
 
-    ASSERT_ERROR(ncDeviceOpen(&deviceHandle, _deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_ERROR(ncDeviceOpen(&deviceHandle, _deviceDesc, m_ncDeviceOpenParams));
 
     std::string content(buff);
-    auto found=content.find(mvLogHeader[MVLOG_WARN]);
-    ASSERT_TRUE(found != std::string::npos);
+    for (int i = MVLOG_WARN; i < MVLOG_LAST; i++) {
+        auto found = content.find(mvLogHeader[i]);
+        ASSERT_TRUE(found == std::string::npos);
+    }
 }
 
-//  *************************************************** //
-//              GRAPH ALLOCATION TESTS                  //
-/**
- * @brief Test transfer data from host to device
- * @detail Allocate 2 devices and test some graph allocate cases
- * @warning For correct testing should be used blob with size more than 30mb
- */
-class MvncGraphAllocations: public MvncOpenDevice {
-public:
-    // Devices
-    ncDeviceHandle_t * _deviceHandle[MAX_DEVICES] = {nullptr};
-    int _bootedDevices = 0;
-
-    // Graphs
-    ncGraphHandle_t*  _graphHandle[MAX_DEVICES] = {nullptr};
-
-    // Blob
-    const std::string blobPath = "bvlc_googlenet_fp16.blob";
-    std::vector<char> _blob;
-    bool blobLoaded = false;
-
-protected:
-    void SetUp() override {
-        MvncOpenDevice::SetUp();
-
-        // Load blob
-        blobLoaded = readBINFile(blobPath, _blob);
-        if (!blobLoaded) {
-            std::cout << blobPath << " blob for test not found\n";
-        }
-    }
-
-    void TearDown() override {
-        for (int index = 0; index < _bootedDevices; ++index) {
-            ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandle[index]));
-        }
-        _bootedDevices = 0;
-    }
-
-    ~MvncGraphAllocations() override = default;
-};
-
+//------------------------------------------------------------------------------
+//      MvncGraphAllocations Tests
+//------------------------------------------------------------------------------
 /**
  * @brief Allocate graph for one device
  */
-TEST_P(MvncGraphAllocations, OneGraph) {
+TEST_P(MvncGraphAllocations, DISABLED_OneGraph) {
     if (!blobLoaded) GTEST_SKIP_("Blob for test is not loaded\n");
     openDevices(1, _deviceHandle, _bootedDevices);
 
@@ -385,8 +372,9 @@ TEST_P(MvncGraphAllocations, OneGraph) {
 /**
  * @brief Allocate graphs for 2 device (serial)
  */
-TEST_P(MvncGraphAllocations, AllocateGraphsOn2DevicesSerial) {
-    if (!blobLoaded) GTEST_SKIP_("Blob for test is not loaded\n");
+TEST_P(MvncGraphAllocations, DISABLED_AllocateGraphsOn2DevicesSerial) {
+    if (!blobLoaded)
+        GTEST_SKIP_("Blob for test is not loaded\n");
     openDevices(2, _deviceHandle, _bootedDevices);
 
     // Create graphs handlers
@@ -418,7 +406,7 @@ TEST_P(MvncGraphAllocations, AllocateGraphsOn2DevicesSerial) {
 * @warning It's depend on USBLINK_TRANSFER_SIZE constant from UsbLinkPlatform.c file
 * @warning Need blob to use this tests
 */
-TEST_P(MvncGraphAllocations, AllocateGraphsOn2DevicesParallel) {
+TEST_P(MvncGraphAllocations, DISABLED_AllocateGraphsOn2DevicesParallel) {
     if (!blobLoaded) GTEST_SKIP_("Blob for test is not loaded\n");
     openDevices(2, _deviceHandle, _bootedDevices);
 
@@ -447,20 +435,15 @@ TEST_P(MvncGraphAllocations, AllocateGraphsOn2DevicesParallel) {
     }
 }
 
-//  ***********************************************  //
-//               Close device tests                  //
-
-class MvncCloseDevice : public MvncTestsCommon {
-protected:
-    ~MvncCloseDevice() override = default;
-};
-
+//------------------------------------------------------------------------------
+//      MvncCloseDevice Tests
+//------------------------------------------------------------------------------
 /**
 * @brief Correct closing if handle is empty
 */
 TEST_F(MvncCloseDevice, EmptyDeviceHandler) {
     ncDeviceHandle_t *deviceHandle = nullptr;
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 }
 
 /**
@@ -469,28 +452,31 @@ TEST_F(MvncCloseDevice, EmptyDeviceHandler) {
 TEST_F(MvncCloseDevice, EmptyFieldsOfDeviceHandle) {
 
     ncDeviceHandle_t *deviceHandlePtr;
-    ncDeviceHandle_t *dH = (ncDeviceHandle_t*)calloc(1, sizeof(*dH));
-    _devicePrivate_t *d = (_devicePrivate_t*)calloc(1, sizeof(*d));
+    auto dH = std::unique_ptr<ncDeviceHandle_t, decltype(std::free)*>(
+        (ncDeviceHandle_t*)calloc(1, sizeof(ncDeviceHandle_t)), std::free);
 
-    if (dH && d) {
-        dH->private_data = d;
+    auto d = std::unique_ptr<_devicePrivate_t,  decltype(std::free)*>(
+        (_devicePrivate_t*)calloc(1, sizeof(_devicePrivate_t)), std::free);
+
+    if (dH.get() && d.get()) {
+        dH->private_data = d.get();
         d->dev_addr = nullptr;
         d->dev_addr_booted = nullptr;
         d->device_mon_stream_id = INVALID_LINK_ID;
         d->graph_monitor_stream_id = INVALID_LINK_ID;
         d->wd_interval = watchdogInterval;
-        deviceHandlePtr = dH;
+        deviceHandlePtr = dH.get();
     }
 
-    ASSERT_EQ(ncDeviceClose(&deviceHandlePtr), NC_INVALID_PARAMETERS);
+    ASSERT_EQ(ncDeviceClose(&deviceHandlePtr, m_watchdogHndl), NC_INVALID_PARAMETERS);
 }
 
-//  *************************************************** //
-//              TESTS WITH INFERENCE                    //
-
+//------------------------------------------------------------------------------
+//      MvncInference Tests
+//------------------------------------------------------------------------------
 using MvncInference = MvncGraphAllocations;
 
-TEST_P(MvncInference, DoOneIterationOfInference) {
+TEST_P(MvncInference, DISABLED_DoOneIterationOfInference) {
     if (!blobLoaded) GTEST_SKIP_("Blob for test is not loaded\n");
     openDevices(1, _deviceHandle, _bootedDevices);
 
@@ -550,7 +536,7 @@ TEST_P(MvncInference, DoOneIterationOfInference) {
 
     ASSERT_NO_ERROR(ncGraphDestroy(&_graphHandle[0]));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandle[0]));
+    ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandle[0], m_watchdogHndl));
 }
 
 

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,47 +43,51 @@ std::string GetStringEnv(const char* varName) {
 std::string toString(ActivationFunction activation) {
     std::string method("LINEAR");
     switch (activation) {
-        case ActivationFunction::LOGISTIC:                 method = "LOGISTIC"; break;
-        case ActivationFunction::HYPERBOLIC_TAN:           method = "HYPERBOLIC_TAN"; break;
-        case ActivationFunction::RELU:                     method = "RELU"; break;
-        case ActivationFunction::RELU_NEGATIVE_SLOPE:      method = "RELU_NEGATIVE_SLOPE"; break;
-        case ActivationFunction::CLAMP:                    method = "CLAMP"; break;
-        case ActivationFunction::SOFTRELU:                 method = "SOFTRELU"; break;
-        case ActivationFunction::ABS:                      method = "ABS"; break;
-        case ActivationFunction::SQUARE:                   method = "SQUARE"; break;
-        case ActivationFunction::SQRT:                     method = "SQRT"; break;
-        case ActivationFunction::LINEAR:                   method = "LINEAR"; break;
-        case ActivationFunction::ELU:                      method = "ELU"; break;
-        case ActivationFunction::RELU_GRAD:                method = "RELU_GRAD"; break;
-        case ActivationFunction::RELU_NEGATIVE_SLOPE_GRAD: method = "RELU_NEGATIVE_SLOPE_GRAD"; break;
-        case ActivationFunction::SIN:                      method = "SIN"; break;
-        case ActivationFunction::ASIN:                     method = "ASIN"; break;
-        case ActivationFunction::SINH:                     method = "SINH"; break;
-        case ActivationFunction::ASINH:                    method = "ASINH"; break;
-        case ActivationFunction::COS:                      method = "COS"; break;
-        case ActivationFunction::ACOS:                     method = "ACOS"; break;
-        case ActivationFunction::COSH:                     method = "COSH"; break;
-        case ActivationFunction::ACOSH:                    method = "ACOSH"; break;
-        case ActivationFunction::LOG:                      method = "LOG"; break;
-        case ActivationFunction::LOG2:                     method = "LOG2"; break;
-        case ActivationFunction::EXP:                      method = "EXP"; break;
-        case ActivationFunction::NOT:                      method = "NOT"; break;
-        case ActivationFunction::POW:                      method = "POW"; break;
-        case ActivationFunction::NONE:                     method = "NONE"; break;
-        case ActivationFunction::NONE_GRAD:                method = "NONE_GRAD"; break;
-        case ActivationFunction::TAN:                      method = "TAN"; break;
-        case ActivationFunction::ATAN:                     method = "ATAN"; break;
-        case ActivationFunction::ATANH:                    method = "ATANH"; break;
-        case ActivationFunction::FLOOR:                    method = "FLOOR"; break;
-        case ActivationFunction::CEIL:                     method = "CEIL"; break;
-        case ActivationFunction::NEGATIVE:                 method = "NEGATIVE"; break;
-        case ActivationFunction::ERF:                      method = "ERF"; break;
-        case ActivationFunction::HARD_SIGMOID:             method = "HARD_SIGMOID"; break;
-        case ActivationFunction::RECIPROCAL:               method = "RECIPROCAL"; break;
-        case ActivationFunction::SELU:                     method = "SELU"; break;
-        case ActivationFunction::SIGN:                     method = "SIGN"; break;
-        case ActivationFunction::SOFTPLUS:                 method = "SOFTPLUS"; break;
-        case ActivationFunction::SOFTSIGN:                 method = "SOFTSIGN"; break;
+        case ActivationFunction::LOGISTIC:                  method = "LOGISTIC"; break;
+        case ActivationFunction::HYPERBOLIC_TAN:            method = "HYPERBOLIC_TAN"; break;
+        case ActivationFunction::RELU:                      method = "RELU"; break;
+        case ActivationFunction::RELU_NEGATIVE_SLOPE:       method = "RELU_NEGATIVE_SLOPE"; break;
+        case ActivationFunction::CLAMP:                     method = "CLAMP"; break;
+        case ActivationFunction::SOFTRELU:                  method = "SOFTRELU"; break;
+        case ActivationFunction::ABS:                       method = "ABS"; break;
+        case ActivationFunction::SQUARE:                    method = "SQUARE"; break;
+        case ActivationFunction::SQRT:                      method = "SQRT"; break;
+        case ActivationFunction::LINEAR:                    method = "LINEAR"; break;
+        case ActivationFunction::ELU:                       method = "ELU"; break;
+        case ActivationFunction::SIN:                       method = "SIN"; break;
+        case ActivationFunction::ASIN:                      method = "ASIN"; break;
+        case ActivationFunction::SINH:                      method = "SINH"; break;
+        case ActivationFunction::ASINH:                     method = "ASINH"; break;
+        case ActivationFunction::COS:                       method = "COS"; break;
+        case ActivationFunction::ACOS:                      method = "ACOS"; break;
+        case ActivationFunction::COSH:                      method = "COSH"; break;
+        case ActivationFunction::ACOSH:                     method = "ACOSH"; break;
+        case ActivationFunction::LOG:                       method = "LOG"; break;
+        case ActivationFunction::LOG2:                      method = "LOG2"; break;
+        case ActivationFunction::EXP:                       method = "EXP"; break;
+        case ActivationFunction::NOT:                       method = "NOT"; break;
+        case ActivationFunction::POW:                       method = "POW"; break;
+        case ActivationFunction::NONE:                      method = "NONE"; break;
+        case ActivationFunction::TAN:                       method = "TAN"; break;
+        case ActivationFunction::ATAN:                      method = "ATAN"; break;
+        case ActivationFunction::ATANH:                     method = "ATANH"; break;
+        case ActivationFunction::FLOOR:                     method = "FLOOR"; break;
+        case ActivationFunction::CEIL:                      method = "CEIL"; break;
+        case ActivationFunction::NEGATIVE:                  method = "NEGATIVE"; break;
+        case ActivationFunction::ERF:                       method = "ERF"; break;
+        case ActivationFunction::HARD_SIGMOID:              method = "HARD_SIGMOID"; break;
+        case ActivationFunction::HSIGMOID:                  method = "HSIGMOID"; break;
+        case ActivationFunction::RECIPROCAL:                method = "RECIPROCAL"; break;
+        case ActivationFunction::SELU:                      method = "SELU"; break;
+        case ActivationFunction::SIGN:                      method = "SIGN"; break;
+        case ActivationFunction::SOFTPLUS:                  method = "SOFTPLUS"; break;
+        case ActivationFunction::SOFTSIGN:                  method = "SOFTSIGN"; break;
+        case ActivationFunction::SWISH:                     method = "SWISH"; break;
+        case ActivationFunction::HSWISH:                    method = "HSWISH"; break;
+        case ActivationFunction::MISH:                      method = "MISH"; break;
+        case ActivationFunction::GELU:                      method = "GELU"; break;
+        case ActivationFunction::ROUND_HALF_TO_EVEN:        method = "ROUND_HALF_TO_EVEN"; break;
+        case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO: method = "ROUND_HALF_AWAY_FROM_ZERO"; break;
         default: break;
     }
     return method;
@@ -91,25 +95,28 @@ std::string toString(ActivationFunction activation) {
 
 std::string toString(DataLayout l) {
     switch (l) {
-        case kernel_selector::DataLayout::bf:                   return "BF";
-        case kernel_selector::DataLayout::fb:                   return "FB";
-        case kernel_selector::DataLayout::bfyx:                 return "BFYX";
-        case kernel_selector::DataLayout::yxfb:                 return "YXFB";
-        case kernel_selector::DataLayout::byxf:                 return "BYXF";
-        case kernel_selector::DataLayout::fyxb:                 return "FYXB";
-        case kernel_selector::DataLayout::bfyx_f16:             return "BFYX_F16";
-        case kernel_selector::DataLayout::bs_f_bsv8__af8:       return "BS_F_BSV8__AF8";
-        case kernel_selector::DataLayout::bs_f_bsv16__af8:      return "BS_F_BSV16__AF8";
-        case kernel_selector::DataLayout::bf8_xy16:             return "BF8_XY16";
-        case kernel_selector::DataLayout::winograd_2x3_s1_data: return "WINOGRAD_2x3_S1_DATA";
-        case kernel_selector::DataLayout::byxf_af32:            return "BYXF_AF32";
-        case kernel_selector::DataLayout::byx8_f4:              return "BYX8_F4";
-        case kernel_selector::DataLayout::fs_bs_yx_bsv4_fsv32:  return "FS_BS_YX_BSV4_FSV32";
-        case kernel_selector::DataLayout::b_fs_yx_fsv4:         return "B_FS_YX_FSV4";
-        case kernel_selector::DataLayout::b_fs_yx_32fp:         return "B_FS_YX_32FP";
-        case kernel_selector::DataLayout::bfzyx:                return "BFZYX";
-        case kernel_selector::DataLayout::fs_b_yx_fsv32:        return "FS_B_YX_FSV32";
-        case kernel_selector::DataLayout::bfwzyx:               return "BFWZYX";
+        case kernel_selector::DataLayout::bf:                    return "BF";
+        case kernel_selector::DataLayout::fb:                    return "FB";
+        case kernel_selector::DataLayout::bfyx:                  return "BFYX";
+        case kernel_selector::DataLayout::yxfb:                  return "YXFB";
+        case kernel_selector::DataLayout::byxf:                  return "BYXF";
+        case kernel_selector::DataLayout::fyxb:                  return "FYXB";
+        case kernel_selector::DataLayout::b_fs_yx_fsv16:         return "B_FS_YX_FSV16";
+        case kernel_selector::DataLayout::b_fs_yx_fsv32:         return "B_FS_YX_FSV32";
+        case kernel_selector::DataLayout::b_fs_zyx_fsv32:        return "B_FS_ZYX_FSV32";
+        case kernel_selector::DataLayout::bs_f_bsv8__af8:        return "BS_F_BSV8__AF8";
+        case kernel_selector::DataLayout::bs_f_bsv16__af8:       return "BS_F_BSV16__AF8";
+        case kernel_selector::DataLayout::winograd_2x3_s1_data:  return "WINOGRAD_2x3_S1_DATA";
+        case kernel_selector::DataLayout::b_fs_yx_fsv4:          return "B_FS_YX_FSV4";
+        case kernel_selector::DataLayout::b_fs_yx_32fp:          return "B_FS_YX_32FP";
+        case kernel_selector::DataLayout::bfzyx:                 return "BFZYX";
+        case kernel_selector::DataLayout::fs_b_yx_fsv32:         return "FS_B_YX_FSV32";
+        case kernel_selector::DataLayout::bfwzyx:                return "BFWZYX";
+        case kernel_selector::DataLayout::b_fs_zyx_fsv16:        return "B_FS_ZYX_FSV16";
+        case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv16:  return "BS_FS_YX_BSV16_FSV16";
+        case kernel_selector::DataLayout::bs_fs_zyx_bsv16_fsv16: return "BS_FS_ZYX_BSV16_FSV16";
+        case kernel_selector::DataLayout::nv12:                  return "NV12";
+        case kernel_selector::DataLayout::image_2d_rgba:         return "IMAGE_2D_RGBA";
         default:
             return "";
     }
@@ -156,6 +163,10 @@ std::string toString(KernelType kt) {
         case KernelType::ELTWISE:         return "ELTWISE";
         case KernelType::REORDER:         return "REORDER";
         case KernelType::SELECT:          return "SELECT";
+        case KernelType::FUSED_CONV_ELTWISE:
+                                          return "FUSED_CONV_ELTWISE";
+        case KernelType::BINARY_CONVOLUTION:
+                                          return "BINARY_CONVOLUTION";
         default: return "";
     }
 }
@@ -285,42 +296,89 @@ std::string toString(MVNMode mode) {
 }
 
 std::string toString(WeightsLayout layout) {
-    switch (layout) {
-        case WeightsLayout::oi:                                     return "OI";
-        case WeightsLayout::io:                                     return "IO";
-        case WeightsLayout::oiyx:                                   return "OIYX";
-        case WeightsLayout::oyxi:                                   return "OYXI";
-        case WeightsLayout::iyxo:                                   return "IYXO";
-        case WeightsLayout::yxio:                                   return "YXIO";
-        case WeightsLayout::oiyx_o16:                               return "OIYX_O16";
-        case WeightsLayout::o_i_yx_i16_o16:                         return "O_I_YX_I16_O16";
-        case WeightsLayout::os_iyx_osv16:                           return "OS_IYX_OSV16";
-        case WeightsLayout::os_iyx_osv32:                           return "OS_IYX_OSV32";
-        case WeightsLayout::os_iyx_osv64:                           return "OS_IYX_OSV64";
-        case WeightsLayout::os_iyx_osv16_rotate_180:                return "OS_IYX_OSV16_ROTATE_180";
-        case WeightsLayout::os_i_osv16:                             return "OS_I_OSV16";
-        case WeightsLayout::os_i_osv8__ai8:                         return "OS_I_OSV8__AI8";
-        case WeightsLayout::os_i_osv16__ai8:                        return "OS_I_OSV16__AI8";
-        case WeightsLayout::i_yxs_os_yxsv2_osv16:                   return "I_YXS_OS_YXSV2_OSV16";
-        case WeightsLayout::iy_xs_os_xsv2_osv16__ao32:              return "IY_XS_OS_XSV2_OSV16__AO32";
-        case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:               return "IY_XS_OS_XSV2_OSV8__AO32";
-        case WeightsLayout::image_2d_weights_c4_fyx_b:              return "IMAGE_2D_WEIGHTS_C4_FYX_B";
-        case WeightsLayout::image_2d_weights_c1_b_fyx:              return "IMAGE_2D_WEIGHTS_C1_B_FYX";
-        case WeightsLayout::winograd_2x3_s1_weights:                return "WINOGRAD_2x3_S1_WEIGHTS";
-        case WeightsLayout::winograd_2x3_s1_fused_weights:          return "WINOGRAD_2x3_S1_FUSED_WEIGHTS";
-        case WeightsLayout::winograd_6x3_s1_fused_weights:          return "WINOGRAD_6x3_S1_FUSED_WEIGHTS";
-        case WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb: return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB";
-        case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb: return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB";
-        case WeightsLayout::os_is_yx_isa8_osv8_isv4:                return "OS_IS_YX_ISA8_OSV8_ISV4";
-        case WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4:  return "OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
-        case WeightsLayout::is_o_yx_isv32:                          return "IS_O_YX_ISV32";
-        case WeightsLayout::is_o32_yx_isv32_swizzled_by_4:          return "IS_O32_YX_ISV32_SWIZZLED_BY_4";
-        case WeightsLayout::os_is_y_x8_osv8_isv4:                   return "OS_IS_Y_X8_OSV8_ISV4";
-        case WeightsLayout::os_is_yx_osv16_isv4:                    return "OS_IS_YX_OSV16_ISV4";
-        case WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4:     return "OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4";
-        case WeightsLayout::os_is_yx_osv32_isv32p:                  return "OS_IS_YX_OSV32_ISV32P";
-        case WeightsLayout::oizyx:                                  return "OIZYX";
-        case WeightsLayout::bf_lyx_yx:                              return "BF_LYX_YX";
+   switch (layout) {
+        case WeightsLayout::oi:                                          return "OI";
+        case WeightsLayout::io:                                          return "IO";
+        case WeightsLayout::oiyx:                                        return "OIYX";
+        case WeightsLayout::oyxi:                                        return "OYXI";
+        case WeightsLayout::iyxo:                                        return "IYXO";
+        case WeightsLayout::yxio:                                        return "YXIO";
+        case WeightsLayout::os_is_yx_isv16_osv16:                        return "OS_IS_YX_ISV16_OSV16";
+        case WeightsLayout::os_is_yx_osv16_isv16:                        return "OS_IS_YX_OSV16_ISV16";
+        case WeightsLayout::os_is_zyx_osv16_isv16:                       return "OS_IS_ZYX_OSV16_ISV16";
+        case WeightsLayout::os_is_zyx_osv32_isv16:                       return "OS_IS_ZYX_OSV32_ISV16";
+        case WeightsLayout::os_is_zyx_osv64_isv16:                       return "OS_IS_ZYX_OSV64_ISV16";
+        case WeightsLayout::os_iyx_osv16:                                return "OS_IYX_OSV16";
+        case WeightsLayout::os_iyx_osv32:                                return "OS_IYX_OSV32";
+        case WeightsLayout::os_iyx_osv32__ai32:                          return "OS_IYX_OSV32__AI32";
+        case WeightsLayout::os_iyx_osv64:                                return "OS_IYX_OSV64";
+        case WeightsLayout::os_iyx_osv16_rotate_180:                     return "OS_IYX_OSV16_ROTATE_180";
+        case WeightsLayout::g_os_iyx_osv16_rotate_180:                   return "G_OS_IYX_OSV16_ROTATE_180";
+        case WeightsLayout::os_i_osv16:                                  return "OS_I_OSV16";
+        case WeightsLayout::os_i_osv8__ai8:                              return "OS_I_OSV8__AI8";
+        case WeightsLayout::os_i_osv16__ai8:                             return "OS_I_OSV16__AI8";
+        case WeightsLayout::i_yxs_os_yxsv2_osv16:                        return "I_YXS_OS_YXSV2_OSV16";
+        case WeightsLayout::iy_xs_os_xsv2_osv16__ao32:                   return "IY_XS_OS_XSV2_OSV16__AO32";
+        case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:                    return "IY_XS_OS_XSV2_OSV8__AO32";
+        case WeightsLayout::image_2d_weights_c4_fyx_b:                   return "IMAGE_2D_WEIGHTS_C4_FYX_B";
+        case WeightsLayout::image_2d_weights_c1_b_fyx:                   return "IMAGE_2D_WEIGHTS_C1_B_FYX";
+        case WeightsLayout::winograd_2x3_s1_weights:                     return "WINOGRAD_2x3_S1_WEIGHTS";
+        case WeightsLayout::winograd_2x3_s1_fused_weights:               return "WINOGRAD_2x3_S1_FUSED_WEIGHTS";
+        case WeightsLayout::winograd_6x3_s1_fused_weights:               return "WINOGRAD_6x3_S1_FUSED_WEIGHTS";
+        case WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb:      return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB";
+        case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb:      return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB";
+        case WeightsLayout::dlstm_dir_io:                                return "DLSTM_DIR_IO";
+        case WeightsLayout::os_is_yx_isa8_osv8_isv4:                     return "OS_IS_YX_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4:       return "OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_zyx_isa8_osv8_isv4:                    return "OS_IS_ZYX_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:  return "OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4: return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::is_o_yx_isv32:                               return "IS_O_YX_ISV32";
+        case WeightsLayout::is_o32_yx_isv32_swizzled_by_4:               return "IS_O32_YX_ISV32_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_y_x8_osv8_isv4:                        return "OS_IS_Y_X8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_osv16_isv4:                         return "OS_IS_YX_OSV16_ISV4";
+        case WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2:           return "OS_IS_YX_OSV32_ISV4_SWIZZLED_BY_2";
+        case WeightsLayout::os_is_yx_osv32_isv4:                         return "OS_IS_YX_OSV32_ISV4";
+        case WeightsLayout::os_is_zyx_osv32_isv4:                        return "OS_IS_ZYX_OSV32_ISV4";
+        case WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4:          return "OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_yx_osv32_isv32p:                       return "OS_IS_YX_OSV32_ISV32P";
+        case WeightsLayout::oizyx:                                       return "OIZYX";
+        case WeightsLayout::os_is_zyx_isv16_osv16:                       return "OS_IS_ZYX_ISV16_OSV16";
+        case WeightsLayout::is_os_zyx_isv16_osv16:                       return "IS_OS_ZYX_ISV16_OSV16";
+        case WeightsLayout::is_os_yx_isv16_osv16:                        return "IS_OS_YX_ISV16_OSV16";
+        case WeightsLayout::os_is_zyx_isv8_osv16_isv2:                   return "OS_IS_ZYX_ISV8_OSV16_ISV2";
+        case WeightsLayout::os_zyxi_osv16:                               return "OS_ZYXI_OSV16";
+        case WeightsLayout::os_is_yx_isv8_osv16_isv2:                    return "OS_IS_YX_ISV8_OSV16_ISV2";
+        case WeightsLayout::os_is_osv32_isv32_swizzled_by_4:             return "OS_IS_OSV32_ISV32_SWIZZLED_BY_4";
+        case WeightsLayout::os_i_yxs_osv4_yxsv4:                         return "OS_I_YXS_OSV4_YXSV4";
+        case WeightsLayout::goiyx:                                       return "GOIYX";
+        case WeightsLayout::gyxio:                                       return "GYXIO";
+        case WeightsLayout::goizyx:                                      return "GOIZYX";
+        case WeightsLayout::g_os_iyx_osv16:                              return "G_OS_IYX_OSV16";
+        case WeightsLayout::g_os_iyx_osv32:                              return "G_OS_IYX_OSV32";
+        case WeightsLayout::gs_oiyx_gsv16:                               return "GS_OIYX_GSV16";
+        case WeightsLayout::gs_oizyx_gsv16:                              return "GS_OIZYX_GSV16";
+        case WeightsLayout::gs_oiyx_gsv32:                               return "GS_OIYX_GSV32";
+        case WeightsLayout::gi_yxs_os_yxsv2_osv16:                       return "GI_YXS_OS_YXSV2_OSV16";
+        case WeightsLayout::g_is_os_zyx_isv16_osv16:                     return "G_IS_OS_ZYX_ISV16_OSV16";
+        case WeightsLayout::g_is_os_yx_isv16_osv16:                      return "G_IS_OS_YX_ISV16_OSV16";
+        case WeightsLayout::g_os_is_zyx_isv8_osv16_isv2:                 return "G_OS_IS_ZYX_ISV8_OSV16_ISV2";
+        case WeightsLayout::g_os_is_yx_isv8_osv16_isv2:                  return "G_OS_IS_YX_ISV8_OSV16_ISV2";
+        case WeightsLayout::g_os_is_zyx_isv16_osv16:                     return "G_OS_IS_ZYX_ISV16_OSV16";
+        case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:                  return "GIY_XS_OS_XSV2_OSV16__AO32";
+        case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:                   return "GIY_XS_OS_XSV2_OSV8__AO32";
+        case WeightsLayout::gs_oi_yxs_gsv4_yxsv4:                        return "GS_OI_YXS_GSV4_YXSV4";
+        case WeightsLayout::gs_oi_yxs_gsv16_yxsv4:                       return "GS_OI_YXS_GSV16_YXSV4";
+        case WeightsLayout::gs_oi_yxs_gsv32_yxsv4:                       return "GS_OI_YXS_GSV32_YXSV4";
+        case WeightsLayout::g_os_is_yx_isv16_osv16:                      return "G_OS_IS_YX_ISV16_OSV16";
+        case WeightsLayout::g_os_is_yx_osv16_isv4:                       return "G_OS_IS_YX_OSV16_ISV4";
+        case WeightsLayout::g_os_is_zyx_osv16_isv16:                     return "G_OS_IS_ZYX_OSV16_ISV16";
+        case WeightsLayout::g_os_zyx_is_osv16_isv4:                      return "G_OS_ZYX_IS_OSV16_ISV4";
+        case WeightsLayout::g_os_zyx_is_osv16_isv16:                     return "G_OS_ZYX_IS_OSV16_ISV16";
+        case WeightsLayout::g_os_zyx_is_osv16_isv32:                     return "G_OS_ZYX_IS_OSV16_ISV32";
+        case WeightsLayout::g_os_zyx_is_osv32_isv4:                      return "G_OS_ZYX_IS_OSV32_ISV4";
+        case WeightsLayout::g_os_zyx_is_osv32_isv16:                     return "G_OS_ZYX_IS_OSV32_ISV16";
+        case WeightsLayout::g_os_zyx_is_osv32_isv32:                     return "G_OS_ZYX_IS_OSV32_ISV32";
         default: throw std::invalid_argument("Failed to convert WeightsLayout " + std::to_string(layout) + " to string");
     }
 }
@@ -337,16 +395,6 @@ std::string toString(ConcatAxis a) {
     }
 }
 
-std::string toString(TileAxis a) {
-    switch (a) {
-        case TileAxis::X:       return "X";
-        case TileAxis::Y:       return "Y";
-        case TileAxis::FEATURE: return "FEATURE";
-        case TileAxis::BATCH:   return "BATCH";
-        default: return "";
-    }
-}
-
 std::string toString(GatherAxis a) {
     switch (a) {
         case GatherAxis::X:       return "X";
@@ -357,10 +405,47 @@ std::string toString(GatherAxis a) {
     }
 }
 
-std::string toString(SampleType type) {
+std::string toString(ScatterUpdateAxis a) {
+    switch (a) {
+        case ScatterUpdateAxis::X:       return "X";
+        case ScatterUpdateAxis::Y:       return "Y";
+        case ScatterUpdateAxis::Z:       return "Z";
+        case ScatterUpdateAxis::W:       return "W";
+        case ScatterUpdateAxis::FEATURE: return "FEATURE";
+        case ScatterUpdateAxis::BATCH:   return "BATCH";
+        default: return "";
+    }
+}
+
+std::string toString(ResampleType type) {
     switch (type) {
-        case SampleType::NEAREST:  return "SAMPLE_TYPE_NEAREST";
-        case SampleType::BILINEAR: return "SAMPLE_TYPE_BILINEAR";
+        case ResampleType::NEAREST_NEIGHBOR:  return "SAMPLE_TYPE_NEAREST";
+        case ResampleType::BILINEAR_INTERP: return "SAMPLE_TYPE_INTERP";
+        case ResampleType::CAFFE_BILINEAR_INTERP: return "SAMPLE_TYPE_CAFFE_INTERP";
+        case ResampleType::CUBIC: return "SAMPLE_TYPE_CUBIC";
+        case ResampleType::LINEAR_ONNX: return "SAMPLE_TYPE_LINEAR_ONNX";
+        default: return "";
+    }
+}
+
+std::string toString(CoordinateTransformationMode mode) {
+    switch (mode) {
+        case CoordinateTransformationMode::HALF_PIXEL:  return "COORD_TRANS_MODE_HALF_PIXEL";
+        case CoordinateTransformationMode::PYTORCH_HALF_PIXEL: return "COORD_TRANS_MODE_PYTORCH_HALF_PIXEL";
+        case CoordinateTransformationMode::ASYMMETRIC: return "COORD_TRANS_MODE_ASYMMETRIC";
+        case CoordinateTransformationMode::TF_HALF_PIXEL_FOR_NN: return "COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN";
+        case CoordinateTransformationMode::ALIGN_CORNERS: return "COORD_TRANS_MODE_ALIGN_CORNERS";
+        default: return "";
+    }
+}
+
+std::string toString(NearestMode mode) {
+    switch (mode) {
+        case NearestMode::ROUND_PREFER_FLOOR:  return "NEAREST_ROUND_PREFER_FLOOR";
+        case NearestMode::ROUND_PREFER_CEIL: return "NEAREST_ROUND_PREFER_CEIL";
+        case NearestMode::FLOOR: return "NEAREST_FLOOR";
+        case NearestMode::CEIL: return "NEAREST_CEIL";
+        case NearestMode::SIMPLE: return "NEAREST_SIMPLE";
         default: return "";
     }
 }
@@ -405,11 +490,44 @@ std::string toStringTensor(const Tensor::TensorBaseT<DType, Layout>& tensor) {
 }
 
 std::string toString(const DataTensor& tensor) {
-    return toStringTensor(tensor);
+    // WA to reuse old tuning cache. Code below must be replace with the following line once new cache file is merged.
+    // return toStringTensor(tensor);
+    if (tensor.GetLayout() != DataLayout::b_fs_yx_fsv16 &&
+        tensor.GetLayout() != DataLayout::b_fs_zyx_fsv16) {
+        return toStringTensor(tensor);
+    } else {
+        std::stringstream s;
+        s << toString(tensor.GetDType()) << "_";
+        std::string layoutStr;
+        switch (tensor.GetLayout()) {
+            case DataLayout::b_fs_yx_fsv16: layoutStr = "BFYX_F16"; break;
+            case DataLayout::b_fs_zyx_fsv16: layoutStr = "BFZYX_F16"; break;
+            default: layoutStr = toString(tensor.GetLayout()); break;
+        }
+        s << layoutStr << "_";
+        int i = 0;
+        for (auto dim : tensor.GetDims()) {
+            s << "d" << i << "_" << toString(dim) << "_";
+            i++;
+        }
+        return s.str();
+    }
 }
 
 std::string toString(const WeightsTensor& tensor) {
     return toStringTensor(tensor);
+}
+
+std::string toString_v2(const DataTensor& tensor) {
+    std::stringstream s;
+    s << toString(tensor.GetDType()) << "_";
+    s << toString(tensor.GetLayout());
+    int i = 0;
+    for (auto dim : tensor.GetDims()) {
+        s << "_v" << dim.v << "_p" << dim.pad.before << "_" << dim.pad.after;
+        i++;
+    }
+    return s.str();
 }
 
 std::string toString(ReduceMode mode) {

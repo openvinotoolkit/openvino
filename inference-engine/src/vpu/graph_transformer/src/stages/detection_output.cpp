@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,33 +90,36 @@ void printTo(DotLabel& lbl, const DetectionOutputParams& params) {
 }
 
 class DetectionOutputStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<DetectionOutputStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 3 || _inputEdges.size() == 5);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        for (const auto& inEdge : _inputEdges) {
-            _stridesInfo.setInput(inEdge, StridesRequirement::compact());
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        for (const auto& inEdge : inputEdges()) {
+            stridesInfo.setInput(inEdge, StridesRequirement::compact());
         }
-        for (const auto& outEdge : _outputEdges) {
-            _stridesInfo.setOutput(outEdge, StridesRequirement::compact());
+        for (const auto& outEdge : outputEdges()) {
+            stridesInfo.setOutput(outEdge, StridesRequirement::compact());
         }
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        IE_ASSERT(numInputs() == 3 || numInputs() == 5);
+        IE_ASSERT(numOutputs() == 1);
+        assertAllInputsOutputsTypes(this, DataType::FP16, DataType::FP16);
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -126,35 +129,27 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 3 || _inputEdges.size() == 5);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.size() == 1);
+        auto loc = inputEdge(0)->input();
+        auto conf = inputEdge(1)->input();
+        auto priors = inputEdge(2)->input();
+        auto output = outputEdge(0)->output();
 
-        auto loc = _inputEdges[0]->input();
-        auto conf = _inputEdges[1]->input();
-        auto priors = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
-
-        loc->serializeNewBuffer(serializer);
-        conf->serializeNewBuffer(serializer);
-        priors->serializeNewBuffer(serializer);
-        if (_inputEdges.size() == 5) {
-            _inputEdges[3]->input()->serializeNewBuffer(serializer);
-            _inputEdges[4]->input()->serializeNewBuffer(serializer);
+        loc->serializeBuffer(serializer);
+        conf->serializeBuffer(serializer);
+        priors->serializeBuffer(serializer);
+        if (numInputs() == 5) {
+            inputEdge(3)->input()->serializeBuffer(serializer);
+            inputEdge(4)->input()->serializeBuffer(serializer);
         }
-        output->serializeNewBuffer(serializer);
+        output->serializeBuffer(serializer);
 
-        _tempBufferEdges[0]->tempBuffer()->serializeNewBuffer(serializer);
+        tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseDetectionOutput(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 3 || inputs.size() == 5);
@@ -217,12 +212,7 @@ void FrontEnd::parseDetectionOutput(
     if (outputs[0]->desc().dim(Dim::W) != 7)
         VPU_THROW_EXCEPTION << "Detection Output: Support only 7 vals per detection.";
 
-    auto stage = model->addNewStage<DetectionOutputStage>(
-        layer->name,
-        StageType::DetectionOutput,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<DetectionOutputStage>(layer->name, StageType::DetectionOutput, layer, inputs, outputs);
 
     stage->attrs().set("params", detParams);
 
@@ -250,9 +240,7 @@ void FrontEnd::parseDetectionOutput(
         size_num_priors_actual_buf +
         size_temp_data_buf;
 
-    model->addTempBuffer(
-        stage,
-        DataDesc({buffer_size}));
+    model->addTempBuffer(stage, buffer_size);
 }
 
 }  // namespace vpu

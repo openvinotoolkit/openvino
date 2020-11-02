@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,29 +13,29 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.ops.argmax import ArgMaxOp
 from mo.front.caffe.collect_attributes import merge_attrs
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
 
 
 class ArgMaxFrontExtractor(FrontExtractorOp):
     op = 'ArgMax'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         proto_layer = node.pb
         param = proto_layer.argmax_param
 
         update_attrs = {
             'out_max_val': int(param.out_max_val),
             'top_k': param.top_k,
-            'axis': param.axis
+            'axis': param.axis,
         }
 
         mapping_rule = merge_attrs(param, update_attrs)
 
-        # update the attributes of the node
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        ArgMaxOp.update_node_stat(node, mapping_rule)
+        # ArgMax must be converted to TopK but without the output with values
+        ArgMaxOp.update_node_stat(node, {'remove_values_output': True})
+        return cls.enabled

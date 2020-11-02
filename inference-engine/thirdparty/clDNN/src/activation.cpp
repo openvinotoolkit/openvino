@@ -22,7 +22,7 @@
 #include <vector>
 
 namespace cldnn {
-primitive_type_id activation_type_id() {
+primitive_type_id activation::type_id() {
     static primitive_type_base<activation> instance;
     return &instance;
 }
@@ -32,17 +32,22 @@ layout activation_inst::calc_output_layout(activation_node const& node) {
            "Output data type forcing is not supported for activation_node!");
 
     auto input_node_layout = node.input().get_non_padded_output_layout();
-    auto func = node.get_primitive()->activation_func;
+    auto func = node.get_primitive()->activation_function;
 
-    std::vector<cldnn_activation_func> activations_int8 = {
-        activation_none,
-        activation_negative,
-        activation_not,
-        activation_relu};
+    std::vector<activation_func> activations_int8 = {
+        activation_func::none,
+        activation_func::negative,
+        activation_func::negation,
+        activation_func::relu,
+        activation_func::clamp };
 
-    if (input_node_layout.data_type == data_types::i8) {
+    if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::i32) {
         if (std::find(activations_int8.begin(), activations_int8.end(), func) == activations_int8.end())
-            CLDNN_ERROR_MESSAGE(node.id(), "Requested activation is not supported for integer type (int8).");
+            CLDNN_ERROR_MESSAGE(node.id(), "Requested activation is not supported for integer type.");
+    }
+
+    if (node.has_fused_primitives()) {
+        input_node_layout.data_type = node.get_fused_output_layout().data_type;
     }
 
     return input_node_layout;
@@ -55,7 +60,7 @@ std::string activation_inst::to_string(activation_node const& node) {
     std::stringstream primitive_description;
 
     json_composite activation_info;
-    activation_info.add("activation_func", desc->activation_func);
+    activation_info.add("activation_func", static_cast<int>(desc->activation_function));
     activation_info.add("additional_params.a", desc->additional_params.a);
     activation_info.add("additional_params.b", desc->additional_params.b);
     activation_info.add("additional_params input", desc->additional_params_input);
@@ -85,7 +90,7 @@ activation_inst::typed_primitive_inst(network_impl& network, activation_node con
 
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Slope x size",
-                              slope_input_size.spatial[0],
+                              slope_input_size.feature[0],
                               "input feature size",
                               input_feature_size,
                               "Dimensions mismatch between input and slope input in Activation layer(slope x size "
@@ -96,7 +101,7 @@ activation_inst::typed_primitive_inst(network_impl& network, activation_node con
                               "Slope input size count",
                               slope_input_size.count(),
                               "Slope input size x",
-                              slope_input_size.spatial[0],
+                              slope_input_size.feature[0],
                               "Dimensions mismatch of slope input in Activation layer!");
     }
 }

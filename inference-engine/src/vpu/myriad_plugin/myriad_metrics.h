@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include <string>
 #include <map>
 #include <tuple>
+#include <unordered_set>
 
 using RangeType = std::tuple<unsigned int, unsigned int, unsigned int>;
 
@@ -35,9 +36,10 @@ public:
         const std::vector<DevicePtr> &devicePool) const;
 
     std::string FullName(std::string deviceName) const;
-    const std::vector<std::string>& SupportedMetrics() const;
-    const std::vector<std::string>& SupportedConfigKeys() const;
-    const std::vector<std::string>& OptimizationCapabilities() const;
+    float DevicesThermal(const DevicePtr& device) const;
+    const std::unordered_set<std::string>& SupportedMetrics() const;
+    const std::unordered_set<std::string>& SupportedConfigKeys() const;
+    const std::unordered_set<std::string>& OptimizationCapabilities() const;
     RangeType RangeForAsyncInferRequests(
         const std::map<std::string, std::string>&) const;
 
@@ -46,9 +48,9 @@ public:
 
 private:
     // Data section
-    std::vector<std::string> _supportedMetrics;
-    std::vector<std::string> _supportedConfigKeys;
-    std::vector<std::string> _optimizationCapabilities;
+    std::unordered_set<std::string> _supportedMetrics;
+    std::unordered_set<std::string> _supportedConfigKeys;
+    std::unordered_set<std::string> _optimizationCapabilities;
     RangeType _rangeForAsyncInferRequests;
     std::map<std::string, std::string> _idToDeviceFullNameMap;
 };

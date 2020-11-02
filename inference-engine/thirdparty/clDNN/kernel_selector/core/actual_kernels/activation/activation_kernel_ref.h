@@ -17,6 +17,8 @@
 
 #include "activation_kernel_base.h"
 
+#include <vector>
+
 namespace kernel_selector {
 class ActivationKernelRef : public ActivationKernelBase {
 public:
@@ -25,5 +27,11 @@ public:
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+    JitConstants GetJitConstants(const activation_params& params, DispatchData dispatchData) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {FusedOpType::QUANTIZE,
+                FusedOpType::SCALE,
+                FusedOpType::ACTIVATION};
+    }
 };
 }  // namespace kernel_selector

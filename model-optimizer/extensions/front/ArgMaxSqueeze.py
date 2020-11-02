@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ class ArgMaxSqueeze(FrontReplacementSubgraph):
             node.in_port(1).get_source().connect(squeeze_node.in_port(1))
         else:
             axis_node = Const(graph, {'value': node.axis}).create_node()
-            node.in_port(1).connect(axis_node.out_port(0))
+            squeeze_node.in_port(1).connect(axis_node.out_port(0))
         node.out_port(0).get_connection().set_source(squeeze_node.out_port(0))
         node.out_port(0).connect(squeeze_node.in_port(0))
         return []

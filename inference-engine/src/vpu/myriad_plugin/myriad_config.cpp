@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,135 +8,146 @@
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
-#include <chrono>
 
 #include <cpp_interfaces/exception2status.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
+#include <vpu/myriad_config.hpp>
 
-using namespace vpu;
-using namespace vpu::MyriadPlugin;
+namespace vpu {
+namespace MyriadPlugin {
 
+const std::unordered_set<std::string>& MyriadConfig::getCompileOptions() const {
+IE_SUPPRESS_DEPRECATED_START
+    static const std::unordered_set<std::string> options = merge(ParsedConfig::getCompileOptions(), {
+        VPU_MYRIAD_CONFIG_KEY(PLATFORM),
+    });
+IE_SUPPRESS_DEPRECATED_END
 
-MyriadConfig::MyriadConfig(const std::map<std::string, std::string> &config, ConfigMode mode) : ParsedConfig(mode)  {
-    configure(parse(config));
+    return options;
+}
 
-    static const std::unordered_map<std::string, bool> boolSwitches = {
-        { CONFIG_VALUE(YES), true },
-        { CONFIG_VALUE(NO), false }
+const std::unordered_set<std::string>& MyriadConfig::getRunTimeOptions() const {
+IE_SUPPRESS_DEPRECATED_START
+    static const std::unordered_set<std::string> options = merge(ParsedConfig::getRunTimeOptions(), {
+        CONFIG_KEY(DEVICE_ID),
+
+        ie::MYRIAD_ENABLE_FORCE_RESET,
+
+        ie::MYRIAD_PROTOCOL,
+        ie::MYRIAD_WATCHDOG,
+        ie::MYRIAD_THROUGHPUT_STREAMS,
+        ie::MYRIAD_POWER_MANAGEMENT,
+
+        ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
+        ie::MYRIAD_DEVICE_CONNECT_TIMEOUT,
+
+        ie::MYRIAD_DDR_TYPE,
+
+        // Deprecated
+        VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
+        VPU_MYRIAD_CONFIG_KEY(PLATFORM),
+        VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
+        VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
+    });
+IE_SUPPRESS_DEPRECATED_END
+
+    return options;
+}
+
+const std::unordered_set<std::string>& MyriadConfig::getDeprecatedOptions() const {
+IE_SUPPRESS_DEPRECATED_START
+    static const std::unordered_set<std::string> options = merge(ParsedConfig::getDeprecatedOptions(), {
+        VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
+        VPU_MYRIAD_CONFIG_KEY(PLATFORM),
+        VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
+        VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
+    });
+IE_SUPPRESS_DEPRECATED_END
+
+    return options;
+}
+
+void MyriadConfig::parse(const std::map<std::string, std::string>& config) {
+IE_SUPPRESS_DEPRECATED_START
+    static const std::unordered_map<std::string, ncDevicePlatform_t> platformsDeprecated = {
+        { VPU_MYRIAD_CONFIG_VALUE(2450), NC_MYRIAD_2 },
+        { VPU_MYRIAD_CONFIG_VALUE(2480), NC_MYRIAD_X },
+        { std::string(),                 NC_ANY_PLATFORM }
     };
-    static const std::unordered_map<std::string, ncDevicePlatform_t> platformSwitches = {
-        { VPU_MYRIAD_CONFIG_VALUE(2450),   NC_MYRIAD_2 },
-        { VPU_MYRIAD_CONFIG_VALUE(2480),   NC_MYRIAD_X },
-        { std::string(),                   NC_ANY_PLATFORM }
+
+    static const std::unordered_map<std::string, ncDeviceProtocol_t> protocolsDeprecated = {
+        { VPU_MYRIAD_CONFIG_VALUE(USB),  NC_USB},
+        { VPU_MYRIAD_CONFIG_VALUE(PCIE), NC_PCIE},
+        { std::string(),                 NC_ANY_PROTOCOL}
     };
-    static const std::unordered_map<std::string, ncDeviceProtocol_t> protocolSwitches = {
-        { VPU_MYRIAD_CONFIG_VALUE(USB),     NC_USB},
-        { VPU_MYRIAD_CONFIG_VALUE(PCIE),    NC_PCIE},
-        { std::string(),                    NC_ANY_PROTOCOL}
+
+    static const std::unordered_map<std::string, MovidiusDdrType> memoryTypesDeprecated = {
+         { VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO),     MovidiusDdrType::AUTO },
+         { VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB),   MovidiusDdrType::MICRON_2GB },
+         { VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB),  MovidiusDdrType::SAMSUNG_2GB },
+         { VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB),    MovidiusDdrType::HYNIX_2GB },
+         { VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB),   MovidiusDdrType::MICRON_1GB }
     };
-    static const std::unordered_map<std::string, std::chrono::milliseconds> watchdogSwitches = {
+IE_SUPPRESS_DEPRECATED_END
+
+    static const std::unordered_map<std::string, ncDeviceProtocol_t> protocols = {
+        { ie::MYRIAD_USB,     NC_USB},
+        { ie::MYRIAD_PCIE,    NC_PCIE},
+        { std::string(),      NC_ANY_PROTOCOL}
+    };
+
+    static const std::unordered_map<std::string, std::chrono::milliseconds> watchdogIntervals = {
         { CONFIG_VALUE(YES), std::chrono::milliseconds(1000) },
         { CONFIG_VALUE(NO), std::chrono::milliseconds(0) }
     };
 
-    setOption(forceReset, boolSwitches, config, VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
-    setOption(platform, platformSwitches, config, VPU_MYRIAD_CONFIG_KEY(PLATFORM));
-    setOption(protocol, protocolSwitches, config, VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
-    setOption(watchdogInterval, watchdogSwitches, config, VPU_MYRIAD_CONFIG_KEY(WATCHDOG));
-
-IE_SUPPRESS_DEPRECATED_START
-    static const std::unordered_map<std::string, ncDevicePlatform_t> platformSwitchesDepr = {
-        { VPU_CONFIG_VALUE(2450), NC_MYRIAD_2 },
-        { VPU_CONFIG_VALUE(2480), NC_MYRIAD_X },
-        { std::string(),          NC_ANY_PLATFORM }
+    static const std::unordered_map<std::string, PowerConfig> powerConfigs = {
+        { ie::MYRIAD_POWER_FULL,         PowerConfig::FULL },
+        { ie::MYRIAD_POWER_INFER,        PowerConfig::INFER },
+        { ie::MYRIAD_POWER_STAGE,        PowerConfig::STAGE },
+        { ie::MYRIAD_POWER_STAGE_SHAVES, PowerConfig::STAGE_SHAVES },
+        { ie::MYRIAD_POWER_STAGE_NCES,   PowerConfig::STAGE_NCES },
     };
 
-    setOption(forceReset, boolSwitches, config, VPU_CONFIG_KEY(FORCE_RESET));
-    setOption(platform, platformSwitchesDepr, config, VPU_CONFIG_KEY(PLATFORM));
-    setOption(watchdogInterval, watchdogSwitches, config, VPU_CONFIG_KEY(WATCHDOG));
+    static const std::unordered_map<std::string, MovidiusDdrType> memoryTypes = {
+        { ie::MYRIAD_DDR_AUTO,         MovidiusDdrType::AUTO },
+        { ie::MYRIAD_DDR_MICRON_2GB,   MovidiusDdrType::MICRON_2GB },
+        { ie::MYRIAD_DDR_SAMSUNG_2GB,  MovidiusDdrType::SAMSUNG_2GB },
+        { ie::MYRIAD_DDR_HYNIX_2GB,    MovidiusDdrType::HYNIX_2GB },
+        { ie::MYRIAD_DDR_MICRON_1GB,   MovidiusDdrType::MICRON_1GB }
+    };
+
+    ParsedConfig::parse(config);
+
+    setOption(_pluginLogFilePath,                       config, ie::MYRIAD_PLUGIN_LOG_FILE_PATH);
+    setOption(_deviceName,                              config, CONFIG_KEY(DEVICE_ID));
+    setOption(_forceReset,       switches,              config, ie::MYRIAD_ENABLE_FORCE_RESET);
+    setOption(_protocol,         protocols,             config, ie::MYRIAD_PROTOCOL);
+    setOption(_watchdogInterval, watchdogIntervals,     config, ie::MYRIAD_WATCHDOG);
+    setOption(_deviceConnectTimeout,                    config, ie::MYRIAD_DEVICE_CONNECT_TIMEOUT, parseSeconds);
+    setOption(_powerConfig,      powerConfigs,          config, ie::MYRIAD_POWER_MANAGEMENT);
+    setOption(_memoryType,       memoryTypes,           config, ie::MYRIAD_DDR_TYPE);
+
+IE_SUPPRESS_DEPRECATED_START
+    setOption(_forceReset,       switches,              config, VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
+    setOption(_platform,         platformsDeprecated,   config, VPU_MYRIAD_CONFIG_KEY(PLATFORM));
+    setOption(_protocol,         protocolsDeprecated,   config, VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
+    setOption(_memoryType,       memoryTypesDeprecated, config, VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
 IE_SUPPRESS_DEPRECATED_END
 
 #ifndef NDEBUG
-    if (auto envVar = std::getenv("IE_VPU_MYRIAD_FORCE_RESET")) {
-        forceReset = std::stoi(envVar);
+    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_PLUGIN_LOG_FILE_PATH")) {
+        _pluginLogFilePath = envVar;
     }
-    if (auto envVar = std::getenv("IE_VPU_MYRIAD_WATCHDOG_INTERVAL")) {
-        watchdogInterval = std::chrono::milliseconds(std::stoi(envVar));
+    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_FORCE_RESET")) {
+        _forceReset = std::stoi(envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_WATCHDOG_INTERVAL")) {
+        _watchdogInterval = std::chrono::milliseconds(std::stoi(envVar));
     }
 #endif
-
-    setOption(
-        numExecutors, config, VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS),
-        [](const std::string& src) { return std::stoi(src); });
-
-    setOption(deviceName, config, CONFIG_KEY(DEVICE_ID));
 }
 
-void MyriadConfig::checkInvalidValues(const std::map<std::string, std::string> &config) const {
-    ParsedConfig::checkInvalidValues(config);
-
-IE_SUPPRESS_DEPRECATED_START
-    checkSupportedValues({
-        {VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), {CONFIG_VALUE(YES), CONFIG_VALUE(NO)}},
-        {VPU_MYRIAD_CONFIG_KEY(PLATFORM),
-                { VPU_MYRIAD_CONFIG_VALUE(2450), VPU_MYRIAD_CONFIG_VALUE(2480), std::string()}},
-        {VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
-                { VPU_MYRIAD_CONFIG_VALUE(PCIE), VPU_MYRIAD_CONFIG_VALUE(USB), std::string()}},
-        {VPU_MYRIAD_CONFIG_KEY(WATCHDOG),    {CONFIG_VALUE(YES), CONFIG_VALUE(NO)}},
-
-        {VPU_CONFIG_KEY(FORCE_RESET),        {CONFIG_VALUE(YES), CONFIG_VALUE(NO)}},
-        {VPU_CONFIG_KEY(PLATFORM),
-                { VPU_CONFIG_VALUE(2450), VPU_CONFIG_VALUE(2480), std::string()}},
-        {VPU_CONFIG_KEY(WATCHDOG),           {CONFIG_VALUE(YES), CONFIG_VALUE(NO)}}
-    }, config);
-
-    auto throughput_streams = config.find(VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS));
-    if (throughput_streams != config.end()) {
-        try {
-            std::stoi(throughput_streams->second);
-        }
-        catch(...) {
-            THROW_IE_EXCEPTION << "Invalid config value for VPU_MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
-        }
-    }
-
-    if (config.find(VPU_CONFIG_KEY(FORCE_RESET)) != config.end() &&
-        config.find(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET)) != config.end()) {
-        THROW_IE_EXCEPTION << "VPU_MYRIAD_FORCE_RESET and VPU_FORCE_RESET cannot be set simultaneously.";
-    }
-
-    if (config.find(VPU_CONFIG_KEY(PLATFORM)) != config.end() &&
-        config.find(VPU_MYRIAD_CONFIG_KEY(PLATFORM)) != config.end()) {
-        THROW_IE_EXCEPTION << "VPU_MYRIAD_PLATFORM and VPU_PLATFORM cannot be set simultaneously.";
-    }
-
-    if (config.find(VPU_CONFIG_KEY(WATCHDOG)) != config.end() &&
-        config.find(VPU_MYRIAD_CONFIG_KEY(WATCHDOG)) != config.end()) {
-        THROW_IE_EXCEPTION << "VPU_MYRIAD_WATCHDOG and VPU_WATCHDOG cannot be set simultaneously.";
-    }
-
-IE_SUPPRESS_DEPRECATED_END
-}
-
-std::unordered_set<std::string> MyriadConfig::getRuntimeOptions() const {
-    auto runtimeOptions = ParsedConfig::getRuntimeOptions();
-
-IE_SUPPRESS_DEPRECATED_START
-    runtimeOptions.insert({
-        {VPU_MYRIAD_CONFIG_KEY(FORCE_RESET)},
-        {VPU_MYRIAD_CONFIG_KEY(PLATFORM)},
-        {VPU_MYRIAD_CONFIG_KEY(PROTOCOL)},
-        {VPU_MYRIAD_CONFIG_KEY(WATCHDOG)},
-        {VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS)},
-
-        {VPU_CONFIG_KEY(FORCE_RESET)},
-        {VPU_CONFIG_KEY(PLATFORM)},
-        {VPU_CONFIG_KEY(WATCHDOG)},
-
-        {CONFIG_KEY(DEVICE_ID)}
-    });
-IE_SUPPRESS_DEPRECATED_END
-
-    return runtimeOptions;
-}
+}  // namespace MyriadPlugin
+}  // namespace vpu

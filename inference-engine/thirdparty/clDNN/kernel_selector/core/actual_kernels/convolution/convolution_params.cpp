@@ -22,7 +22,7 @@ namespace kernel_selector {
 std::string convolution_params::to_string() const {
     std::stringstream s;
 
-    s << base_params::to_string() << "_";
+    s << parent::to_string() << "_";
     if (bias.empty()) {
         s << "no_bias"
           << "_";
@@ -38,8 +38,22 @@ std::string convolution_params::to_string() const {
     return s.str();
 }
 
+std::string convolution_params::to_cache_string_v2() const {
+    std::stringstream s;
+
+    s << parent::to_cache_string_v2() << ";";
+    s << filterSize.x << "_" << filterSize.y << "_" << filterSize.z << ";";
+    s << stride.x << "_" << stride.y << "_" << stride.z << ";";
+    s << dilation.x << "_" << dilation.y << "_" << dilation.z << ";";
+    s << padding.x << "_" << padding.y << "_" << padding.z << ";";
+    s << split << ";";
+    s << groups;
+
+    return s.str();
+}
+
 ParamsKey convolution_params::GetParamsKey() const {
-    ParamsKey k = weight_bias_params::GetParamsKey();
+    ParamsKey k = parent::GetParamsKey();
 
     if (split > 1) {
         k.EnableSplitSupport();
@@ -53,18 +67,6 @@ ParamsKey convolution_params::GetParamsKey() const {
         k.EnableDepthwiseSeparableOpt();
     }
 
-    if (transposed) {
-        k.EnableTranspose();
-    }
-
-    if (int8_quantization) {
-        k.EnableInt8Quantization();
-    }
-
-    if (output_calibration) {
-        k.EnableOutputCalibration();
-    }
-
     if (local_convolution) {
         k.EnableLocalConvolution();
     }
@@ -76,6 +78,8 @@ ParamsKey convolution_params::GetParamsKey() const {
     if (deformable_mode) {
         k.EnableDeformableMode();
     }
+
+    k.EnableQuantization(quantization);
 
     return k;
 }

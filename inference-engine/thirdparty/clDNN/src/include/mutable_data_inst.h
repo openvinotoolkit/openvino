@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/mutable_data.hpp"
+#include "api/mutable_data.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

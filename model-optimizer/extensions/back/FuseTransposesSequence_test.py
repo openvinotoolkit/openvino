@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import numpy as np
 
 from extensions.back.FuseTransposesSequence import FuseTransposesSequence
 from mo.middle.passes.eliminate_test import build_graph
-from mo.middle.passes.fusing.fuse_linear_ops_test import compare_graphs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 # The dictionary with nodes attributes used to build various graphs. A key is the name of the node and the value is the
 # dictionary with node attributes.
@@ -31,24 +31,24 @@ nodes_attributes = {
     'placeholder_1_data': {'name': 'placeholder_1_data', 'value': None, 'shape': None, 'kind': 'data',
                            'data_type': None},
     # Transpose layers
-    'const_1': {'value': None, 'kind': 'op', 'type': 'Const'},
+    'const_1': {'value': None, 'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'const_1_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     'permute_1': {'type': 'Transpose', 'value': None, 'kind': 'op', 'op': 'Transpose'},
     'permute_1_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'const_2': {'value': None, 'kind': 'op', 'type': 'Const'},
+    'const_2': {'value': None, 'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'const_2_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     'permute_2': {'type': 'Transpose', 'value': None, 'kind': 'op', 'op': 'Transpose'},
     'permute_2_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'const_3': {'value': None, 'kind': 'op', 'type': 'Const'},
+    'const_3': {'value': None, 'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'const_3_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     'permute_3': {'type': 'Transpose', 'value': None, 'kind': 'op', 'op': 'Transpose'},
     'permute_3_data': {'value': None, 'shape': None, 'kind': 'data'},
-    'op_output': { 'op': 'Result', 'kind': 'op'}
+    'op_output': {'op': 'Result', 'kind': 'op'}
 }
 
 
@@ -82,7 +82,6 @@ class FuseTransposesSequenceTest(unittest.TestCase):
                              }, nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=False)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
@@ -126,7 +125,6 @@ class FuseTransposesSequenceTest(unittest.TestCase):
                              }, nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=False)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),

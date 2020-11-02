@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,11 +18,11 @@ import logging as log
 
 import numpy as np
 
-from mo.ops.const import Const
 from extensions.ops.elementwise import Mul, Add
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import get_value_in_port, \
     get_tensor_in_port
+from mo.ops.const import Const
 
 
 def _fuse_linear_sequence(graph: Graph, start_node: Node):
@@ -141,7 +141,7 @@ def fuse_mul_add_sequence(graph: Graph):
         is_fused = False
         for node in graph.pseudo_topological_sort():
             if node.id in graph:
-                if node.soft_get('op') in ['Mul','Add'] and get_value_in_port(node) is not None and node.soft_get('can_be_fused') is True:
+                if node.soft_get('op') in ['Mul', 'Add'] and get_value_in_port(node) is not None and node.soft_get('can_be_fused') is True:
                     is_fused |= _fuse_linear_sequence(graph, node)
         if not is_fused:
             break

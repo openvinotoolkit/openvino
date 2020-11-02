@@ -29,5 +29,14 @@ public:
 protected:
     CommonDispatchData SetDefault(const deconvolution_params& params) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
+
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::ELTWISE,
+            FusedOpType::SCALE,
+            FusedOpType::QUANTIZE
+        };
+    }
 };
 }  // namespace kernel_selector

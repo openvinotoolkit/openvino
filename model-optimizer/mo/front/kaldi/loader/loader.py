@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,50 +13,30 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import io
 
-import numpy as np
-import struct
+import logging as log
 from io import IOBase
 
 import networkx as nx
-import logging as log
+import numpy as np
 
+from extensions.ops.elementwise import Mul
+from extensions.ops.split import AttributedVariadicSplit
+from mo.front.common.partial_infer.utils import float_array
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \
     collect_until_token, collect_until_token_and_read, create_edge_attrs, get_args_for_specifier
 from mo.graph.graph import Node, Graph
+from mo.ops.const import Const
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
-
-
-def read_counts_file(file_path):
-    with open(file_path, 'r') as f:
-        file_content = f.readlines()
-    if len(file_content) > 1:
-        raise Error('Expect counts file to be one-line file. ' +
-                    refer_to_faq_msg(90))
-
-    counts_line = file_content[0].strip().replace('[', '').replace(']', '')
-    try:
-        counts = np.fromstring(counts_line, dtype=float, sep=' ')
-    except TypeError:
-        raise Error('Expect counts file to contain list of floats.' +
-                    refer_to_faq_msg(90))
-    cutoff = 1.00000001e-10
-    cutoff_idxs = np.where(counts < cutoff)
-    counts[cutoff_idxs] = cutoff
-    scale = 1.0 / np.sum(counts)
-    counts = np.log(counts * scale)  # pylint: disable=assignment-from-no-return
-    counts[cutoff_idxs] += np.finfo(np.float32).max / 2
-    return counts
 
 
 def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     """
     Load ParallelComponent of the Kaldi model.
     ParallelComponent contains parallel nested networks.
-    Slice is inserted before nested networks.
+    VariadicSplit is inserted before nested networks.
     Outputs of nested networks concatenate with layer Concat.
 
     :param file_descr: descriptor of the model file
@@ -67,25 +47,23 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     nnet_count = read_token_value(file_descr, b'<NestedNnetCount>')
     log.debug('Model contains parallel component with {} nested networks'.format(nnet_count))
 
-    slice_id = graph.unique_id(prefix='Slice')
-    graph.add_node(slice_id, parameters=None, op='slice', kind='op')
-
-    slice_node = Node(graph, slice_id)
-    Node(graph, prev_layer_id).add_output_port(0)
-    slice_node.add_input_port(0)
-    graph.create_edge(Node(graph, prev_layer_id), slice_node, 0, 0)
-    slices_points = []
-
+    split_points = []
     outputs = []
+    inputs = []
 
     for i in range(nnet_count):
         read_token_value(file_descr, b'<NestedNnet>')
         collect_until_token(file_descr, b'<Nnet>')
-        g, shape = load_kalid_nnet1_model(file_descr, 'Nested_net_{}'.format(i))
-        input_nodes = [n for n in graph.nodes(data=True) if n[1]['op'] == 'Parameter']
-        if i != nnet_count - 1:
-            slices_points.append(shape[1])
-        g.remove_node(input_nodes[0][0])
+        g = Graph()
+        load_kalid_nnet1_model(g, file_descr, 'Nested_net_{}'.format(i))
+
+        # input to nnet1 models is of a rank 1 but we also insert batch_size to 0th axis
+        # 1st axis contains input_size of the nested subnetwork
+        # we split input from the main network to subnetworks
+        input_node = Node(g, 'Parameter')
+        split_points.append(input_node['shape'][1])
+        g.remove_node(input_node.id)
+
         mapping = {node: graph.unique_id(node) for node in g.nodes(data=False) if node in graph}
         g = nx.relabel_nodes(g, mapping)
         for val in mapping.values():
@@ -93,28 +71,32 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
         graph.add_nodes_from(g.nodes(data=True))
         graph.add_edges_from(g.edges(data=True))
         sorted_nodes = tuple(nx.topological_sort(g))
-        edge_attrs = create_edge_attrs(slice_id, sorted_nodes[0])
-        edge_attrs['out'] = i
-        Node(graph, slice_id).add_output_port(i)
-        Node(graph, sorted_nodes[0]).add_input_port(len(Node(graph, sorted_nodes[0]).in_ports()))
-        graph.create_edge(Node(graph, slice_id), Node(graph, sorted_nodes[0]), i, 0)
-        outputs.append(sorted_nodes[-1])
-    packed_sp = struct.pack("B", 4) + struct.pack("I", len(slices_points))
-    for i in slices_points:
-        packed_sp += struct.pack("I", i)
-    slice_node.parameters = io.BytesIO(packed_sp)
+
+        outputs.append(Node(graph, sorted_nodes[-1]))
+        inputs.append(Node(graph, sorted_nodes[0]))
+
+    split_id = graph.unique_id(prefix='NestedNets/VariadicSplit')
+    attrs = {'out_ports_count': nnet_count, 'size_splits': split_points, 'axis': 1, 'name': split_id}
+    variadic_split_node = AttributedVariadicSplit(graph, attrs).create_node()
+    prev_layer_node = Node(graph, prev_layer_id)
+    prev_layer_node.add_output_port(0)
+    graph.create_edge(prev_layer_node, variadic_split_node, 0, 0)
+
     concat_id = graph.unique_id(prefix='Concat')
     graph.add_node(concat_id, parameters=None, op='concat', kind='op')
-    for i, output in enumerate(outputs):
-        edge_attrs = create_edge_attrs(output, concat_id)
-        edge_attrs['in'] = i
-        Node(graph, output).add_output_port(0)
-        Node(graph, concat_id).add_input_port(i)
-        graph.create_edge(Node(graph, output), Node(graph, concat_id), 0, i)
+    concat_node = Node(graph, concat_id)
+
+    # Connect each output of variadic_split_node to each subnetwork's inputs in ParallelComponent
+    # and each subnetwork's output to concat_node
+    for i, (input_node, output_node) in enumerate(zip(inputs, outputs)):
+        output_node.add_output_port(0)
+        concat_node.add_input_port(i)
+        graph.create_edge(output_node, concat_node, 0, i)
+        graph.create_edge(variadic_split_node, input_node, i, 0)
     return concat_id
 
 
-def load_kaldi_model(nnet_path):
+def load_kaldi_model(graph, nnet_path):
     """
     Structure of the file is the following:
     magic-number(16896)<Nnet> <Next Layer Name> weights etc.
@@ -149,15 +131,12 @@ def load_kaldi_model(nnet_path):
                     refer_to_faq_msg(89))
     read_placeholder(file_desc, 1)
 
-    return load_function(file_desc, nnet_name)
+    return load_function(graph, file_desc, nnet_name)
 
 
-def load_kalid_nnet1_model(file_descr, name):
-    graph = Graph(name=name)
-
+def load_kalid_nnet1_model(graph, file_descr, name):
     prev_layer_id = 'Parameter'
     graph.add_node(prev_layer_id, name=prev_layer_id, kind='op', op='Parameter', parameters=None)
-    input_shape = np.array([])
 
     while True:
         component_type = find_next_component(file_descr)
@@ -169,6 +148,7 @@ def load_kalid_nnet1_model(file_descr, name):
 
         if component_type == 'parallelcomponent':
             prev_layer_id = load_parallel_component(file_descr, graph, prev_layer_id)
+            find_end_of_component(file_descr, component_type)
             continue
 
         start_index = file_descr.tell()
@@ -185,17 +165,15 @@ def load_kalid_nnet1_model(file_descr, name):
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
             prev_node['shape'] = np.array([1, layer_i], dtype=np.int64)
-            input_shape = np.array([1, layer_i], dtype=np.int64)
+
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0)
         prev_layer_id = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
-    return graph, input_shape
 
 
-def load_kalid_nnet2_model(file_descr, nnet_name):
-    graph = Graph(name=nnet_name)
+def load_kalid_nnet2_model(graph, file_descr, nnet_name):
     input_name = 'Input'
     graph.add_node(input_name, name=input_name, kind='op', op='Parameter', parameters=None, shape=None)
 
@@ -203,50 +181,41 @@ def load_kalid_nnet2_model(file_descr, nnet_name):
 
     all_components = load_components(file_descr, graph)
 
-    input_shape = np.array([])
-
     for layer_id in all_components:
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
             parameters = Node(graph, layer_id).parameters
             input_dim = read_token_value(parameters, b'<InputDim>')
             prev_node['shape'] = np.array([1, input_dim], dtype=np.int64)
-            input_shape = np.array([1, input_dim], dtype=np.int64)
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0)
         prev_layer_id = layer_id
         log.debug('{} and {} were connected'.format(prev_layer_id, layer_id))
-    return graph, input_shape
 
 
-def load_kaldi_nnet3_model(file_descr, nnet_name):
-    graph = Graph(name=nnet_name)
+def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
     file_descr.read(1)
-    component_layer_map, input_shape, input_name = load_topology_map(file_descr, graph)
+    component_layer_map = load_topology_map(file_descr, graph)
     # add information for shape calculation for MemoryOffset
     # shape calculation for MemoryOffset can't be done through shape of previous layer because
     # it is separated in 2 parts to remove cycle from graph
-    node = Node(graph, input_name)
-    for o_n_name, params in node.get_outputs():
-        o_n = Node(graph, o_n_name)
-        if o_n['op'] == 'MemoryOffset':
-            o_n['parameters']['element_size'] = input_shape[1]
+    for node in graph.get_op_nodes(**{'op': 'Parameter'}):
+        for o_n_name, params in node.get_outputs():
+            o_n = Node(graph, o_n_name)
+            if o_n['op'] == 'MemoryOffset':
+                o_n['parameters']['element_size'] = node['shape'][1]
 
     load_components(file_descr, graph, component_layer_map)
-    return graph, input_shape
 
 
 def load_components(file_descr, graph, component_layer_map=None):
     num_components = collect_until_token_and_read(file_descr, b'<NumComponents>')
     log.debug('Network contains {} components'.format(num_components))
-    is_nnet3 = False
-    prev_pos = file_descr.tell()
-    try:
+    is_nnet3 = False if component_layer_map is None else True
+
+    if not is_nnet3:
         collect_until_token(file_descr, b'<Components>')
-    except Error:
-        is_nnet3 = True
-        file_descr.seek(prev_pos)
 
     all_components = list()
     name = ""
@@ -266,7 +235,7 @@ def load_components(file_descr, graph, component_layer_map=None):
         file_descr.seek(start_index)
         dim = 0
         try:
-            collect_until_token(file_descr, b'<Dim>')
+            collect_until_token(file_descr, b'<Dim>', size_search_zone=end_index - start_index)
             cur_index = file_descr.tell()
             if start_index < cur_index < end_index:
                 dim = read_binary_integer32_token(file_descr)
@@ -282,9 +251,7 @@ def load_components(file_descr, graph, component_layer_map=None):
                     node = Node(graph, layer)
                     node['parameters'] = get_parameters(file_descr, start_index, end_index)
                     node['op'] = component_type
-                    # read dim info where possible to simplify shape calculation for MemoryOffset
-                    # shape calculation for MemoryOffset can't be done through shape of previous layer because
-                    # it is separated in 2 parts to remove cycle from graph
+                    # Read dim info where possible to simplify shape calculation for MemoryOffset
                     for o_n_name, params in node.get_outputs():
                         o_n = Node(graph, o_n_name)
                         if o_n['op'] == 'MemoryOffset' and dim != 0:
@@ -308,23 +275,20 @@ def load_topology_map(file_descr, graph):
     not_finished = True
     component_layer_map = {}
     layer_node_map = {}
-    input_shape = np.array([], dtype=np.int64)
-    input_name = ""
     while not_finished:
-        not_finished, input_shape, input_name = read_node(file_descr, graph, component_layer_map, layer_node_map,
-                                                          input_shape, input_name)
-    return component_layer_map, input_shape, input_name
+        not_finished = read_node(file_descr, graph, component_layer_map, layer_node_map)
+    return component_layer_map
 
 
-def read_node(file_descr, graph, component_layer_map, layer_node_map, input_shape, input_name):
+def read_node(file_descr, graph, component_layer_map, layer_node_map):
     s = file_descr.readline()
     if s == b'\n':
-        return False, input_shape, input_name
+        return False
     tokens = s.split(b' ')
     if tokens[0] == b'input-node':
-        in_name = s[s.find(b'name=')+len(b'name='):].split(b' ')[0]
+        in_name = s[s.find(b'name=') + len(b'name='):].split(b' ')[0]
         in_name = str(in_name).strip('b').replace('\'', "")
-        in_shape = np.array([1, s[s.find(b'dim=')+len(b'dim='):].split(b' ')[0]], dtype=np.int)
+        in_shape = np.array([1, s[s.find(b'dim=') + len(b'dim='):].split(b' ')[0]], dtype=np.int)
 
         if in_name not in layer_node_map:
             graph.add_node(in_name, name=in_name, kind='op', op='Parameter', parameters=None, shape=in_shape)
@@ -332,11 +296,8 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map, input_shap
         else:
             Node(graph, in_name)['op'] = 'Parameter'
             Node(graph, in_name)['shape'] = in_shape
-
-        input_shape = in_shape
-        input_name = in_name
     elif tokens[0] == b'component-node':
-        layer_name = s[s.find(b'name=')+len(b'name='):].split(b' ')[0]
+        layer_name = s[s.find(b'name=') + len(b'name='):].split(b' ')[0]
         layer_name = str(layer_name).strip('b').replace('\'', "")
 
         component_name = s[s.find(b'component=') + len(b'component='):].split(b' ')[0]
@@ -356,7 +317,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map, input_shap
             component_layer_map[component_name] = [node_name]
 
         # parse input
-        in_node_id = parse_input_for_node(s[s.find(b'input=')+6:], graph, layer_node_map)
+        in_node_id = parse_input_for_node(s[s.find(b'input=') + 6:], graph, layer_node_map)
         out_port = len(Node(graph, in_node_id).out_nodes())
         in_port = len(Node(graph, node_name).in_nodes())
 
@@ -372,7 +333,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map, input_shap
                        parameters=None,
                        op='Identity',
                        kind='op')
-        out_name = graph.unique_id(prefix=node_name+"_out")
+        out_name = graph.unique_id(prefix=node_name + "_out")
         graph.add_node(out_name,
                        parameters=None,
                        op='Result',
@@ -430,7 +391,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map, input_shap
                 o_n['parameters']['element_size'] = dim
     else:
         raise Error("Unsupported node specifier {}".format(tokens[0]))
-    return True, input_shape, input_name
+    return True
 
 
 def parse_input_for_node(string, graph, component_layer_map):
@@ -500,7 +461,7 @@ def parse_specifier(string, graph, layer_node_map):
             out_port = len(Node(graph, node).out_nodes())
             in_port = len(Node(graph, memory_name).in_nodes())
             Node(graph, memory_name).add_input_port(in_port)
-            Node(graph, node).add_output_port(out_port)
+            Node(graph, node).add_output_port(out_port, skip_if_exist=True)
             graph.create_edge(Node(graph, node), Node(graph, memory_name), out_port, in_port)
         else:
             memory_name = layer_node_map[layer_name]
@@ -521,13 +482,12 @@ def parse_specifier(string, graph, layer_node_map):
         else:
             sum_name = layer_node_map[layer_name]
 
-        i = 0
-        for node in nodes:
+        for i, node in enumerate(nodes):
             out_port = len(Node(graph, node).out_nodes())
-            Node(graph, node).add_output_port(out_port)
+            Node(graph, node).add_output_port(out_port, skip_if_exist=True)
             Node(graph, sum_name).add_input_port(i)
             graph.add_edge(node, sum_name, **create_edge_attrs(node, sum_name, i))
-            i = i + 1
+
         return sum_name
     elif spec == b'IfDefined':
         node_id = parse_specifier(args[0], graph, layer_node_map)
@@ -536,11 +496,27 @@ def parse_specifier(string, graph, layer_node_map):
             node['parameters']['has_default'] = True
         return node_id
     elif spec == b'ReplaceIndex':
-        spec_name = graph.unique_id(prefix='ReplaceIndex_')
-        graph.add_node(spec_name,
-                       parameters=dict(),
-                       op='ReplaceIndex',
-                       kind='op')
         node = parse_specifier(args[0], graph, layer_node_map)
-        graph.add_edge(node, spec_name, **create_edge_attrs(node, spec_name))
-        return spec_name
+        return node
+    elif spec == b'Scale':
+        node_name = parse_specifier(args[1], graph, layer_node_map)
+        scale_value = float(args[0])
+        layer_name = '{}/Mul/{}'.format(node_name, scale_value)
+
+        if layer_name not in layer_node_map:
+            scale_name = graph.unique_id(prefix=layer_name)
+            scale_node = Mul(graph, {'name': scale_name}).create_node()
+
+            layer_node_map[layer_name] = scale_name
+
+            scale_const_name = 'Const_{}'.format(scale_value)
+            const_node = Const(graph, {'name': scale_const_name, 'value': float_array([scale_value])}).create_node()
+
+            node = Node(graph, node_name)
+            graph.create_edge(const_node, scale_node, 0, 0)
+            out_port = len(node.out_nodes())
+            graph.create_edge(node, scale_node, out_port, 1)
+        else:
+            scale_name = layer_node_map[layer_name]
+
+        return scale_name

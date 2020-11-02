@@ -16,6 +16,7 @@
 #include "network_impl.h"
 #include "implementation_map.h"
 #include "math_utils.h"
+#include "register_gpu.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -32,7 +33,7 @@ struct condition_gpu : typed_primitive_impl<condition> {
         for (auto& a : events) {
             a->wait();
         }
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_stream_id(), false);
+        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
 
         bool exec_branch = choose_branch_to_exec(instance);
         memory_impl::ptr memory_to_copy;
@@ -119,17 +120,15 @@ private:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<condition>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                           condition_gpu::create);
-        implementation_map<condition>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                           condition_gpu::create);
-    }
-    ~attach() = default;
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_condition_gpu::attach_condition_gpu() {
+    implementation_map<condition>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                        condition_gpu::create);
+    implementation_map<condition>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                        condition_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

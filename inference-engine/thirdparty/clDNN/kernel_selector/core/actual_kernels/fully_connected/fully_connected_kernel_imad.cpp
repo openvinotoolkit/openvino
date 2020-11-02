@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#include <vector>
 
 #include "fully_connected_kernel_imad.h"
 
@@ -25,19 +25,28 @@ ParamsKey FullyConnectedKernelIMAD::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+
     k.EnableInputWeightsType(WeightsType::INT8);
+
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+
     k.EnableOutputLayout(DataLayout::bf);
+
+    k.EnableDifferentInputWeightsTypes();
+    k.EnableDifferentTypes();
     k.EnableBiasPerOutput();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     return k;
 }
 
@@ -46,17 +55,17 @@ FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefa
     int) const {
     const int simdSize = 16;
 
-    auto runInfo = Parent::SetDefault(params);
+    auto dispatchData = Parent::SetDefault(params);
 
-    runInfo.gws0 = RoundUp(params.output.Feature().v, simdSize);
-    runInfo.gws1 = params.output.Batch().v;
-    runInfo.gws2 = 1;
+    dispatchData.gws[0] = RoundUp(params.output.Feature().v, simdSize);
+    dispatchData.gws[1] = params.output.Batch().v;
+    dispatchData.gws[2] = 1;
 
-    runInfo.lws0 = simdSize;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = simdSize;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
 }  // SetDefault
 
 bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_params& options) const {
@@ -86,13 +95,28 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
     return true;
 }  // Validate
 
+JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "dequantized", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+
+    return jit;
+}
+
 KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const optional_params& options) const {
+    auto fc_params = static_cast<const fully_connected_params&>(params);
+    auto& input = fc_params.inputs[0];
+
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
-                                                    DataLayout::b_fs_yx_fsv4,
-                                                    {WeightsLayout::os_is_yx_osv16_isv4},
+                                                    input.GetLayout(),
+                                                    WeightsLayout::os_is_yx_osv16_isv4,
                                                     FORCE_PRIORITY_1,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
@@ -101,4 +125,5 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const
     }
     return res;
 }
+
 }  // namespace kernel_selector

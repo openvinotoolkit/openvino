@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <queue>
 #include <algorithm>
 #include <vector>
+#include <string>
 
 #include <vpu/model/edges.hpp>
 #include <vpu/model/data.hpp>
@@ -22,9 +23,7 @@ void StageNode::setNumSHAVEs(int numSHAVEs) {
         // Check resources assigned to current Model.
         //
 
-        IE_ASSERT(_model != nullptr);
-
-        auto totalNumSHAVEs = _model->attrs().get<Resources>("resources").numSHAVEs;
+        const auto totalNumSHAVEs = model()->attrs().get<Resources>("resources").numSHAVEs;
         IE_ASSERT(numSHAVEs <= totalNumSHAVEs);
     } else {
         //
@@ -40,70 +39,33 @@ void StageNode::setNumSHAVEs(int numSHAVEs) {
     // Propagate SHAVEs to injected children.
     //
 
-    for (const auto& injectedStageEdge : _injectedStageEdges) {
-        injectedStageEdge->child()->_numSHAVEs = _numSHAVEs;
+    if (const auto injectedStage = this->injectedStage()) {
+        injectedStage->_numSHAVEs = _numSHAVEs;
     }
 }
 
-const StageDataInfo<float>& StageNode::propagateScaleFactors(
-        const SmallVector<float>& inputScales,
-        ScalePropagationStep step) {
-    //
-    // Stage <-> Stage edges are not allowed here.
-    //
-
-    IE_ASSERT(_parentStageEdge == nullptr);
-    IE_ASSERT(_injectedStageEdges.empty());
-
-    //
-    // Check that `inputScales` is valid.
-    //
-
-    IE_ASSERT(inputScales.size() == _inputEdges.size());
-
-    //
-    // Get result from Stage implementation.
-    //
-
-    _scaleInfo.init(_inputEdges.size(), _outputEdges.size());
-    propagateScaleFactorsImpl(inputScales, step);
-
-    //
-    // Check that implementation returned valid map.
-    //
-
-#ifndef NDEBUG
-    for (const auto& outEdge : _outputEdges) {
-        IE_ASSERT(_scaleInfo.hasOutput(outEdge));
-    }
-#endif
-
-    return _scaleInfo;
-}
-
-const StageDataInfo<DimsOrder>& StageNode::propagateDataOrder() const {
+const StageDataInfo<DimsOrder>& StageNode::propagateDataOrder() {
     //
     // Get result from Stage implementation.
     //
 
     _orderInfo.init(_inputEdges.size(), _outputEdges.size());
-    propagateDataOrderImpl();
+    propagateDataOrderImpl(_orderInfo);
 
     //
     // Merge with the results from injected Stages.
     //
 
-    for (const auto& injectedStageEdge : _injectedStageEdges) {
-        const auto& child = injectedStageEdge->child();
-        const auto& childRes = child->propagateDataOrder();
+    if (const auto injectedStage = this->injectedStage()) {
+        const auto& childRes = injectedStage->propagateDataOrder();
 
-        for (const auto& inEdge : child->inputEdges()) {
+        for (const auto& inEdge : injectedStage->inputEdges()) {
             if (childRes.hasInput(inEdge)) {
                 IE_ASSERT(!_orderInfo.hasInput(inEdge->parentEdge()));
                 _orderInfo.setInput(inEdge->parentEdge(), childRes.getInput(inEdge));
             }
         }
-        for (const auto& outEdge : child->outputEdges()) {
+        for (const auto& outEdge : injectedStage->outputEdges()) {
             if (childRes.hasOutput(outEdge)) {
                 IE_ASSERT(!_orderInfo.hasOutput(outEdge->parentEdge()));
                 _orderInfo.setOutput(outEdge->parentEdge(), childRes.getOutput(outEdge));
@@ -114,29 +76,28 @@ const StageDataInfo<DimsOrder>& StageNode::propagateDataOrder() const {
     return _orderInfo;
 }
 
-const StageDataInfo<StridesRequirement>& StageNode::getDataStridesRequirements() const {
+const StageDataInfo<StridesRequirement>& StageNode::getDataStridesRequirements() {
     //
     // Get result from Stage implementation.
     //
 
     _stridesInfo.init(_inputEdges.size(), _outputEdges.size());
-    getDataStridesRequirementsImpl();
+    getDataStridesRequirementsImpl(_stridesInfo);
 
     //
     // Merge with the results from injected Stages.
     //
 
-    for (const auto& injectedStageEdge : _injectedStageEdges) {
-        const auto& child = injectedStageEdge->child();
-        const auto& childRes = child->getDataStridesRequirements();
+    if (const auto injectedStage = this->injectedStage()) {
+        const auto& childRes = injectedStage->getDataStridesRequirements();
 
-        for (const auto& inEdge : child->inputEdges()) {
+        for (const auto& inEdge : injectedStage->inputEdges()) {
             if (childRes.hasInput(inEdge)) {
                 IE_ASSERT(!_stridesInfo.hasInput(inEdge->parentEdge()));
                 _stridesInfo.setInput(inEdge->parentEdge(), childRes.getInput(inEdge));
             }
         }
-        for (const auto& outEdge : child->outputEdges()) {
+        for (const auto& outEdge : injectedStage->outputEdges()) {
             if (childRes.hasOutput(outEdge)) {
                 IE_ASSERT(!_stridesInfo.hasOutput(outEdge->parentEdge()));
                 _stridesInfo.setOutput(outEdge->parentEdge(), childRes.getOutput(outEdge));
@@ -152,19 +113,20 @@ void StageNode::finalizeDataLayout() {
     // Stage <-> Stage edges are not allowed here.
     //
 
-    IE_ASSERT(_parentStageEdge == nullptr);
-    IE_ASSERT(_injectedStageEdges.empty());
+    VPU_INTERNAL_CHECK(
+        parentStageEdge() == nullptr && injectedStageEdge() == nullptr,
+        "finalizeDataLayout was called for Stage node %v which is a part of Injection pair", this);
 
     finalizeDataLayoutImpl();
 }
 
-const StageDataInfo<BatchSupport>& StageNode::getBatchSupportInfo() const {
+const StageDataInfo<BatchSupport>& StageNode::getBatchSupportInfo() {
     //
     // Get result from Stage implementation.
     //
 
     _batchInfo.init(_inputEdges.size(), _outputEdges.size());
-    getBatchSupportInfoImpl();
+    getBatchSupportInfoImpl(_batchInfo);
 
     //
     // Check that implemenation returned valid map.
@@ -182,8 +144,6 @@ const StageDataInfo<BatchSupport>& StageNode::getBatchSupportInfo() const {
 
             if (curReq == BatchSupport::Split) {
                 hasSplit = true;
-            } else {
-                IE_ASSERT(curReq == BatchSupport::ReplicateConstContent);
             }
         }
     }
@@ -212,17 +172,16 @@ const StageDataInfo<BatchSupport>& StageNode::getBatchSupportInfo() const {
     // Do this after the checks, because parent and child Stages might have different requirements.
     //
 
-    for (const auto& injectedStageEdge : _injectedStageEdges) {
-        const auto& child = injectedStageEdge->child();
-        const auto& childRes = child->getBatchSupportInfo();
+    if (const auto injectedStage = this->injectedStage()) {
+        const auto& childRes = injectedStage->getBatchSupportInfo();
 
-        for (const auto& inEdge : child->inputEdges()) {
+        for (const auto& inEdge : injectedStage->inputEdges()) {
             if (childRes.hasInput(inEdge)) {
                 IE_ASSERT(!_batchInfo.hasInput(inEdge->parentEdge()));
                 _batchInfo.setInput(inEdge->parentEdge(), childRes.getInput(inEdge));
             }
         }
-        for (const auto& outEdge : child->outputEdges()) {
+        for (const auto& outEdge : injectedStage->outputEdges()) {
             if (childRes.hasOutput(outEdge)) {
                 IE_ASSERT(!_batchInfo.hasOutput(outEdge->parentEdge()));
                 _batchInfo.setOutput(outEdge->parentEdge(), childRes.getOutput(outEdge));
@@ -250,8 +209,8 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirements() const {
     // Merge with the results from injected Stages.
     //
 
-    for (const auto& injectedStageEdge : injectedStageEdges()) {
-        auto childRes = injectedStageEdge->child()->getSHAVEsRequirements();
+    if (const auto injectedStage = this->injectedStage()) {
+        auto childRes = injectedStage->getSHAVEsRequirements();
 
         auto resVal = static_cast<int>(reqs);
         auto childResVal = static_cast<int>(childRes);
@@ -262,11 +221,35 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirements() const {
     return reqs;
 }
 
-void StageNode::finalCheck() const {
-    finalCheckImpl();
+void StageNode::initialCheck() const {
+    try {
+        initialCheckImpl();
+    } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+        VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
+    }
 
-    for (const auto& injectedStageEdge : injectedStageEdges()) {
-        injectedStageEdge->child()->finalCheck();
+    if (const auto injectedStage = this->injectedStage()) {
+        try {
+            injectedStage->initialCheck();
+        } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+            VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
+        }
+    }
+}
+
+void StageNode::finalCheck() const {
+    try {
+        finalCheckImpl();
+    } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+        VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
+    }
+
+    if (const auto injectedStage = this->injectedStage()) {
+        try {
+            injectedStage->finalCheck();
+        } catch (const ie::details::InferenceEngineException& exception) {
+            VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
+        }
     }
 }
 
@@ -294,21 +277,6 @@ void StageNode::serialize(BlobSerializer& serializer) const {
     serializer.overWriteTailSize(stageHeaderPos);
 }
 
-void StageNode::propagateScaleFactorsImpl(
-        const SmallVector<float>&,
-        ScalePropagationStep) {
-    //
-    // Default implementation assumes no scaling support.
-    //
-
-    for (const auto& inEdge : _inputEdges) {
-        _scaleInfo.setInput(inEdge, 1.0f);
-    }
-    for (const auto& outEdge : _outputEdges) {
-        _scaleInfo.setOutput(outEdge, 1.0f);
-    }
-}
-
 StageSHAVEsRequirements StageNode::getSHAVEsRequirementsImpl() const {
     if (category() == StageCategory::SHAVE) {
         return StageSHAVEsRequirements::NeedMax;
@@ -318,7 +286,63 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirementsImpl() const {
 }
 
 void printTo(std::ostream& os, const Stage& stage) {
-    os << (stage == nullptr ? "<null>" : stage->name());
+    if (stage == nullptr) {
+        os << "<null>";
+    } else {
+        os << stage->name() << " (" << stage->type() << ")";
+    }
+}
+
+void assertAllInputsOutputsTypes(const Stage& stage,
+                                 const DataType& expectedInputsType,
+                                 const DataType& expectedOutputsType) {
+    auto assertTypes = [stage](const DataType& expectedType,
+                               const std::vector<Data>& datas,
+                               const std::string& token) {
+        for (decltype(datas.size()) idx = 0; idx < datas.size(); ++idx) {
+            if (datas[idx]->usage() == DataUsage::Fake)
+                continue;
+
+            const auto& actualType = datas[idx]->desc().type();
+
+            VPU_THROW_UNLESS(
+                actualType == expectedType,
+                "Stage node %v types check error: %v #%v has type %v, but %v is expected",
+                stage, token, idx, actualType, expectedType);
+        }
+    };
+
+    assertTypes(expectedInputsType, toVector(stage->inputs()), "input");
+    assertTypes(expectedOutputsType, toVector(stage->outputs()), "output");
+}
+
+void assertInputsOutputsTypes(const Stage& stage,
+                              const DataTypesRequirement& expectedInputsTypes,
+                              const DataTypesRequirement& expectedOutputsTypes) {
+    auto assertTypes = [stage](const DataTypesRequirement& expectedTypes,
+                               const std::vector<Data>& datas,
+                               const std::string& token) {
+        VPU_THROW_UNLESS(
+            expectedTypes.size() == datas.size(),
+            "Stage node %v types check error: the Stage has %v of %v edges, but %v is expected",
+            stage, datas.size(), token, expectedTypes.size());
+
+        for (decltype(datas.size()) idx = 0; idx < datas.size(); ++idx) {
+            if (datas[idx]->usage() == DataUsage::Fake)
+                continue;
+
+            const auto& possibleTypes = expectedTypes[idx];
+            const auto& actualType = datas[idx]->desc().type();
+
+            VPU_THROW_UNLESS(
+                possibleTypes.find(actualType) != possibleTypes.end(),
+                "Stage node %v types check error: %v #%v has type %v, but one of %v is expected",
+                stage, token, idx, actualType, possibleTypes);
+        }
+    };
+
+    assertTypes(expectedInputsTypes, toVector(stage->inputs()), "input");
+    assertTypes(expectedOutputsTypes, toVector(stage->outputs()), "output");
 }
 
 }  // namespace vpu

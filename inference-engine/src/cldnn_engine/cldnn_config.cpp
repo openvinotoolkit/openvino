@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,11 @@
 #include <cldnn/cldnn_config.hpp>
 #include "cldnn_config.h"
 #include "cpp_interfaces/exception2status.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
-#if defined(_WIN32)
-#define mkdir(dir, mode) _mkdir(dir)
+#ifdef _WIN32
+# include <direct.h>
+# define mkdir(dir, mode) _mkdir(dir)
 #endif
 
 using namespace InferenceEngine;
@@ -107,6 +109,10 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 tuningConfig.mode = cldnn::tuning_mode::tuning_tune_and_cache;
             } else if (val.compare(PluginConfigParams::TUNING_USE_EXISTING) == 0) {
                 tuningConfig.mode = cldnn::tuning_mode::tuning_use_cache;
+            } else if (val.compare(PluginConfigParams::TUNING_UPDATE) == 0) {
+                tuningConfig.mode = cldnn::tuning_mode::tuning_use_and_update;
+            } else if (val.compare(PluginConfigParams::TUNING_RETUNE) == 0) {
+                tuningConfig.mode = cldnn::tuning_mode::tuning_retune_and_cache;
             } else {
                 THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported tuning mode value by plugin: " << val;
             }
@@ -157,13 +163,39 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 if (val_i > 0)
                     throughput_streams = static_cast<uint16_t>(val_i);
             }
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_INT8_ENABLED) == 0) {
+        } else if (key.compare(PluginConfigParams::KEY_DEVICE_ID) == 0) {
+            // Validate if passed value is postivie number.
+            try {
+                int val_i = std::stoi(val);
+            } catch (const std::exception&) {
+                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_DEVICE_ID
+                    << ". DeviceIDs are only represented by positive numbers";
+            }
+            // Set this value.
+            device_id = val;
+        } else if (key.compare(PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 enableInt8 = true;
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 enableInt8 = false;
             } else {
                 THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property value by plugin: " << val;
+            }
+        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS) == 0) {
+            if (val.compare(PluginConfigParams::YES) == 0) {
+                nv12_two_inputs = true;
+            } else if (val.compare(PluginConfigParams::NO) == 0) {
+                nv12_two_inputs = false;
+            } else {
+                THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported NV12 flag value: " << val;
+            }
+        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS) == 0) {
+            if (val.compare(PluginConfigParams::YES) == 0) {
+                enable_fp16_for_quantized_models = true;
+            } else if (val.compare(PluginConfigParams::NO) == 0) {
+                enable_fp16_for_quantized_models = false;
+            } else {
+                THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS flag value: " << val;
             }
         } else {
             THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property key by plugin: " << key;
@@ -199,10 +231,15 @@ void Config::adjustKeyMapValues() {
     else
         key_config_map[PluginConfigParams::KEY_DYN_BATCH_ENABLED] = PluginConfigParams::NO;
 
-    if (enableInt8)
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_INT8_ENABLED] = PluginConfigParams::YES;
+    if (nv12_two_inputs)
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::YES;
     else
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_INT8_ENABLED] = PluginConfigParams::NO;
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::NO;
+
+    if (enable_fp16_for_quantized_models)
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::YES;
+    else
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::NO;
 
     {
         std::string qp = "0";
@@ -229,18 +266,19 @@ void Config::adjustKeyMapValues() {
         switch (tuningConfig.mode) {
         case cldnn::tuning_mode::tuning_tune_and_cache: tm = PluginConfigParams::TUNING_CREATE; break;
         case cldnn::tuning_mode::tuning_use_cache: tm = PluginConfigParams::TUNING_USE_EXISTING; break;
+        case cldnn::tuning_mode::tuning_use_and_update: tm = PluginConfigParams::TUNING_UPDATE; break;
+        case cldnn::tuning_mode::tuning_retune_and_cache: tm = PluginConfigParams::TUNING_RETUNE; break;
         default: break;
         }
         key_config_map[PluginConfigParams::KEY_TUNING_MODE] = tm;
-        if (!tuningConfig.cache_file_path.empty())
-            key_config_map[PluginConfigParams::KEY_TUNING_FILE] = tuningConfig.cache_file_path;
+        key_config_map[PluginConfigParams::KEY_TUNING_FILE] = tuningConfig.cache_file_path;
     }
 
-    if (!graph_dumps_dir.empty())
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR] = graph_dumps_dir;
-    if (!sources_dumps_dir.empty())
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR] = sources_dumps_dir;
+    key_config_map[CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR] = graph_dumps_dir;
+    key_config_map[CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR] = sources_dumps_dir;
 
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
+    key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;
+    key_config_map[PluginConfigParams::KEY_CONFIG_FILE] = "";
 }
 }  // namespace CLDNNPlugin

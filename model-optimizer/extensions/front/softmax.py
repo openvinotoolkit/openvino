@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,9 +17,7 @@ import logging as log
 
 import numpy as np
 
-from extensions.front.div import Div
 from extensions.front.reduce_axis_normalizer import ReduceAxisNormalizer
-from extensions.front.sub import Sub
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph
@@ -32,9 +30,6 @@ class SoftmaxFromKeras(FrontReplacementSubgraph):
     softmax is performed over one pre-defined axis.
     """
     enabled = True
-
-    def run_before(self):
-        return [Sub, Div]
 
     def run_after(self):
         return [ReduceAxisNormalizer]

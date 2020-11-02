@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/crop.hpp"
+#include "api/crop.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ class InterpFrontExtractor(FrontExtractorOp):
     op = 'Interp'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         proto_layer = node.pb
         param = proto_layer.interp_param
 
@@ -40,4 +40,4 @@ class InterpFrontExtractor(FrontExtractorOp):
         mapping_rule.update({'fw': 'caffe', 'mode': 'linear', 'axes': int64_array([2, 3]),
                              'pads_begin': param.pad_beg, 'pads_end': param.pad_end, 'align_corners': 1})
         Interpolate.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        return cls.enabled

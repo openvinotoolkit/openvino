@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ class TestFIFOQueueReplacement(unittest.TestCase):
         nodes = {
             'placeholder': {'op': 'Parameter', 'data_type': np.int32, 'kind': 'op', 'shape': np.array(1)},
             'batch_join/fifo_queue': {'op': 'FIFOQueueV2', 'name': 'batch_join/fifo_queue',
-                                      'shapes': np.array([[1, 2, 3]]), 'kind': 'op'},
+                                      'shapes': np.array([[1, 2, 3]]), 'types': np.array([np.float32]), 'kind': 'op'},
             'batch_join': {'op': 'QueueDequeueUpToV2', 'kind': 'op'},
             'image_batch': {'op': 'Identity', 'data_type': np.float32, 'kind': 'op'},
             'label_batch': {'op': 'Identity', 'kind': 'op'},
@@ -56,14 +56,14 @@ class TestFIFOQueueReplacement(unittest.TestCase):
         nodes_no_label = {
             'placeholder': {'op': 'Parameter', 'data_type': np.int32, 'kind': 'op', 'shape': np.array(0)},
             'batch_join/fifo_queue': {'op': 'FIFOQueueV2', 'name': 'batch_join/fifo_queue',
-                                      'shapes': np.array([[1, 2, 3]]), 'kind': 'op'},
+                                      'shapes': np.array([[1, 2, 3]]), 'types': np.array([np.float32]), 'kind': 'op'},
             'batch_join': {'op': 'QueueDequeueUpToV2', 'kind': 'op'},
             'image_batch': {'op': 'Identity', 'data_type': np.float32, 'kind': 'op'},
         }
         edges_no_label = [
-            ('placeholder', 'batch_join', {'out': 0}),
-            ('batch_join/fifo_queue', 'batch_join', {'out': 0}),
-            ('batch_join', 'image_batch', {'out': 0})
+            ('placeholder', 'batch_join', {'out': 0, 'in': 0}),
+            ('batch_join/fifo_queue', 'batch_join', {'out': 0, 'in': 1}),
+            ('batch_join', 'image_batch', {'out': 0, 'in': 0})
         ]
 
         graph = build_graph_with_edge_attrs(nodes_no_label, edges_no_label)

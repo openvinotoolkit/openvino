@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id shuffle_channels_type_id() {
+primitive_type_id shuffle_channels::type_id() {
     static primitive_type_base<shuffle_channels> instance;
     return &instance;
 }

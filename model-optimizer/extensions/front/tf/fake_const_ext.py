@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,12 +15,10 @@
 """
 import logging as log
 
-import numpy as np
-
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.extractors.utils import tf_dtype_extractor
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.ops.const import Const
 
 

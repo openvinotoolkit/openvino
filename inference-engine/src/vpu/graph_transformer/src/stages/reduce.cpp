@@ -1,76 +1,59 @@
-//
-// Copyright 2019 Intel Corporation.
-//
-// This software and the related documents are Intel copyrighted materials,
-// and your use of them is governed by the express license under which they
-// were provided to you (End User License Agreement for the Intel(R) Software
-// Development Products (Version May 2017)). Unless the License provides
-// otherwise, you may not use, modify, copy, publish, distribute, disclose or
-// transmit this software or the related documents without Intel's prior
-// written permission.
-//
-// This software and the related documents are provided as is, with no
-// express or implied warranties, other than those that are expressly
-// stated in the License.
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <vpu/model/data_desc.hpp>
 
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
+#include <algorithm>
 #include <memory>
 #include <set>
+#include <vector>
+#include <string>
 
 namespace vpu {
 
 namespace {
 
 class ReduceStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ReduceStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
-
-        auto in0Desc = input0->desc();
-        auto in1Desc = input1->desc();
-        auto outDesc = output->desc();
-
-        auto in0Order = DimsOrder::fromNumDims(in0Desc.numDims());
-        auto in1Order = DimsOrder::fromNumDims(in1Desc.numDims());
-        auto outOrder = DimsOrder::fromNumDims(outDesc.numDims());
-
-        _orderInfo.setInput(_inputEdges[0], in0Order);
-        _orderInfo.setInput(_inputEdges[1], in1Order);
-        _orderInfo.setOutput(_outputEdges[0], outOrder);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+         orderInfo.setInput(inputEdge(0), input(0)->desc().dimsOrder());
+         orderInfo.setInput(inputEdge(1), input(1)->desc().dimsOrder());
+         orderInfo.setOutput(outputEdge(0), output(0)->desc().dimsOrder());
     }
 
-    void getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+        auto reductionAxes = input(1);
+        auto in0Desc = input(0)->desc();
+        auto in1Desc = reductionAxes->desc();
 
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-
-        auto in0Desc = input0->desc();
-        auto in1Desc = input1->desc();
-
-        IE_ASSERT(input1->usage() == DataUsage::Const);
-
+        VPU_THROW_UNLESS(reductionAxes->usage() == DataUsage::Const,
+                        "Stage {} of type {} expects input with index {} ({}) to be {}, but it is {}",
+                        name(), type(), 1, reductionAxes->name(), DataUsage::Const, reductionAxes->usage());
         size_t ndims = in0Desc.numDims();
-        IE_ASSERT(in1Desc.numDims() == 1);
+        VPU_THROW_UNLESS(in1Desc.numDims() == 1,
+                        "Stage {} of type {} expects input with index {} ({}) to have dimensions number is {}, but it is {}",
+                        name(), type(), 1, reductionAxes->name(), 1, in1Desc.numDims());
         size_t indicesSize = in1Desc.totalDimSize();
-        IE_ASSERT(indicesSize < ndims);
+        VPU_THROW_UNLESS(indicesSize <= ndims,
+                        "Stage {} of type {} expects input with index {} ({}) to have total size not greater than dimensions ",
+                        "number of input with index {} ({}), but it is {} > {}",
+                        name(), type(), 1, reductionAxes->name(), 0, input(0)->name(), indicesSize, ndims);
 
-        const auto oldIndices = input1->content()->get<int32_t>();
+        const auto oldIndices = reductionAxes->content()->get<int32_t>();
 
         auto newIndicesBlob = ie::make_shared_blob<int32_t>(InferenceEngine::TensorDesc(
             ie::Precision::I32,
@@ -80,33 +63,48 @@ private:
 
         auto newIndices = newIndicesBlob->buffer().as<int32_t*>();
 
-        auto perm = in0Desc.dimsOrder().toPermutation();
+        const auto defPerm = DimsOrder::fromNumDims(ndims).toPermutation();
+        const auto dimsOrder = in0Desc.dimsOrder();
         for (size_t i = 0; i < indicesSize; ++i) {
-            int32_t index = oldIndices[i];
-            if (index < 0)  // handle negative indices
-                index = ndims - index;
-            IE_ASSERT(index < ndims);
-            index = static_cast<int32_t>(perm[ndims - 1 - index]);
-            newIndices[i] = index;
-        }
+            auto irIndex = oldIndices[i];
+            if (irIndex < 0) {
+                // handle negative indices
+                irIndex = static_cast<int>(ndims - std::abs(irIndex));
+            }
+            VPU_THROW_UNLESS(irIndex < ndims,
+                            "Stage {} of type {} expects input with index {} ({}) include values less than ",
+                            "dimensions number of input with index {} ({}), but it is {} >= {}",
+                             name(), type(), 1, reductionAxes->name(), 0, input(0)->name(), irIndex, ndims);
 
-        auto newList = _model->duplicateData(
-            input1,
+            const auto reducedDim = defPerm[ndims - 1 - irIndex];
+            newIndices[i] = dimsOrder.dimInd(reducedDim);
+        }
+        std::sort(newIndices, newIndices + indicesSize);
+
+        auto newList = model()->duplicateData(
+            reductionAxes,
             "",
             DataDesc(),
-            ieBlobContent(newIndicesBlob));
+            ieBlobContent(newIndicesBlob, DataType::S32));
 
-        _model->replaceStageInput(_inputEdges[1], newList);
+        model()->replaceStageInput(inputEdge(1), newList);
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
         return StageSHAVEsRequirements::CanBeLimited;
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        VPU_THROW_UNLESS(input(0)->desc().type() == output(0)->desc().type(),
+                         "Stage {} of type {} expects that data types of input with index {} ({}) "
+                         "and output with index {} ({}) are the same, but it is {} and {}",
+                         name(), type(), 0, input(0)->name(), 0, output(0)->name(), input(0)->desc().type(), output(0)->desc().type());
+        assertInputsOutputsTypes(this,
+                                 {{DataType::FP16, DataType::S32}, {DataType::S32}},
+                                 {{DataType::FP16, DataType::S32}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -116,35 +114,43 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+         auto input0 = inputEdge(0)->input();
+         auto input1 = inputEdge(1)->input();
+         auto output = outputEdge(0)->output();
 
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
-
-        input0->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
-        input1->serializeNewBuffer(serializer);
+         input0->serializeBuffer(serializer);
+         output->serializeBuffer(serializer);
+         input1->serializeBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseReduce(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
-    auto layer = std::dynamic_pointer_cast<ie::ReduceLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-
-    IE_ASSERT(inputs.size() == 2);
-    IE_ASSERT(outputs.size() == 1);
+void FrontEnd::parseReduce(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
+    VPU_THROW_UNLESS(_layer != nullptr,
+                     "parseReduce expects valid CNNLayerPtr, got nullptr");
+    const auto layer = std::dynamic_pointer_cast<ie::ReduceLayer>(_layer);
+    VPU_THROW_UNLESS(layer != nullptr,
+                     "Layer {} of type {} cannot be casted to ie::ReduceLayer",
+                     _layer->name, _layer->type);
+    VPU_THROW_UNLESS(inputs.size() == 2,
+                     "Layer {} of type {} expects {} inputs, but provided {}",
+                     layer->name, layer->type, 2, inputs.size());
+    VPU_THROW_UNLESS(outputs.size() == 1,
+                     "Layer {} of type {} expects {} output, but provided {}",
+                     layer->name, layer->type, 1, outputs.size());
 
     auto stageType = StageType::None;
     if (layer->type == "ReduceAnd") {
         stageType = StageType::ReduceAnd;
+    } else if (layer->type == "ReduceMin") {
+        stageType = StageType::ReduceMin;
+    } else if (layer->type == "ReduceMax") {
+        stageType = StageType::ReduceMax;
+    } else if (layer->type == "ReduceSum") {
+        stageType = StageType::ReduceSum;
+    } else if (layer->type == "ReduceMean") {
+        stageType = StageType::ReduceMean;
     } else {
         VPU_THROW_EXCEPTION << "Reduce operation: " << layer->type << " is not supported";
     }
@@ -157,15 +163,21 @@ void FrontEnd::parseReduce(
         VPU_THROW_EXCEPTION << "Reduce operation: " << layer->type << " requires exactly 1 output";
     }
 
-    auto stage = model->addNewStage<ReduceStage>(
-        layer->name,
-        stageType,
-        layer,
-        inputs,
-        outputs);
+    _stageBuilder->addReduceStage(model, layer->name, stageType, layer, layer->keep_dims, inputs, outputs[0]);
+}
 
-    const int keep_dims = layer->keep_dims ? 1 : 0;
-    stage->attrs().set<int>("keep_dims",  keep_dims);
+Stage StageBuilder::addReduceStage(
+    const Model& model,
+    const std::string& name,
+    const StageType reduceType,
+    const ie::CNNLayerPtr& layer,
+    const bool keep_dims,
+    const DataVector& inputs,
+    const Data& output) {
+    auto stage = model->addNewStage<ReduceStage>(name, reduceType, layer, inputs, {output});
+
+    stage->attrs().set<int>("keep_dims", static_cast<int>(keep_dims));
+    return stage;
 }
 
 }  // namespace vpu

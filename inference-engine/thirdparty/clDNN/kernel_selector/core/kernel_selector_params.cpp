@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@
 #include "kernel_selector_common.h"
 #include <sstream>
 #include <string>
+
+#include <activation/activation_kernel_base.h>
+#include "jitter.h"
 
 namespace kernel_selector {
 
@@ -311,13 +314,22 @@ void ParamsKey::EnableConcatAxis(ConcatAxis a) {
     }
 }
 
-void ParamsKey::EnableUpSamplingSampleType(SampleType a) {
+void ParamsKey::EnableReampleType(ResampleType a) {
     switch (a) {
-        case SampleType::NEAREST:
-            key.restrict.val.dedicated.upsample.nearest = 1;
+        case ResampleType::NEAREST_NEIGHBOR:
+            key.restrict.val.dedicated.resample.nearest_neighbor = 1;
             break;
-        case SampleType::BILINEAR:
-            key.restrict.val.dedicated.upsample.bilinear = 1;
+        case ResampleType::CAFFE_BILINEAR_INTERP:
+            key.restrict.val.dedicated.resample.caffe_bilinear_interp = 1;
+            break;
+        case ResampleType::BILINEAR_INTERP:
+            key.restrict.val.dedicated.resample.bilinear_interp = 1;
+            break;
+        case ResampleType::CUBIC:
+            key.restrict.val.dedicated.resample.cubic = 1;
+            break;
+        case ResampleType::LINEAR_ONNX:
+            key.restrict.val.dedicated.resample.linear_onnx = 1;
             break;
         default:
             break;
@@ -380,6 +392,30 @@ void ParamsKey::EnableLookUpTableIndicesFormat(Datatype a) {
 }
 
 void ParamsKey::EnableFusedConvEltwiseRWOutOpt() { key.restrict.val.dedicated.fused_conv_eltw.rw_out_opt = 1; }
+void ParamsKey::EnableFusedConvEltwDepthToSpaceFusing() { key.restrict.val.dedicated.fused_conv_eltw.depth_to_space_fused = 1; }
+
+
+void ParamsKey::EnableQuantization(QuantizationType q) {
+    switch (q) {
+        case QuantizationType::NONE:
+            break;
+        case QuantizationType::SYMMETRIC:
+            key.restrict.val.sym_quantization = 1;
+            break;
+        case QuantizationType::ASYMMETRIC_DATA:
+            key.restrict.val.asym_d_quantization = 1;
+            break;
+        case QuantizationType::ASYMMETRIC_WEIGHTS:
+            key.restrict.val.asym_w_quantization = 1;
+            break;
+        case QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS:
+            key.restrict.val.asym_d_quantization = 1;
+            key.restrict.val.asym_w_quantization = 1;
+            break;
+        default:
+            break;
+    }
+}
 
 bool ParamsKey::Support(const ParamsKey& k) const {
     if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw))  // check if this kernel supports this params
@@ -437,6 +473,10 @@ ParamsKey Params::GetParamsKey() const {
         k.EnableSubGroupShort();
     }
 
+    if (engineInfo.bSubGroupCharSupport) {
+        k.EnableSubGroupChar();
+    }
+
     return k;
 }
 
@@ -444,6 +484,10 @@ std::string Params::to_string() const {
     std::stringstream s;
     s << toString(kType);
     return s.str();
+}
+
+std::string Params::to_cache_string_v2() const {
+    return "";
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -510,10 +554,6 @@ ParamsKey base_params::GetParamsKey() const {
         k.EnableFP16Emulation();
     }
 
-    if (gradient) {
-        k.EnableGradient();
-    }
-
     return k;
 }
 
@@ -525,8 +565,33 @@ std::string base_activation_params::to_string() const {
 
 std::string base_params::to_string() const {
     std::stringstream s;
-    s << Params::to_string() << "_";
-    s << activation.to_string() << "_";
+
+    // WA to reuse old tuning cache. Code below must be replace with the following line once new cache file is merged.
+    // s << Params::to_string() << "_";
+    auto type_string = toString(kType);
+    if (kType == KernelType::FUSED_CONV_ELTWISE) {
+        type_string = "";
+    }
+    s << type_string << "_";
+
+    // TODO: Remove activation from the string and recollect cache file
+    bool found_fused_activation = false;
+    if (!activations.empty()) {
+        s << activations[0].to_string() << "_";
+        found_fused_activation = true;
+    }
+
+    if (activations.empty() && !fused_ops.empty()) {
+        if (fused_ops[0].GetType() == KernelType::ACTIVATION) {
+            auto activation_params = fused_ops[0].GetOpParams<activation_fuse_params>()->param;
+            s << activation_params.to_string() << "_";
+            found_fused_activation = true;
+        }
+    }
+
+    if (!found_fused_activation) {
+        s << "m" << 0.f << "_n" << 0.f << "_" << toString(ActivationFunction::NONE) << "_";
+    }
 
     for (auto input : inputs) {
         s << toString(input) << "_";
@@ -535,4 +600,16 @@ std::string base_params::to_string() const {
 
     return s.str();
 }
+
+std::string base_params::to_cache_string_v2() const {
+    std::stringstream s;
+
+    for (auto input : inputs) {
+        s << toString_v2(input) << ";";
+    }
+    s << toString_v2(output);
+
+    return s.str();
+}
+
 }  // namespace kernel_selector

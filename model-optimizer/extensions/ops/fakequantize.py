@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -32,25 +32,27 @@ def broadcastable(broadcast_from, broadcast_to):
     return np.all(np.logical_or(broadcast_from == 1, broadcast_from == broadcast_to))
 
 
+def round_half_up(n):
+    return np.floor(n + 0.5)
+
+
 class FakeQuantize(Op):
     op = 'FakeQuantize'
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset1',
             'levels': None,
-            # flag to switch between dumping FakeQuantize as statistics and keeping it as layer in IR
-            'keep_in_IR': None,
-            'infer': __class__.infer,
+            'is_eltwise': True,
+            'infer': self.infer,
             'in_ports_count': 5,
             'out_ports_count': 1,
         }
         super().__init__(graph, mandatory_props, attrs)
         if self.attrs['levels'] is None:
             raise Error("FakeQuantize operation has no levels parameter")
-        # TODO remove following lines after FakeQuantize supported for int8 workflow
-        self.attrs['keep_in_IR'] = self.attrs['levels'] == 2 or graph.graph['cmd_params'].keep_quantize_ops_in_IR
 
     def supported_attrs(self):
         return [
@@ -64,7 +66,7 @@ class FakeQuantize(Op):
         inputs = [node.in_node(i) for i in range(5)]
         x, input_low, input_high, output_low, output_high = inputs
         assert x.has_valid('shape')
-        # TODO Check all input[1..4] shapes are broadcastable to intput[0] shape
+        # TODO Check all inputs[1..4] shapes are broadcastable to inputs[0] shape
         assert all([broadcastable(inputs[i].shape, inputs[0].shape) for i in range(1, 5)]), \
             "Not all shapes from FakeQuantize inputs can be broadcasted to input[0] for node {}".format(
                 node.soft_get('name'))
@@ -72,7 +74,7 @@ class FakeQuantize(Op):
 
         if all([node.in_node(i).has_valid('value') for i in range(5)]):
             x, input_low, input_high, output_low, output_high = \
-                [np.array(np.broadcast_to(node.value, x.value.shape)) for node in inputs]
+                [np.array(np.broadcast_to(node.value, x.value.shape), dtype=np.float32) for node in inputs]
 
             assert node.has_valid('levels')
             assert isinstance(node.levels, int)
@@ -83,9 +85,8 @@ class FakeQuantize(Op):
             middle_mask = np.logical_not(np.logical_or(underflow_mask, overflow_mask))
 
             def middle_part(x, input_low, input_high, output_low, output_high):
-                return np.round(
-                    (x - input_low) / (input_high - input_low) * (node.levels - 1)
-                ) / (node.levels - 1) * (output_high - output_low) + output_low
+                return round_half_up((x - input_low) / (input_high - input_low) * (node.levels - 1)) / \
+                    (node.levels - 1) * (output_high - output_low) + output_low
 
             output = np.zeros_like(x)
             # pylint: disable=unsupported-assignment-operation

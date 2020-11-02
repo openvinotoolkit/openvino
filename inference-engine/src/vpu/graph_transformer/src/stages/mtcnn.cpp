@@ -1,8 +1,13 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
+
+#include <vpu/graph_transformer.hpp>
+#include <vpu/compile_env.hpp>
+#include <vpu/utils/file_system.hpp>
+#include <vpu/model/data_contents/mtcnn_blob_content.hpp>
 
 #include <vector>
 #include <fstream>
@@ -10,12 +15,6 @@
 #include <utility>
 #include <memory>
 #include <set>
-
-#include <cpp/ie_cnn_net_reader.h>
-
-#include <vpu/graph_transformer.hpp>
-#include <vpu/compile_env.hpp>
-#include <vpu/utils/file_system.hpp>
 
 namespace vpu {
 
@@ -27,42 +26,39 @@ VPU_DECLARE_ENUM(MTCNN_Mode,
 namespace {
 
 class MTCNNStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<MTCNNStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        _orderInfo.setInput(_inputEdges[0], input->desc().dimsOrder().createMovedDim(Dim::C, 2));
-        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, 0));
+        orderInfo.setInput(inputEdge(0), input->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        orderInfo.setOutput(outputEdge(0), output->desc().dimsOrder().createMovedDim(Dim::C, 0));
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
-        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+        stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
-        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
+        batchInfo.setInput(inputEdge(0), BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this,
+            {{DataType::U8, DataType::FP16}, {DataType::U8, DataType::FP16}},
+            {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -85,38 +81,16 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
+        auto output = outputEdge(0)->output();
 
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
+        input0->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
 
-        input0->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
-
-        input1->serializeOldBuffer(
-            handle_from_this(),
-            serializer,
-            DimsOrder::HWC,
-            {{Dim::W, {Dim::C}}});
+        IE_ASSERT(inputEdge(1)->input()->desc().dimsOrder() == DimsOrder::C);
+        input1->serializeBuffer(serializer);
     }
-};
-
-class MTCNNBlobContent final : public DataContent {
-public:
-    explicit MTCNNBlobContent(std::vector<char>&& blob) : _blob(std::forward<std::vector<char>>(blob)) {
-        IE_ASSERT(!_blob.empty());
-    }
-
-    const void* getRaw() const override {
-        IE_ASSERT(_desc.totalDimSize() * _desc.elemSize() == _blob.size());
-        return _blob.data();
-    }
-
-private:
-    std::vector<char> _blob;
 };
 
 std::pair<int, int> getResolution(const std::string& str) {
@@ -131,18 +105,14 @@ std::pair<int, int> getResolution(const std::string& str) {
 
 ie::CNNNetwork loadSubNetwork(
         const std::string& fileName,
-        const std::pair<int, int>& imgSize, int* zdir_batchsize = nullptr) {
+        const std::pair<int, int>& imgSize,
+        const ie::ICore* core,
+        int* zdir_batchsize = nullptr) {
     //
     // Load network
     //
 
-    auto binFileName = fileNameNoExt(fileName) + ".bin";
-
-    ie::CNNNetReader networkReader;
-    networkReader.ReadNetwork(fileName);
-    networkReader.ReadWeights(binFileName);
-
-    auto network = networkReader.getNetwork();
+    auto network = core->ReadNetwork(fileName, std::string());
 
     //
     // Set precision of input/output
@@ -171,7 +141,7 @@ ie::CNNNetwork loadSubNetwork(
     ie::SizeVector inputShape;
     std::tie(inputName, inputShape) = *inputShapes.begin();
     if (zdir_batchsize != nullptr)
-        *zdir_batchsize = inputShape[1]/3;
+        *zdir_batchsize = static_cast<int>(inputShape[1]/3);
     inputShape[0] = 1;                // set batch size to the first input dimension
     inputShape[2] = imgSize.second;   // changes input height to the image one
     inputShape[3] = imgSize.first;    // changes input width to the image one
@@ -184,11 +154,7 @@ ie::CNNNetwork loadSubNetwork(
 
 }  // namespace
 
-void FrontEnd::parseMTCNN(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     const auto& env = CompileEnv::get();
 
     ie::details::CaselessEq<std::string> cmp;
@@ -238,8 +204,8 @@ void FrontEnd::parseMTCNN(
 
     // Convert p-nets
     for (const auto& p_net_input : pyramid) {
-        auto pNet = loadSubNetwork(pnet_ir_name, p_net_input);
-        auto res = compileSubNetwork(pNet, env.config);
+        auto pNet = loadSubNetwork(pnet_ir_name, p_net_input, _core);
+        auto res = compileSubNetwork(pNet, env.config, _core);
         mergedBlobSize += res->blob.size();
         compiledSubNetworks.emplace_back(std::move(res));
     }
@@ -247,16 +213,16 @@ void FrontEnd::parseMTCNN(
     int stage2_zdir_batchsize = 1;
     // Convert r-net
     {
-        auto rNet = loadSubNetwork(rnet_ir_name, r_net_input, &stage2_zdir_batchsize);
-        auto res = compileSubNetwork(rNet, env.config);
+        auto rNet = loadSubNetwork(rnet_ir_name, r_net_input, _core, &stage2_zdir_batchsize);
+        auto res = compileSubNetwork(rNet, env.config, _core);
         mergedBlobSize += res->blob.size();
         compiledSubNetworks.emplace_back(std::move(res));
     }
 
     // Convert o-net
     {
-        auto oNet = loadSubNetwork(onet_ir_name, o_net_input);
-        auto res = compileSubNetwork(oNet, env.config);
+        auto oNet = loadSubNetwork(onet_ir_name, o_net_input, _core);
+        auto res = compileSubNetwork(oNet, env.config, _core);
         mergedBlobSize += res->blob.size();
         compiledSubNetworks.emplace_back(std::move(res));
     }
@@ -276,18 +242,9 @@ void FrontEnd::parseMTCNN(
     auto innerGraphsDesc = DataDesc({mergedBlob.size()});
     innerGraphsDesc.setType(DataType::U8);
 
-    auto innerGraphs = model->addConstData(
-        layer->name + "@innerGraphs",
-        innerGraphsDesc,
-        std::make_shared<MTCNNBlobContent>(std::move(mergedBlob)));
+    auto innerGraphs = model->addConstData(layer->name + "@innerGraphs", innerGraphsDesc, std::make_shared<MTCNNBlobContent>(mergedBlob));
 
-    auto stage = model->addNewStage<MTCNNStage>(
-        layer->name,
-        StageType::MTCNN,
-        layer,
-        {input, innerGraphs},
-        {output});
-
+    auto stage = model->addNewStage<MTCNNStage>(layer->name, StageType::MTCNN, layer, {input, innerGraphs}, {output});
     stage->attrs().set("pyramid", pyramid);
     stage->attrs().set<int>("debug_pnet_post_nms", layer->GetParamAsInt("debug_pnet_post_nms", 0));
     stage->attrs().set<int>("debug_rnet_post_nms", layer->GetParamAsInt("debug_rnet_post_nms", 0));

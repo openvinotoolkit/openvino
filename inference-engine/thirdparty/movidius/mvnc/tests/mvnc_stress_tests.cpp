@@ -1,41 +1,16 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "mvnc.h"
-#include "mvnc_tests_common.hpp"
 #include "ncPrivateTypes.h"
+#include "mvnc_stress_test_cases.h"
 
-class MvncStressTests : public MvncTestsCommon,
-                        public testing::WithParamInterface<ncDeviceProtocol_t>{
-public:
-    int available_devices = 0;
-
-protected:
-    ~MvncStressTests() override = default;
-
-    void SetUp() override {
-        MvncTestsCommon::SetUp();
-
-        _deviceProtocol = GetParam();
-        available_devices = getAmountOfDevices(_deviceProtocol);
-        ASSERT_TRUE(available_devices > 0) << ncProtocolToStr(_deviceProtocol)
-                                           << " devices not found";
-        ASSERT_NO_ERROR(setLogLevel(MVLOG_WARN));
-
-#ifdef NO_BOOT
-        // In case already booted device exist, do nothing
-        if (getAmountOfBootedDevices() == 0) {
-            MvncTestsCommon::bootOneDevice(NC_USB);
-        }
-#endif
-    }
-
-    ncDeviceProtocol_t _deviceProtocol = NC_ANY_PROTOCOL;
-};
-
+//------------------------------------------------------------------------------
+//      MvncStressTests Tests
+//------------------------------------------------------------------------------
 /**
 * @brief Open and close device for 1001 times
 */
@@ -48,8 +23,8 @@ TEST_P(MvncStressTests, OpenClose1001) {
 
     for (int i = 0; i < iterations; ++i) {
         printf("Iteration %d of %d\n", i, iterations);
-        ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
-        ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+        ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
+        ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
         deviceHandle = nullptr;
     }
 }
@@ -71,7 +46,7 @@ TEST_P(MvncStressTests, AllocateDeallocateGraph1001) {
 
     // Open device
     ncDeviceHandle_t *deviceHandle = nullptr;
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
     for (int i = 0; i < iterations; ++i) {
         printf("Iteration %d of %d\n", i, iterations);
@@ -91,7 +66,7 @@ TEST_P(MvncStressTests, AllocateDeallocateGraph1001) {
         // Destroy graph
         ASSERT_NO_ERROR(ncGraphDestroy(&graphHandle));
     }
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 }
 
 
@@ -112,7 +87,7 @@ TEST_P(MvncStressTests, FullCycleOfWork101Times) {
 
     for (int i = 0; i < iterations; i++) {
         ncDeviceHandle_t *deviceHandle = nullptr;
-        ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
+        ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
         ncGraphHandle_t*  graphHandle = nullptr;
         std::string graphName = "graph";
@@ -171,7 +146,7 @@ TEST_P(MvncStressTests, FullCycleOfWork101Times) {
 
         ASSERT_NO_ERROR(ncGraphDestroy(&graphHandle));
 
-        ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+        ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
     }
 
 }

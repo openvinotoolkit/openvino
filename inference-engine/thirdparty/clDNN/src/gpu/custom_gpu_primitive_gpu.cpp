@@ -22,6 +22,7 @@
 #include "engine_impl.h"
 #include "jitter.h"
 #include "error_handler.h"
+#include "register_gpu.hpp"
 
 #include <map>
 #include <sstream>
@@ -47,28 +48,39 @@ struct custom_gpu_primitive_gpu : typed_primitive_impl<custom_gpu_primitive> {
           cl_kernel(cl_kernel),
           _kernel(arg.get_program().get_engine().get_context(),
                   cl_kernel->kernelString,
+                  arg.get_program().get_id(),
                   arg.get_program().get_engine().get_context()->get_configuration().dump_custom_program) {}
 
-    event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,
-                                 custom_gpu_primitive_inst& instance) override {
-        uint16_t stream_id = instance.get_network().get_stream_id();
+    void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
+        auto net_id = instance.get_network().get_id();
         gpu::kernel::kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
             args.inputs.push_back((memory_impl::cptr) &(dep->output_memory()));
         }
         args.output = (memory_impl::cptr) &instance.output_memory();
-        _kernel.set_output_event(stream_id, instance.node.is_output());
-        return _kernel.run(stream_id, *cl_kernel.get(), events, args);
+        _kernel.set_arguments(net_id, *cl_kernel.get(), args);
+    }
+
+    void cleanup_impl(custom_gpu_primitive_inst& instance) override {
+        auto net_id = instance.get_network().get_id();
+        _kernel.cleanup(net_id);
+    }
+
+    event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,
+                                 custom_gpu_primitive_inst& instance) override {
+        auto net_id = instance.get_network().get_id();
+        _kernel.set_output_event(net_id, instance.node.is_output());
+        return _kernel.run(net_id, *cl_kernel.get(), events);
     }
 };
 
-static kernel_selector::kernel_argument_element get_arg(cldnn_arg arg) {
+static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::arg_desc arg) {
     kernel_selector::kernel_argument_element ret;
-    switch (arg.arg_type) {
-        case arg_input:
+    switch (arg.type) {
+        case custom_gpu_primitive::arg_input:
             ret.t = kernel_selector::kernel_argument_types::INPUT;
             break;
-        case arg_output:
+        case custom_gpu_primitive::arg_output:
             ret.t = kernel_selector::kernel_argument_types::OUTPUT;
             break;
         default:
@@ -87,7 +99,7 @@ std::string value_macro(const std::string& name, const std::string& value) {
     return oss.str();
 }
 
-static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const std::string& name, layout l) {
+static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const std::string& name, const layout& l) {
     // Size (in elements)
     // #define INPUT0_DIMS (uint[]) { b, f, y, x, }
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_DIMS", l.size.sizes(format::bfyx)));
@@ -212,12 +224,12 @@ static primitive_impl* create(const custom_gpu_primitive_node& arg) {
 
     return new custom_gpu_primitive_gpu(arg, cl_kernel);
 }
-
-namespace {
-struct attach {
-    attach() { implementation_map<custom_gpu_primitive>::add({{cldnn::engine_types::ocl, create}}); }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
 }  // namespace neural
+
+namespace cldnn { namespace gpu { namespace detail {
+
+attach_custom_gpu_primitive_gpu::attach_custom_gpu_primitive_gpu() {
+    implementation_map<custom_gpu_primitive>::add({{cldnn::engine_types::ocl, neural::create}});
+}
+
+} } }  // namespace cldnn::gpu::detail

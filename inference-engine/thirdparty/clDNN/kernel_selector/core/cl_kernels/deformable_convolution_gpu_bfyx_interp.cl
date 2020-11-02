@@ -23,10 +23,10 @@ KERNEL(deformable_convolution_gpu_bfyx_interp)(
     const int xy = get_global_id(0);
     const int x = xy % OUTPUT_SIZE_X;
     const int y = xy / OUTPUT_SIZE_X;
-    const int dg = get_global_id(1) % DEFORMABLE_GROUPS;
-    const int b  = get_global_id(1) / DEFORMABLE_GROUPS;
-    const int kw = get_global_id(2) % FILTER_SIZE_X;
-    const int kh = get_global_id(2) / FILTER_SIZE_X;
+    const int dg = (uint)get_global_id(1) % DEFORMABLE_GROUPS;
+    const int b  = (uint)get_global_id(1) / DEFORMABLE_GROUPS;
+    const int kw = (uint)get_global_id(2) % FILTER_SIZE_X;
+    const int kh = (uint)get_global_id(2) / FILTER_SIZE_X;
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;

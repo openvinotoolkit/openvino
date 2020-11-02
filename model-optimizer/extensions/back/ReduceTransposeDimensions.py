@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ import logging as log
 
 import numpy as np
 
-from mo.back.replacement import BackReplacementPattern
 from extensions.back.OptimizeTransposeReshapeSequence import set_reshape_new_output_shape
+from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 
@@ -102,8 +102,7 @@ class ReduceTransposeDimensions(BackReplacementPattern):
 
     def run_before(self):
         from extensions.back.ReshapeMutation import ReshapeMutation
-        from extensions.back.TransposeToPermute import TransposeToPermute
-        return [ReshapeMutation, TransposeToPermute]
+        return [ReshapeMutation]
 
     @staticmethod
     def pattern():

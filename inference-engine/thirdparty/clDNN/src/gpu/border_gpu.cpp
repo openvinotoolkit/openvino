@@ -70,31 +70,37 @@ struct border_gpu : typed_primitive_gpu_impl<border> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = border_gpu::create;
+namespace detail {
 
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), val_fw);
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), val_fw);
+attach_border_gpu::attach_border_gpu() {
+    auto val_fw = border_gpu::create;
 
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), val_fw);
 
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw);
-        implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), val_fw);
-    }
-    ~attach() = default;
-};
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
 
-attach attach_impl;
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), val_fw);
 
-}  // namespace
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
+
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), val_fw);
+    implementation_map<border>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

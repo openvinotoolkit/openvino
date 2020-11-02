@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -24,7 +24,8 @@ namespace kernel_selector {
 // region_yolo_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct region_yolo_params : public base_params {
-    region_yolo_params() : base_params(KernelType::REGION_YOLO) {}
+    region_yolo_params() : base_params(KernelType::REGION_YOLO),
+    coords(0), classes(0), num(0), mask_size(0), do_softmax(false) {}
 
     uint32_t coords;
     uint32_t classes;
@@ -48,9 +49,9 @@ struct region_yolo_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RegionYoloKernelRef
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class RegionYoloKernelRef : public common_kernel_base {
+class RegionYoloKernelRef : public KernelBaseOpenCL {
 public:
-    RegionYoloKernelRef() : common_kernel_base("region_yolo_gpu_ref") {}
+    RegionYoloKernelRef() : KernelBaseOpenCL("region_yolo_gpu_ref") {}
     virtual ~RegionYoloKernelRef() {}
 
     using DispatchData = CommonDispatchData;

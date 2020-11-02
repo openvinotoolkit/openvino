@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
+import logging as log
 from collections import deque
 from re import match, compile
 
-import logging as log
 import networkx as nx
 
 from mo.graph.graph import Node, Graph
@@ -199,7 +199,8 @@ def invert_sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: l
     while len(d) != 0:
         cur_node_name = d.popleft()
         sub_graph_nodes.append(cur_node_name)
-        if cur_node_name not in start_nodes and detect_extra_start_node(Node(graph, cur_node_name)):
+        if cur_node_name not in start_nodes and \
+                detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_name)):
             extra_start_nodes.append(cur_node_name)
         else:
             if cur_node_name not in end_nodes:  # do not add output nodes of the end_nodes

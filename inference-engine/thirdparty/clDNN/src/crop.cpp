@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id crop_type_id() {
+primitive_type_id crop::type_id() {
     static primitive_type_base<crop> instance;
     return &instance;
 }
@@ -84,19 +84,9 @@ crop_inst::typed_primitive_inst(network_impl& network, crop_node const& node) : 
     const auto& ref_in_sizes = argument.reference_input;
     const auto in_layout = node.input().get_output_layout();
     const auto& in_sizes = in_layout.size;
-    const auto in_format = in_layout.format;
     const auto& offsets = argument.offsets;
     tensor null_tensor {};
     tensor value_tensor { 1, 1, 1, 1, 1 };
-
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
-                                  "Input format",
-                                  in_format.value,
-                                  "supported crop input formats",
-                                  format::yxfb,
-                                  format::bfyx,
-                                  format::fyxb,
-                                  format::bfzyx);
 
     // Check for borders variant of crop.
     if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||

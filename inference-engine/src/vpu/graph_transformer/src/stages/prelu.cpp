@@ -1,19 +1,27 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/stages/post_op_stage.hpp>
+#include <vpu/utils/ie_helpers.hpp>
+#include <vpu/utils/profiling.hpp>
+#include <vpu/model/data_contents/prelu_blob_content.hpp>
+
+#include <ie_parallel.hpp>
+
 #include <vector>
 #include <memory>
-
-#include <vpu/sw/post_op_stage.hpp>
 
 namespace vpu {
 
 namespace {
 
 class PReluStage final : public PostOpStage {
+public:
+    using PostOpStage::PostOpStage;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<PReluStage>(*this);
@@ -25,11 +33,7 @@ private:
 
 }  // namespace
 
-void FrontEnd::parsePReLU(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parsePReLU(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -48,16 +52,10 @@ void FrontEnd::parsePReLU(
     auto weights = model->addConstData(
         layer->name + "@weights",
         DataDesc({output->desc().dim(Dim::C)}),
-        ieBlobContent(
-            weightsBlob,
-            channelShared ? output->desc().dim(Dim::C) : 1));
+        std::make_shared<PReLUBlobContent>(weightsBlob, DataDesc({output->desc().dim(Dim::C)}),
+                                           channelShared ? output->desc().dim(Dim::C) : 1));
 
-    model->addNewStage<PReluStage>(
-        layer->name,
-        StageType::PRelu,
-        layer,
-        {inputs[0], weights},
-        outputs);
+    model->addNewStage<PReluStage>(layer->name, StageType::PRelu, layer, {inputs[0], weights}, outputs);
 }
 
 }  // namespace vpu

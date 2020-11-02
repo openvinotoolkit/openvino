@@ -62,13 +62,13 @@ public:
                                                    int autoTuneIndex = -1) const override;
 
 protected:
-    virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const binary_convolution_params&) const = 0;
+    virtual WeightsLayout GetPreferredWeightLayout(const binary_convolution_params &) const = 0;
     virtual std::string GetKernelName(const binary_convolution_params&) const { return kernelName; }
     virtual bool NeedPaddedInput() const { return false; }
     bool Validate(const Params& p, const optional_params& o) const override;
-    virtual JitConstants GetJitConstants(const binary_convolution_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetJitConstants(const binary_convolution_params& params, const DispatchData& dispatchData) const;
     virtual JitConstants GetFusedPrimitivesJitConstants(const binary_convolution_params& params,
-                                                        const DispatchData& kd) const;
+                                                        const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const binary_convolution_params& params, int autoTuneIndex = -1) const;
     static bool CheckWorkGroups(const DispatchData&);
     KernelsData GetCommonKernelsData(const Params& params,

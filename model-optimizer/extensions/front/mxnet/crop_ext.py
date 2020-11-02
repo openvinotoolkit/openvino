@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ class CropFrontExtractor(FrontExtractorOp):
     op = 'Crop'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         offset = attrs.tuple("offset", int, ())
         axis = attrs.int("num_args", 0)
@@ -34,5 +34,5 @@ class CropFrontExtractor(FrontExtractorOp):
             'dim': None,
         }
         Crop.update_node_stat(node, node_attrs)
-        return __class__.enabled
+        return cls.enabled
 

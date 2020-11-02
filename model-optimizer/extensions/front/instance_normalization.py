@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node, Graph
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.mvn import MVN
+from mo.front.common.replacement import FrontReplacementOp
+from mo.graph.graph import Node, Graph
 
 
 class InstanceNormalization(FrontReplacementOp):

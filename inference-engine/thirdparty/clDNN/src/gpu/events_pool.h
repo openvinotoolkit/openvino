@@ -37,8 +37,10 @@ protected:
 
     event_impl::ptr get_from_pool(std::shared_ptr<gpu_toolkit>& ctx) {
         for (auto& ev : _events) {
-            if (!ev->is_valid())
+            if (!ev->is_valid()) {
+                ev->reset();
                 return ev;
+            }
         }
         const event_impl::ptr ev_impl { new Type(ctx), false };
         return allocate(ev_impl);

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_softmax_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -13,8 +13,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNSoftMaxNode::MKLDNNSoftMaxNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {}
+MKLDNNSoftMaxNode::MKLDNNSoftMaxNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     if (descs.size())
@@ -73,14 +73,15 @@ void MKLDNNSoftMaxNode::createPrimitive() {
     auto prim_desc = softmax_forward::primitive_desc(*selected_desc_ptr, getEngine());
     primitive_desc_iterator itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());
 
-    do {
+    while (itpd.is_not_end()) {
         impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
         auto primitiveDescriptor = getSelectedPrimitiveDescriptor();
         if ((primitiveDescriptor != nullptr) && (impl_type == primitiveDescriptor->getImplementationType())) {
             itpd.getPrimitiveDescriptor(prim_desc);
             break;
         }
-    } while (itpd.next());
+        itpd++;
+    }
 
     prim.reset(new softmax_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
                                 getChildEdgeAt(0)->getMemory().GetPrimitive()));
@@ -122,3 +123,4 @@ void MKLDNNSoftMaxNode::createDescriptor(const std::vector<InferenceEngine::Tens
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs.push_back(desc);
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, SoftMax);

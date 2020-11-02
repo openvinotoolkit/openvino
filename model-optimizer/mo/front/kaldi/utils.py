@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,13 @@
  limitations under the License.
 """
 import io
-import numpy as np
-import os
 import logging as log
+import os
 
-from mo.front.kaldi.loader.utils import read_placeholder, read_binary_integer32_token, read_blob, read_token_value, find_next_tag
+import numpy as np
+
+from mo.front.kaldi.loader.utils import read_placeholder, read_binary_integer32_token, read_blob, read_token_value, \
+    find_next_tag
 from mo.utils.error import Error
 
 

@@ -24,7 +24,7 @@
 
 namespace cldnn {
 
-primitive_type_id reshape_type_id() {
+primitive_type_id reshape::type_id() {
     static primitive_type_base<reshape> instance;
     return &instance;
 }

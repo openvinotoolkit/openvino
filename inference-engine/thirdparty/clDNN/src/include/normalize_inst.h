@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/normalize.hpp"
+#include "api/normalize.hpp"
 #include "primitive_inst.h"
 #include <string>
 

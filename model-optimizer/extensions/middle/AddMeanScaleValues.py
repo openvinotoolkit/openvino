@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -118,9 +118,14 @@ class AddMeanScaleValues(MiddleReplacementPattern):
                 # the information about initial input node name is stored in Placeholder's attribute 'initial_node_name'
                 new_node_id = None
                 for placeholder in input_nodes.values():
-                    placeholder_port = int(placeholder.id.split("_")[-1])
+                    try:
+                        placeholder_port = int(placeholder.id.split("_")[-1])
+                    except Exception as ex:
+                        log.debug('Can not get the port number from the node {}'.format(placeholder.id))
+                        log.debug('Port will be defined as None')
+                        port = None
                     if placeholder.has('initial_node_name') and placeholder.initial_node_name == node_name and (
-                            placeholder_port == port or port == None):
+                            port is None or placeholder_port == port):
                         new_node_id = placeholder.id
                         break
                 if new_node_id is None:

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ from typing import Dict, List
 import numpy as np
 
 from mo.graph.graph import Graph, Node
-from mo.middle.passes.conv import get_tensor_in_port, get_value_in_port
+from mo.middle.passes.fusing.helpers import get_tensor_in_port, get_value_in_port
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 
@@ -41,7 +41,8 @@ def resolve_shared_inputs(node: Node, port_ids_to_duplicate: List[int]):
         if value is None:
             log.debug('Can not duplicate due no data for in_port {} of node {}'.format(port_id, node.name))
         for node, idxs in dst_port_map.items():
-            const = Const(graph, {'value': np.array(value)}).create_node()
+            const = Const(graph, {'value': np.array(value),
+                                  'name': node.soft_get('name', node.id) + '/duplicated_'}).create_node()
             for idx in idxs:
                 node.in_port(idx).disconnect()
                 const.out_port(0).connect(node.in_port(idx))
@@ -62,9 +63,9 @@ class MulFakeQuantizeFuse(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('preop', dict(op='Mul')),
+                ('preop', dict(op='Mul', can_be_fused=True)),
                 ('preoped', dict()),
-                ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
+                ('quantize', dict(op='FakeQuantize')),
             ],
             edges=[
                 ('preop', 'preoped'),
@@ -77,10 +78,12 @@ class MulFakeQuantizeFuse(MiddleReplacementPattern):
         preop = match['preop']
 
         tensor_port, value_port = get_tensor_in_port(preop), get_value_in_port(preop)
-        mul_val = value_port.data.get_value()
-        if mul_val is None:
+
+        if value_port is None or value_port.data.get_value() is None:
             log.debug('MulQuantizeFuse: cannot fuse because Mul op has dynamic inputs')
             return
+
+        mul_val = value_port.data.get_value()
 
         # Direct modifications to quantize 1-st and 2-nd port inputs are performed.
         # So the data nodes at those inputs shouldn't have more than 1 consumer maximum 2 consumers to the same

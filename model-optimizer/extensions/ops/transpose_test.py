@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ from generator import generator, generate
 from extensions.ops.transpose import Transpose
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
-
 
 input_shape = np.array([1, 3, 224, 224])
 

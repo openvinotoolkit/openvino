@@ -1,0 +1,158 @@
+[{
+  "name" : "Function_7",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_412",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_412_0"],
+      "shape" : [ 1, 1, 32, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_411",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_411_0"],
+      "shape" : [ 50, 16, 16, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_410",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_410_0"],
+      "shape" : [ 3, 3, 64, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_409",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_409_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_413",
+      "op" : "Constant",
+      "outputs" : ["Constant_413_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_420",
+      "op" : "Constant",
+      "outputs" : ["Constant_420_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_412"],
+      "name" : "Reshape_423",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 32, 1, 1 ],
+      "outputs" : ["Reshape_423_0"]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_410"],
+      "name" : "Reshape_417",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 64, 3, 3 ],
+      "outputs" : ["Reshape_417_0"]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_413"],
+      "name" : "Broadcast_414",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_414_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "inputs" : [ "Parameter_411", "Constant_420" ],
+      "name" : "Pad_421",
+      "op" : "Pad",
+      "outputs" : ["Pad_421_0"],
+      "padding_above" : [ 0, 0, 0, 0 ],
+      "padding_below" : [ 0, 0, 0, 0 ],
+      "padding_interior" : [ 0, 0, 0, 0 ]
+    },
+    {
+      "inputs" : [ "Broadcast_414", "Parameter_409" ],
+      "name" : "Maximum_415",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_415_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Pad_421"],
+      "name" : "Reshape_422",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 32, 16, 16 ],
+      "outputs" : ["Reshape_422_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Maximum_415"],
+      "name" : "Reshape_416",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 8, 8 ],
+      "outputs" : ["Reshape_416_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_422", "Reshape_423" ],
+      "name" : "Convolution_424",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_424_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 2, 2 ]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_416", "Reshape_417" ],
+      "name" : "Convolution_418",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_418_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["Convolution_424"],
+      "name" : "Reshape_425",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 8, 8, 64 ],
+      "outputs" : ["Reshape_425_0"]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["Convolution_418"],
+      "name" : "Reshape_419",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 8, 8, 64 ],
+      "outputs" : ["Reshape_419_0"]
+    },
+    {
+      "inputs" : [ "Reshape_419", "Reshape_425" ],
+      "name" : "Add_426",
+      "op" : "Add",
+      "outputs" : ["Add_426_0"]
+    }
+  ],
+  "parameters" :
+      [ "Parameter_409", "Parameter_410", "Parameter_411", "Parameter_412" ],
+  "result" :
+      [ "Add_426", "Pad_421", "Maximum_415", "Reshape_425", "Reshape_419" ]
+}]

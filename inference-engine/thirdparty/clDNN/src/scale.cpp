@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,14 +21,13 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id scale_type_id() {
+primitive_type_id scale::type_id() {
     static primitive_type_base<scale> instance;
     return &instance;
 }
 
 layout scale_inst::calc_output_layout(scale_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for scale_node!");
+    auto desc = node.get_primitive();
     auto result = node.input().get_non_padded_output_layout();
 
     auto scale_sizes = node.scale_in().get_non_padded_output_layout().size;
@@ -41,6 +40,18 @@ layout scale_inst::calc_output_layout(scale_node const& node) {
     auto input_x_size = input_sizes.spatial[0];
     auto input_y_size = input_sizes.spatial[1];
     auto input_z_size = input_sizes.spatial[2];
+
+    if ((result.data_type == data_types::u8 || result.data_type == data_types::i8 || result.data_type == data_types::i32) &&
+        (node.scale_in().get_non_padded_output_layout().data_type == data_types::f32 ||
+         node.scale_in().get_non_padded_output_layout().data_type == data_types::f16))
+        result.data_type = node.scale_in().get_non_padded_output_layout().data_type;
+
+    if (desc->output_data_type)
+        result.data_type = *desc->output_data_type;
+
+    if (node.has_fused_primitives()) {
+        result.data_type = node.get_fused_output_layout().data_type;
+    }
 
     if (scale_x_size != 1) {
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Scale x size", scale_x_size, "input x size", input_x_size, "");

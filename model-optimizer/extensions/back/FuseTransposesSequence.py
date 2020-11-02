@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import numpy as np
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
-from mo.middle.passes.eliminate import merge_data_nodes, graph_clean_up_tf
+from mo.middle.passes.eliminate import merge_data_nodes
 from mo.middle.passes.fusing.helpers import get_next_operation
 from mo.utils.error import Error
 
@@ -28,12 +28,7 @@ class FuseTransposesSequence(BackReplacementPattern):
          This pass finds sequence of Transpose operations and merge them to single Transpose operation
          In case if resulting Permutation do nothing, we just remove it
     """
-
     enabled = True
-
-    def run_before(self):
-        from extensions.back.TransposeToPermute import TransposeToPermute
-        return [TransposeToPermute]
 
     def find_and_replace_pattern(self, graph: Graph):
         for permute_node in graph.get_op_nodes(type='Transpose'):
@@ -76,4 +71,4 @@ class FuseTransposesSequence(BackReplacementPattern):
 
             merge_data_nodes(graph, first_data_node, last_data_node)
             graph.remove_node(last_data_node.id)
-            graph_clean_up_tf(graph)
+            graph.clean_up()

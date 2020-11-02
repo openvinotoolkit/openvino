@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 import numpy as np
 
+from extensions.ops.elementwise import Add, Mul
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph
 from mo.ops.const import Const
-from extensions.ops.elementwise import Add, Mul
 
 
 class BinaryFakeQuantizeNormalization(FrontReplacementPattern):

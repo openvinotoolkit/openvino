@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,20 +16,187 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/pooling.hpp"
-#include "api/CPP/mutable_data.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/pooling.hpp"
+#include "api/mutable_data.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include "api/CPP/reorder.hpp"
-#include <api/CPP/data.hpp>
+#include "api/reorder.hpp"
+#include <api/data.hpp>
 #include "test_utils/float16.h"
 
 using namespace cldnn;
 using namespace tests;
+
+namespace cldnn {
+template <>
+struct type_to_data_type<FLOAT16> {
+    static const data_types value = data_types::f16;
+};
+}  // namespace cldnn
+
+
+template <typename InputT, pooling_mode Mode>
+struct pooling_mode_output {
+    using type = InputT;
+};
+
+template <>
+struct pooling_mode_output<int8_t, pooling_mode::average> {
+    using type = float;
+};
+
+template <>
+struct pooling_mode_output<uint8_t, pooling_mode::average> {
+    using type = float;
+};
+
+template <>
+struct pooling_mode_output<int8_t, pooling_mode::average_no_padding> {
+    using type = float;
+};
+
+template <>
+struct pooling_mode_output<uint8_t, pooling_mode::average_no_padding> {
+    using type = float;
+};
+
+template <typename InputT, pooling_mode Mode>
+struct pooling_accumulator {
+    static_assert(sizeof(InputT) == 0, "Input type and pooling_mode combination is not specialized");
+
+    using output_t = typename pooling_mode_output<InputT, Mode>::type;
+
+    void accumulate(const InputT& val);
+    output_t get(size_t pool_x, size_t pool_y);
+    void reset();
+};
+
+template <typename InputT>
+struct pooling_accumulator<InputT, pooling_mode::max> {
+    using output_t = typename pooling_mode_output<InputT, pooling_mode::max>::type;
+
+    pooling_accumulator() : _acc(std::numeric_limits<InputT>::lowest()) {}
+
+    void accumulate(const InputT& val) {
+        using std::max;
+        _acc = max(_acc, val);
+    }
+
+    output_t get(size_t /*pool_x*/, size_t /*pool_y*/, size_t /*pool_z*/) {
+        return static_cast<output_t>(_acc);
+    }
+
+    void reset() { _acc = std::numeric_limits<InputT>::lowest(); }
+
+    InputT _acc;
+};
+
+template <typename InputT>
+struct pooling_accumulator<InputT, pooling_mode::average_no_padding> {
+    using output_t = typename pooling_mode_output<InputT, pooling_mode::average_no_padding>::type;
+
+    pooling_accumulator() : _acc(0), _cnt(0) {}
+
+    void accumulate(const InputT& val) {
+        _acc += static_cast<output_t>(val);
+    }
+
+    output_t get(size_t /*pool_x*/, size_t /*pool_y*/, size_t /*pool_z*/) {
+        return _acc / _cnt;
+    }
+
+    void reset() {
+        _acc = static_cast<output_t>(0);
+        _cnt = 0;
+    }
+
+    output_t _acc;
+    int _cnt;
+};
+
+template <typename InputT>
+struct pooling_accumulator<InputT, pooling_mode::average> {
+    using output_t = typename pooling_mode_output<InputT, pooling_mode::average>::type;
+
+    pooling_accumulator() : _acc(0) {}
+
+    void accumulate(const InputT& val) {
+        _acc += static_cast<output_t>(val);
+    }
+
+    output_t get(size_t pool_x, size_t pool_y, size_t pool_z) {
+        return static_cast<output_t>(_acc / static_cast<InputT>(pool_x * pool_y * pool_z));
+    }
+
+    void reset() {
+        _acc = static_cast<output_t>(0);
+    }
+
+    output_t _acc;
+};
+
+template <typename InputT, pooling_mode Mode>
+VVVF<typename pooling_mode_output<InputT, Mode>::type> reference_pooling(const VVVF<InputT>& input, size_t pool_x, size_t pool_y, size_t pool_z, int stride_x, int stride_y, int stride_z, int offset_x, int offset_y, int offset_z) {
+    using output_t = typename pooling_mode_output<InputT, Mode>::type;
+    VVVF<output_t> result;
+    auto size_x = input[0][0].size();
+    auto size_y = input[0].size();
+    auto size_z = input.size();
+
+    auto accumulator = pooling_accumulator<InputT, Mode>();
+
+    for (int zi = offset_z; zi + static_cast<int>(pool_z) <= static_cast<int>(size_z) - offset_z; zi += stride_z) {
+        VVF<output_t> result_matrix;
+        for (int yi = offset_y; yi + static_cast<int>(pool_y) <= static_cast<int>(size_y) - offset_y; yi += stride_y) {
+            VF<output_t> result_row;
+            for (int xi = offset_x; xi + static_cast<int>(pool_x) <= static_cast<int>(size_x) - offset_x; xi += stride_x) {
+                accumulator.reset();
+                for (int fzi = 0; fzi < static_cast<int>(pool_z); ++fzi) {
+                    int index_z = zi + fzi;
+                    if (index_z < 0 || index_z >= static_cast<int>(size_z))
+                        continue;
+                    for (int fyi = 0; fyi < static_cast<int>(pool_y); ++fyi) {
+                        int index_y = yi + fyi;
+                        if (index_y < 0 || index_y >= static_cast<int>(size_y))
+                            continue;
+                        for (int fxi = 0; fxi < static_cast<int>(pool_x); ++fxi) {
+                            int index_x = xi + fxi;
+                            if (index_x < 0 || index_x >= static_cast<int>(size_x))
+                                continue;
+
+                            auto input_val = input[static_cast<size_t>(index_z)][static_cast<size_t>(index_y)][static_cast<size_t>(index_x)];
+                            accumulator.accumulate(input_val);
+                        }
+                    }
+                }
+                result_row.push_back(accumulator.get(pool_x, pool_y, pool_z));
+            }
+            result_matrix.emplace_back(std::move(result_row));
+        }
+        result.emplace_back(std::move(result_matrix));
+    }
+    return result;
+}
+
+template <typename T>
+VVVF<T> reference_scale_post_op(const VVVF<T>& input, const T& scale, const T& shift) {
+    auto output = input;
+    auto size_z = input.size();
+    auto size_y = input[0].size();
+    auto size_x = input[0][0].size();
+    for (size_t zi = 0; zi < size_z; ++zi) {
+        for (size_t yi = 0; yi < size_y; ++yi) {
+            for (size_t xi = 0; xi < size_x; ++xi) {
+                output[zi][yi][xi] = output[zi][yi][xi] * scale + shift;
+            }
+        }
+    }
+    return output;
+}
 
 TEST(pooling_forward_gpu, basic_max_byxf_f32_wsiz3x3_wstr1x1_i1x3x3x8_nopad) {
     //  Brief test description.
@@ -166,7 +333,7 @@ TEST(pooling_forward_gpu, basic_max_pooling_int8) {
     layout out_layout = { type_to_data_type<float>::value,format::byxf,{ 1,1,1,1 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1,1,3,3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.5f };
-    std::list<float> final_results = { 9.0f };
+    std::list<float> final_results = { 10.0f };
 
     // Allocate memory for input image.
     auto input_memory = memory::allocate(engine, in_layout);
@@ -212,13 +379,14 @@ TEST(pooling_forward_gpu, basic_avg_pooling_int8) {
     layout out_layout = { type_to_data_type<float>::value,format::byxf,{ 1,1,1,1 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1,1,3,3 } };
     std::initializer_list<float> input_f = { 2.0f, -2.5f, 5.1f, -4.0f, 8.03f, -6.99f, 17.0f, -8.0f, 19.5f };
+    // Average pooling returns fp32 by default for int8 inputs
     auto final_result = 0.0f;
     for (const auto& val : input_f)
     {
-        final_result += (float)((char)val);
+        // reorder fp32 -> int8 do round
+        final_result += (float)(std::roundf(val));
     }
     final_result /= input_f.size();
-    final_result = (float)((char)final_result);
     // Allocate memory for input image.
     auto input_memory = memory::allocate(engine, in_layout);
     set_values(input_memory, input_f);
@@ -472,7 +640,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
 
     network network(engine, topology);
 
-    set_values(input_prim, { 
+    set_values(input_prim, {
         1.50f, -1.00f, -0.50f,
         1.00f, -1.00f, -1.00f,
        -1.00f, -1.00f, -0.50f
@@ -530,7 +698,7 @@ TEST(pooling_forward_gpu, basic_avg_yxfb_f32_wsiz2x2_wstr1x1_i3x3x1x1_nopad) {
     auto output_prim = outputs.begin()->second.get_memory();
 
     auto output_ptr = output_prim.pointer<float>();
-    
+
     EXPECT_EQ(1.0f,   output_ptr[0]);
     EXPECT_EQ(0.625f, output_ptr[1]);
     EXPECT_EQ(1.625f, output_ptr[2]);
@@ -1100,7 +1268,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax) {
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
 
-
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
@@ -1178,7 +1345,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2x1_max_with_argmax) {
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
 
-
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 2, 2, 3, 2, 1 } });
@@ -1238,7 +1404,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2x1_max_with_argmax) {
     }
 }
 
-
 TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_input_padding) {
     //  Input  : 2x2x3x2
     //  Argmax : 2x2x2x1
@@ -1258,7 +1423,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_input_padding) {
     //  Argmax:
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
-
 
     const auto& engine = get_test_engine();
 
@@ -1338,7 +1502,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_output_padding) {
     //  Argmax:
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
-
 
     const auto& engine = get_test_engine();
 
@@ -1428,7 +1591,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_with_output_size) {
     //  Argmax:
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
-
 
     const auto& engine = get_test_engine();
 
@@ -1961,7 +2123,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_2x2x3x3_input_2x2_pool_2x2_stride)
 
     ASSERT_EQ((int)output_ptr.size(), batch_count * features_count*out_x*out_y);
 
-    
+
     for (int b = 0; b<batch_count; b++)
     {
         for (int f = 0; f < features_count; f++)
@@ -2006,8 +2168,6 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
     //  [0,    1, -0.5,  0,  0]
     //  [0,    0,    0,  0,  0]
 
-
-
         tensor input_tensor(1, 1, 3, 3);
         auto input_prim = memory::allocate(engine, { data_types::f16, format::bfyx, input_tensor });
 
@@ -2024,7 +2184,6 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
             FLOAT16(1.00f), FLOAT16(-1.00f), FLOAT16(-1.00f),
             FLOAT16(-1.00f), FLOAT16(-1.00f), FLOAT16(-0.50f)
             });
-
 
         network.set_input_data("input_prim", input_prim);
 
@@ -2081,7 +2240,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x5x5_input_2x2_pool_2x2_stride_2x
     //  [ 0,  8,  1.5,  9,  0]
     //  [ 0, 12,  14,  16,  0]
     //  [ 0,  0,  0,    0,  0]
-    
+
     tensor input_tensor(1, 1, 5, 5);
     auto input_prim = memory::allocate(engine, { data_types::f16, format::bfyx, input_tensor });
 
@@ -2169,7 +2328,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_65x5x6x7_input_3x3_pool_4x4_stride_3
 
         network golden_network(engine, golden_topology);
         golden_network.set_input_data("input", input_prim);
-        
+
         auto outputs = golden_network.execute();
         auto output_ptr = outputs.begin()->second.get_memory().pointer<FLOAT16>();
         for (size_t i = 0; i < output_ptr.size(); i++)
@@ -2203,6 +2362,976 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_65x5x6x7_input_3x3_pool_4x4_stride_3
     }
 }
 
+template <typename InputT, pooling_mode Mode>
+class pooling_test_base {
+public:
+    using output_t = typename pooling_mode_output<InputT, Mode>::type;
+
+    virtual topology build_topology(const engine& /*eng*/) {
+        auto input_size = tensor(batch(batch_num()), feature(input_features()), spatial(input_x(), input_y(), input_z()));
+        auto input_lay = layout(input_type(),
+                                input_format(),
+                                input_size);
+
+        auto topo = topology(
+            input_layout("input", input_lay),
+            pooling("pool",
+                    "input",
+                    pool_mode(),
+                    tensor(batch(0), feature(0), spatial(pool_x(), pool_y(), pool_z())),
+                    tensor(batch(0), feature(0), spatial(stride_x(), stride_y(), stride_z())),
+                    tensor(batch(0), feature(0), spatial(offset_x(), offset_y(), offset_z())))
+        );
+        return topo;
+    }
+
+    virtual primitive_id output_id() {
+        return "pool";
+    }
+
+    virtual void run_expect(const VVVVVF<output_t>& expected) {
+
+        auto eng = get_test_engine();
+        auto topo = build_topology(eng);
+        auto opts = build_options(
+            build_option::optimize_data(true)
+        );
+        auto net = network(eng, topo, opts);
+
+        auto input_size = tensor(batch(batch_num()), feature(input_features()), spatial(input_x(), input_y(), input_z()));
+        auto input_lay = layout(input_type(),
+                                input_format(),
+                                input_size);
+        auto input_mem = memory::allocate(eng, input_lay);
+        std::vector<InputT> input_flat(input_lay.get_linear_size(), static_cast<InputT>(0));
+        for (size_t bi = 0; bi < batch_num(); ++bi)
+            for (size_t fi = 0; fi < input_features(); ++fi)
+                for (size_t zi = 0; zi < input_z(); ++zi)
+                    for (size_t yi = 0; yi < input_y(); ++yi)
+                        for (size_t xi = 0; xi < input_x(); ++xi) {
+                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            size_t offset = input_lay.get_linear_offset(coords);
+                            input_flat[offset] = _input[bi][fi][zi][yi][xi];
+                        }
+        set_values(input_mem, input_flat);
+
+        net.set_input_data("input", input_mem);
+        auto result = net.execute();
+        auto out_mem = result.at(output_id()).get_memory();
+        auto out_lay = out_mem.get_layout();
+        auto out_ptr = out_mem.cldnn::memory::template pointer<output_t>();
+
+        std::string kernel;
+        for (auto i : net.get_primitives_info()) {
+            if (i.original_id == "pool") {
+                kernel = i.kernel_id;
+            }
+        }
+        std::cout << kernel << std::endl;
+        SCOPED_TRACE("\nkernel: " + kernel);
+
+        ASSERT_EQ(out_lay.data_type, output_type());
+        ASSERT_EQ(out_lay.size.batch[0], expected.size());
+        ASSERT_EQ(out_lay.size.feature[0], expected[0].size());
+        ASSERT_EQ(out_lay.size.spatial[2], expected[0][0].size());
+        ASSERT_EQ(out_lay.size.spatial[1], expected[0][0][0].size());
+        ASSERT_EQ(out_lay.size.spatial[0], expected[0][0][0][0].size());
+
+        bool compare_with_tolerance = input_type() == data_types::f16;
+
+        for (size_t bi = 0; bi < batch_num(); ++bi)
+            for (size_t fi = 0; fi < expected[0].size(); ++fi)
+                for (size_t zi = 0; zi < expected[0][0].size(); ++zi)
+                    for (size_t yi = 0; yi < expected[0][0][0].size(); ++yi)
+                        for (size_t xi = 0; xi < expected[0][0][0][0].size(); ++xi) {
+                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            size_t offset = out_lay.get_linear_offset(coords);
+                            auto ref_val = static_cast<float>(expected[bi][fi][zi][yi][xi]);
+                            auto actual_val = static_cast<float>(out_ptr[offset]);
+                            if (compare_with_tolerance) {
+                                auto tolerance = 1;
+                                ASSERT_NEAR(ref_val, actual_val, tolerance)
+                                    << "at b= " << bi << ", f= " << fi << ", z= " << zi << ", y= " << yi << ", x= " << xi;
+                            } else {
+                                EXPECT_TRUE(are_equal(ref_val, actual_val))
+                                    << "at b= " << bi << ", f= " << fi << ", z= " << zi << ", y= " << yi << ", x= " << xi;
+                            }
+                        }
+    }
+
+    size_t batch_num() { return _input.size(); }
+    size_t input_features() { return _input[0].size(); }
+    size_t input_x() { return _input[0][0][0][0].size(); }
+    size_t input_y() { return _input[0][0][0].size(); }
+    size_t input_z() { return _input[0][0].size(); }
+
+    format::type input_format() { return _input_fmt; }
+    data_types input_type() {
+        return type_to_data_type<InputT>::value;
+    }
+
+    data_types output_type() {
+        return type_to_data_type<output_t>::value;
+    }
+
+    pooling_mode pool_mode() { return Mode; }
+    size_t pool_x() { return _pool_x; }
+    size_t pool_y() { return _pool_y; }
+    size_t pool_z() { return _pool_z; }
+    int stride_x() { return _stride_x; }
+    int stride_y() { return _stride_y; }
+    int stride_z() { return _stride_z; }
+    int offset_x() { return _offset_x; }
+    int offset_y() { return _offset_y; }
+    int offset_z() { return _offset_z; }
+
+    void set_input(format::type input_fmt, VVVVVF<InputT> input_data) {
+        _input_fmt = input_fmt;
+        _input = std::move(input_data);
+    }
+
+    void set_pool_size(size_t x, size_t y, size_t z) {
+        _pool_x = x;
+        _pool_y = y;
+        _pool_z = z;
+    }
+
+    void set_strides(int x, int y, int z) {
+        _stride_x = x;
+        _stride_y = y;
+        _stride_z = z;
+    }
+
+    void set_offsets(int x, int y, int z) {
+        _offset_x = x;
+        _offset_y = y;
+        _offset_z = z;
+    }
+
+    VVVVVF<InputT> _input;
+    format::type _input_fmt;
+    size_t _pool_x, _pool_y, _pool_z;
+    int _stride_x, _stride_y, _stride_z;
+    int _offset_x, _offset_y, _offset_z;
+};
+
+using pooling_random_test_params = std::tuple<
+    size_t,                             // batch
+    size_t,                             // features
+    std::tuple<size_t, size_t, size_t>, // input x, y, z
+    std::tuple<size_t, size_t, size_t>, // pool x, y, z
+    std::tuple<int, int, int>,          // stride x, y, z
+    std::tuple<int, int, int>,          // offset x, y, z
+    format::type                        // input format
+>;
+
+template <typename InputT, pooling_mode Mode>
+class pooling_random_test_base : public pooling_test_base<InputT, Mode> {
+public:
+    using parent = pooling_test_base<InputT, Mode>;
+    using output_t = typename parent::output_t;
+
+    virtual VVVVVF<output_t> calculate_reference() {
+        VVVVVF<output_t> reference(this->batch_num(), VVVVF<output_t>(this->input_features()));
+        for (size_t bi = 0; bi < this->batch_num(); ++bi) {
+            for (size_t fi = 0; fi < this->input_features(); ++fi) {
+                reference[bi][fi] = reference_pooling<InputT, Mode>(
+                    this->_input[bi][fi],
+                    this->pool_x(),
+                    this->pool_y(),
+                    this->pool_z(),
+                    this->stride_x(),
+                    this->stride_y(),
+                    this->stride_z(),
+                    this->offset_x(),
+                    this->offset_y(),
+                    this->offset_z());
+            }
+        }
+        return reference;
+    }
+
+    virtual void param_set_up(const pooling_random_test_params& params) {
+        size_t b, f, in_x, in_y, in_z, p_x, p_y, p_z;
+        int s_x, s_y, s_z, o_x, o_y, o_z;
+        format::type in_fmt;
+
+        std::forward_as_tuple(
+            b,
+            f,
+            std::forward_as_tuple(in_x, in_y, in_z),
+            std::forward_as_tuple(p_x, p_y, p_z),
+            std::forward_as_tuple(s_x, s_y, s_z),
+            std::forward_as_tuple(o_x, o_y, o_z),
+            in_fmt
+        ) = params;
+
+        auto input_data = generate_random_5d<InputT>(b, f, in_z, in_y, in_x, -256, 256);
+
+        this->set_input(in_fmt, std::move(input_data));
+        this->set_pool_size(p_x, p_y, p_z);
+        this->set_strides(s_x, s_y, s_z);
+        this->set_offsets(o_x, o_y, o_z);
+    }
+
+    void run_random(const pooling_random_test_params& params) {
+        param_set_up(params);
+        auto reference = calculate_reference();
+        ASSERT_NO_FATAL_FAILURE(this->run_expect(reference));
+    }
+};
+
+using max_pooling_i8_random_test = pooling_random_test_base<int8_t, pooling_mode::max>;
+using max_pooling_u8_random_test = pooling_random_test_base<uint8_t, pooling_mode::max>;
+using avg_pooling_i8_random_test = pooling_random_test_base<int8_t, pooling_mode::average>;
+using avg_pooling_u8_random_test = pooling_random_test_base<uint8_t, pooling_mode::average>;
+
+struct pooling_random_test : public testing::TestWithParam<pooling_random_test_params> {};
+
+TEST_P(pooling_random_test, max_i8) {
+    auto test_case = max_pooling_i8_random_test();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+TEST_P(pooling_random_test, max_u8) {
+    auto test_case = max_pooling_u8_random_test();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+TEST_P(pooling_random_test, avg_i8) {
+    auto test_case = avg_pooling_i8_random_test();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+TEST_P(pooling_random_test, avg_u8) {
+    auto test_case = avg_pooling_u8_random_test();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+INSTANTIATE_TEST_CASE_P(
+    smoke_low_precision_2d_spatial,
+    pooling_random_test,
+    testing::Combine(testing::Values(1, 2),
+                     testing::Values(3, 8, 64),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(12, 12, 1), std::tuple<size_t, size_t, size_t>(24, 24, 1)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(4, 4, 1), std::tuple<size_t, size_t, size_t>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(0, 0, 0)),
+                     testing::Values(format::yxfb,
+                                     format::bfyx,
+                                     format::b_fs_yx_fsv4,
+                                     format::b_fs_yx_fsv16,
+                                     format::b_fs_yx_fsv32)),
+                    testing::internal::DefaultParamName<pooling_random_test_params>);
+
+INSTANTIATE_TEST_CASE_P(
+    smoke_low_precision_3d_spatial,
+    pooling_random_test,
+    testing::Combine(testing::Values(1, 2),
+                     testing::Values(3, 8, 64),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(12, 12, 12), std::tuple<size_t, size_t, size_t>(24, 24, 24)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(4, 4, 4), std::tuple<size_t, size_t, size_t>(2, 2, 2)),
+                     testing::Values(std::tuple<int, int, int>(2, 2, 2)),
+                     testing::Values(std::tuple<int, int, int>(0, 0, 0)),
+                     testing::Values(format::bfzyx,
+                                     format::b_fs_zyx_fsv16)),
+                    testing::internal::DefaultParamName<pooling_random_test_params>);
+
+INSTANTIATE_TEST_CASE_P(
+    batched_low_precision,
+    pooling_random_test,
+    testing::Combine(
+        testing::Values(16),
+        testing::Values(16, 32),
+        testing::Values(std::tuple<size_t, size_t, size_t>(3, 3, 1), std::tuple<size_t, size_t, size_t>(8, 8, 1)),
+        testing::Values(std::tuple<size_t, size_t, size_t>(1, 1, 1), std::tuple<size_t, size_t, size_t>(3, 3, 1)),
+        testing::Values(std::tuple<int, int, int>(1, 1, 1)),
+        testing::Values(std::tuple<int, int, int>(0, 0, 0)),
+        testing::Values(format::bs_fs_yx_bsv16_fsv16)
+    ),
+    testing::internal::DefaultParamName<pooling_random_test_params>);
+
+template <typename InputT, pooling_mode Mode>
+class pooling_scale_random_test_base : public pooling_random_test_base<InputT, Mode> {
+public:
+    using parent = pooling_random_test_base<InputT, Mode>;
+    using output_t = typename parent::output_t;
+
+    topology build_topology(const engine& eng) override {
+        topology topo = parent::build_topology(eng);
+
+        auto scale_lay = layout(this->output_type(), format::bfyx, tensor(batch(1), feature(this->input_features()), spatial(1, 1, 1, 1)));
+        auto scale_mem = memory::allocate(eng, scale_lay);
+        auto shift_mem = memory::allocate(eng, scale_lay);
+        set_values(scale_mem, _scale);
+        set_values(shift_mem, _shift);
+
+        topo.add(data("scale_scale", scale_mem));
+        topo.add(data("scale_shift", shift_mem));
+        topo.add(scale("scale", parent::output_id(), "scale_scale", "scale_shift"));
+        topo.add(reorder("scale_wa_out", "scale", this->input_format(), this->output_type()));
+
+        return topo;
+    }
+
+    primitive_id output_id() override {
+        return "scale_wa_out";
+    }
+
+    VVVVVF<output_t> calculate_reference() override {
+        auto expected = parent::calculate_reference();
+
+        for (size_t bi = 0; bi < this->batch_num(); ++bi)
+            for (size_t fi = 0; fi < this->input_features(); ++fi) {
+                expected[bi][fi] = reference_scale_post_op<output_t>(expected[bi][fi], _scale[fi], _shift[fi]);
+            }
+        return expected;
+    }
+
+    void param_set_up(const pooling_random_test_params& params) override {
+        parent::param_set_up(params);
+        _scale = generate_random_1d<output_t>(this->input_features(), -1, 1);
+        _shift = generate_random_1d<output_t>(this->input_features(), -32, 32);
+    }
+
+private:
+    VF<output_t> _scale;
+    VF<output_t> _shift;
+};
+
+using pooling_random_test_fp16_fp32 = pooling_random_test;
+
+TEST_P(pooling_random_test_fp16_fp32, avg_fp16) {
+    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::average>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+TEST_P(pooling_random_test_fp16_fp32, max_fp16) {
+    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::max>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+TEST_P(pooling_random_test_fp16_fp32, avg_fp32) {
+    auto test_case = pooling_random_test_base<float, pooling_mode::average>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+TEST_P(pooling_random_test_fp16_fp32, max_fp32) {
+    auto test_case = pooling_random_test_base<float, pooling_mode::max>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+INSTANTIATE_TEST_CASE_P(
+    smoke_low_precision,
+    pooling_random_test_fp16_fp32,
+    testing::Combine(testing::Values(1, 2),
+                     testing::Values(3, 8),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(12, 12, 1), std::tuple<size_t, size_t, size_t>(24, 24, 1)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(4, 4, 1), std::tuple<size_t, size_t, size_t>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(0, 0, 0)),
+                     testing::Values(format::yxfb,
+                                     format::bfyx,
+                                     format::byxf,
+                                     format::b_fs_yx_fsv16,
+                                     format::fs_b_yx_fsv32,
+                                     format::b_fs_yx_fsv32,
+                                     format::b_fs_yx_fsv4)),
+    testing::internal::DefaultParamName<pooling_random_test_params>);
+
+TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x8x8_input_2x2_pool_2x2_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 8;
+    const int y_input = 8;
+
+    const int pool_size = 2;
+    const int stride_size = 2;
+    const int x_in_pad = 2;
+    const int y_in_pad = 2;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, {data_types::f32, format::bfyx, input_tensor});
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bfzyx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling",
+                                    layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x2x2_input_4x4_pool_1x1_stride_1x1_inpad)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 2;
+    const int y_input = 2;
+
+    const int pool_size = 4;
+    const int stride_size = 1;
+    const int x_in_pad = 1;
+    const int y_in_pad = 1;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, {data_types::f32, format::bfyx, input_tensor});
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(
+                pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(
+                pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x3_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size = 3;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, {data_types::f32, format::bfyx, input_tensor});
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::average, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::average, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling",
+                                    layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x1_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size_y = 3;
+    const int stride_size_x = 1;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, {data_types::f32, format::bfyx, input_tensor});
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::average, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input", layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::average, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x20x20_input_5x5_pool_3x1_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size_y = 3;
+    const int stride_size_x = 1;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, { data_types::f32,format::bfyx,input_tensor });
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(
+                pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_max_32x32x20x20_input_5x5_pool_3x1_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 32;
+    const int batches = 32;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size_y = 3;
+    const int stride_size_x = 1;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, { data_types::f32,format::bfyx,input_tensor });
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(
+                pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_max_32x16x20x20_input_5x5_pool_3x1_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 32;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size_y = 3;
+    const int stride_size_x = 1;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    std::vector<float> input_data(batches * features * x_input * y_input);
+    for (size_t i = 0; i < input_data.size(); i++)
+    {
+        input_data[i] = static_cast<float>(i);
+    }
+
+    auto input_prim = memory::allocate(engine, { data_types::f32,format::bfyx,input_tensor });
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(
+                pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
 class pooling_test : public tests::generic_test
 {
 
@@ -2210,15 +3339,8 @@ public:
 
     static void TearDownTestCase()
     {
-        for (auto generic_params : all_generic_params)
-        {
-            delete generic_params;
-        }
-
-        for (auto layer_params : all_layer_params)
-        {
-            delete layer_params;
-        }
+        all_generic_params.clear();
+        all_layer_params.clear();
     }
 
     static tensor generate_input_offset(int x, int y, const tensor& window_size)
@@ -2226,7 +3348,7 @@ public:
         return tensor(0, 0, -std::min(x, window_size.spatial[0] - 1), -std::min(y, window_size.spatial[1] - 1));
     }
 
-    static std::vector<cldnn::primitive*> generate_specific_test_params()
+    static std::vector<std::shared_ptr<cldnn::primitive>> generate_specific_test_params()
     {
         std::vector<pooling_mode> pooling_modes = { pooling_mode::max, pooling_mode::average, pooling_mode::average_no_padding };
 
@@ -2241,28 +3363,28 @@ public:
                 for (auto stride : strides)
                 {
                     // No padding
-                    all_layer_params.push_back(new pooling("pooling", "input0", pooling_mode, size, stride));
-                    all_layer_params.push_back(new pooling("pooling", "input0", pooling_mode, size, stride, generate_input_offset(4, 3, size)));
+                    all_layer_params.emplace_back(new pooling("pooling", "input0", pooling_mode, size, stride));
+                    all_layer_params.emplace_back(new pooling("pooling", "input0", pooling_mode, size, stride, generate_input_offset(4, 3, size)));
 
                     // Input padding
-                    all_layer_params.push_back(new pooling("pooling", "reorder0", pooling_mode, size, stride));
+                    all_layer_params.emplace_back(new pooling("pooling", "reorder0", pooling_mode, size, stride));
 
                     // Output padding
-                    all_layer_params.push_back(new pooling("pooling", "input0", pooling_mode, size, stride, generate_input_offset(2, 3, size), { { 0, 0, 1, 5 },{ 0, 0, 19, 4 } }));
+                    all_layer_params.emplace_back(new pooling("pooling", "input0", pooling_mode, size, stride, generate_input_offset(2, 3, size), { { 0, 0, 1, 5 },{ 0, 0, 19, 4 } }));
 
                     // Input + output padding
-                    all_layer_params.push_back(new pooling("pooling", "reorder0", pooling_mode, size, stride, generate_input_offset(2, 3, size), { { 0, 0, 2, 1 },{ 0, 0, 3, 4 } }));
+                    all_layer_params.emplace_back(new pooling("pooling", "reorder0", pooling_mode, size, stride, generate_input_offset(2, 3, size), { { 0, 0, 2, 1 },{ 0, 0, 3, 4 } }));
                 }
             }
         }
 
         // This case tests the pooling_gpu_bfyx_average_opt kernel.
-        all_layer_params.push_back(new pooling("pooling", "input0", pooling_mode::average, tensor(1, 1, 3, 3), tensor(1, 1, 1, 1), generate_input_offset(1, 1, tensor(1, 1, 3, 3))));
+        all_layer_params.emplace_back(new pooling("pooling", "input0", pooling_mode::average, tensor(1, 1, 3, 3), tensor(1, 1, 1, 1), generate_input_offset(1, 1, tensor(1, 1, 3, 3))));
 
         return all_layer_params;
     }
 
-    static std::vector<tests::test_params*> generate_generic_test_params()
+    static std::vector<std::shared_ptr<tests::test_params>> generate_generic_test_params()
     {
         return generic_test::generate_generic_test_params(all_generic_params);
     }
@@ -2301,7 +3423,7 @@ public:
 
     virtual cldnn::tensor get_expected_output_tensor()
     {
-        const cldnn::pooling* pooling = (cldnn::pooling*)layer_params;
+        auto pooling = std::static_pointer_cast<cldnn::pooling>(layer_params);
 
         int batch = generic_params->input_layouts[0].size.batch[0];
         int feature = generic_params->input_layouts[0].size.feature[0];
@@ -2319,13 +3441,13 @@ public:
 
         int pooled_height = (int)(ceil((float)std::max(height - 2 * input_offset_height - kernel_height, 0) / stride_height)) + 1;
         int pooled_width = (int)(ceil((float)std::max(width - 2 * input_offset_width - kernel_width, 0) / stride_width)) + 1;
-        
+
         // Make sure that the last pooling starts strictly inside the image.
-        while ((pooled_height - 1) * stride_height >= height - input_offset_height) 
+        while ((pooled_height - 1) * stride_height >= height - input_offset_height)
         {
             --pooled_height;
         }
-        while ((pooled_width - 1) * stride_width >= width - input_offset_width) 
+        while ((pooled_width - 1) * stride_width >= width - input_offset_width)
         {
             --pooled_width;
         }
@@ -2336,31 +3458,29 @@ public:
     template<typename Type>
     memory generate_reference_typed(const std::vector<cldnn::memory>& inputs)
     {
-        const cldnn::pooling* pooling = (cldnn::pooling*)layer_params;
+        auto pooling = std::static_pointer_cast<cldnn::pooling>(layer_params);
 
         int batch = inputs[0].get_layout().size.batch[0];
         int feature = inputs[0].get_layout().size.feature[0];
         int height = inputs[0].get_layout().size.spatial[1];
         int width = inputs[0].get_layout().size.spatial[0];
 
-
-
         cldnn::pooling_mode pooling_mode = pooling->mode;
 
         int input_offset_width = pooling->input_offset.spatial[0];
         int input_offset_height = pooling->input_offset.spatial[1];
-        
+
         int kernel_width = pooling->size.spatial[0];
         int kernel_height = pooling->size.spatial[1];
-        
+
         int stride_width = pooling->stride.spatial[0];
         int stride_height = pooling->stride.spatial[1];
-        
+
         auto output_tensor = get_expected_output_tensor();
 
         int pooled_width = output_tensor.spatial[0];
         int pooled_height = output_tensor.spatial[1];
-         
+
         //Output is bfyx
         auto output = memory::allocate(engine, cldnn::layout(inputs[0].get_layout().data_type, cldnn::format::bfyx, output_tensor, pooling->output_padding));
 
@@ -2381,13 +3501,13 @@ public:
                 {
                     output_mem[i] = (generic_params->data_type == data_types::f32) ? -FLT_MAX : -65504;
                 }
-                for (int b = 0; b < batch; b++) 
+                for (int b = 0; b < batch; b++)
                 {
-                    for (int f = 0; f < feature; f++) 
+                    for (int f = 0; f < feature; f++)
                     {
-                        for (int h = 0; h < pooled_height; h++) 
+                        for (int h = 0; h < pooled_height; h++)
                         {
-                            for (int w = 0; w < pooled_width; w++) 
+                            for (int w = 0; w < pooled_width; w++)
                             {
                                 int input_offset_x_start = w * stride_width + input_offset_width;
                                 int input_offset_x_end = std::min(input_offset_x_start + kernel_width, width);
@@ -2399,12 +3519,12 @@ public:
 
                                 const size_t output_index = get_linear_index(output.get_layout(), b, f, h, w, output_desc);
 
-                                for (int y = input_offset_y_start; y < input_offset_y_end; y++) 
+                                for (int y = input_offset_y_start; y < input_offset_y_end; y++)
                                 {
-                                    for (int x = input_offset_x_start; x < input_offset_x_end; x++) 
+                                    for (int x = input_offset_x_start; x < input_offset_x_end; x++)
                                     {
                                         const size_t input_index = get_linear_index(inputs[0].get_layout(), b, f, y, x, input_desc);
-                                        
+
                                         if (input_mem[input_index] > output_mem[output_index])
                                         {
                                             output_mem[output_index] = input_mem[input_index];
@@ -2444,30 +3564,30 @@ public:
                 {
                     output_mem[i] = 0;
                 }
-                for (int b = 0; b < batch; b++) 
+                for (int b = 0; b < batch; b++)
                 {
-                    for (int f = 0; f < feature; f++) 
+                    for (int f = 0; f < feature; f++)
                     {
-                        for (int h = 0; h < pooled_height; h++) 
+                        for (int h = 0; h < pooled_height; h++)
                         {
-                            for (int w = 0; w < pooled_width; w++) 
-                            {	
+                            for (int w = 0; w < pooled_width; w++)
+                            {
                                 int input_offset_x_start = w * stride_width + input_offset_width;
                                 int input_offset_x_end = std::min(input_offset_x_start + kernel_width, width);
                                 input_offset_x_start = std::max(input_offset_x_start, 0);
 
                                 int input_offset_y_start = h * stride_height + input_offset_height;
                                 int input_offset_y_end = std::min(input_offset_y_start + kernel_height, height);
-                                input_offset_y_start = std::max(input_offset_y_start, 0);	
+                                input_offset_y_start = std::max(input_offset_y_start, 0);
 
                                 int output_index = (b * feature + f) * output_height * output_width;
                                 tensor lower_padding = pooling->output_padding.lower_size();
                                 output_index += (lower_padding.spatial[1] + h) * output_width + lower_padding.spatial[0] + w;
 
                                 int num_of_elements = 0;
-                                for (int y = input_offset_y_start; y < input_offset_y_end; y++) 
+                                for (int y = input_offset_y_start; y < input_offset_y_end; y++)
                                 {
-                                    for (int x = input_offset_x_start; x < input_offset_x_end; x++) 
+                                    for (int x = input_offset_x_start; x < input_offset_x_end; x++)
                                     {
                                         const size_t input_index = get_linear_index(inputs[0].get_layout(), b, f, y, x, input_desc);
                                         output_mem[output_index] += input_mem[input_index];
@@ -2487,7 +3607,7 @@ public:
                                     return output;
                                 }
                                 output_mem[output_index] /= (Type)num_of_elements;
- 
+
                             }
                         }
                     }
@@ -2517,13 +3637,13 @@ public:
 
 private:
 
-    static std::vector<tests::test_params*> all_generic_params;
-    static std::vector<cldnn::primitive*> all_layer_params;
+    static std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
+    static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 
 };
 
-std::vector<cldnn::primitive*> pooling_test::all_layer_params = {};
-std::vector<tests::test_params*> pooling_test::all_generic_params = {};
+std::vector<std::shared_ptr<cldnn::primitive>> pooling_test::all_layer_params = {};
+std::vector<std::shared_ptr<tests::test_params>> pooling_test::all_generic_params = {};
 
 TEST_P(pooling_test, POOLING)
 {

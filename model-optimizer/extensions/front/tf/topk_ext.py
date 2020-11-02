@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,29 +13,31 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
-from mo.front.extractor import FrontExtractorOp
 from extensions.ops.topk import TopK
+from mo.front.extractor import FrontExtractorOp
 
 
 class TopKExtractor(FrontExtractorOp):
     op = 'TopK'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         sort = 'value' if node.pb.attr['sorted'] else 'none'
-        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort, 'k' : node.pb.attr['k'].i})
+        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort, 'k': node.pb.attr['k'].i,
+                                     'index_element_type': np.int32})
 
-        return __class__.enabled
+        return cls.enabled
 
 
 class TopKV2Extractor(FrontExtractorOp):
     op = 'TopKV2'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         sort = 'value' if node.pb.attr['sorted'] else 'none'
-        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort})
-        return __class__.enabled
+        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort, 'index_element_type': np.int32})
+        return cls.enabled

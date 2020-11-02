@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
-import logging as log
-import numpy as np
-
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from extensions.ops.mxreshape import MXReshape
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
+from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.ops.reshape import Reshape
 
 
@@ -26,19 +25,20 @@ class ReshapeFrontExtractor(FrontExtractorOp):
     op = 'Reshape'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         dim = attrs.tuple("shape", int, None)
+        reverse = attrs.bool("reverse", False)
         update_attrs = {
-            'dim': np.array(dim)
+            'dim': int64_array(dim),
+            'reverse': reverse
         }
         for d in dim:
-            if d in [-2, -3, -4]:
-                log.error('The attribute "shape" of the operation "{}" contains value "{}" which is not supported.'.
-                          format(node.soft_get('name'), d))
-                return False
+            if d in [-2, -3, -4] or reverse:
+                MXReshape.update_node_stat(node, update_attrs)
+                return cls.enabled
 
         # update the attributes of the node
         Reshape.update_node_stat(node, update_attrs)
-        return __class__.enabled
+        return cls.enabled

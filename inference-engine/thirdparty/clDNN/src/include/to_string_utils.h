@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017-2019 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,12 +15,20 @@
 */
 #pragma once
 #include <string>
-#include "api/CPP/tensor.hpp"
-#include "api/CPP/layout.hpp"
-#include "api/CPP/primitive.hpp"
+#include <sstream>
+#include "api/tensor.hpp"
+#include "api/layout.hpp"
+#include "api/primitive.hpp"
+#include "device_impl.h"
 #include <memory>
 
 namespace cldnn {
+
+inline std::string to_string_hex(int val) {
+    std::stringstream stream;
+    stream << "0x" << std::uppercase << std::hex << val;
+    return stream.str();
+}
 
 inline std::string bool_to_str(bool cond) { return cond ? "true" : "false"; }
 
@@ -65,26 +73,22 @@ inline std::string fmt_to_str(format fmt) {
             return "bfyx";
         case format::fyxb:
             return "fyxb";
-        case format::bfyx_f16:
-            return "bfyx_f16";
+        case format::b_fs_yx_fsv16:
+            return "b_fs_yx_fsv16";
+        case format::b_fs_yx_fsv32:
+            return "b_fs_yx_fsv32";
+        case format::b_fs_zyx_fsv32:
+            return "b_fs_zyx_fsv32";
         case format::bs_xs_xsv8_bsv8:
             return "bs_xs_xsv8_bsv8";
         case format::bs_xs_xsv8_bsv16:
             return "bs_xs_xsv8_bsv16";
         case format::bs_x_bsv16:
             return "bs_x_bsv16";
-        case format::bf8_xy16:
-            return "bf8_xy16";
         case format::winograd_2x3_s1_data:
             return "winograd_2x3_s1_data";
-        case format::byxf_af32:
-            return "byxf_af32";
-        case format::byx8_f4:
-            return "byx8_f4";
-        case format::fs_bs_yx_bsv4_fsv32:
-            return "fs_bs_yx_bsv4_fsv32";
         case format::b_fs_yx_fsv4:
-            return "b_fs_yx_fs4";
+            return "b_fs_yx_fsv4";
         case format::b_fs_yx_32fp:
             return "b_fs_yx_32fp";
         case format::bfzyx:
@@ -93,7 +97,21 @@ inline std::string fmt_to_str(format fmt) {
             return "bfwzyx";
         case format::fs_b_yx_fsv32:
             return "fs_b_yx_fsv32";
+        case format::bs_fs_yx_bsv16_fsv16:
+            return "bs_fs_yx_bsv16_fsv16";
+        case format::b_fs_zyx_fsv16:
+            return "b_fs_zyx_fsv16";
+        case format::bs_fs_zyx_bsv16_fsv16:
+            return "bs_fs_zyx_bsv16_fsv16";
+        case format::image_2d_rgba:
+            return "image_2d_rgba";
 
+        case format::oiyx:
+            return "oiyx";
+        case format::yxio:
+            return "yxio";
+        case format::oizyx:
+            return "oizyx";
         case format::winograd_2x3_s1_weights:
             return "winograd_2x3_s1_weights";
         case format::winograd_2x3_s1_fused_weights:
@@ -108,38 +126,108 @@ inline std::string fmt_to_str(format fmt) {
             return "image_2d_weights_winograd_6x3_s1_fbxyb";
         case format::image_2d_weights_winograd_6x3_s1_xfbyb:
             return "image_2d_weights_winograd_6x3_s1_xfbyb";
-        case format::oiyx_o16:
-            return "oiyx_o16";
         case format::os_iyx_osv16:
             return "os_iyx_osv16";
+        case format::os_is_yx_osv16_isv16:
+            return "os_is_yx_osv16_isv16";
         case format::os_iyx_osv32:
             return "os_iyx_osv32";
         case format::os_iyx_osv64:
             return "os_iyx_osv64";
         case format::is_o_yx_isv32:
             return "is_o_yx_isv32";
-        case format::o_i_yx_i16_o16:
-            return "o_i_yx_i16_o16";
+        case format::os_is_yx_isv16_osv16:
+            return "os_is_yx_isv16_osv16";
         case format::os_is_yx_isa8_osv8_isv4:
             return "os_is_yx_isa8_osv8_isv4";
+        case format::os_is_zyx_isa8_osv8_isv4:
+            return "os_is_zyx_isa8_osv8_isv4";
+        case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
+            return "os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4";
+        case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
+            return "os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4";
         case format::os_is_yx_isa8_osv8_isv4_swizzled_by_4:
             return "os_is_yx_isa8_osv8_isv4_swizzled_by_4";
         case format::is_o32_yx_isv32_swizzled_by_4:
             return "is_o32_yx_isv32_swizzled_by_4";
-        case format::bf_lyx_yx:
-            return "bf_lyx_yx";
         case format::os_is_yx_osv16_isv4:
             return "os_is_yx_osv16_isv4";
+        case format::os_is_yx_osv32_isv4_swizzled_by_2:
+            return "os_is_yx_osv32_isv4_swizzled_by_2";
+        case format::os_is_yx_osv32_isv4:
+            return "os_is_yx_osv32_isv4";
+        case format::os_is_zyx_osv32_isv4:
+            return "os_is_zyx_osv32_isv4";
         case format::os_is_y_x8_osv8_isv4:
             return "os_is_y_x8_osv8_isv4";
         case format::os_is_yx_osv32_isv32p:
             return "os_is_yx_osv32_isv32p";
+        case format::os_is_zyx_isv16_osv16:
+            return "os_is_zyx_isv16_osv16";
+        case format::is_os_zyx_isv16_osv16:
+            return "is_os_zyx_isv16_osv16";
+        case format::is_os_yx_isv16_osv16:
+            return "is_os_yx_isv16_osv16";
+        case format::os_is_osv32_isv32_swizzled_by_4:
+            return "os_is_osv32_isv32_swizzled_by_4";
+        case format::os_is_zyx_isv8_osv16_isv2:
+            return "os_is_zyx_isv8_osv16_isv2";
+        case format::os_zyxi_osv16:
+            return "os_zyxi_osv16";
 
+        case format::goiyx:
+            return "goiyx";
+        case format::goizyx:
+            return "goizyx";
+        case format::g_os_iyx_osv16:
+            return "g_os_iyx_osv16";
+        case format::g_os_iyx_osv32:
+            return "g_os_iyx_osv32";
+        case format::gs_oiyx_gsv16:
+            return "gs_oiyx_gsv16";
+        case format::gs_oiyx_gsv32:
+            return "gs_oiyx_gsv32";
+        case format::g_is_os_zyx_isv16_osv16:
+            return "g_is_os_zyx_isv16_osv16";
+        case format::g_is_os_yx_isv16_osv16:
+            return "g_is_os_yx_isv16_osv16";
+        case format::g_os_is_zyx_isv8_osv16_isv2:
+            return "g_os_is_zyx_isv8_osv16_isv2";
+        case format::g_os_is_yx_isv8_osv16_isv2:
+            return "g_os_is_yx_isv8_osv16_isv2";
+        case format::g_os_is_zyx_isv16_osv16:
+            return "g_os_is_zyx_isv16_osv16";
+        case format::g_os_is_yx_osv16_isv4:
+            return "g_os_is_yx_osv16_isv4";
+        case format::g_os_is_zyx_osv16_isv16:
+            return "g_os_is_zyx_osv16_isv16";
+        case format::g_os_zyx_is_osv16_isv4:
+            return "g_os_zyx_is_osv16_isv4";
+        case format::g_os_zyx_is_osv16_isv16:
+            return "g_os_zyx_is_osv16_isv16";
+        case format::g_os_zyx_is_osv16_isv32:
+            return "g_os_zyx_is_osv16_isv32";
+        case format::g_os_zyx_is_osv32_isv4:
+            return "g_os_zyx_is_osv32_isv4";
+        case format::g_os_zyx_is_osv32_isv16:
+            return "g_os_zyx_is_osv32_isv16";
+        case format::g_os_zyx_is_osv32_isv32:
+            return "g_os_zyx_is_osv32_isv32";
         default:
             return "unknown (" + std::to_string(fmt.value) + ")";
     }
 }
 
 inline std::string type_to_str(std::shared_ptr<const primitive> primitive) { return primitive->type_string(); }
+
+inline std::string allocation_type_to_str(allocation_type type) {
+    switch (type) {
+    case allocation_type::cl_mem: return "cl_mem";
+    case allocation_type::usm_host: return "usm_host";
+    case allocation_type::usm_shared: return "usm_shared";
+    case allocation_type::usm_device: return "usm_device";
+    default: return "unknown";
+    }
+}
 
 }  // namespace cldnn

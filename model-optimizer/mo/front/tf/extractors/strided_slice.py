@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
+from mo.ops.strided_slice import StridedSlice
 
 
 def int_to_array_bit_mask(im):
@@ -30,8 +30,8 @@ class StridedSliceFrontExtractor(FrontExtractorOp):
     op = 'StridedSlice'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.pb
         bm = int_to_array_bit_mask(pb.attr["begin_mask"].i)
         bm = np.array([1 - b for b in bm], dtype=np.int32)
@@ -45,5 +45,5 @@ class StridedSliceFrontExtractor(FrontExtractorOp):
             'shrink_axis_mask': int_to_array_bit_mask(pb.attr["shrink_axis_mask"].i),
         }
 
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node, attrs)
-        return __class__.enabled
+        StridedSlice.update_node_stat(node, attrs)
+        return cls.enabled

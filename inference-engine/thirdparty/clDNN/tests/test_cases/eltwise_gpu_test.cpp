@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/eltwise.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/reorder.hpp>
-#include <api/CPP/data.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/eltwise.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/reorder.hpp>
+#include <api/data.hpp>
 #include "test_utils/test_utils.h"
 
 namespace cldnn
@@ -109,16 +109,21 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
     topology.add(reorder("reorder1", "input1", input1.get_layout().with_padding(padding{{ 0, 0, input_padding_x, input_padding_y }, 0 })));
-    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, relu, slope, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
-
+    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
+    primitive_id out_id = "eltwise";
+    if (relu)
+    {
+        topology.add(activation("out", out_id, activation_func::relu, { slope, 0.0f }));
+        out_id = "out";
+    }
     network network(engine, topology);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    EXPECT_EQ(outputs.begin()->first, out_id);
 
-    auto output_memory = outputs.at("eltwise").get_memory();
+    auto output_memory = outputs.at(out_id).get_memory();
     auto output_layout = output_memory.get_layout();
     auto output_ptr = output_memory.pointer<T>();
 
@@ -729,7 +734,7 @@ TEST(eltwise_gpu_f32, logicalAND_in3_float_out1_int) {
                                     0, 0, 0, 0,
                                     1, 1, 1, 1,
                                     1, 0, 1, 1 };
- 
+
     for (size_t i = 0; i < answers.size(); ++i) {
         EXPECT_EQ(answers[i], output_ptr[i]);
     }
@@ -1120,7 +1125,6 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_x) {
             -2.f,  6.5f,
             -0.5f, -2.5f });
 
-
     set_values(input2, {
         1.f,
         0.f,
@@ -1190,7 +1194,6 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_y) {
             -2.f,  6.5f,
             -0.5f, -2.5f });
 
-
     set_values(input2, {
         1.f, 0.f,
         2.f, 0.f,
@@ -1253,7 +1256,6 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_batch) {
 
             -2.f,  6.5f,
             -0.5f, -2.5f });
-
 
     set_values(input2, {
         1.f, 0.f,
@@ -1379,7 +1381,6 @@ TEST(eltwise_gpu_f32, pow_in2x2x2x2_broadcast_all) {
             13.f, 14.f,
             15.f, 16.f });
 
-
     set_values(input2, { 2.0f });
 
     network network(engine, topology);
@@ -1438,7 +1439,6 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_same_dim) {
 
             -2.f,  6.5f,
             -0.5f, -2.5f });
-
 
     set_values(input2, {
         1.f, 0.f,
@@ -1517,7 +1517,6 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_diff_dim) {
 
             -2.f,  6.5f,
             -0.5f, -2.5f });
-
 
     set_values(input2, {
         1.f, 0.f,
@@ -1779,49 +1778,9 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
                     expected = std::fmod(input_1_vec[i], input_2_vec[i]);
                 }
 
-
                 EXPECT_TRUE(are_equal(std::floor(expected), output_ptr[i]));
             }
         }
-    }
-}
-
-TEST(eltwise_gpu_int, w_callib_2x2x2x2)
-{
-    const auto& engine = get_test_engine();
-
-    auto input = memory::allocate(engine, {data_types::i8, format::bfyx, {2, 2, 2, 2}});
-    auto input2 = memory::allocate(engine, {data_types::i8, format::bfyx, {2, 2, 2, 2}});
-    auto callib = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 2, 1, 1}});
-
-    std::vector<char> input_1_vec = {2, 0, 4, 99, 2, 0, 4, 99, -2, 0, -4, -99, -20, 2, -40, -120};
-    std::vector<char> input_2_vec = {0, 3, 5, 99, 0, 3, 5, 99, 0, -3, -5, -99, 2, -30, 50, -120};
-    std::vector<float> callib_vec = {1.0f, 0.625f};
-    std::vector<char> expected = {2, 3, 9, 127, 1, 2, 6, 124, -2, -3, -9, -128, -11, -18, 6, -128};
-
-    set_values(input, input_1_vec);
-    set_values(input2, input_2_vec);
-    set_values(callib, callib_vec);
-
-    topology topology;
-    topology.add(input_layout("input", input.get_layout()));
-    topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(data("callib", callib));
-    topology.add(eltwise("eltwise", "input", "input2", "callib", eltwise_mode::sum));
-
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    network.set_input_data("input2", input2);
-    auto outputs = network.execute();
-
-    auto output = outputs.find("eltwise");
-    ASSERT_NE(output, outputs.end());
-    auto output_ptr = output->second.get_memory().pointer<char>();
-
-    ASSERT_EQ(expected.size(), output_ptr.size());
-    for (size_t i = 0; i < expected.size(); i++)
-    {
-        ASSERT_EQ(expected[i], output_ptr[i]);
     }
 }
 
@@ -1922,7 +1881,6 @@ TEST(eltwise_gpu_f32, prod_basic_in4x4x4x4) {
     //  f1: b0:   75   48    b1:  6     -2.6
     //  f1: b0:   119  80    b1:  96   -18.75
     //
-
 
     const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
@@ -2076,7 +2034,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients) {
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(eltwise("eltwise", {"input", "input2"}, eltwise_mode::sum, {0.5f, 0.5f}));
+    topology.add(eltwise("eltwise", {"input", "input2"}, eltwise_mode::sum, {0.5f, 0.5f}, data_types::f32));
 
     set_values(input, {
             1.f,   0.f, 5.f, 1.5f,
@@ -2132,17 +2090,17 @@ TEST(eltwise_gpu_f32, coefficients_count_check) {
     std::vector<float> coeffs2 = {0.5f, 0.5f};
     std::vector<float> coeffs3 = {0.5f, 0.5f, 0.5f};
 
-    EXPECT_THROW(topology.add(eltwise("eltwise1", {"input", "input2"}, eltwise_mode::sum, coeffs1)), std::invalid_argument);
-    EXPECT_THROW(topology.add(eltwise("eltwise2", {"input", "input2"}, eltwise_mode::sum, coeffs3)), std::invalid_argument);
+    EXPECT_THROW(topology.add(eltwise("eltwise1", {"input", "input2"}, eltwise_mode::sum, coeffs1, data_types::f32)), std::invalid_argument);
+    EXPECT_THROW(topology.add(eltwise("eltwise2", {"input", "input2"}, eltwise_mode::sum, coeffs3, data_types::f32)), std::invalid_argument);
 
-    EXPECT_THROW(topology.add(eltwise("eltwise3", {"input", "input2", "input3"}, eltwise_mode::sum, coeffs1)), std::invalid_argument);
-    EXPECT_THROW(topology.add(eltwise("eltwise4", {"input", "input2", "input3"}, eltwise_mode::sum, coeffs2)), std::invalid_argument);
+    EXPECT_THROW(topology.add(eltwise("eltwise3", {"input", "input2", "input3"}, eltwise_mode::sum, coeffs1, data_types::f32)), std::invalid_argument);
+    EXPECT_THROW(topology.add(eltwise("eltwise4", {"input", "input2", "input3"}, eltwise_mode::sum, coeffs2, data_types::f32)), std::invalid_argument);
 
-    EXPECT_NO_THROW(topology.add(eltwise("eltwise5", {"input", "input2"}, eltwise_mode::sum, coeffs0)));
-    EXPECT_NO_THROW(topology.add(eltwise("eltwise6", {"input", "input2"}, eltwise_mode::sum, coeffs2)));
+    EXPECT_NO_THROW(topology.add(eltwise("eltwise5", {"input", "input2"}, eltwise_mode::sum, coeffs0, data_types::f32)));
+    EXPECT_NO_THROW(topology.add(eltwise("eltwise6", {"input", "input2"}, eltwise_mode::sum, coeffs2, data_types::f32)));
 
-    EXPECT_NO_THROW(topology.add(eltwise("eltwise7", {"input", "input2", "input3"}, eltwise_mode::sum, coeffs0)));
-    EXPECT_NO_THROW(topology.add(eltwise("eltwise8", {"input", "input2", "input3"}, eltwise_mode::sum, coeffs3)));
+    EXPECT_NO_THROW(topology.add(eltwise("eltwise7", {"input", "input2", "input3"}, eltwise_mode::sum, coeffs0, data_types::f32)));
+    EXPECT_NO_THROW(topology.add(eltwise("eltwise8", {"input", "input2", "input3"}, eltwise_mode::sum, coeffs3, data_types::f32)));
 }
 
 TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients_3inputs) {
@@ -2186,7 +2144,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients_3inputs) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
     topology.add(input_layout("input3", input3.get_layout()));
-    topology.add(eltwise("eltwise", {"input", "input2", "input3"}, eltwise_mode::sum, {0.5f, 0.5f, 0.5f}));
+    topology.add(eltwise("eltwise", {"input", "input2", "input3"}, eltwise_mode::sum, {0.5f, 0.5f, 0.5f}, data_types::f32));
 
     set_values(input, {
             1.f,   0.f, 5.f, 1.5f,
@@ -2322,7 +2280,6 @@ TEST(eltwise_gpu_f32, max_3inputs_in4x4x4x4_input_padding) {
         EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
-
 
 TEST(eltwise_gpu_f32, stride_test_2x2) {
     //  Input  : 2x2x2x2
@@ -2495,7 +2452,6 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
     //    1211 1212  2211 2212
     //F2
     //    1221 1222  2221 2222
-
 
     tensor input_tensor(2, 2, 2, 2);
     auto fp16_bfyx_2x2x2x2_input =
@@ -2721,7 +2677,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding)
     topology golden_topology;
     golden_topology.add(input_layout("input1", input1.get_layout()));
     golden_topology.add(input_layout("input2", input2.get_layout()));
-    golden_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::sum,false,0.0f, padding{ {0,0,5,10} , 0 }));
+    golden_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::sum, padding{ {0,0,5,10} , 0 }));
 
     network golden_network(engine, golden_topology);
     golden_network.set_input_data("input1", input1);
@@ -2737,8 +2693,9 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding)
     FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input2", input2.get_layout()));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::byxf, input_tensor)));
-    FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum,false,0.0f, padding{ {0,0,5,10} , 0 }));
-    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,5,10} , 0 })));
+    FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum, padding{ {0,0,5,10} , 0 }));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor,
+                                              padding{ {0,0,5,10} , 0 })));
 
     network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology);
     FS_B_YX_FSV32_OUTPUT_network.set_input_data("input1", input1);
@@ -2754,8 +2711,9 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding)
     BYXF_OUTPUT_topology.add(input_layout("input2", input2.get_layout()));
     BYXF_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::byxf, input_tensor)));
     BYXF_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
-    BYXF_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum, false, 0.0f, padding{ {0,0,5,10} , 0 }));
-    BYXF_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,5,10} , 0 })));
+    BYXF_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum, padding{ {0,0,5,10} , 0 }));
+    BYXF_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor,
+                                     padding{ {0,0,5,10} , 0 })));
 
     network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology);
     BYXF_OUTPUT_network.set_input_data("input1", input1);
@@ -2937,7 +2895,7 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
     topology.add(reorder("reorder1", "input1", input1.get_layout().with_padding(padding{{ 0, 0, input_padding_x, input_padding_y }, 0 })));
-    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, false, 0.f, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
+    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
 
     network network(engine, topology);
     network.set_input_data("input1", input1);
@@ -3025,7 +2983,6 @@ TEST(eltwise_gpu_bool, eltwise_or) {
     run_eltwise_bool_generic_test(cldnn::eltwise_mode::logic_or);
 }
 
-
 void run_eltwise_generic_test(cldnn::eltwise_mode mode)
 {
     cldnn::format test_inputs_fmt = cldnn::format::bfyx;
@@ -3058,146 +3015,6 @@ TEST(eltwise_gpu, eltwise_mod) {
     run_eltwise_generic_test(cldnn::eltwise_mode::mod);
 }
 
-
-TEST(eltwise_gpu, b_fs_yx_fsv4_w_callib) {
-    int B_array[] = {   1,   4,   16,   32, 0 };  // Batch
-    int F_array[] = { 256, 512, 1024, 2048, 0 };  // Features
-    int I_array[] = {  56,  28,   14,   14, 0 };  // Input MxM data sizes
-
-    for (int j = 0; F_array[j]; j++) {
-        const auto& engine = get_test_engine();
-
-        int in_B = B_array[j];
-        int in_F = F_array[j];
-
-        int in_X = I_array[j],
-            in_Y = in_X;
-
-        // Input data init
-        std::vector<char> Data(in_B * in_F * in_X * in_Y);
-        for (size_t i = 0; i < Data.size(); i++)
-            Data[i] = static_cast<char>(i);
-        std::vector<char> DataGold(Data);
-
-        // Expected "gold" output and IMAD output.
-        std::vector<char>  vGoldOutput;
-        std::vector<char>  vTestOutput;
-
-        // Mem initialization
-        // This is user data, no kernels here
-        auto input1 = memory::allocate(engine,
-                                      { data_types::i8,
-                                          format::bfyx,
-                                          { in_B, in_F, in_X, in_Y } });
-        std::vector<char> data_i1(DataGold);
-        set_values(input1, std::move(data_i1));
-        auto input2 = memory::allocate(engine,
-                                      { data_types::i8,
-                                          format::bfyx,
-                                          { in_B, in_F, in_X, in_Y } });
-        std::vector<char> data_i2(DataGold);
-        set_values(input2, std::move(data_i2));
-
-        auto callib = memory::allocate(engine,
-                                       { data_types::f32,
-                                         format::bfyx,
-                                         { 1, in_F, 1, 1 } });
-        std::vector<float> data_c(in_F);
-        float sign = 1;
-        for (size_t i = 0; i < data_c.size(); i++) {
-            data_c[i] = ((i + 1) % 7) ? sign : -sign;
-            sign *= (float)1.0123;
-        }
-        set_values(callib, std::move(data_c));
-
-        // "Golden" Eltwise
-        {
-            topology topology;
-
-            auto eltw = eltwise("eltw_GOLD",
-                                "input1", "input2",
-                                "callib",
-                                eltwise_mode::sum, true);
-
-            // Create a topology
-            topology.add(input_layout("input1", input1.get_layout()),
-                         input_layout("input2", input2.get_layout()),
-                         eltw);
-
-            topology.add(data("callib", callib));
-
-            // Network processing
-            network network(engine, topology);
-            network.set_input_data("input1", input1);
-            network.set_input_data("input2", input2);
-            auto outputs = network.execute();
-
-            // Validation
-            auto searchC = outputs.find("eltw_GOLD");
-            EXPECT_NE(searchC, outputs.end());
-            auto output = outputs.begin()->second.get_memory();
-            auto output_ptr = output.pointer<char>();
-            vGoldOutput.reserve(output_ptr.size());
-            for (size_t i = 0; i < output_ptr.size(); i++)
-                vGoldOutput.push_back(output_ptr[i]);
-        }
-
-        // "IMAD" Eltwise
-        {
-            topology topology;
-
-            // Reorder (a-ka swizzelling) input to MMAD/IMAD Pooling format
-            topology.add(reorder("reorder1_Swizzelled",
-                                 "input1",
-                                 layout(data_types::i8,
-                                        format::b_fs_yx_fsv4,
-                                        { in_B, in_F, in_X, in_Y })),
-                         reorder("reorder2_Swizzelled",
-                                  "input2",
-                                  layout(data_types::i8,
-                                         format::b_fs_yx_fsv4,
-                                         { in_B, in_F, in_X, in_Y })));
-
-            auto eltw = eltwise("eltw_IMAD",
-                                "reorder1_Swizzelled", "reorder2_Swizzelled",
-                                "callib",
-                                eltwise_mode::sum, true);
-
-            topology.add(input_layout("input1", input1.get_layout()),
-                         input_layout("input2", input2.get_layout()),
-                         eltw);
-
-            topology.add(data("callib", callib));
-
-            // Back reordering (a-ka unswizzelling) output from MMAD/IMAD pooling
-            topology.add(reorder("reorder_UnSwizzelled",
-                                 "eltw_IMAD",
-                                 layout(data_types::i8,
-                                        format::bfyx,
-                                        { in_B, in_F, in_X, in_Y })));
-
-            // Network processing
-            network network(engine, topology);
-            network.set_input_data("input1", input1);
-            network.set_input_data("input2", input2);
-            auto outputs = network.execute();
-
-            // Validation
-            auto searchC = outputs.find("reorder_UnSwizzelled");
-            EXPECT_NE(searchC, outputs.end());
-            auto output = outputs.begin()->second.get_memory();
-            auto output_ptr = output.pointer<char>();
-            vTestOutput.reserve(output_ptr.size());
-            for (size_t i = 0; i < output_ptr.size(); i++)
-                vTestOutput.push_back(output_ptr[i]);
-        }
-
-        // Result validation
-        ASSERT_TRUE(vGoldOutput.size() == vTestOutput.size());
-        for (size_t i = 0; i < vGoldOutput.size(); i++)
-            ASSERT_TRUE(vTestOutput[i] == vGoldOutput[i]);
-    } // for (int j = 0; F_array[j]; j++)
-}
 
 TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
     //
@@ -3257,15 +3074,16 @@ TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
         {
             topology topology;
 
-            auto eltw = eltwise("eltw_GOLD",
+            auto eltw = eltwise("eltw_GOLD_no_relu",
                                 { "input1", "input2", "input3" },
-                                mode[i], true);
+                                mode[i]);
+            auto actv = activation("eltw_GOLD", eltw, activation_func::relu);
 
             // Create a topology
             topology.add(input_layout("input1", input1.get_layout()),
                          input_layout("input2", input2.get_layout()),
                          input_layout("input3", input3.get_layout()),
-                         eltw);
+                         eltw, actv);
 
             // Network processing
             network network(engine, topology);
@@ -3305,16 +3123,16 @@ TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
                                         format::b_fs_yx_fsv4,
                                         { in_B, in_F, in_X, in_Y })));
 
-            auto eltw = eltwise("eltw_IMAD",
+            auto eltw = eltwise("eltw_IMAD_no_relu",
                                 { "reorder1_Swizzelled",
                                   "reorder2_Swizzelled",
                                   "reorder3_Swizzelled" },
-                                mode[i], true);
-
+                                mode[i]);
+            auto actv = activation("eltw_IMAD", eltw, activation_func::relu);
             topology.add(input_layout("input1", input1.get_layout()),
                          input_layout("input2", input2.get_layout()),
                          input_layout("input3", input3.get_layout()),
-                         eltw);
+                         eltw, actv);
 
             // Back reordering (a-ka unswizzelling) output from MMAD/IMAD pooling
             topology.add(reorder("reorder_UnSwizzelled",
@@ -3386,3 +3204,247 @@ TEST(DISABLED_eltwise_gpu, generic_random) {
         }
     }
 }
+
+// mode, input type, input sizes
+using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std::vector<int32_t>>>;
+
+template<typename T>
+class BaseEltwiseTest : public ::testing::TestWithParam<T> {
+};
+
+class eltwise_test : public BaseEltwiseTest<eltwise_test_params> {
+public:
+    VF<float> eltwise_ref(VVVVVVF<float> input0, VVVVVVF<float> input1, tensor input0_size, tensor input1_size, eltwise_mode mode) {
+        auto out_size = tensor::max(input0_size, input1_size);
+
+        int output_b = out_size.batch[0];
+        int output_f = out_size.feature[0];
+        int output_w = out_size.spatial[3];
+        int output_z = out_size.spatial[2];
+        int output_y = out_size.spatial[1];
+        int output_x = out_size.spatial[0];
+
+        VVVVVVF<float> output(output_b, VVVVVF<float>(output_f,
+                                         VVVVF<float>(output_w,
+                                          VVVF<float>(output_z,
+                                           VVF<float>(output_y,
+                                            VF<float>(output_x))))));
+
+        for (int b = 0; b < output_b; ++b) {
+            for (int f = 0; f < output_f; ++f) {
+                for (int w = 0; w <output_w; ++w) {
+                    for (int z = 0; z <output_z; ++z) {
+                        for (int y = 0; y <output_y; ++y) {
+                            for (int x = 0; x < output_x; ++x) {
+                                int in0_b = b % input0_size.batch[0];
+                                int in0_f = f % input0_size.feature[0];
+                                int in0_w = w % input0_size.spatial[3];
+                                int in0_z = z % input0_size.spatial[2];
+                                int in0_y = y % input0_size.spatial[1];
+                                int in0_x = x % input0_size.spatial[0];
+
+                                int in1_b = b % input1_size.batch[0];
+                                int in1_f = f % input1_size.feature[0];
+                                int in1_w = w % input1_size.spatial[3];
+                                int in1_z = z % input1_size.spatial[2];
+                                int in1_y = y % input1_size.spatial[1];
+                                int in1_x = x % input1_size.spatial[0];
+
+                                auto in0 = input0[in0_b][in0_f][in0_w][in0_z][in0_y][in0_x];
+                                auto in1 = input1[in1_b][in1_f][in1_w][in1_z][in1_y][in1_x];
+                                output[b][f][w][z][y][x] = eltwise_execute<float>(mode, in0, in1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return flatten_6d<float>(format::bfwzyx, output);
+    }
+};
+
+TEST_P(eltwise_test, fsv16) {
+    auto p = GetParam();
+
+    ASSERT_EQ(std::get<2>(p).size(), 2);
+
+    auto mode = std::get<0>(p);
+    auto dt = std::get<1>(p);
+    auto input0_size = std::get<2>(p)[0];
+    auto input1_size = std::get<2>(p)[1];
+
+    int b0 = input0_size[0];
+    int f0 = input0_size[1];
+    int z0 = input0_size.size() == 4 ? 1 : input0_size[2];
+    int y0 = input0_size[input0_size.size() == 4 ? 2 : 3];
+    int x0 = input0_size[input0_size.size() == 4 ? 3 : 4];
+
+    int b1 = input1_size[0];
+    int f1 = input1_size[1];
+    int z1 = input1_size.size() == 4 ? 1 : input1_size[2];
+    int y1 = input1_size[input1_size.size() == 4 ? 2 : 3];
+    int x1 = input1_size[input1_size.size() == 4 ? 3 : 4];
+
+    int min_random = -2, max_random = 2;
+    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, 1, z0, y0, x0, min_random, max_random);
+    VVVVVVF<float> input2_rnd = generate_random_6d<float>(b1, f1, 1, z1, y1, x1, min_random, max_random);
+    VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
+    VF<float> input2_rnd_vec = flatten_6d<float>(format::bfwzyx, input2_rnd);
+
+    const auto& engine = get_test_engine();
+    auto fmt_pln = input0_size.size() == 4 ? format::bfyx : format::bfzyx;
+    auto fmt_fsv16 = input0_size.size() == 4 ? format::b_fs_yx_fsv16 : format::b_fs_zyx_fsv16;
+
+    auto in0_size = tensor(fmt_pln, input0_size);
+    auto in1_size = tensor(fmt_pln, input1_size);
+
+    auto input1 = memory::allocate(engine, { data_types::f32, fmt_pln, in0_size });
+    auto input2 = memory::allocate(engine, { data_types::f32, fmt_pln, in1_size });
+    set_values(input1, input1_rnd_vec);
+    set_values(input2, input2_rnd_vec);
+
+    topology topology;
+    topology.add(input_layout("input1", input1.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(reorder("reorder1", "input1", fmt_fsv16, dt));
+    topology.add(reorder("reorder2", "input2", fmt_fsv16, dt));
+    topology.add(eltwise("eltwise", {"reorder1", "reorder2"}, mode));
+    topology.add(reorder("out", "eltwise", fmt_pln, data_types::f32));
+    primitive_id out_id = "out";
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, out_id);
+
+    auto output_memory = outputs.at(out_id).get_memory();
+    auto output_ptr = output_memory.pointer<float>();
+
+    VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
+    for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
+        EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
+        ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
+    }
+}
+
+static std::vector<eltwise_mode> modes = {eltwise_mode::sum, eltwise_mode::prod};
+static std::vector<data_types> types = {data_types::f32, data_types::f16};
+static std::vector<std::vector<std::vector<int32_t>>> inputs = {
+        {{1, 2, 3, 4}, {1, 2, 3, 4}},
+        {{1, 16, 8, 2}, {1, 16, 8, 2}},
+        {{1, 128, 16, 8}, {1, 1, 16, 8}},
+        {{1, 32, 2, 2}, {1, 32, 2, 2}},
+        {{8, 32, 4, 5}, {8, 32, 4, 5}},
+        {{1, 2, 3, 4}, {1, 2, 1, 1}},
+        {{1, 16, 8, 2}, {1, 16, 1, 1}},
+        {{1, 32, 2, 2}, {1, 32, 1, 1}},
+        {{8, 32, 4, 5}, {1, 32, 1, 1}},
+        {{1, 2, 3, 4}, {1, 1, 1, 1}},
+        {{1, 16, 8, 2}, {1, 1, 1, 1}},
+        {{1, 32, 2, 2}, {1, 1, 1, 1}},
+        {{8, 32, 4, 5}, {1, 1, 1, 1}},
+        {{1, 2, 1, 1}, {1, 2, 3, 4}},
+        {{1, 16, 1, 1}, {1, 16, 8, 2}},
+        {{1, 32, 1, 1}, {1, 32, 2, 2}},
+        {{1, 32, 1, 1}, {8, 32, 4, 5}},
+
+        {{1, 16, 8, 2, 4}, {1, 16, 8, 2, 4}},
+        {{8, 32, 4, 5, 6}, {1, 32, 1, 1, 1}},
+        {{1, 2, 3, 4, 5}, {1, 2, 3, 4, 5}},
+        {{1, 32, 1, 1, 1}, {8, 32, 3, 4, 5}},
+};
+
+INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(modes),
+                                ::testing::ValuesIn(types),
+                                ::testing::ValuesIn(inputs)
+                                ), );
+
+class eltwise_test_6d : public eltwise_test {};
+TEST_P(eltwise_test_6d, bfwzyx) {
+    auto p = GetParam();
+
+    ASSERT_EQ(std::get<2>(p).size(), 2);
+
+    auto mode = std::get<0>(p);
+    auto dt = std::get<1>(p);
+    auto input0_size = std::get<2>(p)[0];
+    auto input1_size = std::get<2>(p)[1];
+
+    int b0 = input0_size[0];
+    int f0 = input0_size[1];
+    int w0 = input0_size[2];
+    int z0 = input0_size[3];
+    int y0 = input0_size[4];
+    int x0 = input0_size[5];
+
+    int b1 = input1_size[0];
+    int f1 = input1_size[1];
+    int w1 = input1_size[2];
+    int z1 = input1_size[3];
+    int y1 = input1_size[4];
+    int x1 = input1_size[5];
+
+    int min_random = -2, max_random = 2;
+    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, w0, z0, y0, x0, min_random, max_random);
+    VVVVVVF<float> input2_rnd = generate_random_6d<float>(b1, f1, w1, z1, y1, x1, min_random, max_random);
+    VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
+    VF<float> input2_rnd_vec = flatten_6d<float>(format::bfwzyx, input2_rnd);
+
+    auto in0_size = tensor(format::bfwzyx, input0_size);
+    auto in1_size = tensor(format::bfwzyx, input1_size);
+
+    const auto& engine = get_test_engine();
+    auto input1 = memory::allocate(engine, { data_types::f32, format::bfwzyx, in0_size });
+    auto input2 = memory::allocate(engine, { data_types::f32, format::bfwzyx, in1_size });
+    set_values(input1, input1_rnd_vec);
+    set_values(input2, input2_rnd_vec);
+
+    topology topology;
+    topology.add(input_layout("input1", input1.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(reorder("reorder1", "input1", format::bfwzyx, dt));
+    topology.add(reorder("reorder2", "input2", format::bfwzyx, dt));
+    topology.add(eltwise("eltwise", {"reorder1", "reorder2"}, mode));
+    topology.add(reorder("out", "eltwise", format::bfwzyx, data_types::f32));
+    primitive_id out_id = "out";
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, out_id);
+
+    auto output_memory = outputs.at(out_id).get_memory();
+    auto output_ptr = output_memory.pointer<float>();
+
+    VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
+    for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
+        EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
+        ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
+    }
+}
+
+static std::vector<std::vector<std::vector<int32_t>>> inputs_6d = {
+        {{1, 2, 3, 4, 5, 6},  {1, 2, 3, 4, 5, 6}},
+        {{1, 32, 1, 1, 1, 1}, {8, 32, 4, 5, 6, 7}},
+        {{1, 32, 1, 1, 1, 7}, {8, 32, 4, 5, 6, 7}},
+};
+
+INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_6d,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(modes),
+                                ::testing::ValuesIn(types),
+                                ::testing::ValuesIn(inputs_6d)
+                                ), );

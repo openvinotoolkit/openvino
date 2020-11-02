@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,16 +19,14 @@ import numpy as np
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_autopad
 from mo.ops.deformable_convolution import DeformableConvolution
-from mo.utils.error import Error
-from mo.front.common.partial_infer.utils import int64_array
 
 
 class DeformableConvExtractor(FrontExtractorOp):
     op = 'DeformableConv2D'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         # Extract pads attribute
         # In case if pads is not specified it will be set in default (1) in infer function
         pads = onnx_attr(node, 'pads', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
@@ -68,6 +66,7 @@ class DeformableConvExtractor(FrontExtractorOp):
             'group': group,
             'deformable_group': deformable_groups,
             'output': None,
+            'weights_index': 2,
             'kernel_spatial': np.array(kernel_shape, dtype=np.int64) if kernel_shape is not None else None,
 
             'input_feature_channel': 1,
@@ -82,4 +81,4 @@ class DeformableConvExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         DeformableConvolution.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

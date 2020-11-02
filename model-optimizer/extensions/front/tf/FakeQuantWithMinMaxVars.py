@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,11 +27,6 @@ from mo.ops.const import Const
 class FakeQuantWithMinMaxVarsToQuantize(FrontReplacementOp):
     op = "FakeQuantWithMinMaxVars"
     enabled = True
-
-    def run_before(self):
-        from extensions.front.sub import Sub
-        from extensions.front.div import Div
-        return [Sub, Div]
 
     def replace_sub_graph(self, graph: Graph, match: Dict[str, Node]):
         node = match['op']

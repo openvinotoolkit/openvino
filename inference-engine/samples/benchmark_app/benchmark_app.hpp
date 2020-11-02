@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,16 @@ static const char help_message[] = "Print a usage message";
 static const char input_message[] = "Optional. Path to a folder with images and/or binaries or to specific image or binary file.";
 
 /// @brief message for model argument
-static const char model_message[] = "Required. Path to an .xml file with a trained model.";
+static const char model_message[] = "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
 
 /// @brief message for assigning cnn calculation to device
 static const char target_device_message[] = "Optional. Specify a target device to infer on (the list of available devices is shown below). " \
-"Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO plugin. ";
+"Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO plugin. " \
+"Use \"-d MULTI:<comma-separated_devices_list>\" format to specify MULTI plugin. " \
+"The application looks for a suitable plugin for the specified device.";
 
 /// @brief message for iterations count
 static const char iterations_count_message[] = "Optional. Number of iterations. " \
@@ -37,11 +39,17 @@ static const char execution_time_message[] = "Optional. Time in seconds to execu
 
 /// @brief message for #threads for CPU inference
 static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
-                                                "(including HETERO case).";
+                                                "(including HETERO and MULTI cases).";
 
 /// @brief message for #streams for CPU inference
 static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU or/and GPU in throughput mode "
-                                                "(for HETERO device case use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>)";
+                                                "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). "
+                                                "Default value is determined automatically for a device.Please note that although the automatic selection "
+                                                "usually provides a reasonable performance, it still may be non - optimal for some cases, especially for "
+                                                "very small networks. See sample's README for more details.";
+
+/// @brief message for enforcing of BF16 execution where it is possible
+static const char enforce_bf16_message[] = "Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.";
 
 /// @brief message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.";
@@ -52,7 +60,8 @@ static const char custom_cldnn_message[] = "Required for GPU custom kernels. Abs
 static const char batch_size_message[] = "Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.";
 
 // @brief message for CPU threads pinning option
-static const char infer_threads_pinning_message[] = "Optional. Enable (\"YES\" is default value) or disable (\"NO\") " \
+static const char infer_threads_pinning_message[] = "Optional. Enable threads->cores (\"YES\", default), threads->(NUMA)nodes (\"NUMA\") " \
+                                                    "or completely disable (\"NO\") " \
                                                     "CPU threads pinning for CPU-involved inference.";
 
 // @brief message for stream_output option
@@ -78,6 +87,21 @@ static const char progress_message[] = "Optional. Show progress bar (can affect 
 
 // @brief message for performance counters option
 static const char pc_message[] = "Optional. Report performance counters.";
+
+#ifdef USE_OPENCV
+// @brief message for load config option
+static const char load_config_message[] = "Optional. Path to XML/YAML/JSON file to load custom IE parameters."
+                                          " Please note, command line parameters have higher priority then parameters from configuration file.";
+
+// @brief message for dump config option
+static const char dump_config_message[] = "Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.";
+#endif
+
+static const char shape_message[] = "Optional. Set shape for input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
+                                    " in case of one input size.";
+
+// @brief message for quantization bits
+static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -124,6 +148,9 @@ DEFINE_uint32(nthreads, 0, infer_num_threads_message);
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
 
+/// @brief Enforces bf16 execution with bfloat16 precision on systems having this capability
+DEFINE_bool(enforcebf16, false, enforce_bf16_message);
+
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
 DEFINE_uint32(b, 0, batch_size_message);
@@ -149,6 +176,20 @@ DEFINE_bool(progress, false, progress_message);
 /// @brief Define flag for showing performance counters <br>
 DEFINE_bool(pc, false, pc_message);
 
+#ifdef USE_OPENCV
+/// @brief Define flag for loading configuration file <br>
+DEFINE_string(load_config, "", load_config_message);
+
+/// @brief Define flag for dumping configuration file <br>
+DEFINE_string(dump_config, "", dump_config_message);
+#endif
+
+/// @brief Define flag for input shape <br>
+DEFINE_string(shape, "", shape_message);
+
+/// @brief Define flag for quantization bits (default 16)
+DEFINE_int32(qb, 16, gna_qb_message);
+
 /**
 * @brief This function show a help message
 */
@@ -171,13 +212,20 @@ static void showUsage() {
     std::cout << "    -stream_output            " << stream_output_message << std::endl;
     std::cout << "    -t                        " << execution_time_message << std::endl;
     std::cout << "    -progress                 " << progress_message << std::endl;
+    std::cout << "    -shape                    " << shape_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -pin \"YES\"/\"NO\"           " << infer_threads_pinning_message << std::endl;
+    std::cout << "    -enforcebf16              " << enforce_bf16_message << std::endl;
+    std::cout << "    -pin \"YES\"/\"NO\"/\"NUMA\"    " << infer_threads_pinning_message << std::endl;
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
+#ifdef USE_OPENCV
+    std::cout << "    -dump_config              " << dump_config_message << std::endl;
+    std::cout << "    -load_config              " << load_config_message << std::endl;
+#endif
+    std::cout << "    -qb                       " << gna_qb_message << std::endl;
 }

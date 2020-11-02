@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm_elt_type_id() {
+primitive_type_id lstm_elt::type_id() {
     static primitive_type_base<lstm_elt> instance;
     return &instance;
 }

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -34,6 +34,6 @@ class ReverseTransposeNormalization(MiddleReplacementPattern):
         node = match['transpose']
         assert len(node.in_nodes()) == 1
         order = np.arange(len(node.in_port(0).data.get_shape()))[::-1]
-        const = Const(graph, {'value': order}).create_node()
+        const = Const(graph, {'value': order, 'name': node.soft_get('name', node.id) + '/Order'}).create_node()
         node.add_input_port(1, skip_if_exist=True)
         const.out_port(0).connect(node.in_port(1))

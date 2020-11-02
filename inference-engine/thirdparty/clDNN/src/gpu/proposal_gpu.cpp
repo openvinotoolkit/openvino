@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include "engine_impl.h"
 #include "math_utils.h"
 #include "error_handler.h"
+#include "register_gpu.hpp"
 
 #include <algorithm>
 #include <string>
@@ -52,8 +53,6 @@ inline bool hasSingleBatchOutput(const program_node& node) {
 
 struct roi_t {
     float x0, y0, x1, y1;
-
-    inline float area() const { return std::max(0.f, y1 - y0 + 1.f) * std::max(0.f, x1 - x0 + 1.f); }
 };
 
 struct delta_t {
@@ -71,11 +70,11 @@ struct proposal_t {
 
 inline float float_read_helper(const float* mem) { return *mem; }
 
-inline float float_read_helper(const half_t* mem) { return float16_to_float32(*const_cast<uint16_t*>(reinterpret_cast<const uint16_t*>(mem))); }
+inline float float_read_helper(const half_t* mem) { return static_cast<float>(*mem); }
 
 inline void float_write_helper(float* mem, float f) { *mem = f; }
 
-inline void float_write_helper(half_t* mem, float f) { *mem = (half_t)float32_to_float16(f); }
+inline void float_write_helper(half_t* mem, float f) { *mem = static_cast<half_t>(f); }
 
 /****************************************************************************
  *                                                                          *
@@ -197,42 +196,40 @@ std::vector<roi_t> perform_nms(const std::vector<proposal_t>& proposals,
  *                                                                          *
  ****************************************************************************/
 
+struct im_info_t {
+    int img_w;
+    int img_h;
+    int img_z;
+    int min_bbox_x;
+    int min_bbox_y;
+};
+
 struct proposal_gpu : typed_primitive_impl<proposal> {
     const proposal_node& outer;
 
     explicit proposal_gpu(const proposal_node& arg) : outer(arg) {}
 
     template <typename dtype>
-    void execute(proposal_inst& instance, dtype* proposal_prob_ptr = nullptr) {
-        const std::vector<proposal_inst::anchor>& anchors = instance.get_anchors();
-
-        size_t anchors_num = anchors.size();
-
-        auto& cls_scores = instance.dep_memory(proposal_inst::cls_scores_index);
-        auto& bbox_pred = instance.dep_memory(proposal_inst::bbox_pred_index);
+    void read_image_info(proposal_inst& instance, im_info_t& im_info) {
         auto& image_info = instance.dep_memory(proposal_inst::image_info_index);
-
-        // original input image to the graph (after possible scaling etc.) so that coordinates are valid for it
         mem_lock<dtype> image_info_ptr{image_info};
         const dtype* image_info_mem = image_info_ptr.data();
 
+        bool swap_xy = instance.argument.swap_xy;
+
+        // original input image to the graph (after possible scaling etc.) so that coordinates are valid for it
         int img_w = 1;
         int img_h = 1;
         int img_z = 1;
         int min_bbox_x = 1;
         int min_bbox_y = 1;
+
+        auto image_info_size = image_info.get_layout().size;
+        auto image_info_count = image_info_size.feature[0] == 1 ? image_info_size.batch[0] : image_info_size.feature[0];
+
         int scaled_min_bbox_size = instance.argument.min_bbox_size;
 
-        bool swap_xy = instance.argument.swap_xy;
-        bool initial_clip = instance.argument.initial_clip;
-        bool clip_before_nms = instance.argument.clip_before_nms;
-        bool clip_after_nms = instance.argument.clip_after_nms;
-        float coordinates_offset = instance.argument.coordinates_offset;
-        float box_coordinate_scale = instance.argument.box_coordinate_scale;
-        float box_size_scale = instance.argument.box_size_scale;
-        bool for_deformable = instance.argument.for_deformable;
-
-        if (image_info.get_layout().size.feature[0] == 4) {
+        if (image_info_count == 4) {
             img_w =
                 static_cast<int>(float_read_helper(image_info_mem + proposal_inst::image_info_width_index) + EPSILON);
             img_h =
@@ -250,13 +247,13 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
             scaled_min_bbox_size *= img_z;
 
             min_bbox_x = scaled_min_bbox_size;
-            if (image_info.get_layout().size.feature[0] > proposal_inst::image_info_scale_min_bbox_x) {
+            if (image_info_count > proposal_inst::image_info_scale_min_bbox_x) {
                 min_bbox_x = static_cast<int>(
                     min_bbox_x * float_read_helper(image_info_mem + proposal_inst::image_info_scale_min_bbox_x));
             }
 
             min_bbox_y = scaled_min_bbox_size;
-            if (image_info.get_layout().size.feature[0] > proposal_inst::image_info_scale_min_bbox_y) {
+            if (image_info_count > proposal_inst::image_info_scale_min_bbox_y) {
                 min_bbox_y = static_cast<int>(
                     min_bbox_y * float_read_helper(image_info_mem + proposal_inst::image_info_scale_min_bbox_y));
             }
@@ -265,6 +262,31 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
         if (swap_xy) {
             std::swap(img_w, img_h);
         }
+
+        im_info.img_h = img_h;
+        im_info.img_w = img_w;
+        im_info.img_z = img_z;
+        im_info.min_bbox_x = min_bbox_x;
+        im_info.min_bbox_y = min_bbox_y;
+    }
+
+    template <typename dtype>
+    void execute(proposal_inst& instance, im_info_t im_info, dtype* proposal_prob_ptr = nullptr) {
+        const std::vector<proposal_inst::anchor>& anchors = instance.get_anchors();
+
+        size_t anchors_num = anchors.size();
+
+        auto& cls_scores = instance.dep_memory(proposal_inst::cls_scores_index);
+        auto& bbox_pred = instance.dep_memory(proposal_inst::bbox_pred_index);
+
+        bool swap_xy = instance.argument.swap_xy;
+        bool initial_clip = instance.argument.initial_clip;
+        bool clip_before_nms = instance.argument.clip_before_nms;
+        bool clip_after_nms = instance.argument.clip_after_nms;
+        float coordinates_offset = instance.argument.coordinates_offset;
+        float box_coordinate_scale = instance.argument.box_coordinate_scale;
+        float box_size_scale = instance.argument.box_size_scale;
+        bool for_deformable = instance.argument.for_deformable;
 
         // feat map sizes
         const auto& score_size = cls_scores.get_layout().size;
@@ -309,8 +331,8 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
                                                     bbox_delta,
                                                     anchor_shift_x,
                                                     anchor_shift_y,
-                                                    img_w,
-                                                    img_h,
+                                                    im_info.img_w,
+                                                    im_info.img_h,
                                                     coordinates_offset,
                                                     initial_clip,
                                                     clip_before_nms,
@@ -321,7 +343,7 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
 
                         size_t scores_index =
                             n * num_proposals * 2 + location_index + fm_sz * (anchor_index + anchors_num);
-                        float proposal_confidence = (min_bbox_x <= bbox_w) * (min_bbox_y <= bbox_h) *
+                        float proposal_confidence = (im_info.min_bbox_x <= bbox_w) * (im_info.min_bbox_y <= bbox_h) *
                                                     float_read_helper(cls_scores_mem + scores_index);
                         sorted_proposals_confidence.emplace_back(roi,
                                                                  proposal_confidence,
@@ -348,17 +370,17 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
 
             for (size_t i = 0; i < res_num_rois; ++i) {
                 if (clip_after_nms) {
-                    res[i].x0 = clamp(res[i].x0, 0.0f, static_cast<float>(img_w));
-                    res[i].y0 = clamp(res[i].y0, 0.0f, static_cast<float>(img_h));
-                    res[i].x1 = clamp(res[i].x1, 0.0f, static_cast<float>(img_w));
-                    res[i].y1 = clamp(res[i].y1, 0.0f, static_cast<float>(img_h));
+                    res[i].x0 = clamp(res[i].x0, 0.0f, static_cast<float>(im_info.img_w));
+                    res[i].y0 = clamp(res[i].y0, 0.0f, static_cast<float>(im_info.img_h));
+                    res[i].x1 = clamp(res[i].x1, 0.0f, static_cast<float>(im_info.img_w));
+                    res[i].y1 = clamp(res[i].y1, 0.0f, static_cast<float>(im_info.img_h));
                 }
 
                 float_write_helper(top_data + 5 * i + 0, static_cast<float>(n));
-                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (instance.argument.normalize ? img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (instance.argument.normalize ? img_h : 1.0f));
-                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (instance.argument.normalize ? img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (instance.argument.normalize ? img_h : 1.0f));
+                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (instance.argument.normalize ? im_info.img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (instance.argument.normalize ? im_info.img_h : 1.0f));
+                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (instance.argument.normalize ? im_info.img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (instance.argument.normalize ? im_info.img_h : 1.0f));
                 if (top_data_prob != nullptr && i < sorted_proposals_confidence.size()) {
                     float_write_helper(top_data_prob + i, sorted_proposals_confidence[i].confidence);
                 }
@@ -381,22 +403,32 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
             a->wait();
         }
 
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_stream_id(), false);
+        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
+        im_info_t im_info;
+        if (instance.dep_memory(proposal_inst::image_info_index).get_layout().data_type == data_types::f16) {
+            read_image_info<data_type_to_type<data_types::f16>::type>(instance, im_info);
+        } else {
+            read_image_info<data_type_to_type<data_types::f32>::type>(instance, im_info);
+        }
+
+        if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type !=
+            instance.dep_memory(proposal_inst::bbox_pred_index).get_layout().data_type)
+            throw std::runtime_error("clDNN: proposal primitive doesn't support mixed bbox and scores types");
 
         if (instance.dependencies().size() == 4) {
             auto &proposal_probabilities = instance.dep_memory(proposal_inst::proposal_probabilities_out);
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
                 mem_lock<data_type_to_type<data_types::f16>::type> proposal_prob_ptr{proposal_probabilities};
-                execute<data_type_to_type<data_types::f16>::type>(instance, proposal_prob_ptr.data());
+                execute<data_type_to_type<data_types::f16>::type>(instance, im_info, proposal_prob_ptr.data());
             } else {
                 mem_lock<data_type_to_type<data_types::f32>::type> proposal_prob_ptr{proposal_probabilities};
-                execute<data_type_to_type<data_types::f32>::type>(instance, proposal_prob_ptr.data());
+                execute<data_type_to_type<data_types::f32>::type>(instance, im_info, proposal_prob_ptr.data());
             }
         } else {
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                execute<data_type_to_type<data_types::f16>::type>(instance);
+                execute<data_type_to_type<data_types::f16>::type>(instance, im_info);
             } else {
-                execute<data_type_to_type<data_types::f32>::type>(instance);
+                execute<data_type_to_type<data_types::f32>::type>(instance, im_info);
             }
         }
 
@@ -406,7 +438,7 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
 
     static primitive_impl* create(const proposal_node& arg) {
         const layout& l = arg.image_info().get_output_layout();
-        const size_t count = static_cast<size_t>(l.size.feature[0]);
+        const size_t count = l.size.feature[0] == 1 ? static_cast<size_t>(l.size.batch[0]) : static_cast<size_t>(l.size.feature[0]);
 
         // Supported image_info sizes and components meaning:
         // - image_info[3] = { img_height, img_width, img_depth }
@@ -420,18 +452,15 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<proposal>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                          proposal_gpu::create);
-        implementation_map<proposal>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                          proposal_gpu::create);
-    }
+namespace detail {
 
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_proposal_gpu::attach_proposal_gpu() {
+    implementation_map<proposal>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                      proposal_gpu::create);
+    implementation_map<proposal>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                      proposal_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

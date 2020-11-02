@@ -14,6 +14,7 @@
 
 #include "include/include_all.cl"
 #include "include/unit_type.cl"
+#include "include/mmad.cl"
 
 #define GET_SRC(data, id) AS_TYPE(MAKE_VECTOR_TYPE(UNIT_TYPE, X_BLOCK_SIZE),                             \
                             intel_sub_group_shuffle(                                                     \
@@ -25,14 +26,16 @@
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
-KERNEL(convolution_bfyx_f16_1x1)(
+KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     __global FILTER_TYPE* weights,
 #if BIAS_TERM
     __global BIAS_TYPE* biases,
 #endif
-    FUSED_OPS_DECLS
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
+#endif
     uint split_idx) {
     const int xy = get_global_id(0);
     const int f_block = get_group_id(1);
@@ -193,8 +196,10 @@ KERNEL(convolution_bfyx_f16_1x1)(
             int xi = (x+i) % OUTPUT_SIZE_X;
             int yi = y + ((x+i) / OUTPUT_SIZE_X);
 
-            FUSED_OPS_LOAD_DATA;
-            DO_ELTWISE_FUSED_OPS;
+#if HAS_FUSED_OPS
+            FUSED_OPS_SCALAR;
+            dst[i] = FUSED_OPS_RESULT_SCALAR;
+#endif
 
             output[output_offset + yi * output_y_pitch + xi * output_x_pitch + lid] = dst[i];
         }
@@ -202,22 +207,15 @@ KERNEL(convolution_bfyx_f16_1x1)(
     else
 #endif
     {
-#if !PADDED_OUTPUT
-        if (xy * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X * OUTPUT_SIZE_Y) {
-            FUSED_OPS_LOAD_DATA_VEC;
-            DO_ELTWISE_FUSED_OPS_VEC;
-#if X_BLOCK_SIZE == 8
-            UNIT_BLOCK_WRITE8(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
-#elif X_BLOCK_SIZE == 4
-            UNIT_BLOCK_WRITE4(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
-#elif X_BLOCK_SIZE == 2
-            UNIT_BLOCK_WRITE2(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
-#endif
-        } else {
+#if !PADDED_OUTPUT && !NON_UNIT_FUSED_OP_SPATIAL
+        if (xy * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X * OUTPUT_SIZE_Y || (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % X_BLOCK_SIZE == 0) {
 #else
-        if (x * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X) {
-            FUSED_OPS_LOAD_DATA_VEC;
-            DO_ELTWISE_FUSED_OPS_VEC;
+        if (x + X_BLOCK_SIZE <= OUTPUT_SIZE_X || OUTPUT_SIZE_X % X_BLOCK_SIZE == 0) {
+#endif
+#if HAS_FUSED_OPS
+            FUSED_OPS_VEC;
+            dst = FUSED_OPS_RESULT_VEC;
+#endif
 #if X_BLOCK_SIZE == 8
             UNIT_BLOCK_WRITE8(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
 #elif X_BLOCK_SIZE == 4
@@ -226,7 +224,6 @@ KERNEL(convolution_bfyx_f16_1x1)(
             UNIT_BLOCK_WRITE2(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
 #endif
         } else {
-#endif
             for (int i = 0; i < X_BLOCK_SIZE; i++) {
                 if (xy * X_BLOCK_SIZE + i >= OUTPUT_SIZE_X * OUTPUT_SIZE_Y)
                     return;
@@ -234,8 +231,10 @@ KERNEL(convolution_bfyx_f16_1x1)(
                 int xi = (x+i) % OUTPUT_SIZE_X;
                 int yi = y + ((x+i) / OUTPUT_SIZE_X);
 
-                FUSED_OPS_LOAD_DATA;
-                DO_ELTWISE_FUSED_OPS;
+#if HAS_FUSED_OPS
+                FUSED_OPS_SCALAR;
+                dst[i] = FUSED_OPS_RESULT_SCALAR;
+#endif
 
                 UNIT_BLOCK_WRITE(output, output_offset + yi * output_y_pitch + xi * output_x_pitch, dst[i]);
             }

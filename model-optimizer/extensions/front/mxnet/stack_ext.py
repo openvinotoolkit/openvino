@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,17 +14,17 @@
  limitations under the License.
 """
 
+from extensions.ops.pack import PackOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from extensions.ops.pack import PackOp
 
 
 class StackFrontExtractor(FrontExtractorOp):
     op = 'stack'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
         update_attrs = {
@@ -34,4 +34,4 @@ class StackFrontExtractor(FrontExtractorOp):
         # update the attributes of the node
         PackOp.update_node_stat(node, update_attrs)
 
-        return __class__.enabled
+        return cls.enabled

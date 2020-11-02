@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/reverse_sequence.hpp"
+#include "api/reverse_sequence.hpp"
 #include "primitive_inst.h"
 #include <string>
 

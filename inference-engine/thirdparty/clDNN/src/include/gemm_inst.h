@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/gemm.hpp"
+#include "api/gemm.hpp"
 #include "primitive_inst.h"
 #include <string>
 
@@ -29,7 +29,7 @@ public:
     using parent::parent;
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-    size_t inputs_count() const { return get_dependencies().size(); }
+    size_t inputs_count() const { return this->get_primitive()->input_size(); }
 };
 
 using gemm_node = typed_program_node<gemm>;

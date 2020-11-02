@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ class UpsampleONNXExtractorTest(BaseExtractorsTestingClass):
     def test_invalid_scales(self):
         inp, ref = self._base_attrs()
         inp['scales'] = [1.5, 1.5, 2.0, 2.0]
-        with self.assertRaisesRegex(Error, '.*Upsampling of batch and feature dimentions is not supported for node.*'):
+        with self.assertRaisesRegex(Error, '.*Upsampling of batch and feature dimensions is not supported for node.*'):
             out = self._extract(inp)
 
     def test_invalid_2D_scales(self):

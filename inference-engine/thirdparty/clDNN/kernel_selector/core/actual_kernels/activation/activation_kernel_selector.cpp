@@ -16,13 +16,11 @@
 #include "activation_kernel_selector.h"
 #include "activation_kernel_opt.h"
 #include "activation_kernel_ref.h"
-#include "activation_kernel_tutorial.h"
 
 namespace kernel_selector {
 activation_kernel_selector::activation_kernel_selector() {
     Attach<ActivationKernelRef>();
     Attach<ActivationKernelOpt>();
-    Attach<ActivationKernel_Tutorial>();
 }
 
 KernelsData activation_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {

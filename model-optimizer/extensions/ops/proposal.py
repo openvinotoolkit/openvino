@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import attr_getter
 from mo.graph.graph import Node, Graph
@@ -29,11 +27,12 @@ class ProposalOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset4',
             'post_nms_topn': 300,  # default in caffe-shared
             'infer': ProposalOp.proposal_infer,
             'in_ports_count': 3,
             'out_ports_count': 2,
-            'for_deformable': 0,
+            'normalize': 0,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -65,7 +64,6 @@ class ProposalOp(Op):
             'normalize',
             'clip_after_nms',
             'clip_before_nms',
-            'for_deformable',
         ]
 
     @staticmethod

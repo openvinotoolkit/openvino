@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     std::unique_ptr<json_composite> node_info = std::unique_ptr<json_composite>(new json_composite());
     node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
     node_info->add("id", id());
-    node_info->add("type", get_extr_type(typeid(*this).name()));
+    node_info->add("type", desc->type_string());
     node_info->add("internal", bool_to_str(this->is_type<internal_primitive>()));
     node_info->add("valid output layout", bool_to_str(valid_output_layout));
 
@@ -102,6 +102,23 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
     node_info->add("output", bool_to_str(output));
+
+
+    json_composite fused_nodes_info;
+    size_t index = 0;
+    for (auto& fused_desc : get_fused_primitives()) {
+        json_composite fused_node_info;
+        fused_node_info.add("id", fused_desc.node->id());
+        fused_node_info.add("dependencies", fused_desc.deps);
+        fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
+        json_composite info;
+        info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
+        info.add("format", fmt_to_str(output_layout.format));
+        info.add("size", output_layout.size.to_string());
+        fused_node_info.add("output layout", info);
+        fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
+    }
+    node_info->add("fused primitives", fused_nodes_info);
 
     std::vector<std::string> deps_ptrs;
     {
@@ -165,7 +182,9 @@ bool program_node::is_detached(bool whole_branch) {
     return true;
 }
 
-layout program_node::calc_output_layout() const { return type()->calc_output_layout(*this); }
+layout program_node::calc_output_layout() const {
+    return type()->calc_output_layout(*this);
+}
 
 layout program_node::get_output_layout(bool invalidate_users_if_changed) {
     if (valid_output_layout)
@@ -189,7 +208,7 @@ layout program_node::get_non_padded_output_layout(bool invalidate_users_if_chang
     return result;
 }
 
-bool program_node::set_output_layout(layout new_layout, bool invalidate_users_if_changed) {
+bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_if_changed) {
     merge_output_padding(new_layout.data_padding);
     new_layout.data_padding = output_layout.data_padding;
     bool changed = (new_layout != output_layout);
@@ -202,7 +221,8 @@ bool program_node::set_output_layout(layout new_layout, bool invalidate_users_if
 }
 
 bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
-    return set_output_layout(calc_output_layout(), invalidate_users_if_changed);
+    auto new_layout = calc_output_layout();
+    return set_output_layout(new_layout, invalidate_users_if_changed);
 }
 
 bool program_node::has_padded_dependency() {
@@ -237,7 +257,7 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     auto fmt = output_layout.format;
 
     // WA for known cases of padding not supported in implementations
-    if (fmt == format::bfyx_f16) {
+    if (fmt == format::b_fs_yx_fsv16) {
         if (axis == 0 || (axis == 1 && padding % 16 != 0))
             return false;
     }
@@ -257,6 +277,14 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     }
 
     return true;
+}
+
+bool program_node::need_lockable_memory() const {
+    bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
+        return n->get_selected_impl()->is_cpu();
+    });
+
+    return need_lockable_mem;
 }
 
 primitive_id details::internal_program_node_base::get_next_internal_id() {

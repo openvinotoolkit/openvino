@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/lstm.hpp"
+#include "api/lstm.hpp"
 #include "primitive_inst.h"
 #include <string>
 
@@ -31,7 +31,7 @@ public:
     program_node& input() const { return get_dependency(0); }
     program_node& cell() const { return get_dependency(1); }
     bool cell_term() const { return !get_primitive()->cell.empty(); }
-    int32_t offset_order() const { return get_primitive()->offset_order; }
+    lstm_weights_order offset_order() const { return get_primitive()->offset_order; }
     float clip() const {
         float clip_val = get_primitive()->clip;
         if (clip_val < 0)
@@ -57,7 +57,7 @@ public:
 
     memory_impl& cell_memory() const { return dep_memory(1); }
     bool cell_term() const { return !argument.cell.empty(); }
-    int32_t offset_order() const { return argument.offset_order; }
+    lstm_weights_order offset_order() const { return argument.offset_order; }
     float clip() const {
         float clip_val = argument.clip;
         if (clip_val < 0)

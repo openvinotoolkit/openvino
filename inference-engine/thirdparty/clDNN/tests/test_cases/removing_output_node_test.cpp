@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 
-#include <api/CPP/data.hpp>
-#include <api/CPP/reshape.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/shuffle_channels.hpp>
-#include <api/CPP/strided_slice.hpp>
+#include <api/data.hpp>
+#include <api/reshape.hpp>
+#include <api/input_layout.hpp>
+#include <api/shuffle_channels.hpp>
+#include <api/strided_slice.hpp>
 
 #include "test_utils/test_utils.h"
 
@@ -74,7 +74,7 @@ TEST(removing_output_node, multiple_outputs) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "shuffle_channels", "input2", "input3", "input4", {}, {}, { 1 }, {}));
+    topology.add(strided_slice("strided_slice", "shuffle_channels", "input2", "input3", "input4", {}, {}, { 1 }, {}, tensor{6, 1, 1, 1}));
 
     std::vector<float> input_vec = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
     std::vector<float> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
@@ -141,7 +141,7 @@ TEST(removing_output_node, output_node_optimization) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(data("weights", weights));
     topology.add(convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
-    topology.add(activation("relu", "conv", activation_relu));
+    topology.add(activation("relu", "conv", activation_func::relu));
 
     network network(engine, topology);
     network.set_input_data("input", input);

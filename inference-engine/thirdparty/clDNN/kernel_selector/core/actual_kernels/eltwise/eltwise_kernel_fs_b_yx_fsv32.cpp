@@ -23,9 +23,7 @@ namespace kernel_selector {
 ParamsKey EltwiseKernel_fs_b_yx_fsv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableBatching();
@@ -51,9 +49,7 @@ bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params, const optional_
     bool bCheckSizes = true;
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // allow only the same input sizes or scalars, without pitches
-        if (ewParams.inputs[i].PitchesDifferFromLogicalDims() ||
-            (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.output) &&
-             ewParams.inputs[i].PhysicalSize() != 1))
+        if (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.output) && ewParams.inputs[i].PhysicalSize() != 1)
             bCheckSizes = false;
     }
 
@@ -101,16 +97,16 @@ KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, co
 
     auto& kernel = kd.kernels[0];
 
-    auto dims = newParams.inputs[0].LogicalDims();
+    auto& input = newParams.inputs[0];
 
-    size_t batches = dims[0];
-    size_t featuresRoundedUp = (((dims[1] - 1) / 32) + 1) * 32;
-    size_t x = dims[2];
-    size_t y = dims[3];
+    size_t batches = input.Batch().v;
+    size_t featuresRoundedUp = Align(input.Feature().v, 32);
+    size_t y = input.Y().v;
+    size_t x = input.X().v;
     size_t global_size = featuresRoundedUp * batches * x * y;
 
     kernel.workGroups.global = {std::max(global_size / 8, (size_t)1), 1, 1};
-    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global);
+    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
 
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);

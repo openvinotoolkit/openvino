@@ -30,8 +30,8 @@ KERNEL(deformable_convolution_gpu_bfyx_conv)(
     uint split_idx)
 {
     const uint lid = get_sub_group_local_id();
-    const uint x = (get_global_id(0) * X_BLOCK_SIZE + lid) % OUTPUT_SIZE_X;
-    const uint y = (get_global_id(0) * X_BLOCK_SIZE + lid) / OUTPUT_SIZE_X;
+    const uint x = ((uint)get_global_id(0) * X_BLOCK_SIZE + lid) % OUTPUT_SIZE_X;
+    const uint y = ((uint)get_global_id(0) * X_BLOCK_SIZE + lid) / OUTPUT_SIZE_X;
     const uint f_block = get_group_id(1);
     const uint b = get_global_id(2);
 
@@ -105,7 +105,7 @@ KERNEL(deformable_convolution_gpu_bfyx_conv)(
         const uint bias_index = f_block*FEATURE_SLICE_SIZE + oc;
         dotProd[oc] += (UNIT_TYPE)biases[bias_index];
 #endif
-        if (get_global_id(0) * X_BLOCK_SIZE + lid < OUTPUT_SIZE_X*OUTPUT_SIZE_Y && f_block*FEATURE_SLICE_SIZE + oc < OUTPUT_FEATURE_NUM)
+        if ((uint)get_global_id(0) * X_BLOCK_SIZE + lid < OUTPUT_SIZE_X*OUTPUT_SIZE_Y && f_block*FEATURE_SLICE_SIZE + oc < OUTPUT_FEATURE_NUM)
             output[dst_index + oc*OUTPUT_FEATURE_PITCH] = ACTIVATION(dotProd[oc], ACTIVATION_PARAMS);
     }
 

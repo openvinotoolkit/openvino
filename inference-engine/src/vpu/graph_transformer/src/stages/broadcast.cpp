@@ -1,143 +1,168 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/utils/numeric.hpp>
+
+#include <ngraph/opsets/opset3.hpp>
+#include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
+
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
-#include <set>
-#include <unordered_set>
-#include <algorithm>
-
-#include <vpu/utils/extra.hpp>
 
 namespace vpu {
 
 namespace {
 
 class BroadcastStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<BroadcastStage>(*this);
     }
 
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>&,
-            ScalePropagationStep) override {
-        VPU_THROW_EXCEPTION << "Must never be called";
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        const auto inputOrder = input(0)->desc().dimsOrder();
+        auto outputOrder = DimsOrder::fromNumDims(output(0)->desc().numDims());
+
+        if (inputOrder.numDims() >= 3 && inputOrder.dimInd(Dim::C) == 0) {
+            outputOrder.moveDim(Dim::C, 0);
+        }
+
+        orderInfo.setOutput(outputEdge(0), outputOrder);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-
-        _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
-    }
-
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        auto dimsOrder = output->desc().dimsOrder();
-
-        //
-        // Get smallest Dim over which Broadcast is done.
-        //
-
-        auto minBroadcastDimInd = dimsOrder.numDims();
-
-        for (const auto& p : output->desc().dims()) {
-            if (input->desc().dim(p.first) != p.second) {
-                minBroadcastDimInd = std::min(minBroadcastDimInd, dimsOrder.dimInd(p.first));
-            }
-        }
-
-        IE_ASSERT(minBroadcastDimInd < dimsOrder.numDims());
-
-        //
-        // Initial StridesRequirement for input and output.
-        //
-
-        auto outputReqs = output->requiredStrides();
-
-        auto inputReqs = outputReqs;
-        for (int i = minBroadcastDimInd + 1; i < dimsOrder.numDims(); ++i) {
-            inputReqs.remove(i);
-        }
-
-        //
-        // Merge output consumers StridesRequirement.
-        //
-
-        for (const auto& consumerEdge : output->consumerEdges()) {
-            const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
-
-            if (consumerInfo.hasInput(consumerEdge)) {
-                const auto& consumerReqs = consumerInfo.getInput(consumerEdge);
-
-                for (int i = 0; i < minBroadcastDimInd + 1; ++i) {
-                    if (outputReqs.get(i) == DimStride::Any) {
-                        if (consumerReqs.get(i) != DimStride::Any) {
-                            inputReqs.add(i, consumerReqs.get(i));
-                            outputReqs.add(i, consumerReqs.get(i));
-                        }
-                    }
-                }
-            }
-        }
-
-        //
-        // Return merged StridesRequirements.
-        //
-
-        _stridesInfo.setInput(_inputEdges[0], inputReqs);
-        _stridesInfo.setOutput(_outputEdges[0], outputReqs);
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        stridesInfo.setInput(inputEdge(0), StridesRequirement().remove(0));
+        stridesInfo.setOutput(outputEdge(0), StridesRequirement().remove(0));
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
+        return StageSHAVEsRequirements::NotNeeded;
     }
 
-    void serializeParamsImpl(BlobSerializer&) const override {
-        VPU_THROW_EXCEPTION << "Must never be called";
+    void initialCheckImpl() const override {
+        const auto mode = attrs().getOrDefault<BroadcastMode>("mode", BroadcastMode::NUMPY);
+        const auto& dataPrecision = input(0)->desc().type();
+
+        VPU_THROW_UNLESS(numOutputs() == 1,
+                         "{} stage with name {} must have only 1 output, actually provided {} outputs",
+                         type(), name(), numOutputs());
+        if (mode == BroadcastMode::EXPLICIT) {
+            VPU_THROW_UNLESS(numInputs() == 3,
+                             "{} stage with name {} and explicit mode must have 3 inputs, actually "
+                             "provided {} inputs", type(), name(), numInputs());
+            assertInputsOutputsTypes(this,
+                                     {{dataPrecision}, {DataType::S32}, {DataType::S32}},
+                                     {{dataPrecision}});
+        } else {
+            VPU_THROW_UNLESS(numInputs() == 2,
+                             "{} stage with name {} and numpy or bidirectional mode must have 2 inputs, actually "
+                             "provided {} inputs", type(), name(), numInputs());
+            assertInputsOutputsTypes(this,
+                                     {{dataPrecision}, {DataType::S32}},
+                                     {{dataPrecision}});
+        }
     }
 
-    void serializeDataImpl(BlobSerializer&) const override {
-        VPU_THROW_EXCEPTION << "Must never be called";
+    void serializeParamsImpl(BlobSerializer& serializer) const override {
+        const auto mode = attrs().getOrDefault<BroadcastMode>("mode", BroadcastMode::NUMPY);
+        serializer.append(mode);
+    }
+
+    void serializeDataImpl(BlobSerializer& serializer) const override {
+        const auto mode = attrs().getOrDefault<BroadcastMode>("mode", BroadcastMode::NUMPY);
+
+        input(0)->serializeBuffer(serializer);
+        input(1)->serializeBuffer(serializer);
+        if (mode == BroadcastMode::EXPLICIT) {
+            input(2)->serializeBuffer(serializer);
+        }
+        output(0)->serializeBuffer(serializer);
     }
 };
 
 }  // namespace
 
-Stage StageBuilder::addBroadcastStage(
-        const Model::Ptr& model,
-        const std::string& name,
+void FrontEnd::parseBroadcast(
+        const Model& model,
         const ie::CNNLayerPtr& layer,
-        const Data& input,
-        const Data& output,
-        const DimValues& offset) {
+        const DataVector& inputs,
+        const DataVector& outputs) const {
+    VPU_THROW_UNLESS(layer != nullptr,
+                     "parseBroadcast expects valid CNNLayerPtr, got nullptr");
+    VPU_THROW_UNLESS(outputs.size() == 1,
+                     "{} layer with name {} must have only 1 output, actually provided {} outputs",
+                     layer->type, layer->name, outputs.size());
+    const auto output = outputs[0];
+    const auto modeString = layer->GetParamAsString("mode", "numpy");
+    const std::map<std::string, BroadcastMode> modeFromString = {
+        {"numpy", BroadcastMode::NUMPY},
+        {"explicit", BroadcastMode::EXPLICIT},
+        {"bidirectional", BroadcastMode::BIDIRECTIONAL}
+    };
+    const auto& modeFind = modeFromString.find(modeString);
+    VPU_THROW_UNLESS(modeFind != modeFromString.end(),
+                     "{} layer with name {}: Graph Transformer doesn't support {} mode",
+                     layer->type, layer->name, modeString);
+    const auto mode = modeFind->second;
+    if (mode == BroadcastMode::NUMPY || mode == BroadcastMode::BIDIRECTIONAL) {
+        VPU_THROW_UNLESS(inputs.size() == 2,
+                         "{} layer with name {} and {} mode must have 2 inputs, actually "
+                         "provided {} inputs", layer->type, layer->name, modeString, inputs.size());
+    } else if (mode == BroadcastMode::EXPLICIT) {
+        VPU_THROW_UNLESS(inputs.size() == 3,
+                         "{} layer with name {} and explicit mode must have 3 inputs, actually "
+                         "provided {} inputs", layer->type, layer->name, inputs.size());
+        const auto axesMappingDesc = inputs[2]->desc();
+        const auto axesMappingPerm = axesMappingDesc.dimsOrder().toPermutation();
+        const auto axesMappingDim = axesMappingDesc.dim(axesMappingPerm.at(0));
+        VPU_THROW_UNLESS(axesMappingDesc.numDims() == 1,
+                         "{} layer with name {} and explicit mode must have 1D axesMapping tensor, "
+                         "actually provided {}D tensor",
+                         layer->type, layer->name, axesMappingDesc.numDims());
+        VPU_THROW_UNLESS(axesMappingDim == inputs[0]->desc().numDims(),
+                         "{} layer with name {} and explicit mode must have axesMapping tensor with "
+                         "size equals to number of output dims, expected [{}], provided [{}]",
+                         layer->type, layer->name, output->desc().numDims(), axesMappingDim);
+
+    } else {
+        VPU_THROW_FORMAT("{} layer with name {}: Graph Transformer doesn't support {} mode",
+                         layer->type, layer->name, modeString);
+    }
+
+    const auto shape = inputs[1];
+    const auto shapeDesc = inputs[1]->desc();
+    const auto shapeDim = shapeDesc.dim(shapeDesc.dimsOrder().toPermutation().at(0));
+    VPU_THROW_UNLESS(shapeDesc.numDims() == 1,
+                     "{} layer with name {} and explicit mode must have 1D target shape tensor, "
+                     "actually provided {}D tensor",
+                     layer->type, layer->name, shapeDesc.numDims());
+    VPU_THROW_UNLESS(shapeDim == output->desc().numDims() || mode != BroadcastMode::EXPLICIT,
+                     "{} layer with name {} and explicit mode must have target shape tensor with "
+                     "size equals to number of output dims, expected [{}], provided [{}]",
+                     layer->type, layer->name, output->desc().numDims(), shapeDim);
+
     auto stage = model->addNewStage<BroadcastStage>(
-        name,
-        StageType::Broadcast,
-        layer,
-        {input},
-        {output});
+            layer->name,
+            StageType::Broadcast,
+            layer,
+            inputs,
+            outputs);
 
-    stage->attrs().set<DimValues>("offset", offset);
-
-    return stage;
+    stage->attrs().set("mode", mode);
 }
 
-}  // namespace vpu
+}  //namespace vpu

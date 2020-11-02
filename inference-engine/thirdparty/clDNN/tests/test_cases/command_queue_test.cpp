@@ -15,48 +15,16 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/input_layout.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/input_layout.hpp>
 #include "test_utils/test_utils.h"
-#include "api/CPP/arg_max_min.hpp"
+#include "api/arg_max_min.hpp"
 
 using namespace cldnn;
 using namespace tests;
 using namespace std;
-
-#ifdef _WIN32
-#include <windows.h>
-#include <WinBase.h>
-static int                              g_run_once = 1;
-static int                              g_qpc_availible;
-static LARGE_INTEGER                    g_qpc_frec;
-
-// Function for future use to measure performance
-unsigned long GetMilliseconds(void)
-{
-    unsigned long ms;
-    LARGE_INTEGER qpc_ticks;
-
-    if (g_run_once) {
-        g_qpc_availible = QueryPerformanceFrequency(&g_qpc_frec);
-        // QPC returns nonzero value if HW supports high resolution perf counter
-        EXPECT_NE(g_qpc_availible, 0); 
-        g_run_once = 0;
-    }
-
-    if (g_qpc_availible) {
-        QueryPerformanceCounter(&qpc_ticks);
-        ms = (unsigned long)(1000.0 * ((double)(qpc_ticks.QuadPart)) / ((double)(g_qpc_frec.QuadPart)));
-    }
-    // back up if High-Resolution Timer is not available
-    else ms = GetTickCount();
-
-    return ms;
-}
-#endif
-
 
 // Run some topology too see if command queue does work correctly
 // Coppied from arg_max_gpu.base test.

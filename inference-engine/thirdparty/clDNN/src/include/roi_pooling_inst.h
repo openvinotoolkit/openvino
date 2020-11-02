@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/roi_pooling.hpp"
+#include "api/roi_pooling.hpp"
 #include "primitive_inst.h"
 #include <string>
 

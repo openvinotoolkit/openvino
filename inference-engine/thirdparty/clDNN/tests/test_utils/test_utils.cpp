@@ -16,13 +16,13 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/CPP/memory.hpp"
-#include <api/CPP/primitive.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/data.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/primitive.hpp>
+#include <api/input_layout.hpp>
+#include <api/data.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils.h"
 #include "float16.h"
 #include "instrumentation.h"
@@ -30,7 +30,7 @@
 
 using namespace cldnn;
 
-namespace tests 
+namespace tests
 {
     const std::string graph_dump_dir = DUMP_DIRECTORY;
 
@@ -44,15 +44,15 @@ namespace tests
         {
             generic_params->network_build_options.set_option(cldnn::build_option::graph_dumps_dir(DUMP_DIRECTORY));
         }
-        topology topology;               
-        topology.add(*layer_params);
+        topology topology;
+        topology.add_primitive(layer_params);
 
         std::vector<memory> input_mems;
         std::vector<std::string> input_layouts_names = {};
 
         size_t multipler = 0;
         for (size_t i = 0 ; i < generic_params->input_layouts.size() ; i++)
-        {           
+        {
             input_mems.push_back( memory::allocate(engine, generic_params->input_layouts[i]) );
 
             if (random_values)
@@ -69,7 +69,7 @@ namespace tests
             else
             {
                 size_t size = generic_params->input_layouts[i].size.batch[0] * generic_params->input_layouts[i].size.feature[0];
-                
+
                 if (generic_params->data_type == data_types::f32)
                 {
                     std::vector<float> values;
@@ -89,8 +89,8 @@ namespace tests
                     }
                     tests::set_values_per_batch_and_feature<FLOAT16>(input_mems[i], values);
                     multipler = values.size();
-                }        
-            }                        
+                }
+            }
             std::string input_name = "input" + std::to_string(i);
             if ( (i == 0) && generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled() )
             {
@@ -109,12 +109,12 @@ namespace tests
             {
                 topology.add(data(input_name, input_mems[i]));
             }
-            
+
             if (!is_format_supported(generic_params->fmt))
             {
                 ASSERT_THROW(network bad(engine, topology), std::exception);
                 return;
-            }       
+            }
         }
 
         if (generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled())
@@ -142,9 +142,9 @@ namespace tests
         EXPECT_EQ(outputs.size(), size_t(1));
 
         auto output = outputs.begin()->second.get_memory();
-        
+
         auto output_ref = generate_reference(input_mems);
-        
+
 
         if (dump_memory)
         {
@@ -156,7 +156,7 @@ namespace tests
             for (size_t i = 0; i < outputs.size(); i++)
             {
                 ::instrumentation::logger::log_memory_to_file(output, prefix + "output" + std::to_string(i));
-            }          
+            }
         }
 
         if (output.get_layout().data_type == data_types::f32)
@@ -166,7 +166,7 @@ namespace tests
         else
         {
             compare_buffers<FLOAT16>(output, output_ref);
-        }   
+        }
     }
 
     template<typename Type>
@@ -242,7 +242,7 @@ namespace tests
     memory_desc generic_test::get_linear_memory_desc(const layout & layout)
     {
         pitches p;
-        
+
         switch (layout.format)
         {
             case format::bfyx:
@@ -291,17 +291,17 @@ namespace tests
                 throw std::runtime_error("Format not supported yet.");
             }
         }
-        
+
         return{ p, calc_offfset(layout, p) };
     }
 
     size_t generic_test::get_linear_index(const layout&, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc)
     {
-        return 
-            desc.offset + 
-            b*desc.pitch.b + 
-            f*desc.pitch.f + 
-            y*desc.pitch.y + 
+        return
+            desc.offset +
+            b*desc.pitch.b +
+            f*desc.pitch.f +
+            y*desc.pitch.y +
             x*desc.pitch.x;
     }
 
@@ -332,7 +332,7 @@ namespace tests
         return generic_params->input_layouts[0].size;
     }
 
-    std::vector<test_params*> generic_test::generate_generic_test_params(std::vector<test_params*>& all_generic_params)
+    std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params)
     {
         // , { format::yx,{ 531,777 } } , { format::yx,{ 4096,1980 } } ,
         //{ format::bfyx,{ 1,1,1,1 } } , { format::bfyx,{ 1,1,2,2 } } , { format::yx,{ 3,3 } } , { format::yx,{ 4,4 } } , { format::bfyx,{ 1,1,5,5 } } , { format::yx,{ 6,6 } } , { format::yx,{ 7,7 } } ,
@@ -351,12 +351,12 @@ namespace tests
                     {
                         for (tensor input_size : test_input_sizes)
                         {
-                            all_generic_params.push_back(new test_params(data_type, fmt, batch_size, feature_size, input_size));
+                            all_generic_params.emplace_back(new test_params(data_type, fmt, batch_size, feature_size, input_size));
                         }
                     }
                 }
             }
-        }        
+        }
 
         return all_generic_params;
     }
@@ -395,7 +395,7 @@ namespace tests
         str << "]";
         return str.str();
     }
-    
+
     std::string test_params::print()
     {
         std::stringstream str;
@@ -404,17 +404,17 @@ namespace tests
         for (int j = 0 ; j < (int)input_layouts.size(); j++)
         {
             const cldnn::tensor& t = input_layouts[j].size;
-            
+
             str << "Input " << j << ": " << print_tensor(t) << std::endl;
         }
         return str.str();
     }
-    
-    std::vector<cldnn::data_types> generic_test::test_data_types() 
+
+    std::vector<cldnn::data_types> generic_test::test_data_types()
     {
         std::vector<cldnn::data_types> result;
         result.push_back(cldnn::data_types::f32);
-        
+
         if(get_test_engine().get_info().supports_fp16)
         {
             result.push_back(cldnn::data_types::f16);

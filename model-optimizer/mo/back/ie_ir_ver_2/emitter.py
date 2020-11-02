@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,10 +15,12 @@
 """
 
 import hashlib
-from defusedxml.minidom import parseString
 from xml.etree.ElementTree import Element, SubElement, tostring
 
+from defusedxml.minidom import parseString
+
 from mo.graph.graph import *
+from mo.middle.passes.convert_data_type import np_data_type_to_precision
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
@@ -34,7 +36,7 @@ def serialize_constants(graph: Graph, bin_file_name:str, data_type=np.float32):
     Args:
         @graph: input graph with op and data nodes
         @bin_file_name: path to file to write blobs to
-        @data_type: numpy data type to convert all blob elemnts to
+        @data_type: numpy data type to convert all blob elements to
 
     """
     bin_hashes = {}
@@ -59,14 +61,15 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
         node = Node(graph, node)
 
         if node.kind == 'data' and node.value is not None and any('bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
-            blob = node.value
-            blob_hash = hashlib.sha512(blob.tobytes()).hexdigest()
+            # avoid array copying while taking hash
+            blob = node.value if node.value.ndim > 0 else node.value.reshape((1))
+            blob_hash = hashlib.sha512(np.ascontiguousarray(blob).view(np.uint8)).hexdigest()
 
             if blob_hash in bin_hashes and np.array_equal(blob, bin_hashes[blob_hash]['blob']):
                 graph.node[node.node]['offset'] = bin_hashes[blob_hash]['offset']
                 graph.node[node.node]['size'] = bin_hashes[blob_hash]['size']
-                if graph.graph['cmd_params'].generate_experimental_IR_V10:
-                    update_offset_size_in_const_node(node)
+                graph.node[node.node]['blob_precision'] = np_data_type_to_precision(blob.dtype)
+                update_offset_size_in_const_node(node)
             else:
                 start = bin_file.tell()
                 blob.tofile(bin_file)
@@ -74,13 +77,13 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
 
                 graph.node[node.node]['offset'] = start
                 graph.node[node.node]['size'] = end - start
+                graph.node[node.node]['blob_precision'] = np_data_type_to_precision(blob.dtype)
 
                 bin_hashes[blob_hash] = {'offset': graph.node[node.node]['offset'],
                                          'size': graph.node[node.node]['size'], 'blob': blob}
-                if graph.graph['cmd_params'].generate_experimental_IR_V10:
-                    update_offset_size_in_const_node(node)
+                update_offset_size_in_const_node(node)
 
-                assert (blob.dtype.itemsize * np.prod(node.shape) == end - start)
+                assert (blob.dtype.itemsize * np.prod(node.shape) == end - start) or node.has_valid('force_shape'), node.attrs()
 
             log.debug(
                 "Detected binary for graph: '{}', node: '{}', id: {}, shape: '{}', offset: '{}', size: '{}'".format(
@@ -148,6 +151,7 @@ def xml_ports(node: Node, element: Element, edges: Element):
                 edge.set('from-port', str(out_attrs['out']))
                 edge.set('to-layer', str(node.node))
                 edge.set('to-port', str(d['in']))
+                # port.set('precision', np_data_type_to_precision(node['_in_port_precision'][d['in']]))
 
     # output ports
     outputs = None
@@ -157,29 +161,35 @@ def xml_ports(node: Node, element: Element, edges: Element):
                 outputs = SubElement(element, 'output')
             port = SubElement(outputs, 'port')
             port.set('id', str(d['out']))
-            assert node.graph.node[v][
-                       'shape'] is not None, 'Output shape is not calculated properly for node {}'.format(
-                node.id)
+            port_id = d['out'] - len(node.in_nodes())
+            data_type = node.out_port(port_id).get_data_type()
+            assert data_type is not None, 'The precision is not defined for the output port {} of node {}' \
+                                          ''.format(port_id, node.soft_get('name'))
+
+            port.set('precision', node.soft_get('force_type', np_data_type_to_precision(data_type)))
+            assert node.graph.node[v]['shape'] is not None, 'Output shape is not calculated properly for node {}' \
+                                                            ''.format(node.id)
             xml_shape(node.graph.node[v]['shape'], port)
 
 
 def xml_consts(graph: Graph, node: Node, element: Element):
     blobs = None  # sub-element that will be created on-demand
     for u, d in node.get_sorted_inputs():
-        if 'bin' in d and (node.type != 'Const' or not graph.graph['cmd_params'].generate_experimental_IR_V10):
+        if 'bin' in d and (node.type != 'Const'):
             if not blobs:
                 blobs = SubElement(element, 'blobs')
             const = SubElement(blobs, d['bin'])
             try:
                 const.set('offset', str(graph.node[u]['offset']))
                 const.set('size', str(graph.node[u]['size']))
+                const.set('precision', graph.node[u]['blob_precision'])
             except Exception as e:
-                raise Error('Unable to access binary attributes ("offset" and/or "size") '
-                    'for blobs for node {}. Details: {}'.format(node.soft_get('name'), e))
+                raise Error('Unable to access binary attributes ("offset" and/or "size") for blobs for node {}. '
+                            'Details: {}'.format(node.soft_get('name'), e))
 
 
 def soft_get(node, attr):
-    ''' If node has soft_get callable member, returns node.soft_get(attr), else return <SUB-ELEMENT> '''
+    """ If node has soft_get callable member, returns node.soft_get(attr), else return <SUB-ELEMENT> """
     return node.soft_get(attr) if hasattr(node, 'soft_get') and callable(node.soft_get) else '<SUB-ELEMENT>'
 
 
@@ -237,12 +247,16 @@ def serialize_meta_list(graph, node, schema, element, edges, unsupported):
 
 def serialize_node_attributes(
         graph: Graph,  # the current network graph
-        node,   # dictionry-like object that should be serialized
+        node,   # dictionary-like object that should be serialized
         schema: list,
         parent_element: Element,
         edges: Element,
         unsupported):
 
+    # the Result op may be marked so it should not appear in the IR. For example, refer to transformation
+    # model-optimizer/extensions/back/TopKNormalizer.py
+    if isinstance(node, Node) and node.soft_get('result' == 'Result') and node.has_and_set('remove_from_xml'):
+        return
     try:
         for s in schema:
             if not isinstance(s, tuple):
@@ -267,8 +281,8 @@ def serialize_node_attributes(
                     serialize_element(graph, node, s, parent_element, edges, unsupported)
     except Exception as e:
         raise Error(
-            'Error while emitting attributes for layer {} (id = {}). '
-            'It usually means that there is unsupported pattern around this node or unsupported combination of attributes.',
+            'Error while emitting attributes for layer {} (id = {}). It usually means that there is unsupported '
+            'pattern around this node or unsupported combination of attributes.',
             soft_get(node, 'name'),
             node.id
         ) from e
@@ -331,12 +345,27 @@ def add_quantization_statistics(graph, net_element):
         log.info('Statistics were inserted to IR')
 
 
+def add_quantization_info_section(net: Element, meta_info: dict):
+    if 'quantization_parameters' in meta_info:
+        parameters = meta_info['quantization_parameters']
+        quant_params = SubElement(net, 'quantization_parameters')
+
+        config = SubElement(quant_params, 'config')
+        config.text = parameters['config']
+
+        version = SubElement(quant_params, 'version')
+        version.set('value', parameters['version'])
+
+        cli_params = SubElement(quant_params, 'cli_params')
+        cli_params.set('value', parameters['cli_params'])
+
+
 def add_meta_data(net: Element, meta_info: dict):
     meta = SubElement(net, 'meta_data')
     SubElement(meta, 'MO_version').set('value', get_version())
     parameters = SubElement(meta, 'cli_parameters')
     [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
-     key != 'unset']
+     key not in ('unset', 'quantization_parameters')]
     SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
 
 
@@ -363,7 +392,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
                    mean_size: tuple = (), meta_info: dict = dict()):
     """
     Extracts IE/IR attributes from kind='op' nodes in three ways:
-      (1) node.IE xml scheme that set correspondance from existing attributes to generated xml elements
+      (1) node.IE xml scheme that sets correspondence from existing attributes to generated xml elements
       (2) input/output edges that don't have 'bin' attributes are transformed to input/output ports
       (3) input edges that has 'bin' attributes are handled in special way like weights/biases
 
@@ -380,7 +409,6 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     net = Element('net')
     net.set('name', graph.name)
     net.set('version', str((graph.graph['ir_version'])))
-    net.set('batch', '1')  # TODO substitute real batches here (is it a number or is it an index?)
 
     if mean_size or mean_offset:
         create_pre_process_block_for_image(net, input_names, mean_offset, mean_size)
@@ -394,6 +422,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     serialize_network(graph, net, unsupported)
     add_quantization_statistics(graph, net)
     add_meta_data(net, meta_info)
+    add_quantization_info_section(net, meta_info)
     xml_string = tostring(net)
     xml_doc = parseString(xml_string)
     pretty_xml_as_string = xml_doc.toprettyxml()
@@ -402,8 +431,8 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
         unsupported.report(log.error, "List of operations that cannot be converted to Inference Engine IR:")
         raise Error('Part of the nodes was not converted to IR. Stopped. ' +
                     refer_to_faq_msg(24))
-    with open(file_name, 'w') as file:
-        file.write(pretty_xml_as_string)
+    with open(file_name, 'wb') as file:
+        file.write(bytes(pretty_xml_as_string, "UTF-8"))
 
 
 def port_renumber(graph: Graph):

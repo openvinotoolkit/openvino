@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
 
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/reverse_sequence.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/reverse_sequence.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
 #include <cstddef>
 #include <tests/test_utils/test_utils.h>
@@ -325,6 +323,48 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
     topology.add(input_layout("seq_lengths", seq_lengths.get_layout()));
     topology.add(
             reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+    );
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("seq_lengths", seq_lengths);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reverse_sequence").get_memory();
+    auto output_ptr = output.pointer<uint16_t>();
+
+    std::vector<float> expected_results = {
+            0.0f, 3.0f, 2.0f, 1.0f
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+    }
+}
+
+TEST(reverese_sequence_gpu_test, fp16x2_d2_2_ba1_sa0) {
+    engine engine;
+
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } });
+    auto seq_lengths = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } });
+    int32_t batch_axis = 1;
+    int32_t seq_axis = 0;
+
+    set_values(input, {
+            FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f)
+        });
+
+    set_values(seq_lengths, {
+            FLOAT16(1.0f), FLOAT16(2.0f)
+        });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("seq_lengths", seq_lengths.get_layout()));
+    topology.add(
+        reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
     );
 
     network network(engine, topology);

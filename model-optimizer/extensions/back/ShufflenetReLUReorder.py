@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,10 +25,6 @@ class ShufflenetReLUReorder(BackReplacementPattern):
     This pass is workaround for GPU plugin
     """
     enabled = False
-
-    def run_before(self):
-        from extensions.back.TransposeToPermute import TransposeToPermute
-        return [TransposeToPermute]
 
     def pattern(self):
         return dict(

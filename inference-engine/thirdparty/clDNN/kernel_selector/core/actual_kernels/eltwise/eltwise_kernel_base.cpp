@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,17 +51,6 @@ static uint32_t GetNumberOfInputs(EltwiseMode m) {
 
 ParamsKey eltwise_params::GetParamsKey() const {
     ParamsKey k = base_params::GetParamsKey();
-    if (int8_quantization) {
-        k.EnableInt8Quantization();
-    }
-
-    if (output_calibration) {
-        k.EnableOutputCalibration();
-    }
-
-    if (inputs_calibration) {
-        k.EnableEltwiseInputsCalibration();
-    }
 
     if (!stride.empty()) {
         k.EnableEltwiseStride();
@@ -72,6 +61,20 @@ ParamsKey eltwise_params::GetParamsKey() const {
     }
 
     return k;
+}
+
+Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) const {
+    if (params.int8_quantization)
+        return Datatype::INT32;
+
+    Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
+
+    for (Datatype type : types)
+        for (auto& in : params.inputs)
+            if (in.GetDType() == type)
+                return type;
+
+    return Datatype::F32;
 }
 
 bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) const {
@@ -106,205 +109,35 @@ bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) cons
         }
     }
 
+    const eltwise_params& orgParams = static_cast<const eltwise_params&>(p);
+    for (auto& fused_op : orgParams.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
     return true;
 }
 
-JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& params, bool useVload8) const {
-    JitConstants jit = MakeBaseParamsJitConstants(params);
-
-    auto GetIdxOrderForLayout = [&](DataLayout l, bool layoutBased, uSize stride) -> std::string {
-        // TODO: Generalize this method
-        std::vector<std::string> bfyx_idx_order = {};
-        if (layoutBased) {
-            bfyx_idx_order = { "d4", "d3", "d2", "d1" };
-        } else {
-            if (l == DataLayout::yxfb) {
-                bfyx_idx_order = { "d1", "d2", "d3", "d4" };
-            } else if (l == DataLayout::fyxb) {
-                bfyx_idx_order = { "d1", "d4", "d3", "d2" };
-            } else {
-                bfyx_idx_order = { "d4", "d3", "d2", "d1" };
-            }
-        }
-
-        if (!params.stride.empty()) {
-            bfyx_idx_order[2] = "(" + bfyx_idx_order[2] + "*" + std::to_string(stride.y) + ")";
-            bfyx_idx_order[3] = "(" + bfyx_idx_order[3] + "*" + std::to_string(stride.x) + ")";
-        }
-
-        return bfyx_idx_order[0] + "," +
-               bfyx_idx_order[1] + "," +
-               bfyx_idx_order[2] + "," +
-               bfyx_idx_order[3];
-    };
-
-    jit.AddConstants({
-        MakeJitConstant("ELTWISE_LAYOUT_BASED", params.layoutBased),
-        MakeJitConstant("QUANTIZATION_TERM", params.int8_quantization),
-        MakeJitConstant("ELTWISE_BROADCAST", params.broadcast),
-    });
-
-    if (params.int8_quantization) {
-        if (params.output_calibration) {
-            jit.AddConstant(MakeJitConstant("CALIBRATION_TERM", params.output_calibration));
-            jit.AddConstant(MakeJitConstant("O_QF", params.output_calibration_factors[0]));
-
-        } else {
-            jit.AddConstants({MakeJitConstant("O_QF", params.output_quantization_factor)});
-        }
-    }
-
-    std::string inputs_decls, vload_decls;
-    auto& updateInputs = params.updateInputIds;
-
-    std::string out_idx_order = "OUTPUT_IDX_ORDER";
-    uSize out_stride = {1, 1, 1};
-    if (useVload8) {
-        jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
-    } else {
-        if (CheckInputsOutputNoPitchSameDims(params) &&
-            !(params.layoutBased || params.int8_quantization || params.broadcast)) {
-            jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
-        } else {
-            size_t out_c = DataTensor::ChannelsCount(params.output.GetLayout());
-            if (out_c <= 4) {
-                jit.AddConstant(MakeJitConstant(out_idx_order, GetIdxOrderForLayout(params.output.GetLayout(),
-                                                                                    params.layoutBased || params.broadcast,
-                                                                                    out_stride)));
-            } else if (out_c == 5) {
-                jit.AddConstant(MakeJitConstant(out_idx_order, "d5,d4,d3,d2,d1"));
-            } else {
-                assert(0);
-            }
-        }
-    }
-    if (!params.stride.empty()) {
-        jit.AddConstant(MakeJitConstant("OUTPUT_STRIDE_X", out_stride.x));
-        jit.AddConstant(MakeJitConstant("OUTPUT_STRIDE_Y", out_stride.y));
-        jit.AddConstant(MakeJitConstant("OUTPUT_STRIDE_Z", out_stride.z));
-    }
-
-    for (size_t i = 0; i < params.inputs.size(); i++) {
-        // const should be added only to inputs which will not be updated
-        std::string const_str = "const";
-        for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++) {
-            if (updateInputs[update_input_idx].inputId == i) {
-                const_str = "";
-                break;
-            }
-        }
-
-        inputs_decls +=
-            const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + std::to_string(i) + ", ";
-        if (!params.stride.empty()) {
-            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_X", params.stride[i].x));
-            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_Y", params.stride[i].y));
-            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_Z", params.stride[i].z));
-        }
-        std::string idx_order = "INPUT" + std::to_string(i) + "_IDX_ORDER";
-        if (useVload8) {
-            vload_decls += "\\\n\tconst " + toCLType(params.inputs[i].GetDType()) + "8 in" + std::to_string(i);
-            if (params.inputs[i].PhysicalSize() == 1)  // Scalar case
-                vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + std::to_string(i) + "[0]";
-            else  // Buffer case
-                vload_decls += " = vload8(global_id, input" + std::to_string(i);
-            vload_decls += ");";
-            jit.AddConstant(MakeJitConstant(idx_order, "d1"));
-        } else {
-            if (CheckInputsOutputNoPitchSameDims(params) &&
-                !(params.layoutBased || params.int8_quantization || params.broadcast)) {
-                jit.AddConstant(MakeJitConstant(idx_order, "d1"));
-            } else {
-                size_t in_c = DataTensor::ChannelsCount(params.inputs[i].GetLayout());
-                size_t out_c = DataTensor::ChannelsCount(params.output.GetLayout());
-                auto in_stride = params.stride.empty() ? out_stride : params.stride[i];
-                if (out_c <= 4 && in_c <= 4) {
-                    jit.AddConstant(MakeJitConstant(idx_order, GetIdxOrderForLayout(params.inputs[i].GetLayout(),
-                                                                                    params.layoutBased || params.broadcast,
-                                                                                    in_stride)));
-                } else if (out_c == 5) {
-                    if (in_c < 5) {
-                        // Skip Z coord for 4d tensors
-                        jit.AddConstant(MakeJitConstant(idx_order, "d5,d4,d2,d1"));
-                    } else if (in_c == 5) {
-                        jit.AddConstant(MakeJitConstant(idx_order, "d5,d4,d3,d2,d1"));
-                    }
-                } else if (out_c <= 4 && in_c == 5) {
-                    // quite strange case, but can happen due to reorders fusing
-                    // it means that z coord is equal to 1, so z offset will be always equal to 0
-                    jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
-                } else {
-                    assert(0);
-                }
-            }
-        }
-    }
-
-    jit.AddConstant(MakeJitConstant("INPUTS_DECLS", inputs_decls));
-    jit.AddConstant(MakeJitConstant("ELTWISE_NO_PITCH_SAME_DIMS", CheckInputsOutputNoPitchSameDims(params)));
-
-    if (useVload8)
-        jit.AddConstant(MakeJitConstant("VLOAD_DECLS", vload_decls));
-
-    std::string do_eltwise;
-
-    auto& operations = params.operations;
-    auto& coefficients = params.coefficients;
-
-    for (size_t op_num = 0; op_num < operations.size(); op_num++) {
+JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& params, bool useVload8, size_t blockSize) const {
+    JitConstants jit = {};
+    for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
         const std::string op_num_str = std::to_string(op_num);
-        const auto& ew = operations[op_num];
+        const auto& ew = params.operations[op_num];
 
-        for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
-            const auto& input = ew.inputs[input_idx];
-            const std::string name = "INPUT_" + op_num_str + "_" + std::to_string(input_idx);
-            std::string idx_order = "INPUT" + std::to_string(input.index) + "_IDX_ORDER";
-
-            switch (input.mode) {
-                case EltwiseInputMode::SCALAR:
-                    jit.AddConstant(MakeJitConstant(name, input.scalar));
-                    break;
-                case EltwiseInputMode::INPUT_BUFFER:
-                    if (useVload8)
-                        jit.AddConstant(MakeJitConstant(name, "in" + std::to_string(input.index)));
-                    else
-                        jit.AddConstant(MakeJitConstant(name,
-                                                        "input" + std::to_string(input.index) +
-                                                        "[GET_INDEX(INPUT, " + std::to_string(input.index) +
-                                                        "," + idx_order +")]"));
-                    break;
-                case EltwiseInputMode::OUTPUT_BUFFER:
-                    jit.AddConstant(MakeJitConstant(name, "output[GET_INDEX(OUTPUT,,"+ out_idx_order +")]"));
-                    break;
-                case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
-                    jit.AddConstant(MakeJitConstant(
-                        name,
-                        "input" + std::to_string(input.index) + "[(size_t)tmp" + std::to_string(input.tmpIndex) + "]"));
-                    break;
-                case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
-                    jit.AddConstant(MakeJitConstant(name, "tmp" + std::to_string(input.tmpIndex)));
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        std::string input0_str, input1_str, cast_type, output_cast, op;
+        std::string op, cast_type;
+        std::string input0_str = cast_type + "INPUT_" + op_num_str + "_0";
+        std::string input1_str = cast_type + "INPUT_" + op_num_str + "_1";
+        auto& coefficients = params.coefficients;
 
         if (useVload8) {
-            cast_type = "(MAKE_VECTOR_TYPE(UNIT_TYPE, 8))";
-            op = "const MAKE_VECTOR_TYPE(UNIT_TYPE, 8) tmp" + op_num_str + " = ";
-        } else if (params.int8_quantization) {
-            cast_type = "(int)";
-            op = "const int tmp" + op_num_str + " = ";
+            cast_type = "(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 8))";
+            op = "const MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 8) tmp" + op_num_str + " = ";
+        } else if (blockSize > 1) {
+            cast_type = "(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, BLOCK_SIZE))";
+            op = "const MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, BLOCK_SIZE) tmp" + op_num_str + " = ";
         } else {
-            cast_type = "(UNIT_TYPE)";
-            op = "const UNIT_TYPE tmp" + op_num_str + " = ";
-        }
-
-        if (params.output.GetDType() == Datatype::INT8 && !params.int8_quantization) {
-            output_cast = "(char)";
-            cast_type = "(" + toCLType(params.inputs[op_num].GetDType()) + ")";
+            cast_type = "(ACCUMULATOR_TYPE)";
+            op = "const ACCUMULATOR_TYPE tmp" + op_num_str + " = ";
         }
 
         input0_str = cast_type + "INPUT_" + op_num_str + "_0";
@@ -358,12 +191,12 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
                         else
                             op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
                     } else {
-                    // input_0 == int && input_1 != int
+                        // input_0 == int && input_1 != int
                         op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
                     }
                 } else if (input_1_type == kernel_selector::Datatype::INT8 ||
-                         input_1_type == kernel_selector::Datatype::INT32 ||
-                         input_1_type == kernel_selector::Datatype::INT64) {
+                           input_1_type == kernel_selector::Datatype::INT32 ||
+                           input_1_type == kernel_selector::Datatype::INT64) {
                     // input_0 != int && input_1 == int
                     op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
                 } else {
@@ -387,34 +220,34 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
                       input0_str + " - " + input1_str + "))";
                 break;
             case EltwiseMode::EQ:
-                op += output_cast + "(" + input0_str + " == " + input1_str + ")";
+                op += "(" + input0_str + " == " + input1_str + ")";
                 break;
             case EltwiseMode::NE:
-                op += output_cast + "(" + input0_str + " != " + input1_str + ")";
+                op += "(" + input0_str + " != " + input1_str + ")";
                 break;
             case EltwiseMode::LT:
-                op += output_cast + "(" + input0_str + " < " + input1_str + ")";
+                op += "(" + input0_str + " < " + input1_str + ")";
                 break;
             case EltwiseMode::LE:
-                op += output_cast + "(" + input0_str + " <= " + input1_str + ")";
+                op += "(" + input0_str + " <= " + input1_str + ")";
                 break;
             case EltwiseMode::GT:
-                op += output_cast + "(" + input0_str + " > " + input1_str + ")";
+                op += "(" + input0_str + " > " + input1_str + ")";
                 break;
             case EltwiseMode::GE:
-                op += output_cast + "(" + input0_str + " >= " + input1_str + ")";
+                op += "(" + input0_str + " >= " + input1_str + ")";
                 break;
             case EltwiseMode::LOGIC_AND:
-                op += output_cast + "(" + input0_str + " && " + input1_str + ")";
+                op += "(" + input0_str + " && " + input1_str + ")";
                 break;
             case EltwiseMode::LOGIC_OR:
-                op += output_cast + "(" + input0_str + " || " + input1_str + ")";
+                op += "(" + input0_str + " || " + input1_str + ")";
                 break;
             case EltwiseMode::LOGIC_XOR:
-                op += output_cast + "(!" + input0_str + " != !" + input1_str + ")";
+                op += "(!" + input0_str + " != !" + input1_str + ")";
                 break;
             case EltwiseMode::FLOOR_MOD:
-                op += output_cast + "(" + input0_str + " - " + input0_str + " / " + input1_str + " * " + input1_str + ")";
+                op += "(" + input0_str + " - " + input0_str + " / " + input1_str + " * " + input1_str + ")";
                 break;
             case EltwiseMode::ASSIGN:
                 op += input0_str;
@@ -423,11 +256,234 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
                 break;
         }
 
-        std::string opname = "OPERATION" + op_num_str;
-        jit.AddConstant(MakeJitConstant(opname, op));
-        do_eltwise += "\\\n\t" + opname + ";";
+        jit.AddConstant(MakeJitConstant("OPERATION" + op_num_str, op));
     }
 
+    return jit;
+}
+
+JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& params,
+                                                     bool useVload8) const {
+    JitConstants jit = {};
+    std::string vload_decls;
+    for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
+        const std::string op_num_str = std::to_string(op_num);
+        const auto &ew = params.operations[op_num];
+        for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
+            const auto &input = ew.inputs[input_idx];
+            const std::string name = "INPUT_" + op_num_str + "_" + std::to_string(input_idx);
+            std::string idx_order = "INPUT" + std::to_string(input.index) + "_IDX_ORDER";
+
+            switch (input.mode) {
+                case EltwiseInputMode::SCALAR:
+                    jit.AddConstant(MakeJitConstant(name, input.scalar));
+                    break;
+                case EltwiseInputMode::INPUT_BUFFER:
+                    if (useVload8)
+                        jit.AddConstant(MakeJitConstant(name, "in" + std::to_string(input.index)));
+                    else
+                        jit.AddConstant(MakeJitConstant(name,
+                                                        "input" + std::to_string(input.index) +
+                                                        "[GET_INDEX(INPUT, " + std::to_string(input.index) +
+                                                        "," + idx_order + ")]"));
+                    break;
+                case EltwiseInputMode::OUTPUT_BUFFER:
+                    jit.AddConstant(MakeJitConstant(name, "output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)]"));
+                    break;
+                case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
+                    jit.AddConstant(MakeJitConstant(
+                            name,
+                            "input" + std::to_string(input.index) + "[(size_t)tmp" + std::to_string(input.tmpIndex) + "]"));
+                    break;
+                case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
+                    jit.AddConstant(MakeJitConstant(name, "tmp" + std::to_string(input.tmpIndex)));
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    if (useVload8) {
+        for (size_t i = 0; i < params.inputs.size(); i++) {
+            vload_decls += "\\\n\tconst " + toCLType(params.inputs[i].GetDType()) + "8 in" + std::to_string(i);
+            if (params.inputs[i].PhysicalSize() == 1)  // Scalar case
+                vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + std::to_string(i) + "[0]";
+            else  // Buffer case
+                vload_decls += " = vload8(global_id, input" + std::to_string(i);
+            vload_decls += ");";
+        }
+        jit.AddConstant(MakeJitConstant("VLOAD_DECLS", vload_decls));
+    }
+    return jit;
+}
+
+JitConstants EltwiseKernelBase::MakeInputDeclsJitConstants(const eltwise_params& params,
+                                                           bool /*useVload8*/) const {
+    JitConstants jit = {};
+    std::string inputs_decls;
+    auto& updateInputs = params.updateInputIds;
+    for (size_t i = 0; i < params.inputs.size(); i++) {
+        // const should be added only to inputs which will not be updated
+        std::string const_str = "const";
+        for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++) {
+            if (updateInputs[update_input_idx].inputId == i) {
+                const_str = "";
+                break;
+            }
+        }
+        inputs_decls += const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + std::to_string(i) + ", ";
+    }
+    jit.AddConstant(MakeJitConstant("INPUTS_DECLS", inputs_decls));
+    return jit;
+}
+
+JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& params,
+                                                      bool useVload8) const {
+    JitConstants jit = {};
+    auto& updateInputs = params.updateInputIds;
+
+    auto GetIdxOrderVecForLayout = [&](DataLayout l, bool layoutBased, uSize stride) -> std::vector<std::string> {
+        // TODO: Generalize this method
+        std::vector<std::string> bfyx_idx_order = {};
+        if (layoutBased) {
+            bfyx_idx_order = { "d4", "d3", "d2", "d1" };
+        } else {
+            if (l == DataLayout::yxfb) {
+                bfyx_idx_order = { "d1", "d2", "d4", "d3" };
+            } else if (l == DataLayout::fyxb) {
+                bfyx_idx_order = { "d1", "d4", "d3", "d2" };
+            } else if (l == DataLayout::byxf) {
+                bfyx_idx_order = { "d4", "d1", "d3", "d2" };
+            } else {
+                bfyx_idx_order = { "d4", "d3", "d2", "d1" };
+            }
+        }
+
+        if (!params.stride.empty()) {
+            bfyx_idx_order[2] = "(" + bfyx_idx_order[2] + "*" + std::to_string(stride.y) + ")";
+            bfyx_idx_order[3] = "(" + bfyx_idx_order[3] + "*" + std::to_string(stride.x) + ")";
+        }
+
+        return bfyx_idx_order;
+    };
+
+    auto GetIdxOrderStringForLayout = [&](DataLayout l, bool layoutBased, uSize stride) -> std::string {
+        std::vector<std::string> bfyx_idx_order = GetIdxOrderVecForLayout(l, layoutBased, stride);
+
+        return bfyx_idx_order[0] + "," +
+               bfyx_idx_order[1] + "," +
+               bfyx_idx_order[2] + "," +
+               bfyx_idx_order[3];
+    };
+
+    std::string out_idx_order = "OUTPUT_IDX_ORDER";
+    if (useVload8) {
+        jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
+    } else {
+        if (CheckInputsOutputNoPitchSameDims(params) &&
+            !(params.layoutBased || params.int8_quantization || params.broadcast)) {
+            jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
+        } else {
+            size_t out_c = DataTensor::ChannelsCount(params.output.GetLayout());
+            if (out_c <= 4) {
+                jit.AddConstant(MakeJitConstant(out_idx_order, GetIdxOrderStringForLayout(params.output.GetLayout(),
+                                                                                          params.layoutBased || params.broadcast,
+                                                                                          {1, 1, 1})));
+            } else if (out_c == 5) {
+                jit.AddConstant(MakeJitConstant(out_idx_order, "d5,d4,d3,d2,d1"));
+            } else if (out_c == 6) {
+                jit.AddConstant(MakeJitConstant(out_idx_order, "d6,d5,d4,d3,d2,d1"));
+            } else {
+                assert(0);
+            }
+        }
+    }
+
+    for (size_t i = 0; i < params.inputs.size(); i++) {
+        // const should be added only to inputs which will not be updated
+        std::string const_str = "const";
+        for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++) {
+            if (updateInputs[update_input_idx].inputId == i) {
+                const_str = "";
+                break;
+            }
+        }
+
+        if (!params.stride.empty()) {
+            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_X", params.stride[i].x));
+            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_Y", params.stride[i].y));
+            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_Z", params.stride[i].z));
+        }
+
+        std::string idx_order = "INPUT" + std::to_string(i) + "_IDX_ORDER";
+        if (useVload8) {
+            jit.AddConstant(MakeJitConstant(idx_order, "d1"));
+        } else {
+            if (CheckInputsOutputNoPitchSameDims(params) &&
+                !(params.layoutBased || params.int8_quantization || params.broadcast)) {
+                jit.AddConstant(MakeJitConstant(idx_order, "d1"));
+            } else {
+                size_t in_c = DataTensor::ChannelsCount(params.inputs[i].GetLayout());
+                size_t out_c = DataTensor::ChannelsCount(params.output.GetLayout());
+                auto in_stride = params.stride.empty() ? uSize{1, 1, 1} : params.stride[i];
+                if (out_c <= 4 && in_c <= 4) {
+                    jit.AddConstant(MakeJitConstant(idx_order, GetIdxOrderStringForLayout(params.inputs[i].GetLayout(),
+                                                                                          params.layoutBased || params.broadcast,
+                                                                                          in_stride)));
+                } else if (out_c == 5) {
+                    if (in_c < 5) {
+                        // Skip Z coord for 4d tensors
+                        jit.AddConstant(MakeJitConstant(idx_order, "d5,d4,d2,d1"));
+                    } else if (in_c == 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d5,d4,d3,d2,d1"));
+                    }
+                } else if (out_c <= 4 && in_c == 5) {
+                    // quite strange case, but can happen due to reorders fusing
+                    // it means that z coord is equal to 1, so z offset will be always equal to 0
+                    jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
+                } else if (out_c == 6) {
+                    if (in_c < 5)
+                        jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d2,d1"));
+                    else if (in_c == 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
+                    } else {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
+                    }
+                } else {
+                    assert(0);
+                }
+            }
+        }
+    }
+
+    return jit;
+}
+
+JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& params, bool useVload8) const {
+    JitConstants jit = MakeBaseParamsJitConstants(params);
+
+    jit.AddConstants({
+        MakeJitConstant("ELTWISE_LAYOUT_BASED", params.layoutBased),
+        MakeJitConstant("QUANTIZATION_TERM", params.int8_quantization),
+        MakeJitConstant("ELTWISE_BROADCAST", params.broadcast),
+    });
+
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+    jit.AddConstant(MakeJitConstant("ELTWISE_NO_PITCH_SAME_DIMS", CheckInputsOutputNoPitchSameDims(params)));
+
+    jit.Merge(MakeInputDeclsJitConstants(params, useVload8));
+    jit.Merge(MakeIndexJitConstants(params, useVload8));
+    jit.Merge(MakeLoadJitConstants(params, useVload8));
+    jit.Merge(GetOperationsJitConstants(params, useVload8));
+
+    std::string do_eltwise;
+    auto& operations = params.operations;
+    for (size_t op_num = 0; op_num < operations.size(); op_num++) {
+        do_eltwise += "\\\n\tOPERATION" + std::to_string(op_num) + ";";
+    }
+
+    auto& updateInputs = params.updateInputIds;
     for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++)
         do_eltwise += "\\\n\tinput" + std::to_string(updateInputs[update_input_idx].inputId) + "[GET_INDEX(INPUT, " +
                       std::to_string(updateInputs[update_input_idx].inputId) + ", " +
@@ -446,6 +502,8 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
+    jit.Merge(MakeActivationJitConstants(params.activations, GetAccumulatorType(params), "_TYPED"));
+
     return jit;
 }
 
@@ -454,17 +512,14 @@ JitConstants EltwiseKernelBase::GetJitConstants(const eltwise_params& params) co
 }
 
 EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     if (params.layoutBased || params.int8_quantization || params.broadcast) {
-        auto global = GetTensorFriendlyWorkGroups(params.output);
-        kd.gws0 = global[0];
-        kd.gws1 = global[1];
-        kd.gws2 = global[2];
+        dispatchData.gws = GetTensorFriendlyWorkGroups(params.output);
     } else if (CheckInputsOutputNoPitchSameDims(params)) {
-        kd.gws0 = params.output.LogicalSize();
-        kd.gws1 = 1;
-        kd.gws2 = 1;
+        dispatchData.gws[0] = params.output.LogicalSize();
+        dispatchData.gws[1] = 1;
+        dispatchData.gws[2] = 1;
     } else {
         const auto& out = params.output;
 
@@ -473,40 +528,63 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
             gws.push_back(o.v);
         }
 
-        size_t n_dims;
-        if (out.GetLayout() == DataLayout::bfzyx)
-            n_dims = 5;
-        else
-            n_dims = 4;
-
+        size_t n_dims = DataTensor::ChannelsCount(out.GetLayout());
         for (size_t i = gws.size(); i < n_dims; i++) {
             gws.push_back(1U);
         }
 
-        kd.gws0 = gws[0];
-        if (n_dims == 5) {
-            kd.gws1 = gws[1] * gws[2];  // y*z
-            kd.gws2 = gws[3] * gws[4];
+        dispatchData.gws[0] = gws[0];
+        if (n_dims == 6) {
+            dispatchData.gws[1] = gws[1] * gws[2] * gws[3];  // y*z*w
+            dispatchData.gws[2] = gws[4] * gws[5];
+        } else if (n_dims == 5) {
+            dispatchData.gws[1] = gws[1] * gws[2];  // y*z
+            dispatchData.gws[2] = gws[3] * gws[4];
         } else {
-            kd.gws1 = gws[1];
-            kd.gws2 = gws[2] * gws[3];
+            dispatchData.gws[1] = gws[1];
+            dispatchData.gws[2] = gws[2] * gws[3];
         }
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes({kd.gws0, kd.gws1, kd.gws2});
+    auto local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]}, params.engineInfo);
 
-    if (params.output.GetLayout() == DataLayout::bfyx_f16 && params.output.Feature().v % 16 == 0 &&
-        kd.gws1 % 16 == 0) {
-        kd.lws0 = 1;
-        kd.lws1 = 16;
-        kd.lws2 = 1;
+    const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
+    if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+         params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
+        params.output.Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
+        dispatchData.lws[0] = 1;
+        for (auto lws : optimal_lws_values) {
+            if (dispatchData.gws[1] % lws == 0) {
+                dispatchData.lws[1] = lws;
+                break;
+            }
+        }
+        dispatchData.lws[2] = 1;
+    } else if (params.output.GetLayout() == DataLayout::fs_b_yx_fsv32) {
+        dispatchData.gws[2] = Align(dispatchData.gws[2], 32);
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 32;
+    } else if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv32 && params.output.Feature().v % 32 == 0) {
+        if (params.layoutBased || params.int8_quantization || params.broadcast) {
+            dispatchData.lws[0] = 1;
+            dispatchData.lws[1] = 32;
+            dispatchData.lws[2] = 1;
+        } else if (dispatchData.gws[0] == params.output.LogicalSize()) {
+            dispatchData.lws = local;
+        } else {
+            dispatchData.lws[0] = 1;
+            dispatchData.lws[1] = 1;
+            dispatchData.lws[2] = 32;
+        }
     } else {
-        kd.lws0 = local[0];
-        kd.lws1 = local[1];
-        kd.lws2 = local[2];
+        dispatchData.lws[0] = local[0];
+        dispatchData.lws[1] = local[1];
+        dispatchData.lws[2] = local[2];
     }
 
-    return kd;
+    return dispatchData;
 }
 
 KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
@@ -521,19 +599,18 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    DispatchData runInfo = SetDefault(newParams);
+    DispatchData dispatchData = SetDefault(newParams);
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-    kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+    kernel.workGroups.global = dispatchData.gws;
+    kernel.workGroups.local = dispatchData.lws;
 
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,
-                                   newParams.int8_quantization,
-                                   newParams.output_calibration);
+                                   GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

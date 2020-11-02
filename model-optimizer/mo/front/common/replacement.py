@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
  limitations under the License.
 """
 import logging as log
-
-import networkx as nx
 
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Node, merge_edge_props, Graph

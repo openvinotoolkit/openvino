@@ -16,9 +16,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "generic_layer.h"
-#include "api/CPP/primitive.hpp"
-#include "api/CPP/memory.hpp"
+#include "api/primitive.hpp"
+#include "api/memory.hpp"
 #include "kernel_selector_helper.h"
 #include <vector>
 
@@ -35,7 +34,7 @@ namespace cldnn {
 /// @details Corresponding values are bitwise equal before/after reorder.
 /// Also merged with subtraction layer, which can subtract values while doing reordering.
 /// NOTE THAT THIS WILL SUBTRACT THE SAME VALUES FROM EACH BATCH.
-struct generic_layer : public primitive_base<generic_layer, CLDNN_PRIMITIVE_DESC(generic_layer)> {
+struct generic_layer : public primitive_base<generic_layer> {
     CLDNN_DECLARE_PRIMITIVE(generic_layer)
 
     /// @brief Constructs generic_layer primitive which takes mean subtract values from another primitive.
@@ -50,23 +49,12 @@ struct generic_layer : public primitive_base<generic_layer, CLDNN_PRIMITIVE_DESC
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding), output_layout(output_layout), generic_params(generic_params) {}
 
-    /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{generic_layer}
-    generic_layer(const dto* dto)
-        : primitive_base(dto),
-          output_layout(dto->output_layout),
-          generic_params(*static_cast<const kernel_selector::generic_kernel_params* const>(dto->generic_params)) {}
-
     /// @brief Requested memory layout.
     layout output_layout;
     const kernel_selector::generic_kernel_params generic_params;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {}; }
-
-    void update_dto(dto& dto) const override {
-        dto.output_layout = output_layout;
-        dto.generic_params = &generic_params;
-    }
 };
 /// @}
 /// @}

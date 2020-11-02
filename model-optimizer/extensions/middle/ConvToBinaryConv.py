@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@ import logging as log
 
 import numpy as np
 
+from extensions.ops.elementwise import Mul, Add
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
-from extensions.ops.elementwise import Mul, Add
 
 
 class ConvToBinaryConv(MiddleReplacementPattern):
@@ -81,26 +81,27 @@ class ConvToBinaryConv(MiddleReplacementPattern):
 
         operator = match['operator']
 
-        if np.all(np.isclose(output_low, 0)) and np.all(np.isclose(output_high, 1)):
+        weights = operator.in_node(1).value
+        weights_rounded = np.round(weights)
+        weights_consistent = np.all(np.isclose(weights, weights_rounded)) and \
+                             set(np.unique(weights_rounded)).issubset({-1, 1})
 
-            weights = operator.in_node(1).value
+        if weights_consistent and np.all(np.isclose(output_low, 0)) and np.all(np.isclose(output_high, 1)):
             reduction_indices = set(range(len(weights.shape))) - set([operator.output_feature_channel])
             weights_reduced = np.add.reduce(weights, axis=tuple(reduction_indices))
-            weights_reduced = weights_reduced.reshape([len(weights_reduced), 1, 1])
+            weights_reduced = weights_reduced.reshape([len(weights_reduced), 1, 1])  # FIXME: works for NCHW only
 
-            add_term = Const(graph, {'value': weights_reduced}).create_node()
-            add = Add(graph, {}).create_node()
-            add.in_port(1).connect(add_term.out_port(0))
-            mul_term = Const(graph, {'value': np.array(0.5)}).create_node()
-            mul = Mul(graph, {}).create_node()
-            mul.in_port(1).connect(mul_term.out_port(0))
+            operator_name = operator.soft_get('name', operator.id)
+            add = create_op_node_with_second_input(graph, Add, weights_reduced, {'name': operator_name + '/Add_'})
+            mul = create_op_node_with_second_input(graph, Mul, np.array(0.5), {'name': operator_name + '/Mul_'})
+
             add.out_port(0).connect(mul.in_port(0))
 
             operator.out_port(0).get_connection().set_source(mul.out_port(0))
             add.in_port(0).connect(operator.out_port(0))
 
             operator['pad_value'] = float(-1.0)
-        elif np.all(np.isclose(output_low, -1)) and np.all(np.isclose(output_high, +1)):
+        elif weights_consistent and np.all(np.isclose(output_low, -1)) and np.all(np.isclose(output_high, +1)):
             pass
         else:
             log.debug('ConvToBinaryConv: cannot apply transformation because input range is neither in [0, +1] nor '
@@ -109,6 +110,7 @@ class ConvToBinaryConv(MiddleReplacementPattern):
 
         operator['type'] = 'BinaryConvolution'
         operator['mode'] = 'xnor-popcount'
+        operator['pad_value'] = operator.soft_get('pad_value', float(0))
         operator['input'] = operator.in_node(0).shape[1]
         # Weights are not bit-packed yet; there should be a separate transformation to do that
 

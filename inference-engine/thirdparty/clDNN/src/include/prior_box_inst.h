@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/prior_box.hpp"
+#include "api/prior_box.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>
@@ -31,8 +31,9 @@ struct typed_program_node<prior_box> : typed_program_node_base<prior_box> {
 
     program_node& input() const { return get_dependency(0); }
 
+    bool is_clustered() const { return get_primitive()->is_clustered(); }
     void calc_result();
-    memory_impl& get_result_buffer() const { return *result; }
+    memory_impl::ptr get_result_buffer() const { return result; }
 
 private:
     memory_impl::ptr result;

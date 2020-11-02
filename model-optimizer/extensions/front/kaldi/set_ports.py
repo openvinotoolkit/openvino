@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,12 +28,12 @@ class SetPortsPattern(FrontReplacementSubgraph):
         return [RestorePorts]
 
     def run_after(self):
-        return []
+        from extensions.load.loader import LoadFinish
+        return [LoadFinish]
 
     def find_and_replace_pattern(self, graph: Graph):
         graph.stage = 'front'
-        nodes = graph.nodes(data=False).keys()
-        for node_id in nodes:
+        for node_id in graph.nodes(data=False):
             node = Node(graph, node_id)
             inputs = node.get_sorted_inputs()
             outputs = node.get_sorted_outputs()

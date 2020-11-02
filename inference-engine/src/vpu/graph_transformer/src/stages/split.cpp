@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,49 +16,24 @@ namespace vpu {
 namespace {
 
 class SplitStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<SplitStage>(*this);
     }
 
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(!_outputEdges.empty());
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
 
-        if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales[0];
-
-            for (const auto& outEdge : _outputEdges) {
-                _scaleInfo.setOutput(outEdge, inputScale);
-            }
-        } else {
-            // Split can only propagate scaling.
-            _scaleInfo.setInput(_inputEdges[0], 1.0f);
-
-            for (const auto& outEdge : _outputEdges) {
-                _scaleInfo.setOutput(outEdge, 1.0f);
-            }
+        for (const auto& outEdge : outputEdges()) {
+            orderInfo.setOutput(outEdge, input->desc().dimsOrder());
         }
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(!_outputEdges.empty());
-
-        auto input = _inputEdges[0]->input();
-
-        for (const auto& outEdge : _outputEdges) {
-            _orderInfo.setOutput(outEdge, input->desc().dimsOrder());
-        }
-    }
-
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(!_outputEdges.empty());
-
-        auto input = _inputEdges[0]->input();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        auto input = inputEdge(0)->input();
 
         auto dimsOrder = input->desc().dimsOrder();
 
@@ -68,7 +43,7 @@ protected:
 
         auto minSplitDimInd = dimsOrder.numDims();
 
-        for (const auto& outEdge : _outputEdges) {
+        for (const auto& outEdge : outputEdges()) {
             auto output = outEdge->output();
 
             for (const auto& p : input->desc().dims()) {
@@ -90,7 +65,7 @@ protected:
         // Merge output consumers StridesRequirement.
         //
 
-        for (const auto& outEdge : _outputEdges) {
+        for (const auto& outEdge : outputEdges()) {
             auto curOutput = outEdge->output();
 
             for (const auto& consumerEdge : curOutput->consumerEdges()) {
@@ -123,19 +98,23 @@ protected:
         // Return merged StridesRequirements.
         //
 
-        _stridesInfo.setInput(_inputEdges[0], inputReqs);
-        for (const auto& outEdge : _outputEdges) {
-            _stridesInfo.setOutput(outEdge, outputReqs);
+        stridesInfo.setInput(inputEdge(0), inputReqs);
+        for (const auto& outEdge : outputEdges()) {
+            stridesInfo.setOutput(outEdge, outputReqs);
         }
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& /*batchInfo*/) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        IE_ASSERT(numInputs() == 1);
+        IE_ASSERT(numOutputs() > 0);
+        const auto& firstInputPrecision = input(0)->desc().type();
+        assertAllInputsOutputsTypes(this, {firstInputPrecision}, {firstInputPrecision});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
@@ -149,98 +128,24 @@ protected:
 
 }  // namespace
 
-void FrontEnd::parseSplit(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseSplit(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(!outputs.empty());
 
-    auto layer = std::dynamic_pointer_cast<ie::SplitLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+    const auto split = std::dynamic_pointer_cast<ie::SplitLayer>(layer);
+    IE_ASSERT(split != nullptr);
 
-    auto input = inputs[0];
+    const auto input = inputs[0];
 
-    auto inDesc = input->desc();
-    auto perm = inDesc.dimsOrder().toPermutation();
+    const auto ieRevAxis = input->desc().numDims() - 1 - checked_cast<int>(split->_axis);
+    const auto defPerm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
+    const auto axis = defPerm.at(checked_cast<size_t>(ieRevAxis));
 
-    // Check whether it is Split(copy) or Slice Caffe layer
-    // and we do not trust to IE layer type value.
-    bool isSplit = true;
-
-    for (const auto& output : outputs) {
-        for (int i = 0; i < perm.size(); ++i) {
-            if (inDesc.dim(perm[i]) != output->desc().dim(perm[i])) {
-                isSplit = false;
-                break;
-            }
-        }
-
-        if (!isSplit)
-            break;
-    }
-
-    if (isSplit) {
-        // Split is just a re-usage of the input Data.
-
-        for (int i = 0; i < outputs.size(); ++i) {
-            auto output = outputs[i];
-
-            IE_ASSERT(output->numConsumers() == 0);
-
-            if (output->usage() == DataUsage::Output) {
-                _stageBuilder->addCopyStage(
-                    model,
-                    formatString("%s@copy=%d/%d", layer->name, i + 1, outputs.size()),
-                    layer,
-                    input,
-                    output);
-            } else {
-                IE_ASSERT(output->usage() == DataUsage::Intermediate);
-
-                bindData(input, output->origData());
-            }
-        }
-    } else {
-        // Calculate target axis for slicing.
-
-        DimValues sumDims;
-        for (int i = 0; i < perm.size(); ++i) {
-            sumDims.set(perm[i], 0);
-        }
-        for (const auto& output : outputs) {
-            for (auto& p : sumDims) {
-                p.second += output->desc().dim(p.first);
-            }
-        }
-
-        auto axis = Dim::Invalid;
-        for (const auto& p : sumDims) {
-            if (inDesc.dim(p.first) == p.second) {
-                axis = p.first;
-                break;
-            }
-        }
-
-        IE_ASSERT(axis != Dim::Invalid);
-
-        for (int i = 0; i < perm.size(); ++i) {
-            if (perm[i] == axis) {
-                continue;
-            }
-
-            for (const auto& output : outputs) {
-                IE_ASSERT(inDesc.dim(perm[i]) == output->desc().dim(perm[i]));
-            }
-        }
-
-        _stageBuilder->addSplitStage(model, layer->name, layer, axis, input, outputs);
-    }
+    _stageBuilder->addSplitStage(model, split->name, split, axis, input, outputs);
 }
 
 Stage StageBuilder::addSplitStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         Dim axis,
@@ -248,14 +153,44 @@ Stage StageBuilder::addSplitStage(
         const DataVector& outputs) {
     std::vector<DimValues> offsets;
     offsets.reserve(outputs.size());
-
     DimValues curOffset({{axis, 0}});
-    for (const auto& output : outputs) {
-        offsets.emplace_back(curOffset);
-        curOffset.set(axis, curOffset[axis] + output->desc().dim(axis));
+
+    const auto haveUnusedOutput = [](const DataVector& outputs) {
+        return std::any_of(outputs.begin(), outputs.end(), [](const vpu::Data& out) {
+            return out == nullptr;
+        });
+    };
+
+    std::vector<size_t> outAxisSizes;
+    if (haveUnusedOutput(outputs)) {
+        VPU_THROW_UNLESS(layer != nullptr,
+            "Can't build split stage whith name {} with unused outputs when layer == nullptr", name);
+        const auto outDimsSize = layer->outData[0]->getDims().size();
+        const int idx = dimToIeInd(axis, outDimsSize);
+        outAxisSizes.reserve(outDimsSize);
+        for (const auto& out : layer->outData) {
+            VPU_THROW_UNLESS(idx <= out->getDims().size(),
+                "Split stage with name {} and type {} can't have idx = {} when out dimensions size = {}",
+                layer->name, layer->type, idx, out->getDims().size());
+            outAxisSizes.push_back(out->getDims()[idx]);
+        }
+    } else {
+        outAxisSizes.reserve(outputs.size());
+        for (const auto& output : outputs) {
+            outAxisSizes.push_back(output->desc().dim(axis));
+        }
     }
 
-    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs);
+    vpu::DataVector usedOutputs;
+    for (int i = 0; i < outputs.size(); ++i) {
+        if (outputs[i] != nullptr) {
+            offsets.emplace_back(curOffset);
+            usedOutputs.push_back(outputs[i]);
+        }
+        curOffset.set(axis, curOffset[axis] + outAxisSizes[i]);
+    }
+
+    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, usedOutputs);
 
     stage->attrs().set("axis", axis);
 
@@ -263,7 +198,7 @@ Stage StageBuilder::addSplitStage(
 }
 
 Stage StageBuilder::addSplitStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         std::vector<vpu::DimValues>&& offsets,

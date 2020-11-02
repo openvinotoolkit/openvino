@@ -1,21 +1,22 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_crop_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <algorithm>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNCropNode::MKLDNNCropNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {}
+MKLDNNCropNode::MKLDNNCropNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNCropNode::getSupportedDescriptors() {
     CropLayer* cropLayer = dynamic_cast<CropLayer*>(getCnnLayer().get());
@@ -162,7 +163,7 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
 #ifdef _WIN32
     if (OD == 1 && OH == 1 && OW == 1 && ID == 1 && IH == 1 && IW == 1) {
         for (int n = 0; n < ON; ++n) {
-            memcpy(&dst_data[n*OC], &src_data[(n+OFFSET_N)*IC + OFFSET_C], OC * sizeof(float));
+            cpu_memcpy(&dst_data[n*OC], &src_data[(n+OFFSET_N)*IC + OFFSET_C], OC * sizeof(float));
         }
     } else {
         for (int n = 0; n < ON; ++n) {
@@ -180,7 +181,7 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
                                 (h+OFFSET_H)*IW*m_block_size +
                                 OFFSET_W*m_block_size;
 
-                        memcpy(dst_data + dst_ind, src_data + src_ind, m_inner_dim * sizeof(float));
+                        cpu_memcpy(dst_data + dst_ind, src_data + src_ind, m_inner_dim * sizeof(float));
                     }
                 }
             }
@@ -189,7 +190,7 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
 #else
     if (OD == 1 && OH == 1 && OW == 1 && ID == 1 && IH == 1 && IW == 1) {
         parallel_for(ON, [&](int n) {
-            memcpy(&dst_data[n*OC], &src_data[(n+OFFSET_N)*IC + OFFSET_C], OC * sizeof(float));
+            cpu_memcpy(&dst_data[n*OC], &src_data[(n+OFFSET_N)*IC + OFFSET_C], OC * sizeof(float));
         });
     } else {
         parallel_for2d(ON, (OC / m_block_size), [&](int n, int c) {
@@ -200,7 +201,7 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
                               ((d+OFFSET_D)*IH*IW + OFFSET_H*IW + OFFSET_W)*m_block_size;
 
                 for (int h = 0; h < OH; ++h) {
-                    memcpy(dst_data + dst_ind, src_data + src_ind, m_inner_dim * sizeof(float));
+                    cpu_memcpy(dst_data + dst_ind, src_data + src_ind, m_inner_dim * sizeof(float));
 
                     src_ind += IW * m_block_size;
                     dst_ind += OW * m_block_size;
@@ -214,3 +215,4 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
 bool MKLDNNCropNode::created() const {
     return getType() == Crop;
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNCropNode, Crop);

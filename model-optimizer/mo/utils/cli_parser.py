@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
 import argparse
+import ast
 import logging as log
 import os
 import re
@@ -25,9 +25,11 @@ from itertools import zip_longest
 import numpy as np
 
 from mo.front.extractor import split_node_in_port
+from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils import import_extensions
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
+from mo.utils.version import get_version
 
 
 class DeprecatedStoreTrue(argparse.Action):
@@ -38,6 +40,16 @@ class DeprecatedStoreTrue(argparse.Action):
         dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
         if 'fusing' in option_string:
             dep_msg += 'Please use --finegrain_fusing cli option instead'
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(namespace, self.dest, True)
+
+
+class IgnoredAction(argparse.Action):
+    def __init__(self, nargs=0, **kw):
+        super().__init__(nargs=nargs, **kw)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        dep_msg = "Use of removed cli option '{}' detected. The option is ignored. ".format(option_string)
         log.error(dep_msg, extra={'is_warning': True})
         setattr(namespace, self.dest, True)
 
@@ -74,6 +86,16 @@ class CanonicalizePathCheckExistenceAction(CanonicalizePathAction):
             if name != "" and not os.path.exists(name):
                 raise Error('The value for command line parameter "{}" must be existing file/directory, '
                             ' but "{}" does not exist.'.format(self.dest, name))
+
+
+class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
+    def __call__(self, parser, namespace, values, option_string=None):
+        super().__call__(parser, namespace, values, option_string)
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
+            option_string)
+        if 'tensorflow_use_custom_operations_config' in option_string:
+            dep_msg += 'Please use --transformations_config cli option instead'
+        log.error(dep_msg, extra={'is_warning': True})
 
 
 def readable_file(path: str):
@@ -188,7 +210,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'operation of the graph. If there are multiple inputs in the model, --input_shape '
                                    'should contain definition of shape for each input separated by a comma, for '
                                    'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes. '
-                                   'Alternatively, you can specify shapes with the --input option.')
+                                   'Alternatively, specify shapes with the --input option.')
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
@@ -210,13 +232,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                        'DEBUG', 'NOTSET'],
                               default='ERROR')
     common_group.add_argument('--input',
-                              help='Comma-separated list of input nodes names with shapes ' +
-                                   'and values for freezing. '+
-                                   'For example, use the following format to set input port <port1> ' +
-                                   'of the node <node_name1> with the shape <shape1> as an input node and ' +
-                                   'freeze output port <port2> of the node <node_name2> with the value <value2> ' +
-                                   'and the shape <shape2>: ' +
-                                   'port1:node_name1[shape1], node_name2:port2[shape2]->value2.')
+                              help='Quoted list of comma-separated input nodes names with shapes, data types, '
+                                   'and values for freezing. The shape and value are specified as space-separated lists. '
+                                   'The data type of input node is specified in braces and can have one of the values: '
+                                   'f64 (float64), f32 (float32), f16 (float16), i64 (int64), i32 (int32), u8 (uint8), boolean. '
+                                   'For example, use the following format to set input port 0 '
+                                   'of the node `node_name1` with the shape [3 4] as an input node and '
+                                   'freeze output port 1 of the node `node_name2` with the value [20 15] of the int32 type '
+                                   'and shape [2]: "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
     common_group.add_argument('--output',
                               help='The name of the output operation of the model. ' +
                                    'For TensorFlow*, do not add :0 to this name.')
@@ -256,11 +279,11 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Turn off fusing of grouped convolutions',
                               action=DeprecatedStoreTrue)
     common_group.add_argument('--enable_concat_optimization',
-                              help='Turn on concat optimization',
+                              help='Turn on Concat optimization.',
                               action='store_true')
     common_group.add_argument('--move_to_preprocess',
                               help='Move mean values to IR preprocess section',
-                              action='store_true')
+                              action=DeprecatedStoreTrue)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
                               help="Directory or a comma separated list of directories with extensions. To disable all "
@@ -274,7 +297,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default=None,
                               help="Input batch size")
     common_group.add_argument("--version",
-                              action='store_true',
+                              action='version',
+                              version='Version of Model Optimizer is: {}'.format(get_version()),
                               help="Version of Model Optimizer")
 
     common_group.add_argument('--silent',
@@ -289,18 +313,30 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'It will be DEPRECATED in future releases. '
                                    'Use --input option to specify a value for freezing.',
                               default=None)
-    common_group.add_argument('--generate_deprecated_IR_V2',
-                              help='Force to generate legacy/deprecated IR V2 to work with previous versions of the'
-                                   ' Inference Engine. The resulting IR may or may not be correctly loaded by'
-                                   ' Inference Engine API (including the most recent and old versions of Inference'
-                                   ' Engine) and provided as a partially-validated backup option for specific'
-                                   ' deployment scenarios. Use it at your own discretion. By default, without this'
-                                   ' option, the Model Optimizer generates IR V3.',
-                              action=DeprecatedStoreTrue)
-    common_group.add_argument('--keep_shape_ops',
-                              help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
-                                   'This feature makes model reshapable in Inference Engine',
+    common_group.add_argument('--generate_deprecated_IR_V7',
+                              help='Force to generate deprecated IR V7 with layers from old IR specification.',
+                              action=IgnoredAction,
+                              default=False)
+    common_group.add_argument('--static_shape',
+                              help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
+                                   'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
+                                   'the Inference Engine API in runtime may fail for such an IR.',
                               action='store_true', default=False)
+    common_group.add_argument('--keep_shape_ops',
+                              help='The option is ignored. Expected behavior is enabled by default.',
+                              action=IgnoredAction, default=True)
+    common_group.add_argument('--disable_weights_compression',
+                              help='Disable compression and store weights with original precision.',
+                              action='store_true', default=False)
+    common_group.add_argument('--progress',
+                              help='Enable model conversion progress display.',
+                              action='store_true', default=False)
+    common_group.add_argument('--stream_output',
+                              help='Switch model conversion progress display to a multiline mode.',
+                              action='store_true', default=False)
+    common_group.add_argument('--transformations_config',
+                          help='Use the configuration file with transformations description.',
+                          action=CanonicalizePathCheckExistenceAction)
     return parser
 
 
@@ -341,8 +377,6 @@ def get_caffe_cli_options():
 def get_tf_cli_options():
     d = {
         'input_model_is_text': '- Input model in text protobuf format',
-        'tensorflow_subgraph_patterns': '- Patterns to offload',
-        'tensorflow_operation_patterns': '- Operations to offload',
         'tensorflow_custom_operations_config_update': '- Update the configuration file with input/output node names',
         'tensorflow_use_custom_operations_config': '- Use the config file',
         'tensorflow_object_detection_api_pipeline_config': '- Use configuration file used to generate the model with '
@@ -360,7 +394,8 @@ def get_mxnet_cli_options():
         'nd_prefix_name': '- Prefix name for args.nd and argx.nd files',
         'pretrained_model_name': '- Pretrained model to be merged with the .nd files',
         'save_params_from_nd': '- Enable saving built parameters file from .nd files',
-        'legacy_mxnet_model': '- Enable MXNet loader for models trained with MXNet version lower than 1.0.0'
+        'legacy_mxnet_model': '- Enable MXNet loader for models trained with MXNet version lower than 1.0.0',
+        'transformations_config': '- Use the config file',
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
@@ -369,7 +404,8 @@ def get_mxnet_cli_options():
 def get_kaldi_cli_options():
     d = {
         'counts': '- A file name with full path to the counts file',
-        'remove_output_softmax': '- Removes the SoftMax layer that is the output layer'
+        'remove_output_softmax': '- Removes the SoftMax layer that is the output layer',
+        'remove_memory': '- Removes the Memory layer and use additional inputs and outputs instead'
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
@@ -391,7 +427,7 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
         ArgumentParser instance
     """
     if not parser:
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
     caffe_group = parser.add_argument_group('Caffe*-specific parameters')
@@ -448,7 +484,7 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
         ArgumentParser instance
     """
     if not parser:
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
     tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
@@ -463,27 +499,20 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_file)
     tf_group.add_argument('--saved_model_dir', default=None,
-                          help="TensorFlow*: directory representing non frozen model",
+                          help='TensorFlow*: directory with a model in SavedModel format'
+                               'of TensorFlow 1.x or 2.x version.',
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_dirs)
     tf_group.add_argument('--saved_model_tags', type=str, default=None,
                           help="Group of tag(s) of the MetaGraphDef to load, in string format, separated by ','. "
                                "For tag-set contains multiple tags, all tags must be passed in.")
-    tf_group.add_argument('--tensorflow_subgraph_patterns',
-                          help='TensorFlow*: a list of comma separated patterns that will be applied to ' +
-                               'TensorFlow* node names to ' +
-                               'infer a part of the graph using TensorFlow*.')
-    tf_group.add_argument('--tensorflow_operation_patterns',
-                          help='TensorFlow*: a list of comma separated patterns that will be applied to ' +
-                               'TensorFlow* node type (ops) ' +
-                               'to infer these operations using TensorFlow*.')
     tf_group.add_argument('--tensorflow_custom_operations_config_update',
                           help='TensorFlow*: update the configuration file with node name patterns with input/output '
                                'nodes information.',
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_use_custom_operations_config',
-                          help='TensorFlow*: use the configuration file with custom operation description.',
-                          action=CanonicalizePathCheckExistenceAction)
+                              help='Use the configuration file with custom operation description.',
+                              action=DeprecatedCanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_object_detection_api_pipeline_config',
                           help='TensorFlow*: path to the pipeline configuration file used to generate model created '
                                'with help of Object Detection API.',
@@ -512,7 +541,7 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
         ArgumentParser instance
     """
     if not parser:
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
     mx_group = parser.add_argument_group('Mxnet-specific parameters')
@@ -551,7 +580,7 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
         ArgumentParser instance
     """
     if not parser:
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
     kaldi_group = parser.add_argument_group('Kaldi-specific parameters')
@@ -563,7 +592,13 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
 
     kaldi_group.add_argument("--remove_output_softmax",
                              help="Removes the SoftMax layer that is the output layer",
-                             action='store_true')
+                             action='store_true',
+                             default=False)
+
+    kaldi_group.add_argument("--remove_memory",
+                             help="Removes the Memory layer and use additional inputs outputs instead",
+                             action='store_true',
+                             default=False)
     return parser
 
 
@@ -576,10 +611,10 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         ArgumentParser instance
     """
     if not parser:
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    tf_group = parser.add_argument_group('ONNX*-specific parameters')
+    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
 
     return parser
 
@@ -592,7 +627,7 @@ def get_all_cli_parser():
     -------
         ArgumentParser instance
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
@@ -610,10 +645,85 @@ def get_all_cli_parser():
     return parser
 
 
-def append_exp_keys_to_namespace(argv: argparse.Namespace):
-    setattr(argv, 'generate_experimental_IR_V10', False)
-    setattr(argv, 'keep_quantize_ops_in_IR', False)
-    setattr(argv, 'blobs_as_inputs', False)
+def remove_data_type_from_input_value(input_value: str):
+    """
+    Removes the type specification from the input string. The type specification is a string enclosed with curly braces.
+    :param input_value: string passed as input to the --input command line parameter
+    :return: string without type specification
+    """
+    return re.sub(r'\{.*\}', '', input_value)
+
+
+def get_data_type_from_input_value(input_value: str):
+    """
+    Returns the numpy data type corresponding to the data type specified in the input value string
+    :param input_value: string passed as input to the --input command line parameter
+    :return: the corresponding numpy data type and None if the data type is not specified in the input value
+    """
+    data_type_match = re.match(r'.*\{(.*)\}.*', input_value)
+    return destination_type_to_np_data_type(data_type_match.group(1)) if data_type_match is not None else None
+
+
+def remove_shape_from_input_value(input_value: str):
+    """
+    Removes the shape specification from the input string. The shape specification is a string enclosed with square
+    brackets.
+    :param input_value: string passed as input to the --input command line parameter
+    :return: string without shape specification
+    """
+    assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
+    return re.sub(r'[(\[]([0-9  -]*)[)\]]', '', input_value)
+
+
+def get_shape_from_input_value(input_value: str):
+    """
+    Returns the numpy array with shape corresponding to the shape specified in the input value string
+    :param input_value: string passed as input to the --input command line parameter
+    :return: the corresponding shape and None if the shape is not specified in the input value
+    """
+    # remove the tensor value from the input_value first
+    input_value = input_value.split('->')[0]
+
+    # parse shape
+    shape = re.findall(r'[(\[]([0-9  -]*)[)\]]', input_value)
+    if len(shape) == 0:
+        shape = None
+    elif len(shape) == 1:
+        shape = np.fromstring(shape[0], dtype=np.int64, sep=' ')
+    else:
+        raise Error("Wrong syntax to specify shape. Use --input "
+                    "\"node_name[shape]->value\"")
+    return shape
+
+
+def get_node_name_with_port_from_input_value(input_value: str):
+    """
+    Returns the node name (optionally with input/output port) from the input value
+    :param input_value: string passed as input to the --input command line parameter
+    :return: the corresponding node name with input/output port
+    """
+    return remove_shape_from_input_value(remove_data_type_from_input_value(input_value.split('->')[0]))
+
+
+def get_value_from_input_value(input_value: str):
+    """
+    Returns the value from the input value string
+    :param input_value: string passed as input to the --input command line parameter
+    :return: the corresponding value or None if it is not specified
+    """
+    parts = input_value.split('->')
+    value = None
+    if len(parts) == 2:
+        value = parts[1]
+        if value[0] == '[' and value[-1] != ']' or value[0] != '[' and value[-1] == ']':
+            raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
+        if '[' in value.strip(' '):
+            value = value.replace('[', '').replace(']', '').split(' ')
+        if not isinstance(value, list):
+            value = ast.literal_eval(value)
+    elif len(parts) > 2:
+        raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
+    return value
 
 
 def parse_input_value(input_value: str):
@@ -624,50 +734,24 @@ def parse_input_value(input_value: str):
     Parameters
     ----------
     input_value
-        string with a specified node name, shape and value.
-        E.g. 'node_name:0[4]->[1.0 2.0 3.0 4.0]'
+        string with a specified node name, shape, value and data_type.
+        E.g. 'node_name:0[4]{fp32}->[1.0 2.0 3.0 4.0]'
 
     Returns
     -------
-        Node name, shape and value
-        E.g. 'node_name:0', '4', [1.0 2.0 3.0 4.0]
+        Node name, shape, value, data type
+        E.g. 'node_name:0', '4', [1.0 2.0 3.0 4.0], np.float32
     """
-    input_value = input_value.split('->')
-    node_name_with_shape = input_value[0]
+    data_type = get_data_type_from_input_value(input_value)
+    node_name = get_node_name_with_port_from_input_value(input_value)
+    value = get_value_from_input_value(input_value)
+    shape = get_shape_from_input_value(input_value.split('->')[0])
+    value_size = np.prod(len(value)) if isinstance(value, list) else 1
 
-    # parse a node name
-    node_name = node_name_with_shape.split('[')[0]
-
-    # parse shape
-    shape = re.findall(r'[(\[]([0-9  -]+)[)\]]', node_name_with_shape)
-    if len(shape) == 0:
-        shape = None
-    elif len(shape) == 1:
-        shape = np.fromstring(shape[0], dtype=np.int64, sep=' ')
-    else:
-        raise Error("Wrong syntax to specify shape. Use --input "
-                    "\"node_name[shape]->value\"")
-
-    # parse value, compute shape and check it
-    value = None
-    if len(input_value) == 2:
-        value = input_value[1]
-        # check format of value
-        if value[0] == '[' and value[-1] != ']' or value[0] != '[' and value[-1] == ']':
-            raise Error("Wrong syntax to specify value. Use --input "
-                        "\"node_name[shape]->value\"")
-        # TODO: support multidimensional value: check format, compute value shape
-        # and check that value shape is equal to shape
-        if '[' in value.strip(' '):
-            value = value.replace('[', '').replace(']', '').split(' ')
-        value_size = len(value)
-        if shape is not None and np.prod(shape) != value_size:
-            raise Error("Wrong syntax to specify value.")
-    elif len(input_value) > 2:
-        raise Error("Wrong syntax to specify value. Use --input "
-                    "\"node_name[shape]->value\"")
-
-    return node_name, shape, value
+    if shape is not None and value is not None and np.prod(shape) != value_size:
+        raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
+                    "value: {}".format(shape, node_name, value_size, value))
+    return node_name, shape, value, data_type
 
 
 def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):
@@ -687,7 +771,6 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     -------
         parsed placeholders with values for freezing
         input nodes cleaned from shape info
-
     """
     placeholder_values = {}
     input_node_names = None
@@ -711,7 +794,7 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
         input_node_names = ''
         # walkthrough all input values and save values for freezing
         for input_value in argv_input.split(','):
-            node_name, _, value = parse_input_value(input_value)
+            node_name, _, value, _ = parse_input_value(input_value)
             input_node_names = input_node_names + ',' + node_name  if input_node_names != '' else node_name
             if value is None: # no value is specified for freezing
                 continue
@@ -753,22 +836,27 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
 
     # attempt to extract shapes from --input parameters
     placeholder_shapes = dict()
+    placeholder_data_types = dict()
     are_shapes_specified_through_input = False
     if argv_input:
         for input_value in argv_input.split(','):
-            node_name, shape, _ = parse_input_value(input_value)
+            node_name, shape, _, data_type = parse_input_value(input_value)
             placeholder_shapes[node_name] = shape
+            if data_type is not None:
+                placeholder_data_types[node_name] = data_type
             if shape is not None:
                 are_shapes_specified_through_input = True
 
     if argv_input_shape and are_shapes_specified_through_input:
-        raise Error("Shapes are specified using both --input and --input_shape command-line parameters, but only one parameter is allowed.")
+        raise Error("Shapes are specified using both --input and --input_shape command-line parameters, but only one "
+                    "parameter is allowed.")
 
     if argv_batch and are_shapes_specified_through_input:
-        raise Error("Shapes are specified using both --input and --batch command-line parameters, but only one parameter is allowed.")
+        raise Error("Shapes are specified using both --input and --batch command-line parameters, but only one "
+                    "parameter is allowed.")
 
     if are_shapes_specified_through_input:
-        return placeholder_shapes
+        return placeholder_shapes, placeholder_data_types
 
     shapes = list()
     inputs = list()
@@ -781,22 +869,19 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     if argv_input_shape:
         full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
         if not re.match(full_reg, argv_input_shape):
-            raise Error('Input shape "{}" cannot be parsed. ' +
-                        refer_to_faq_msg(57), argv_input_shape)
-
+            raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
         shapes = re.findall(r'[(\[]([0-9, -]+)[)\]]', argv_input_shape)
 
     if argv_input:
         inputs = argv_input.split(',')
+    inputs = [remove_data_type_from_input_value(inp) for inp in inputs]
 
     # check number of shapes with no input provided
     if argv_input_shape and not argv_input:
         if len(shapes) > 1:
-            raise Error('Please provide input layer names for input layer shapes. ' +
-                        refer_to_faq_msg(58))
+            raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
         else:
             placeholder_shapes = np.fromstring(shapes[0], dtype=np.int64, sep=',')
-
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing
@@ -805,10 +890,9 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
                                               map(lambda x: np.fromstring(x, dtype=np.int64,
                                                                           sep=',') if x else None, shapes)))
     elif argv_input:
-        raise Error('Please provide each input layers with an input layer shape. ' +
-                    refer_to_faq_msg(58))
+        raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
 
-    return placeholder_shapes
+    return placeholder_shapes, placeholder_data_types
 
 
 def parse_tuple_pairs(argv_values: str):
@@ -924,7 +1008,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     Returns
     -------
     The function returns a dictionary e.g.
-    mean = { 'data: np.array, 'info': np.array }, scale = { 'data: np.array, 'info': np.array }, input = "data, info" ->
+    mean = { 'data': np.array, 'info': np.array }, scale = { 'data': np.array, 'info': np.array }, input = "data, info" ->
      { 'data': { 'mean': np.array, 'scale': np.array }, 'info': { 'mean': np.array, 'scale': np.array } }
 
     """
@@ -945,6 +1029,17 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     if type(mean_values) is dict and type(scale_values) is dict:
         if not mean_values and not scale_values:
             return res
+
+        for inp_scale in scale_values.keys():
+            if inp_scale not in inputs:
+                raise Error("Specified scale_values name '{}' do not match to any of inputs: {}. "
+                            "Please set 'scale_values' that correspond to values from input.".format(inp_scale, inputs))
+
+        for inp_mean in mean_values.keys():
+            if inp_mean not in inputs:
+                raise Error("Specified mean_values name '{}' do not match to any of inputs: {}. "
+                            "Please set 'mean_values' that correspond to values from input.".format(inp_mean, inputs))
+
         for inp in inputs:
             inp, port = split_node_in_port(inp)
             if inp in mean_values or inp in scale_values:
@@ -1018,7 +1113,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
                     }
                 )
             return res
-    # mean and scale are specified without inputs, return list, order is not guaranteed (?)
+    # mean and/or scale are specified without inputs
     return list(zip_longest(mean_values, scale_values))
 
 

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
 """
 
 import logging as log
-
-import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
@@ -72,10 +70,6 @@ class BlockLSTM(FrontReplacementOp):
             if p == edge_info['in']:
                 return k
         return key
-
-    def run_after(self):
-        from extensions.front.restore_ports import RestorePorts
-        return [RestorePorts]
 
     def replace_op(self, graph: Graph, node: Node):
         if node.use_peephole:

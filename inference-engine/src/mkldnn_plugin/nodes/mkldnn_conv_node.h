@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,11 @@
 
 namespace MKLDNNPlugin {
 
+class MKLDNNEltwiseNode;
+
 class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -23,20 +25,45 @@ public:
     void initDescriptor(const InferenceEngine::LayerConfig& config) override;
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
+    void filterSupportedPrimitiveDescriptors() override;
+    void filterSupportedDescriptors();
+    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc);
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
 
+    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+        return static_cast<size_t>(baseInputsNumber);
+    }
+
+    int getBaseIntputsNumber() {
+        return baseInputsNumber;
+    }
+
+    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+
+    const mkldnn::memory& getWeights() const;
+    const mkldnn::memory& getBias() const;
+
+    bool canBeExecutedInInt8();
+
+    std::vector<uint8_t> inputZeroPoints;
+    std::vector<float> weightsZeroPoints;
+    std::vector<int32_t> outputCompensation;
+
 protected:
     void addScaleToPrimitiveAttr(mkldnn::primitive_attr attr) const;
+    InferenceEngine::Precision fusedEltwisePrecision(MKLDNNEltwiseNode *eltwiseNode, int findex);
 
 private:
-    static Register<MKLDNNConvolutionNode> reg;
+    mkldnn::memory::data_type precisionToDataType(InferenceEngine::Precision prec);
+    void addZeroPoints(mkldnn::primitive_attr& attr) const;
+
     bool withBiases;
-    bool withActivation;
     bool withSum;
+    bool withDWConv;
     bool isDW;
     bool isMerged;
     bool isGrouped;
@@ -55,8 +82,12 @@ private:
     mkldnn::memory::data_type dw_conv_in_dt;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 
-    InferenceEngine::ConvolutionLayer* convLayer;
     InferenceEngine::Blob::Ptr wScale, oScale;
+
+    size_t groupNum;
+    int baseInputsNumber;
+
+    InferenceEngine::Precision eltwisePrecision;
 };
 
 }  // namespace MKLDNNPlugin

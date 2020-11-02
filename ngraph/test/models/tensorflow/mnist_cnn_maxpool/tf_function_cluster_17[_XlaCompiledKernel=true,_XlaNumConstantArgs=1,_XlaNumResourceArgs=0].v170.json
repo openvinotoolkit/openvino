@@ -1,0 +1,1219 @@
+[{
+  "name" : "Function_6",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_323",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_323_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_322",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_322_0"],
+      "shape" : [ 50, 784 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_321",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_321_0"],
+      "shape" : [10]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_320",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_320_0"],
+      "shape" : [ 1024, 10 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_319",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_319_0"],
+      "shape" : [1024]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_318",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_318_0"],
+      "shape" : [ 3136, 1024 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_317",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_317_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_316",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_316_0"],
+      "shape" : [ 5, 5, 32, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_315",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_315_0"],
+      "shape" : [32]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_314",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_314_0"],
+      "shape" : [ 5, 5, 1, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_469",
+      "op" : "Constant",
+      "outputs" : ["Constant_469_0"],
+      "shape" : [],
+      "value" : ["50"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_326",
+      "op" : "Constant",
+      "outputs" : ["Constant_326_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_325",
+      "op" : "Constant",
+      "outputs" : ["Constant_325_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_324",
+      "op" : "Constant",
+      "outputs" : ["Constant_324_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_441",
+      "op" : "Constant",
+      "outputs" : ["Constant_441_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_422",
+      "op" : "Constant",
+      "outputs" : ["Constant_422_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_411",
+      "op" : "Constant",
+      "outputs" : ["Constant_411_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "int32_t",
+      "inputs" : [],
+      "name" : "Constant_372",
+      "op" : "Constant",
+      "outputs" : ["Constant_372_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "int32_t",
+      "inputs" : [],
+      "name" : "Constant_365",
+      "op" : "Constant",
+      "outputs" : ["Constant_365_0"],
+      "shape" : [1],
+      "value" : ["50"]
+    },
+    {
+      "element_type" : "int32_t",
+      "inputs" : [],
+      "name" : "Constant_381",
+      "op" : "Constant",
+      "outputs" : ["Constant_381_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "int32_t",
+      "inputs" : [],
+      "name" : "Constant_370",
+      "op" : "Constant",
+      "outputs" : ["Constant_370_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_361",
+      "op" : "Constant",
+      "outputs" : ["Constant_361_0"],
+      "shape" : [1],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_359",
+      "op" : "Constant",
+      "outputs" : ["Constant_359_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Parameter_323"],
+      "name" : "Reshape_400",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 10 ],
+      "outputs" : ["Reshape_400_0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Parameter_322"],
+      "name" : "Reshape_327",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 28, 28, 1 ],
+      "outputs" : ["Reshape_327_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_321"],
+      "name" : "Broadcast_357",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_357_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_320"],
+      "name" : "Reshape_414",
+      "op" : "Reshape",
+      "output_shape" : [ 10, 1024 ],
+      "outputs" : ["Reshape_414_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_319"],
+      "name" : "Broadcast_352",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_352_0"],
+      "shape" : [ 50, 1024 ]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_318"],
+      "name" : "Reshape_425",
+      "op" : "Reshape",
+      "output_shape" : [ 1024, 3136 ],
+      "outputs" : ["Reshape_425_0"]
+    },
+    {
+      "axes" : [ 0, 1, 2 ],
+      "inputs" : ["Parameter_317"],
+      "name" : "Broadcast_343",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_343_0"],
+      "shape" : [ 50, 14, 14, 64 ]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_316"],
+      "name" : "Reshape_340",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 32, 5, 5 ],
+      "outputs" : ["Reshape_340_0"]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_316"],
+      "name" : "Reshape_445",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 32, 5, 5 ],
+      "outputs" : ["Reshape_445_0"]
+    },
+    {
+      "axes" : [ 0, 1, 2 ],
+      "inputs" : ["Parameter_315"],
+      "name" : "Broadcast_332",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_332_0"],
+      "shape" : [ 50, 28, 28, 32 ]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_314"],
+      "name" : "Reshape_329",
+      "op" : "Reshape",
+      "output_shape" : [ 32, 1, 5, 5 ],
+      "outputs" : ["Reshape_329_0"]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_326"],
+      "name" : "Broadcast_334",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_334_0"],
+      "shape" : [ 50, 28, 28, 32 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_325"],
+      "name" : "Broadcast_345",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_345_0"],
+      "shape" : [ 50, 14, 14, 64 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_324"],
+      "name" : "Broadcast_354",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_354_0"],
+      "shape" : [ 50, 1024 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_441"],
+      "name" : "Broadcast_442",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_442_0"],
+      "shape" : [ 50, 28, 28, 32 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_422"],
+      "name" : "Broadcast_423",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_423_0"],
+      "shape" : [ 50, 14, 14, 64 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_411"],
+      "name" : "Broadcast_412",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_412_0"],
+      "shape" : [ 50, 1024 ]
+    },
+    {
+      "input_order" : [],
+      "inputs" : ["Constant_372"],
+      "name" : "Reshape_373",
+      "op" : "Reshape",
+      "output_shape" : [1],
+      "outputs" : ["Reshape_373_0"]
+    },
+    {
+      "inputs" : ["Constant_365"],
+      "name" : "Product_366",
+      "op" : "Product",
+      "outputs" : ["Product_366_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Constant_361"],
+      "name" : "Reshape_362",
+      "op" : "Reshape",
+      "output_shape" : [],
+      "outputs" : ["Reshape_362_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Constant_359"],
+      "name" : "Broadcast_360",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_360_0"],
+      "shape" : [50]
+    },
+    {
+      "inputs" : ["Reshape_400"],
+      "name" : "Negative_461",
+      "op" : "Negative",
+      "outputs" : ["Negative_461_0"]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Reshape_327"],
+      "name" : "Reshape_456",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 50, 28, 28 ],
+      "outputs" : ["Reshape_456_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_327"],
+      "name" : "Reshape_328",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 1, 28, 28 ],
+      "outputs" : ["Reshape_328_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Reshape_373"],
+      "name" : "Broadcast_374",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_374_0"],
+      "shape" : [ 1, 1 ]
+    },
+    {
+      "input_order" : [],
+      "inputs" : ["Product_366"],
+      "name" : "Reshape_367",
+      "op" : "Reshape",
+      "output_shape" : [1],
+      "outputs" : ["Reshape_367_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Reshape_362"],
+      "name" : "Broadcast_363",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_363_0"],
+      "shape" : [50]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_328", "Reshape_329" ],
+      "name" : "Convolution_330",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_330_0"],
+      "padding_above" : [ 2, 2 ],
+      "padding_below" : [ 2, 2 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Broadcast_374"],
+      "name" : "Reshape_375",
+      "op" : "Reshape",
+      "output_shape" : [],
+      "outputs" : ["Reshape_375_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Reshape_367"],
+      "name" : "Broadcast_368",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_368_0"],
+      "shape" : [ 1, 1 ]
+    },
+    {
+      "inputs" : [ "Broadcast_360", "Broadcast_363" ],
+      "name" : "Add_364",
+      "op" : "Add",
+      "outputs" : ["Add_364_0"]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["Convolution_330"],
+      "name" : "Reshape_331",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 28, 28, 32 ],
+      "outputs" : ["Reshape_331_0"]
+    },
+    {
+      "inputs" : [ "Reshape_375", "Constant_370" ],
+      "name" : "Less_376",
+      "op" : "Less",
+      "outputs" : ["Less_376_0"]
+    },
+    {
+      "inputs" : ["Reshape_375"],
+      "name" : "Abs_379",
+      "op" : "Abs",
+      "outputs" : ["Abs_379_0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Broadcast_368"],
+      "name" : "Reshape_369",
+      "op" : "Reshape",
+      "output_shape" : [],
+      "outputs" : ["Reshape_369_0"]
+    },
+    {
+      "inputs" : [ "Reshape_331", "Broadcast_332" ],
+      "name" : "Add_333",
+      "op" : "Add",
+      "outputs" : ["Add_333_0"]
+    },
+    {
+      "inputs" : [ "Reshape_369", "Constant_370" ],
+      "name" : "Less_371",
+      "op" : "Less",
+      "outputs" : ["Less_371_0"]
+    },
+    {
+      "inputs" : [ "Reshape_369", "Reshape_375" ],
+      "name" : "Divide_385",
+      "op" : "Divide",
+      "outputs" : ["Divide_385_0"]
+    },
+    {
+      "inputs" : ["Reshape_369"],
+      "name" : "Abs_378",
+      "op" : "Abs",
+      "outputs" : ["Abs_378_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_334", "Add_333" ],
+      "name" : "Maximum_335",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_335_0"]
+    },
+    {
+      "inputs" : [ "Less_371", "Less_376" ],
+      "name" : "NotEqual_377",
+      "op" : "NotEqual",
+      "outputs" : ["NotEqual_377_0"]
+    },
+    {
+      "inputs" : [ "Abs_378", "Abs_379" ],
+      "name" : "Add_380",
+      "op" : "Add",
+      "outputs" : ["Add_380_0"]
+    },
+    {
+      "inputs" : [ "Maximum_335", "Broadcast_442" ],
+      "name" : "Greater_443",
+      "op" : "Greater",
+      "outputs" : ["Greater_443_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Maximum_335"],
+      "name" : "Reshape_336",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 32, 28, 28 ],
+      "outputs" : ["Reshape_336_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Maximum_335"],
+      "name" : "Reshape_448",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 32, 28, 28 ],
+      "outputs" : ["Reshape_448_0"]
+    },
+    {
+      "inputs" : [ "Add_380", "Constant_381" ],
+      "name" : "Subtract_382",
+      "op" : "Subtract",
+      "outputs" : ["Subtract_382_0"]
+    },
+    {
+      "inputs" : ["Reshape_336"],
+      "name" : "MaxPool_337",
+      "op" : "MaxPool",
+      "outputs" : ["MaxPool_337_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "inputs" : ["Subtract_382"],
+      "name" : "Negative_383",
+      "op" : "Negative",
+      "outputs" : ["Negative_383_0"]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["MaxPool_337"],
+      "name" : "Reshape_338",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 14, 14, 32 ],
+      "outputs" : ["Reshape_338_0"]
+    },
+    {
+      "inputs" : [ "Negative_383", "Abs_379" ],
+      "name" : "Divide_384",
+      "op" : "Divide",
+      "outputs" : ["Divide_384_0"]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Reshape_338"],
+      "name" : "Reshape_436",
+      "op" : "Reshape",
+      "output_shape" : [ 32, 50, 14, 14 ],
+      "outputs" : ["Reshape_436_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_338"],
+      "name" : "Reshape_339",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 32, 14, 14 ],
+      "outputs" : ["Reshape_339_0"]
+    },
+    {
+      "inputs" : [ "NotEqual_377", "Divide_384", "Divide_385" ],
+      "name" : "Select_386",
+      "op" : "Select",
+      "outputs" : ["Select_386_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_339", "Reshape_340" ],
+      "name" : "Convolution_341",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_341_0"],
+      "padding_above" : [ 2, 2 ],
+      "padding_below" : [ 2, 2 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "inputs" : ["Select_386"],
+      "name" : "Convert_387",
+      "op" : "Convert",
+      "outputs" : ["Convert_387_0"],
+      "target_type" : "float"
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["Convolution_341"],
+      "name" : "Reshape_342",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 14, 14, 64 ],
+      "outputs" : ["Reshape_342_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Convert_387"],
+      "name" : "Broadcast_388",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_388_0"],
+      "shape" : [50]
+    },
+    {
+      "inputs" : [ "Reshape_342", "Broadcast_343" ],
+      "name" : "Add_344",
+      "op" : "Add",
+      "outputs" : ["Add_344_0"]
+    },
+    {
+      "inputs" : [ "Add_364", "Broadcast_388" ],
+      "name" : "Divide_389",
+      "op" : "Divide",
+      "outputs" : ["Divide_389_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_345", "Add_344" ],
+      "name" : "Maximum_346",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_346_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Divide_389"],
+      "name" : "Reshape_390",
+      "op" : "Reshape",
+      "output_shape" : [50],
+      "outputs" : ["Reshape_390_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Maximum_346"],
+      "name" : "Reshape_428",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 14, 14 ],
+      "outputs" : ["Reshape_428_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Maximum_346"],
+      "name" : "Reshape_347",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 14, 14 ],
+      "outputs" : ["Reshape_347_0"]
+    },
+    {
+      "inputs" : [ "Maximum_346", "Broadcast_423" ],
+      "name" : "Greater_424",
+      "op" : "Greater",
+      "outputs" : ["Greater_424_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Reshape_390"],
+      "name" : "Reshape_391",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 1 ],
+      "outputs" : ["Reshape_391_0"]
+    },
+    {
+      "inputs" : ["Reshape_347"],
+      "name" : "MaxPool_348",
+      "op" : "MaxPool",
+      "outputs" : ["MaxPool_348_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Reshape_391"],
+      "name" : "Reshape_402",
+      "op" : "Reshape",
+      "output_shape" : [50],
+      "outputs" : ["Reshape_402_0"]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["MaxPool_348"],
+      "name" : "Reshape_349",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 7, 7, 64 ],
+      "outputs" : ["Reshape_349_0"]
+    },
+    {
+      "axes" : [1],
+      "inputs" : ["Reshape_402"],
+      "name" : "Broadcast_403",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_403_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_349"],
+      "name" : "Reshape_350",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 3136 ],
+      "outputs" : ["Reshape_350_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Reshape_350"],
+      "name" : "Reshape_419",
+      "op" : "Reshape",
+      "output_shape" : [ 3136, 50 ],
+      "outputs" : ["Reshape_419_0"]
+    },
+    {
+      "inputs" : [ "Reshape_350", "Parameter_318" ],
+      "name" : "Dot_351",
+      "op" : "Dot",
+      "outputs" : ["Dot_351_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Dot_351", "Broadcast_352" ],
+      "name" : "Add_353",
+      "op" : "Add",
+      "outputs" : ["Add_353_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_354", "Add_353" ],
+      "name" : "Maximum_355",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_355_0"]
+    },
+    {
+      "inputs" : [ "Maximum_355", "Parameter_320" ],
+      "name" : "Dot_356",
+      "op" : "Dot",
+      "outputs" : ["Dot_356_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Maximum_355", "Broadcast_412" ],
+      "name" : "Greater_413",
+      "op" : "Greater",
+      "outputs" : ["Greater_413_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Maximum_355"],
+      "name" : "Reshape_408",
+      "op" : "Reshape",
+      "output_shape" : [ 1024, 50 ],
+      "outputs" : ["Reshape_408_0"]
+    },
+    {
+      "inputs" : [ "Dot_356", "Broadcast_357" ],
+      "name" : "Add_358",
+      "op" : "Add",
+      "outputs" : ["Add_358_0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Add_358"],
+      "name" : "Reshape_392",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 10 ],
+      "outputs" : ["Reshape_392_0"]
+    },
+    {
+      "inputs" : ["Reshape_392"],
+      "name" : "Max_393",
+      "op" : "Max",
+      "outputs" : ["Max_393_0"],
+      "reduction_axes" : [1]
+    },
+    {
+      "axes" : [1],
+      "inputs" : ["Max_393"],
+      "name" : "Broadcast_394",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_394_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "inputs" : [ "Reshape_392", "Broadcast_394" ],
+      "name" : "Subtract_395",
+      "op" : "Subtract",
+      "outputs" : ["Subtract_395_0"]
+    },
+    {
+      "inputs" : ["Subtract_395"],
+      "name" : "Exp_396",
+      "op" : "Exp",
+      "outputs" : ["Exp_396_0"]
+    },
+    {
+      "inputs" : ["Exp_396"],
+      "name" : "Sum_397",
+      "op" : "Sum",
+      "outputs" : ["Sum_397_0"],
+      "reduction_axes" : [1]
+    },
+    {
+      "inputs" : ["Sum_397"],
+      "name" : "Log_462",
+      "op" : "Log",
+      "outputs" : ["Log_462_0"]
+    },
+    {
+      "axes" : [1],
+      "inputs" : ["Sum_397"],
+      "name" : "Broadcast_398",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_398_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "axes" : [1],
+      "inputs" : ["Log_462"],
+      "name" : "Broadcast_463",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_463_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "inputs" : [ "Exp_396", "Broadcast_398" ],
+      "name" : "Divide_399",
+      "op" : "Divide",
+      "outputs" : ["Divide_399_0"]
+    },
+    {
+      "inputs" : [ "Subtract_395", "Broadcast_463" ],
+      "name" : "Subtract_464",
+      "op" : "Subtract",
+      "outputs" : ["Subtract_464_0"]
+    },
+    {
+      "inputs" : [ "Divide_399", "Reshape_400" ],
+      "name" : "Subtract_401",
+      "op" : "Subtract",
+      "outputs" : ["Subtract_401_0"]
+    },
+    {
+      "inputs" : [ "Negative_461", "Subtract_464" ],
+      "name" : "Multiply_465",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_465_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_403", "Subtract_401" ],
+      "name" : "Multiply_404",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_404_0"]
+    },
+    {
+      "inputs" : ["Multiply_465"],
+      "name" : "Sum_466",
+      "op" : "Sum",
+      "outputs" : ["Sum_466_0"],
+      "reduction_axes" : [1]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Multiply_404"],
+      "name" : "Reshape_405",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 10 ],
+      "outputs" : ["Reshape_405_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Sum_466"],
+      "name" : "Reshape_467",
+      "op" : "Reshape",
+      "output_shape" : [50],
+      "outputs" : ["Reshape_467_0"]
+    },
+    {
+      "inputs" : ["Reshape_405"],
+      "name" : "Sum_406",
+      "op" : "Sum",
+      "outputs" : ["Sum_406_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Reshape_405"],
+      "name" : "Reshape_409",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 10 ],
+      "outputs" : ["Reshape_409_0"]
+    },
+    {
+      "inputs" : ["Reshape_467"],
+      "name" : "Sum_468",
+      "op" : "Sum",
+      "outputs" : ["Sum_468_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Sum_406"],
+      "name" : "Reshape_407",
+      "op" : "Reshape",
+      "output_shape" : [10],
+      "outputs" : ["Reshape_407_0"]
+    },
+    {
+      "inputs" : [ "Reshape_408", "Reshape_409" ],
+      "name" : "Dot_410",
+      "op" : "Dot",
+      "outputs" : ["Dot_410_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Reshape_409", "Reshape_414" ],
+      "name" : "Dot_415",
+      "op" : "Dot",
+      "outputs" : ["Dot_415_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Sum_468", "Constant_469" ],
+      "name" : "Divide_470",
+      "op" : "Divide",
+      "outputs" : ["Divide_470_0"]
+    },
+    {
+      "inputs" : [ "Greater_413", "Dot_415", "Broadcast_412" ],
+      "name" : "Select_416",
+      "op" : "Select",
+      "outputs" : ["Select_416_0"]
+    },
+    {
+      "inputs" : ["Select_416"],
+      "name" : "Sum_417",
+      "op" : "Sum",
+      "outputs" : ["Sum_417_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Select_416"],
+      "name" : "Reshape_420",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 1024 ],
+      "outputs" : ["Reshape_420_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Sum_417"],
+      "name" : "Reshape_418",
+      "op" : "Reshape",
+      "output_shape" : [1024],
+      "outputs" : ["Reshape_418_0"]
+    },
+    {
+      "inputs" : [ "Reshape_420", "Reshape_425" ],
+      "name" : "Dot_426",
+      "op" : "Dot",
+      "outputs" : ["Dot_426_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Reshape_419", "Reshape_420" ],
+      "name" : "Dot_421",
+      "op" : "Dot",
+      "outputs" : ["Dot_421_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Dot_426"],
+      "name" : "Reshape_427",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 7, 7, 64 ],
+      "outputs" : ["Reshape_427_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_427"],
+      "name" : "Reshape_429",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 7, 7 ],
+      "outputs" : ["Reshape_429_0"]
+    },
+    {
+      "inputs" : [ "Reshape_428", "Reshape_429" ],
+      "name" : "MaxPoolBackprop_430",
+      "op" : "MaxPoolBackprop",
+      "outputs" : ["MaxPoolBackprop_430_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["MaxPoolBackprop_430"],
+      "name" : "Reshape_431",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 14, 14, 64 ],
+      "outputs" : ["Reshape_431_0"]
+    },
+    {
+      "inputs" : [ "Greater_424", "Reshape_431", "Broadcast_423" ],
+      "name" : "Select_432",
+      "op" : "Select",
+      "outputs" : ["Select_432_0"]
+    },
+    {
+      "inputs" : ["Select_432"],
+      "name" : "Sum_433",
+      "op" : "Sum",
+      "outputs" : ["Sum_433_0"],
+      "reduction_axes" : [ 0, 1, 2 ]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Select_432"],
+      "name" : "Reshape_435",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 14, 14, 64 ],
+      "outputs" : ["Reshape_435_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Sum_433"],
+      "name" : "Reshape_434",
+      "op" : "Reshape",
+      "output_shape" : [64],
+      "outputs" : ["Reshape_434_0"]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Reshape_435"],
+      "name" : "Reshape_437",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 50, 14, 14 ],
+      "outputs" : ["Reshape_437_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_435"],
+      "name" : "Reshape_444",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 14, 14 ],
+      "outputs" : ["Reshape_444_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_436", "Reshape_437" ],
+      "name" : "Convolution_438",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_438_0"],
+      "padding_above" : [ 2, 2 ],
+      "padding_below" : [ 2, 2 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "data_batch_shape" : [ 50, 32, 14, 14 ],
+      "data_dilation_strides_forward" : [ 1, 1 ],
+      "inputs" : [ "Reshape_445", "Reshape_444" ],
+      "name" : "ConvolutionBackpropData_446",
+      "op" : "ConvolutionBackpropData",
+      "outputs" : ["ConvolutionBackpropData_446_0"],
+      "padding_above_forward" : [ 2, 2 ],
+      "padding_below_forward" : [ 2, 2 ],
+      "window_dilation_strides_forward" : [ 1, 1 ],
+      "window_movement_strides_forward" : [ 1, 1 ]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Convolution_438"],
+      "name" : "Reshape_439",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 5, 5, 32 ],
+      "outputs" : ["Reshape_439_0"]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["ConvolutionBackpropData_446"],
+      "name" : "Reshape_447",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 14, 14, 32 ],
+      "outputs" : ["Reshape_447_0"]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Reshape_439"],
+      "name" : "Reshape_440",
+      "op" : "Reshape",
+      "output_shape" : [ 5, 5, 32, 64 ],
+      "outputs" : ["Reshape_440_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_447"],
+      "name" : "Reshape_449",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 32, 14, 14 ],
+      "outputs" : ["Reshape_449_0"]
+    },
+    {
+      "inputs" : [ "Reshape_448", "Reshape_449" ],
+      "name" : "MaxPoolBackprop_450",
+      "op" : "MaxPoolBackprop",
+      "outputs" : ["MaxPoolBackprop_450_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["MaxPoolBackprop_450"],
+      "name" : "Reshape_451",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 28, 28, 32 ],
+      "outputs" : ["Reshape_451_0"]
+    },
+    {
+      "inputs" : [ "Greater_443", "Reshape_451", "Broadcast_442" ],
+      "name" : "Select_452",
+      "op" : "Select",
+      "outputs" : ["Select_452_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Select_452"],
+      "name" : "Reshape_455",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 28, 28, 32 ],
+      "outputs" : ["Reshape_455_0"]
+    },
+    {
+      "inputs" : ["Select_452"],
+      "name" : "Sum_453",
+      "op" : "Sum",
+      "outputs" : ["Sum_453_0"],
+      "reduction_axes" : [ 0, 1, 2 ]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Reshape_455"],
+      "name" : "Reshape_457",
+      "op" : "Reshape",
+      "output_shape" : [ 32, 50, 28, 28 ],
+      "outputs" : ["Reshape_457_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Sum_453"],
+      "name" : "Reshape_454",
+      "op" : "Reshape",
+      "output_shape" : [32],
+      "outputs" : ["Reshape_454_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_456", "Reshape_457" ],
+      "name" : "Convolution_458",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_458_0"],
+      "padding_above" : [ 2, 2 ],
+      "padding_below" : [ 2, 2 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Convolution_458"],
+      "name" : "Reshape_459",
+      "op" : "Reshape",
+      "output_shape" : [ 32, 5, 5, 1 ],
+      "outputs" : ["Reshape_459_0"]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Reshape_459"],
+      "name" : "Reshape_460",
+      "op" : "Reshape",
+      "output_shape" : [ 5, 5, 1, 32 ],
+      "outputs" : ["Reshape_460_0"]
+    }
+  ],
+  "parameters" : [
+    "Parameter_314", "Parameter_315", "Parameter_316", "Parameter_317",
+    "Parameter_318", "Parameter_319", "Parameter_320", "Parameter_321",
+    "Parameter_322", "Parameter_323"
+  ],
+  "result" : [
+    "Add_358", "Reshape_407", "Dot_410", "Reshape_418", "Dot_421",
+    "Reshape_434", "Reshape_440", "Reshape_454", "Reshape_460", "Divide_470"
+  ]
+}]

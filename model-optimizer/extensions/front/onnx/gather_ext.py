@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 import numpy as np
 
-from extensions.ops.gather import Gather
+from extensions.ops.gather import AttributedGather
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -25,12 +25,11 @@ class GatherFrontExtractor(FrontExtractorOp):
     op = 'Gather'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-
+    @classmethod
+    def extract(cls, node):
         attrs = {
             'axis': np.array(onnx_attr(node, 'axis', 'i', default=0), dtype=np.int64)
         }
 
-        Gather.update_node_stat(node, attrs)
-        return __class__.enabled
+        AttributedGather.update_node_stat(node, attrs)
+        return cls.enabled

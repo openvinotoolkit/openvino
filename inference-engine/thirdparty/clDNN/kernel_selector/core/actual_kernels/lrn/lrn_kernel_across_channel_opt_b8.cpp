@@ -20,6 +20,9 @@ ParamsKey LRNKernelAcrossChannel_b8::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableTensorOffset();
@@ -28,16 +31,17 @@ ParamsKey LRNKernelAcrossChannel_b8::GetSupportedKey() const {
     k.EnableLRNMode(LRNMode::ACROSS_CHANNEL);
     k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
     k.EnableSubGroup();
+    k.EnableDifferentTypes();
     return k;
 }
 
 CommonDispatchData LRNKernelAcrossChannel_b8::SetDefault(const lrn_params& params) const {
-    CommonDispatchData run_info = LRNKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
 
-    run_info.gws0 /= 8;
-    run_info.lws0 = 8;  // gws0 is dividable by 64, so after correction it will be dividable by 8.
+    dispatchData.gws[0] /= 8;
+    dispatchData.lws[0] = 8;  // gws[0] is dividable by 64, so after correction it will be dividable by 8.
 
-    return run_info;
+    return dispatchData;
 }
 
 bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params& o) const {
@@ -58,10 +62,27 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params&
     return true;
 }
 
-JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params, DispatchData kd) const {
-    auto cldnnJit = LRNKernelBase::GetJitConstants(params, kd);
-    cldnnJit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", 8));
-    return cldnnJit;
+JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
+    const auto& input_dt = params.inputs[0].GetDType();
+
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", 8));
+
+    if (!params.fused_ops.empty()) {
+        FusedOpsConfiguration conf = {
+            "",
+            {"batch_id", "feature_id", "y", "x"},
+            "lrn_result",
+            input_dt,
+            8,
+            LoadType::LT_UNALIGNED,
+            BoundaryCheck::DISABLED,
+            IndexType::TENSOR_COORD,
+            Tensor::DataChannelName::BATCH
+        };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+    return jit;
 }
 
 KernelsData LRNKernelAcrossChannel_b8::GetKernelsData(const Params& params, const optional_params& options) const {

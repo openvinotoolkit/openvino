@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@
 #include "tensor_type.h"
 #include "document.h"
 #include <vector>
+#include <utility>
+#include <bitset>
 
 namespace kernel_selector {
 using DataTensor = Tensor::DataTensor;
@@ -31,6 +33,24 @@ using WeightsTensor = Tensor::WeightsTensor;
 using DataLayout = Tensor::DataLayout;
 using WeightsLayout = Tensor::WeightsLayout;
 using MultiDataTensor = std::vector<DataTensor>;
+using DataBitField = std::bitset<DataLayout::DataLayoutCount>;
+using WightsBitField = std::bitset<WeightsLayout::WeightsLayoutCount>;
+
+class JitConstants;
+class TuningCache;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// fuse_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct fuse_params {
+    virtual ~fuse_params() {}
+
+    KernelType GetType() const { return kType; }
+protected:
+    explicit fuse_params(KernelType kt) : kType(kt) {}
+    KernelType kType;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ParamsKey
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,10 +83,11 @@ public:
                 uint32_t nonBias : 1;
                 uint32_t activationAdditionalParamsAsInput : 1;
                 uint32_t FP16Emulation : 1;
-                uint32_t gradient : 1;
                 uint32_t momentum : 1;
                 uint32_t quantization : 1;
-                uint32_t output_calibration : 1;
+                uint32_t sym_quantization : 1;
+                uint32_t asym_w_quantization : 1;
+                uint32_t asym_d_quantization : 1;
 
                 union dedicated_t {
                     struct lookt_t {
@@ -120,7 +141,6 @@ public:
                         uint32_t split : 1;
                         uint32_t dilation : 1;
                         uint32_t depthwise_separable_opt : 1;
-                        uint32_t transposed : 1;
                         uint32_t local : 1;
                         uint32_t grouped : 1;
                         uint32_t deformable : 1;
@@ -157,16 +177,19 @@ public:
                         uint32_t oneKernel : 1;
                     } concat;
                     struct upsample_t {
-                        uint32_t nearest : 1;
-                        uint32_t bilinear : 1;
-                    } upsample;
+                        uint32_t nearest_neighbor : 1;
+                        uint32_t caffe_bilinear_interp : 1;
+                        uint32_t bilinear_interp : 1;
+                        uint32_t cubic : 1;
+                        uint32_t linear_onnx : 1;
+                    } resample;
                     struct reorder_t {
                         uint32_t winograd : 1;
+                        uint32_t rotate : 1;
                     } reorder;
                     struct eltwise_t {
                         uint32_t stride : 1;
                         uint32_t broadcast : 1;
-                        uint32_t inputs_calibration : 1;
                     } eltwise;
                     struct lstm_gemm_t {
                         uint32_t bias : 1;
@@ -185,15 +208,18 @@ public:
                         uint32_t dilation : 1;
                         uint32_t depthwise_separable_opt : 1;
                         uint32_t transposed : 1;
-                        uint32_t quantization : 1;
-                        uint32_t calibration : 1;
                         uint32_t local : 1;
                         uint32_t grouped : 1;
                         // eltw
                         uint32_t stride : 1;
                         // fused conv eltw
                         uint32_t rw_out_opt : 1;
+                        uint32_t depth_to_space_fused : 1;
                     } fused_conv_eltw;
+                    struct quantize_t {
+                        uint32_t packed_binary_output : 1;
+                        uint32_t scale_shift_opt : 1;
+                    } quantize;
                 } dedicated;
             } val;
             uint64_t raw;
@@ -203,6 +229,7 @@ public:
             struct val_t {
                 uint32_t subgroup : 1;
                 uint32_t subgroupShort : 1;
+                uint32_t subgroupChar : 1;
             } val;
             uint32_t raw;
         } machineInfo;
@@ -230,22 +257,10 @@ public:
         DataTypesKey outputType;
         DataTypesKey inputWeightsType;
         DataTypesKey outputWeightsType;
-        uint32_t inputLayout;
-        uint32_t outputLayout;
-        uint64_t weightsInputLayout;
-        uint64_t weightsOutputLayout;
-
-        static_assert(std::numeric_limits<decltype(weightsInputLayout)>::digits >= WeightsLayout::WeightsLayoutCount,
-                      "Not enough bits in weightsInputLayout to store WeightLayout bitfield");
-
-        static_assert(std::numeric_limits<decltype(weightsOutputLayout)>::digits >= WeightsLayout::WeightsLayoutCount,
-                      "Not enough bits in weightsOutputLayout to store WeightLayout bitfield");
-
-        static_assert(std::numeric_limits<decltype(inputLayout)>::digits >= DataLayout::DataLayoutCount,
-                      "Not enough bits in inputLayout to store DataLayout bitfield");
-
-        static_assert(std::numeric_limits<decltype(outputLayout)>::digits >= DataLayout::DataLayoutCount,
-                      "Not enough bits in outputLayout to store DataLayout bitfield");
+        DataBitField inputLayout;
+        DataBitField outputLayout;
+        WightsBitField weightsInputLayout;
+        WightsBitField weightsOutputLayout;
     };
 
     void EnableInputDataType(Datatype dt);
@@ -259,20 +274,24 @@ public:
     void EnableFP16Emulation() { key.restrict.val.FP16Emulation = 1; }
     void EnableDifferentTypes() { key.restrict.val.different_types = 1; }
     void EnableDifferentInputWeightsTypes() { key.restrict.val.different_input_weights_types = 1; }
-    void EnableInputLayout(DataLayout l) { key.inputLayout |= (1 << l); }
-    void EnableAllInputLayout() { key.inputLayout = -1; }
-    void EnableOutputLayout(DataLayout l) { key.outputLayout |= (1 << l); }
-    void EnableAllOutputLayout() { key.outputLayout = -1; }
-    void EnableInputWeightsLayout(WeightsLayout l) { key.weightsInputLayout |= ((uint64_t)1 << l); }
-    void EnableAllInputWeightsLayout() { key.weightsInputLayout = -1; }
-    void EnableOutputWeightsLayout(WeightsLayout l) { key.weightsOutputLayout |= ((uint64_t)1 << l); }
-    void EnableAllOutputWeightsLayout() { key.weightsOutputLayout = -1; }
+    void EnableInputLayout(DataLayout l) { key.inputLayout.set(static_cast<size_t>(l)); }
+    void EnableAllInputLayout() { key.inputLayout.set(); }
+    void EnableOutputLayout(DataLayout l) { key.outputLayout.set(static_cast<size_t>(l)); }
+    void EnableAllOutputLayout() { key.outputLayout.set(); }
+    void EnableInputWeightsLayout(WeightsLayout l) {
+        key.weightsInputLayout.set(static_cast<size_t>(l));
+    }
+    void EnableAllInputWeightsLayout() { key.weightsInputLayout.set(); }
+    void EnableOutputWeightsLayout(WeightsLayout l) {
+        key.weightsOutputLayout.set(static_cast<size_t>(l));
+    }
+    void EnableAllOutputWeightsLayout() { key.weightsOutputLayout.set(); }
     void EnableTensorOffset() { key.restrict.val.offset = 1; }
     void EnableTensorPitches() { key.restrict.val.pitches = 1; }
     void EnableBatching() { key.restrict.val.batching = 1; }
-    void EnableGradient() { key.restrict.val.gradient = 1; }
     void EnableSubGroup() { key.machineInfo.val.subgroup = 1; }
     void EnableSubGroupShort() { key.machineInfo.val.subgroupShort = 1; }
+    void EnableSubGroupChar() { key.machineInfo.val.subgroupChar = 1; }
     void EnableNonBiasTerm() { key.restrict.val.nonBias = 1; }
     void EnableBiasPerFeature() { key.restrict.val.biasPerFeatureMap = 1; }
     void EnableBiasPerOutput() { key.restrict.val.biasPerOutput = 1; }
@@ -287,15 +306,13 @@ public:
     void EnablePoolKernelDividerMode(KernelDividerMode m);
     void EnablePoolType(PoolType t);
     void EnablePoolRemainder(PoolRemainder r);
+    void EnableQuantization(QuantizationType q);
     void EnablePositionSensitivePooling() { key.restrict.val.dedicated.pooling.position_sensitive = 1; }
     void EnableSplitSupport() { key.restrict.val.dedicated.conv.split = 1; }
     void EnableDilation() { key.restrict.val.dedicated.conv.dilation = 1; }
     void EnableDepthwiseSeparableOpt() { key.restrict.val.dedicated.conv.depthwise_separable_opt = 1; }
     void EnableLocalConvolution() { key.restrict.val.dedicated.conv.local = 1; }
     void EnableGroupedConvolution() { key.restrict.val.dedicated.conv.grouped = 1; }
-    void EnableTranspose() { key.restrict.val.dedicated.conv.transposed = 1; }
-    void EnableInt8Quantization() { key.restrict.val.quantization = 1; }
-    void EnableOutputCalibration() { key.restrict.val.output_calibration = 1; }
     void EnableDeformableMode() { key.restrict.val.dedicated.conv.deformable = 1; }
 
     void EnableFusedConvEltwSplitSupport() { key.restrict.val.dedicated.fused_conv_eltw.split = 1; }
@@ -306,17 +323,19 @@ public:
     void EnableFusedConvEltwLocalConvolution() { key.restrict.val.dedicated.fused_conv_eltw.local = 1; }
     void EnableFusedConvEltwGroupedConvolution() { key.restrict.val.dedicated.fused_conv_eltw.grouped = 1; }
     void EnableFusedConvEltwTranspose() { key.restrict.val.dedicated.fused_conv_eltw.transposed = 1; }
-    void EnableFusedConvEltwInt8Quantization() { key.restrict.val.dedicated.fused_conv_eltw.quantization = 1; }
-    void EnableFusedConvEltwOutputCalibration() { key.restrict.val.dedicated.fused_conv_eltw.calibration = 1; }
     void EnableFusedConvEltwEltwiseStride();
+    void EnableFusedConvEltwDepthToSpaceFusing();
+
+    void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
+    void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
 
     void EnableWinogradReorder() { key.restrict.val.dedicated.reorder.winograd = 1; }
+    void EnableRotateReorder() { key.restrict.val.dedicated.reorder.rotate = 1; }
     void EnableSoftmaxDim(SoftmaxDim d);
     void EnableConcatAxis(ConcatAxis a);
-    void EnableUpSamplingSampleType(SampleType a);
+    void EnableReampleType(ResampleType a);
     void EnableEltwiseStride();
     void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
-    void EnableEltwiseInputsCalibration() { key.restrict.val.dedicated.eltwise.inputs_calibration = 1; }
 
     void EnableLSTMGEMMBias() { key.restrict.val.dedicated.lstm_gemm.bias = 1; }
     void EnableLSTMGEMMHidden() { key.restrict.val.dedicated.lstm_gemm.hidden = 1; }
@@ -351,11 +370,14 @@ private:
 struct EngineInfo {
     bool bSubGroupSupport = false;
     bool bSubGroupShortSupport = false;
+    bool bSubGroupCharSupport = false;
     bool bFP16Support = false;
     bool bFP64Support = false;
     bool bImageSupport = false;
     bool bIMADSupport = false;
     bool bIMMADSupport = false;
+    bool bOptHintsSupport = false;
+    bool bLocalBlockIOSupport = false;
     uint32_t computeUnitsCount = 0;
     uint64_t maxWorkGroupSize = 0;
     uint64_t maxLocalMemSize = 0;
@@ -364,7 +386,7 @@ struct EngineInfo {
     std::string deviceId = "";
     std::string driverVersion = "";
     std::string hostVersion = "";
-    std::shared_ptr<rapidjson::Document> deviceCache;
+    std::shared_ptr<TuningCache> deviceCache;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -382,9 +404,11 @@ protected:
 
 public:
     std::string layerID;
+    std::string forceImplementation;
     EngineInfo engineInfo;
 
     virtual std::string to_string() const;
+    virtual std::string to_cache_string_v2() const;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -397,8 +421,156 @@ struct base_activation_params {
 
     base_activation_params() = default;
     base_activation_params(const float m, const float n) : m(m), n(n) {}
+    base_activation_params(const ActivationFunction f, const float m, const float n) : function(f),
+                                                                                       m(m),
+                                                                                       n(n) {}
 
     virtual std::string to_string() const;
+};
+
+struct FusedOpsConfiguration {
+    enum class LoadType {
+        LT_UNALIGNED = 0,
+        LT_ALIGNED_READ = 1,
+        FEATURE_SHUFFLE = 2
+    };
+
+    enum class BoundaryCheck {
+        DISABLED = 0,
+        ENABLED = 1
+    };
+
+    enum class IndexType {
+        TENSOR_COORD = 0,
+        LINEAR_OFFSET = 1
+    };
+
+    // Optional suffix that is added to each macro in the configuration.
+    std::string suffix;
+    // Indices to load additional data for a fused op.
+    std::vector<std::string> bfzyx_idx_order;
+    // Name of the input variable for the first fused op.
+    std::string input_var_name;
+    // Data type of the input
+    Datatype input_dt;
+    // Data type vector size of the input
+    size_t vec_size;
+    // Represents a channel in the input tensor that is loaded to the input variable
+    Tensor::DataChannelName vec_axis;
+    // Sets used load type - aligned or unaligned. Aligned load requires specific extensions and adjusted indices.
+    LoadType load_type;
+    // Defines if safe index function should be used for offset calculation
+    BoundaryCheck boundary_check;
+    // Defines how to treat indices array
+    IndexType index_type;
+    // Defines outer loops channels where fused op is called.
+    std::vector<Tensor::DataChannelName> loop_axes;
+    // If allow_for_partial_preload is false, then it's required that all fused_ops can be preloaded.
+    // If allow_for_partial_preload is true, then not preloaded fused_ops will be loaded in FUSED_OPS_CALC.
+    bool allow_for_partial_preload;
+    // Load index for shuffle fused op
+    std::string shuffle_var_name;
+
+    FusedOpsConfiguration(std::string suffix,
+                          std::vector<std::string> bfzyx_idx_order,
+                          std::string input_var_name,
+                          Datatype input_dt,
+                          size_t vec_size = 1,
+                          LoadType load_type = LoadType::LT_UNALIGNED,
+                          BoundaryCheck boundary_check = BoundaryCheck::ENABLED,
+                          IndexType index_type = IndexType::TENSOR_COORD,
+                          Tensor::DataChannelName vec_axis = Tensor::DataChannelName::COUNT,
+                          std::vector<Tensor::DataChannelName> loop_axes = {},
+                          bool allow_for_partial_preload = false,
+                          std::string shuffle_var_name = "")
+      : suffix(suffix)
+      , bfzyx_idx_order(bfzyx_idx_order)
+      , input_var_name(input_var_name)
+      , input_dt(input_dt)
+      , vec_size(vec_size)
+      , vec_axis(vec_axis)
+      , load_type(load_type)
+      , boundary_check(boundary_check)
+      , index_type(index_type)
+      , loop_axes(loop_axes)
+      , allow_for_partial_preload(allow_for_partial_preload)
+      , shuffle_var_name(shuffle_var_name) { }
+
+    FusedOpsConfiguration& SetVectorSize(size_t val) { vec_size = val; return *this; }
+    FusedOpsConfiguration& SetLoadType(LoadType val) { load_type = val; return *this; }
+    FusedOpsConfiguration& SetBoundaryCheck(BoundaryCheck val) { boundary_check = val; return *this; }
+    FusedOpsConfiguration& SetIndexType(IndexType val) { index_type = val; return *this; }
+    FusedOpsConfiguration& SetVectorAxis(Tensor::DataChannelName val) { vec_axis = val; return *this; }
+    FusedOpsConfiguration& SetLoopAxes(std::vector<Tensor::DataChannelName> val, bool partial_preload = false) {
+        loop_axes = std::move(val);
+        allow_for_partial_preload = partial_preload;
+        return *this; }
+    FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
+};
+
+// Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program_impl::fuse_nodes
+// method. In order to process fused ops following modifications should be done in a kernel:
+// option 1 - using common generator:
+//     - create FusedOpsConfiguration object that contains configuration for common code generator.
+//       Multiple objects can be created if a kernel uses different data types at the same time. E.g. kernels that contains scalar and
+//       vector branches that are chosen in runtime. To handle this case, create 2 configurations with different suffixes, like
+//       "_SCALAR" and "_VEC" and then use generated macros accordingly.
+//     - add jit constants returned by KernelBase::MakeFusedOpsJitConstants method to the kernel's constants.
+//     - insert generated macros in the ocl code:
+//       in kernel declaration:
+//         #if HAS_FUSED_OPS_DECLS
+//           FUSED_OPS_DECLS,
+//         #endif
+//       in kernel body:
+//         #if HAS_FUSED_OPS
+//           FUSED_OPS<OPTIONAL_SUFFIX>;
+//           <SOME_VARIABLE> = FUSED_OPS_RESULT<OPTIONAL_SUFFIX>;
+//         #endif
+//   In this case common generator creates set of definitions for each op which are called sequentially in FUSED_OP<OPTIONAL_SUFFIX>
+//   macro. Example:
+//     #define FUSED_OPS
+//       FUSED_OP0_LOAD_VEC
+//       FUSED_OP0_ACTION_VEC
+//       FUSED_OP1_LOAD_VEC
+//       FUSED_OP1_ACTION_VEC
+//     #define FUSED_OP0_LOAD_VEC
+//       MAKE_VECTOR_TYPE(FUSED_OP_0_INPUT0_TYPE,2) activation0_data0 = UNIT_BLOCK_READ(activation0_input0,
+//                                                                      FUSED_OP_0_INPUT0_GET_INDEX_SAFE(0,(f_block*16),0,0));
+//     #define FUSED_OP0_ACTION_VEC
+//       float2 dst_0 = dst;
+//       dst_0 = ACTIVATION_FUSED_OP0_VEC(dst_0, ACTIVATION_PARAMS_FUSED_OP0_VEC);
+//     #define FUSED_OP1_LOAD_VEC
+//       MAKE_VECTOR_TYPE(FUSED_OP_1_INPUT0_TYPE,2) eltwise1_data0 = UNIT_BLOCK_READ2(eltwise1_input0,
+//                                                                   FUSED_OP_1_INPUT0_GET_INDEX_SAFE(0,(f_block*16),y,x));
+//     #define FUSED_OP1_ACTION_VEC
+//       float2 dst_0_2 = convert_float2(eltwise1_data0) + convert_float2(dst_0);
+//     #define FUSED_OPS_RESULT_VEC dst_0_2
+// option 2 - using custom generator in a kernel. It can be used if performance is not optimal in the common one or to handle
+//            some difficult cases that can't be unified. Custom processing of fused ops can be written absolutely independently
+//            in a kernel, but to make it easier set of helper functions exist:
+//     - KernelBase::MakeFusedOpsDeclsJitConstants that creates arguments for kernel declaration and macro for all tensors used in
+//       a fused op (requires FusedOpsConfiguration instance).
+//     - fused_operation_desc contains a bunch of methods to generate variable/pointer names, type conversions, data loads
+//  If you need an example of custom code generation for fused ops, check BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants
+//  method in binary_convolution_kernel_generic.cpp.
+struct fused_operation_desc {
+    std::shared_ptr<fuse_params> op_params;
+    size_t dep_idx_start;
+    size_t dep_size;
+    MultiDataTensor tensors;
+    DataTensor output_tensor;
+    size_t op_id;
+
+    // Helper functions for operation generation
+    KernelType GetType() const { return op_params->GetType(); }
+    template<typename T>
+    std::shared_ptr<T> GetOpParams() const {
+        auto p = std::dynamic_pointer_cast<T>(op_params);
+        if (!p)
+            throw std::runtime_error("Invalid dynamic cast of fused operation parameters");
+
+        return p;
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -407,13 +579,14 @@ struct base_activation_params {
 struct base_params : public Params {
     virtual ~base_params() {}
 
-    base_activation_params activation;
+    std::vector<base_activation_params> activations;
+    std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     DataTensor output;
-    bool gradient = false;
 
-    virtual std::string to_string() const;
-    virtual ParamsKey GetParamsKey() const;
+    std::string to_string() const override;
+    std::string to_cache_string_v2() const override;
+    ParamsKey GetParamsKey() const override;
 
 protected:
     explicit base_params(KernelType kt) : Params(kt, ""), inputs(1) {}
@@ -458,4 +631,5 @@ protected:
     explicit optional_params(KernelType kt) : kType(kt) {}
     KernelType kType;
 };
+
 }  // namespace kernel_selector

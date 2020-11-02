@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class NaturalGradientPerElementScaleComponentFrontExtractor(FrontExtractorOp):
     op = 'naturalgradientperelementscalecomponent'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
         collect_until_token(pb, b'<Params>')
         weights = read_binary_vector(pb)
@@ -39,4 +39,26 @@ class NaturalGradientPerElementScaleComponentFrontExtractor(FrontExtractorOp):
         embed_input(mapping_rule, 1, 'weights', weights)
 
         ScaleShiftOp.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        return cls.enabled
+
+
+class FixedScaleComponentFrontExtractor(FrontExtractorOp):
+    op = 'fixedscalecomponent'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        pb = node.parameters
+        collect_until_token(pb, b'<Scales>')
+        weights = read_binary_vector(pb)
+        find_next_tag(pb)
+        read_placeholder(pb, 1)
+
+        mapping_rule = {
+            'layout': 'NCHW',
+            'out-size': weights.shape[0],
+        }
+        embed_input(mapping_rule, 1, 'weights', weights)
+
+        ScaleShiftOp.update_node_stat(node, mapping_rule)
+        return cls.enabled

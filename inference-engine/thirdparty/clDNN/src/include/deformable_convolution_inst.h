@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/convolution.hpp"
+#include "api/convolution.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -111,8 +111,6 @@ public:
 };
 
 using deformable_conv_inst = typed_primitive_inst<deformable_conv>;
-
-
 
 template <>
 struct typed_program_node<deformable_interp> : public typed_program_node_base<deformable_interp> {

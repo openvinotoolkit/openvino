@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#ifndef NDEBUG
 
 #include <vpu/backend/backend.hpp>
 
@@ -28,8 +26,7 @@
 #include <atomic>
 
 #include <precision_utils.h>
-#include <details/caseless.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
@@ -39,6 +36,7 @@
 #include <vpu/utils/file_system.hpp>
 #include <vpu/utils/numeric.hpp>
 #include <vpu/utils/profiling.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 
 namespace vpu {
 
@@ -89,7 +87,7 @@ void dumpStageToDot(DotSerializer& out, const Stage& stage, int stageExecIdx) {
 }  // namespace
 
 void BackEnd::dumpModelToDot(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& fileName) {
     VPU_PROFILE(dumpModelToDot);
 
@@ -100,7 +98,7 @@ void BackEnd::dumpModelToDot(
 
     DotSerializer out(file);
 
-    out.append("digraph ie_vpu_graph {");
+    out.append("digraph ie_vpu_model_view {");
     {
         VPU_DOT_IDENT(out);
 
@@ -130,15 +128,15 @@ void BackEnd::dumpModelToDot(
             } else if (data->usage() == DataUsage::Temp) {
                 dataColor = "cyan";
             } else if (data->usage() == DataUsage::Intermediate) {
-                if (data->location() == DataLocation::BSS) {
+                if (data->dataLocation().location == Location::BSS) {
                     dataColor = "cyan";
-                } else if (data->location() == DataLocation::CMX) {
+                } else if (data->dataLocation().location == Location::CMX) {
                     dataColor = "magenta";
-                } else if (data->location() == DataLocation::Blob) {
+                } else if (data->dataLocation().location == Location::Blob) {
                     dataColor = "aquamarine";
-                } else if (data->location() == DataLocation::Input) {
+                } else if (data->dataLocation().location == Location::Input) {
                     dataColor = "green";
-                } else if (data->location() == DataLocation::Output) {
+                } else if (data->dataLocation().location == Location::Output) {
                     dataColor = "deepskyblue";
                 }
             }
@@ -180,8 +178,12 @@ void BackEnd::dumpModelToDot(
                     }
                 }
                 lbl.appendPair("memReqs", data->memReqs());
-                lbl.appendPair("location", data->location());
-                lbl.appendPair("memoryOffset", data->memoryOffset());
+                lbl.appendPair("dataLocation", data->dataLocation().location);
+                lbl.appendPair("dataOffset", data->dataLocation().offset);
+                lbl.appendPair("dimsLocation", data->shapeLocation().dimsLocation);
+                lbl.appendPair("dimsOffset", data->shapeLocation().dimsOffset);
+                lbl.appendPair("stridesLocation", data->shapeLocation().stridesLocation);
+                lbl.appendPair("stridesOffset", data->shapeLocation().stridesOffset);
                 if (!data->attrs().empty()) {
                     lbl.appendPair("extraAttrs", data->attrs());
                 }
@@ -201,8 +203,8 @@ void BackEnd::dumpModelToDot(
                 dumpStageToDot(out, stage, stageExecIdx);
             }
 
-            for (const auto& injectedStageEdge : stage->injectedStageEdges()) {
-                dumpStageToDot(out, injectedStageEdge->child(), stageExecIdx);
+            if (const auto injectedStage = stage->injectedStage()) {
+                dumpStageToDot(out, injectedStage, stageExecIdx);
             }
 
             if (stage->category() != StageCategory::Special) {
@@ -220,10 +222,6 @@ void BackEnd::dumpModelToDot(
                 {
                     VPU_DOT_IDENT(out);
 
-                    if (inEdge->childEdge() != nullptr) {
-                        out.append("style=dotted");
-                    }
-
                     DotLabel lbl("StageInput", out);
                     lbl.appendPair("portInd", inEdge->portInd());
                     if (!inEdge->attrs().empty()) {
@@ -237,10 +235,6 @@ void BackEnd::dumpModelToDot(
                 out.append("%s -> %s [", stageDotName(stage), dataDotName(outEdge->output()));
                 {
                     VPU_DOT_IDENT(out);
-
-                    if (outEdge->childEdge() != nullptr) {
-                        out.append("style=dotted");
-                    }
 
                     DotLabel lbl("StageOutput", out);
                     lbl.appendPair("portInd", outEdge->portInd());
@@ -256,10 +250,6 @@ void BackEnd::dumpModelToDot(
                 {
                     VPU_DOT_IDENT(out);
 
-                    if (tempBufferEdge->childEdge() != nullptr) {
-                        out.append("style=dotted");
-                    }
-
                     DotLabel lbl("Temp buffer", out);
                     lbl.appendPair("portInd", tempBufferEdge->portInd());
                     if (!tempBufferEdge->attrs().empty()) {
@@ -269,13 +259,13 @@ void BackEnd::dumpModelToDot(
                 out.append("];");
             }
 
-            for (const auto& injectedStageEdge : stage->injectedStageEdges()) {
-                auto injectedStage = injectedStageEdge->child();
-
+            if (const auto injectedStage = stage->injectedStage()) {
                 for (const auto& inEdge : injectedStage->inputEdges()) {
                     out.append("%s -> %s [", dataDotName(inEdge->input()), stageDotName(injectedStage));
                     {
                         VPU_DOT_IDENT(out);
+
+                        out.append("style=dotted");
 
                         DotLabel lbl("StageInput", out);
                         lbl.appendPair("portInd", inEdge->portInd());
@@ -291,6 +281,8 @@ void BackEnd::dumpModelToDot(
                     {
                         VPU_DOT_IDENT(out);
 
+                        out.append("style=dotted");
+
                         DotLabel lbl("StageOutput", out);
                         lbl.appendPair("portInd", outEdge->portInd());
                         if (!outEdge->attrs().empty()) {
@@ -305,6 +297,8 @@ void BackEnd::dumpModelToDot(
                     {
                         VPU_DOT_IDENT(out);
 
+                        out.append("style=dotted");
+
                         DotLabel lbl("Temp buffer", out);
                         lbl.appendPair("portInd", tempBufferEdge->portInd());
                         if (!tempBufferEdge->attrs().empty()) {
@@ -317,18 +311,34 @@ void BackEnd::dumpModelToDot(
         }
 
         //
+        // Dump Data->Stage edges
+        //
+
+        for (const auto& data : model->datas()) {
+            for (const auto& dependentStageEdge : data->dependentStagesEdges()) {
+                out.append("%s -> %s [", dataDotName(data), stageDotName(dependentStageEdge->dependentStage()));
+                {
+                    VPU_DOT_IDENT(out);
+
+                    DotLabel lbl("Extra dependency", out);
+                }
+                out.append("];");
+            }
+        }
+
+        //
         // Dump Data<->Data edges
         //
 
         for (const auto& data : model->datas()) {
-            if (auto edge = data->parentDataEdge()) {
+            if (auto edge = data->parentDataToDataEdge()) {
                 out.append("%s -> %s [", dataDotName(edge->child()), dataDotName(edge->parent()));
                 {
                     VPU_DOT_IDENT(out);
 
                     out.append("style=dotted");
 
-                    DotLabel lbl("SharedAllocation", out);
+                    DotLabel lbl("DataToDataAllocation", out);
                     lbl.appendPair("mode", edge->mode());
                     lbl.appendPair("order", edge->order());
                     if (!edge->attrs().empty()) {
@@ -340,38 +350,48 @@ void BackEnd::dumpModelToDot(
         }
 
         //
-        // Dump Stage<->Stage edges
+        // Dump Data<->Data shape edges
         //
 
-        for (const auto& stage : model->getStages()) {
-            for (const auto& injectedStageEdge : stage->injectedStageEdges()) {
-                out.append("%s -> %s [", stageDotName(stage), stageDotName(injectedStageEdge->child()));
+        for (const auto& data : model->datas()) {
+            if (auto edge = data->parentDataToShapeEdge()) {
+                out.append("%s -> %s [", dataDotName(edge->parent()), dataDotName(edge->child()));
                 {
                     VPU_DOT_IDENT(out);
 
                     out.append("style=dotted");
 
-                    DotLabel lbl("Injected Stage", out);
-                    lbl.appendPair("portInd", injectedStageEdge->portInd());
-                    if (!injectedStageEdge->attrs().empty()) {
-                        lbl.appendPair("extraAttrs", injectedStageEdge->attrs());
-                    }
+                    DotLabel lbl("DataToShapeAllocation", out);
                 }
                 out.append("];");
             }
+        }
 
-            if (stage->numInjectedStages() > 0) {
+        //
+        // Dump Stage<->Stage edges
+        //
+
+        for (const auto& stage : model->getStages()) {
+            if (const auto injectionEdge = stage->injectedStageEdge()) {
+                out.append("%s -> %s [", stageDotName(stage), stageDotName(injectionEdge->child()));
+                {
+                    VPU_DOT_IDENT(out);
+
+                    out.append("style=dashed");
+
+                    DotLabel lbl("Injected Stage", out);
+                    if (!injectionEdge->attrs().empty()) {
+                        lbl.appendPair("extraAttrs", injectionEdge->attrs());
+                    }
+                }
+                out.append("];");
+
                 out.append("{");
                 {
                     VPU_DOT_IDENT(out);
 
                     out.append("rank=same;");
-
-                    out.append("%s", stageDotName(stage));
-
-                    for (const auto& injectedStageEdge : stage->injectedStageEdges()) {
-                        out.append(", %s", stageDotName(injectedStageEdge->child()));
-                    }
+                    out.append("%s, %s", stageDotName(stage), stageDotName(injectionEdge->child()));
                 }
                 out.append("}");
             }
@@ -381,5 +401,3 @@ void BackEnd::dumpModelToDot(
 }
 
 }  // namespace vpu
-
-#endif

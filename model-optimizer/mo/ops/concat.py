@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ class Concat(Op):
         super().__init__(graph, {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'axis': 1,
             'infer': concat_infer,
             'out_ports_count': 1,

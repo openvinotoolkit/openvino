@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,15 +11,19 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {
 
+/**
+ * @brief Heterogeneous plugin configuration
+ */
 namespace HeteroConfigParams {
 
+/**
+ * @def HETERO_CONFIG_KEY(name)
+ * @brief Shortcut for defining HETERO configuration keys
+ */
 #define HETERO_CONFIG_KEY(name) InferenceEngine::HeteroConfigParams::_CONFIG_KEY(HETERO_##name)
 #define DECLARE_HETERO_CONFIG_KEY(name) DECLARE_CONFIG_KEY(HETERO_##name)
 #define DECLARE_HETERO_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(HETERO_##name)
@@ -30,13 +34,6 @@ namespace HeteroConfigParams {
  * This option should be used with values: CONFIG_VALUE(NO) (default) or CONFIG_VALUE(YES)
  */
 DECLARE_HETERO_CONFIG_KEY(DUMP_GRAPH_DOT);
-
-/**
- * @deprecated Use DLIA_CONFIG_KEY(DUMP_SUPPORTED_LAYERS_INFORMATION) FPGA configuration boolean key instead
- * @brief The bool key to define whether information messages with a reason are printed in case the layer is unsupported by DLA
- */
-INFERENCE_ENGINE_DEPRECATED
-DECLARE_HETERO_CONFIG_KEY(DUMP_DLA_MESSAGES);
 
 }  // namespace HeteroConfigParams
 }  // namespace InferenceEngine

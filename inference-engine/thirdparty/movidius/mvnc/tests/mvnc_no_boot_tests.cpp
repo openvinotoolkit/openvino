@@ -1,43 +1,17 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mvnc.h"
-#include "mvnc_tests_common.hpp"
+#include "mvnc_no_boot_test_cases.h"
 
-class MvncNoBootTests: public MvncTestsCommon {
-public:
-    void bootOneDevice() {
-        // In case already booted device exist, do nothing
-        if (getAmountOfBootedDevices() == 0) {
-            MvncTestsCommon::bootOneDevice(NC_USB);
-        }
-    }
-protected:
-    ~MvncNoBootTests() override = default;
-};
-
-//  ***********************************************  //
-//              Open Device TESTS                    //
-class MvncOpenDevice : public MvncNoBootTests {
-public:
-    int available_devices = 0;
-protected:
-    ~MvncOpenDevice() override = default;
-    void SetUp() override {
-        MvncNoBootTests::SetUp();
-        available_devices = getAmountOfDevices(NC_USB);
-        ASSERT_TRUE(available_devices > 0);
-
-        // With NO_BOOT option we should boot device with firmware before trying to open
-        bootOneDevice();
-    }
-};
-
+//------------------------------------------------------------------------------
+//      MvncNoBootOpenDevice Tests
+//------------------------------------------------------------------------------
 /**
 * @brief Open any device and close it
 */
-TEST_F(MvncOpenDevice, OpenAndClose) {
+TEST_F(MvncNoBootOpenDevice, OpenAndClose) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_USB;
@@ -50,7 +24,7 @@ TEST_F(MvncOpenDevice, OpenAndClose) {
 /**
 * @brief Try to open device twice. DeviceHandle shouldn't be overwritten
 */
-TEST_F(MvncOpenDevice, OpenTwiceSameHandler) {
+TEST_F(MvncNoBootOpenDevice, OpenTwiceSameHandler) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_USB;
@@ -82,7 +56,7 @@ TEST_F(MvncOpenDevice, OpenTwiceSameHandler) {
  * @brief Open device twice one run after another. It should check, that link to device closed correctly
  * @note Mostly this test important for PCIE and connect to booted option, as in that cases XLinkReset have another behavior
  */
-TEST_F(MvncOpenDevice, OpenDeviceWithOneXLinkInitializion) {
+TEST_F(MvncNoBootOpenDevice, OpenDeviceWithOneXLinkInitializion) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_USB;
@@ -97,19 +71,13 @@ TEST_F(MvncOpenDevice, OpenDeviceWithOneXLinkInitializion) {
 
 }
 
-
-//  ***********************************************  //
-//               Close device tests                  //
-
-class MvncCloseDevice : public MvncNoBootTests {
-protected:
-    ~MvncCloseDevice() override = default;
-};
-
+//------------------------------------------------------------------------------
+//      MvncNoBootCloseDevice Tests
+//------------------------------------------------------------------------------
 /**
 * @brief Correct closing if handle is empty
 */
-TEST_F(MvncCloseDevice, EmptyDeviceHandler) {
+TEST_F(MvncNoBootCloseDevice, EmptyDeviceHandler) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
 }
@@ -117,7 +85,7 @@ TEST_F(MvncCloseDevice, EmptyDeviceHandler) {
 /**
 * @brief Device, which was booted before open, shouldn't reboot after ncDeviceClose call
 */
-TEST_F(MvncCloseDevice, AlreadyBootedDeviceWillNotReboot) {
+TEST_F(MvncNoBootCloseDevice, AlreadyBootedDeviceWillNotReboot) {
     bootOneDevice();
 
     ASSERT_EQ(getAmountOfBootedDevices(), 1);

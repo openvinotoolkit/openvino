@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/lstm.hpp"
+#include "api/lstm.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <vector>
@@ -43,8 +43,8 @@ public:
     bool peepholes_term() const { return !get_primitive()->peepholes.empty(); }
     bool initial_hidden_term() const { return !get_primitive()->initial_hidden.empty(); }
     bool initial_cell_term() const { return !get_primitive()->initial_cell.empty(); }
-    std::vector<cldnn_activation_func> activations() const { return get_primitive()->activations; }
-    std::vector<cldnn_activation_additional_params> activation_params() const {
+    std::vector<activation_func> activations() const { return get_primitive()->activations; }
+    std::vector<activation_additional_params> activation_params() const {
         return get_primitive()->activation_params;
     }
     size_t sequence_len() const { return get_primitive()->input.size(); }
@@ -75,8 +75,8 @@ public:
     bool peepholes_term() const { return !argument.peepholes.empty(); }
     bool initial_hidden_term() const { return !argument.initial_hidden.empty(); }
     bool initial_cell_term() const { return !argument.initial_cell.empty(); }
-    std::vector<cldnn_activation_func> activations() const { return argument.activations; }
-    std::vector<cldnn_activation_additional_params> activation_params() const { return argument.activation_params; }
+    std::vector<activation_func> activations() const { return argument.activations; }
+    std::vector<activation_additional_params> activation_params() const { return argument.activation_params; }
 };
 
 using lstm_inst = typed_primitive_inst<lstm>;

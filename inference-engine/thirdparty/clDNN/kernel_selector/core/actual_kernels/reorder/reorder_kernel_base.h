@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <vector>
 
@@ -24,7 +24,8 @@ namespace kernel_selector {
 // reorder_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct reorder_params : public base_params {
-    reorder_params() : base_params(KernelType::REORDER) {}
+    reorder_params() : base_params(KernelType::REORDER),
+    winograd_input_offset_x(0), winograd_input_offset_y(0), winograd_nr_tiles_x(0) {}
 
     MeanSubtractMode mode = MeanSubtractMode::NONE;
     MeanOp mean_op = MeanOp::SUB;
@@ -62,6 +63,7 @@ struct reorder_weights_params : public Params {
     WeightsTensor input;
     WeightsTensor output;
     bool winograd = false;
+    bool rotate_180 = false;
 
     virtual ParamsKey GetParamsKey() const {
         ParamsKey k;
@@ -81,6 +83,10 @@ struct reorder_weights_params : public Params {
         if (winograd) {
             k.EnableWinogradReorder();
         }
+
+        if (rotate_180) {
+            k.EnableRotateReorder();
+        }
         return k;
     }
 };
@@ -88,9 +94,9 @@ struct reorder_weights_params : public Params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ReorderKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class ReorderKernelBase : public common_kernel_base {
+class ReorderKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~ReorderKernelBase() {}
 
     using DispatchData = CommonDispatchData;
@@ -100,6 +106,7 @@ protected:
     virtual JitConstants GetJitConstants(const reorder_params& params) const;
     virtual DispatchData SetDefault(const reorder_weights_params& params) const;
     virtual DispatchData SetDefault(const reorder_params& params) const;
+    virtual bool Validate(const Params&, const optional_params&) const { return true; };
     KernelsData GetCommonKernelsData(const reorder_weights_params& params,
                                      const optional_params&,
                                      float estimated_time) const;

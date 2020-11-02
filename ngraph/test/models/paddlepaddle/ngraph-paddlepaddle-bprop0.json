@@ -1,0 +1,423 @@
+[
+    {
+        "name": "Function_2",
+        "ops": [
+            {
+                "cacheable": true,
+                "element_type": "double",
+                "name": "Parameter_1571",
+                "op": "Parameter",
+                "op_version": 0,
+                "outputs": [
+                    "Parameter_1571_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ]
+            },
+            {
+                "cacheable": true,
+                "element_type": "double",
+                "name": "Parameter_1572",
+                "op": "Parameter",
+                "op_version": 0,
+                "outputs": [
+                    "Parameter_1572_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ]
+            },
+            {
+                "inputs": [
+                    "Parameter_1571"
+                ],
+                "name": "Negative_1607",
+                "op": "Negative",
+                "op_version": 0,
+                "outputs": [
+                    "Negative_1607_0"
+                ]
+            },
+            {
+                "element_type": "double",
+                "name": "Constant_1597",
+                "op": "Constant",
+                "op_version": 0,
+                "outputs": [
+                    "Constant_1597_0"
+                ],
+                "shape": [
+                    1
+                ],
+                "value": [
+                    "1"
+                ]
+            },
+            {
+                "element_type": "double",
+                "name": "Constant_1598",
+                "op": "Constant",
+                "op_version": 0,
+                "outputs": [
+                    "Constant_1598_0"
+                ],
+                "shape": [
+                    1
+                ],
+                "value": [
+                    "41"
+                ]
+            },
+            {
+                "inputs": [
+                    "Constant_1597",
+                    "Constant_1598"
+                ],
+                "name": "Divide_1601",
+                "op": "Divide",
+                "op_version": 0,
+                "outputs": [
+                    "Divide_1601_0"
+                ],
+                "pythondiv": true
+            },
+            {
+                "axes": [
+                    0,
+                    1
+                ],
+                "inputs": [
+                    "Divide_1601"
+                ],
+                "name": "Broadcast_1602",
+                "op": "Broadcast",
+                "op_version": 0,
+                "outputs": [
+                    "Broadcast_1602_0"
+                ],
+                "shape": [
+                    41,
+                    1,
+                    1
+                ]
+            },
+            {
+                "input_order": [
+                    0,
+                    1,
+                    2
+                ],
+                "inputs": [
+                    "Broadcast_1602"
+                ],
+                "name": "Reshape_1603",
+                "op": "Reshape",
+                "op_version": 0,
+                "output_shape": [
+                    41,
+                    1
+                ],
+                "outputs": [
+                    "Reshape_1603_0"
+                ]
+            },
+            {
+                "element_type": "double",
+                "name": "Constant_1600",
+                "op": "Constant",
+                "op_version": 0,
+                "outputs": [
+                    "Constant_1600_0"
+                ],
+                "shape": [
+                    41,
+                    1
+                ],
+                "value": [
+                    "0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Reshape_1603",
+                    "Constant_1600"
+                ],
+                "name": "Add_1604",
+                "op": "Add",
+                "op_version": 0,
+                "outputs": [
+                    "Add_1604_0"
+                ]
+            },
+            {
+                "input_order": [
+                    0,
+                    1
+                ],
+                "inputs": [
+                    "Add_1604"
+                ],
+                "name": "Reshape_1605",
+                "op": "Reshape",
+                "op_version": 0,
+                "output_shape": [
+                    41
+                ],
+                "outputs": [
+                    "Reshape_1605_0"
+                ]
+            },
+            {
+                "axes": [
+                    1
+                ],
+                "inputs": [
+                    "Reshape_1605"
+                ],
+                "name": "Broadcast_1606",
+                "op": "Broadcast",
+                "op_version": 0,
+                "outputs": [
+                    "Broadcast_1606_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ]
+            },
+            {
+                "inputs": [
+                    "Negative_1607",
+                    "Broadcast_1606"
+                ],
+                "name": "Multiply_1608",
+                "op": "Multiply",
+                "op_version": 0,
+                "outputs": [
+                    "Multiply_1608_0"
+                ]
+            },
+            {
+                "element_type": "double",
+                "name": "Constant_1583",
+                "op": "Constant",
+                "op_version": 0,
+                "outputs": [
+                    "Constant_1583_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ],
+                "value": [
+                    "-64"
+                ]
+            },
+            {
+                "element_type": "int64_t",
+                "name": "Constant_1579",
+                "op": "Constant",
+                "op_version": 0,
+                "outputs": [
+                    "Constant_1579_0"
+                ],
+                "shape": [
+                    1
+                ],
+                "value": [
+                    "1"
+                ]
+            },
+            {
+                "inputs": [
+                    "Parameter_1572",
+                    "Constant_1579"
+                ],
+                "name": "Max_1580",
+                "op": "Max",
+                "op_version": 0,
+                "outputs": [
+                    "Max_1580_0"
+                ],
+                "reduction_axes": [
+                    1
+                ]
+            },
+            {
+                "axes": [
+                    1
+                ],
+                "inputs": [
+                    "Max_1580"
+                ],
+                "name": "Broadcast_1581",
+                "op": "Broadcast",
+                "op_version": 0,
+                "outputs": [
+                    "Broadcast_1581_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ]
+            },
+            {
+                "inputs": [
+                    "Parameter_1572",
+                    "Broadcast_1581"
+                ],
+                "name": "Subtract_1582",
+                "op": "Subtract",
+                "op_version": 0,
+                "outputs": [
+                    "Subtract_1582_0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Constant_1583",
+                    "Subtract_1582"
+                ],
+                "name": "Maximum_1584",
+                "op": "Maximum",
+                "op_version": 0,
+                "outputs": [
+                    "Maximum_1584_0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Maximum_1584"
+                ],
+                "name": "Softmax_1585",
+                "op": "Softmax",
+                "op_version": 0,
+                "outputs": [
+                    "Softmax_1585_0"
+                ],
+                "softmax_axes": [
+                    1
+                ]
+            },
+            {
+                "inputs": [
+                    "Multiply_1608",
+                    "Softmax_1585"
+                ],
+                "name": "Divide_1609",
+                "op": "Divide",
+                "op_version": 0,
+                "outputs": [
+                    "Divide_1609_0"
+                ],
+                "pythondiv": true
+            },
+            {
+                "inputs": [
+                    "Softmax_1585",
+                    "Divide_1609"
+                ],
+                "name": "Multiply_1610",
+                "op": "Multiply",
+                "op_version": 0,
+                "outputs": [
+                    "Multiply_1610_0"
+                ]
+            },
+            {
+                "element_type": "int64_t",
+                "name": "Constant_1611",
+                "op": "Constant",
+                "op_version": 0,
+                "outputs": [
+                    "Constant_1611_0"
+                ],
+                "shape": [
+                    1
+                ],
+                "value": [
+                    "1"
+                ]
+            },
+            {
+                "inputs": [
+                    "Multiply_1610",
+                    "Constant_1611"
+                ],
+                "name": "Sum_1612",
+                "op": "Sum",
+                "op_version": 0,
+                "outputs": [
+                    "Sum_1612_0"
+                ],
+                "reduction_axes": [
+                    1
+                ]
+            },
+            {
+                "axes": [
+                    1
+                ],
+                "inputs": [
+                    "Sum_1612"
+                ],
+                "name": "Broadcast_1613",
+                "op": "Broadcast",
+                "op_version": 0,
+                "outputs": [
+                    "Broadcast_1613_0"
+                ],
+                "shape": [
+                    41,
+                    37
+                ]
+            },
+            {
+                "inputs": [
+                    "Divide_1609",
+                    "Broadcast_1613"
+                ],
+                "name": "Subtract_1614",
+                "op": "Subtract",
+                "op_version": 0,
+                "outputs": [
+                    "Subtract_1614_0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Subtract_1614",
+                    "Softmax_1585"
+                ],
+                "name": "Multiply_1615",
+                "op": "Multiply",
+                "op_version": 0,
+                "outputs": [
+                    "Multiply_1615_0"
+                ]
+            },
+            {
+                "inputs": [
+                    "Multiply_1615"
+                ],
+                "name": "Result_1616",
+                "needs_default_layout": true,
+                "op": "Result",
+                "op_version": 0,
+                "outputs": [
+                    "Result_1616_0"
+                ]
+            }
+        ],
+        "parameters": [
+            "Parameter_1571",
+            "Parameter_1572"
+        ],
+        "result": [
+            "Result_1616"
+        ]
+    }
+]

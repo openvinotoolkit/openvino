@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,73 +23,19 @@
 #include <vector>
 
 namespace cldnn {
-primitive_type_id strided_slice_type_id() {
+primitive_type_id strided_slice::type_id() {
     static primitive_type_base<strided_slice> instance;
     return &instance;
 }
 
 layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
-    const size_t numberOfDims = 4;
     auto desc = node.get_primitive();
     auto input_layout = node.input(0).get_output_layout();
-    auto input_format = input_layout.format;
-
-    auto completeStridedSliceParams = [&](std::vector<int32_t>& param) {
-        for (size_t i = param.size(); i < numberOfDims; ++i) param.push_back(1);
-    };
-
-    auto completeStridedSliceMasks = [&](std::vector<uint8_t>& mask) {
-        for (size_t i = mask.size(); i < numberOfDims; ++i) mask.push_back(0);
-    };
-
-    auto maskStridedSliceParams = [&](std::vector<int32_t>& param, const std::vector<uint8_t>& mask) {
-        for (size_t i = 0; i < param.size(); ++i)
-            if (mask[i])
-                param[i] = input_layout.size.sizes(format::bfyx)[i];
-    };
-
-    // Getting data from constant inputs. There are 3 args: Begin, End, Stride
-    std::vector<std::vector<int32_t>> stridedSliceArgs;
-    for (size_t i = 1; i < node.get_dependencies().size(); ++i) {
-        auto& input = node.get_dependency(i).as<data>();
-        auto& mem = input.get_attached_memory();
-        int32_t* data = static_cast<int32_t*>(mem.lock());
-        std::vector<int32_t> vData = std::vector<int32_t>(data, data + input.get_output_layout().count());
-        completeStridedSliceParams(vData);
-        stridedSliceArgs.push_back(vData);
-        mem.unlock();
+    auto output_format = input_layout.format;
+    if ((output_format == format::bfzyx) && (node.get_primitive()->shrink_axis_mask.size() > 0)) {
+        output_format = format::bfyx;
     }
-
-    std::vector<uint8_t> beginMask(desc->begin_mask);
-    completeStridedSliceMasks(beginMask);
-    std::vector<uint8_t> endMask(desc->end_mask);
-    completeStridedSliceMasks(endMask);
-
-    auto& begin = stridedSliceArgs[0];
-    auto& end = stridedSliceArgs[1];
-    const auto& strides = stridedSliceArgs[2];
-    std::vector<int32_t> outputDimsSizes;
-
-    // If the ith bit of begin_mask is set, begin[i] is ignored and the fullest possible range in that dimension is used
-    // instead.
-    maskStridedSliceParams(begin, beginMask);
-    // end_mask works analogously
-    maskStridedSliceParams(end, endMask);
-
-    if (std::find(desc->new_axis_mask.begin(), desc->new_axis_mask.end(), 1) == desc->new_axis_mask.end()) {
-        for (size_t i = 0; i < numberOfDims; ++i) {
-            int32_t outputDimSize = (end[i] - begin[i]) / strides[i];
-            if ((end[i] - begin[i]) % strides[i] != 0)
-                outputDimSize++;
-            outputDimsSizes.push_back(outputDimSize);
-        }
-    } else {
-        outputDimsSizes = input_layout.size.sizes(format::bfyx);
-    }
-
-    return layout{input_layout.data_type,
-                  input_format,
-                  tensor(outputDimsSizes[0], outputDimsSizes[1], outputDimsSizes[3], outputDimsSizes[2])};
+    return layout{input_layout.data_type, output_format, desc->out_size};
 }
 
 std::string strided_slice_inst::to_string(strided_slice_node const& node) {

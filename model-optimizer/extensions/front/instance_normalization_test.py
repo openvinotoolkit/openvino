@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ import unittest
 import networkx as nx
 
 from extensions.front.instance_normalization import InstanceNormalization
-from mo.utils.unittest.graph import build_graph
 from mo.middle.pattern_match import node_match
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'input': {'kind': 'op', 'op': 'AnyOp'},

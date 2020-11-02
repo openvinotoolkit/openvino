@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "api/CPP/program.hpp"
+#include "api/program.hpp"
 
 #include "refcounted_obj.h"
 #include "engine_impl.h"
@@ -48,8 +48,9 @@ struct program_impl : public refcounted_obj<program_impl> {
     friend class graph_initializations;      // to be removed when possible
     friend class prepare_padding;            // to be removed when possible
     friend class propagate_constants;        // to be removed when possible
+    friend class pre_replace_deconv;         // to be removed when possible
     friend class prepare_primitive_fusing;   // to be removed when possible
-    friend class prepare_binarization;       // to be removed when possible
+    friend class prepare_quantization;       // to be removed when possible
     friend class prepare_conv_eltw_fusing;   // to be removed when possible
     friend class reorder_inputs;             // to be removed when possible
     friend class remove_redundant_reorders;  // to be removed when possible
@@ -60,9 +61,13 @@ public:
     public:
         typedef std::list<program_node*> list_of_nodes;
         typedef list_of_nodes::const_iterator const_iterator;
+        typedef list_of_nodes::const_reverse_iterator const_reverse_iterator;
         typedef list_of_nodes::iterator node_iterator;
+        typedef list_of_nodes::reverse_iterator node_reverse_iterator;
         const_iterator begin() const { return _processing_order.begin(); }
         const_iterator end() const { return _processing_order.end(); }
+        const_reverse_iterator rbegin() const { return _processing_order.rbegin(); }
+        const_reverse_iterator rend() const { return _processing_order.rend(); }
 
         void calc_processing_order_visit(program_node* node);
         void calc_processing_order(program_impl& p);
@@ -150,6 +155,7 @@ public:
     bool is_debug_build() const { return options.get<build_option_type::debug>()->enabled(); }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
+    uint32_t get_prog_id() { return prog_id; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
     program_node& get_node(primitive_id const& id);
@@ -191,6 +197,9 @@ public:
     // returns if 'node' has been extracted and removed successfully
     bool extract_and_remove(program_node& node);
 
+    // Fuses two nodes into fused_node and removes peer_node from graph
+    void fuse_nodes(program_node& fused_node, program_node& peer_node);
+
     // returns if 'node' has been removed
     bool remove_if_dangling(program_node& node);
 
@@ -208,10 +217,10 @@ public:
     const graph_optimizer_info& get_optimizer_passes_info() const;
     void save_pass_info(std::string pass_name);
 
-    void add_optimized_primitive_info(primitive_id optimized_primitive_id,
-                                      std::vector<primitive_id> replaced_with_ids = {}) {
-        optimized.emplace_back(optimized_primitive_id, replaced_with_ids);
-    }
+    void add_optimized_primitive_info(primitive_id optimized_primitive_id, std::vector<primitive_id> replaced_with_ids = {});
+
+    void reset_program();
+    uint32_t get_id() const { return prog_id; }
 
 private:
     uint32_t prog_id = 0;
@@ -242,6 +251,7 @@ private:
     void build_program(bool is_internal);
     void init_graph();
     void set_options();
+    void set_layout_optimizer_attributes(layout_optimizer& lo);
 
     void apply_opt_pass(base_pass& pass);
 
@@ -257,6 +267,7 @@ private:
     void pre_optimize_graph(bool is_internal);
     void post_optimize_graph(bool is_internal);
     void cleanup();
+    void transfer_memory_to_device();
 
     /*
     ** Analysis functions
@@ -273,9 +284,6 @@ private:
     ** Memory pool functions
     */
     void prepare_memory_dependencies();
-    void basic_memory_dependencies();
-    void skipped_branch_memory_dependencies();
-    void oooq_memory_dependencies();
     std::string get_memory_dependencies_string() const;
 
     /*
@@ -301,5 +309,3 @@ private:
 };
 
 }  // namespace cldnn
-
-API_CAST(::cldnn_program, cldnn::program_impl)

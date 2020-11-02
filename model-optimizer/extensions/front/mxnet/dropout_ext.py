@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.identity import IdentityOp
+from extensions.ops.identity import Identity
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 
@@ -23,7 +23,7 @@ class DropoutExt(FrontExtractorOp):
     op = 'Dropout'
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
-        IdentityOp.update_node_stat(node, {})
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node: Node):
+        Identity.update_node_stat(node, {})
+        return cls.enabled

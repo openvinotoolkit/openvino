@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,31 +9,19 @@
 #include <set>
 #include <string>
 
-#include <vpu/sw/post_op_stage.hpp>
+#include <vpu/stages/post_op_stage.hpp>
 
 namespace vpu {
 
 namespace {
 
 class ScaleStage final : public PostOpStage {
+public:
+    using PostOpStage::PostOpStage;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ScaleStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 2 || _inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto inputScale = inputScales[0];
-
-        _scaleInfo.setInput(_inputEdges[1], step == ScalePropagationStep::Propagate ? 1.0f : inputScale);
-        if (_inputEdges.size() == 3) {
-            _scaleInfo.setInput(_inputEdges[2], inputScale);
-        }
-        _scaleInfo.setOutput(_outputEdges[0], inputScale);
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
@@ -43,7 +31,7 @@ private:
 }  // namespace
 
 Stage StageBuilder::addScaleStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const Data& input,
@@ -57,11 +45,7 @@ Stage StageBuilder::addScaleStage(
         {output});
 }
 
-void FrontEnd::parseScale(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseScale(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 

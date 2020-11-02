@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -127,3 +127,11 @@ class KaldiFrontExtractorTest(unittest.TestCase):
     def write_str_value(value) -> bytes:
         pb = bytes(value, 'ascii')
         return pb
+
+    def compare_node_attrs(self, exp_res):
+        node = self.test_node
+        for key in exp_res.keys():
+            if type(node[key]) in [list, np.ndarray]:
+                self.assertTrue(np.array_equal(np.array(node[key]), np.array(exp_res[key])))
+            else:
+                self.assertEqual(node[key], exp_res[key])

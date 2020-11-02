@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,10 @@
 
 import unittest
 
-import networkx as nx
-
+from mo.graph.graph import Graph
 from mo.utils.error import Error
 from mo.utils.graph import bfs_search, is_connected_component, sub_graph_between_nodes
-from mo.graph.graph import Graph
+
 
 class TestGraphUtils(unittest.TestCase):
     def test_simple_dfs(self):

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,31 +15,33 @@
 """
 
 import numpy as np
-import logging as log
 
-from mo.ops.op import Op
-from mo.graph.graph import Node
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
+from mo.front.onnx.extractors.utils import get_onnx_opset_version
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.slice import Slice
+from mo.ops.slice import Slice, AttributedSlice
+from mo.utils.error import Error
 
 
 class SliceFrontExtractor(FrontExtractorOp):
     op = 'Slice'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
-        start = np.array(onnx_attr(node, 'starts', 'ints', default=[]), dtype=np.int64)
-        end = np.array(onnx_attr(node, 'ends', 'ints', default=[]), dtype=np.int64)
+    @classmethod
+    def extract(cls, node):
+        if get_onnx_opset_version(node) < 10:
+            starts = int64_array(onnx_attr(node, 'starts', 'ints', default=[]))
+            ends = int64_array(onnx_attr(node, 'ends', 'ints', default=[]))
+            axes = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
 
-        attrs = {
-            'axis': axis if len(axis) != 0 else None,
-            'start': start if len(start) != 0 else None,
-            'end': end if len(end) != 0 else None,
-        }
+            if len(starts) == 0 or len(ends) == 0:
+                raise Error("starts or/and ends are not specified for the node {}".format(node.name))
+            if len(axes) == 0:
+                axes = np.arange(len(starts), dtype=np.int)
 
-        # update the attributes of the node
-        Slice.update_node_stat(node, attrs)
-        return __class__.enabled
+            attrs = {'axes': axes, 'starts': starts, 'ends': ends}
+            AttributedSlice.update_node_stat(node, attrs)
+        else:  # onnx_opset_version >= 10
+            Slice.update_node_stat(node)
+        return cls.enabled

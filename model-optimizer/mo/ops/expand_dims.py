@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.ops.op import Op, PermuteAttrs
+from mo.ops.op import Op
 from mo.utils.error import Error
 
 
@@ -75,4 +75,4 @@ class ExpandDims(Op):
         # convert data type of the shape to int64 explicitly
         output_node.shape = output_node.shape.astype(np.int64)
         if input_node.value is not None:
-            output_node.value = np.array(np.reshape(input_node.value, output_node.shape))
+            output_node.value = input_node.value.reshape(output_node.shape)

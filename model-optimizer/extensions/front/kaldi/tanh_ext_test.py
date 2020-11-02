@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
-from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from extensions.front.kaldi.tanh_component_ext import TanhFrontExtractor
 from extensions.ops.activation_ops import Tanh
+from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from mo.ops.op import Op
 
 

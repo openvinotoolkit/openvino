@@ -1,1 +1,0 @@
-Capabilities files available for public use (open-sourced).

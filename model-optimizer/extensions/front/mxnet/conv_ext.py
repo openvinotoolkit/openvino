@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,14 +19,14 @@ import numpy as np
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.ops.convolution import Convolution
-from mo.front.common.extractors.utils import layout_attrs
+
 
 class ConvFrontExtractor(FrontExtractorOp):
     op = 'Convolution'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attr = get_mxnet_layer_attrs(node.symbol_dict)
 
         kernel = attr.tuple("kernel", int, None)
@@ -35,7 +35,7 @@ class ConvFrontExtractor(FrontExtractorOp):
         dilate = attr.tuple("dilate", int, tuple(np.ones(len(kernel), dtype=np.int64)))
         group = attr.int("num_group", 1)
         output = attr.int("num_filter", None)
-        bias_term = attr.str("no_bias", 'False') == 'False'
+        bias_term = not attr.bool("no_bias", False)
 
         final_dilations = np.array([1, 1, *[d for d in dilate]], dtype=np.int64) if dilate is not None else None
 
@@ -66,7 +66,7 @@ class ConvFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         Convolution.update_node_stat(node, node_attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class DeconvFrontExtractor(FrontExtractorOp):
@@ -82,8 +82,8 @@ class DeconvFrontExtractor(FrontExtractorOp):
         padding[node.spatial_dims] = (padding[node.spatial_dims] + 1) / 2
         return np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding[2:]]], dtype=np.int64)
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attr = get_mxnet_layer_attrs(node.symbol_dict)
 
         kernel = attr.tuple("kernel", int, None)
@@ -92,7 +92,7 @@ class DeconvFrontExtractor(FrontExtractorOp):
         dilate = attr.tuple("dilate", int, tuple(np.ones(len(kernel), dtype=np.int64)))
         group = attr.int("num_group", 1)
         output = attr.int("num_filter", None)
-        bias_term = attr.str("no_bias", 'True') == 'False'
+        bias_term = not attr.bool("no_bias", True)
         target_shape = attr.tuple("target_shape", int, None)
         if target_shape:
             target_shape = np.array(target_shape, dtype=np.int64)
@@ -107,6 +107,7 @@ class DeconvFrontExtractor(FrontExtractorOp):
             'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
             'dilation': final_dilations,
             'output_spatial_shape': target_shape,
+            'original_output_spatial_shape': target_shape,
             'output_shape': None,
             'stride': np.array([1, 1, *[s for s in stride]], dtype=np.int64),
             'group': group,
@@ -124,6 +125,10 @@ class DeconvFrontExtractor(FrontExtractorOp):
             'get_pad': DeconvFrontExtractor.get_pad,
         }
 
+        output_padding = attr.tuple("adj", int, None)
+        if target_shape is None and output_padding:
+            node_attrs["output_padding"] = np.array([0, 0, *[s for s in output_padding]], dtype=np.int64)
+
         # update the attributes of the node
         Convolution.update_node_stat(node, node_attrs)
-        return __class__.enabled
+        return cls.enabled
