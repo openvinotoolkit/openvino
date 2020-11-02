@@ -29,7 +29,7 @@ if (ENABLE_MKL_DNN)
 endif()
 
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if(ARM)
+if(ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
     set(THREADING_DEFAULT "TBB")
