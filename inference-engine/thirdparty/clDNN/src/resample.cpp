@@ -118,7 +118,6 @@ std::string resample_inst::to_string(resample_node const& node) {
         resample_info.add("nearest_mode:", "simple");
 
     resample_info.add("output_size", desc->output_size);
-    resample_info.add("with activation", desc->with_activation);
     resample_info.add("output padding lower size", desc->output_padding.lower_size());
     resample_info.add("output padding upper size", desc->output_padding.upper_size());
 
