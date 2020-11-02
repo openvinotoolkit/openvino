@@ -64,7 +64,7 @@ inline Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& const
     auto dataPrecision = convertPrecision(constLayer->get_element_type());
 
     size_t shapeSize = ngraph::shape_size(constLayer->get_shape());
-    constexpr auto byte_size{8};
+    constexpr size_t byte_size{8};
     if (dataPrecision == Precision::BIN) {
         shapeSize = (shapeSize + (byte_size - 1)) / byte_size;
     }

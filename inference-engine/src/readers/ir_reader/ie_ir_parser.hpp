@@ -262,17 +262,27 @@ private:
             adapter.set(value);
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override  {
-            std::vector<std::string> value;
+            std::string param;
             pugi::xml_node dn = node.child("data");
             auto type = XMLParseUtils::GetStrAttr(node, "type");
 
             if (dn.empty())
                 THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
 
-            if (getParameters<std::string>(dn, name, value)) {
+            if (getStrAttribute(dn, name, param)) {
+                std::string field;
+                std::string value;
                 auto data = static_cast<char*>(adapter.get_ptr());
-                size_t length = value[0].length() > adapter.size() ? adapter.size() : value[0].length();
-                value[0].copy(data, length);
+                std::stringstream ss(param);
+
+                if (getline(ss, field)) {
+                    if (field.empty())
+                        THROW_IE_EXCEPTION << "Cannot get vector of parameters! \"" << param << "\" is incorrect";
+                    std::stringstream fs(field);
+                    fs >> value;
+                }
+                size_t length = value.length() > adapter.size() ? adapter.size() : value.length();
+                value.copy(data, length);
             } else if (name == "value") {
                 std::vector<int64_t> shape;
                 std::string el_type_str;

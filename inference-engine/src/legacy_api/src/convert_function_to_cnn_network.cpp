@@ -135,8 +135,7 @@ public:
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void*>& adapter) override {
         if (std::string(node->get_type_name()) != "Constant") {
             const auto data_beg = static_cast<char*>(adapter.get_ptr());
-            const auto data_end = std::next(data_beg, adapter.size());
-            params[name] = std::string{data_beg, data_end};
+            params[name] = std::string(data_beg, adapter.size()); 
         }
     }
 

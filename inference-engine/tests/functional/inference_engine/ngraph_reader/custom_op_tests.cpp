@@ -4,6 +4,8 @@
 
 #include <string>
 #include <ngraph/ngraph.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <common_test_utils/xml_net_builder/xml_filler.hpp>
 #include "ngraph_reader_tests.hpp"
 
 class CustomAddConst : public ngraph::op::Op {
@@ -46,93 +48,6 @@ public:
 
 constexpr ngraph::NodeTypeInfo CustomAddConst::type_info;
 
-class CustomAddConstKernel : public InferenceEngine::ILayerExecImpl {
-    public:
-        explicit CustomAddConstKernel(const std::shared_ptr<ngraph::Node>& node): node(node) {
-        try {
-            auto castedNode = std::dynamic_pointer_cast<CustomAddConst>(node);
-            if (!castedNode)
-                THROW_IE_EXCEPTION << "Cannot create implementation for unknown operation!";
-            if (castedNode->get_input_element_type(0) != ngraph::element::i32 || castedNode->get_output_element_type(0) != ngraph::element::i32)
-                THROW_IE_EXCEPTION << "Operation supports only I32 tensors.";
-            shape = castedNode->getShapeAttr();
-            data_ptr = castedNode->getDataPtr();
-            el_type = castedNode->get_input_element_type(0);
-        } catch (InferenceEngine::details::InferenceEngineException& ex) {
-            error = ex.what();
-            }
-        }
-
-        InferenceEngine::StatusCode
-        init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-            return InferenceEngine::StatusCode::OK;
-        }
-
-        InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
-                                                               InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-            InferenceEngine::LayerConfig layerConfig;
-            layerConfig.dynBatchSupport = true;
-
-            if (node->outputs().size() != 1 && node->inputs().size() != 1)
-                return InferenceEngine::GENERAL_ERROR;
-
-            InferenceEngine::DataConfig cfg;
-            cfg.constant = false;
-            cfg.inPlace = 0;
-
-            InferenceEngine::SizeVector order;
-            auto partialShape = node->get_output_partial_shape(0);
-            if (partialShape.is_dynamic())
-                return InferenceEngine::GENERAL_ERROR;
-
-            auto shape = node->get_output_shape(0);
-            for (size_t i = 0; i < shape.size(); i++) {
-                order.push_back(i);
-            }
-            cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::I32,
-                                                   shape, {shape, order});
-            layerConfig.outConfs.push_back(cfg);
-            layerConfig.inConfs.push_back(cfg);
-            conf.push_back(layerConfig);
-            return InferenceEngine::OK;
-        }
-
-        InferenceEngine::StatusCode
-        execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
-                InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-            for (size_t i = 0; i < inputs.size(); i++) {
-                InferenceEngine::MemoryBlob::CPtr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputs[i]);
-                InferenceEngine::MemoryBlob::Ptr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputs[i]);
-                if (!moutput || !minput) {
-                    return InferenceEngine::StatusCode::PARAMETER_MISMATCH;
-                }
-                // locked memory holder should be alive all time while access to its buffer happens
-                auto minputHolder = minput->rmap();
-                auto moutputHolder = moutput->wmap();
-
-                // retrieve constant data
-                const auto data_beg = static_cast<char*>(data_ptr);
-                const auto data_end = std::next(data_beg, shape_size(shape) * el_type.size());
-                std::vector<char> value{data_beg, data_end};
-
-                auto inputData = minputHolder.as<const int32_t *>();
-                auto outputData = moutputHolder.as<int32_t  *>();
-                for (size_t j = 0; j < minput->size(); j++) {
-                    auto position = j * el_type.size() + 3;
-                    outputData[j] = inputData[j] + static_cast<int32_t>(value.at(position));
-                }
-            }
-            return InferenceEngine::StatusCode::OK;
-        }
-
-    private:
-        const std::shared_ptr<ngraph::Node> node;
-        ngraph::Shape shape;
-        void* data_ptr;
-        ngraph::element::Type el_type;
-        std::string error;
-};
-
 class CustomAddConstExtension : public InferenceEngine::IExtension {
     public:
         CustomAddConstExtension() {
@@ -151,49 +66,9 @@ class CustomAddConstExtension : public InferenceEngine::IExtension {
             opsets["custom_opset"] = opset;
             return opsets;
         }
-
-        std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-            if (node->description() != CustomAddConst::type_info.name)
-                return {};
-            return {"CPU"};
-        }
-
-        InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
-            return std::make_shared<CustomAddConstKernel>(node);
-        }
 };
 
-void infermodel(InferenceEngine::Core& ie, const std::string& model, const std::vector<int32_t>& input_values, const std::vector<int32_t>& expected) {
-    InferenceEngine::Blob::CPtr weights;
-    auto network = ie.ReadNetwork(model, weights);
-    auto function = network.getFunction();
-
-    auto network_inputs = network.getInputsInfo();
-    auto network_outputs = network.getOutputsInfo();
-    auto exe_network = ie.LoadNetwork(network, "CPU");
-    auto inference_req = exe_network.CreateInferRequest();
-    const auto& input = network_inputs.begin();
-    const auto& input_info = input->second;
-
-    auto blob = std::make_shared<InferenceEngine::TBlob<int32_t>>(input_info->getTensorDesc());
-    blob->allocate();
-    ASSERT_EQ(input_values.size(), blob->size());
-    int32_t* blob_buffer = blob->wmap().template as<int32_t*>();
-    std::copy(input_values.begin(), input_values.end(), blob_buffer);
-    inference_req.SetBlob(input->first, blob);
-
-    inference_req.Infer();
-
-    auto output = network_outputs.begin();
-    InferenceEngine::MemoryBlob::CPtr computed = InferenceEngine::as<InferenceEngine::MemoryBlob>(inference_req.GetBlob(output->first));
-    const auto computed_data = computed->rmap();
-    const auto* computed_data_buffer = computed_data.template as<const int32_t*>();
-    std::vector<int32_t> computed_values(computed_data_buffer,
-                                   computed_data_buffer + computed->size());
-    ASSERT_EQ(expected, computed_values);
-}
-
-TEST_F(NGraphReaderTests, ReadXmlModelWithCustomAddConstOp) {
+TEST_F(NGraphReaderTests, ReadCustomAddConstNetwork) {
     std::string model = R"V0G0N(
   <net name="Network" version="10">
     <layers>
@@ -206,7 +81,7 @@ TEST_F(NGraphReaderTests, ReadXmlModelWithCustomAddConstOp) {
             </output>
         </layer>
         <layer name="activation" id="1" type="CustomAddConst" version="custom_opset">
-        <data element_type="i32" shape="4" value="...%.../...5...>"/>
+        <data element_type="i32" shape="4" value="_VALUE_"/>
             <input>
                 <port id="1" precision="I32">
                     <dim>4</dim>
@@ -233,9 +108,26 @@ TEST_F(NGraphReaderTests, ReadXmlModelWithCustomAddConstOp) {
 </net>
 )V0G0N";
 
-    std::vector<int32_t> input_values{2, 3, 4, 5};
-    std::vector<int32_t> expected{39, 50, 57, 67};
+    std::string expectedValue = std::string("0?|%.g6/,-{5~P1>");
+    REPLACE_WITH_STR(model, "_VALUE_", expectedValue);
+    InferenceEngine::Blob::CPtr weights;
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<CustomAddConstExtension>());
-    infermodel(ie, model, input_values, expected);
+
+    auto network = ie.ReadNetwork(model, weights);
+
+    IE_SUPPRESS_DEPRECATED_START
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+
+    for (auto it = details::CNNNetworkIterator(convertedNetwork.get()); it != details::CNNNetworkIterator(); it++) {
+        InferenceEngine::CNNLayerPtr layer = *it;
+        ASSERT_NE(nullptr, layer->getNode());
+    }
+
+    InferenceEngine::CNNLayerPtr customAdd;
+    convertedNetwork->getLayerByName("activation", customAdd, nullptr);
+
+    ASSERT_EQ(expectedValue, customAdd->GetParamAsString("value"));
+
+    IE_SUPPRESS_DEPRECATED_END
 }
