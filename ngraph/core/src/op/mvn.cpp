@@ -79,9 +79,8 @@ OutputVector op::MVN::decompose_op() const
 
     // calculate mean normalization
     auto mean = builder::opset1::mean(data, m_reduction_axes);
-    auto mean_normalization =
-            std::make_shared<op::v1::Subtract>(data,
-                                               builder::opset1::make_broadcast(mean, data_shape, m_reduction_axes));
+    auto mean_normalization = std::make_shared<op::v1::Subtract>(
+        data, builder::opset1::make_broadcast(mean, data_shape, m_reduction_axes));
 
     if (!m_normalize_variance)
     {
@@ -96,7 +95,8 @@ OutputVector op::MVN::decompose_op() const
             data.get_element_type(), Output<Node>(variance).get_shape(), vector<double>{m_eps});
         variance = std::make_shared<op::Sqrt>(std::make_shared<op::v1::Add>(variance, eps_node));
         return OutputVector{std::make_shared<op::v1::Divide>(
-                mean_normalization, builder::opset1::make_broadcast(variance, data_shape, m_reduction_axes))};
+            mean_normalization,
+            builder::opset1::make_broadcast(variance, data_shape, m_reduction_axes))};
     }
 }
 

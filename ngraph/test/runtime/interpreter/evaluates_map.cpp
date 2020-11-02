@@ -845,7 +845,8 @@ namespace
         switch (inputs[0]->get_element_type())
         {
         case element::Type_t::i32:
-            runtime::reference::one_hot<typename element_type_traits<element::Type_t::i32>::value_type, T>(
+            runtime::reference::
+                one_hot<typename element_type_traits<element::Type_t::i32>::value_type, T>(
                     inputs[0]->get_data_ptr<element::Type_t::i32>(),
                     outputs[0]->get_data_ptr<T>(),
                     inputs[0]->get_shape(),
@@ -855,7 +856,8 @@ namespace
                     inputs[3]->get_data_ptr<T>()[0]);
             break;
         case element::Type_t::i64:
-            runtime::reference::one_hot<typename element_type_traits<element::Type_t::i64>::value_type, T>(
+            runtime::reference::
+                one_hot<typename element_type_traits<element::Type_t::i64>::value_type, T>(
                     inputs[0]->get_data_ptr<element::Type_t::i64>(),
                     outputs[0]->get_data_ptr<T>(),
                     inputs[0]->get_shape(),
