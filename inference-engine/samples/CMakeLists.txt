@@ -123,7 +123,7 @@ set (INTTYPES_FORMAT C99)
 set (BUILD_TESTING OFF)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
-    add_subdirectory(thirdparty/gflags)
+    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
     set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
 endif()
 

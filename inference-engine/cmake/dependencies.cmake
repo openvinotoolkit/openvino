@@ -125,6 +125,14 @@ if (THREADING STREQUAL "OMP")
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     log_rpath_from_dir(OMP "${OMP}/lib")
     debug_message(STATUS "intel_omp=" ${OMP})
+    
+    if(WIN32)
+        file(GLOB_RECURSE source_list "${OMP}/*.dll")
+    elseif(LINUX OR APPLE)
+        file(GLOB_RECURSE source_list "${OMP}/*.so*")
+    endif()
+    install(FILES ${source_list} DESTINATION "deployment_tools/inference_engine/external/omp/lib")
+    
 endif ()
 
 ## TBB package
@@ -176,6 +184,11 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         log_rpath_from_dir(TBB "${TBB}/lib")
     endif ()
     debug_message(STATUS "tbb=" ${TBB})
+    
+    install(DIRECTORY ${TBB}
+        DESTINATION /deployment_tools/inference_engine/external
+        COMPONENT tbb)
+        
 endif ()
 
 if (ENABLE_OPENCV)
@@ -263,6 +276,16 @@ if (ENABLE_OPENCV)
         log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
     endif()
     debug_message(STATUS "opencv=" ${OPENCV})
+
+    install(DIRECTORY ${OPENCV}/
+            DESTINATION opencv
+            COMPONENT opencv
+            PATTERN ie_dependency.info EXCLUDE)
+            
+    install(DIRECTORY ${OPENCV}/../python/
+            DESTINATION python
+            COMPONENT opencv)
+
 endif()
 
 include(ie_parallel)
@@ -294,6 +317,16 @@ if (ENABLE_GNA)
     endif()
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA})
+    
+    if(WIN32)
+        file(GLOB_RECURSE source_list "${GNA}/*.dll")
+        install(FILES ${source_list} DESTINATION ${IE_CPACK_RUNTIME_PATH})
+    elseif(LINUX)
+        file(GLOB_RECURSE source_list "${GNA}/*.so*")
+        install(FILES ${source_list} DESTINATION "deployment_tools/inference_engine/external/gna/lib")
+    endif()
+
+    
 endif()
 
 if (ENABLE_SPEECH_DEMO)
