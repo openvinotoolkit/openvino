@@ -76,11 +76,6 @@ protected:
 class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault,
                                      public ITaskExecutor {
 public:
-    enum MultiDeviceSchedulingModes {
-        eRespectDevicePriorities = 0, /*default, legacy*/
-        eRespectDataAffinity
-    };
-
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
     struct WorkerInferRequest {
         InferenceEngine::InferRequest   _inferRequest;
@@ -107,19 +102,18 @@ public:
     void ScheduleToWorkerInferRequest();
 
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
+    static thread_local std::string                             _thisPreferredDeviceName;
     std::atomic_bool                                            _terminate = {false};
     std::mutex                                                  _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
     ThreadSafeQueue<Task>                                       _inferPipelineTasks;
+    DeviceMap<ThreadSafeQueue<Task>>                            _inferPipelineTasksDeviceSpecific;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
-
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
-    DeviceMap<size_t>                                           _workerRequestsInitialNum;
 
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
-    MultiDeviceSchedulingModes _schedulingMode = MultiDeviceSchedulingModes::eRespectDataAffinity;
     std::atomic_size_t                                          _numRequestsCreated = {0};
 };
 

@@ -86,45 +86,72 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
     _inferRequest{inferRequest},
     _needPerfCounters{needPerfCounters},
     _workerInferRequest(workerRequest) {
-    struct ThisRequestExecutor : public ITaskExecutor {
-        explicit ThisRequestExecutor(MultiDeviceAsyncInferRequest* _this_) : _this{_this_} {}
-        void run(Task task) override {
-            auto workerInferRequest = _this->_workerInferRequest;
-            workerInferRequest->_task = std::move(task);
-            workerInferRequest->_inferRequest.StartAsync();
+        _pipeline.clear();
+        struct CheckRemoteBlobs : public ITaskExecutor {
+            explicit CheckRemoteBlobs(MultiDeviceInferRequest* _request_,
+                    MultiDeviceExecutableNetwork* network)
+                : _request{_request_}, _network(network) {}
+            void run(Task task) override {
+                // by default, no preferred device:
+                _network->_thisPreferredDeviceName = "";
+                // if any input is remote, let' use the corresponding device
+                for (const auto &it : _network->GetInputsInfo()) {
+                    Blob::Ptr b;
+                    _request->GetBlob(it.first.c_str(), b);
+                    auto r = b->as<RemoteBlob>();
+                    if (r) {
+                        _network->_thisPreferredDeviceName = r->getDeviceName();
+                        break;
+                    }
+                }
+                task();
+            };
+            MultiDeviceInferRequest* _request;
+            MultiDeviceExecutableNetwork* _network;
         };
-        MultiDeviceAsyncInferRequest* _this = nullptr;
-    };
-    _pipeline.clear();
-    // in the eRespectDevicePriorities mode the scheduling algo may select any device, so we shall:
-    //  1. accept the scheduling decision (actual workerRequest)
-    //  2. set the device-agnostic blobs to the actual (device-specific) request first
-    if (_multiDeviceExecutableNetwork->_schedulingMode == MultiDeviceExecutableNetwork::MultiDeviceSchedulingModes::eRespectDevicePriorities) {
+        // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
         _pipeline.push_back(
-                { /*TaskExecutor*/ _multiDeviceExecutableNetwork,
-                  /*task*/[this] {
-                    _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
-                    _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
-                }});
-    }
+        { /*TaskExecutor*/ std::make_shared<CheckRemoteBlobs>(_inferRequest.get(), _multiDeviceExecutableNetwork.get()),
+                /*task*/ [&multiDeviceExecutableNetwork ] {
+                    if (!multiDeviceExecutableNetwork->_thisPreferredDeviceName.empty())
+                        std::cout << "Preferred device:" << multiDeviceExecutableNetwork->_thisPreferredDeviceName <<std::endl;
+        }});
 
-    // regardless of scheduling policy the ThisRequestExecutor shall start the inference so the task is to check for the result
-    // this pipeline stage is common for any  scheduling mode
-    _pipeline.push_back(
-            { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this),
-              /*task*/ [this] {
+        // as generally the scheduling algo may select any device, so we shall:
+        //  1. accept the scheduling decision (actual workerRequest)
+        //  2. set the device-agnostic blobs to the actual (device-specific) request first
+        _pipeline.push_back(
+        { /*TaskExecutor*/ _multiDeviceExecutableNetwork,
+                  /*task*/ [this] {
+            _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
+            _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
+        }});
+
+        // this executor shall start the inference so the task (passed to the next stage) is to check for the result
+        struct ThisRequestExecutor : public ITaskExecutor {
+            explicit ThisRequestExecutor(MultiDeviceAsyncInferRequest* _this_) : _this{_this_} {}
+            void run(Task task) override {
+                auto workerInferRequest = _this->_workerInferRequest;
+                workerInferRequest->_task = std::move(task);
+                workerInferRequest->_inferRequest.StartAsync();
+            };
+            MultiDeviceAsyncInferRequest* _this = nullptr;
+        };
+        _pipeline.push_back(
+        { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this),
+                /*task*/ [this] {
             auto status = _workerInferRequest->_status;
             if (InferenceEngine::StatusCode::OK != status) {
                 if (nullptr != InferenceEngine::CurrentException()) {
-                    std::rethrow_exception(InferenceEngine::CurrentException());
-                } else {
-                    THROW_IE_EXCEPTION << InferenceEngine::details::as_status << status;
-                }
+                std::rethrow_exception(InferenceEngine::CurrentException());
+            } else {
+                THROW_IE_EXCEPTION << InferenceEngine::details::as_status << status;
             }
-            if (_needPerfCounters) {
-                _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
-            }
-        }});
+        }
+        if (_needPerfCounters) {
+            _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
+        }
+    }});
 }
 
 void MultiDeviceAsyncInferRequest::Infer_ThreadUnsafe() {
@@ -142,6 +169,7 @@ MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
 
 thread_local MultiDeviceExecutableNetwork::WorkerInferRequest* MultiDeviceExecutableNetwork::_thisWorkerInferRequest = nullptr;
+thread_local std::string MultiDeviceExecutableNetwork::_thisPreferredDeviceName = "";
 
 struct IdleGuard {
     explicit IdleGuard(MultiDeviceExecutableNetwork::WorkerInferRequest* workerInferRequestPtr,
@@ -193,37 +221,23 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto& workerRequests = _workerRequests[device];
         auto& idleWorkerRequests = _idleWorkerRequests[device];
         workerRequests.resize(numRequests);
-        _workerRequestsInitialNum[device] = numRequests;
+        _inferPipelineTasksDeviceSpecific.insert({device, ThreadSafeQueue<Task>()});
         auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
         for (auto&& workerRequest : workerRequests) {
             workerRequest._inferRequest = network.CreateInferRequest();
             auto* workerRequestPtr = &workerRequest;
             idleWorkerRequests.push(workerRequestPtr);
-            if (_schedulingMode == MultiDeviceExecutableNetwork::MultiDeviceSchedulingModes::eRespectDevicePriorities) {
-                workerRequest._inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
-                        [workerRequestPtr, this, idleWorkerRequestsPtr](InferRequest,
-                                                                                StatusCode status) mutable {
-                            IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
-                            workerRequestPtr->_status = status;
-                            {
-                                auto capturedTask = std::move(workerRequestPtr->_task);
-                                capturedTask();
-                            }
-                            if (!_terminate) {
-                                idleGuard.Release()->push(workerRequestPtr);
-                                ScheduleToWorkerInferRequest();
-                            }
-                        });
-            } else {
-                workerRequest._inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
-                        [workerRequestPtr] (InferRequest , StatusCode status) mutable {
-                            workerRequestPtr->_status = status;
-                            {
-                                auto capturedTask = std::move(workerRequestPtr->_task);
-                                capturedTask();
-                            }
-                        });
-                }
+            workerRequest._inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
+                    [workerRequestPtr, this, idleWorkerRequestsPtr](InferRequest,
+                                                                            StatusCode status) mutable {
+                        workerRequestPtr->_status = status;
+                        auto capturedTask = std::move(workerRequestPtr->_task);
+                        capturedTask();
+                        idleWorkerRequestsPtr->push(workerRequestPtr);
+                        if (!_terminate) {
+                            ScheduleToWorkerInferRequest();
+                        }
+                    });
         }
     }
 }
@@ -236,9 +250,11 @@ void MultiDeviceExecutableNetwork::GetContext(RemoteContext::Ptr& pContext, Resp
         } catch (InferenceEngineException& e) {
             if (e.getStatus() != NOT_IMPLEMENTED)
                 throw;
+        } catch (const NotImplemented& ex) {
+            std::cout << ex.what();
         }
     }
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str;
 }
 
 void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
@@ -252,6 +268,14 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
         if (idleWorkerRequests.try_pop(workerRequestPtr)) {
             IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
             Task inferPipelineTask;
+            // let's check the queue of the device-specific tasks first
+            if (_inferPipelineTasksDeviceSpecific[device.deviceName].try_pop(inferPipelineTask)) {
+                _thisWorkerInferRequest = workerRequestPtr;
+                inferPipelineTask();
+                idleGuard.Release();
+                break;
+            }
+            // if no device-specific tasks, let's try to take device-agnostic task
             if (_inferPipelineTasks.try_pop(inferPipelineTask)) {
                 _thisWorkerInferRequest = workerRequestPtr;
                 inferPipelineTask();
@@ -264,7 +288,10 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
 
 void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
     if (!_terminate) {
-        _inferPipelineTasks.push(std::move(inferPipelineTask));
+        if (!_thisPreferredDeviceName.empty())
+            _inferPipelineTasksDeviceSpecific[_thisPreferredDeviceName].push(std::move(inferPipelineTask));
+        else
+            _inferPipelineTasks.push(std::move(inferPipelineTask));
         ScheduleToWorkerInferRequest();
     }
 }
@@ -283,7 +310,6 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
 
 InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
-    // TODO: mutex
     auto num = _numRequestsCreated++;
     size_t sum = 0;
     MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with = nullptr;
@@ -291,23 +317,11 @@ InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateI
     for (auto&& _workers : _workerRequests) {
         const auto& dev_name  = _workers.first;
         auto&& dev_requests = _workers.second;
-        sum += _workerRequestsInitialNum[dev_name];
-        if (num < sum)
+        sum += _workers.second.size();
+        if (num < sum) {
+            // taking requests in reversed order, as these are popped from the top of the idle requests queue:
             request_to_share_blobs_with = &dev_requests.at(sum - num - 1);
-    }
-    // data-affinity path assumes that any request can run on any device (the choice is actually on the RemoteBlob's origin)
-    // so padding the initial pool of the (per-device) workers requests for each user-facing request accordingly
-    for (auto&& _workers : _workerRequests) {
-        const auto& dev_name  = _workers.first;
-        auto&& dev_requests = _workers.second;
-        auto old_size = dev_requests.size();
-        if (old_size < num) {
-            for (size_t i = old_size; i < num; i++) {
-                dev_requests[i]._inferRequest = _networksPerDevice[dev_name].CreateInferRequest();
-                // if original devices' requests are over, let's  borrow request/blobs from the first device in the list
-                if (!request_to_share_blobs_with)
-                    request_to_share_blobs_with = &dev_requests[i];
-            }
+            break;
         }
     }
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);

@@ -40,12 +40,21 @@ public:
                     _callbackQueue(_id, getExecutionTimeInMilliseconds());
                 });
         const InferenceEngine::ConstInputsDataMap inputInfo = net.GetInputsInfo();
-        for (auto i : inputInfo) {
-            auto rblob =  InferenceEngine::make_shared_blob(i.second->getTensorDesc(), net.GetContext());
-            rblob->allocate();
-//            auto p = rblob.get()->buffer().as<void*>();
-//            std::cout << "Rblob locked: " << p <<std::endl;
-            _request.SetBlob(i.first, rblob);
+        InferenceEngine::RemoteContext::Ptr ctx;
+        try {
+            ctx = net.GetContext();
+        }   catch (InferenceEngine::details::InferenceEngineException& e) {
+                if (e.getStatus() != InferenceEngine::NOT_IMPLEMENTED)
+                    throw;
+        }
+        if (ctx) {
+            for (auto i : inputInfo) {
+                auto rblob = InferenceEngine::make_shared_blob(i.second->getTensorDesc(), net.GetContext());
+                rblob->allocate();
+                auto p = rblob.get()->buffer().as<void *>();
+                std::cout << "Rblob locked: " << p << std::endl;
+                _request.SetBlob(i.first, rblob);
+            }
         }
     }
 
