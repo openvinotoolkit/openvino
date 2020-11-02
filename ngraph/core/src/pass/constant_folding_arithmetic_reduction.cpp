@@ -19,7 +19,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/min.hpp"
-#include "ngraph/op/product.hpp"
 #include "ngraph/op/reduce_mean.hpp"
 #include "ngraph/op/reduce_prod.hpp"
 #include "ngraph/op/reduce_sum.hpp"
@@ -44,15 +43,7 @@ static shared_ptr<op::Constant>
     runtime::AlignedBuffer buffer(shape_size(out_shape) * sizeof(T));
     T* data_ptr = buffer.get_ptr<T>();
 
-    if (auto max = as_type_ptr<op::Max>(reduction_node))
-    {
-        runtime::reference::max<T>(constant->get_data_ptr<T>(),
-                                   data_ptr,
-                                   constant->get_output_shape(0),
-                                   max->get_reduction_axes(),
-                                   false);
-    }
-    else if (auto reduce_max = as_type_ptr<op::v1::ReduceMax>(reduction_node))
+    if (auto reduce_max = as_type_ptr<op::v1::ReduceMax>(reduction_node))
     {
         runtime::reference::max<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
@@ -60,27 +51,12 @@ static shared_ptr<op::Constant>
                                    reduce_max->get_reduction_axes(),
                                    reduce_max->get_keep_dims());
     }
-    else if (auto min = as_type_ptr<op::Min>(reduction_node))
-    {
-        runtime::reference::min<T>(constant->get_data_ptr<T>(),
-                                   data_ptr,
-                                   constant->get_output_shape(0),
-                                   min->get_reduction_axes());
-    }
     else if (auto reduce_min = as_type_ptr<op::v1::ReduceMin>(reduction_node))
     {
         runtime::reference::min<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
                                    reduce_min->get_reduction_axes());
-    }
-    else if (auto prod = as_type_ptr<op::Product>(reduction_node))
-    {
-        runtime::reference::product<T>(constant->get_data_ptr<T>(),
-                                       data_ptr,
-                                       constant->get_output_shape(0),
-                                       prod->get_reduction_axes(),
-                                       false);
     }
     else if (auto reduce_prod = as_type_ptr<op::v1::ReduceProd>(reduction_node))
     {
@@ -183,9 +159,7 @@ void pass::ConstantFolding::construct_constant_arithmetic_reduction()
     auto constant_axes_label =
         make_shared<pattern::op::Label>(element::i64, Shape{2}, pattern::has_class<op::Constant>());
     auto is_supported_reduction = [](std::shared_ptr<Node> n) {
-        return (pattern::has_class<op::Max>()(n) || pattern::has_class<op::Min>()(n) ||
-                pattern::has_class<op::Product>()(n) || pattern::has_class<op::Sum>()(n) ||
-                pattern::has_class<op::v1::ReduceMax>()(n) ||
+        return (pattern::has_class<op::Sum>()(n) || pattern::has_class<op::v1::ReduceMax>()(n) ||
                 pattern::has_class<op::v1::ReduceMin>()(n) ||
                 pattern::has_class<op::v1::ReduceProd>()(n) ||
                 pattern::has_class<op::v1::ReduceSum>()(n) ||

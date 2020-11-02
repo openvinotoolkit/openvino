@@ -78,7 +78,7 @@ void PassImpl::run(const Model& model) {
         auto groups     = stage->attrs().get<int>("groups");
         auto try_hw     = stage->attrs().get<int>("try_hw");
 
-        int kernelNDims = pads_begin.size();
+        int kernelNDims = static_cast<int>(pads_begin.size());
         VPU_THROW_UNLESS(kernelNDims == pads_end.size(),
                          "wrong pads ndims=%lu, expected=%d", pads_end.size(), kernelNDims);
         VPU_THROW_UNLESS(kernelNDims == strides.size(),

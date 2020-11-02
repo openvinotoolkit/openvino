@@ -13,6 +13,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/utils/utils.hpp>
@@ -20,9 +21,9 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFC, "ConvertMatMulToFC", 0);
 
 ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
-    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
-    auto matmul = std::make_shared<ngraph::opset1::MatMul>(input_0, input_1);
+    auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),
+                                                      pattern::any_input(pattern::has_static_shape())},
+                                                      pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
@@ -143,9 +144,9 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
 
             // Create FullyConnected
             std::vector<float> bias_value(O, 0);
-            auto fc_bias = opset1::Constant::create(matmul->get_input_element_type(0), Shape {O}, bias_value);
+            auto fc_bias = opset1::Constant::create(matmul->get_output_element_type(0), Shape {O}, bias_value);
 
-            auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape);
+            auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape, matmul->output(0).get_element_type());
             fc->set_friendly_name(matmul->get_friendly_name());
             new_ops.push_back(fc);
 
@@ -163,9 +164,9 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToGemm, "ConvertMatMulToGemm", 0);
 
 ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
-    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
-    auto matmul = std::make_shared<ngraph::opset1::MatMul>(input_0, input_1);
+    auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),
+                                                      pattern::any_input(pattern::has_static_shape())},
+                                                      pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
@@ -207,7 +208,7 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
         }
 
-        auto gemm = std::make_shared<opset1::MatMul>(fc_input_a, fc_input_b, matmul->get_transpose_a(), matmul->get_transpose_b());
+        auto gemm = matmul->copy_with_new_inputs({ fc_input_a, fc_input_b });
         new_ops.push_back(gemm);
 
         if (gemm->get_shape() != output_shape) {

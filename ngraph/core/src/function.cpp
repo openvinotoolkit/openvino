@@ -77,6 +77,28 @@ Function::Function(const std::shared_ptr<Node>& result,
 {
 }
 
+Function::Function(const ResultVector& results,
+                   const SinkVector& sinks,
+                   const ParameterVector& parameters,
+                   const std::string& name)
+    : m_results(results)
+    , m_sinks(sinks)
+    , m_parameters(parameters)
+    , m_name(name)
+    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
+    , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+{
+    validate_nodes_and_infer_types();
+}
+
+Function::Function(const OutputVector& results,
+                   const SinkVector& sinks,
+                   const ParameterVector& parameters,
+                   const std::string& name)
+    : Function(as_result_vector(results), sinks, parameters, name)
+{
+}
+
 void Function::validate_nodes_and_infer_types()
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
@@ -106,6 +128,10 @@ std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
     {
         nodes.push_back(r);
     }
+    for (auto& r : get_sinks())
+    {
+        nodes.emplace_back(r);
+    }
     for (auto& param : get_parameters())
     {
         nodes.push_back(param);
@@ -122,6 +148,11 @@ void Function::map_unordered_ops(std::function<void(Node*)> f) const
     {
         remaining_ops.push(r.get());
     }
+    for (auto& r : get_sinks())
+    {
+        remaining_ops.push(r.get());
+    }
+
     for (auto& param : get_parameters())
     {
         remaining_ops.push(param.get());
@@ -347,6 +378,33 @@ bool Function::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+void Function::add_sinks(const SinkVector& sinks)
+{
+    m_sinks.insert(m_sinks.end(), sinks.begin(), sinks.end());
+}
+
+void Function::remove_sink(const std::shared_ptr<op::Sink>& sink)
+{
+    m_sinks.erase(std::remove_if(m_sinks.begin(),
+                                 m_sinks.end(),
+                                 [&sink](std::shared_ptr<op::Sink>& s) { return s == sink; }),
+                  m_sinks.end());
+}
+
+void Function::add_results(const ResultVector& results)
+{
+    m_results.insert(m_results.end(), results.begin(), results.end());
+}
+
+void Function::remove_result(const std::shared_ptr<op::Result>& result)
+{
+    m_results.erase(
+        std::remove_if(m_results.begin(),
+                       m_results.end(),
+                       [&result](std::shared_ptr<op::v0::Result>& r) { return r == result; }),
+        m_results.end());
+}
+
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;
 
 AttributeAdapter<shared_ptr<Function>>::AttributeAdapter(shared_ptr<Function>& ref)
@@ -400,6 +458,10 @@ bool AttributeAdapter<shared_ptr<Function>>::visit_attributes(AttributeVisitor& 
             for (auto result : m_ref->get_results())
             {
                 results.push_back(result);
+            }
+            for (auto sink : m_ref->get_sinks())
+            {
+                results.push_back(sink);
             }
 
             int64_t i = 0;
