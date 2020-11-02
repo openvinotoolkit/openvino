@@ -12,15 +12,15 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher, "ConvertInterpolateToInterpOrResampleMatcher", 0);
 
 ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToInterpOrResampleMatcher() {
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto shp = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
-    auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, shp, ngraph::op::v0::InterpolateAttrs());
+    auto interpolate = pattern::wrap_type<opset1::Interpolate>({pattern::any_input(pattern::has_static_shape()),
+                                                                pattern::wrap_type<opset1::Constant>()});
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto interpolate = std::dynamic_pointer_cast<ngraph::opset1::Interpolate> (m.get_match_root());
@@ -74,10 +74,10 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
 
         if (num_of_spatial_vars == 2 && interpolate_axes.size() == 2 && std::set<std::string>{"nearest", "cubic", "area"}.count(interpolate_mode) == 0) {
             auto attrs = ngraph::op::InterpolateIEAttrs();
-            attrs.pad_beg = interpolate_attrs.pads_begin[0];
-            attrs.pad_end = interpolate_attrs.pads_end[0];
-            attrs.height = out_spatial_shape[0];
-            attrs.width = out_spatial_shape[1];
+            attrs.pad_beg = static_cast<int>(interpolate_attrs.pads_begin[0]);
+            attrs.pad_end = static_cast<int>(interpolate_attrs.pads_end[0]);
+            attrs.height = static_cast<int>(out_spatial_shape[0]);
+            attrs.width = static_cast<int>(out_spatial_shape[1]);
             attrs.align_corners = interpolate_attrs.align_corners;
             attrs.mode = interpolate_mode;
             attrs.antialias = interpolate_attrs.antialias;

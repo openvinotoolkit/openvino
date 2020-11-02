@@ -22,7 +22,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(QuantGroupConv3D).*)",
         // TODO: Issue 31845
         R"(.*(FakeQuantizeLayerTest).*)",
-        R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: failed to downgrade to opset v0 in interpreter backend
         R"(.*Gather.*axis=-1.*)",
         // TODO: Issue 33151
@@ -45,8 +44,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 25533
         R"(.*ConvertLikeLayerTest.*)",
-        // TODO: Issue: 34516
-        R"(.*ConvertLayerTest.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
@@ -59,8 +56,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 38841
         R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
         R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
-
-        // TODO: not supported yet, ticket 37690
-        R"(.*Loop.*)"
+        // TODO: Issue: 41694
+        R"(.*smoke_Set2.*CTCLossLayerTest.*)",
     };
 }

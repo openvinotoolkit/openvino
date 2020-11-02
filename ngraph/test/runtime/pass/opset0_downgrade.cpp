@@ -217,27 +217,6 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::Equal, op::v1::Equal>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Gather> node)
-    {
-        auto axis_node = as_type_ptr<op::Constant>(node->input_value(2).get_node_shared_ptr());
-
-        NGRAPH_CHECK(axis_node,
-                     "Unable to convert Gather:v1 to Gather:v0 if axis is not constant. Node: ",
-                     *node);
-
-        NGRAPH_CHECK(
-            axis_node->get_element_type() == element::i64,
-            "Unable to convert Gather:v1 to Gather:v0 with axis other type than int64. Node: ",
-            *node);
-
-        int64_t axis = axis_node->get_vector<int64_t>()[0];
-
-        auto replacement_node =
-            make_shared<op::v0::Gather>(node->input_value(0), node->input_value(1), axis);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Greater> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Greater, op::v1::Greater>(node);
@@ -322,18 +301,6 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::LessEq, op::v1::LessEqual>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalNot> node)
-    {
-        auto replacement_node = make_shared<op::v0::Not>(node->input_value(0));
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalOr> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Or, op::v1::LogicalOr>(node);
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalXor> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Xor, op::v1::LogicalXor>(node);
@@ -359,43 +326,9 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::NotEqual, op::v1::NotEqual>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::OneHot> node)
-    {
-        const auto indices = node->input_value(0);
-        const auto depth = node->input_value(1).get_node();
-        auto on_value = node->input_value(2);
-        auto off_value = node->input_value(3);
-        const auto axis = node->get_axis();
-
-        NGRAPH_CHECK(op::is_constant(depth), "depth input must be constant", *node);
-        const auto output_pshape = node->get_output_partial_shape(0);
-        NGRAPH_CHECK(output_pshape.is_static(), "output shape must be static", *node);
-        const auto output_shape = output_pshape.to_shape();
-
-        auto one_hot = std::make_shared<ngraph::op::Convert>(
-            std::make_shared<ngraph::op::OneHot>(indices, output_shape, axis),
-            on_value.get_element_type());
-
-        auto broadcasted_values = builder::numpy_broadcast_outputs({one_hot, on_value, off_value});
-        on_value = broadcasted_values[1];
-        off_value = broadcasted_values[2];
-
-        auto replacement_node = one_hot * (on_value - off_value) + off_value;
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Power> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMax> node)
-    {
-        auto replacement_node = op_cast_reduction_node<op::v0::Max, op::v1::ReduceMax>(node);
-        replace_node(node, replacement_node);
-        return replacement_node;
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMean> node)
@@ -431,53 +364,9 @@ namespace opset0_downgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMin> node)
-    {
-        auto replacement_node = op_cast_reduction_node<op::v0::Min, op::v1::ReduceMin>(node);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceProd> node)
-    {
-        auto replacement_node = op_cast_reduction_node<op::v0::Product, op::v1::ReduceProd>(node);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceSum> node)
     {
         auto replacement_node = op_cast_reduction_node<op::v0::Sum, op::v1::ReduceSum>(node);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Reverse> node)
-    {
-        auto axes_node = node->input_value(1).get_node_shared_ptr();
-        NGRAPH_CHECK(op::is_constant(axes_node),
-                     "Unable to convert Reverse:v1 to Reverse:v0 "
-                     "if reduction axes are not constant. Node: ",
-                     *node);
-        const auto axes_node_const = as_type_ptr<op::Constant>(axes_node);
-        AxisSet axes{};
-        if (node->get_mode() == op::v1::Reverse::Mode::INDEX)
-        {
-            axes = axes_node_const->get_axis_vector_val();
-        }
-        else // Mode::MASK
-        {
-            auto axes_mask = axes_node_const->get_vector<bool>();
-            for (size_t i = 0; i < axes_mask.size(); ++i)
-            {
-                if (axes_mask[i])
-                {
-                    axes.emplace(i);
-                }
-            }
-        }
-        auto replacement_node = make_shared<op::v0::Reverse>(node->input_value(0), axes);
-
         replace_node(node, replacement_node);
         return replacement_node;
     }
@@ -550,7 +439,11 @@ namespace opset0_downgrade
 
         if (!p.reverse_axes.empty())
         {
-            replacement_node = make_shared<op::Reverse>(replacement_node, p.reverse_axes);
+            replacement_node = make_shared<op::v1::Reverse>(
+                replacement_node,
+                op::Constant::create(
+                    element::u64, {p.reverse_axes.size()}, p.reverse_axes.to_vector()),
+                op::v1::Reverse::Mode::INDEX);
         }
 
         replace_node(node, replacement_node);
