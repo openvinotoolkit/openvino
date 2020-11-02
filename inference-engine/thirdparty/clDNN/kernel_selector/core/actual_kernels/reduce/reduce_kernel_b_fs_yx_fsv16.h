@@ -24,7 +24,7 @@ class ReduceKernel_b_fs_yx_fsv16 : public ReduceKernelBase {
 public:
     ReduceKernel_b_fs_yx_fsv16() : ReduceKernelBase("reduce_gpu_b_fs_yx_fsv16") {}
     virtual ~ReduceKernel_b_fs_yx_fsv16() {}
-    virtual CommonDispatchData SetDefault(const reduce_params& params, const optional_params&) const;
+    CommonDispatchData SetDefault(const reduce_params& params, const optional_params&) const override;
     JitConstants GetJitConstants(const reduce_params& params) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;

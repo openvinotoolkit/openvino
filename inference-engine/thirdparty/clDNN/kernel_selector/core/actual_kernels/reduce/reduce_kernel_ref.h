@@ -24,7 +24,7 @@ class ReduceKernelRef : public ReduceKernelBase {
 public:
     ReduceKernelRef() : ReduceKernelBase("reduce_ref") {}
     virtual ~ReduceKernelRef() {}
-    virtual CommonDispatchData SetDefault(const reduce_params& params, const optional_params&) const;
+    CommonDispatchData SetDefault(const reduce_params& params, const optional_params&) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const reduce_params& params) const override;
