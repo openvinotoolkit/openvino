@@ -33,7 +33,7 @@ NGRAPH_TEST(${BACKEND_NAME}, logical_or)
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::boolean, shape);
     auto B = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Or>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::LogicalOr>(A, B), ParameterVector{A, B});
 
     std::vector<char> a{1, 0, 1, 1, 1, 0, 1, 0};
     std::vector<char> b{0, 0, 1, 0, 0, 1, 1, 0};

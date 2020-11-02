@@ -434,6 +434,15 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
+    void op_is_LogicalOr()
+    {
+        op::v1::LogicalOr node;
+        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
+        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
+        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
+        EXPECT_TRUE(op::is_binary_elementwise_logical(&node));
+    }
+
     void op_is_LRN()
     {
         op::LRN node;
@@ -540,15 +549,6 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_Or()
-    {
-        op::Or node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_TRUE(op::is_binary_elementwise_logical(&node));
     }
 
     void op_is_Parameter()
