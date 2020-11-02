@@ -12,29 +12,29 @@
 
 Before matrix multiplication, there is an implicit shape alignment for input arguments. It consists of the following steps:
 
-1. One-dimensional tensors unsqueezing is applied for each input independently. The axes inserted in this step are not included in the output shape.
-    * If rank of the **first** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`.
-    * If rank of the **second** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
+1. Applying transpositions specified by optional `transpose_a` and `transpose_b` attributes for 2D tensors and bigger.
 
-2. Applied transpositions specified by optional `transpose_a` and `transpose_b` attributes.
+2. One-dimensional tensors unsqueezing is applied for each input independently. The axes inserted in this step are not included in the output shape.
+    * If rank of the **first** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 at ROW_INDEX_DIM, to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`.
+    * If rank of the **second** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 at COL_INDEX_DIM, to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
 
 3. If ranks of input arguments are different after steps 1 and 2, each is unsqueezed from the left side of the shape by necessary number of axes to make both shapes of the same rank.
 
 4. Usual rules of the broadcasting are applied for batch dimensions.
 
+Temporary axes inserted to one-dimensional tensors are removed from the final output shape after multiplying.
+After vector-matrix multiplication, the temporary axis inserted at ROW_INDEX_DIM is removed. After matrix-vector multiplication, the temporary axis inserted at COL_INDEX_DIM is removed.
+Output shape of two equal size vectors multiplication is squeezed to scalar.
 
-Output shape inference logic (ND here means bigger than 1D):
+Output shape inference logic examples (ND here means bigger than 1D):
 
-* 1D x 1D: `[X] x [Y] -> [1, X] x [Y, 1] -> [1, 1] => [ ]` (scalar)
-
+* 1D x 1D: `[X] x [X] -> [1, X] x [X, 1] -> [1, 1] => []` (scalar)
 * 1D x ND: `[X] x [B, ..., X, Y] -> [1, X] x [B, ..., X, Y] -> [B, ..., 1, Y] => [B, ..., Y]`
-
 * ND x 1D: `[B, ..., X, Y] x [Y] -> [B, ..., X, Y] x [Y, 1] -> [B, ..., X, 1] => [B, ..., X]`
-
 * ND x ND: `[B, ..., X, Y] x [B, ..., Y, Z] => [B, ..., X, Z]`
 
 
-Two attributes, transpose_a and transpose_b specifies embedded transposition for two right-most dimension for the first and the second input tensors correspondingly. It implies swapping of ROW_INDEX_DIM and COL_INDEX_DIM in the corresponding input tensor. Batch dimensions are not affected by these attributes.
+Two attributes, `transpose_a` and `transpose_b` specifies embedded transposition for two right-most dimension for the first and the second input tensors correspondingly. It implies swapping of ROW_INDEX_DIM and COL_INDEX_DIM in the corresponding input tensor. Batch dimensions and 1D tensors are not affected by these attributes.
 
 **Attributes**
 
@@ -61,10 +61,14 @@ Two attributes, transpose_a and transpose_b specifies embedded transposition for
 
 *   **2**: Input batch of matrices B. Rank >= 1. Required.
 
+**Outputs**
+
+*   **1**: Tensor with results of the multiplication.
+
 
 **Example**
 
-*Vector-matric multiplication*
+*Vector-matrix multiplication*
 
 ```xml
 <layer ... type="MatMul">
@@ -75,6 +79,27 @@ Two attributes, transpose_a and transpose_b specifies embedded transposition for
         <port id="1">
             <dim>1024</dim>
             <dim>1000</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2">
+            <dim>1000</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Matrix-vector multiplication*
+
+```xml
+<layer ... type="MatMul">
+    <input>
+        <port id="0">
+            <dim>1000</dim>
+            <dim>1024</dim>
+        </port>
+        <port id="1">
+            <dim>1024</dim>
         </port>
     </input>
     <output>
@@ -108,14 +133,13 @@ Two attributes, transpose_a and transpose_b specifies embedded transposition for
 </layer>
 ```
 
-*Matrix-vector multiplication with embedded transposition of the second matrix*
+*Vector-matrix multiplication with embedded transposition of the second matrix*
 
 ```xml
 <layer ... type="MatMul">
     <data transpose_b="true"/>
     <input>
         <port id="0">
-            <dim>1</dim>
             <dim>1024</dim>
         </port>
         <port id="1">
@@ -125,7 +149,6 @@ Two attributes, transpose_a and transpose_b specifies embedded transposition for
     </input>
     <output>
         <port id="2">
-            <dim>1</dim>
             <dim>1000</dim>
         </port>
     </output>
