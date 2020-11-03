@@ -159,7 +159,6 @@ set(SRC
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
     type_prop/reorg_yolo.cpp
-    type_prop/replace_slice.cpp
     type_prop/reshape.cpp
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
@@ -298,13 +297,12 @@ set(MULTI_TEST_SRC
     backend/log.in.cpp
     backend/log_softmax.in.cpp
     backend/logical_and.in.cpp
+    backend/logical_not.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
-    backend/max.in.cpp
     backend/maximum.in.cpp
-    backend/min.in.cpp
     backend/minimum.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -312,7 +310,6 @@ set(MULTI_TEST_SRC
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
-    backend/not.in.cpp
     backend/non_zero.in.cpp
     backend/numeric.in.cpp
     backend/one_hot.in.cpp
@@ -331,7 +328,6 @@ set(MULTI_TEST_SRC
     backend/region_yolo.in.cpp
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
-    backend/replace_slice.in.cpp
     backend/reshape.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp

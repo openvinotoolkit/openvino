@@ -23,8 +23,10 @@ add_library(${TARGET_NAME} SHARED
 
 ie_faster_build(${TARGET_NAME}
     UNITY
-    PCH PRIVATE "src/precomp.hpp"
 )
+
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine LP transformations library")
 
 target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
 
