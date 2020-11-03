@@ -62,12 +62,11 @@ public:
 
     bool run_on_function(std::shared_ptr<Function> f) override
     {
-        pass::Manager manager;
+        pass::Manager manager(get_pass_config());
 
         manager.register_pass<RenameReLU, false /*disabled by default*/>();
         manager.register_pass<RenameSigmoid>();
 
-        manager.set_pass_config(get_pass_config());
         manager.run_passes(f);
         return true;
     }
