@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include "blob_factory.hpp"
 #include "blob_transform.hpp"
+#include "ie_compound_blob.h"
 #include "precision_utils.h"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -599,4 +600,46 @@ static short reducePrecisionBitwiseS(const float in) {
     return s;
 }
 }  // namespace Bf16TestUtils
+
+enum class BlobKind {
+    Simple,
+    Compound,
+    BatchOfSimple
+};
+
+inline std::ostream& operator<<(std::ostream& os, BlobKind kind) {
+    switch (kind) {
+    case BlobKind::Simple:
+        return os << "Simple";
+    case BlobKind::Compound:
+        return os << "Compound";
+    case BlobKind::BatchOfSimple:
+        return os << "BatchOfSimple";
+    default:
+        THROW_IE_EXCEPTION << "Test does not support the blob kind";
+  }
+}
+
+inline InferenceEngine::Blob::Ptr makeBlobOfKind(const InferenceEngine::TensorDesc& td, BlobKind blobKind) {
+    using namespace ::InferenceEngine;
+    switch (blobKind) {
+    case BlobKind::Simple:
+        return createAndFillBlob(td);
+    case BlobKind::Compound:
+        return make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>{});
+    case BlobKind::BatchOfSimple: {
+        const auto subBlobsNum = td.getDims()[0];
+        auto subBlobDesc = td;
+        subBlobDesc.getDims()[0] = 1;
+        std::vector<Blob::Ptr> subBlobs;
+        for (size_t i = 0; i < subBlobsNum; i++) {
+            subBlobs.push_back(makeBlobOfKind(subBlobDesc, BlobKind::Simple));
+        }
+        return make_shared_blob<BatchedBlob>(subBlobs);
+    }
+    default:
+        THROW_IE_EXCEPTION << "Test does not support the blob kind";
+    }
+}
+
 }  // namespace FuncTestUtils
