@@ -53,12 +53,6 @@ DECLARE_CLDNN_CONFIG_KEY(MEM_POOL);
 */
 DECLARE_CLDNN_CONFIG_KEY(GRAPH_DUMPS_DIR);
 
-
-/**
-* @brief This key defines the directory name to which will be used for compiled kernels caching. This key supports UNICODE path
-*/
-DECLARE_CLDNN_CONFIG_KEY(KERNELS_CACHE_DIR);
-
 /**
 * @brief This key defines the directory name to which full program sources will be dumped.
 */

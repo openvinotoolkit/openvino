@@ -14,7 +14,7 @@
 
 #ifdef _WIN32
 #include <direct.h>
-#define rmdir(dir, mode) _rmdir(dir)
+#define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
 #endif  // _WIN32

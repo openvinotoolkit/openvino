@@ -151,7 +151,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 graph_dumps_dir = val;
                 createDirectory(graph_dumps_dir);
             }
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_KERNELS_CACHE_DIR) == 0) {
+        } else if (key.compare(PluginConfigParams::KEY_CACHE_DIR) == 0) {
             if (!val.empty()) {
                 kernels_cache_dir = val;
                 createDirectory(kernels_cache_dir);
@@ -297,7 +297,7 @@ void Config::adjustKeyMapValues() {
 
     key_config_map[CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR] = graph_dumps_dir;
     key_config_map[CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR] = sources_dumps_dir;
-    key_config_map[CLDNNConfigParams::KEY_CLDNN_KERNELS_CACHE_DIR] = kernels_cache_dir;
+    key_config_map[PluginConfigParams::KEY_CACHE_DIR] = kernels_cache_dir;
 
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
     key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;

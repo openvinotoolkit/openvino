@@ -9,7 +9,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include <ie_core.hpp>
-#include <cldnn/cldnn_config.hpp>
+#include <ie_plugin_config.hpp>
 
 class CompiledKernelsCacheTest : public CommonTestUtils::TestsCommon {
 protected:
@@ -27,7 +27,7 @@ TEST_F(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, std::string> config = {{ CLDNN_CONFIG_KEY(KERNELS_CACHE_DIR), cache_path }};
+    std::map<std::string, std::string> config = {{ CONFIG_KEY(CACHE_DIR), cache_path }};
     try {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, "GPU", config);
@@ -61,7 +61,7 @@ TEST_F(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
 
         try {
             auto cache_path_mb = FileUtils::wStringtoMBCSstringChar(cache_path_w);
-            std::map<std::string, std::string> config = {{ CLDNN_CONFIG_KEY(KERNELS_CACHE_DIR), cache_path_mb }};
+            std::map<std::string, std::string> config = {{ CONFIG_KEY(CACHE_DIR), cache_path_mb }};
             // Load CNNNetwork to target plugins
             auto execNet = ie->LoadNetwork(cnnNet, "GPU", config);
 
