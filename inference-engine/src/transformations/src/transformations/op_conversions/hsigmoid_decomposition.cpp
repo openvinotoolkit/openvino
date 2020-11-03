@@ -30,11 +30,12 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
         auto relu = std::make_shared<ngraph::opset5::Relu>(add);
         auto min_constant = ngraph::opset5::Constant::create(input_type, ngraph::Shape{}, {6.0});
         auto min = register_new_node<ngraph::opset5::Minimum>(relu, min_constant);
-        auto mul = std::make_shared<ngraph::opset5::Multiply>(hsigmoid_node->input_value(0), min);
+        auto mul_constant = ngraph::opset5::Constant::create(input_type, ngraph::Shape{}, {(1.0/6.0)});  // const(1/6)
+        auto mul = std::make_shared<ngraph::opset5::Multiply>(min, mul_constant);
 
         mul->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(hsigmoid_node,
-                                  {add_constant, add, relu, min_constant, min, mul});
+                                  {add_constant, add, relu, min_constant, min, min_constant, mul});
         ngraph::replace_node(m.get_match_root(), mul);
         return true;
     };
