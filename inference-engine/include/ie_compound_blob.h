@@ -268,6 +268,8 @@ public:
 
 /**
  * @brief This class represents a blob that contains other blobs - one per batch
+ * @details Plugin which supports BatchedBlob input should report BATCHED_BLOB
+ * in the OPTIMIZATION_CAPABILITIES metric.
  */
 class INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
  public:
