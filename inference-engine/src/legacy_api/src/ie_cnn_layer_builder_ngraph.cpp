@@ -1189,45 +1189,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std:
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::ProposalIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Proposal",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::ProposalIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto attr = castedLayer->get_attrs();
-    std::string param;
-    for (const auto& val : attr.ratio) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["ratio"] = param;
-
-    param.clear();
-    for (const auto& val : attr.scale) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["scale"] = param;
-
-    res->params["base_size"] = asString(attr.base_size);
-    res->params["pre_nms_topn"] = asString(attr.pre_nms_topn);
-    res->params["post_nms_topn"] = asString(attr.post_nms_topn);
-    res->params["nms_thresh"] = asString(attr.nms_thresh);
-    res->params["feat_stride"] = asString(attr.feat_stride);
-    res->params["min_size"] = asString(attr.min_size);
-    res->params["box_size_scale"] = asString(attr.box_size_scale);
-    res->params["box_coordinate_scale"] = asString(attr.box_coordinate_scale);
-    res->params["clip_before_nms"] = asString(attr.clip_before_nms ? 1 : 0);
-    res->params["clip_after_nms"] = asString(attr.clip_after_nms ? 1 : 0);
-    res->params["normalize"] = asString(attr.normalize ? 1 : 0);
-    res->params["framework"] = attr.framework;
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxClusteredIE>::createLayer(
     const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "PriorBoxClustered",
