@@ -35,10 +35,11 @@ TEST_P(CancellationTests, canCancelAsyncRequest) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
+    bool cancelled = false;
     req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
             [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
                 if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-                    ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_CANCELLED), status);
+                    cancelled = (status == InferenceEngine::StatusCode::INFER_CANCELLED);
                 }
             });
 
@@ -48,6 +49,7 @@ TEST_P(CancellationTests, canCancelAsyncRequest) {
     InferenceEngine::StatusCode cancelStatus = cancel.get();
 
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+        ASSERT_EQ(true, cancelled);
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_CANCELLED), waitStatus);
     } else {
@@ -101,6 +103,27 @@ TEST_P(CancellationTests, canCancelBeforeAsyncRequest) {
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_NOT_STARTED), cancelStatus);
     } else {
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::NOT_IMPLEMENTED), cancelStatus);
+    }
+}
+
+TEST_P(CancellationTests, canCancelInferRequest) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    InferenceEngine::InferRequest req = execNet.CreateInferRequest();
+
+    auto infer = std::async(std::launch::async, [&req]{ req.Infer(); });
+    infer.wait_for(std::chrono::milliseconds(1));
+    InferenceEngine::StatusCode cancelStatus = req.Cancel();
+
+    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
+    } else {
+        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
     }
 }
 }  // namespace BehaviorTestsDefinitions
