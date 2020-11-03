@@ -19,6 +19,7 @@ from typing import Dict
 
 from extensions.ops.Cast import Cast
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes, Node
 from mo.graph.port import Port
@@ -28,14 +29,14 @@ from mo.ops.const import Const
 from mo.ops.strided_slice import StridedSlice
 
 
-def create_ss_interval_border(shape, axes, slice_border: Node, port_to_connect: Port):
-    mask = np.zeros(len(shape), dtype=np.int64)
-    first_part = mask[:axes[0]]
-    last_part = mask[axes[-1] + 1:]
+def create_ss_interval_border(graph: Graph, shape, axes, port_to_connect: Port):
+    shape_mask = np.zeros(len(shape), dtype=np.int64)
+    first_part = shape_mask[:axes[0]]
+    last_part = shape_mask[axes[-1] + 1:]
 
-    cast = Cast(slice_border.graph, dict(name='Cast', dst_type=np.int64)).create_node()
-    cast.in_port(0).connect(port_to_connect)
-    concat = create_op_with_const_inputs(slice_border.graph, Concat, port_value_dict={0: first_part, 2: last_part},
+    cast = Cast(graph, dict(name='Cast', dst_type=np.int64)).create_node()
+    port_to_connect.get_connection().set_destination(cast.in_port(0))
+    concat = create_op_with_const_inputs(graph, Concat, port_value_dict={0: first_part, 2: last_part},
                                          op_attrs={'name': 'Concat', 'axis': 0,
                                                    'in_ports_count': 3})
     cast.out_port(0).connect(concat.in_port(1))
@@ -48,8 +49,8 @@ class ConvertSlice(MiddleReplacementPattern):
     """
 
     enabled = True
-    op = "Slice"
     force_clean_up = True
+    op = "Slice"
 
     def run_after(self):
         from extensions.middle.pass_separator import MiddleStart
@@ -70,19 +71,21 @@ class ConvertSlice(MiddleReplacementPattern):
         node_name = node.soft_get('name', node.id)
 
         input_shape = node.in_port(0).data.get_shape()
-        axes = node.in_port(3).data.get_value().copy()
-        for i, val in enumerate(axes):
-            axes[i] = get_canonical_axis_index(input_shape, val)
-        axes.sort()
-        start_node = node.in_node(1)
-        end_node = node.in_node(2)
+        if node.is_in_port_connected(3):
+            axes = node.in_port(3).data.get_value().copy()
+            assert axes is not None, 'The input with axes is not constant for node {}'.format(node_name)
+            for i, val in enumerate(axes):
+                axes[i] = get_canonical_axis_index(input_shape, val)
+        else:
+            axes = int64_array(range(len(input_shape)))
 
-        ss_begin = create_ss_interval_border(input_shape, axes, start_node, node.in_port(1).get_source())
-        ss_end = create_ss_interval_border(input_shape, axes, end_node, node.in_port(2).get_source())
+        ss_begin = create_ss_interval_border(graph, input_shape, axes, node.in_port(1).get_source())
+        ss_end = create_ss_interval_border(graph, input_shape, axes, node.in_port(2).get_source())
         rename_nodes([(ss_begin, node_name + '/Begin'), (ss_end, node_name + '/End')])
 
         if node.is_in_port_connected(4):
             steps = node.in_port(4).data.get_value()
+            assert steps is not None, 'The input with steps is not constant for node {}'.format(node_name)
         else:
             steps = np.ones([axes.size])
 
