@@ -90,8 +90,8 @@ def caffe_extractor(node: Node, lowered_keys_map: dict) -> (bool, dict):
                 result.update(attrs)
                 supported = True
 
-    if 'infer' not in result or not result['infer']:
-        result.update(native_caffe_node_extractor(node))
+        if 'infer' not in result or not result['infer']:
+            result.update(native_caffe_node_extractor(node))
 
     phase_attr = check_phase(node)
     result.update(phase_attr)
