@@ -68,114 +68,117 @@ namespace matmul
         std::vector<Dimension> arg0_shape_tmp(arg0_shape);
         std::vector<Dimension> arg1_shape_tmp(arg1_shape);
 
-        // Result of merging compatible dimensions for validation usage
-        auto merged_dimension = Dimension::dynamic();
-
+        // 1. Applying transpositions specified by optional `transpose_a` and `transpose_b`
+        // Only two right-most dimensions are swapped, other dimensions remain the same.
         // Transpose attributes are ignored for 1D tensors.
-        if (arg0_rank == 1 && arg1_rank == 1)
-        {
-            NGRAPH_CHECK(Dimension::merge(merged_dimension, arg0_shape_tmp[0], arg1_shape_tmp[0]),
-                         "Incompatible matrix dimensions.");
-            return PartialShape(Shape{});
-        }
-
         if (transpose_a && arg0_rank > 1)
         {
             swap(arg0_shape_tmp[arg0_rank - 2], arg0_shape_tmp[arg0_rank - 1]);
         }
-
         if (transpose_b && arg1_rank > 1)
         {
             swap(arg1_shape_tmp[arg1_rank - 2], arg1_shape_tmp[arg1_rank - 1]);
         }
 
+        // 2. One-dimensional tensors unsqueezing is applied to each input independently.
         if (arg0_rank == 1)
         {
-            // i.e. arg0 shape {3}, arg1 shape{2, 3, 2}, output shape {2, 2}
-            NGRAPH_CHECK(Dimension::merge(merged_dimension,
-                                          arg0_shape_tmp[0],
-                                          arg1_shape_tmp[arg1_shape_tmp.size() - 2]),
-                         "Incompatible matrix dimensions.");
-            arg1_shape_tmp.erase(arg1_shape_tmp.begin() + arg1_rank - 2);
-            return PartialShape(arg1_shape_tmp);
+            // If the first input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
+            // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
+            // For example {S} will be reshaped to {1, S}.
+            arg0_shape_tmp.insert(arg0_shape_tmp.begin(), 1);
+            arg0_rank = arg0_shape_tmp.size();
         }
-        else if (arg1_rank == 1)
+        if (arg1_rank == 1)
         {
-            // i.e. arg0 shape {2, 2, 3}, arg1 shape{3}, output shape {2, 2}
-            NGRAPH_CHECK(Dimension::merge(
-                             merged_dimension, arg1_shape_tmp[0], arg0_shape_tmp[arg0_rank - 1]),
-                         "Incompatible matrix dimensions.");
-            arg0_shape_tmp.erase(arg0_shape_tmp.begin() + arg0_rank - 1);
-            return PartialShape(arg0_shape_tmp);
+            // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
+            // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
+            // For example {S} will be reshaped to {S, 1}.
+            arg1_shape_tmp.insert(arg1_shape_tmp.end(), 1);
+            arg1_rank = arg1_shape_tmp.size();
         }
 
-        // 2D and bigger tensors cases.
+        // Check matrices dimensions compatibility,
+        // COL_INDEX_DIM of the first matrix has to match ROW_INDEX_DIM of the second matrix.
+        auto merged_dimension = Dimension::dynamic();
         NGRAPH_CHECK(Dimension::merge(merged_dimension,
                                       arg0_shape_tmp[arg0_rank - 1],
                                       arg1_shape_tmp[arg1_rank - 2]),
                      "Incompatible matrix dimensions.");
 
-        auto max_rank = std::max(arg0_rank, arg1_rank);
-        std::vector<Dimension> output_shape(max_rank);
+        // 3. If ranks of input arguments are different after steps 1 and 2,
+        // the smaller tensor is unsqueezed from the left side of the shape
+        // by necessary number of axes to make both shapes of the same rank.
+        std::vector<Dimension> small_batch_matrix =
+            arg0_rank > arg1_rank ? arg1_shape_tmp : arg0_shape_tmp;
+        std::vector<Dimension> big_batch_matrix =
+            arg0_rank > arg1_rank ? arg0_shape_tmp : arg1_shape_tmp;
+        std::vector<Dimension> output_shape(big_batch_matrix);
 
-        // Handle batch size
-        if (max_rank > 2)
+        if (arg0_rank != arg1_rank)
         {
-            std::vector<Dimension> small_batch_matrix =
-                arg0_rank > arg1_rank ? arg1_shape_tmp : arg0_shape_tmp;
-            std::vector<Dimension> big_batch_matrix =
-                arg0_rank > arg1_rank ? arg0_shape_tmp : arg1_shape_tmp;
+            // Expand small_batch_matrix (with 1) to have the same rank as big_batch_matrix
+            size_t delta_rank = big_batch_matrix.size() - small_batch_matrix.size();
+            small_batch_matrix.insert(small_batch_matrix.begin(), delta_rank, 1);
+        }
 
-            if (arg0_rank != arg1_rank)
+        // 4. Usual rules of the broadcasting are applied for batch dimensions.
+        // Broadcast all batches (last two dimensions represent matrix),
+        // expand dim with value 1 to bigger dim if dimensions are not equal.
+        for (auto i = 0; i < big_batch_matrix.size() - 2; i++)
+        {
+            // Dimension with value 1 can be expanded to any bigger
+            auto min_dim_val = std::min(small_batch_matrix[i].get_min_length(),
+                                        big_batch_matrix[i].get_min_length());
+            if (min_dim_val > 1)
             {
-                // Expand small_batch_matrix (with 1) to have the same rank as big_batch_matrix
-                size_t delta_rank = big_batch_matrix.size() - small_batch_matrix.size();
-                small_batch_matrix.insert(small_batch_matrix.begin(), delta_rank, 1);
+                auto merged_dimension = Dimension::dynamic();
+                NGRAPH_CHECK(
+                    Dimension::merge(merged_dimension, small_batch_matrix[i], big_batch_matrix[i]),
+                    "Incompatible batch dimensions.");
+                output_shape[i] = merged_dimension;
             }
-
-            // Broadcast all batches (max_rank - 2),
-            // expand dim with value 1 to bigger dim if dimensions are not equal
-            for (auto i = 0; i < max_rank - 2; i++)
+            else
             {
-                // Dimension with value 1 can be expanded to any bigger
-                auto min_dim_val = std::min(small_batch_matrix[i].get_min_length(),
-                                            big_batch_matrix[i].get_min_length());
-                if (min_dim_val > 1)
+                Dimension::value_type upper_bound, lower_bound;
+                lower_bound = std::max(small_batch_matrix[i].get_min_length(),
+                                       big_batch_matrix[i].get_min_length());
+
+                if (lower_bound <= 1)
                 {
-                    NGRAPH_CHECK(Dimension::merge(
-                                     merged_dimension, small_batch_matrix[i], big_batch_matrix[i]),
-                                 "Incompatible batch dimensions.");
-                    output_shape[i] = merged_dimension;
+                    // Both of the dimensions have 1 in range,
+                    // upper_bound is the maximum of the each range highest possible value.
+                    upper_bound = std::max(small_batch_matrix[i].get_interval().get_max_val(),
+                                           big_batch_matrix[i].get_interval().get_max_val());
                 }
                 else
                 {
-                    Dimension::value_type upper_bound, lower_bound;
-                    lower_bound = std::max(small_batch_matrix[i].get_min_length(),
-                                           big_batch_matrix[i].get_min_length());
-
-                    if (lower_bound <= 1)
-                    {
-                        // Both of the dimensions have 1 in range,
-                        // upper_bound is the higher max value
-                        upper_bound = std::max(small_batch_matrix[i].get_interval().get_max_val(),
-                                               big_batch_matrix[i].get_interval().get_max_val());
-                    }
-                    else
-                    {
-                        // Set upper_bound same as upper bound the dimension without 1 in range
-                        upper_bound = small_batch_matrix[i].get_min_length() <= 1
-                                          ? big_batch_matrix[i].get_max_length()
-                                          : small_batch_matrix[i].get_max_length();
-                    }
-                    output_shape[i] = Dimension(lower_bound, upper_bound);
+                    // Set upper_bound same as upper bound the dimension without 1 in range.
+                    upper_bound = small_batch_matrix[i].get_min_length() <= 1
+                                      ? big_batch_matrix[i].get_max_length()
+                                      : small_batch_matrix[i].get_max_length();
                 }
+                output_shape[i] = Dimension(lower_bound, upper_bound);
             }
         }
 
-        // in output_shape replace 2 last axes with ROW_INDEX_DIM from arg0 matrix
-        // and COL_INDEX_DIM from arg1 matrix
-        output_shape.at(output_shape.size() - 2) = arg0_shape_tmp.at(arg0_rank - 2);
-        output_shape.at(output_shape.size() - 1) = arg1_shape_tmp.at(arg1_rank - 1);
+        // In output_shape replace 2 last axes with ROW_INDEX_DIM from arg0 matrix
+        // and COL_INDEX_DIM from arg1 matrix.
+        output_shape.at(output_shape.size() - 2) = arg0_shape_tmp.at(arg0_shape_tmp.size() - 2);
+        output_shape.at(output_shape.size() - 1) = arg1_shape_tmp.at(arg1_shape_tmp.size() - 1);
+
+        // 5. Removing the temporary axes from originally 1D tensors.
+        // Output shape of two 1D tensors multiplication will be a 0D tensor (scalar).
+        if (arg0_shape.rank().get_length() == 1)
+        {
+            // arg0 input temporary axis inserted at ROW_INDEX_DIM is removed
+            output_shape.erase(output_shape.begin() + output_shape.size() - 2);
+        }
+        if (arg1_shape.rank().get_length() == 1)
+        {
+            // arg1 input temporary axis inserted at COL_INDEX_DIM is removed
+            output_shape.erase(output_shape.begin() + output_shape.size() - 1);
+        }
 
         return PartialShape(output_shape);
     }

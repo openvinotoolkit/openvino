@@ -354,6 +354,30 @@ TEST(type_prop, matmul_1D_x_2D_true_true)
     }
 }
 
+// 1D x 4D
+TEST(type_prop, matmul_1D_x_4D_false_false)
+{
+    auto A = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_shape(), (Shape{1, 2, 4}));
+}
+
+// 4D x 1D
+TEST(type_prop, matmul_4D_x_1D_false_false)
+{
+    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{4});
+
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_shape(), (Shape{1, 2, 3}));
+}
+
 // Batch broadcast
 TEST(type_prop, matmul_batch_broadcast)
 {
