@@ -157,28 +157,6 @@ void op::Dot::validate_and_infer_types()
     set_output_type(0, result_et, result_shape);
 }
 
-shared_ptr<op::Reshape> make_reshape_axes_to_front(const Output<Node>& n,
-                                                   const Shape& front_shape,
-                                                   const Shape& back_shape)
-{
-    AxisVector input_order;
-    Shape output_shape;
-
-    for (size_t i = 0; i < back_shape.size(); i++)
-    {
-        input_order.push_back(front_shape.size() + i);
-        output_shape.push_back(back_shape[i]);
-    }
-
-    for (size_t i = 0; i < front_shape.size(); i++)
-    {
-        input_order.push_back(i);
-        output_shape.push_back(front_shape[i]);
-    }
-
-    return make_shared<op::Reshape>(n, input_order, output_shape);
-}
-
 shared_ptr<Node> op::Dot::get_default_value() const
 {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
