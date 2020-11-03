@@ -94,6 +94,10 @@ jobs:
     displayName: 'VPU UT'
     continueOnError: false
 
+  - script: $(BIN_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
+    displayName: 'ONNX Importer UT'
+    continueOnError: false
+
   - script: $(BIN_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: false
