@@ -92,7 +92,7 @@ if(ENABLE_MKL_DNN)
         set(DNNL_BLAS_VENDOR "NONE" CACHE BOOL "" FORCE)
         set(SDL_cmake_included ON) ## to skip internal SDL flags
 
-        add_subdirectory(oneDNN)
+        add_subdirectory(mkl-dnn)
         add_library(mkldnn ALIAS dnnl)
     else()
         ## old version of MKLDNN integration

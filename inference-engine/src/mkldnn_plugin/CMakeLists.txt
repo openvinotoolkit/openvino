@@ -15,7 +15,7 @@ endif()
 set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_batchnorm_node.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_bin_conv_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_crop_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.cpp
@@ -32,11 +32,11 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_quantize_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_rnn.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_rnn.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_pooling_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_softmax_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tensoriterator_node.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tensoriterator_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tile_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_resample_node.cpp
@@ -179,9 +179,9 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 ## to use internal API headers of MKLDNN
 target_include_directories(${TARGET_NAME} PRIVATE
         $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/oneDNN/src/cpu       ## |
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/oneDNN/src/cpu/x64   ## | TODO: Should be available via oneDNN target
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/oneDNN/src/common    ## |
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu       ## |
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/x64   ## | TODO: Should be available via oneDNN target
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common    ## |
 )
 
 if(USE_CNNNETWORK_LPT)
