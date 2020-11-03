@@ -115,11 +115,9 @@ public:
 
 void visit_exec_graph_node(pugi::xml_node& data, std::string& node_type_name,
                            const ngraph::Node* n) {
-    using VariantString = ngraph::VariantImpl<std::string>;
-
     for (const auto& param : n->get_rt_info()) {
         if (auto variant =
-                std::dynamic_pointer_cast<VariantString>(param.second)) {
+                std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(param.second)) {
             std::string name = param.first;
             std::string value = variant->get();
 
