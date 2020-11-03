@@ -4,6 +4,7 @@
 
 #include "ie_mkldnn.h"
 #include "dnnl_debug.h"
+#include "platform.hpp"
 
 #include "cassert"
 
@@ -144,6 +145,13 @@ mkldnn::memory::format_tag str2fmt(const char *str) {
 
 bool mayiuse_isa(isa val) {
     return true;
+}
+
+int get_cache_size(int level, bool per_core) {
+    if (per_core)
+        return mkldnn::impl::cpu::platform::get_per_core_cache_size(level);
+    else
+        DNNL_THROW_ERROR(dnnl_unimplemented, "get_cache_size has no mode per_core == false");
 }
 
 }  // namespace utils

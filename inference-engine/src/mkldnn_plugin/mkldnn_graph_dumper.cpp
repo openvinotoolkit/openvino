@@ -252,7 +252,7 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     std::string outputLayoutsStr;
     auto outLayouts = node->getSelectedPrimitiveDescriptor()->getOutputLayouts();
     if (!outLayouts.empty()) {
-        outputLayoutsStr = ie_mkldnn::utils::fmt2str(outLayouts[0]);
+        outputLayoutsStr = mkldnn::utils::fmt2str(outLayouts[0]);
 
         bool isAllEqual = true;
         for (size_t i = 1; i < outLayouts.size(); i++) {
@@ -265,10 +265,10 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
         // If all output layouts are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < outLayouts.size(); i++)
-                outputLayoutsStr += "," + std::string(ie_mkldnn::utils::fmt2str(outLayouts[i]));
+                outputLayoutsStr += "," + std::string(mkldnn::utils::fmt2str(outLayouts[i]));
         }
     } else {
-        outputLayoutsStr = ie_mkldnn::utils::fmt2str(ie_mkldnn::memory::format_undef);
+        outputLayoutsStr = mkldnn::utils::fmt2str(mkldnn::memory::format_tag::undef);
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
 

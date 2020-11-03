@@ -25,7 +25,6 @@
 #include <nodes/mkldnn_reorder_node.h>
 #include <nodes/mkldnn_reshape_node.h>
 //#include <nodes/mkldnn_roi_pooling_node.h>
-#include <nodes/mkldnn_depthwise_node.h>
 #include <nodes/mkldnn_softmax_node.h>
 #include <nodes/mkldnn_tile_node.h>
 #include <nodes/mkldnn_split_node.h>

@@ -439,7 +439,7 @@ public:
                     descsEqual(dstDescs, selected_pd->getConfig().outConfs)) {
                     prepareMemory(selected_pd, itpd);
                     PD prim_desc = createPd<PD, D, FPD>(desc);
-                    return itpd;
+                    return {itpd.get()};
                 }
                 if (!itpd.next_impl())
                     break;

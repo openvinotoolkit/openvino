@@ -28,7 +28,6 @@ size_t MKLDNNMemory::GetSize() const {
     return GetElementsCount() * itemSize;
 }
 
-
 size_t MKLDNNMemory::GetElementsCount() const {
     auto desc = GetDescriptor();
     std::vector<int> dims(desc.data.padded_dims,
@@ -220,19 +219,23 @@ void MKLDNNMemory::CreateBlockingDesc(memory::desc &desc) {
 
 Precision MKLDNNMemory::convertToIePrec(memory::data_type dataType) {
     switch (dataType) {
-        case memory::f32:
+        case memory::data_type::f32:
             return Precision::FP32;
-        case memory::u8:
+        case memory::data_type::u8:
             return Precision::U8;
-        case memory::s8:
+        case memory::data_type::s8:
             return Precision::I8;
-        case memory::s16:
-            return Precision::I16;
-        case memory::s32:
+// TODO: No I16 is missed for oneDNN
+//
+//        case memory::data_type::s16:
+//            return Precision::I16;
+        case memory::data_type::s32:
             return Precision::I32;
-        case memory::bin:
-            return Precision::BIN;
-        case memory::bf16:
+// TODO: bin is not ported yet
+//
+//        case memory::data_type::bin:
+//            return Precision::BIN;
+        case memory::data_type::bf16:
             return Precision::BF16;
         default:
            THROW_IE_EXCEPTION << "Unknown mkldnn data type";
@@ -827,15 +830,15 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         case Precision::I8:
             data_type = mkldnn::memory::data_type::s8;
             break;
-        case Precision::I16:
-            data_type = mkldnn::memory::data_type::s16;
-            break;
+//        case Precision::I16:
+//            data_type = mkldnn::memory::data_type::s16;
+//            break;
         case Precision::I32:
             data_type = mkldnn::memory::data_type::s32;
             break;
-        case Precision::BIN:
-            data_type = mkldnn::memory::data_type::bin;
-            break;
+//        case Precision::BIN:
+//            data_type = mkldnn::memory::data_type::bin;
+//            break;
         case Precision::BOOL:
             data_type = mkldnn::memory::data_type::u8;
             break;
@@ -846,7 +849,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
             THROW_IE_EXCEPTION << "Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision: " << tDesc.getPrecision();
     }
 
-    mkldnn::memory::format mkldnnFormat = memory::format::format_undef;
+    mkldnn::memory::format_tag mkldnnFormat = memory::format_tag::undef;
     SizeVector blkdDims = tDesc.getBlockingDesc().getBlockDims();
     SizeVector order = tDesc.getBlockingDesc().getOrder();
     SizeVector offsetsToData = tDesc.getBlockingDesc().getOffsetPaddingToData();
@@ -854,245 +857,246 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
     auto realDims = MKLDNNDims(tDesc.getDims());
     switch (tDesc.getLayout()) {
         case ANY:
-            mkldnnFormat = memory::format::any;
+            mkldnnFormat = memory::format_tag::any;
             break;
         case NCHW:
-            mkldnnFormat = memory::format::nchw;
+            mkldnnFormat = memory::format_tag::nchw;
             break;
         case NCDHW:
-            mkldnnFormat = memory::format::ncdhw;
+            mkldnnFormat = memory::format_tag::ncdhw;
             break;
         case NHWC:
-            mkldnnFormat = memory::format::nhwc;
+            mkldnnFormat = memory::format_tag::nhwc;
             break;
         case NDHWC:
-            mkldnnFormat = memory::format::ndhwc;
+            mkldnnFormat = memory::format_tag::ndhwc;
             break;
         case OIHW:
-            mkldnnFormat = memory::format::oihw;
+            mkldnnFormat = memory::format_tag::oihw;
             break;
         case GOIHW:
-            mkldnnFormat = memory::format::goihw;
+            mkldnnFormat = memory::format_tag::goihw;
             break;
         case OIDHW:
-            mkldnnFormat = memory::format::oidhw;
+            mkldnnFormat = memory::format_tag::oidhw;
             break;
         case GOIDHW:
-            mkldnnFormat = memory::format::goidhw;
+            mkldnnFormat = memory::format_tag::goidhw;
             break;
         case SCALAR:
         case C:
-            mkldnnFormat = memory::format::x;
+            mkldnnFormat = memory::format_tag::x;
             break;
         case CHW:
             if (order == SizeVector{0, 1, 2})
-                mkldnnFormat = memory::format::tnc;
+                mkldnnFormat = memory::format_tag::tnc;
             else if (order == SizeVector{1, 0, 2})
-                mkldnnFormat = memory::format::ntc;
+                mkldnnFormat = memory::format_tag::ntc;
             else
-                mkldnnFormat = memory::format::blocked;
+                mkldnnFormat = memory::format_tag::undef;
             break;
         case HW:
         case NC:
-            mkldnnFormat = memory::format::nc;
+            mkldnnFormat = memory::format_tag::nc;
             break;
         case BLOCKED:
-            mkldnnFormat = memory::format::blocked;
+            mkldnnFormat = memory::format_tag::undef;
             if (realDims.ndims() == 1) {
-                mkldnnFormat = memory::format::x;
+                mkldnnFormat = memory::format_tag::x;
             } else if (realDims.ndims() == 2) {
-                mkldnnFormat = memory::format::nc;
+                mkldnnFormat = memory::format_tag::nc;
             } else if (realDims.ndims() == 3) {
                 if (order == SizeVector{0, 1, 2})
-                    mkldnnFormat = memory::format::tnc;
+                    mkldnnFormat = memory::format_tag::tnc;
                 else if (order == SizeVector{1, 0, 2})
-                    mkldnnFormat = memory::format::ntc;
+                    mkldnnFormat = memory::format_tag::ntc;
             } else if (realDims.ndims() == 4) {
                 if (order.size() == 7 &&
                     order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1 && order[5] == 0 && order[6] == 1) {
                     if (blkdDims[4] == 4 && blkdDims[5] == 16 && blkdDims[6] == 4) {
-                        mkldnnFormat = memory::format::OIhw4i16o4i;
+                        mkldnnFormat = memory::format_tag::OIhw4i16o4i;
                     }
-                } else if (order.size() == 6 && order[0] == 0 && order[1] == 2 && order[2] == 1 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
-                    if (blkdDims[4] == 8 && blkdDims[5] == 4) {
-                        mkldnnFormat = memory::format::OhIw8o4i;
-                    }
+//                } else if (order.size() == 6 && order[0] == 0 && order[1] == 2 && order[2] == 1 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
+//                    if (blkdDims[4] == 8 && blkdDims[5] == 4) {
+//                        mkldnnFormat = memory::format_tag::OhIw8o4i;
+//                    }
                 } else if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1 && order[5] == 0) {
                     if (blkdDims[4] == 8 && blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format::OIhw8i8o;
+                        mkldnnFormat = memory::format_tag::OIhw8i8o;
                     } else if (blkdDims[4] == 16 && blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format::OIhw16i16o;
+                        mkldnnFormat = memory::format_tag::OIhw16i16o;
                     }
                 } else if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
                     if (blkdDims[4] == 8 && blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format::OIhw8o8i;
+                        mkldnnFormat = memory::format_tag::OIhw8o8i;
                     } else if (blkdDims[4] == 16 && blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format::OIhw16o16i;
+                        mkldnnFormat = memory::format_tag::OIhw16o16i;
                     }
                 } else if (order.size() == 6 && order[0] == 1 && order[1] == 0 && order[2] == 2 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
                     if (blkdDims[4] == 16 && blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format::IOhw16o16i;
+                        mkldnnFormat = memory::format_tag::IOhw16o16i;
                     }
                 } else if (order.size() == 5 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 0) {
                     if (blkdDims[4] == 8) {
-                        mkldnnFormat = memory::format::Ohwi8o;
+                        mkldnnFormat = memory::format_tag::Ohwi8o;
                     } else if (blkdDims[4] == 16) {
-                        mkldnnFormat = memory::format::Ohwi16o;
+                        mkldnnFormat = memory::format_tag::Ohwi16o;
                     }
                 } else if (order.size() == 5 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1) {
                     if (blkdDims[4] == 8) {
-                        mkldnnFormat = memory::format::nChw8c;
+                        mkldnnFormat = memory::format_tag::nChw8c;
                     } else if (blkdDims[4] == 16) {
-                        mkldnnFormat = memory::format::nChw16c;
+                        mkldnnFormat = memory::format_tag::nChw16c;
                     }
                 } else if (order.size() == 4) {
                     if (order[0] == 2 && order[1] == 3 && order[2] == 1 && order[3] == 0) {
-                        mkldnnFormat = memory::format::hwio;
+                        mkldnnFormat = memory::format_tag::hwio;
                     } else if (order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3) {
-                        mkldnnFormat = memory::format::nchw;
+                        mkldnnFormat = memory::format_tag::nchw;
                     } else if (order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 1) {
-                        mkldnnFormat = memory::format::nhwc;
+                        mkldnnFormat = memory::format_tag::nhwc;
                     }
                 }
             } else if (realDims.ndims() == 5) {
                 if (order.size() == 5 && order[0] == 2 && order[1] == 3 && order[2] == 4 && order[3] == 1 && order[4] == 0) {
-                    mkldnnFormat = memory::format::dhwio;
+                    mkldnnFormat = memory::format_tag::dhwio;
                 } else if (order.size() == 5 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4) {
-                    mkldnnFormat = memory::format::goihw;
+                    mkldnnFormat = memory::format_tag::goihw;
                 } else if (order.size() == 5 && order[0] == 3 && order[1] == 4 && order[2] == 2 && order[3] == 0 && order[4] == 1) {
-                    mkldnnFormat = memory::format::hwigo;
+                    mkldnnFormat = memory::format_tag::hwigo;
                 } else if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 0) {
                     if (blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format::Goihw8g;
+                        mkldnnFormat = memory::format_tag::Goihw8g;
                     } else if (blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format::Goihw16g;
+                        mkldnnFormat = memory::format_tag::Goihw16g;
                     }
                 } else if (order.size() == 6 &&
                         order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1) {
                     if (blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format::nCdhw8c;
+                        mkldnnFormat = memory::format_tag::nCdhw8c;
                     } else if (blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format::nCdhw16c;
+                        mkldnnFormat = memory::format_tag::nCdhw16c;
                     }
                 } else if (order.size() == 6 &&
                            order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 4 && order[4] == 1 && order[5] == 0) {
                     if (blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format::Odhwi8o;
+                        mkldnnFormat = memory::format_tag::Odhwi8o;
                     } else if (blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format::Odhwi16o;
+                        mkldnnFormat = memory::format_tag::Odhwi16o;
                     }
                 } else if (order.size() == 7 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1 && order[6] == 0) {
                     if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format::OIdhw8i8o;
+                        mkldnnFormat = memory::format_tag::OIdhw8i8o;
                     } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format::OIdhw16i16o;
+                        mkldnnFormat = memory::format_tag::OIdhw16i16o;
                     }
                 } else if (order.size() == 7 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 0 && order[6] == 1) {
                     if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format::OIdhw8o8i;
+                        mkldnnFormat = memory::format_tag::OIdhw8o8i;
                     } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format::OIdhw16o16i;
+                        mkldnnFormat = memory::format_tag::OIdhw16o16i;
                     }
-                } else if (order.size() == 7 &&
-                           order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 1 && order[4] == 4 && order[5] == 0 && order[6] == 1) {
-                    if (blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format::OdhIw8o4i;
-                    }
+//                } else if (order.size() == 7 &&
+//                           order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 1 && order[4] == 4 && order[5] == 0 && order[6] == 1) {
+//                    if (blkdDims[5] == 8) {
+//                        mkldnnFormat = memory::format_tag::OdhIw8o4i;
+//                    }
                 } else if (order.size() == 8 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1 && order[6] == 0 &&
                            order[7] == 1) {
                     if (blkdDims[7] == 4) {
-                        mkldnnFormat = memory::format::OIdhw4i16o4i;
+                        mkldnnFormat = memory::format_tag::OIdhw4i16o4i;
                     }
                 } else if (order.size() == 7 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 2 && order[6] == 1) {
                     if (blkdDims[6] == 4) {
-                        mkldnnFormat = memory::format::gOIhw4i4o;
+                        mkldnnFormat = memory::format_tag::gOIhw4i4o;
                     } else if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format::gOIhw8i8o;
+                        mkldnnFormat = memory::format_tag::gOIhw8i8o;
                     } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format::gOIhw16i16o;
+                        mkldnnFormat = memory::format_tag::gOIhw16i16o;
                     }
                 } else if (order.size() == 7 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1 && order[6] == 2) {
                     if (blkdDims[6] == 4) {
-                        mkldnnFormat = memory::format::gOIhw4o4i;
+                        mkldnnFormat = memory::format_tag::gOIhw4o4i;
                     } else if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format::gOIhw8o8i;
+                        mkldnnFormat = memory::format_tag::gOIhw8o8i;
                     } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format::gOIhw16o16i;
+                        mkldnnFormat = memory::format_tag::gOIhw16o16i;
                     }
-                } else if (order.size() == 7 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 2 && order[4] == 4 && order[5] == 1 && order[6] == 2) {
-                    if (blkdDims[5] == 8 && blkdDims[6] == 4) {
-                        mkldnnFormat = memory::format::gOhIw8o4i;
-                    }
+//                } else if (order.size() == 7 &&
+//                           order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 2 && order[4] == 4 && order[5] == 1 && order[6] == 2) {
+//                    if (blkdDims[5] == 8 && blkdDims[6] == 4) {
+//                        mkldnnFormat = memory::format_tag::gOhIw8o4i;
+//                    }
                 } else if (order.size() == 8 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 &&
                            order[5] == 2 && order[6] == 1 && order[7] == 2) {
                     if (blkdDims[5] == 2 && blkdDims[6] == 8 && blkdDims[7] == 4) {
-                        mkldnnFormat = memory::format::gOIhw2i8o4i;
+                        mkldnnFormat = memory::format_tag::gOIhw2i8o4i;
                     } else if (blkdDims[5] == 4 && blkdDims[6] == 16 && blkdDims[7] == 4) {
-                        mkldnnFormat = memory::format::gOIhw4i16o4i;
+                        mkldnnFormat = memory::format_tag::gOIhw4i16o4i;
                     }
                 } else if (order.size() == 5) {
                     if (order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4) {
-                        mkldnnFormat = memory::format::ncdhw;
+                        mkldnnFormat = memory::format_tag::ncdhw;
                     } else if (order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 4 && order[4] == 1) {
-                        mkldnnFormat = memory::format::ndhwc;
+                        mkldnnFormat = memory::format_tag::ndhwc;
                     }
                 }
             } else if (realDims.ndims() == 6) {
                 if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5) {
-                    mkldnnFormat = memory::format::goidhw;
+                    mkldnnFormat = memory::format_tag::goidhw;
                 } else if (order.size() == 6 && order[0] == 3 && order[1] == 4 && order[2] == 5 && order[3] == 2 && order[4] == 0 && order[5] == 1) {
-                    mkldnnFormat = memory::format::dhwigo;
+                    mkldnnFormat = memory::format_tag::dhwigo;
                 } else if (order.size() == 7 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 && order[6] == 0) {
                     if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format::Goidhw8g;
+                        THROW_IE_EXCEPTION << "Unsupported";
+//                        mkldnnFormat = memory::format_tag::Goidhw8g;
                     } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format::Goidhw16g;
+                        mkldnnFormat = memory::format_tag::Goidhw16g;
                     }
                 } else if (order.size() == 7 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 && order[6] == 1) {
                     if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format::gOdhwi8o;
+                        mkldnnFormat = memory::format_tag::gOdhwi8o;
                     } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format::gOdhwi16o;
+                        mkldnnFormat = memory::format_tag::gOdhwi16o;
                     }
-                } else if (order.size() == 8 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 4 && order[4] == 2 && order[5] == 5 &&
-                           order[6] == 1 && order[7] == 2) {
-                    if (blkdDims[6] == 8 && blkdDims[7] == 4) {
-                        mkldnnFormat = memory::format::gOdhIw8o4i;
-                    }
+//                } else if (order.size() == 8 &&
+//                           order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 4 && order[4] == 2 && order[5] == 5 &&
+//                           order[6] == 1 && order[7] == 2) {
+//                    if (blkdDims[6] == 8 && blkdDims[7] == 4) {
+//                        mkldnnFormat = memory::format_tag::gOdhIw8o4i;
+//                    }
                 } else if (order.size() == 8 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 &&
                            order[6] == 2 && order[7] == 1) {
                     if (blkdDims[6] == 4 && blkdDims[7] == 4) {
-                        mkldnnFormat = memory::format::gOIdhw4i4o;
+                        mkldnnFormat = memory::format_tag::gOIdhw4i4o;
                     } else if (blkdDims[6] == 8 && blkdDims[7] == 8) {
-                        mkldnnFormat = memory::format::gOIdhw8i8o;
+                        mkldnnFormat = memory::format_tag::gOIdhw8i8o;
                     } else if (blkdDims[6] == 16 && blkdDims[7] == 16) {
-                        mkldnnFormat = memory::format::gOIdhw16i16o;
+                        mkldnnFormat = memory::format_tag::gOIdhw16i16o;
                     }
                 } else if (order.size() == 9 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 &&
                            order[6] == 2 && order[7] == 1 && order[8] == 2) {
                     if (blkdDims[6] == 4 && blkdDims[7] == 16 && blkdDims[8] == 4) {
-                        mkldnnFormat = memory::format::gOIdhw4i16o4i;
+                        mkldnnFormat = memory::format_tag::gOIdhw4i16o4i;
                     }
                 }
             }
             break;
         case CN:
-            mkldnnFormat = memory::format::blocked;
+            mkldnnFormat = memory::format_tag::ba;
             break;
     }
-    if (mkldnnFormat == memory::format_undef)
+    if (mkldnnFormat == memory::format_tag::undef)
         THROW_IE_EXCEPTION << "Cannot detect the right memory format!";
 
     bool notDefault = false;
@@ -1119,52 +1123,53 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         exist_order.insert(ord);
     }
 
-    if (notDefault && mkldnnFormat == memory::blocked && blocked)
-        THROW_IE_EXCEPTION << "Currently MKLDNNPlugin supports only packaged memory for unknown blocked format";
-
-    if (mkldnnFormat == memory::blocked) {
-        desc = MKLDNNMemoryDesc(realDims, data_type, memory::any);
-        desc.data.format = mkldnn_blocked;
-
-        auto& blk = desc.data.layout_desc.blocking;
-
-        blk.offset_padding = tDesc.getBlockingDesc().getOffsetPadding();
-
-        for (size_t i = 0; i < realDims.ndims(); i++) {
-            blk.block_dims[i] = 1;
-            blk.strides[1][i] = 1;
-            blk.padding_dims[i] = realDims[i];
-            blk.offset_padding_to_data[i] = offsetsToData[i];
-        }
-
-        int perm[TENSOR_MAX_DIMS] = {0};
-
-        for (size_t i = 0; i < realDims.ndims(); ++i) {
-            perm[i] = i;
-        }
-
-        blk.strides[0][perm[realDims.ndims() - 1]] = 1;
-
-        for (int d = 1; d < realDims.ndims(); ++d) {
-            const int prev_idx = perm[realDims.ndims() - d];
-            const int curr_idx = perm[realDims.ndims() - 1 - d];
-
-            blk.strides[0][curr_idx] = realDims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, realDims[prev_idx]);
-        }
-    } else {
-        desc = MKLDNNMemoryDesc(realDims, data_type, mkldnnFormat);
-    }
-
-    desc.data.layout_desc.blocking.offset_padding = tDesc.getBlockingDesc().getOffsetPadding();
-    for (size_t i = 0; i < tDesc.getBlockingDesc().getOffsetPaddingToData().size() && i < TENSOR_MAX_DIMS; i++) {
-        desc.data.layout_desc.blocking.offset_padding_to_data[i] = static_cast<ptrdiff_t>(offsetsToData[i]);
-    }
-
-    if (notDefault) {
-        for (size_t i = 0; i < strides.size() && i < desc.data.ndims; i++) {
-            desc.data.layout_desc.blocking.strides[0][i] = static_cast<ptrdiff_t>(strides[order[i]]);
-        }
-    }
+    THROW_IE_EXCEPTION << "not Implemented yet";
+//    if (notDefault && mkldnnFormat == memory::blocked && blocked)
+//        THROW_IE_EXCEPTION << "Currently MKLDNNPlugin supports only packaged memory for unknown blocked format";
+//
+//    if (mkldnnFormat == memory::blocked) {
+//        desc = MKLDNNMemoryDesc(realDims, data_type, memory::any);
+//        desc.data.format = mkldnn_blocked;
+//
+//        auto& blk = desc.data.layout_desc.blocking;
+//
+//        blk.offset_padding = tDesc.getBlockingDesc().getOffsetPadding();
+//
+//        for (size_t i = 0; i < realDims.ndims(); i++) {
+//            blk.block_dims[i] = 1;
+//            blk.strides[1][i] = 1;
+//            blk.padding_dims[i] = realDims[i];
+//            blk.offset_padding_to_data[i] = offsetsToData[i];
+//        }
+//
+//        int perm[TENSOR_MAX_DIMS] = {0};
+//
+//        for (size_t i = 0; i < realDims.ndims(); ++i) {
+//            perm[i] = i;
+//        }
+//
+//        blk.strides[0][perm[realDims.ndims() - 1]] = 1;
+//
+//        for (int d = 1; d < realDims.ndims(); ++d) {
+//            const int prev_idx = perm[realDims.ndims() - d];
+//            const int curr_idx = perm[realDims.ndims() - 1 - d];
+//
+//            blk.strides[0][curr_idx] = realDims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, realDims[prev_idx]);
+//        }
+//    } else {
+//        desc = MKLDNNMemoryDesc(realDims, data_type, mkldnnFormat);
+//    }
+//
+//    desc.data.layout_desc.blocking.offset_padding = tDesc.getBlockingDesc().getOffsetPadding();
+//    for (size_t i = 0; i < tDesc.getBlockingDesc().getOffsetPaddingToData().size() && i < TENSOR_MAX_DIMS; i++) {
+//        desc.data.layout_desc.blocking.offset_padding_to_data[i] = static_cast<ptrdiff_t>(offsetsToData[i]);
+//    }
+//
+//    if (notDefault) {
+//        for (size_t i = 0; i < strides.size() && i < desc.data.ndims; i++) {
+//            desc.data.layout_desc.blocking.strides[0][i] = static_cast<ptrdiff_t>(strides[order[i]]);
+//        }
+//    }
 }
 
 bool MKLDNNMemoryDesc::blocksExtended() const {

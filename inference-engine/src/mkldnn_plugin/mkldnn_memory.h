@@ -33,6 +33,8 @@ public:
         return static_cast<mkldnn::memory::data_type>(desc.data.data_type);
     }
 
+    size_t GetElementSize() const { THROW_IE_EXCEPTION << "Unimplemented"; };
+
     MKLDNNDims getDims() const {
         return MKLDNNDims(desc.data.dims, desc.data.ndims);
     }
@@ -91,7 +93,19 @@ public:
         return data;
     }
 
-    mkldnn::memory::data_type GetDataType() const {
+    /**
+     * Return raw pointer on first element
+     * Like a GetData() but offset is applied.
+     * @return
+     */
+    void* GetPtr() const {
+        auto ptr = static_cast<uint8_t*>(GetData());
+        ptr += GetDescriptor().data.offset0 * GetDesc().GetElementSize();
+        return ptr;
+    }
+
+
+        mkldnn::memory::data_type GetDataType() const {
         return static_cast<mkldnn::memory::data_type>(GetDescriptor().data.data_type);
     }
 
@@ -124,7 +138,7 @@ public:
 //    static bool IsGroupedFormat(mkldnn::memory::format_tag format); // TODO: try to avoid usage
     static mkldnn::memory::format_tag GetPlainFormat(mkldnn::memory::dims dims);
     static InferenceEngine::Layout GetPlainLayout(mkldnn::memory::dims dims);
-    static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format format);
+    static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format_tag format);
     static mkldnn::memory::format_tag Convert(const InferenceEngine::Layout layout);
     static InferenceEngine::Precision convertToIePrec(mkldnn::memory::data_type dataType);
 
