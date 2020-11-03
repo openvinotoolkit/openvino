@@ -306,10 +306,12 @@ std::shared_ptr<Node>
     }
 
     op->m_num_iterations = m_num_iterations;
-    auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_sinks(), m_body->get_parameters());
+    auto func = std::make_shared<Function>(
+        m_body->get_results(), m_body->get_sinks(), m_body->get_parameters());
     auto spec_func =
         specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
-    op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
+    op->m_body = std::make_shared<Function>(
+        spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions)
     {

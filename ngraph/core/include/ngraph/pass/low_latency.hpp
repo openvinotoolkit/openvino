@@ -38,16 +38,20 @@ namespace ngraph
  *                                                              \
  *                                                               -> Result ] -> back_edge_1
  *
- *  It is recommended to use this transformation in conjunction with the Reshape feature to set sequence
+ *  It is recommended to use this transformation in conjunction with the Reshape feature to set
+ * sequence
  *  dimension to 1 and with the UnrollTensorIterator transformation.
  *  For convenience, we have already enabled the unconditional execution of the UnrollTensorIterator
- *  transformation when using the LowLatency transformation for CPU, GNA plugins, no action is required here.
- *  After applying both of these transformations, the resulting network can be inferred step by step,
+ *  transformation when using the LowLatency transformation for CPU, GNA plugins, no action is
+ * required here.
+ *  After applying both of these transformations, the resulting network can be inferred step by
+ * step,
  *  the states will store between inferences.
  *
  *    An illustrative example, not real API:
  *
- *    network->reshape(...) // Set sequence dimension to 1, recalculating shapes. Optional, depends on the network.
+ *    network->reshape(...) // Set sequence dimension to 1, recalculating shapes. Optional, depends
+ * on the network.
  *    LowLatency(network)   // Applying LowLatency and UnrollTensorIterator transformations.
  *    network->infer (...)  // Calculating new values for states.
  *    // All states are stored between inferences via Assign, ReadValue layers.
