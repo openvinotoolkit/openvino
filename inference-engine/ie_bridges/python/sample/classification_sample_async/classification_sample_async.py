@@ -105,14 +105,8 @@ def main():
 
     # Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
     model = args.model
-    model_bin = None
-    model_name, model_ext = os.path.splitext(model)
-    log.info(f"Loading network files:\n\t{model}")
-    if model_ext == ".xml":
-        # Read .bin weights for IR format only
-        model_bin = model_name + ".bin"
-        log.info(f"\n\t{model_bin}")
-    net = ie.read_network(model=model, weights=model_bin)
+    log.info(f"Loading network:\n\t{model}")
+    net = ie.read_network(model=model)
 
     assert len(net.input_info.keys()) == 1, "Sample supports only single input topologies"
     assert len(net.outputs) == 1, "Sample supports only single output topologies"
