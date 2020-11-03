@@ -98,6 +98,7 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------
+        if (network.getOutputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
 
         // --------------------------- Prepare input blobs -----------------------------------------------------
         slog::info << "Preparing input blobs" << slog::endl;
@@ -214,7 +215,6 @@ int main(int argc, char *argv[]) {
         // --------------------------- 8. Process output -------------------------------------------------------
         slog::info << "Processing output blobs" << slog::endl;
         OutputsDataMap outputInfo(network.getOutputsInfo());
-        if (outputInfo.size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
         Blob::Ptr outputBlob = inferRequest.GetBlob(outputInfo.begin()->first);
 
         /** Validating -nt value **/
