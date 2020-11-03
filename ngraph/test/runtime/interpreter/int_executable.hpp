@@ -1472,7 +1472,6 @@ protected:
         case OP_TYPEID::SpaceToDepth:
         case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
-        case OP_TYPEID::StopGradient:
         case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:
         case OP_TYPEID::UnknownOp:
@@ -1500,7 +1499,7 @@ protected:
         case OP_TYPEID::NotEqual:
         case OP_TYPEID::Power:
         case OP_TYPEID::Range:
-        case OP_TYPEID::Reshape:
+        case OP_TYPEID::Reshape_v1:
         case OP_TYPEID::Result:
         case OP_TYPEID::Reverse_v1:
         case OP_TYPEID::Round_v5:
