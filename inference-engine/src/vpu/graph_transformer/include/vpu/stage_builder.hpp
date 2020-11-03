@@ -321,6 +321,23 @@ public:
             const Data& indices,
             const Data& output,
             int32_t batch_dims);
+
+    Stage addInterpStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            bool align_corners,
+            const Data& input,
+            const Data& output);
+
+    Stage addResampleNearestStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            bool antialias,
+            float factor,
+            const Data& input,
+            const Data& output);
 };
 
 }  // namespace vpu

@@ -60,12 +60,28 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
-    IE_ASSERT(outputs.size() == 1);
+Stage StageBuilder::addInterpStage(
+                        const Model& model,
+                        const std::string& name,
+                        const ie::CNNLayerPtr& layer,
+                        bool align_corners,
+                        const Data& input,
+                        const Data& output) {
+    auto stage = model->addNewStage<InterpStage>(layer->name, StageType::Interp, layer, {input}, {output});
+    stage->attrs().set<bool>("align_corners", align_corners);
 
-    auto stage = model->addNewStage<InterpStage>(layer->name, StageType::Interp, layer, inputs, outputs);
-    stage->attrs().set<bool>("align_corners", layer->GetParamAsInt("align_corners", 0));
+    return stage;
+}
+
+void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+    VPU_THROW_UNLESS(inputs.size() == 1,
+                     "Interp stage with name {} must have only 1 input, "
+                     "actually provided {}", layer->name, inputs.size());
+    VPU_THROW_UNLESS(outputs.size() == 1,
+                     "Interp stage with name {} must have only 1 output, "
+                     "actually provided {}", layer->name, outputs.size());
+
+    _stageBuilder->addInterpStage(model, layer->name, layer, layer->GetParamAsInt("align_corners", 0), inputs[0], outputs[0]);
 }
 
 }  // namespace vpu

@@ -71,20 +71,41 @@ private:
 
 }  // namespace
 
+Stage StageBuilder::addResampleNearestStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            bool antialias,
+            float factor,
+            const Data& input,
+            const Data& output) {
+    auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, {input}, {output});
+
+    stage->attrs().set<bool>("antialias", antialias);
+    stage->attrs().set<float>("factor", factor);
+    stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
+
+    return stage;
+}
+
 void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
-    IE_ASSERT(outputs.size() == 1);
+    VPU_THROW_UNLESS(inputs.size() == 1,
+                     "Resample stage with name {} must have only 1 input, "
+                     "actually provided {}", layer->name, inputs.size());
+    VPU_THROW_UNLESS(outputs.size() == 1,
+                     "Resample stage with name {} must have only 1 output, "
+                     "actually provided {}", layer->name, outputs.size());
 
     ie::details::CaselessEq<std::string> cmp;
-
-    auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, inputs, outputs);
-
-    stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
-    stage->attrs().set<float>("factor", layer->GetParamAsFloat("factor", -1.0f));
-
-    auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
+    const auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
-        stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
+        _stageBuilder->addResampleNearestStage(model,
+                                               layer->name,
+                                               layer,
+                                               layer->GetParamAsInt("antialias", 0),
+                                               layer->GetParamAsFloat("factor", -1),
+                                               inputs[0],
+                                               outputs[0]);
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " supports only caffe.ResampleParameter.NEAREST resample type";
     }
