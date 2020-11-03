@@ -69,12 +69,13 @@ public:
                             bool isPerformanceMeasuring = false) :
                                     isPerformanceMeasuring(isPerformanceMeasuring) {
 #else
-     explicit GNADeviceHelper(Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation,
+    explicit GNADeviceHelper(Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation,
          uint8_t lib_async_n_threads = 1,
          bool use_openmp = false,
          bool isPerformanceMeasuring = false) :
          gna2HwConsistency(gna2HwConsistency),
-         isPerformanceMeasuring(isPerformanceMeasuring) {
+         isPerformanceMeasuring(isPerformanceMeasuring),
+         nGnaDeviceIndex{selectGnaDevice()} {
 #endif
         open(lib_async_n_threads);
         initGnaPerfCounters();
@@ -116,6 +117,8 @@ public:
 #endif
     void releaseModel(const uint32_t model_id);
     uint32_t createRequestConfig(const uint32_t model_id);
+    static uint32_t getNumberOfGnaDevices();
+    static uint32_t selectGnaDevice();
     bool hasGnaHw() const {
         return Gna2DeviceVersionSoftwareEmulation != detectedGnaDevVersion;
     }
