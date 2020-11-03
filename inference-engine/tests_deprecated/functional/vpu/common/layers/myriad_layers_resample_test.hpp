@@ -51,9 +51,6 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, int coordTra
     float ax = 1.0f / fx; // scale
     float ay = 1.0f / fy;
 
-    printf("ax = %f\n", ax);
-    printf("ay = %f\n", ay);
-
     int rx = (fx < 1.0f) ? 2 : ceil((1.0f)/ax);
     int ry = (fy < 1.0f) ? 2 : ceil((1.0f)/ay);
 
@@ -66,8 +63,6 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, int coordTra
         {
             for (int ox = 0; ox < OW; ox++)
             {
-                // float ix = ox*fx + fx / ((ax < 2)? 2 : ax) - 0.5f; // half pixel
-                // float iy = oy*fy + fy / ((ay < 2)? 2 : ay) - 0.5f;
                 float ix = ox*fx + fx / 2.0f - 0.5f; // half pixel
                 float iy = oy*fy + fy / 2.0f - 0.5f;
 
@@ -155,7 +150,7 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
 
     ASSERT_TRUE(Infer());
 
-    ASSERT_NO_FATAL_FAILURE(refResample(_inputMap.begin()->second, _refBlob, antialias, coordTransMode, nearestMode));
+    ASSERT_NO_FATAL_FAILURE(refResample(_inputMap.begin()->second, _refBlob, antialias, (int)coordTransMode, (int)nearestMode));
 
     CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, ERROR_BOUND);
 }
