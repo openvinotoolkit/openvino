@@ -53,10 +53,28 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 // coordinate_transformation_mode = half_pixel; nearest_mode = round_prefer_ceil;
                 // other "Interpolate" modes are translated to the default ones
                 const auto antialias = _layer->GetParamAsBool("antialias", false);
+                const auto coordinate_transformation_mode = _layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+                const auto nearest_mode = _layer->GetParamAsString("nearest_mode", "round_prefer_floor");
+                InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::half_pixel;
+                InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_ceil;
+
+                if (cmp(coordinate_transformation_mode, "asymmetric")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::asymmetric;
+                }
+
+                if (cmp(nearest_mode, "round_prefer_floor")) {
+                    nearestMode = InterpolateNearestMode::round_prefer_floor;
+                } else if (cmp(nearest_mode, "round_prefer_ceil")) {
+                    nearestMode = InterpolateNearestMode::round_prefer_ceil;
+                } else if (cmp(nearest_mode, "floor")) {
+                    nearestMode = InterpolateNearestMode::floor;
+                }
                 _stageBuilder->addResampleNearestStage(model,
                                                        _layer->name,
                                                        _layer,
                                                        antialias,
+                                                       coordinateTransformationMode,
+                                                       nearestMode,
                                                        -1.0f,
                                                        input,
                                                        output);

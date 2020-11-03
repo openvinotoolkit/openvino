@@ -11,10 +11,12 @@ using namespace InferenceEngine;
 
 PRETTY_PARAM(Factor, float)
 PRETTY_PARAM(Antialias, int)
+PRETTY_PARAM(CoordinateTransformMode, int)
+PRETTY_PARAM(NearestMode, int)
 PRETTY_PARAM(HwOptimization, bool);
 PRETTY_PARAM(CustomConfig, std::string);
 
-typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, Factor, Antialias, HwOptimization, CustomConfig>>
+typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, Factor, Antialias, CoordinateTransformMode, NearestMode, HwOptimization, CustomConfig>>
 	myriadResampleLayerTests_smoke;
 
 static inline float triangleCoeff(float x)
@@ -22,7 +24,7 @@ static inline float triangleCoeff(float x)
     return (1.0f - fabsf(x));
 }
 
-void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias) {
+void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, int coordTransMode, int nearestMode) {
     ie_fp16 *src_data = static_cast<ie_fp16*>(src->buffer());
     ie_fp16 *output_sequences = static_cast<ie_fp16*>(dst->buffer());
     ASSERT_NE(src_data, nullptr);
@@ -46,8 +48,11 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias) {
     const float fy = static_cast<float>(IH) / static_cast<float>(OH);
     const float fx = static_cast<float>(IW) / static_cast<float>(OW);
 
-    float ax = 1.0f / fx;
+    float ax = 1.0f / fx; // scale
     float ay = 1.0f / fy;
+
+    printf("ax = %f\n", ax);
+    printf("ay = %f\n", ay);
 
     int rx = (fx < 1.0f) ? 2 : ceil((1.0f)/ax);
     int ry = (fy < 1.0f) ? 2 : ceil((1.0f)/ay);
@@ -61,11 +66,22 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias) {
         {
             for (int ox = 0; ox < OW; ox++)
             {
-                float ix = ox*fx + fx / 2.0f - 0.5f;
+                // float ix = ox*fx + fx / ((ax < 2)? 2 : ax) - 0.5f; // half pixel
+                // float iy = oy*fy + fy / ((ay < 2)? 2 : ay) - 0.5f;
+                float ix = ox*fx + fx / 2.0f - 0.5f; // half pixel
                 float iy = oy*fy + fy / 2.0f - 0.5f;
 
-                int ix_r = (int)(round(ix));
+                int ix_r = (int)(round(ix)); // round prefer ceil
                 int iy_r = (int)(round(iy));
+
+                if (coordTransMode == 2) { // asymmetric
+                    ix = ox*fx + fx / 2.0f;
+                    iy = oy*fy + fy / 2.0f;
+                }
+                if (nearestMode == 2) { // floor
+                    ix_r = (int)(floor(ix));
+                    iy_r = (int)(floor(iy));
+                }
 
                 float sum=0;
                 float wsum=0;
@@ -81,7 +97,7 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias) {
                             float dx = ix - x;
                             float dy = iy - y;
 
-                            float w = ax*triangleCoeff(ax*dx) * ay*triangleCoeff(ay*dy);
+                            float w = ax*triangleCoeff(ax*dx) * ay * triangleCoeff(ay*dy);
 
                             sum += w * PrecisionUtils::f16tof32(in_ptr[y*IW + x]);
                             wsum += w;
@@ -101,8 +117,10 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
     const SizeVector inputDims = std::get<0>(GetParam());
     const float factor = std::get<1>(GetParam());
     const bool antialias = std::get<2>(GetParam());
-    const bool hwOptimization = std::get<3>(GetParam());
-    const std::string customConfig = std::get<4>(GetParam());
+    const int coordTransMode = std::get<3>(GetParam());
+    const int nearestMode = std::get<4>(GetParam());
+    const bool hwOptimization = std::get<5>(GetParam());
+    const std::string customConfig = std::get<6>(GetParam());
 
     ASSERT_GT(factor, 0);
 
@@ -126,6 +144,8 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
 
     std::map<std::string, std::string> params;
     params["antialias"] = std::to_string((int)antialias);
+    params["coordTransMode"] = std::to_string((int)coordTransMode);
+    params["nearestMode"] = std::to_string((int)nearestMode);
     params["factor"] = std::to_string(factor);
 
     ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Resample").params(params),
@@ -135,7 +155,7 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
 
     ASSERT_TRUE(Infer());
 
-    ASSERT_NO_FATAL_FAILURE(refResample(_inputMap.begin()->second, _refBlob, antialias));
+    ASSERT_NO_FATAL_FAILURE(refResample(_inputMap.begin()->second, _refBlob, antialias, coordTransMode, nearestMode));
 
     CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, ERROR_BOUND);
 }

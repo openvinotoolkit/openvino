@@ -271,6 +271,21 @@ VPU_DECLARE_ENUM(BroadcastMode,
 // StageDataInfo
 //
 
+VPU_DECLARE_ENUM(InterpolateCoordTransMode,
+    half_pixel = 0,
+    pytorch_half_pixel = 1,
+    asymmetric = 2,
+    tf_half_pixel_for_nn = 3,
+    align_corners = 4
+)
+VPU_DECLARE_ENUM(InterpolateNearestMode,
+    round_prefer_floor = 0,
+    round_prefer_ceil = 1,
+    floor = 2,
+    ceil = 3,
+    simple = 4
+)
+
 template <typename Val>
 class StageDataInfo final {
 public:
