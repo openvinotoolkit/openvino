@@ -19,6 +19,7 @@
 #include "ngraph/op/scatter_elements_update.hpp"
 #include "ngraph/runtime/reference/scatter_elements_update.hpp"
 #include "ngraph/validation_util.hpp"
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -79,22 +80,38 @@ static shared_ptr<op::Constant>
         NGRAPH_CHECK(false,
                      "Encountered 'dynamic' element type in constant_scatter_elem_updt_callback");
         break;
-    case element::Type_t::u8:
-    case element::Type_t::i8:
+    NGRAPH_CASE(dispatch_const_fold_indices, u8,
         return fold_constant_scatter_elem_updt<T, U, uint8_t>(
             data, indices, updates, axis, scatter_elem_updt);
-    case element::Type_t::u16:
-    case element::Type_t::i16:
+    )
+    NGRAPH_CASE(dispatch_const_fold_indices, i8,
+        return fold_constant_scatter_elem_updt<T, U, uint8_t>(
+            data, indices, updates, axis, scatter_elem_updt);
+    )
+    NGRAPH_CASE(dispatch_const_fold_indices, u16,
         return fold_constant_scatter_elem_updt<T, U, uint16_t>(
             data, indices, updates, axis, scatter_elem_updt);
-    case element::Type_t::u32:
-    case element::Type_t::i32:
+    )
+    NGRAPH_CASE(dispatch_const_fold_indices, i16,
+        return fold_constant_scatter_elem_updt<T, U, uint16_t>(
+            data, indices, updates, axis, scatter_elem_updt);
+    )
+    NGRAPH_CASE(dispatch_const_fold_indices, u32,
         return fold_constant_scatter_elem_updt<T, U, uint32_t>(
             data, indices, updates, axis, scatter_elem_updt);
-    case element::Type_t::u64:
-    case element::Type_t::i64:
+    )
+    NGRAPH_CASE(dispatch_const_fold_indices, i32,
+        return fold_constant_scatter_elem_updt<T, U, uint32_t>(
+            data, indices, updates, axis, scatter_elem_updt);
+    )
+    NGRAPH_CASE(dispatch_const_fold_indices, u64,
         return fold_constant_scatter_elem_updt<T, U, uint64_t>(
             data, indices, updates, axis, scatter_elem_updt);
+    )
+    NGRAPH_CASE(dispatch_const_fold_indices, i64,
+        return fold_constant_scatter_elem_updt<T, U, uint64_t>(
+            data, indices, updates, axis, scatter_elem_updt);
+    )
     case element::Type_t::boolean:
     case element::Type_t::bf16:
     case element::Type_t::f16:
@@ -130,22 +147,38 @@ static shared_ptr<op::Constant> dispatch_const_fold_data(const shared_ptr<op::Co
         NGRAPH_CHECK(false,
                      "Encountered 'dynamic' element type in constant_scatter_elem_updt_callback");
         break;
-    case element::Type_t::u8:
-    case element::Type_t::i8:
+    NGRAPH_CASE(dispatch_const_fold_data, u8,
         return dispatch_const_fold_indices<T, uint8_t>(
             data, indices, updates, axis, scatter_elem_updt);
-    case element::Type_t::u16:
-    case element::Type_t::i16:
+    )
+    NGRAPH_CASE(dispatch_const_fold_data, i8,
+        return dispatch_const_fold_indices<T, uint8_t>(
+            data, indices, updates, axis, scatter_elem_updt);
+    )
+    NGRAPH_CASE(dispatch_const_fold_data, u16,
         return dispatch_const_fold_indices<T, uint16_t>(
             data, indices, updates, axis, scatter_elem_updt);
-    case element::Type_t::u32:
-    case element::Type_t::i32:
+    )
+    NGRAPH_CASE(dispatch_const_fold_data, i16,
+        return dispatch_const_fold_indices<T, uint16_t>(
+            data, indices, updates, axis, scatter_elem_updt);
+    )
+    NGRAPH_CASE(dispatch_const_fold_data, u32,
         return dispatch_const_fold_indices<T, uint32_t>(
             data, indices, updates, axis, scatter_elem_updt);
-    case element::Type_t::u64:
-    case element::Type_t::i64:
+    )
+    NGRAPH_CASE(dispatch_const_fold_data, i32,
+        return dispatch_const_fold_indices<T, uint32_t>(
+            data, indices, updates, axis, scatter_elem_updt);
+    )
+    NGRAPH_CASE(dispatch_const_fold_data, u64,
         return dispatch_const_fold_indices<T, uint64_t>(
             data, indices, updates, axis, scatter_elem_updt);
+    )
+    NGRAPH_CASE(dispatch_const_fold_data, i64,
+        return dispatch_const_fold_indices<T, uint64_t>(
+            data, indices, updates, axis, scatter_elem_updt);
+    )
     case element::Type_t::boolean:
     case element::Type_t::bf16:
     case element::Type_t::f16:
@@ -163,114 +196,143 @@ static shared_ptr<op::Constant> dispatch_const_fold_data(const shared_ptr<op::Co
 
 void pass::ConstantFolding::construct_constant_scatter_elements_update()
 {
-    const auto data_label = make_shared<pattern::op::Label>(
-        element::f32, Shape{10, 20, 30}, pattern::has_class<op::Constant>());
-    const auto indices_label = make_shared<pattern::op::Label>(
-        element::i64, Shape{5, 10, 15}, pattern::has_class<op::Constant>());
-    const auto updates_label = make_shared<pattern::op::Label>(
-        element::f32, Shape{5, 10, 15}, pattern::has_class<op::Constant>());
-    const auto axis_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
-    auto scatter_elem_updt = make_shared<op::v3::ScatterElementsUpdate>(
-        data_label, indices_label, updates_label, axis_label);
+    NGRAPH_PASS_SCOPE(ConstantFolding_ConstantScatterElementsUpdateV3,
+        const auto data_label = make_shared<pattern::op::Label>(
+            element::f32, Shape{10, 20, 30}, pattern::has_class<op::Constant>());
+        const auto indices_label = make_shared<pattern::op::Label>(
+            element::i64, Shape{5, 10, 15}, pattern::has_class<op::Constant>());
+        const auto updates_label = make_shared<pattern::op::Label>(
+            element::f32, Shape{5, 10, 15}, pattern::has_class<op::Constant>());
+        const auto axis_label =
+            make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
+        auto scatter_elem_updt = make_shared<op::v3::ScatterElementsUpdate>(
+            data_label, indices_label, updates_label, axis_label);
 
-    auto constant_scatter_elem_updt_callback = [this,
-                                                data_label,
-                                                indices_label,
-                                                updates_label,
-                                                axis_label](pattern::Matcher& m) {
-        NGRAPH_DEBUG << "In callback for constant_scatter_elem_updt_callback against node = "
-                     << m.get_match_root()->get_name();
+        auto constant_scatter_elem_updt_callback = [this,
+                                                    data_label,
+                                                    indices_label,
+                                                    updates_label,
+                                                    axis_label](pattern::Matcher& m) {
+            NGRAPH_DEBUG << "In callback for constant_scatter_elem_updt_callback against node = "
+                        << m.get_match_root()->get_name();
 
-        auto pattern_map = m.get_pattern_map();
+            auto pattern_map = m.get_pattern_map();
 
-        const auto data = static_pointer_cast<op::Constant>(pattern_map[data_label]);
-        const auto indices = static_pointer_cast<op::Constant>(pattern_map[indices_label]);
-        const auto updates = static_pointer_cast<op::Constant>(pattern_map[updates_label]);
-        const auto axis = static_pointer_cast<op::Constant>(pattern_map[axis_label]);
-        const auto scatter_elem_updt = m.get_match_root();
+            const auto data = static_pointer_cast<op::Constant>(pattern_map[data_label]);
+            const auto indices = static_pointer_cast<op::Constant>(pattern_map[indices_label]);
+            const auto updates = static_pointer_cast<op::Constant>(pattern_map[updates_label]);
+            const auto axis = static_pointer_cast<op::Constant>(pattern_map[axis_label]);
+            const auto scatter_elem_updt = m.get_match_root();
 
-        if (cf_is_disabled(scatter_elem_updt))
-            return false;
+            if (cf_is_disabled(scatter_elem_updt))
+                return false;
 
-        NGRAPH_CHECK(revalidate_and_ensure_static(scatter_elem_updt));
+            NGRAPH_CHECK(revalidate_and_ensure_static(scatter_elem_updt));
 
-        std::shared_ptr<Node> replacement;
-        const auto data_type = data->get_output_element_type(0);
-        NGRAPH_CHECK(data_type == updates->get_output_element_type(0),
-                     "data input and updates element type must be equal. Got data type: ",
-                     data_type,
-                     ", updates type: ",
-                     updates->get_output_element_type(0));
+            std::shared_ptr<Node> replacement;
+            const auto data_type = data->get_output_element_type(0);
+            NGRAPH_CHECK(data_type == updates->get_output_element_type(0),
+                        "data input and updates element type must be equal. Got data type: ",
+                        data_type,
+                        ", updates type: ",
+                        updates->get_output_element_type(0));
 
-        // Dispatch specialization based on data and updates type
-        switch (data_type)
-        {
-        case element::Type_t::undefined:
-            NGRAPH_CHECK(
-                false,
-                "Encountered 'undefined' element type in constant_scatter_elem_updt_callback");
-            break;
-        case element::Type_t::dynamic:
-            NGRAPH_CHECK(
-                false, "Encountered 'dynamic' element type in constant_scatter_elem_updt_callback");
-            break;
-        case element::Type_t::boolean:
-            NGRAPH_CHECK(
-                false, "Encountered 'boolean' element type in constant_scatter_elem_updt_callback");
-            break;
-        case element::Type_t::u1:
-            NGRAPH_CHECK(false,
-                         "Encountered 'u1' element type in constant_scatter_elem_updt_callback");
-            break;
-        case element::Type_t::bf16:
-        case element::Type_t::f16:
-            replacement =
-                dispatch_const_fold_data<float16>(data, indices, updates, axis, scatter_elem_updt);
-            break;
-        case element::Type_t::f32:
-            replacement =
-                dispatch_const_fold_data<float>(data, indices, updates, axis, scatter_elem_updt);
-            break;
-        case element::Type_t::f64:
-            replacement =
-                dispatch_const_fold_data<double>(data, indices, updates, axis, scatter_elem_updt);
-            break;
-        case element::Type_t::u8:
-        case element::Type_t::i8:
-            replacement =
-                dispatch_const_fold_data<uint8_t>(data, indices, updates, axis, scatter_elem_updt);
-            break;
-        case element::Type_t::u16:
-        case element::Type_t::i16:
-            replacement =
-                dispatch_const_fold_data<uint16_t>(data, indices, updates, axis, scatter_elem_updt);
-            break;
-        case element::Type_t::u32:
-        case element::Type_t::i32:
-            replacement =
-                dispatch_const_fold_data<uint32_t>(data, indices, updates, axis, scatter_elem_updt);
-            break;
-        case element::Type_t::u64:
-        case element::Type_t::i64:
-            replacement =
-                dispatch_const_fold_data<uint64_t>(data, indices, updates, axis, scatter_elem_updt);
-            break;
-        default:
-            NGRAPH_CHECK(
-                false, "Encountered unhandled element type in constant_scatter_elem_updt_callback");
-            break;
-        }
+            // Dispatch specialization based on data and updates type
+            switch (data_type)
+            {
+            case element::Type_t::undefined:
+                NGRAPH_CHECK(
+                    false,
+                    "Encountered 'undefined' element type in constant_scatter_elem_updt_callback");
+                break;
+            case element::Type_t::dynamic:
+                NGRAPH_CHECK(
+                    false, "Encountered 'dynamic' element type in constant_scatter_elem_updt_callback");
+                break;
+            case element::Type_t::boolean:
+                NGRAPH_CHECK(
+                    false, "Encountered 'boolean' element type in constant_scatter_elem_updt_callback");
+                break;
+            case element::Type_t::u1:
+                NGRAPH_CHECK(false,
+                            "Encountered 'u1' element type in constant_scatter_elem_updt_callback");
+                break;
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, bf16,
+                replacement =
+                    dispatch_const_fold_data<float16>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, f16,
+                replacement =
+                    dispatch_const_fold_data<float16>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, f32,
+                replacement =
+                    dispatch_const_fold_data<float>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, f64,
+                replacement =
+                    dispatch_const_fold_data<double>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, u8,
+                replacement =
+                    dispatch_const_fold_data<uint8_t>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, i8,
+                replacement =
+                    dispatch_const_fold_data<uint8_t>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, u16,
+                replacement =
+                    dispatch_const_fold_data<uint16_t>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, i16,
+                replacement =
+                    dispatch_const_fold_data<uint16_t>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, u32,
+                replacement =
+                    dispatch_const_fold_data<uint32_t>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, i32,
+                replacement =
+                    dispatch_const_fold_data<uint32_t>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, u64,
+                replacement =
+                    dispatch_const_fold_data<uint64_t>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantScatterElementsUpdateV3, i64,
+                replacement =
+                    dispatch_const_fold_data<uint64_t>(data, indices, updates, axis, scatter_elem_updt);
+                break;
+            )
+            default:
+                NGRAPH_CHECK(
+                    false, "Encountered unhandled element type in constant_scatter_elem_updt_callback");
+                break;
+            }
 
-        replace_node(m.get_match_root(), replacement);
-        return true;
-    };
+            replace_node(m.get_match_root(), replacement);
+            return true;
+        };
 
-    auto scatter_elem_updt_matcher = make_shared<pattern::Matcher>(
-        scatter_elem_updt, "ConstantFolding.ConstantScatterElementsUpdateV3");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(scatter_elem_updt_matcher,
-                      constant_scatter_elem_updt_callback,
-                      PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        auto scatter_elem_updt_matcher = make_shared<pattern::Matcher>(
+            scatter_elem_updt, matcher_name);
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        this->add_matcher(scatter_elem_updt_matcher,
+                        constant_scatter_elem_updt_callback,
+                        PassProperty::CHANGE_DYNAMIC_STATE);
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    )
 }

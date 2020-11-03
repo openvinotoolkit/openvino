@@ -145,32 +145,45 @@ static shared_ptr<op::Constant>
     case element::Type_t::u1:
         NGRAPH_CHECK(false, "Encountered 'u1' element type in fold_constant_arithmetic_reduction");
         break;
-    case element::Type_t::boolean:
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, boolean,
         return fold_constant_arithmetic_reduction_helper<char>(constant, reduction_node);
-    case element::Type_t::bf16:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, bf16,
         return fold_constant_arithmetic_reduction_helper<bfloat16>(constant, reduction_node);
-    case element::Type_t::f16:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, f16,
         return fold_constant_arithmetic_reduction_helper<float16>(constant, reduction_node);
-    case element::Type_t::f32:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, f32,
         return fold_constant_arithmetic_reduction_helper<float>(constant, reduction_node);
-    case element::Type_t::f64:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, f64,
         return fold_constant_arithmetic_reduction_helper<double>(constant, reduction_node);
-    case element::Type_t::i8:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, i8,
         return fold_constant_arithmetic_reduction_helper<int8_t>(constant, reduction_node);
-    case element::Type_t::i16:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, i16,
         return fold_constant_arithmetic_reduction_helper<int16_t>(constant, reduction_node);
-    case element::Type_t::i32:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, i32,
         return fold_constant_arithmetic_reduction_helper<int32_t>(constant, reduction_node);
-    case element::Type_t::i64:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, i64,
         return fold_constant_arithmetic_reduction_helper<int64_t>(constant, reduction_node);
-    case element::Type_t::u8:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, u8,
         return fold_constant_arithmetic_reduction_helper<uint8_t>(constant, reduction_node);
-    case element::Type_t::u16:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, u16,
         return fold_constant_arithmetic_reduction_helper<uint16_t>(constant, reduction_node);
-    case element::Type_t::u32:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, u32,
         return fold_constant_arithmetic_reduction_helper<uint32_t>(constant, reduction_node);
-    case element::Type_t::u64:
+    )
+    NGRAPH_CASE(fold_constant_arithmetic_reduction, u64,
         return fold_constant_arithmetic_reduction_helper<uint64_t>(constant, reduction_node);
+    )
     }
 
     NGRAPH_UNREACHABLE("Unexpected switch case");
@@ -178,49 +191,51 @@ static shared_ptr<op::Constant>
 
 void pass::ConstantFolding::construct_constant_arithmetic_reduction()
 {
-    auto constant_data_label = make_shared<pattern::op::Label>(
-        element::i32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto constant_axes_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{2}, pattern::has_class<op::Constant>());
-    auto is_supported_reduction = [](std::shared_ptr<Node> n) {
-        return (pattern::has_class<op::Max>()(n) || pattern::has_class<op::Min>()(n) ||
-                pattern::has_class<op::Product>()(n) || pattern::has_class<op::Sum>()(n) ||
-                pattern::has_class<op::v1::ReduceMax>()(n) ||
-                pattern::has_class<op::v1::ReduceMin>()(n) ||
-                pattern::has_class<op::v1::ReduceProd>()(n) ||
-                pattern::has_class<op::v1::ReduceSum>()(n) ||
-                pattern::has_class<op::v1::ReduceMean>()(n));
-    };
-    auto reduction =
-        std::make_shared<pattern::op::Any>(element::i32,
-                                           Shape{2},
-                                           is_supported_reduction,
-                                           NodeVector{constant_data_label, constant_axes_label});
+    NGRAPH_PASS_SCOPE(ConstantFolding_ConstantArithmeticReduction,
+        auto constant_data_label = make_shared<pattern::op::Label>(
+            element::i32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
+        auto constant_axes_label =
+            make_shared<pattern::op::Label>(element::i64, Shape{2}, pattern::has_class<op::Constant>());
+        auto is_supported_reduction = [](std::shared_ptr<Node> n) {
+            return (pattern::has_class<op::Max>()(n) || pattern::has_class<op::Min>()(n) ||
+                    pattern::has_class<op::Product>()(n) || pattern::has_class<op::Sum>()(n) ||
+                    pattern::has_class<op::v1::ReduceMax>()(n) ||
+                    pattern::has_class<op::v1::ReduceMin>()(n) ||
+                    pattern::has_class<op::v1::ReduceProd>()(n) ||
+                    pattern::has_class<op::v1::ReduceSum>()(n) ||
+                    pattern::has_class<op::v1::ReduceMean>()(n));
+        };
+        auto reduction =
+            std::make_shared<pattern::op::Any>(element::i32,
+                                            Shape{2},
+                                            is_supported_reduction,
+                                            NodeVector{constant_data_label, constant_axes_label});
 
-    auto constant_arithmetic_reduction_callback = [this, constant_data_label](pattern::Matcher& m) {
-        NGRAPH_DEBUG << "In callback for constant_arithmetic_reduction_callback against node = "
-                     << m.get_match_root()->get_name();
+        auto constant_arithmetic_reduction_callback = [this, constant_data_label](pattern::Matcher& m) {
+            NGRAPH_DEBUG << "In callback for constant_arithmetic_reduction_callback against node = "
+                        << m.get_match_root()->get_name();
 
-        auto pattern_map = m.get_pattern_map();
+            auto pattern_map = m.get_pattern_map();
 
-        auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_data_label]);
-        auto reduction_match = m.get_match_root();
+            auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_data_label]);
+            auto reduction_match = m.get_match_root();
 
-        if (cf_is_disabled(reduction_match))
-            return false;
+            if (cf_is_disabled(reduction_match))
+                return false;
 
-        NGRAPH_CHECK(revalidate_and_ensure_static(reduction_match));
+            NGRAPH_CHECK(revalidate_and_ensure_static(reduction_match));
 
-        replace_node(reduction_match,
-                     fold_constant_arithmetic_reduction(constant_match, reduction_match));
-        return true;
-    };
+            replace_node(reduction_match,
+                        fold_constant_arithmetic_reduction(constant_match, reduction_match));
+            return true;
+        };
 
-    auto arithmetic_reduction_matcher =
-        make_shared<pattern::Matcher>(reduction, "ConstantFolding.ConstantArithmeticReduction");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(arithmetic_reduction_matcher,
-                      constant_arithmetic_reduction_callback,
-                      PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        auto arithmetic_reduction_matcher =
+            make_shared<pattern::Matcher>(reduction, matcher_name);
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        this->add_matcher(arithmetic_reduction_matcher,
+                        constant_arithmetic_reduction_callback,
+                        PassProperty::CHANGE_DYNAMIC_STATE);
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    )
 }

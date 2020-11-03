@@ -190,5 +190,4 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

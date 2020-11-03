@@ -65,7 +65,6 @@ ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
@@ -86,5 +85,4 @@ ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

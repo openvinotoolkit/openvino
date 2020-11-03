@@ -214,5 +214,4 @@ void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

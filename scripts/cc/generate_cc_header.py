@@ -17,6 +17,7 @@ for filename in filenames:
   if os.path.isdir(filename):
     continue
   registered_passes = set()
+  registered_matchers = set()
   pass_matchers = {}
   matcher_callbacks = set()
   macros = {}
@@ -31,7 +32,9 @@ for filename in filenames:
             return name.replace('::', '_').replace('.', '_')
           macro_name = domain + "_" + process_macro_name(name)
           macros[macro_name] = "1"
-        elif domain == "CC_IETransoformPassRegister" or domain == "CC_nGraphPassRegister":
+        elif domain == "CC_nGraphPassCreateMatcher":
+          registered_matchers.add(name.split('::')[-1])
+        elif domain in [ "CC_IETransoformPassRegister", "CC_nGraphPassRegister" ]:
           registered_passes.add(name.split('::')[-1])
         elif domain == "CC_nGraphPassCallback":
           matcher_callbacks.add(name.split('::')[-1])
@@ -44,17 +47,18 @@ for filename in filenames:
           registered_passes.add(pass_name)
 
     for pass_name in registered_passes:
-      register = 1
+      register = True
       if pass_name in pass_matchers.keys():
-        register = int(any(x in matcher_callbacks  for x in pass_matchers[pass_name]))
-      macro_name = "REGISTER_PASS_" + process_macro_name(pass_name)
-      macros[macro_name] = register
+        register = any(x in matcher_callbacks for x in pass_matchers[pass_name])
+      elif pass_name in registered_matchers:
+        register = (pass_name in matcher_callbacks)
+      if register:
+        macros["REGISTER_PASS_" + process_macro_name(pass_name)] = int(register)
 
     for matcher_name, matchers in pass_matchers.items():
       for matcher_name in matchers:
-          add_matcher = 1 if matcher_name in matcher_callbacks else 0
-          macro_name = "REGISTER_PASS_" + process_macro_name(matcher_name)
-          macros[macro_name] = add_matcher
+         if matcher_name in matcher_callbacks:
+            macros["REGISTER_PASS_" + process_macro_name(matcher_name)] = 1
 
     for macro_name, macro_value in sorted(macros.items()):
       output_file.write("#ifndef {}\n".format(macro_name))

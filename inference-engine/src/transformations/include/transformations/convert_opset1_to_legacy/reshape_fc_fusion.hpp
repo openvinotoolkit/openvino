@@ -41,9 +41,8 @@ public:
                 if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(f)) {
                     return GraphRewrite::run_on_function(f);
                 }
-            return false;
         )
-        NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+        return false;
     }
 
 private:

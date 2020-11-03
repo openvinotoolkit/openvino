@@ -72,7 +72,6 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
@@ -129,7 +128,6 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
@@ -185,5 +183,4 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

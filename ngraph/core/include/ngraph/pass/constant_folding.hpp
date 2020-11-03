@@ -19,6 +19,7 @@
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/util.hpp"
+#include "itt.hpp"
 
 namespace ngraph
 {

@@ -69,7 +69,6 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
         register_matcher(m, matcher_pass_callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2FusionWithAdd, "NormalizeL2FusionWithAdd", 0);
@@ -126,5 +125,4 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
         register_matcher(m, matcher_pass_callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

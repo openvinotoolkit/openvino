@@ -50,7 +50,7 @@ namespace ngraph
             : m_pattern_node(make_node_output(pattern_node))
         {
 #if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
-                m_callback_handle = openvino::itt::handle("default");
+                NGRAPH_PASS_CREATE_MATCHER()
 #endif
         }
 
@@ -59,7 +59,7 @@ namespace ngraph
             , m_name(name)
         {
 #if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
-                m_callback_handle = openvino::itt::handle(name);
+                NGRAPH_PASS_CREATE_MATCHER()
 #endif
         }
 
@@ -69,7 +69,7 @@ namespace ngraph
             : Matcher(make_node_output(pattern_node), name, strict_mode)
         {
 #if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
-                m_callback_handle = openvino::itt::handle(name);
+                NGRAPH_PASS_CREATE_MATCHER()
 #endif
         }
 

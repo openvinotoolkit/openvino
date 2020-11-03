@@ -65,7 +65,6 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
         this->register_matcher(m, callback);
     return;
      )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGRUCellMatcher, "ConvertGRUCellMatcher", 0);
@@ -112,7 +111,6 @@ ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
         this->register_matcher(m, callback);
     return;
      )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertRNNCellMatcher, "ConvertRNNCellMatcher", 0);
@@ -158,5 +156,4 @@ ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
         this->register_matcher(m, callback);
     return;
      )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

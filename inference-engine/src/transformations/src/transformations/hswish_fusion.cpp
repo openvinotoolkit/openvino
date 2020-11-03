@@ -66,7 +66,6 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithReluMul, "HSwishFusionWithReluMul", 0);
@@ -121,7 +120,6 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithoutRelu, "HSwishFusionWithoutRelu", 0);
@@ -180,7 +178,6 @@ ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithClamp, "HSwishFusionWithClamp", 0);
@@ -229,5 +226,4 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

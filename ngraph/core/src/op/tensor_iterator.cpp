@@ -53,6 +53,7 @@ bool op::v0::TensorIterator::InputDescription::visit_attributes(AttributeVisitor
         visitor.on_attribute("body_parameter_index", m_body_parameter_index);
         return true;
     )
+    return false;
 }
 
 op::v0::TensorIterator::SliceInputDescription::SliceInputDescription(uint64_t input_index,
@@ -108,9 +109,12 @@ shared_ptr<op::v0::TensorIterator::InputDescription>
 
 bool op::v0::TensorIterator::MergedInputDescription::visit_attributes(AttributeVisitor& visitor)
 {
-    InputDescription::visit_attributes(visitor);
-    visitor.on_attribute("body_value_index", m_body_value_index);
-    return true;
+    NGRAPH_OP_SCOPE(v0_TensorIterator_MergedInputDescription_visit_attributes,
+        InputDescription::visit_attributes(visitor);
+        visitor.on_attribute("body_value_index", m_body_value_index);
+        return true;
+    )
+    return false;
 }
 
 op::v0::TensorIterator::InvariantInputDescription::InvariantInputDescription(
@@ -127,8 +131,11 @@ shared_ptr<op::v0::TensorIterator::InputDescription>
 
 bool op::v0::TensorIterator::InvariantInputDescription::visit_attributes(AttributeVisitor& visitor)
 {
-    InputDescription::visit_attributes(visitor);
-    return true;
+    NGRAPH_OP_SCOPE(v0_TensorIterator_InvariantInputDescription_visit_attributes,
+        InputDescription::visit_attributes(visitor);
+        return true;
+    )
+    return false;
 }
 
 op::v0::TensorIterator::OutputDescription::OutputDescription(uint64_t body_value_index,

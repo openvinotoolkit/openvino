@@ -61,5 +61,5 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
         }
         return false;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+    return false;
 }

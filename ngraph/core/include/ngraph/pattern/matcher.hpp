@@ -28,8 +28,9 @@
 #include "ngraph/pattern/op/label.hpp"
 #include "ngraph/pattern/op/skip.hpp"
 #if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
-#include "openvino/itt.hpp"
+#include "itt.hpp"
 #endif
+
 namespace ngraph
 {
     namespace pass
@@ -86,7 +87,7 @@ namespace ngraph
                 : m_pattern_node{pattern_node}
             {
 #if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
-                m_callback_handle = openvino::itt::handle("default");
+                NGRAPH_PASS_CREATE_MATCHER()
 #endif
             }
 
@@ -95,7 +96,7 @@ namespace ngraph
                 , m_name{name}
             {
 #if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
-                m_callback_handle = openvino::itt::handle(name);
+                NGRAPH_PASS_CREATE_MATCHER()
 #endif
             }
 
@@ -110,7 +111,7 @@ namespace ngraph
                 , m_strict_mode(strict_mode)
             {
 #if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
-                m_callback_handle = openvino::itt::handle(name);
+                NGRAPH_PASS_CREATE_MATCHER()
 #endif
             }
 

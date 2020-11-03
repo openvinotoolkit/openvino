@@ -90,9 +90,9 @@ void op::DeconvolutionIE::validate_and_infer_types() {
         }
         set_output_type(0, conv.get_element_type(), conv.get_partial_shape());
         return;
-        )
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-    }
+}
 
 shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
     if (new_args.size() == 2) {

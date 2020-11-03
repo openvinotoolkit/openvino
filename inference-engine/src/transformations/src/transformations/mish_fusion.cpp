@@ -43,5 +43,4 @@ ngraph::pass::MishFusion::MishFusion() {
         register_matcher(m, matcher_pass_callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

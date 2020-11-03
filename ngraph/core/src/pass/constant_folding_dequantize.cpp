@@ -47,61 +47,63 @@ shared_ptr<op::Constant> fold_constant_dequantize(shared_ptr<op::Constant> const
 
 void pass::ConstantFolding::construct_constant_dequantize()
 {
-    auto constant_label =
-        make_shared<pattern::op::Label>(element::u8, Shape{2}, pattern::has_class<op::Constant>());
-    auto dq_scale = op::Constant::create(element::f32, Shape{}, {1});
-    auto dq_offset = op::Constant::create(element::u8, Shape{}, {1});
-    auto dequant_op =
-        make_shared<op::Dequantize>(constant_label, dq_scale, dq_offset, element::f32, AxisSet{});
-    auto dequant = make_shared<pattern::op::Label>(dequant_op, nullptr, NodeVector{dequant_op});
+    NGRAPH_PASS_SCOPE(ConstantFolding_ConstantDequantize,
+        auto constant_label =
+            make_shared<pattern::op::Label>(element::u8, Shape{2}, pattern::has_class<op::Constant>());
+        auto dq_scale = op::Constant::create(element::f32, Shape{}, {1});
+        auto dq_offset = op::Constant::create(element::u8, Shape{}, {1});
+        auto dequant_op =
+            make_shared<op::Dequantize>(constant_label, dq_scale, dq_offset, element::f32, AxisSet{});
+        auto dequant = make_shared<pattern::op::Label>(dequant_op, nullptr, NodeVector{dequant_op});
 
-    auto constant_dequantize_callback = [this, constant_label, dequant](pattern::Matcher& m) {
-        NGRAPH_DEBUG << "In callback for constant_dequantize_callback against node = "
-                     << m.get_match_root()->get_name();
+        auto constant_dequantize_callback = [this, constant_label, dequant](pattern::Matcher& m) {
+            NGRAPH_DEBUG << "In callback for constant_dequantize_callback against node = "
+                        << m.get_match_root()->get_name();
 
-        auto pattern_map = m.get_pattern_map();
+            auto pattern_map = m.get_pattern_map();
 
-        auto constant_match = as_type_ptr<op::Constant>(pattern_map[constant_label]);
-        auto dequant_match = pattern_map[dequant];
-        auto dequantize_op = as_type_ptr<op::Dequantize>(dequant_match);
+            auto constant_match = as_type_ptr<op::Constant>(pattern_map[constant_label]);
+            auto dequant_match = pattern_map[dequant];
+            auto dequantize_op = as_type_ptr<op::Dequantize>(dequant_match);
 
-        if (cf_is_disabled(dequantize_op))
+            if (cf_is_disabled(dequantize_op))
+                return false;
+
+            auto scale = as_type_ptr<op::Constant>(dequant_match->input_value(1).get_node_shared_ptr());
+            auto offset =
+                as_type_ptr<op::Constant>(dequant_match->input_value(2).get_node_shared_ptr());
+
+            NGRAPH_CHECK(revalidate_and_ensure_static(dequantize_op));
+            auto type = constant_match->get_element_type();
+
+            if (dequant_match->get_element_type() != element::f32)
+            {
+                return false;
+            }
+
+            if (type == element::u8)
+            {
+                replace_node(m.get_match_root(),
+                            fold_constant_dequantize<uint8_t, float>(
+                                constant_match, dequantize_op, scale, offset));
+                return true;
+            }
+            else if (type == element::i8)
+            {
+                replace_node(m.get_match_root(),
+                            fold_constant_dequantize<int8_t, float>(
+                                constant_match, dequantize_op, scale, offset));
+                return true;
+            }
+
             return false;
+        };
 
-        auto scale = as_type_ptr<op::Constant>(dequant_match->input_value(1).get_node_shared_ptr());
-        auto offset =
-            as_type_ptr<op::Constant>(dequant_match->input_value(2).get_node_shared_ptr());
-
-        NGRAPH_CHECK(revalidate_and_ensure_static(dequantize_op));
-        auto type = constant_match->get_element_type();
-
-        if (dequant_match->get_element_type() != element::f32)
-        {
-            return false;
-        }
-
-        if (type == element::u8)
-        {
-            replace_node(m.get_match_root(),
-                         fold_constant_dequantize<uint8_t, float>(
-                             constant_match, dequantize_op, scale, offset));
-            return true;
-        }
-        else if (type == element::i8)
-        {
-            replace_node(m.get_match_root(),
-                         fold_constant_dequantize<int8_t, float>(
-                             constant_match, dequantize_op, scale, offset));
-            return true;
-        }
-
-        return false;
-    };
-
-    auto dequantize_matcher =
-        make_shared<pattern::Matcher>(dequant, "ConstantFolding.ConstantDequantize");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(
-        dequantize_matcher, constant_dequantize_callback, PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        auto dequantize_matcher =
+            make_shared<pattern::Matcher>(dequant, matcher_name);
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        this->add_matcher(
+            dequantize_matcher, constant_dequantize_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    )
 }

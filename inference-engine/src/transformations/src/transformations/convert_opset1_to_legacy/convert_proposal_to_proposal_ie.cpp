@@ -67,7 +67,6 @@ ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertProposal4ToLegacyMatcher, "ConvertProposal4ToLegacyMatcher", 0);
@@ -90,5 +89,4 @@ ngraph::pass::ConvertProposal4ToLegacyMatcher::ConvertProposal4ToLegacyMatcher()
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

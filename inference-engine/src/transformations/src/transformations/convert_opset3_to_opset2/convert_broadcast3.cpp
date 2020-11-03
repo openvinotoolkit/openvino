@@ -57,5 +57,4 @@ void ngraph::pass::ConvertBroadcast3::convert_broadcast3() {
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

@@ -48,5 +48,4 @@ void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

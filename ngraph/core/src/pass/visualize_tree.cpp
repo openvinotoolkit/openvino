@@ -224,10 +224,8 @@ bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f)
 
         // Clean up local variable not to hold node pointers
         m_nodes_with_attributes.clear();
-
-        return false;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+    return false;
 }
 
 pass::VisualizeTree::VisualizeTree(const string& file_name, node_modifiers_t nm, bool dot_only)

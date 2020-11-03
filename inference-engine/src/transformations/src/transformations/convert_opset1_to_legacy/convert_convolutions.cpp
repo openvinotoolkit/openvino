@@ -46,7 +46,6 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupConvolution, "ConvertGroupConvolution", 0);
@@ -95,7 +94,6 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeconvolution, "ConvertDeconvolution", 0);
@@ -131,7 +129,6 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupDeconvolution, "ConvertGroupDeconvolution", 0);
@@ -179,5 +176,4 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

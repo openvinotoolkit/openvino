@@ -68,7 +68,6 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddAddFusion, "AddAddFusion", 0);
@@ -106,7 +105,6 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyMultiplyFusion, "MultiplyMultiplyFusion", 0);
@@ -144,5 +142,4 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

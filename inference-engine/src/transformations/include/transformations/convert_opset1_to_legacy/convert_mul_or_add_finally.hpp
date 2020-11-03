@@ -212,5 +212,4 @@ void ngraph::pass::ConvertMulOrAddFinally::convert_mul_or_add_finally() {
         this->add_matcher(m, get_callback<T>(), PassProperty::CHANGE_DYNAMIC_STATE);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

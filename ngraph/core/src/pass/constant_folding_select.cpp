@@ -59,98 +59,113 @@ shared_ptr<op::Constant> fold_constant_select(const shared_ptr<op::Constant>& se
 
 void pass::ConstantFolding::construct_constant_select()
 {
-    auto selection_label = make_shared<pattern::op::Label>(
-        element::boolean, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto t_label = make_shared<pattern::op::Label>(
-        element::i64, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto f_label = make_shared<pattern::op::Label>(
-        element::i64, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto select_v0_op = make_shared<op::v0::Select>(selection_label, t_label, f_label);
-    auto select_v1_op = make_shared<op::v1::Select>(selection_label, t_label, f_label);
+    NGRAPH_PASS_SCOPE(ConstantFolding_ConstantSelect,
+        auto selection_label = make_shared<pattern::op::Label>(
+            element::boolean, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
+        auto t_label = make_shared<pattern::op::Label>(
+            element::i64, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
+        auto f_label = make_shared<pattern::op::Label>(
+            element::i64, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
+        auto select_v0_op = make_shared<op::v0::Select>(selection_label, t_label, f_label);
+        auto select_v1_op = make_shared<op::v1::Select>(selection_label, t_label, f_label);
 
-    auto constant_select_callback = [this, selection_label, t_label, f_label](pattern::Matcher& m) {
-        NGRAPH_DEBUG << "In callback for constant_select_callback against node = "
-                     << m.get_match_root()->get_name();
+        auto constant_select_callback = [this, selection_label, t_label, f_label](pattern::Matcher& m) {
+            NGRAPH_DEBUG << "In callback for constant_select_callback against node = "
+                        << m.get_match_root()->get_name();
 
-        auto pattern_map = m.get_pattern_map();
+            auto pattern_map = m.get_pattern_map();
 
-        const auto& selection_node =
-            static_pointer_cast<op::Constant>(pattern_map[selection_label]);
-        const auto& t_node = static_pointer_cast<op::Constant>(pattern_map[t_label]);
-        const auto& f_node = static_pointer_cast<op::Constant>(pattern_map[f_label]);
-        const auto& select = m.get_match_root();
+            const auto& selection_node =
+                static_pointer_cast<op::Constant>(pattern_map[selection_label]);
+            const auto& t_node = static_pointer_cast<op::Constant>(pattern_map[t_label]);
+            const auto& f_node = static_pointer_cast<op::Constant>(pattern_map[f_label]);
+            const auto& select = m.get_match_root();
 
-        if (cf_is_disabled(select))
-            return false;
+            if (cf_is_disabled(select))
+                return false;
 
-        NGRAPH_CHECK(revalidate_and_ensure_static(select));
+            NGRAPH_CHECK(revalidate_and_ensure_static(select));
 
-        std::shared_ptr<op::Constant> replacement;
+            std::shared_ptr<op::Constant> replacement;
 
-        switch (select->get_output_element_type(0))
-        {
-        case element::Type_t::undefined:
-            NGRAPH_CHECK(false, "Encountered 'undefined' element type in constant_select_callback");
-            break;
-        case element::Type_t::dynamic:
-            NGRAPH_CHECK(false, "Encountered 'dynamic' element type in constant_select_callback");
-            break;
-        case element::Type_t::u1:
-            NGRAPH_CHECK(false, "Encountered 'u1' element type in constant_select_callback");
-            break;
-        case element::Type_t::boolean:
-            replacement = fold_constant_select<char>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::bf16:
-            replacement = fold_constant_select<bfloat16>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::f16:
-            replacement = fold_constant_select<float16>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::f32:
-            replacement = fold_constant_select<float>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::f64:
-            replacement = fold_constant_select<double>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::i8:
-            replacement = fold_constant_select<int8_t>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::i16:
-            replacement = fold_constant_select<int16_t>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::i32:
-            replacement = fold_constant_select<int32_t>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::i64:
-            replacement = fold_constant_select<int64_t>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::u8:
-            replacement = fold_constant_select<uint8_t>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::u16:
-            replacement = fold_constant_select<uint16_t>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::u32:
-            replacement = fold_constant_select<uint32_t>(selection_node, t_node, f_node, select);
-            break;
-        case element::Type_t::u64:
-            replacement = fold_constant_select<uint64_t>(selection_node, t_node, f_node, select);
-            break;
-        }
+            switch (select->get_output_element_type(0))
+            {
+            case element::Type_t::undefined:
+                NGRAPH_CHECK(false, "Encountered 'undefined' element type in constant_select_callback");
+                break;
+            case element::Type_t::dynamic:
+                NGRAPH_CHECK(false, "Encountered 'dynamic' element type in constant_select_callback");
+                break;
+            case element::Type_t::u1:
+                NGRAPH_CHECK(false, "Encountered 'u1' element type in constant_select_callback");
+                break;
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, boolean,
+                replacement = fold_constant_select<char>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, bf16,
+                replacement = fold_constant_select<bfloat16>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, f16,
+                replacement = fold_constant_select<float16>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, f32,
+                replacement = fold_constant_select<float>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, f64,
+                replacement = fold_constant_select<double>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, i8,
+                replacement = fold_constant_select<int8_t>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, i16,
+                replacement = fold_constant_select<int16_t>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, i32,
+                replacement = fold_constant_select<int32_t>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, i64,
+                replacement = fold_constant_select<int64_t>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, u8,
+                replacement = fold_constant_select<uint8_t>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, u16,
+                replacement = fold_constant_select<uint16_t>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, u32,
+                replacement = fold_constant_select<uint32_t>(selection_node, t_node, f_node, select);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantSelect, u64,
+                replacement = fold_constant_select<uint64_t>(selection_node, t_node, f_node, select);
+                break;
+            )
+            }
 
-        replace_node(m.get_match_root(), replacement);
-        return true;
-    };
+            replace_node(m.get_match_root(), replacement);
+            return true;
+        };
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(
-        make_shared<pattern::Matcher>(select_v0_op, "ConstantFolding.ConstantSelectV0"),
-        constant_select_callback,
-        PassProperty::CHANGE_DYNAMIC_STATE);
-    this->add_matcher(
-        make_shared<pattern::Matcher>(select_v1_op, "ConstantFolding.ConstantSelectV1"),
-        constant_select_callback,
-        PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        this->add_matcher(
+            make_shared<pattern::Matcher>(select_v0_op, matcher_name),
+            constant_select_callback,
+            PassProperty::CHANGE_DYNAMIC_STATE);
+        this->add_matcher(
+            make_shared<pattern::Matcher>(select_v1_op, matcher_name),
+            constant_select_callback,
+            PassProperty::CHANGE_DYNAMIC_STATE);
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    )
 }

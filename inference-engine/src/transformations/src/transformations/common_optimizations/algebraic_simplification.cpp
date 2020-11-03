@@ -260,5 +260,5 @@ bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f) {
         }
         return replaced;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+    return false;
 }

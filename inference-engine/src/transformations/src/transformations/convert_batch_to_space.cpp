@@ -127,7 +127,6 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
@@ -230,5 +229,4 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

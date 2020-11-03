@@ -178,8 +178,10 @@ namespace
 #else
 #define NGRAPH_TYPE_AXS_CASE(NAME, TYPE, ...)                                                      \
     OV_SCOPE(OV_CAT(OV_CAT(NAME, _), TYPE),                                                        \
-        TYPE_AXS_CASE(TYPE)(__VA_ARGS__);                                                          \
-        break;                                                                                     \
+        case element::Type_t::TYPE: {                                                              \
+            TYPE_AXS_CASE(TYPE)(__VA_ARGS__);                                                      \
+            break;                                                                                 \
+        }                                                                                          \
     )
 #endif
 

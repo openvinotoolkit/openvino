@@ -510,6 +510,7 @@ void op::v1::GroupConvolutionBackpropData::pre_validate_and_infer_types()
         set_input_is_relevant_to_shape(0);
         set_input_is_relevant_to_shape(1);
         set_output_type(0, result_et, output_pshape);
+        return;
     )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }

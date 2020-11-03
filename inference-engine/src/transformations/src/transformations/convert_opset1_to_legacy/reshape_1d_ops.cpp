@@ -162,7 +162,6 @@ ngraph::pass::Reshape1DConvolution::Reshape1DConvolution() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DAvgPool, "Reshape1DAvgPool", 0);
@@ -177,7 +176,6 @@ ngraph::pass::Reshape1DAvgPool::Reshape1DAvgPool() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DMaxPool, "Reshape1DMaxPool", 0);
@@ -192,5 +190,4 @@ ngraph::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

@@ -64,38 +64,46 @@ shared_ptr<op::Constant> fold_constant_one_hot(const shared_ptr<op::Constant>& i
     case element::Type_t::f64:
         NGRAPH_CHECK(false, "Indices input element type must be integer");
         break;
-    case element::Type_t::i8:
+    NGRAPH_CASE(fold_constant_one_hot, i8,
         rc = fold_constant_one_hot_ref<int8_t, OUTPUT_TYPE>(
             indices, on_value, off_value, output_shape, axis);
         break;
-    case element::Type_t::i16:
+    )
+    NGRAPH_CASE(fold_constant_one_hot, i16,
         rc = fold_constant_one_hot_ref<int16_t, OUTPUT_TYPE>(
             indices, on_value, off_value, output_shape, axis);
         break;
-    case element::Type_t::i32:
+    )
+    NGRAPH_CASE(fold_constant_one_hot, i32,
         rc = fold_constant_one_hot_ref<int32_t, OUTPUT_TYPE>(
             indices, on_value, off_value, output_shape, axis);
         break;
-    case element::Type_t::i64:
+    )
+    NGRAPH_CASE(fold_constant_one_hot, i64,
         rc = fold_constant_one_hot_ref<int64_t, OUTPUT_TYPE>(
             indices, on_value, off_value, output_shape, axis);
         break;
-    case element::Type_t::u8:
+    )
+    NGRAPH_CASE(fold_constant_one_hot, u8,
         rc = fold_constant_one_hot_ref<uint8_t, OUTPUT_TYPE>(
             indices, on_value, off_value, output_shape, axis);
         break;
-    case element::Type_t::u16:
+    )
+    NGRAPH_CASE(fold_constant_one_hot, u16,
         rc = fold_constant_one_hot_ref<uint16_t, OUTPUT_TYPE>(
             indices, on_value, off_value, output_shape, axis);
         break;
-    case element::Type_t::u32:
+    )
+    NGRAPH_CASE(fold_constant_one_hot, u32,
         rc = fold_constant_one_hot_ref<uint32_t, OUTPUT_TYPE>(
             indices, on_value, off_value, output_shape, axis);
         break;
-    case element::Type_t::u64:
+    )
+    NGRAPH_CASE(fold_constant_one_hot, u64,
         rc = fold_constant_one_hot_ref<uint64_t, OUTPUT_TYPE>(
             indices, on_value, off_value, output_shape, axis);
         break;
+    )
     default: NGRAPH_CHECK(false, "Indices input element type must be integer");
     }
     return rc;
@@ -103,111 +111,126 @@ shared_ptr<op::Constant> fold_constant_one_hot(const shared_ptr<op::Constant>& i
 
 void pass::ConstantFolding::construct_constant_one_hot()
 {
-    auto indices_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{3}, pattern::has_class<op::Constant>());
-    auto depth_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
-    auto on_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
-    auto off_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
-    int64_t axis = 0;
-    auto ont_hot_pattern =
-        make_shared<op::v1::OneHot>(indices_label, depth_label, on_label, off_label, axis);
+    NGRAPH_PASS_SCOPE(ConstantFolding_ConstantOneHot,
+        auto indices_label =
+            make_shared<pattern::op::Label>(element::i64, Shape{3}, pattern::has_class<op::Constant>());
+        auto depth_label =
+            make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
+        auto on_label =
+            make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
+        auto off_label =
+            make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
+        int64_t axis = 0;
+        auto ont_hot_pattern =
+            make_shared<op::v1::OneHot>(indices_label, depth_label, on_label, off_label, axis);
 
-    auto one_hot_callback = [this, indices_label, depth_label, on_label, off_label](
-        pattern::Matcher& m) {
-        NGRAPH_DEBUG << "In callback for one_hot_callback against node = "
-                     << m.get_match_root()->get_name();
-        auto pattern_map = m.get_pattern_map();
+        auto one_hot_callback = [this, indices_label, depth_label, on_label, off_label](
+            pattern::Matcher& m) {
+            NGRAPH_DEBUG << "In callback for one_hot_callback against node = "
+                        << m.get_match_root()->get_name();
+            auto pattern_map = m.get_pattern_map();
 
-        auto indices_node = static_pointer_cast<op::Constant>(pattern_map[indices_label]);
-        const auto depth_node = static_pointer_cast<op::Constant>(pattern_map[depth_label]);
-        const auto on_node = static_pointer_cast<op::Constant>(pattern_map[on_label]);
-        const auto off_node = static_pointer_cast<op::Constant>(pattern_map[off_label]);
+            auto indices_node = static_pointer_cast<op::Constant>(pattern_map[indices_label]);
+            const auto depth_node = static_pointer_cast<op::Constant>(pattern_map[depth_label]);
+            const auto on_node = static_pointer_cast<op::Constant>(pattern_map[on_label]);
+            const auto off_node = static_pointer_cast<op::Constant>(pattern_map[off_label]);
 
-        auto one_hot = static_pointer_cast<op::v1::OneHot>(m.get_match_root());
+            auto one_hot = static_pointer_cast<op::v1::OneHot>(m.get_match_root());
 
-        if (cf_is_disabled(one_hot))
-            return false;
+            if (cf_is_disabled(one_hot))
+                return false;
 
-        const size_t axis = one_hot->get_axis();
-        const auto output_shape = one_hot->get_output_shape(0);
-        auto output_type = on_node->get_element_type();
+            const size_t axis = one_hot->get_axis();
+            const auto output_shape = one_hot->get_output_shape(0);
+            auto output_type = on_node->get_element_type();
 
-        std::shared_ptr<op::Constant> replacement =
-            fold_constant_one_hot<char>(indices_node, on_node, off_node, output_shape, axis);
-        switch (output_type)
-        {
-        case element::Type_t::undefined:
-            NGRAPH_CHECK(false, "Encountered 'undefined' element type in one_hot_callback");
-            break;
-        case element::Type_t::dynamic:
-            NGRAPH_CHECK(false, "Encountered 'dynamic' element type in one_hot_callback");
-            break;
-        case element::Type_t::u1:
-            NGRAPH_CHECK(false, "Encountered 'u1' element type in one_hot_callback");
-            break;
-        case element::Type_t::boolean:
-            replacement =
+            std::shared_ptr<op::Constant> replacement =
                 fold_constant_one_hot<char>(indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::bf16:
-            replacement = fold_constant_one_hot<bfloat16>(
-                indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::f16:
-            replacement =
-                fold_constant_one_hot<float16>(indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::f32:
-            replacement =
-                fold_constant_one_hot<float>(indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::f64:
-            replacement =
-                fold_constant_one_hot<double>(indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::i8:
-            replacement =
-                fold_constant_one_hot<int8_t>(indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::i16:
-            replacement =
-                fold_constant_one_hot<int16_t>(indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::i32:
-            replacement =
-                fold_constant_one_hot<int32_t>(indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::i64:
-            replacement =
-                fold_constant_one_hot<int64_t>(indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::u8:
-            replacement =
-                fold_constant_one_hot<uint8_t>(indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::u16:
-            replacement = fold_constant_one_hot<uint16_t>(
-                indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::u32:
-            replacement = fold_constant_one_hot<uint32_t>(
-                indices_node, on_node, off_node, output_shape, axis);
-            break;
-        case element::Type_t::u64:
-            replacement = fold_constant_one_hot<uint64_t>(
-                indices_node, on_node, off_node, output_shape, axis);
-            break;
-        }
+            switch (output_type)
+            {
+            case element::Type_t::undefined:
+                NGRAPH_CHECK(false, "Encountered 'undefined' element type in one_hot_callback");
+                break;
+            case element::Type_t::dynamic:
+                NGRAPH_CHECK(false, "Encountered 'dynamic' element type in one_hot_callback");
+                break;
+            case element::Type_t::u1:
+                NGRAPH_CHECK(false, "Encountered 'u1' element type in one_hot_callback");
+                break;
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, boolean,
+                replacement =
+                    fold_constant_one_hot<char>(indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, bf16,
+                replacement = fold_constant_one_hot<bfloat16>(
+                    indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, f16,
+                replacement =
+                    fold_constant_one_hot<float16>(indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, f32,
+                replacement =
+                    fold_constant_one_hot<float>(indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, f64,
+                replacement =
+                    fold_constant_one_hot<double>(indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, i8,
+                replacement =
+                    fold_constant_one_hot<int8_t>(indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, i16,
+                replacement =
+                    fold_constant_one_hot<int16_t>(indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, i32,
+                replacement =
+                    fold_constant_one_hot<int32_t>(indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, i64,
+                replacement =
+                    fold_constant_one_hot<int64_t>(indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, u8,
+                replacement =
+                    fold_constant_one_hot<uint8_t>(indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, u16,
+                replacement = fold_constant_one_hot<uint16_t>(
+                    indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, u32,
+                replacement = fold_constant_one_hot<uint32_t>(
+                    indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            NGRAPH_CASE(ConstantFolding_ConstantOneHot, u64,
+                replacement = fold_constant_one_hot<uint64_t>(
+                    indices_node, on_node, off_node, output_shape, axis);
+                break;
+            )
+            }
 
-        replace_node(m.get_match_root(), replacement);
-        return true;
-    };
-    auto one_hot_matcher =
-        make_shared<pattern::Matcher>(ont_hot_pattern, "ConstantFolding.ConstantOneHot");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(one_hot_matcher, one_hot_callback, PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+            replace_node(m.get_match_root(), replacement);
+            return true;
+        };
+        auto one_hot_matcher =
+            make_shared<pattern::Matcher>(ont_hot_pattern, matcher_name);
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        this->add_matcher(one_hot_matcher, one_hot_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    )
 }

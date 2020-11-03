@@ -162,7 +162,6 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToGemm, "ConvertMatMulToGemm", 0);
@@ -239,5 +238,4 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

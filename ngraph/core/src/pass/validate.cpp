@@ -26,7 +26,6 @@ bool pass::Validate::run_on_function(std::shared_ptr<Function> f)
 {
     NGRAPH_PASS_SCOPE(Validate,
         f->validate_nodes_and_infer_types();
-        return false;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+    return false;
 }

@@ -40,7 +40,7 @@ bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ng
         }
         return rewritten;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+    return false;
 }
 
 ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> slice) {
@@ -121,7 +121,7 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
         }
         return graph_rewritten;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+    return false;
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedStridedSliceOptimizer, "GroupedStridedSliceOptimizer", 0);
@@ -238,6 +238,6 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         }
         return graph_rewritten;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+    return false;
 }
 

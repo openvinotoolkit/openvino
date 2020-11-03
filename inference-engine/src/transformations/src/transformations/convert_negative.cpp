@@ -35,5 +35,4 @@ ngraph::pass::ConvertNegative::ConvertNegative() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

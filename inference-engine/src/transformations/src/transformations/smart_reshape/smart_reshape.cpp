@@ -24,5 +24,5 @@ bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Functio
         manager.run_passes(f);
         return true;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+    return false;
 }

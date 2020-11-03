@@ -57,7 +57,6 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithSigmoidWithBeta, "SwishFusionWithSigmoidWithBeta", 0);
@@ -106,7 +105,6 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithBeta, "SwishFusionWithBeta", 0);
@@ -151,7 +149,6 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithoutBeta, "SwishFusionWithoutBeta", 0);
@@ -192,5 +189,4 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

@@ -139,7 +139,6 @@ ngraph::pass::ConvAddFusion::ConvAddFusion() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvMultiplyFusion, "ConvMultiplyFusion", 0);
@@ -155,7 +154,6 @@ ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DeconvAddFusion, "DeconvAddFusion", 0);
@@ -171,5 +169,4 @@ ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
         register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

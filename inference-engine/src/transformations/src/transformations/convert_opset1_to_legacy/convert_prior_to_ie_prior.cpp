@@ -159,7 +159,6 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
@@ -301,5 +300,4 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

@@ -61,7 +61,6 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
         this->register_matcher(m, callback);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 void ngraph::pass::ConvertOneHotToOneHotIEMatcher::detect_output_type(const std::shared_ptr<ngraph::Function> &f) {

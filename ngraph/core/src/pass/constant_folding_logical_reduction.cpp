@@ -73,45 +73,47 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
 
 void pass::ConstantFolding::construct_constant_logical_reduction()
 {
-    auto constant_data_label = make_shared<pattern::op::Label>(
-        element::boolean, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto constant_axes_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{2}, pattern::has_class<op::Constant>());
-    auto is_supported_reduction = [](std::shared_ptr<Node> n) {
-        return (pattern::has_class<::ngraph::op::Any>()(n) ||
-                pattern::has_class<::ngraph::op::v1::ReduceLogicalAnd>()(n) ||
-                pattern::has_class<::ngraph::op::v1::ReduceLogicalOr>()(n));
-    };
-    auto reduction =
-        std::make_shared<pattern::op::Any>(element::i32,
-                                           Shape{2},
-                                           is_supported_reduction,
-                                           NodeVector{constant_data_label, constant_axes_label});
+    NGRAPH_PASS_SCOPE(ConstantFolding_ConstantLogicalReduction,
+        auto constant_data_label = make_shared<pattern::op::Label>(
+            element::boolean, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
+        auto constant_axes_label =
+            make_shared<pattern::op::Label>(element::i64, Shape{2}, pattern::has_class<op::Constant>());
+        auto is_supported_reduction = [](std::shared_ptr<Node> n) {
+            return (pattern::has_class<::ngraph::op::Any>()(n) ||
+                    pattern::has_class<::ngraph::op::v1::ReduceLogicalAnd>()(n) ||
+                    pattern::has_class<::ngraph::op::v1::ReduceLogicalOr>()(n));
+        };
+        auto reduction =
+            std::make_shared<pattern::op::Any>(element::i32,
+                                            Shape{2},
+                                            is_supported_reduction,
+                                            NodeVector{constant_data_label, constant_axes_label});
 
-    auto constant_logical_reduction_callback = [this, constant_data_label](pattern::Matcher& m) {
-        NGRAPH_DEBUG << "In callback for constant_logical_reduction_callback against node = "
-                     << m.get_match_root()->get_name();
+        auto constant_logical_reduction_callback = [this, constant_data_label](pattern::Matcher& m) {
+            NGRAPH_DEBUG << "In callback for constant_logical_reduction_callback against node = "
+                        << m.get_match_root()->get_name();
 
-        auto pattern_map = m.get_pattern_map();
+            auto pattern_map = m.get_pattern_map();
 
-        auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_data_label]);
-        auto reduction_match = m.get_match_root();
+            auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_data_label]);
+            auto reduction_match = m.get_match_root();
 
-        if (cf_is_disabled(reduction_match))
-            return false;
+            if (cf_is_disabled(reduction_match))
+                return false;
 
-        NGRAPH_CHECK(revalidate_and_ensure_static(reduction_match));
+            NGRAPH_CHECK(revalidate_and_ensure_static(reduction_match));
 
-        replace_node(reduction_match,
-                     fold_constant_logical_reduction(constant_match, reduction_match));
-        return true;
-    };
+            replace_node(reduction_match,
+                        fold_constant_logical_reduction(constant_match, reduction_match));
+            return true;
+        };
 
-    auto logical_reduction_matcher =
-        make_shared<pattern::Matcher>(reduction, "ConstantFolding.ConstantLogicalReduction");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(logical_reduction_matcher,
-                      constant_logical_reduction_callback,
-                      PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        auto logical_reduction_matcher =
+            make_shared<pattern::Matcher>(reduction, matcher_name);
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        this->add_matcher(logical_reduction_matcher,
+                        constant_logical_reduction_callback,
+                        PassProperty::CHANGE_DYNAMIC_STATE);
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    )
 }

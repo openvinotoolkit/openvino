@@ -18,6 +18,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/runtime/reference/convert.hpp"
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -46,7 +47,7 @@ template <typename TI>
 shared_ptr<op::Constant> fold_constant_convert_helper0(shared_ptr<op::Constant> constant,
                                                        const element::Type& output_element_type)
 {
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
@@ -62,36 +63,49 @@ shared_ptr<op::Constant> fold_constant_convert_helper0(shared_ptr<op::Constant> 
     case element::Type_t::u1:
         NGRAPH_CHECK(false, "Encountered 'dynamic' element type in fold_constant_convert");
         break;
-    case element::Type_t::boolean:
+    NGRAPH_CASE(fold_constant_convert_helper0, boolean,
         return fold_constant_convert_helper1<TI, char>(constant, output_element_type);
-    case element::Type_t::bf16:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, bf16,
         return fold_constant_convert_helper1<TI, bfloat16>(constant, output_element_type);
-    case element::Type_t::f16:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, f16,
         return fold_constant_convert_helper1<TI, float16>(constant, output_element_type);
-    case element::Type_t::f32:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, f32,
         return fold_constant_convert_helper1<TI, float>(constant, output_element_type);
-    case element::Type_t::f64:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, f64,
         return fold_constant_convert_helper1<TI, double>(constant, output_element_type);
-    case element::Type_t::i8:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, i8,
         return fold_constant_convert_helper1<TI, int8_t>(constant, output_element_type);
-    case element::Type_t::i16:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, i16,
         return fold_constant_convert_helper1<TI, int16_t>(constant, output_element_type);
-    case element::Type_t::i32:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, i32,
         return fold_constant_convert_helper1<TI, int32_t>(constant, output_element_type);
-    case element::Type_t::i64:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, i64,
         return fold_constant_convert_helper1<TI, int64_t>(constant, output_element_type);
-    case element::Type_t::u8:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, u8,
         return fold_constant_convert_helper1<TI, uint8_t>(constant, output_element_type);
-    case element::Type_t::u16:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, u16,
         return fold_constant_convert_helper1<TI, uint16_t>(constant, output_element_type);
-    case element::Type_t::u32:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, u32,
         return fold_constant_convert_helper1<TI, uint32_t>(constant, output_element_type);
-    case element::Type_t::u64:
+    )
+    NGRAPH_CASE(fold_constant_convert_helper0, u64,
         return fold_constant_convert_helper1<TI, uint64_t>(constant, output_element_type);
+    )
     }
 
     NGRAPH_UNREACHABLE("Unexpected switch case");
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic pop
 #endif
 }
@@ -106,7 +120,7 @@ static shared_ptr<op::Constant> fold_constant_convert(shared_ptr<op::Constant> c
         return constant;
     }
 
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
@@ -122,70 +136,85 @@ static shared_ptr<op::Constant> fold_constant_convert(shared_ptr<op::Constant> c
     case element::Type_t::u1:
         NGRAPH_CHECK(false, "Encountered 'u1' element type in fold_constant_convert");
         break;
-    case element::Type_t::boolean:
+    NGRAPH_CASE(fold_constant_convert, boolean,
         return fold_constant_convert_helper0<char>(constant, output_element_type);
-    case element::Type_t::bf16:
+    )
+    NGRAPH_CASE(fold_constant_convert, bf16,
         return fold_constant_convert_helper0<bfloat16>(constant, output_element_type);
-    case element::Type_t::f16:
+    )
+    NGRAPH_CASE(fold_constant_convert, f16,
         return fold_constant_convert_helper0<float16>(constant, output_element_type);
-    case element::Type_t::f32:
+    )
+    NGRAPH_CASE(fold_constant_convert, f32,
         return fold_constant_convert_helper0<float>(constant, output_element_type);
-    case element::Type_t::f64:
+    )
+    NGRAPH_CASE(fold_constant_convert, f64,
         return fold_constant_convert_helper0<double>(constant, output_element_type);
-    case element::Type_t::i8:
+    )
+    NGRAPH_CASE(fold_constant_convert, i8,
         return fold_constant_convert_helper0<int8_t>(constant, output_element_type);
-    case element::Type_t::i16:
+    )
+    NGRAPH_CASE(fold_constant_convert, i16,
         return fold_constant_convert_helper0<int16_t>(constant, output_element_type);
-    case element::Type_t::i32:
+    )
+    NGRAPH_CASE(fold_constant_convert, i32,
         return fold_constant_convert_helper0<int32_t>(constant, output_element_type);
-    case element::Type_t::i64:
+    )
+    NGRAPH_CASE(fold_constant_convert, i64,
         return fold_constant_convert_helper0<int64_t>(constant, output_element_type);
-    case element::Type_t::u8:
+    )
+    NGRAPH_CASE(fold_constant_convert, u8,
         return fold_constant_convert_helper0<uint8_t>(constant, output_element_type);
-    case element::Type_t::u16:
+    )
+    NGRAPH_CASE(fold_constant_convert, u16,
         return fold_constant_convert_helper0<uint16_t>(constant, output_element_type);
-    case element::Type_t::u32:
+    )
+    NGRAPH_CASE(fold_constant_convert, u32,
         return fold_constant_convert_helper0<uint32_t>(constant, output_element_type);
-    case element::Type_t::u64:
+    )
+    NGRAPH_CASE(fold_constant_convert, u64,
         return fold_constant_convert_helper0<uint64_t>(constant, output_element_type);
+    )
     }
 
     NGRAPH_UNREACHABLE("Unexpected switch case");
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic pop
 #endif
 }
 
 void pass::ConstantFolding::construct_constant_convert()
 {
-    auto constant_label = make_shared<pattern::op::Label>(
-        element::i32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto convert_op = make_shared<op::Convert>(constant_label, element::i64);
+    NGRAPH_PASS_SCOPE(ConstantFolding_ConstantConvert,
+        auto constant_label = make_shared<pattern::op::Label>(
+            element::i32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
+        auto convert_op = make_shared<op::Convert>(constant_label, element::i64);
 
-    auto constant_convert_callback = [this, constant_label](pattern::Matcher& m) {
-        NGRAPH_DEBUG << "In callback for constant_convert_callback against node = "
-                     << m.get_match_root()->get_name();
+        auto constant_convert_callback = [this, constant_label](pattern::Matcher& m) {
+            NGRAPH_DEBUG << "In callback for constant_convert_callback against node = "
+                        << m.get_match_root()->get_name();
 
-        auto pattern_map = m.get_pattern_map();
+            auto pattern_map = m.get_pattern_map();
 
-        auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_label]);
-        auto convert_match = static_pointer_cast<op::Convert>(m.get_match_root());
+            auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_label]);
+            auto convert_match = static_pointer_cast<op::Convert>(m.get_match_root());
 
-        if (cf_is_disabled(convert_match))
-            return false;
+            if (cf_is_disabled(convert_match))
+                return false;
 
-        NGRAPH_CHECK(revalidate_and_ensure_static(convert_match));
+            NGRAPH_CHECK(revalidate_and_ensure_static(convert_match));
 
-        replace_node(
-            m.get_match_root(),
-            fold_constant_convert(constant_match, convert_match->get_output_element_type(0)));
-        return true;
-    };
+            replace_node(
+                m.get_match_root(),
+                fold_constant_convert(constant_match, convert_match->get_output_element_type(0)));
+            return true;
+        };
 
-    auto convert_matcher =
-        make_shared<pattern::Matcher>(convert_op, "ConstantFolding.ConstantConvert");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(
-        convert_matcher, constant_convert_callback, PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        auto convert_matcher =
+            make_shared<pattern::Matcher>(convert_op, matcher_name);
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        this->add_matcher(
+            convert_matcher, constant_convert_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    )
 }

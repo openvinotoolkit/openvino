@@ -169,5 +169,4 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
         return;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

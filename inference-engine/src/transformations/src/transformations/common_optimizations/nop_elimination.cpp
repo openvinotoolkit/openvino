@@ -369,5 +369,5 @@ bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
 
         return clobbered;
     )
-    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
+    return false;
 }
