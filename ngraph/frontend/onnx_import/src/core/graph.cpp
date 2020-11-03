@@ -296,6 +296,11 @@ namespace ngraph
                 as_node_vector(ng_inputs));
         }
 
+        std::vector<int64_t> Graph::get_opset_versions() const
+        {
+            return m_model->get_opset_versions();
+        }
+
         Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto,
                            Model& model,
                            const Graph& parent_graph)

@@ -44,6 +44,7 @@ namespace ngraph
             const std::string& get_producer_name() const { return m_model_proto->producer_name(); }
             const ONNX_NAMESPACE::GraphProto& get_graph() const { return m_model_proto->graph(); }
             std::int64_t get_model_version() const { return m_model_proto->model_version(); }
+            std::vector<int64_t> get_opset_versions() const;
             const std::string& get_producer_version() const
             {
                 return m_model_proto->producer_version();

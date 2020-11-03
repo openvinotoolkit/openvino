@@ -96,6 +96,16 @@ namespace ngraph
             }
         }
 
+        std::vector<int64_t> Model::get_opset_versions() const
+        {
+            std::vector<int64_t> opset_version;
+            for (const auto& id : m_model_proto->opset_import())
+            {
+                opset_version.push_back(id.version());
+            }
+            return opset_version;
+        }
+
     } // namespace onnx_import
 
 } // namespace ngraph

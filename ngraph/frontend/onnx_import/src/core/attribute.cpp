@@ -42,10 +42,13 @@ namespace ngraph
             ONNX_NAMESPACE::ModelProto model_proto;
             const auto& graph = m_attribute_proto->g();
             *(model_proto.mutable_graph()) = graph;
-            // We're creating here a model with unset `opset_import` field. This shouldn't
-            // be a problem, since we add ONNX opset as a default available opset. Moreover
-            // if we encounter a node absent in current available opsets we will try
-            // to add it's domain to available opsets.
+            const auto parent_graph_opset = parent_graph.get_opset_versions();
+            // set the opset version from parent graph
+            model_proto.add_opset_import();
+            for (size_t i = 0; i < parent_graph_opset.size(); ++i)
+            {
+                model_proto.mutable_opset_import(i)->set_version(parent_graph_opset[i]);
+            }
             Model model{model_proto};
             return Subgraph{graph, model, parent_graph};
         }
