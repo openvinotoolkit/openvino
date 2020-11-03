@@ -183,7 +183,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
                 auto state_store = memoryNode->getStore();
-                auto state_name = node->getName();
+                auto state_name = memoryNode->getId();
 
                 // Remove suffix with pair ID. Internal information.
                 auto suffix_idx = state_name.find("/id=");

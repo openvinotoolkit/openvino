@@ -4,6 +4,7 @@
 
 #include "mkldnn_memory_state.h"
 #include "mkldnn_extension_utils.h"
+#include "blob_factory.hpp"
 
 using namespace InferenceEngine;
 
@@ -28,8 +29,13 @@ void  MKLDNNMemoryState::SetState(Blob::Ptr newState) {
 }
 
 InferenceEngine::Blob::CPtr MKLDNNMemoryState::GetState() const {
-    THROW_IE_EXCEPTION << "GetState method is not implemented for MemoryState";
-    return nullptr;
+    auto state_precision = MKLDNNMemory::convertToIePrec(storage->GetDataType());
+    auto shape = SizeVector({ storage->GetElementsCount() });
+    auto data_layout = MKLDNNMemory::GetPlainLayout(storage->GetDims());
+    auto result_blob = make_blob_with_precision(InferenceEngine::TensorDesc(state_precision, shape, data_layout));
+    result_blob->allocate();
+    std::memcpy(storage->GetData(), result_blob->buffer(), storage->GetSize());
+    return result_blob;
 }
 
 }  // namespace MKLDNNPlugin

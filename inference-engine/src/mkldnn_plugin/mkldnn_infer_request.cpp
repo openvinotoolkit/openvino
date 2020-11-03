@@ -41,20 +41,26 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     // Save all MemoryLayer data tensors. Will use insight about mechanics
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
-    for (auto &node : graph->GetNodes()) {
-        if (node->getType() == MemoryInput) {
-            auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-            auto state_store = memoryNode->getStore();
-            auto state_name = node->getName();
+    IE_SUPPRESS_DEPRECATED_START
+    if (execNetwork->QueryState().size() == 0){
+        for (auto &node : graph->GetNodes()) {
+            if (node->getType() == MemoryInput) {
+                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+                auto state_store = memoryNode->getStore();
+                auto state_name = memoryNode->getId();
 
-            // Remove suffix with pair ID. Internal information.
-            auto suffix_idx = state_name.find("/id=");
-            if (suffix_idx != std::string::npos)
-                state_name = state_name.substr(0, suffix_idx);
+                // Remove suffix with pair ID. Internal information.
+                auto suffix_idx = state_name.find("/id=");
+                if (suffix_idx != std::string::npos)
+                    state_name = state_name.substr(0, suffix_idx);
 
-            memoryStates.emplace_back(new MKLDNNMemoryState(state_name, state_store));
+                memoryStates.emplace_back(new MKLDNNMemoryState(state_name, state_store));
+           }
         }
+    } else {
+    	memoryStates = execNetwork->QueryState();
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 MKLDNNPlugin::MKLDNNInferRequest::~MKLDNNInferRequest() {
