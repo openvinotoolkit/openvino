@@ -111,8 +111,6 @@ namespace convert
             break;
             TYPE_CASE(i8)(arg, out);
             break;
-            TYPE_CASE(i16)(arg, out);
-            break;
             TYPE_CASE(i32)(arg, out);
             break;
             TYPE_CASE(i64)(arg, out);
