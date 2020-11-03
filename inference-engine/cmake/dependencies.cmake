@@ -127,7 +127,9 @@ if (THREADING STREQUAL "OMP")
     debug_message(STATUS "intel_omp=" ${OMP})
     
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-    install(FILES ${source_list} DESTINATION "deployment_tools/inference_engine/external/omp/lib")
+    install(FILES ${source_list} 
+    DESTINATION "deployment_tools/inference_engine/external/omp/lib"
+    COMPONENT omp)
     
 endif ()
 
@@ -180,7 +182,6 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         log_rpath_from_dir(TBB "${TBB}/lib")
     endif ()
     debug_message(STATUS "tbb=" ${TBB})
-        
 endif ()
 
 if (ENABLE_OPENCV)
@@ -268,7 +269,6 @@ if (ENABLE_OPENCV)
         log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
     endif()
     debug_message(STATUS "opencv=" ${OPENCV})
-
 endif()
 
 include(ie_parallel)
@@ -300,7 +300,6 @@ if (ENABLE_GNA)
     endif()
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA})
-    
 endif()
 
 if (ENABLE_SPEECH_DEMO)
