@@ -427,7 +427,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::NormalizeL2>>("NormalizeL2"),
         std::make_shared<LayerCreator<ngraph::op::v1::OneHot>>("OneHot"),
         std::make_shared<LayerCreator<ngraph::op::v1::Pad>>("Pad"),
-        std::make_shared<LayerCreator<ngraph::op::ReverseSequence>>("ReverseSequence"),
         std::make_shared<LayerCreator<ngraph::op::PriorBoxClustered>>("PriorBoxClustered"),
         std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo"),
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
@@ -832,16 +831,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::FakeQuantize>:
 
     return std::make_shared<ngraph::op::FakeQuantize>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4],
                                                       GetUIntAttr(dn, "levels"));
-}
-
-// ReverseSequence layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ReverseSequence>::createLayer(const ngraph::OutputVector & inputs, const pugi::xml_node& node,
-                                                                                                std::istream& binStream,
-                                                                                                const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-    return std::make_shared<ngraph::op::ReverseSequence>(inputs[0], inputs[1], GetIntAttr(dn, "batch_axis", 0), GetIntAttr(dn, "seq_axis", 1));
 }
 
 // Covnert layer
