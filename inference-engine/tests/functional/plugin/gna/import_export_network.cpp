@@ -70,7 +70,14 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
             if (inputStream.fail()) {
                 FAIL() << "Cannot open file to import model: exported_model.blob";
             }
-            auto importedOutputs = CalculateImportedNetwork(inputStream);
+            auto importedNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+            for (const auto& next_input : importedNetwork.GetInputsInfo()) {
+                ASSERT_NO_THROW(executableNetwork.GetInputsInfo()[next_input.first]);
+            }
+            for (const auto& next_output : importedNetwork.GetOutputsInfo()) {
+                ASSERT_NO_THROW(executableNetwork.GetOutputsInfo()[next_output.first]);
+            }
+            auto importedOutputs = CalculateImportedNetwork(importedNetwork);
             Compare(importedOutputs, actualOutputs);
         }
 
@@ -107,9 +114,7 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
         std::map<std::string, std::string> exportConfiguration;
         std::map<std::string, std::string> importConfiguration;
 
-        std::vector<std::vector<std::uint8_t>> CalculateImportedNetwork(std::istream& networkModel) {
-            auto importedNetwork = core->ImportNetwork(networkModel, targetDevice, configuration);
-
+        std::vector<std::vector<std::uint8_t>> CalculateImportedNetwork(InferenceEngine::ExecutableNetwork& importedNetwork) {
             auto refInferRequest = importedNetwork.CreateInferRequest();
             std::vector<InferenceEngine::InputInfo::CPtr> refInfos;
             for (const auto& input : importedNetwork.GetInputsInfo()) {
