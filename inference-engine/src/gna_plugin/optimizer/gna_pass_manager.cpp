@@ -340,26 +340,17 @@ void SubstituteSoftSignPass::run() {
         if (!LayerInfo(addition).isPower()) continue;
         auto powerLayer = LayerInfo(addition).as<PowerLayer*>();
 
-        if (!fp32eq(powerLayer->power, -1.0f)) {
-            //if first one is power equals 1, then it still can be a softsign
-            //with two power operations, one for add and one for power
-            if (!fp32eq(powerLayer->power, 1.0f) ||
-                !fp32eq(powerLayer->offset, 1.0f) ||
-                !fp32eq(powerLayer->scale, 1.0f)) {
-                continue;
-            } else {
-                power = getNthChild(addition, 0);
-                if (!LayerInfo(power).isPower()) continue;
-                auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
-                if (!fp32eq(powerLayer_1->power, -1.0f) ||
-                    !fp32eq(powerLayer_1->offset, 0.0f) ||
-                        !fp32eq(powerLayer_1->scale, 1.0f)) continue;
-            }
-        } else {
-            if (!fp32eq(powerLayer->offset, 1) ||
-                !fp32eq(powerLayer->scale, 1)) continue;
-
+        // first layer after abs must have scale of 1, offset of 1 and power of either 1 or -1
+        if (!fp32eq(powerLayer->scale, 1.0f) || !fp32eq(powerLayer->offset, 1.0f) || !fp32eq(std::abs(powerLayer->power), 1.0f)) continue;
+        // power == -1, offset = 1, scale = 1
+        if (fp32eq(powerLayer->power, -1.0f)) {
             std::swap(addition, power);
+        } else { // power = 1, offset = 1, scale - 1
+            power = getNthChild(addition, 0);
+            if (!LayerInfo(power).isPower()) continue;
+            auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
+            // layer after addition must have power of -1, offset of 0 and scale of 1
+            if (!fp32eq(powerLayer_1->power, -1.0f) || !fp32eq(powerLayer_1->offset, 0.0f) || !fp32eq(powerLayer_1->scale, 1.0f)) continue;
         }
 
         if (!hasNChildren(power, 1)) continue;
@@ -367,19 +358,11 @@ void SubstituteSoftSignPass::run() {
         if (mulSame != mul) continue;
 
         // pattern matched - lets substitute
-        if (addition == nullptr)
-            gnalog() << "SoftSign subgraph found consits of: \n"
-                     << "\t" << abs->name << "\n"
-                     << "\t" << power->name << "\n"
-                     << "\t" << mul->name << "\n"
-                     << std::endl;
-        else
-            gnalog() << "SoftSign subgraph found consits of: \n"
-                     << "\t" << abs->name << "\n"
-                     << "\t" << addition->name << "\n"
-                     << "\t" << power->name << "\n"
-                     << "\t" << mul->name << "\n"
-                     << std::endl;
+        gnalog() << "SoftSign subgraph found consits of: \n"
+                 << "\t" << abs->name << "\n";
+        if (addition == nullptr) gnalog() << "\t" << addition->name << "\n";
+        gnalog() << "\t" << mul->name << "\n"
+                 << std::endl;
 
         // creating softsign layer
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
