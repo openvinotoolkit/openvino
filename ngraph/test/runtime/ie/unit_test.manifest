@@ -303,7 +303,7 @@ slice_scalar
 slice_3d_start_just_oob
 shape_of_scalar
 reverse_0d
-reverse_1d_nochange
+reverse_1d
 reverse_2d_nochange
 reverse_3d_nochange
 product_trivial
@@ -587,6 +587,7 @@ abc_int64
 # Unsupported primitive of type: Round
 IE_CPU.onnx_model_round
 IE_CPU.onnx_model_round_half_nearest_even
+round_away_from_zero
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -636,7 +637,9 @@ select_v1
 reverse_1d_0
 reverse_2d_0
 reverse_2d_1
+reverse_2d_1_mask
 reverse_2d_01
+reverse_2d_01_mask
 reverse_3d_0
 reverse_3d_1
 reverse_3d_2
@@ -910,6 +913,9 @@ broadcast_algo_matrix_backward_4
 broadcast_algo_matrix_stride_1
 broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
+
+# Cannot find blob with name: Parameter_1
+dynamic_transpose
 
 # Failing from new reason after unblocking more Blob types
 gather_2d_negative_and_positive_indices_axis_0_2d_input
