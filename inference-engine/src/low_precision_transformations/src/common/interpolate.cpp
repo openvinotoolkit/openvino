@@ -19,7 +19,7 @@ void InterpolateTransformation::registerMatcherIn(GraphRewrite& pass, Transforma
     addPattern(
         pass,
         context,
-        make_op_pattern<opset1::Interpolate>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
+        make_op_pattern<opset4::Interpolate>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
 }
 
 bool InterpolateTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
@@ -56,6 +56,7 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
     // if (interpAttrs.axes.count(0) || interpAttrs.axes.count(1)) {
     //     return false;
     // }
+
     // if (interpAttrs.mode != "nearest") {
     //     return false;
     // }
