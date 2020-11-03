@@ -3,7 +3,7 @@
 //
 
 #include <vpu/frontend/frontend.hpp>
-
+#include <vpu/compile_env.hpp>
 #include <precision_utils.h>
 
 #include <memory>
@@ -54,8 +54,10 @@ private:
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         const auto center_point_box = attrs().get<bool>("center_point_box");
+        const auto use_ddr_buffer = !tempBuffers().empty();
 
         serializer.append(static_cast<int32_t>(center_point_box));
+        serializer.append(static_cast<int32_t>(use_ddr_buffer));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -74,10 +76,34 @@ private:
         input5->serializeBuffer(serializer);
         outputData->serializeBuffer(serializer);
         outputDims->serializeBuffer(serializer);
+
+        if (!tempBuffers().empty())
+            tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 
+bool isCMXEnough(int cmxSize, int numSlices, std::vector<int> bufferSizes) {
+    int curOffset = 0;
+    int curSlice = 0;
+
+    const auto buffer_allocate = [&curOffset, &curSlice, &numSlices, cmxSize](int numBytes) {
+        if (curOffset + numBytes < cmxSize) {
+            curOffset += numBytes;
+        } else if (curSlice < numSlices && numBytes < cmxSize) {
+            curSlice++;
+            curOffset = numBytes;
+        } else {
+            return false;
+        }
+
+        return true;
+    };
+
+    return std::all_of(bufferSizes.begin(), bufferSizes.end(), buffer_allocate);
+}
+
 }  // namespace
+
 
 void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() == 6,
@@ -119,6 +145,22 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
 
     auto stage = model->addNewStage<StaticShapeNMS>(layer->name, StageType::StaticShapeNMS, layer, usedInputs, DataVector{outIndices, outShape});
     stage->attrs().set<bool>("center_point_box", centerPointBox);
+
+    const auto inputDims0 = inputs[0]->desc().dims();
+    const auto perm = DimsOrder::fromNumDims(inputDims0.size()).toPermutation();
+    const auto spatDim = inputDims0[perm[1]];
+
+    const int ddrBufferSize0 = 2 * sizeof(int16_t) * 4 * spatDim;
+    const int ddrBufferSize1 = 2 * sizeof(int16_t) * spatDim;
+    const int ddrBufferSize2 = 2 * sizeof(int32_t) * spatDim;
+    const int ddrBufferSize = ddrBufferSize0 + ddrBufferSize1 + ddrBufferSize2 + 2 * vpu::DATA_ALIGNMENT;
+
+    const auto& env = CompileEnv::get();
+    const auto numSlices = env.resources.numSHAVEs;
+
+    const int cmxTempBufferSize = 4 * sizeof(int32_t) * 256;
+    if (!isCMXEnough(CMX_SHAVE_BUFFER_SIZE, numSlices, {ddrBufferSize0, ddrBufferSize1, ddrBufferSize2, cmxTempBufferSize}))
+        model->addTempBuffer(stage, DataDesc({ddrBufferSize}));
 }
 
 }  // namespace vpu

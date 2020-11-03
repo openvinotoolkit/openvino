@@ -26,10 +26,14 @@ ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine LP legacy transformations library")
+
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
                                           PUBLIC USE_CNNNETWORK_LPT)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine openvino::itt)
+target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_legacy
+                                     PRIVATE openvino::itt)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)

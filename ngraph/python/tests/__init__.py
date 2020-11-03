@@ -157,7 +157,6 @@ xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "Depth must be integral element type.")
 xfail_issue_38717 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "GreaterOrEqual")
-xfail_issue_38719 = xfail_test(reason="nGraph does not support the following ONNX operations: GatherND")
 xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
                                       "and QLinearMatMul"
                                       "Input0 scale and input0 zero point shape must be same and 1")
