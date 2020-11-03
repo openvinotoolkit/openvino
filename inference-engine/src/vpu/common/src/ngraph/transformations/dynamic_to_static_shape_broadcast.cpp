@@ -11,8 +11,10 @@
 
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 #include <memory>
+#include <algorithm>
 
 namespace vpu {
 
@@ -29,19 +31,68 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
                 broadcast->input_value(0),
                 broadcast->input_value(1),
                 broadcast->input_value(2));
-    } else if (broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::NUMPY) {
+    } else if (broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::NUMPY ||
+               broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::BIDIRECTIONAL) {
         staticShapeBroadcast = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
                 broadcast->input_value(0),
-                broadcast->input_value(1));
+                broadcast->input_value(1),
+                broadcast->get_broadcast_spec());
     } else {
-        VPU_THROW_FORMAT("dynamicToStaticShapeBroadcast supports only explicit and numpy modes,"
+        VPU_THROW_FORMAT("dynamicToStaticShapeBroadcast supports only explicit, numpy and bidirectional modes,"
                          "provided {}", broadcast->get_broadcast_spec().m_type);
     }
 
-    auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
-            staticShapeBroadcast->output(0), broadcast->input_value(1));
-    dsr->set_friendly_name(broadcast->get_friendly_name());
+    std::shared_ptr<ngraph::Node> dsr;
 
+    if (broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::BIDIRECTIONAL) {
+        const auto inputShape = broadcast->get_input_shape(0);
+
+        const auto targetShape = broadcast->input_value(1).get_node_shared_ptr();
+        const auto shapeType = targetShape->get_element_type();
+
+        const auto inputShapeDimsCount = inputShape.size();
+        const auto targetShapeDimsCount = ngraph::shape_size(broadcast->get_input_partial_shape(1).get_shape());
+
+        const auto inputShapeConst = std::make_shared<ngraph::opset5::Constant>(
+            shapeType,
+            ngraph::Shape{static_cast<size_t>(inputShapeDimsCount)},
+            inputShape);
+
+        const auto minRank = std::min(inputShapeDimsCount, targetShapeDimsCount);
+        const auto maxRank = std::max(inputShapeDimsCount, targetShapeDimsCount);
+        const auto minRankNode = minRank == inputShapeDimsCount ? inputShapeConst : targetShape;
+        const auto maxRankNode = minRank == inputShapeDimsCount ? targetShape : inputShapeConst;
+
+        ngraph::NodeVector dims;
+
+        for (int i = 0; i < maxRank - minRank; i++) {
+            dims.push_back(
+                std::make_shared<ngraph::opset5::Gather>(
+                    maxRankNode,
+                    ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {i}),
+                    ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {0})));
+        }
+
+        for (int i = 0; i < minRank; i++) {
+            const auto minRankDim = std::make_shared<ngraph::opset5::Gather>(
+                minRankNode,
+                ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {i}),
+                ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {0}));
+            const auto maxRankDim = std::make_shared<ngraph::opset5::Gather>(
+                maxRankNode,
+                ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {maxRank - minRank + i}),
+                ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {0}));
+            dims.push_back(std::make_shared<ngraph::opset5::Maximum>(minRankDim, maxRankDim));
+        }
+
+        const auto outShape = std::make_shared<ngraph::opset5::Concat>(dims, 0);
+
+        dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(staticShapeBroadcast->output(0), outShape);
+    } else {
+        dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(staticShapeBroadcast->output(0), broadcast->input_value(1));
+    }
+
+    dsr->set_friendly_name(broadcast->get_friendly_name());
     ngraph::replace_node(std::move(target), std::move(dsr));
 }
 
