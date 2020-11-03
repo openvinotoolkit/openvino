@@ -43,8 +43,9 @@ TEST_P(CancellationTests, canCancelAsyncRequest) {
             });
 
     req.StartAsync();
-    InferenceEngine::StatusCode cancelStatus = req.Cancel();
+    auto cancel = std::async(std::launch::async, [&req]{ return req.Cancel(); });
     InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    InferenceEngine::StatusCode cancelStatus = cancel.get();
 
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
@@ -66,8 +67,9 @@ TEST_P(CancellationTests, canResetAfterCancelAsyncRequest) {
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
 
     req.StartAsync();
-    InferenceEngine::StatusCode cancelStatus = req.Cancel();
+    auto cancel = std::async(std::launch::async, [&req]{ return req.Cancel(); });
     InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    InferenceEngine::StatusCode cancelStatus = cancel.get();
 
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
