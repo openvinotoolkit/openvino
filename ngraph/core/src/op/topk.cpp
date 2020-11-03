@@ -508,7 +508,10 @@ void op::v1::TopK::validate_and_infer_types()
             auto max_k = maximum_value(input_value(1));
             if (max_k.first)
             {
-                output_shape[m_normalized_axis] &= Dimension(0, max_k.second);
+                const auto in_max = input_partial_shape[m_normalized_axis].get_max_length();
+                const auto lower = std::min<Dimension::value_type>(in_max, max_k.second);
+                const auto upper = std::max<Dimension::value_type>(in_max, max_k.second);
+                output_shape[m_normalized_axis] = Dimension(lower, upper);
             }
             else
             {
