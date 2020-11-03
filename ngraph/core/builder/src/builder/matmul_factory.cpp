@@ -149,8 +149,7 @@ OutputVector builder::MatmulFactory::make_matmul_op()
         Shape result_shape(next(begin(shape)), end(shape));
         result_shape.insert(
             begin(result_shape), begin(left_shape), next(begin(left_shape), left_shape.size() - 2));
-        return {make_shared<op::Reshape>(result, get_default_order(shape.size()), result_shape)
-                    ->add_provenance_group_members_above(m_inputs)};
+        return {builder::opset1::reshape(result, result_shape)};
     }
 }
 
