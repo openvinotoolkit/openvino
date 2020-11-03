@@ -4,6 +4,25 @@
 DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
 DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 
+// workaround for aborting previous builds on PR update
+@NonCPS
+ def stopPreviousRunningBuilds() {
+     def jobname = env.JOB_NAME
+     if (jobname.startsWith("onnx/openvino_ci/PR")){
+         def buildnum = env.BUILD_NUMBER.toInteger()
+         def job = Jenkins.instance.getItemByFullName(jobname)
+         def job_newest = job.builds.first()
+         for (build in job.builds.reverse()[0..<-1]) {
+             if (build.isBuilding()){
+                 echo "Stop task = ${build} because newest #${job_newest} is on the way"
+                 build.doStop();
+                 continue;
+             }
+         }
+     }
+
+ }
+
 def getGitPrInfo(String project) {
     def gitPrInfo = [
         prAuthorEmail : "",
@@ -90,6 +109,7 @@ pipeline {
     stages {
         stage("Clone repository") {
             steps{
+                stopPreviousRunningBuilds()
                 dir("${WORKDIR}") {
                     checkout scm
                 }
