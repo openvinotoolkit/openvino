@@ -143,11 +143,9 @@ To install the OpenVINO toolkit from the prepared Docker image, run the image wi
 docker run -it <image_name>
 ~~~
 
-## Examples
-* [winserver2019_runtime dockerfile](https://docs.openvinotoolkit.org/downloads/winserver2019_runtime.dockerfile) - Can be used to build OpenVINO™ runtime image containing minimal dependencies needed to use OpenVINO™ in production environment.
-* [winserver2019_dev dockerfile](https://docs.openvinotoolkit.org/downloads/winserver2019_dev.dockerfile) - Can be used to build OpenVINO™ developer image containing full OpenVINO™ package to use in development environment.
-
 ## Additional Resources
+
+* [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 
 * Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)  
 
