@@ -112,7 +112,6 @@
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/quantize.hpp"
-#include "ngraph/op/quantized_convolution.hpp"
 #include "ngraph/op/quantized_dot.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/read_value.hpp"
