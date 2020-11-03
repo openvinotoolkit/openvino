@@ -110,3 +110,61 @@ class ConvertSliceTests(unittest.TestCase):
         ConvertSlice().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+    def test_convert_slice_to_strided_slice_without_axes_and_steps(self):
+        graph = build_graph(
+            nodes_attrs={
+                **regular_op_with_shaped_data('input', int64_array([2, 5, 10]), {'type': 'Parameter'}),
+                **valued_const_with_data('start', np.array([0, 0, 0])),
+                **valued_const_with_data('end', np.array([1, 3, 5])),
+                **regular_op_with_empty_data('slice', {'type': None, 'op': 'Slice'}),
+                **result('result')
+            },
+            edges=[
+                *connect('input', 'slice'),
+                *connect('start', '1:slice'),
+                *connect('end', '2:slice'),
+                *connect('slice', 'result')
+            ]
+        )
+        ref_graph = build_graph(
+            nodes_attrs={
+                **regular_op_with_shaped_data('input', int64_array([2, 5, 10]), {'type': 'Parameter'}),
+                **valued_const_with_data('start', np.array([0, 0, 0])),
+                **valued_const_with_data('begin_first_part', int64_array([])),
+                **valued_const_with_data('begin_last_part', int64_array([])),
+                **regular_op_with_empty_data('convert_start', {'op': 'Cast', 'type': 'Convert', 'dst_type': np.int64}),
+                **regular_op_with_empty_data('ss_begin', {'type': 'Concat', 'op': 'Concat', 'axis': 0}),
+                **valued_const_with_data('end', np.array([1, 3, 5])),
+                **valued_const_with_data('end_first_part', int64_array([])),
+                **valued_const_with_data('end_last_part', int64_array([])),
+                **regular_op_with_empty_data('convert_end', {'op': 'Cast', 'type': 'Convert', 'dst_type': np.int64}),
+                **regular_op_with_empty_data('ss_end', {'type': 'Concat', 'op': 'Concat', 'axis': 0}),
+                **const('ss_steps', int64_array([1, 1, 1])),
+                **empty_data('ss_steps_d'),
+                **regular_op_with_empty_data('ss', {'op': 'StridedSlice', 'type': 'StridedSlice',
+                                                    'begin_mask': int64_array([1, 1, 1]), 'end_mask': int64_array([1, 1, 1]),
+                                                    'new_axis_mask': np.zeros(3, dtype=np.int64),
+                                                    'shrink_axis_mask': np.zeros(3, dtype=np.int64),
+                                                    'ellipsis_mask': np.zeros(3, dtype=np.int64)}),
+                **result('result')
+            },
+            edges=[
+                *connect('input', 'ss'),
+                *connect('begin_first_part', 'ss_begin'),
+                *connect('start', 'convert_start'),
+                *connect('convert_start', '1:ss_begin'),
+                *connect('begin_last_part', '2:ss_begin'),
+                *connect('ss_begin', '1:ss'),
+                *connect('end_first_part', 'ss_end'),
+                *connect('end', 'convert_end'),
+                *connect('convert_end', '1:ss_end'),
+                *connect('end_last_part', '2:ss_end'),
+                *connect('ss_end', '2:ss'),
+                *connect('ss_steps', '3:ss'),
+                *connect('ss', 'result')
+            ]
+        )
+        ConvertSlice().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
