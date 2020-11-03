@@ -119,23 +119,6 @@ namespace FuncTestUtils {
             if (refLayer->outData[i]->getTensorDesc() != layer->outData[i]->getTensorDesc()) {
                 err_log.push_back("Layer " + layer->name + " and ref layer " + refLayer->name +
                                   " have different tensor desc for out Data");
-                std::cout << "For output " << i << "\n";
-                auto refDescriptor = refLayer->outData[i]->getTensorDesc();
-                auto layerDescriptor = layer->outData[i]->getTensorDesc();
-                std::cout << "ref precision:   " << refDescriptor.getPrecision() << "\n";
-                std::cout << "layer precision: " << layerDescriptor.getPrecision() << "\n";
-                auto refDims = refDescriptor.getDims();
-                auto layerDims = layerDescriptor.getDims();
-                std::cout <<"ref dims:    ";
-                for (size_t d : refDims) {
-                    std::cout << d << " ";
-                }
-                std::cout << "\n";
-                std::cout <<"layer dims:  ";
-                for (size_t d : layerDims) {
-                    std::cout << d << " ";
-                }
-                std::cout << "\n";
             }
             success = success && refLayer->outData[i]->getTensorDesc() == layer->outData[i]->getTensorDesc();
         }
@@ -202,19 +185,8 @@ namespace FuncTestUtils {
                 break;
             success = success && old_info.find(it.first) != old_info.end();
         }
-        if (!success) {
-            std::cout << "new output: ";
-            for (const auto &p : new_info) {
-                std::cout << p.first << " ";
-            }
-            std::cout << "\n";
-            std::cout << "old output: ";
-            for (const auto &p : old_info) {
-                std::cout << p.first << " ";
-            }
-            std::cout << "\n";
+        if (!success)
             THROW_IE_EXCEPTION << err_msg;
-        }
     }
 
     void
