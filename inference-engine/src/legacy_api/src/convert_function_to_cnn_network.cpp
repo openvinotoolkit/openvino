@@ -767,7 +767,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "Const", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(node);
-        if (res == nullptr) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+        if (!res) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
 
         res->blobs["custom"] = InferenceEngine::details::shareWeights(castedLayer);
 
