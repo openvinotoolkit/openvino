@@ -46,7 +46,7 @@ namespace ngraph
             std::shared_ptr<Node> reorder_axes(const Output<Node>& value,
                                                std::vector<size_t> axes_order = {});
 
-            /// \brief      Return transposed vlaue (with axes in reversed order).
+            /// \brief      Return transposed value (with axes in reversed order).
             ///
             /// \param      Value to transpose.
             ///

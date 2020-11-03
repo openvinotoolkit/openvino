@@ -17,9 +17,9 @@
 #include <numeric>
 
 #include "dyn_elimination.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/range.hpp"
-#include "ngraph/op/reshape.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/pattern/matcher.hpp"
@@ -35,57 +35,7 @@ using namespace ngraph;
 pass::DynElimination::DynElimination()
     : GraphRewrite()
 {
-    construct_transpose();
     construct_range();
-}
-
-void pass::DynElimination::construct_transpose()
-{
-    auto data_arg_label = make_shared<pattern::op::Label>(element::f32, Shape{1, 2, 3});
-    auto perm_arg_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{3}, pattern::has_class<op::Constant>());
-
-    auto transpose = make_shared<op::Transpose>(data_arg_label, perm_arg_label);
-
-    auto transpose_callback = [data_arg_label, perm_arg_label](pattern::Matcher& m) {
-        auto pattern_map = m.get_pattern_map();
-
-        auto data_arg = pattern_map[data_arg_label];
-        auto perm_arg = static_pointer_cast<op::Constant>(pattern_map[perm_arg_label]);
-
-        // TODO(amprocte): Can't handle the case where data shape is dynamic, because static
-        // Reshape requries the exact output shape to be declared. See if we can come up with a
-        // workaround.
-        if (data_arg->get_output_partial_shape(0).is_dynamic())
-        {
-            return false;
-        }
-
-        auto& data_shape = data_arg->get_output_shape(0);
-
-        NGRAPH_CHECK(perm_arg->get_output_partial_shape(0).rank().compatible(1));
-        NGRAPH_CHECK(perm_arg->get_output_element_type(0).compatible(element::i64));
-
-        if (perm_arg->get_output_element_type(0).is_dynamic() ||
-            perm_arg->get_output_partial_shape(0).is_dynamic())
-        {
-            return false;
-        }
-
-        auto perm = perm_arg->get_axis_vector_val();
-
-        auto output_shape = ngraph::apply_permutation(data_shape, perm);
-
-        auto replacement = std::make_shared<op::Reshape>(data_arg, perm, output_shape);
-
-        replace_node(m.get_match_root(), replacement);
-        return true;
-    };
-
-    auto transpose_matcher = make_shared<pattern::Matcher>(transpose, "DynElimination.Transpose");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    add_matcher(transpose_matcher, transpose_callback, all_pass_property_off);
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 template <typename T>

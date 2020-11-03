@@ -18,6 +18,7 @@
 #include <set>
 
 #include "itt.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/unsqueeze.hpp"
@@ -87,8 +88,7 @@ OutputVector op::Unsqueeze::decompose_op() const
     auto data = input_value(0);
     auto data_shape = data.get_shape();
     auto output_shape = get_output_shape(0);
-    AxisVector input_order{ngraph::get_default_order(data_shape.size())};
-    return {make_shared<ngraph::op::Reshape>(data, input_order, output_shape)};
+    return {builder::opset1::reshape(data, output_shape)};
 }
 
 bool ngraph::op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)

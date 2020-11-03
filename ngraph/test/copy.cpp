@@ -271,20 +271,20 @@ TEST(copy, power)
 TEST(copy, reshape)
 {
     Shape shape_in{2, 3, 4};
-    AxisVector axes{0, 1, 2};
     Shape shape_out{6, 4};
 
     auto arg0 = make_shared<op::Parameter>(element::f32, shape_in);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in)};
+    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in),
+                          op::Constant::create(element::u64, {shape_out.size()}, shape_out)};
 
-    auto node = make_shared<op::Reshape>(arg0, axes, shape_out);
+    auto shape_pattern = op::Constant::create(element::u64, {shape_out.size()}, shape_out);
+    auto node = make_shared<op::v1::Reshape>(arg0, shape_pattern, false);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Reshape>(new_node);
+    auto node_cast = as_type_ptr<op::v1::Reshape>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(axes == node_cast->get_input_order());
     ASSERT_TRUE(shape_out == node_cast->get_output_shape(0));
 }
 
