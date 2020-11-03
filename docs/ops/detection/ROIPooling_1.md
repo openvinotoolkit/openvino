@@ -47,11 +47,10 @@
 *   **1**: 4D input tensor of shape `[N, C, H, W]` with feature maps of type *T*. Required.
 
 *   **2**: 2D input tensor of shape `[NUM_ROIS, 5]` describing region of interest box consisting of 5 element tuples: `[batch_id, x_1, y_1, x_2, y_2]`. Required.
-Batch indices must be in the range of [0, N-1].
-The box height and width have different representation based on **method** attribute:
-  * *max*: Expressed in relative coordinates. The box height and width are calculated the following way: `roi_width = max(spatial_scale * (x_2 - x_1), 1.0)`, 
+Batch indices must be in the range of `[0, N-1]`. The box height and width have different representation based on **method** attribute:
+  * **max**: Expressed in relative coordinates. The box height and width are calculated the following way: `roi_width = max(spatial_scale * (x_2 - x_1), 1.0)`,
 `roi_height = max(spatial_scale * (y_2 - y_1), 1.0)`, so the malformed boxes are expressed as a box of size `1 x 1`.
-  * *bilinear*: Expressed in absolute coordinates.
+  * **bilinear**: Expressed in absolute coordinates.
 
 
 **Outputs**:
