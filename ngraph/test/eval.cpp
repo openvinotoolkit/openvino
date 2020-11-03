@@ -1675,7 +1675,7 @@ TEST(eval, topk_v1_dyn_k0)
 
     element::Type result_et{element::i32};
     auto B = make_shared<op::v1::TopK>(
-        A, k, 1, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, result_et);
+        A, k, 1, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES, result_et);
 
     auto fun =
         make_shared<Function>(OutputVector{B->output(0), B->output(1)}, ParameterVector{A, k});
@@ -1764,7 +1764,7 @@ TEST(eval, topk_v1_param_dyn_k2)
 
     element::Type result_et{element::i32};
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, result_et);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES, result_et);
 
     auto fun =
         make_shared<Function>(OutputVector{B->output(0), B->output(1)}, ParameterVector{A, k});
@@ -1797,7 +1797,7 @@ TEST(eval, topk_v1_param_dyn_k0)
     element::Type result_et{element::i32};
 
     auto B = make_shared<op::v1::TopK>(
-        A, k, 1, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, result_et);
+        A, k, 1, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES, result_et);
 
     auto fun =
         make_shared<Function>(OutputVector{B->output(0), B->output(1)}, ParameterVector{A, k});

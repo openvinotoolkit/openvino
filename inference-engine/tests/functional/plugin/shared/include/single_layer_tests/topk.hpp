@@ -14,8 +14,8 @@ namespace LayerTestsDefinitions {
 typedef std::tuple<
         int64_t,                        // keepK
         int64_t,                        // axis
-        ngraph::opset4::TopK::Mode,     // mode
-        ngraph::opset4::TopK::SortType, // sort
+        ngraph::op::TopKMode,           // mode
+        ngraph::op::TopKSortType,       // sort
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
         InferenceEngine::Precision,     // Output precision

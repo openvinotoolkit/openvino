@@ -258,7 +258,7 @@ TEST(algebraic_simplification, replace_transpose_with_reshape) {
                 k = make_shared<op::Constant>(element::i64, Shape{}, std::vector<int64_t>{shape[last_dim].get_length()});
             }
             A1 = make_shared<op::v1::TopK>(param, k, last_dim,
-                                           op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
+                                           op::TopKMode::MAX, op::TopKSortType::NONE);
         } else {
             A1 = make_shared<op::v0::Abs>(param);
         }
@@ -350,7 +350,7 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1) {
         shared_ptr<Node> A1;
         if (multiout) {
             auto last_dim = pshape.rank().get_length() - 1;
-            A1 = make_shared<op::v1::TopK>(A, op::Constant::create(element::i64, {}, {1}), last_dim, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
+            A1 = make_shared<op::v1::TopK>(A, op::Constant::create(element::i64, {}, {1}), last_dim, op::TopKMode::MAX, op::TopKSortType::NONE);
         } else {
             A1 = make_shared<op::v0::Abs>(A);
         }

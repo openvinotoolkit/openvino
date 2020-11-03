@@ -41,7 +41,7 @@ namespace topk
                                  const size_t axis,
                                  const size_t k,
                                  const bool compute_max,
-                                 const op::v1::TopK::SortType sort)
+                                 const op::TopKSortType sort)
     {
         using T = typename element_type_traits<INPUT_ET>::value_type;
         using U = typename element_type_traits<INDEX_ET>::value_type;
@@ -72,7 +72,7 @@ namespace topk
                   const size_t axis,
                   const size_t k,
                   const bool max,
-                  const op::v1::TopK::SortType sort,
+                  const op::TopKSortType sort,
                   const element::Type index_et)
     {
         bool rc = true;
@@ -98,7 +98,7 @@ namespace topk
                        const size_t axis,
                        const size_t k,
                        const bool max,
-                       const op::v1::TopK::SortType sort,
+                       const op::TopKSortType sort,
                        const element::Type index_et)
     {
         bool rc = true;
@@ -177,8 +177,8 @@ op::v1::TopK::TopK(const Output<Node>& data,
     : Op{{data, k}}
     , m_axis{axis}
     , m_normalized_axis{UNKNOWN_NORMALIZED_AXIS}
-    , m_mode{as_enum<Mode>(mode)}
-    , m_sort{as_enum<SortType>(sort)}
+    , m_mode{as_enum<op::TopKMode>(mode)}
+    , m_sort{as_enum<op::TopKSortType>(sort)}
     , m_index_element_type{index_element_type}
 {
     constructor_validate_and_infer_types();
@@ -187,8 +187,8 @@ op::v1::TopK::TopK(const Output<Node>& data,
 op::v1::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,
                    const int64_t axis,
-                   const Mode mode,
-                   const SortType sort,
+                   const op::TopKMode mode,
+                   const op::TopKSortType sort,
                    const element::Type& index_element_type)
     : Op{{data, k}}
     , m_axis{axis}
@@ -404,8 +404,8 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
     size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
-    bool compute_max = get_mode() == TopKMode::MAX ? true : false;
-    SortType sort_type = get_sort_type();
+    bool compute_max = get_mode() == op::TopKMode::MAX ? true : false;
+    op::TopKSortType sort_type = get_sort_type();
 
     // 2. get value of k - from constant node or from HT
     size_t k = 0;
@@ -458,8 +458,8 @@ op::v3::TopK::TopK(const Output<Node>& data,
 op::v3::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,
                    const int64_t axis,
-                   const Mode mode,
-                   const SortType sort,
+                   const op::TopKMode mode,
+                   const op::TopKSortType sort,
                    const element::Type& index_element_type)
     : op::v1::TopK{data, k, axis, mode, sort, index_element_type}
 {

@@ -33,9 +33,6 @@ namespace ngraph
             class NGRAPH_API TopK : public Op
             {
             public:
-                using SortType = TopKSortType;
-                using Mode = TopKMode;
-
                 static constexpr NodeTypeInfo type_info{"TopK", 1};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a TopK operation
@@ -62,8 +59,8 @@ namespace ngraph
                 TopK(const Output<Node>& data,
                      const Output<Node>& k,
                      const int64_t axis,
-                     const Mode mode,
-                     const SortType sort,
+                     const op::TopKMode mode,
+                     const op::TopKSortType sort,
                      const element::Type& index_element_type = element::i32);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -80,10 +77,10 @@ namespace ngraph
                 /// \brief Returns axis value before normalization
                 int64_t get_provided_axis() const { return m_axis; }
                 void set_axis(const int64_t axis);
-                Mode get_mode() const { return m_mode; }
-                void set_mode(const Mode mode) { m_mode = mode; }
-                SortType get_sort_type() const { return m_sort; }
-                void set_sort_type(const SortType sort) { m_sort = sort; }
+                op::TopKMode get_mode() const { return m_mode; }
+                void set_mode(const op::TopKMode mode) { m_mode = mode; }
+                op::TopKSortType get_sort_type() const { return m_sort; }
+                void set_sort_type(const op::TopKSortType sort) { m_sort = sort; }
                 element::Type get_index_element_type() const { return m_index_element_type; }
                 void set_index_element_type(const element::Type& index_element_type)
                 {
@@ -102,8 +99,8 @@ namespace ngraph
             protected:
                 int64_t m_axis;
                 uint64_t m_normalized_axis;
-                Mode m_mode;
-                SortType m_sort;
+                op::TopKMode m_mode;
+                op::TopKSortType m_sort;
                 element::Type m_index_element_type{element::i32};
 
                 virtual size_t read_k_from_constant_node(const std::shared_ptr<Node>& node,
@@ -151,8 +148,8 @@ namespace ngraph
                 TopK(const Output<Node>& data,
                      const Output<Node>& k,
                      const int64_t axis,
-                     const Mode mode,
-                     const SortType sort,
+                     const op::TopKMode mode,
+                     const op::TopKSortType sort,
                      const element::Type& index_element_type = element::i32);
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;

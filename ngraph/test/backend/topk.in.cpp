@@ -65,13 +65,13 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_resnet50)
     auto B = make_shared<op::v1::TopK>(A,
                                        op::Constant::create(element::i64, {}, {5}),
                                        1,
-                                       op::v1::TopK::Mode::MAX,
-                                       op::v1::TopK::SortType::SORT_VALUES);
+                                       op::TopKMode::MAX,
+                                       op::TopKSortType::SORT_VALUES);
     auto C = make_shared<op::v1::TopK>(A,
                                        op::Constant::create(element::i64, {}, {1}),
                                        1,
-                                       op::v1::TopK::Mode::MAX,
-                                       op::v1::TopK::SortType::SORT_VALUES);
+                                       op::TopKMode::MAX,
+                                       op::TopKSortType::SORT_VALUES);
 
     auto out5_value = B->output(0);
     auto out5_index = B->output(1);
@@ -143,7 +143,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_none)
     auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::NONE);
     auto out_value = B->output(0);
     auto out_index = B->output(1);
     auto f = make_shared<Function>(OutputVector{out_value, out_index}, ParameterVector{A});
@@ -197,7 +197,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_none)
     auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::NONE);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::NONE);
     auto out_value = B->output(0);
     auto out_index = B->output(1);
     auto f = make_shared<Function>(OutputVector{out_value, out_index}, ParameterVector{A});
@@ -251,7 +251,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_value)
     auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto out_value = B->output(0);
     auto out_index = B->output(1);
     auto f = make_shared<Function>(OutputVector{out_value, out_index}, ParameterVector{A});
@@ -301,7 +301,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_value)
     auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto out_value = B->output(0);
     auto out_index = B->output(1);
     auto f = make_shared<Function>(OutputVector{out_value, out_index}, ParameterVector{A});
@@ -355,7 +355,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_index)
     auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_INDICES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_INDICES);
     auto out_value = B->output(0);
     auto out_index = B->output(1);
     auto f = make_shared<Function>(OutputVector{out_value, out_index}, ParameterVector{A});
@@ -409,7 +409,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_index)
     auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_INDICES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_INDICES);
     auto out_value = B->output(0);
     auto out_index = B->output(1);
     auto f = make_shared<Function>(OutputVector{out_value, out_index}, ParameterVector{A});
@@ -463,7 +463,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_max_all)
     auto k = op::Constant::create(element::i64, {}, {6});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -492,7 +492,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_i32_max_all)
     auto k = op::Constant::create(element::i64, {}, {6});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -520,7 +520,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_max_partial)
     auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -549,7 +549,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_max_one)
     auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -578,7 +578,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_min_all)
     auto k = op::Constant::create(element::i64, {}, {6});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -607,7 +607,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_min_partial)
     auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -636,7 +636,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_min_one)
     auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -665,7 +665,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_max_all)
     auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -695,7 +695,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_int64)
     auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, element::i64);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES, element::i64);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -725,7 +725,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_5d_max_partial)
     auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -791,7 +791,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_max_partial)
     auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -821,7 +821,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_max_one)
     auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -850,7 +850,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_min_all)
     auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -880,7 +880,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_min_partial)
     auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -910,7 +910,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_min_one)
     auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -939,7 +939,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_all)
     auto k = op::Constant::create(element::i64, {}, {4});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -969,7 +969,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_partial)
     auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -999,7 +999,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_one)
     auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -1028,7 +1028,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_one_with_equal_values)
     auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -1057,7 +1057,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_all)
     auto k = op::Constant::create(element::i64, {}, {4});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -1087,7 +1087,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_partial)
     auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -1116,7 +1116,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_one)
     auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::NONE);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::NONE);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
@@ -1145,7 +1145,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_large_input_max)
     auto k = op::Constant::create(element::i64, {}, {10});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MAX, op::TopKSortType::SORT_VALUES);
 
     auto interp_f_0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto interp_f_1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
@@ -1185,7 +1185,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_large_input_min)
     auto k = op::Constant::create(element::i64, {}, {10});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
 
     auto interp_f_0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto interp_f_1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
@@ -1225,7 +1225,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_single_output)
     auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
+        A, k, axis, op::TopKMode::MIN, op::TopKSortType::SORT_VALUES);
     auto f0 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
