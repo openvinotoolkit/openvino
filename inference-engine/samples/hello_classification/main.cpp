@@ -86,6 +86,7 @@ int main(int argc, char *argv[]) {
 
         // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         CNNNetwork network = ie.ReadNetwork(input_model);
+        if (network.getOutputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
         network.setBatchSize(1);
         // -----------------------------------------------------------------------------------------------------
 
