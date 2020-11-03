@@ -28,7 +28,7 @@ void loop(ngraph::opset5::Loop &loop,
         const auto &cur_iter_idx = special_body_ports.current_iteration_input_idx;
 
         // -2 due to trip_count and execution_condition inputs which aren't map to body inputs
-        std::vector<std::vector<std::uint8_t>> inputs_to_body(args.size() - 2);
+        std::vector<std::vector<std::uint8_t>> inputs_to_body(args.size() - 2 + (special_body_ports.current_iteration_input_idx >= 0));
         // param_idx, result_idx in the body
         std::vector<std::pair<uint64_t, uint64_t>> back_edges;
 

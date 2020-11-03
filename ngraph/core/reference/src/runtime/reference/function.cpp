@@ -166,6 +166,12 @@ namespace ngraph
 
                 call(outputTensors, inputTensors, function);
                 auto outputs = std::vector<std::vector<std::uint8_t>>(results.size());
+                for (const auto &result : results) {
+                    const auto &resultIndex = function->get_result_index(result);
+                    auto &output = outputs[resultIndex];
+                    output.resize(shape_size(result->get_shape()) * result->get_element_type().size());
+                    outputTensors[resultIndex]->read(output.data(), output.size());
+                }
                 return outputs;
             }
         }

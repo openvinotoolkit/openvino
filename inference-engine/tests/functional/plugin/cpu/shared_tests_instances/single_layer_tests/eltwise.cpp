@@ -39,9 +39,14 @@ std::vector<CommonTestUtils::OpType> opTypes = {
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
+        ngraph::helpers::EltwiseTypes::ADD,
         ngraph::helpers::EltwiseTypes::MULTIPLY,
         ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::ADD
+        ngraph::helpers::EltwiseTypes::DIVIDE,
+        ngraph::helpers::EltwiseTypes::FLOOR_MOD,
+        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ngraph::helpers::EltwiseTypes::POWER,
+        ngraph::helpers::EltwiseTypes::MOD
 };
 
 std::map<std::string, std::string> additional_config = {};
