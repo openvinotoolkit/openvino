@@ -97,19 +97,6 @@ TEST(nop_elimination, eliminate_broadcast) {
     ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
 }
 
-TEST(nop_elimination, eliminate_stop_gradient) {
-    Shape shape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto s = make_shared<op::v0::StopGradient>(A);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::StopGradient>(f), 0);
-}
-
 TEST(nop_elimination, pass_property) {
     auto pass = std::make_shared<ngraph::pass::NopElimination>();
     ASSERT_FALSE(pass->get_property(pass::PassProperty::CHANGE_DYNAMIC_STATE));

@@ -184,7 +184,8 @@ static void to_vector_test(const PartialShape& input_pshape, const std::vector<S
     shared_ptr<Node> x_new_shape = make_shared<op::v0::ShapeOf>(x);
     auto axes = op::Constant::create(element::i64, {}, {0});
     x_new_shape = make_shared<op::v1::ReduceProd>(x_new_shape, axes);
-    x_new_shape = make_shared<op::Reshape>(x_new_shape, AxisVector{}, Shape{1});
+    x_new_shape = make_shared<op::v1::Reshape>(
+        x_new_shape, op::Constant::create(element::u64, {1}, Shape{1}), false);
 
     auto x_reshaped = make_shared<op::v1::Reshape>(x, x_new_shape, true);
 
@@ -297,4 +298,31 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_reverse_shape)
                         Shape{8, 2},
                         Shape{8, 2, 8, 2},
                         Shape{2, 3, 4, 5, 2}});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, dynamic_transpose)
+{
+    auto arg = std::make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto input_order = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto transpose = std::make_shared<op::v1::Transpose>(arg, input_order);
+
+    auto f = std::make_shared<Function>(NodeVector{transpose}, ParameterVector{arg, input_order});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
+    auto ex = backend->compile(f);
+
+    auto arg_data = vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    auto input_order_data = vector<int32_t>{2, 0, 1};
+
+    auto arg_tensor = backend->create_tensor(element::i32, Shape{2, 2, 3});
+    auto input_order_tensor = backend->create_tensor(element::i32, Shape{input_order_data.size()});
+    copy_data(arg_tensor, arg_data);
+    copy_data(input_order_tensor, input_order_data);
+
+    auto output = backend->create_dynamic_tensor(element::i32, PartialShape::dynamic());
+    ex->call_with_validate({output}, {arg_tensor, input_order_tensor});
+
+    ASSERT_EQ(output->get_element_type(), element::i32);
+    EXPECT_EQ(read_vector<int32_t>(output),
+              vector<int32_t>({1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12}));
 }
