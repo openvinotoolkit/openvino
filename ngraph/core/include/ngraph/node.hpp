@@ -33,7 +33,6 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate.hpp"
-#include "ngraph/coordinate_diff.hpp"
 #include "ngraph/deprecated.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/output.hpp"
