@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,14 @@
 
 #if defined(_M_X64) && !defined(_X86_) && !defined(_AMD64_)
 # define _AMD64_
+#endif
+
+#if defined(_M_ARM) && !defined(_ARM_) && !defined(_ARM64_)
+# define _ARM_
+#endif
+
+#if defined(_M_ARM64) && !defined(_ARM_) && !defined(_ARM64_)
+# define _ARM64_
 #endif
 
 #include <string>
