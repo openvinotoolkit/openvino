@@ -76,14 +76,8 @@ void MKLDNNMemoryInputNode::createPrimitive() {
  */
 inline
 static void simple_copy(MKLDNNMemory& dst, const MKLDNNMemory& src) {
-    auto getDataWithOff = [] (const MKLDNNMemory& mem) {
-        auto elemSize = MKLDNNExtensionUtils::sizeOfDataType(mem.GetDataType());
-        return static_cast<uint8_t*>(mem.GetData()) +
-                mem.GetDescriptor().data.layout_desc.blocking.offset_padding * elemSize;
-    };
-
-    auto srcPtr = getDataWithOff(src);
-    auto dstPtr = getDataWithOff(dst);
+    auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
+    auto dstPtr = static_cast<uint8_t*>(dst.GetPtr());
     auto srcSizeInByte = src.GetSize();
     auto dstSizeInByte = dst.GetSize();
 

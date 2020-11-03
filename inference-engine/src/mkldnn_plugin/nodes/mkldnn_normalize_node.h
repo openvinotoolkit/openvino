@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ref_eltwise.hpp"
-#include "ref_depthwise.hpp"
+#include "ref_depthwise_injector.hpp"
 
 using namespace InferenceEngine;
 

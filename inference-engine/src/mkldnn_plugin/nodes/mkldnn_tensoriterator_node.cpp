@@ -129,7 +129,7 @@ class IterCountPortHelper : public PortMapHelper {
 public:
     IterCountPortHelper(const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
         // Only scalar I32 tensor is supported
-        IE_ASSERT(to->GetDataType() == memory::s32);
+        IE_ASSERT(to->GetDataType() == memory::data_type::s32);
         IE_ASSERT(to->GetDims() == memory::dims{1});
         mem_holder.push_back(to->GetPrimitive());
     }
@@ -144,7 +144,7 @@ public:
 class asBoolCheck : public PortChecker {
 public:
     asBoolCheck(const MKLDNNMemoryPtr &mem) {
-        IE_ASSERT(mem->GetDataType() == memory::u8);
+        IE_ASSERT(mem->GetDataType() == memory::data_type::u8);
         IE_ASSERT(mem->GetDims() == memory::dims{1});
         mem_holder.push_back(mem->GetPrimitive());
     }
@@ -159,7 +159,7 @@ public:
 class asIntCheck : public PortChecker {
 public:
     asIntCheck(const MKLDNNMemoryPtr &mem) {
-        IE_ASSERT(mem->GetDataType() == memory::s32);
+        IE_ASSERT(mem->GetDataType() == memory::data_type::s32);
         IE_ASSERT(mem->GetDims() == memory::dims{1});
         mem_holder.push_back(mem->GetPrimitive());
     }

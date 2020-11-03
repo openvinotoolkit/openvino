@@ -123,13 +123,15 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
 
     int m_block_size = 1;
     if (!parentMem.GetDesc().isPlainFormat()) {
-        m_block_size = parentMem.GetDescriptor().data.layout_desc.blocking.block_dims[1];
+        // TODO[oneDNN]: unclear how...
+        THROW_IE_EXCEPTION << "Unimplemented";
+//        m_block_size = parentMem.GetDescriptor().data.layout_desc.blocking.block_dims[1];
     }
     int m_inner_dim = dims[dims.size() - 1] * m_block_size;
 
-    const memory &dst_d = getChildEdgeAt(0)->getMemory().GetPrimitive();
+    const auto &dst_mem = getChildEdgeAt(0)->getMemory();
 
-    int dst_ndims = dst_d.get_primitive_desc().desc().data.ndims;
+    int dst_ndims = dst_mem.GetDesc().getDims().ndims();
 
     // TODO: Rewrite it in general case. For every tensor
     // and rank, without using letter N,C,D,H,W
@@ -155,10 +157,8 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
     const int IH = (src_ndims  > 2) ? src_dims[src_dims.size() - 2] : 1;
     const int IW = (src_ndims  > 3) ? src_dims[src_dims.size() - 1] : 1;
 
-    const auto *src_data = reinterpret_cast<const float*>(parentMem.GetData()) +
-            parentMem.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    float *dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetData()) +
-            getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const auto *src_data = reinterpret_cast<const float*>(parentMem.GetPtr());
+    float *dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetPtr());
 
 #ifdef _WIN32
     if (OD == 1 && OH == 1 && OW == 1 && ID == 1 && IH == 1 && IW == 1) {

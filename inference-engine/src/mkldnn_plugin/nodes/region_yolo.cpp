@@ -9,10 +9,15 @@
 #include <algorithm>
 #include <memory>
 #include <ie_parallel.hpp>
-#include "jit_generator.hpp"
-#include "jit_uni_eltwise.hpp"
 
-using namespace mkldnn::impl::cpu;
+#include "mkldnn.hpp"
+#include "ie_mkldnn_internal.h"
+
+#include "jit_generator.hpp"
+#include "jit_uni_eltwise_injector.hpp"
+
+
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
 namespace InferenceEngine {
@@ -40,8 +45,10 @@ template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
-    jit_uni_logistic_kernel_f32() : jit_uni_logistic_kernel(), jit_generator() {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f));
+    jit_uni_logistic_kernel_f32() : jit_uni_logistic_kernel(), jit_generator() {}
+
+    void generate() override {
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 
         this->preamble();
 
@@ -93,8 +100,6 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
         exp_injector->prepare_table();
 
         prepare_table();
-
-        ker_ = (decltype(ker_))this->getCode();
     }
 
 private:

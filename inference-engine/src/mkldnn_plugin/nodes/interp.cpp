@@ -7,10 +7,13 @@
 #include <vector>
 #include <limits>
 #include <memory>
+#include "mkldnn.hpp"
+#include "ie_mkldnn_internal.h"
 #include "ie_parallel.hpp"
 #include "jit_generator.hpp"
 
-using namespace mkldnn::impl::cpu;
+//using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
 namespace InferenceEngine {
@@ -44,7 +47,9 @@ template <cpu_isa_t isa>
 struct jit_uni_interp_kernel_f32 : public jit_uni_interp_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interp_kernel_f32)
 
-    jit_uni_interp_kernel_f32() : jit_uni_interp_kernel(), jit_generator() {
+    jit_uni_interp_kernel_f32() : jit_uni_interp_kernel(), jit_generator() {}
+
+    void generate() override {
         this->preamble();
 
         mov(reg_src00, ptr[reg_params + GET_OFF(src00)]);
@@ -114,7 +119,6 @@ struct jit_uni_interp_kernel_f32 : public jit_uni_interp_kernel, public jit_gene
         }
 
         this->postamble();
-        ker_ = (decltype(ker_))this->getCode();
     }
 
 private:

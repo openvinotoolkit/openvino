@@ -18,14 +18,17 @@
 
 #include "jit_generator.hpp"
 #include "jit_uni_eltwise.hpp"
-#include "jit_uni_depthwise.hpp"
-#include "jit_uni_quantization.hpp"
+#include "jit_uni_depthwise_injector.hpp"
+#include "jit_uni_quantization_injector.hpp"
+#include "jit_uni_eltwise_injector.hpp"
+
+#include "ie_mkldnn_internal.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
@@ -37,7 +40,9 @@ template <cpu_isa_t isa>
 struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_mean_kernel_f32)
 
-    explicit jit_uni_mvn_mean_variance_kernel_f32(jit_mvn_config_params jcp) : jit_uni_mvn_mean_variance_kernel(jcp), jit_generator() {
+    explicit jit_uni_mvn_mean_variance_kernel_f32(jit_mvn_config_params jcp) : jit_uni_mvn_mean_variance_kernel(jcp), jit_generator() {}
+
+    void generate() override {
         this->preamble();
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         if (jcp_.normalize_variance) {
@@ -88,13 +93,13 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
                 load_vector(vmm_val, ptr[reg_src], jcp_.src_dt);
 
                 if (jcp_.normalize_variance) {
-                    if (jcp_.src_dt != memory::f32)
+                    if (jcp_.src_dt != memory::data_type::f32)
                         uni_vcvtdq2ps(vmm_val, vmm_val);
 
                     uni_vsubps(vmm_val, vmm_val, vmm_mean);
                     uni_vfmadd231ps(vmm_variance, vmm_val, vmm_val);
                 } else {
-                    if (jcp_.src_dt != memory::f32)
+                    if (jcp_.src_dt != memory::data_type::f32)
                         uni_vpaddd(vmm_sum, vmm_sum, vmm_val);
                     else
                         uni_vaddps(vmm_sum, vmm_sum, vmm_val);
@@ -138,7 +143,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
                     uni_vmovups(ptr[reg_variance], vmm_variance);
                 } else {
-                    if (jcp_.src_dt != memory::f32)
+                    if (jcp_.src_dt != memory::data_type::f32)
                         uni_vcvtdq2ps(vmm_sum, vmm_sum);
 
                     if (!jcp_.planar_layout && !jcp_.across_channels) {
@@ -152,7 +157,6 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
         }
 
         this->postamble();
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
@@ -189,14 +193,14 @@ private:
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
             default:
@@ -210,13 +214,14 @@ template <cpu_isa_t isa>
 struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_kernel_f32)
 
-    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator() {
+    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator() {}
+    void generate() override {
         const auto &p = attr_.post_ops_;
-        for (int i = 0; i < p.len_; i++) {
+        for (int i = 0; i < p.len(); i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
-                        this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta));
+                        this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
                         this, post_op.depthwise.alg));
@@ -235,7 +240,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
         mov(reg_src_stride, ptr[reg_params + GET_OFF(src_stride)]);
         mov(reg_dst_stride, ptr[reg_params + GET_OFF(dst_stride)]);
-        if (attr_.post_ops_.len_ != 0)
+        if (attr_.post_ops_.len() != 0)
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
 
         if (isa == avx512_common)
@@ -253,7 +258,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
                 add(reg_dst, offset_sse42 * jcp_.dst_data_size);
                 add(reg_mean, offset_sse42 * sizeof(float));
                 add(reg_variance_inv, offset_sse42 * sizeof(float));
-                if (attr_.post_ops_.len_ != 0)
+                if (attr_.post_ops_.len() != 0)
                     add(reg_oc_off, offset_sse42 * sizeof(float));
             }
 
@@ -299,8 +304,6 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
-
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
@@ -338,21 +341,21 @@ private:
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
             default:
                 assert(!"unknown dst_dt");
         }
 
-        if (src_dt != memory::f32)
+        if (src_dt != memory::data_type::f32)
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -360,9 +363,9 @@ private:
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
 
-        if (dst_dt == memory::f32) {
+        if (dst_dt == memory::data_type::f32) {
             uni_vmovups(op, vmm_dst);
-        } else if (dst_dt == memory::u8) {
+        } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
                 vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
@@ -377,7 +380,7 @@ private:
                 else
                     movd(op, xmm_dst);
             }
-        } else if (dst_dt == memory::s8) {
+        } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
                 vpmovsdb(op, vmm_dst);
@@ -399,7 +402,7 @@ private:
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
-        for (int i = 0; i < p.len_; i++) {
+        for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
@@ -413,7 +416,7 @@ private:
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
+                bool do_rounding = do_dequantization || dst_dt == memory::data_type::f32 || i != p.len() - 1;
                 int s_idx = vmm_val.getIdx();
 
                 quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
@@ -498,7 +501,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
 
-    auto pushDesc = [&](memory::format format) {
+    auto pushDesc = [&](memory::format_tag format) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), outputDataType, format);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, format});
@@ -506,24 +509,24 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     if (across_channels == 0 && normalize_variance == 1) {
         if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-            pushDesc(memory::nhwc);
+            pushDesc(memory::format_tag::nhwc);
         } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-            pushDesc(memory::ndhwc);
+            pushDesc(memory::format_tag::ndhwc);
         }
     }
 
     if (inputPrecision == Precision::FP32 && outputPrecision == Precision::FP32) {
         if (getParentEdgeAt(0)->getDims().ndims() == 4) {
             if (mayiuse(cpu::avx512_common)) {
-                pushDesc(memory::nChw16c);
+                pushDesc(memory::format_tag::nChw16c);
             } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
-                pushDesc(memory::nChw8c);
+                pushDesc(memory::format_tag::nChw8c);
             }
         } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
             if (mayiuse(cpu::avx512_common)) {
-                pushDesc(memory::nCdhw16c);
+                pushDesc(memory::format_tag::nCdhw16c);
             } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
-                pushDesc(memory::nCdhw8c);
+                pushDesc(memory::format_tag::nCdhw8c);
             }
         }
 
@@ -929,7 +932,7 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
     size_t C3 = C2 * CB;
     size_t C5 = C * D * H * W;
 
-    size_t threads_num =  mkldnn_get_max_threads();
+    size_t threads_num =  parallel_get_num_threads();
     size_t aux_buffer_size = across_channels ? blk_size : rnd_up(C, blk_size);
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
@@ -946,7 +949,7 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
 
                 float mean_internal = 0.0f;
                 if ((min_cb == blk_size) && mvn_mean_kernel) {
-                    auto mean_buffer_ptr = &mean_buffer[blk_size * mkldnn_get_thread_num()];
+                    auto mean_buffer_ptr = &mean_buffer[blk_size * parallel_get_thread_num()];
                     for (int i = 0; i < blk_size; i++)
                         mean_buffer_ptr[i] = 0.f;
 
@@ -982,7 +985,7 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
 
                     float variance_internal = 0.0f;
                     if ((blk_size == min_cb) && mvn_variance_kernel) {
-                        auto variance_buffer_ptr = &variance_buffer[blk_size * mkldnn_get_thread_num()];
+                        auto variance_buffer_ptr = &variance_buffer[blk_size * parallel_get_thread_num()];
                         for (int i = 0; i < blk_size; i++)
                             variance_buffer_ptr[i] = 0.f;
 
@@ -1214,7 +1217,7 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                                     float dst_value = (src_data[ch + w * src_stride] - mean_buffer_ptr[c]) * variance_buffer_ptr[c];
                                     if (!fusedWith.empty()) {
                                         const auto &p = (*attr.get()).post_ops_;
-                                        for (int i = 0; i < p.len_; i++) {
+                                        for (int i = 0; i < p.len(); i++) {
                                             auto &post_op = p.entry_[i];
                                             if (post_op.is_eltwise()) {
                                                 //  only eltwise_relu supported
@@ -1228,7 +1231,7 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                                                 bool do_dequantization = post_op.quantization.alg ==
                                                                          alg_kind::quantization_quantize_dequantize;
                                                 bool do_rounding = do_dequantization || output_prec == Precision::FP32 ||
-                                                                   i != p.len_ - 1;
+                                                                   i != p.len() - 1;
 
                                                 auto quant = post_op.quantization;
                                                 float crl = quant.crop_low_data->shifts_[quant.crop_low_data->count_ == 1 ? 0 : cb * blk_size + c];

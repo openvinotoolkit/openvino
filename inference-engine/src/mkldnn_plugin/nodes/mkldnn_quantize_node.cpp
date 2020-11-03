@@ -291,24 +291,24 @@ void MKLDNNQuantizeNode::init() {
     }
 }
 
-std::vector<mkldnn::memory::format> MKLDNNQuantizeNode::getDataFormats() const {
+std::vector<mkldnn::memory::format_tag> MKLDNNQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
     if (getParentEdgesAtPort(0)[0]->getDims()[getAxis()] == 3) {
         return { MKLDNNMemory::GetPlainFormat(getParentEdgesAtPort(0)[0]->getDims()) };
     } else {
         if (isBinarization()) {
             if (getParentEdgesAtPort(0)[0]->getDims().ndims() == 4)
-                return {memory::nhwc };
+                return {memory::format_tag::nhwc };
             else
                 return { MKLDNNMemory::GetPlainFormat(getParentEdgesAtPort(0)[0]->getDims()) };
         } else {
             switch (getParentEdgesAtPort(0)[0]->getDims().ndims()) {
                 case 2:
-                    return {memory::nc};
+                    return {memory::format_tag::nc};
                 case 4:
-                    return {memory::nChw8c, memory::nChw16c, memory::nhwc, memory::nchw};
+                    return {memory::format_tag::nChw8c, memory::format_tag::nChw16c, memory::format_tag::nhwc, memory::format_tag::nchw};
                 case 5:
-                    return {memory::nCdhw8c, memory::nCdhw16c, memory::ndhwc, memory::ncdhw};
+                    return {memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
                 default:
                     return {MKLDNNMemory::GetPlainFormat(getParentEdgesAtPort(0)[0]->getDims())};
             }
@@ -332,23 +332,25 @@ void MKLDNNQuantizeNode::getSupportedDescriptors() {
         InferenceEngine::SizeVector weightDims;
         weightDims.push_back(getParentEdgeAt(0)->getDims()[getAxis()]);
         MKLDNNDims blocked_weightDims(weightDims);
-        MKLDNNMemoryDesc wgh_candidate{blocked_weightDims, wdt, memory::x};
+        MKLDNNMemoryDesc wgh_candidate{blocked_weightDims, wdt, memory::format_tag::x};
 
         if (isBinarization()) {
-            std::shared_ptr<mkldnn::quantization_forward::desc> bin_conv_desc;
-            bin_conv_desc.reset(new quantization_forward::desc(prop_kind::forward_scoring, quantizeAlgorithm, getAxis(),
-                                                               in_candidate, wgh_candidate, wgh_candidate,
-                                                               out_candidate));
+            THROW_IE_EXCEPTION << "Unimplemented";
+//            std::shared_ptr<mkldnn::quantization_forward::desc> bin_conv_desc;
+//            bin_conv_desc.reset(new quantization_forward::desc(prop_kind::forward_scoring, quantizeAlgorithm, getAxis(),
+//                                                               in_candidate, wgh_candidate, wgh_candidate,
+//                                                               out_candidate));
 
-            descs.emplace_back(bin_conv_desc);
+//            descs.emplace_back(bin_conv_desc);
         } else if (levels != 2) {
-            std::shared_ptr<mkldnn::quantization_forward::desc> quantization_desc;
-            quantization_desc.reset(
-                    new quantization_forward::desc(prop_kind::forward_scoring, quantizeAlgorithm, getAxis(),
-                                                   in_candidate, wgh_candidate, wgh_candidate, wgh_candidate,
-                                                   wgh_candidate, wgh_candidate, wgh_candidate, out_candidate));
+            THROW_IE_EXCEPTION << "Unimplemented";
+//            std::shared_ptr<mkldnn::quantization_forward::desc> quantization_desc;
+//            quantization_desc.reset(
+//                    new quantization_forward::desc(prop_kind::forward_scoring, quantizeAlgorithm, getAxis(),
+//                                                   in_candidate, wgh_candidate, wgh_candidate, wgh_candidate,
+//                                                   wgh_candidate, wgh_candidate, wgh_candidate, out_candidate));
 
-            descs.emplace_back(quantization_desc);
+//            descs.emplace_back(quantization_desc);
         }
     }
 }
@@ -360,7 +362,7 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getInputPrecision());
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOutputPrecision());
 
-    auto same = [&] (memory::format fmt, impl_desc_type impl) -> PrimitiveDescInfo {
+    auto same = [&] (memory::format_tag fmt, impl_desc_type impl) -> PrimitiveDescInfo {
         InferenceEngine::LayerConfig config;
         config.dynBatchSupport = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -387,12 +389,13 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
     if (!descs.empty()) {
         for (int i = 0; i < descs.size(); i++) {
             primitive_desc_iterator itpd = descs[i].createPrimitiveDescriptorIterator(getEngine());
-            while (itpd.is_not_end()) {
-                impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+            while (itpd) {
+                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
                 supportedPrimitiveDescriptors.push_back(same(getDataFormats()[i], impl_type));
 
-                itpd++;
+                if (!itpd.next_impl())
+                    break;
             }
         }
     } else {
@@ -419,52 +422,53 @@ void MKLDNNQuantizeNode::createPrimitive() {
 
     size_t axisSize = getParentEdgeAt(0)->getDims()[getAxis()];
     size_t axisPaddedSize = rnd_up(axisSize, 16);
-    MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)axisPaddedSize}, memory::f32, memory::x};
+    MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)axisPaddedSize}, memory::data_type::f32, memory::format_tag::x};
 
-    if (isBinarization()) {
-        auto prim_desc = createPrimitiveDescriptor<quantization_forward::primitive_desc, quantization_forward::desc>();
-
-        auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
-        internalBlobMemory.push_back(binarizationThresholdsDataMem);
-
-        auto binarizationMaskDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
-        internalBlobMemory.push_back(binarizationMaskDataMem);
-
-        prim.reset(new quantization_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
-                                            internalBlobMemory[0]->GetPrimitive(),
-                                            internalBlobMemory[1]->GetPrimitive(),
-                                            getChildEdgeAt(0)->getMemory().GetPrimitive()));
-    } else if (levels != 2) {
-        auto prim_desc = createPrimitiveDescriptor<quantization_forward::primitive_desc, quantization_forward::desc>();
-
-        auto pushInternalBlob = [&](std::vector<float>& data) {
-            if (data.size() == 1)
-                data.resize(axisPaddedSize, data[0]);
-            else
-                data.resize(axisPaddedSize);
-            auto memory = std::make_shared<MKLDNNMemory>(getEngine());
-            memory->Create(weightsDataDesc, &data[0]);
-            internalBlobMemory.push_back(memory);
-        };
-
-        pushInternalBlob(cropLow);
-        pushInternalBlob(cropHigh);
-        pushInternalBlob(inputScale);
-        pushInternalBlob(inputShift);
-        pushInternalBlob(outputScale);
-        pushInternalBlob(outputShift);
-
-        prim.reset(new quantization_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
-                                            internalBlobMemory[0]->GetPrimitive(),
-                                            internalBlobMemory[1]->GetPrimitive(),
-                                            internalBlobMemory[2]->GetPrimitive(),
-                                            internalBlobMemory[3]->GetPrimitive(),
-                                            internalBlobMemory[4]->GetPrimitive(),
-                                            internalBlobMemory[5]->GetPrimitive(),
-                                            getChildEdgeAt(0)->getMemory().GetPrimitive()));
-    }
+    THROW_IE_EXCEPTION << "Unimplemented";
+//    if (isBinarization()) {
+//        auto prim_desc = createPrimitiveDescriptor<quantization_forward::primitive_desc, quantization_forward::desc>();
+//
+//        auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+//        binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
+//        internalBlobMemory.push_back(binarizationThresholdsDataMem);
+//
+//        auto binarizationMaskDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+//        binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
+//        internalBlobMemory.push_back(binarizationMaskDataMem);
+//
+//        prim.reset(new quantization_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
+//                                            internalBlobMemory[0]->GetPrimitive(),
+//                                            internalBlobMemory[1]->GetPrimitive(),
+//                                            getChildEdgeAt(0)->getMemory().GetPrimitive()));
+//    } else if (levels != 2) {
+//        auto prim_desc = createPrimitiveDescriptor<quantization_forward::primitive_desc, quantization_forward::desc>();
+//
+//        auto pushInternalBlob = [&](std::vector<float>& data) {
+//            if (data.size() == 1)
+//                data.resize(axisPaddedSize, data[0]);
+//            else
+//                data.resize(axisPaddedSize);
+//            auto memory = std::make_shared<MKLDNNMemory>(getEngine());
+//            memory->Create(weightsDataDesc, &data[0]);
+//            internalBlobMemory.push_back(memory);
+//        };
+//
+//        pushInternalBlob(cropLow);
+//        pushInternalBlob(cropHigh);
+//        pushInternalBlob(inputScale);
+//        pushInternalBlob(inputShift);
+//        pushInternalBlob(outputScale);
+//        pushInternalBlob(outputShift);
+//
+//        prim.reset(new quantization_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
+//                                            internalBlobMemory[0]->GetPrimitive(),
+//                                            internalBlobMemory[1]->GetPrimitive(),
+//                                            internalBlobMemory[2]->GetPrimitive(),
+//                                            internalBlobMemory[3]->GetPrimitive(),
+//                                            internalBlobMemory[4]->GetPrimitive(),
+//                                            internalBlobMemory[5]->GetPrimitive(),
+//                                            getChildEdgeAt(0)->getMemory().GetPrimitive()));
+//    }
 }
 
 void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
@@ -478,19 +482,12 @@ void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
         auto &outputHighMemory = getParentEdgeAt(4)->getMemoryPtr();
         auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-        auto srcData = reinterpret_cast<const float *>(srcMemory->GetData());
-        auto inputLowData = reinterpret_cast<const float *>(inputLowMemory->GetData());
-        auto inputHighData = reinterpret_cast<const float *>(inputHighMemory->GetData());
-        auto outputLowData = reinterpret_cast<const float *>(outputLowMemory->GetData());
-        auto outputHighData = reinterpret_cast<const float *>(outputHighMemory->GetData());
-        auto dstData = reinterpret_cast<float *>(dstMemory->GetData());
-
-        srcData += srcMemory->GetDescriptor().data.layout_desc.blocking.offset_padding;
-        inputLowData += inputLowMemory->GetDescriptor().data.layout_desc.blocking.offset_padding;
-        inputHighData += inputHighMemory->GetDescriptor().data.layout_desc.blocking.offset_padding;
-        outputLowData += outputLowMemory->GetDescriptor().data.layout_desc.blocking.offset_padding;
-        outputHighData += outputHighMemory->GetDescriptor().data.layout_desc.blocking.offset_padding;
-        dstData += dstMemory->GetDescriptor().data.layout_desc.blocking.offset_padding;
+        auto srcData = reinterpret_cast<const float *>(srcMemory->GetPtr());
+        auto inputLowData = reinterpret_cast<const float *>(inputLowMemory->GetPtr());
+        auto inputHighData = reinterpret_cast<const float *>(inputHighMemory->GetPtr());
+        auto outputLowData = reinterpret_cast<const float *>(outputLowMemory->GetPtr());
+        auto outputHighData = reinterpret_cast<const float *>(outputHighMemory->GetPtr());
+        auto dstData = reinterpret_cast<float *>(dstMemory->GetPtr());
 
         auto srcDims = srcMemory->GetDims();
         srcDims[0] = batchToProcess();

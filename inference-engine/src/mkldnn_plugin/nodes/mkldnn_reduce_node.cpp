@@ -17,14 +17,17 @@
 
 #include "jit_generator.hpp"
 #include "jit_uni_eltwise.hpp"
-#include "jit_uni_depthwise.hpp"
-#include "jit_uni_quantization.hpp"
+#include "jit_uni_depthwise_injector.hpp"
+#include "jit_uni_quantization_injector.hpp"
+#include "jit_uni_eltwise_injector.hpp"
+
+#include <ie_mkldnn_internal.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
@@ -69,8 +72,10 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
 
     explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
-    : jit_uni_reduce_kernel(jcp), jit_generator() {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f));
+    : jit_uni_reduce_kernel(jcp), jit_generator() {}
+
+    void generate() override {
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1));
 
         this->preamble();
 
@@ -103,8 +108,6 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         } else if (jcp_.reduce_mode == Reduce::LogSumExp) {
             exp_injector->prepare_table();
         }
-
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
@@ -278,13 +281,13 @@ private:
                     uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
                     break;
                 case Reduce::Max:
-                    if (jcp_.dst_dt == memory::f32)
+                    if (jcp_.dst_dt == memory::data_type::f32)
                         uni_vmovups(vmm_dst, table_val(2));
                     else
                         uni_vmovups(vmm_dst, table_val(4));
                     break;
                 case Reduce::Min:
-                    if (jcp_.dst_dt == memory::f32)
+                    if (jcp_.dst_dt == memory::data_type::f32)
                         uni_vmovups(vmm_dst, table_val(3));
                     else
                         uni_vmovups(vmm_dst, table_val(5));
@@ -536,35 +539,35 @@ private:
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
             default:
                 assert(!"unknown src_dt");
         }
 
-        if (src_dt != memory::f32)
+        if (src_dt != memory::data_type::f32)
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
     inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 movss(xmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
                 movq(xmm_src, reg_tmp_64);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 movzx(reg_tmp_32, op);
                 movq(xmm_src, reg_tmp_64);
                 break;
@@ -581,16 +584,16 @@ private:
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
-        if (dst_dt != memory::f32) {
+        if (dst_dt != memory::data_type::f32) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
         switch (dst_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 uni_vmovups(op, vmm_dst);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 if (isa == avx512_common) {
                     vmaxps(vmm_dst, vmm_zero, vmm_dst);
                     vpmovsdb(op, vmm_dst);
@@ -605,7 +608,7 @@ private:
                         movd(op, xmm_dst);
                 }
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 if (isa == avx512_common) {
                     vpmovusdb(op, vmm_dst);
                 } else {
@@ -625,22 +628,22 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (dst_dt != memory::f32) {
+        if (dst_dt != memory::data_type::f32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 movss(op, xmm_dst);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
@@ -679,19 +682,19 @@ private:
         movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
         horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
         switch (dst_dt) {
-            case memory::f32:
+            case memory::data_type::f32:
                 movss(xmm_aux3, ptr[reg_dst]);
                 horiz_ps(xmm_dst, xmm_aux3);
                 movss(ptr[reg_dst], xmm_dst);
                 break;
-            case memory::s32:
+            case memory::data_type::s32:
                 movss(xmm_aux3, ptr[reg_dst]);
                 uni_vcvtdq2ps(xmm_aux3, xmm_aux3);
                 horiz_ps(xmm_dst, xmm_aux3);
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 movss(ptr[reg_dst], xmm_dst);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 vpbroadcastb(xmm_aux3, ptr[reg_dst]);
                 uni_vpmovzxbd(xmm_aux3, xmm_aux3);
                 uni_vcvtdq2ps(xmm_aux3, xmm_aux3);
@@ -701,7 +704,7 @@ private:
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 pextrb(ptr[reg_dst], xmm_dst, 0);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 vpbroadcastb(xmm_aux3, ptr[reg_dst]);
                 uni_vpmovsxbd(xmm_aux3, xmm_aux3);
                 uni_vcvtdq2ps(xmm_aux3, xmm_aux3);
@@ -780,8 +783,10 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp)
-    : jit_uni_reduce_post_kernel(jcp), jit_generator() {
-        log_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_log, 0.f, 0.f));
+    : jit_uni_reduce_post_kernel(jcp), jit_generator() {}
+
+    void generate() override {
+        log_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_log, 0.f, 0.f, 1.f));
 
         this->preamble();
 
@@ -803,8 +808,6 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         if (jcp_.reduce_mode == Reduce::LogSum || jcp_.reduce_mode == Reduce::LogSumExp) {
             log_injector->prepare_table();
         }
-
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
@@ -977,35 +980,35 @@ private:
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
             default:
                 assert(!"unknown src_dt");
         }
 
-        if (src_dt != memory::f32)
+        if (src_dt != memory::data_type::f32)
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
     inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 movss(xmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
                 movq(xmm_src, reg_tmp_64);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 movzx(reg_tmp_32, op);
                 movq(xmm_src, reg_tmp_64);
                 break;
@@ -1022,16 +1025,16 @@ private:
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
-        if (dst_dt != memory::f32) {
+        if (dst_dt != memory::data_type::f32) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
         switch (dst_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 uni_vmovups(op, vmm_dst);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 if (isa == avx512_common) {
                     vmaxps(vmm_dst, vmm_zero, vmm_dst);
                     vpmovsdb(op, vmm_dst);
@@ -1046,7 +1049,7 @@ private:
                         movd(op, xmm_dst);
                 }
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 if (isa == avx512_common) {
                     vpmovusdb(op, vmm_dst);
                 } else {
@@ -1066,22 +1069,22 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (dst_dt != memory::f32) {
+        if (dst_dt != memory::data_type::f32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 movss(op, xmm_dst);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
@@ -1120,20 +1123,20 @@ private:
         movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
         horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
         switch (dst_dt) {
-            case memory::f32:
+            case memory::data_type::f32:
                 movss(ptr[reg_dst], xmm_dst);
                 break;
-            case memory::s32:
+            case memory::data_type::s32:
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 movss(ptr[reg_dst], xmm_dst);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 pextrb(ptr[reg_dst], xmm_dst, 0);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
@@ -1172,19 +1175,19 @@ private:
         movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
         horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
         switch (dst_dt) {
-            case memory::f32:
+            case memory::data_type::f32:
                 movss(xmm_aux3, ptr[reg_dst]);
                 horiz_ps(xmm_dst, xmm_aux3);
                 movss(ptr[reg_dst], xmm_dst);
                 break;
-            case memory::s32:
+            case memory::data_type::s32:
                 movss(xmm_aux3, ptr[reg_dst]);
                 uni_vcvtdq2ps(xmm_aux3, xmm_aux3);
                 horiz_ps(xmm_dst, xmm_aux3);
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 movss(ptr[reg_dst], xmm_dst);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 vpbroadcastb(xmm_aux3, ptr[reg_dst]);
                 uni_vpmovzxbd(xmm_aux3, xmm_aux3);
                 uni_vcvtdq2ps(xmm_aux3, xmm_aux3);
@@ -1194,7 +1197,7 @@ private:
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 pextrb(ptr[reg_dst], xmm_dst, 0);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 vpbroadcastb(xmm_aux3, ptr[reg_dst]);
                 uni_vpmovsxbd(xmm_aux3, xmm_aux3);
                 uni_vcvtdq2ps(xmm_aux3, xmm_aux3);
@@ -1314,9 +1317,9 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[REDUCE_INDEXES].inPlace = -1;
     config.outConfs[0].inPlace = -1;
 
-    auto pushDesc = [&](memory::format inFormat, memory::format outFormat, memory::data_type inDataType, memory::data_type outDataType) {
+    auto pushDesc = [&](memory::format_tag inFormat, memory::format_tag outFormat, memory::data_type inDataType, memory::data_type outDataType) {
         config.inConfs[REDUCE_DATA].desc = MKLDNNMemoryDesc(getParentEdgeAt(REDUCE_DATA)->getDims(), inDataType, inFormat);
-        config.inConfs[REDUCE_INDEXES].desc = MKLDNNMemoryDesc(getParentEdgeAt(REDUCE_INDEXES)->getDims(), memory::s32, memory::x);
+        config.inConfs[REDUCE_INDEXES].desc = MKLDNNMemoryDesc(getParentEdgeAt(REDUCE_INDEXES)->getDims(), memory::data_type::s32, memory::format_tag::x);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outDataType, outFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, outFormat});
     };
@@ -1330,21 +1333,21 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
         if (keep_dims) {
             if (getParentEdgeAt(REDUCE_DATA)->getDims().ndims() == 4 && getParentEdgeAt(REDUCE_DATA)->getDims().ToSizeVector()[1] > 1) {
                 if (mayiuse(cpu::avx512_common)) {
-                    pushDesc(memory::nChw16c, memory::nChw16c, inputDataType, outputDataType);
+                    pushDesc(memory::format_tag::nChw16c, memory::format_tag::nChw16c, inputDataType, outputDataType);
                 } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
-                    pushDesc(memory::nChw8c, memory::nChw8c, inputDataType, outputDataType);
+                    pushDesc(memory::format_tag::nChw8c, memory::format_tag::nChw8c, inputDataType, outputDataType);
                 }
             } else if (getParentEdgeAt(REDUCE_DATA)->getDims().ndims() == 5 && getParentEdgeAt(REDUCE_DATA)->getDims().ToSizeVector()[1] > 1) {
                 if (mayiuse(cpu::avx512_common)) {
-                    pushDesc(memory::nCdhw16c, memory::nCdhw16c, inputDataType, outputDataType);
+                    pushDesc(memory::format_tag::nCdhw16c, memory::format_tag::nCdhw16c, inputDataType, outputDataType);
                 } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
-                    pushDesc(memory::nCdhw8c, memory::nCdhw8c, inputDataType, outputDataType);
+                    pushDesc(memory::format_tag::nCdhw8c, memory::format_tag::nCdhw8c, inputDataType, outputDataType);
                 }
             }
         }
     } else {
         pushDesc(MKLDNNMemory::GetPlainFormat(memory::dims(getParentEdgeAt(REDUCE_DATA)->getDims().ndims())),
-             MKLDNNMemory::GetPlainFormat(memory::dims(getChildEdgeAt(0)->getDims().ndims())), memory::f32, memory::f32);
+             MKLDNNMemory::GetPlainFormat(memory::dims(getChildEdgeAt(0)->getDims().ndims())), memory::data_type::f32, memory::data_type::f32);
     }
 }
 
@@ -1425,12 +1428,8 @@ void MKLDNNReduceNode::execute(mkldnn::stream strm) {
         ReduceW = IW != OW && OW == 1;
     }
 
-    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetData()) +
-                   srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding *
-                   MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(srcMemPtr->GetDescriptor().data.data_type));
-    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetData()) +
-                   dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding *
-                   MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dstMemPtr->GetDescriptor().data.data_type));
+    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetPtr());
+    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
     if (jit_mode) {
         reduce_type(src_data, dst_data, dst_size);
     } else {

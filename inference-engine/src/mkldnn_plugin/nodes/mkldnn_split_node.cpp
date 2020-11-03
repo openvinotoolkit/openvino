@@ -372,7 +372,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
     }
 
     size_t maxCount = 0;
-    mkldnn::memory::format convertTo = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
+    mkldnn::memory::format_tag convertTo = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
     for (auto &it : formatFrequency) {
         if (it.second > maxCount && !MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, it.first).blocksExtended()) {
             maxCount = it.second;
@@ -382,9 +382,9 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
 
     // This logic is needed to cover cases when Split node cannot be optimized out for particular block size
     // In general it is significantly better to have additional reorders in graph than to use reference Split implementation
-    if (convertTo == memory::nChw16c || convertTo == memory::nCdhw16c ||
-        convertTo == memory::nChw8c || convertTo == memory::nCdhw8c) {
-        int blockSize = convertTo == memory::nChw16c || convertTo == memory::nCdhw16c ? 16 : 8;
+    if (convertTo == memory::format_tag::nChw16c || convertTo == memory::format_tag::nCdhw16c ||
+        convertTo == memory::format_tag::nChw8c || convertTo == memory::format_tag::nCdhw8c) {
+        int blockSize = convertTo == memory::format_tag::nChw16c || convertTo == memory::format_tag::nCdhw16c ? 16 : 8;
         bool shouldDecreaseBlockSize = false;
         for (auto& parentEdge : getParentEdges()) {
             if (parentEdge.lock()->getDims()[1] % blockSize != 0)
@@ -410,7 +410,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
             }
 
             if (canDecreaseBlockSize)
-                convertTo = getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::nCdhw8c : memory::nChw8c;
+                convertTo = getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::format_tag::nCdhw8c : memory::format_tag::nChw8c;
             else
                 convertTo = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
         }

@@ -136,28 +136,28 @@ void MKLDNNRNN::fillCellDesc() {
 
     // Shapes and Attributes are correct. Can start internal stuff initialization.
 
-    in_state_d  = {{L, D, S, N, SC}, memory::f32, memory::ldsnc};
-    out_state_d = {{L, D, S, N, SC}, memory::f32, memory::ldsnc};
+    in_state_d  = {{L, D, S, N, SC}, memory::data_type::f32, memory::ldsnc};
+    out_state_d = {{L, D, S, N, SC}, memory::data_type::f32, memory::ldsnc};
 
-    in_data_d  = {{T, N, DC}, memory::f32, memory::tnc};;
-    out_data_d = {{T, N, SC}, memory::f32, memory::tnc};;
+    in_data_d  = {{T, N, DC}, memory::data_type::f32, memory::tnc};;
+    out_data_d = {{T, N, SC}, memory::data_type::f32, memory::tnc};;
 
-    w_data_d   = {{L, D, DC, G, SC}, memory::f32, memory::ldigo};
-    w_state_d  = {{L, D, SC, G, SC}, memory::f32, memory::ldigo};
+    w_data_d   = {{L, D, DC, G, SC}, memory::data_type::f32, memory::ldigo};
+    w_state_d  = {{L, D, SC, G, SC}, memory::data_type::f32, memory::ldigo};
 
     if (bias)
-        w_bias_d = {{L, D, Gb, SC}, memory::f32, memory::ldgo};
+        w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::ldgo};
 
     std::vector<TensorDesc> in_candidate, out_candidate;
     std::vector<memory::format> outputFormats;
-    in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, memory::f32, memory::nc});
-    in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
-    out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+    in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, memory::data_type::f32, memory::nc});
+    in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::nc});
+    out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::nc});
     outputFormats.emplace_back(memory::nc);
 
     if (S == 2) {
-        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
-        out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::nc});
+        out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::nc});
         outputFormats.emplace_back(memory::nc);
     }
 
@@ -230,7 +230,7 @@ void MKLDNNRNN::fillSeqDesc() {
             if (getParentEdgeAt(i)->getDims() != S_shape)
                 THROW_IE_EXCEPTION << "Incorrect shape of state ports for layer " << getName();
 
-        in_state_d = {{L, D, S, N, SC}, memory::f32, memory::ldsnc};
+        in_state_d = {{L, D, S, N, SC}, memory::data_type::f32, memory::ldsnc};
     }
 
     if (outs.size() > 1) {
@@ -238,7 +238,7 @@ void MKLDNNRNN::fillSeqDesc() {
             if (getChildEdgeAt(i)->getDims() != S_shape)
                 THROW_IE_EXCEPTION << "Incorrect shape of state ports for layer " << getName();
 
-        out_state_d = {{L, D, S, N, SC}, memory::f32, memory::ldsnc};
+        out_state_d = {{L, D, S, N, SC}, memory::data_type::f32, memory::ldsnc};
     }
 
     auto blobs = rnnLayer->blobs;
@@ -252,27 +252,27 @@ void MKLDNNRNN::fillSeqDesc() {
     if (weights->size() != G*SC*(SC+DC))
         THROW_IE_EXCEPTION << "RNN Layer. Weights size is not correct. Expected size:" << G*SC*(SC+DC);
 
-    w_data_d  = {{L, D, DC, G, SC}, memory::f32, memory::ldigo};
-    w_state_d = {{L, D, SC, G, SC}, memory::f32, memory::ldigo};
+    w_data_d  = {{L, D, DC, G, SC}, memory::data_type::f32, memory::ldigo};
+    w_state_d = {{L, D, SC, G, SC}, memory::data_type::f32, memory::ldigo};
 
     if (bias && bias->size() != Gb*SC)
         THROW_IE_EXCEPTION << "RNN Layer. Biases size is not correct. Expected size:" << G*SC;
 
     if (bias)
-        w_bias_d = {{L, D, Gb, SC}, memory::f32, memory::ldgo};
+        w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::ldgo};
 
     // Try to create descriptor and corresponding configuration
-    in_data_d = {in_data_dims, memory::f32, memory::tnc};
-    out_data_d = {out_data_dims, memory::f32, memory::tnc};
+    in_data_d = {in_data_dims, memory::data_type::f32, memory::tnc};
+    out_data_d = {out_data_dims, memory::data_type::f32, memory::tnc};
 
     std::vector<TensorDesc> in_candidate;
     if (nativeOrder)
         in_candidate.push_back(in_data_d);
     else
-        in_candidate.push_back(MKLDNNMemoryDesc{{N, T, DC}, memory::f32, memory::ntc});
+        in_candidate.push_back(MKLDNNMemoryDesc{{N, T, DC}, memory::data_type::f32, memory::ntc});
 
     for (int i = 1; i < ins.size(); i++)
-        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::nc});
 
     std::vector<TensorDesc> out_candidate;
     std::vector<memory::format> outputFormats;
@@ -280,12 +280,12 @@ void MKLDNNRNN::fillSeqDesc() {
         out_candidate.push_back(out_data_d);
         outputFormats.push_back(out_data_d.getFormat());
     } else {
-        out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, memory::f32, memory::ntc});
+        out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, memory::data_type::f32, memory::ntc});
         outputFormats.push_back(memory::ntc);
     }
 
     for (int i = 1; i < outs.size(); i++) {
-        out_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, memory::f32, memory::nc});
+        out_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, memory::data_type::f32, memory::nc});
         outputFormats.push_back(memory::nc);
     }
 
@@ -496,7 +496,7 @@ void MKLDNNRNN::createPrimitive() {
     }
 
     auto workspace_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    workspace_mem->Create({}, memory::f32, memory::format_undef, nullptr);  // stub, not in use
+    workspace_mem->Create({}, memory::data_type::f32, memory::format_undef, nullptr);  // stub, not in use
     internalBlobMemory.push_back(workspace_mem);
 
     auto p = new rnn_forward(pd,

@@ -18,15 +18,18 @@
 
 #include "jit_generator.hpp"
 #include "jit_uni_eltwise.hpp"
-#include "jit_uni_depthwise.hpp"
-#include "jit_uni_quantization.hpp"
+#include "jit_uni_depthwise_injector.hpp"
+#include "jit_uni_quantization_injector.hpp"
+#include "jit_uni_eltwise_injector.hpp"
 #include "common/cpu_memcpy.h"
+
+#include "ie_mkldnn_internal.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
@@ -38,16 +41,18 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_resample_nearest_kernel_f32)
 
     explicit jit_uni_resample_nearest_kernel_f32(jit_resample_config_params jcp, const mkldnn_primitive_attr &attr)
-            : jit_uni_resample_nearest_kernel(jcp, attr), jit_generator() {
+            : jit_uni_resample_nearest_kernel(jcp, attr), jit_generator() {}
+    void generate() override {
         const auto &p = attr_.post_ops_;
-        for (int i = 0; i < p.len_; i++) {
+        for (int i = 0; i < p.len(); i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
                         this,
                         post_op.eltwise.alg,
                         post_op.eltwise.alpha,
-                        post_op.eltwise.beta));
+                        post_op.eltwise.beta,
+                        1.f));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
                         this,
@@ -67,14 +72,14 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
         mov(reg_src_stride, ptr[reg_params + GET_OFF(src_stride)]);
         mov(reg_index_stride, ptr[reg_params + GET_OFF(index_stride)]);
         mov(reg_dst_stride, ptr[reg_params + GET_OFF(dst_stride)]);
-        if (attr_.post_ops_.len_ != 0)
+        if (attr_.post_ops_.len() != 0)
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
 
-        if (isa == cpu::avx512_common)
+        if (isa == cpu::x64::avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         int blk_size = vlen / sizeof(float);
-        if (isa == cpu::sse42)
+        if (isa == cpu::x64::sse42)
             blk_size *= 2;
 
         Xbyak::Label resample_nearest_loop_label;
@@ -87,7 +92,7 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
             if (jcp_.planar_layout) {
                 uni_vmovdqu(vmm_index, ptr[reg_index]);
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-                vgatherdps(vmm_val, ptr[reg_src + vmm_index * jcp.src_data_size], vmm_mask);
+                vgatherdps(vmm_val, ptr[reg_src + vmm_index * jcp_.src_data_size], vmm_mask);
                 store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
 
                 add(reg_dst, reg_dst_stride);
@@ -95,14 +100,14 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
                 sub(reg_work_amount, 1);
             } else if (jcp_.nhwc_format) {  // support int8 and fusion for this format
                 load_vector(vmm_val, ptr[reg_src], jcp_.src_dt);
-                if (attr_.post_ops_.len_ != 0)
+                if (attr_.post_ops_.len() != 0)
                     apply_post_ops(jcp_.dst_dt);
                 store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
 
                 if (isa == cpu::sse42) {
                     int sse42_offset = 4;
                     load_vector(vmm_val, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                    if (attr_.post_ops_.len_ != 0) {
+                    if (attr_.post_ops_.len() != 0) {
                         add(reg_oc_off, sse42_offset * sizeof(float));
                         apply_post_ops(jcp_.dst_dt);
                         sub(reg_oc_off, sse42_offset * sizeof(float));
@@ -120,7 +125,7 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
                 add(reg_src_aux, reg_index_oc);
 
                 load_vector(vmm_val, ptr[reg_src_aux], jcp_.src_dt);
-                if (attr_.post_ops_.len_ != 0)
+                if (attr_.post_ops_.len() != 0)
                     apply_post_ops(jcp_.dst_dt);
                 store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
 
@@ -128,7 +133,7 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
                     int sse42_offset = 4;
                     add(reg_src_aux, sse42_offset * jcp_.src_data_size);
                     load_vector(vmm_val, ptr[reg_src_aux], jcp_.src_dt);
-                    if (attr_.post_ops_.len_ != 0) {
+                    if (attr_.post_ops_.len() != 0) {
                         add(reg_oc_off, sse42_offset * sizeof(float));
                         apply_post_ops(jcp_.dst_dt);
                         sub(reg_oc_off, sse42_offset * sizeof(float));
@@ -149,8 +154,6 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
-
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
@@ -187,21 +190,21 @@ private:
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
             default:
                 assert(!"unknown dst_dt");
         }
 
-        if (src_dt != memory::f32)
+        if (src_dt != memory::data_type::f32)
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -209,9 +212,9 @@ private:
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
 
-        if (dst_dt == memory::f32) {
+        if (dst_dt == memory::data_type::f32) {
             uni_vmovups(op, vmm_dst);
-        } else if (dst_dt == memory::u8) {
+        } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
                 vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
@@ -226,7 +229,7 @@ private:
                 else
                     movd(op, xmm_dst);
             }
-        } else if (dst_dt == memory::s8) {
+        } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
                 vpmovsdb(op, vmm_dst);
@@ -248,7 +251,7 @@ private:
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
-        for (int i = 0; i < p.len_; i++) {
+        for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
@@ -262,7 +265,7 @@ private:
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
+                bool do_rounding = do_dequantization || dst_dt == memory::data_type::f32 || i != p.len() - 1;
 
                 int s_idx = vmm_val.getIdx();
 
@@ -345,7 +348,7 @@ void MKLDNNResampleNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = -1;
 
-    auto pushDesc = [&](memory::format format) {
+    auto pushDesc = [&](memory::format_tag format) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, format);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, format});
@@ -353,23 +356,23 @@ void MKLDNNResampleNode::initSupportedPrimitiveDescriptors() {
 
     if (type == "caffe.ResampleParameter.NEAREST") {
         if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-            pushDesc(memory::nhwc);
+            pushDesc(memory::format_tag::nhwc);
         } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-            pushDesc(memory::ndhwc);
+            pushDesc(memory::format_tag::ndhwc);
         }
 
         if (inputPrecision == Precision::FP32 && outputPrecision == Precision::FP32) {
             if (getParentEdgeAt(0)->getDims().ndims() == 4) {
                 if (mayiuse(cpu::avx512_common)) {
-                    pushDesc(memory::nChw16c);
+                    pushDesc(memory::format_tag::nChw16c);
                 } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
-                    pushDesc(memory::nChw8c);
+                    pushDesc(memory::format_tag::nChw8c);
                 }
             } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
                 if (mayiuse(cpu::avx512_common)) {
-                    pushDesc(memory::nCdhw16c);
+                    pushDesc(memory::format_tag::nCdhw16c);
                 } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
-                    pushDesc(memory::nCdhw8c);
+                    pushDesc(memory::format_tag::nCdhw8c);
                 }
             }
 
@@ -380,9 +383,9 @@ void MKLDNNResampleNode::initSupportedPrimitiveDescriptors() {
     }
     if (type == "caffe.ResampleParameter.LINEAR") {
         if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-            pushDesc(memory::nchw);
+            pushDesc(memory::format_tag::nchw);
         } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-            pushDesc(memory::ncdhw);
+            pushDesc(memory::format_tag::ncdhw);
         }
     }
 }
@@ -833,7 +836,7 @@ void MKLDNNResampleNode::LinearInterpolation(const in_data_t *in_ptr_, out_data_
 
 inline void MKLDNNResampleNode::apply_post_ops_scalar(float &dst_value, int index_c) {
     const auto &p = (*attr.get()).post_ops_;
-    for (int i = 0; i < p.len_; i++) {
+    for (int i = 0; i < p.len(); i++) {
         auto &post_op = p.entry_[i];
         if (post_op.is_eltwise()) {
             //  only eltwise_relu supported
@@ -847,7 +850,7 @@ inline void MKLDNNResampleNode::apply_post_ops_scalar(float &dst_value, int inde
             bool do_dequantization = post_op.quantization.alg ==
                                      alg_kind::quantization_quantize_dequantize;
             bool do_rounding = do_dequantization || output_prec == Precision::FP32 ||
-                               i != p.len_ - 1;
+                               i != p.len() - 1;
 
             auto quant = post_op.quantization;
 

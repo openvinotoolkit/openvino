@@ -7,18 +7,20 @@
 #include <mkldnn_extension_utils.h>
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
-#include "jit_uni_eltwise.hpp"
-#include "jit_uni_depthwise.hpp"
-#include "jit_uni_quantization.hpp"
+#include "jit_uni_eltwise_injector.hpp"
+#include "jit_uni_depthwise_injector.hpp"
+#include "jit_uni_quantization_injector.hpp"
 #include "bf16transformer.h"
 #include "common/cpu_memcpy.h"
 #include "mkldnn_normalize_node.h"
+
+#include "ie_mkldnn_internal.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
@@ -28,7 +30,8 @@ template <cpu_isa_t isa>
 struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_modulo_kernel_f32)
 
-    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp) : jit_uni_normalize_modulo_kernel(jcp), jit_generator() {
+    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp) : jit_uni_normalize_modulo_kernel(jcp), jit_generator() {}
+    void generate() override {
         this->preamble();
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_modulo, ptr[reg_params + GET_OFF(modulo)]);
@@ -85,7 +88,6 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
         }
 
         this->postamble();
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
@@ -115,21 +117,21 @@ private:
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
             default:
                 assert(!"unknown dst_dt");
         }
 
-        if (src_dt != memory::f32)
+        if (src_dt != memory::data_type::f32)
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 };
@@ -140,13 +142,15 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_kernel_f32)
 
     explicit jit_uni_normalize_kernel_f32(jit_normalize_config_params jcp, const mkldnn_primitive_attr &attr)
-    : jit_uni_normalize_kernel(jcp, attr), jit_generator() {
+    : jit_uni_normalize_kernel(jcp, attr), jit_generator() {}
+
+    void generate() override {
         const auto &p = attr_.post_ops_;
-        for (int i = 0; i < p.len_; i++) {
+        for (int i = 0; i < p.len(); i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
-                        this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta));
+                        this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
                         this, post_op.depthwise.alg));
@@ -164,7 +168,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         mov(reg_weights, ptr[reg_params + GET_OFF(weights)]);
         mov(reg_fused_factor, ptr[reg_params + GET_OFF(fused_factor)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-        if (attr_.post_ops_.len_ != 0)
+        if (attr_.post_ops_.len() != 0)
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
         if (isa == avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
@@ -181,8 +185,6 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
-
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
@@ -260,7 +262,7 @@ private:
                     add(reg_modulo, vlen);
                 }
             }
-            if (attr_.post_ops_.len_ != 0) {
+            if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_dt, 1);
             }
             store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
@@ -284,17 +286,17 @@ private:
                 uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
             } else {
                 if (jcp_.channel_shared) {
-                    load_scalar(xmm_fused_factor, ptr[reg_fused_factor], memory::f32);
+                    load_scalar(xmm_fused_factor, ptr[reg_fused_factor], memory::data_type::f32);
                     uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
                     add(reg_fused_factor, step * sizeof(float));
                 } else {
-                    load_scalar(xmm_modulo, ptr[reg_modulo], memory::f32);
+                    load_scalar(xmm_modulo, ptr[reg_modulo], memory::data_type::f32);
                     uni_vmulps(xmm_val, xmm_val, xmm_modulo);
                     uni_vmulps(xmm_val, xmm_val, xmm_scale);
                     add(reg_modulo, step * sizeof(float));
                 }
             }
-            if (attr_.post_ops_.len_ != 0) {
+            if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_dt, 1);  // vector and boradcast
             }
             store_scalar(ptr[reg_dst], xmm_val, jcp_.dst_dt);
@@ -343,7 +345,7 @@ private:
                     add(reg_weights, vlen);
                 }
             }
-            if (attr_.post_ops_.len_ != 0) {
+            if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_dt, 0);
                 add(reg_oc_off, vlen);  // out channel offset of fused ops weights in byte
             }
@@ -368,17 +370,17 @@ private:
                 uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
             } else {
                 if (jcp_.across_spatial) {
-                    load_scalar(xmm_fused_factor, ptr[reg_fused_factor], memory::f32);
+                    load_scalar(xmm_fused_factor, ptr[reg_fused_factor], memory::data_type::f32);
                     uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
                     add(reg_fused_factor, step * sizeof(float));
                 } else {
-                    load_scalar(xmm_scale, ptr[reg_weights], memory::f32);
+                    load_scalar(xmm_scale, ptr[reg_weights], memory::data_type::f32);
                     uni_vmulps(xmm_val, xmm_val, xmm_scale);
                     uni_vmulps(xmm_val, xmm_val, xmm_modulo);
                     add(reg_weights, step * sizeof(float));
                 }
             }
-            if (attr_.post_ops_.len_ != 0) {
+            if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_dt, 0);
                 add(reg_oc_off, step * sizeof(float));
             }
@@ -428,7 +430,7 @@ private:
                 load_vector(vmm_val, ptr[reg_src], jcp_.src_dt);
                 uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);
 
-                if (attr_.post_ops_.len_ != 0) {
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_dt, 0);
                 }
                 store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
@@ -441,7 +443,7 @@ private:
                     } else {
                         uni_vmulps(vmm_val, vmm_val, vmm_fused_factor2);  // ld once
                     }
-                    if (attr_.post_ops_.len_ != 0) {
+                    if (attr_.post_ops_.len() != 0) {
                         add(reg_oc_off, sse42_offset * sizeof(float));
                         apply_post_ops(jcp_.dst_dt, 0);
                         sub(reg_oc_off, sse42_offset * sizeof(float));
@@ -481,7 +483,7 @@ private:
                     uni_vmulps(vmm_val, vmm_val, vmm_modulo);
                     add(reg_weights, vlen);
                 }
-                if (attr_.post_ops_.len_ != 0) {
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_dt, 0);
                     add(reg_oc_off, vlen);  // vlen is related isa
                 }
@@ -498,7 +500,7 @@ private:
                         uni_vmulps(vmm_val, vmm_val, vmm_modulo);  // bc once
                         add(reg_weights, vlen);  // 4 * sizeof(float)
                     }
-                    if (attr_.post_ops_.len_ != 0) {
+                    if (attr_.post_ops_.len() != 0) {
                         apply_post_ops(jcp_.dst_dt, 0);
                         add(reg_oc_off, vlen);  // vlen is related isa
                     }
@@ -516,35 +518,35 @@ private:
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
             default:
                 assert(!"unknown dst_dt");
         }
 
-        if (src_dt != memory::f32)
+        if (src_dt != memory::data_type::f32)
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
     inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 movss(xmm_src, op);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
                 movq(xmm_src, reg_tmp_64);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 movzx(reg_tmp_32, op);
                 movq(xmm_src, reg_tmp_64);
                 break;
@@ -561,9 +563,9 @@ private:
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
 
-        if (dst_dt == memory::f32) {
+        if (dst_dt == memory::data_type::f32) {
             uni_vmovups(op, vmm_dst);
-        } else if (dst_dt == memory::u8) {
+        } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
                 vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
@@ -578,7 +580,7 @@ private:
                 else
                     movd(op, xmm_dst);
             }
-        } else if (dst_dt == memory::s8) {
+        } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
                 vpmovsdb(op, vmm_dst);
@@ -601,17 +603,17 @@ private:
         }
 
         switch (dst_dt) {
-            case memory::f32:
-            case memory::s32:
+            case memory::data_type::f32:
+            case memory::data_type::s32:
                 movss(op, xmm_dst);
                 break;
-            case memory::s8:
+            case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
-            case memory::u8:
+            case memory::data_type::u8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
@@ -629,7 +631,7 @@ private:
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
-        for (int i = 0; i < p.len_; i++) {
+        for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 if (eltwise_injectors.size() <= eltwise_inj_idx
@@ -653,7 +655,7 @@ private:
                         || quantization_injectors[quantization_inj_idx] == nullptr)
                     assert(!"Invalid quantization injectors.");
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
+                bool do_rounding = do_dequantization || dst_dt == memory::data_type::f32 || i != p.len() - 1;
 
                 int s_idx = vmm_val.getIdx();
 
@@ -774,7 +776,7 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
 
-    auto pushDesc = [&](memory::format format) {
+    auto pushDesc = [&](memory::format_tag format) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), outputDataType, format);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, format});
@@ -783,11 +785,11 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
     // only plain layout support when w/o sse42
     if (getParentEdgeAt(0)->getDims().ndims() == 4) {
         if (mayiuse(cpu::sse42)) {
-            pushDesc(memory::nhwc);
+            pushDesc(memory::format_tag::nhwc);
             if (mayiuse(cpu::avx512_common)) {
-                pushDesc(memory::nChw16c);
+                pushDesc(memory::format_tag::nChw16c);
             } else {
-                pushDesc(memory::nChw8c);
+                pushDesc(memory::format_tag::nChw8c);
             }
         }
     }
@@ -860,13 +862,13 @@ void MKLDNNNormalizeNode::createPrimitive() {
     }
 
     const auto &p = (*attr.get()).post_ops_;
-    for (int i = 0; i < p.len_; i++) {
+    for (int i = 0; i < p.len(); i++) {
         auto &post_op = p.entry_[i];
         if (post_op.is_eltwise()) {
-            eltwise_injectors_ref.push_back(std::make_shared<ref_eltwise_scalar_fwd_t>(
-                post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta));
+            eltwise_injectors_ref.push_back(std::make_shared<cpu::ref_eltwise_scalar_fwd_t>(
+                post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
         } else if (post_op.is_depthwise()) {
-            depthwise_injectors_ref.push_back(std::make_shared<ref_depthwise_scalar_fwd_t>(
+            depthwise_injectors_ref.push_back(std::make_shared<cpu::ref_depthwise_scalar_fwd_t>(
                     post_op.depthwise.alg));
         }
     }
@@ -875,12 +877,8 @@ void MKLDNNNormalizeNode::createPrimitive() {
 void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    const uint8_t *src_ptr = reinterpret_cast<const uint8_t*>(srcMemPtr->GetData()) +
-            srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding *
-            MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(srcMemPtr->GetDescriptor().data.data_type));
-    uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(dstMemPtr->GetData()) +
-            dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding *
-            MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dstMemPtr->GetDescriptor().data.data_type));
+    const uint8_t *src_ptr = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+    uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
     auto dims = getParentEdgeAt(0)->getDesc().getDims();
 
@@ -1400,7 +1398,7 @@ inline void MKLDNNNormalizeNode::apply_post_ops_scalar(float &dst_value, int ind
     const auto &p = (*attr.get()).post_ops_;
     int eltwise_inj_idx = 0;
     int depthwise_inj_idx = 0;
-    for (int i = 0; i < p.len_; i++) {
+    for (int i = 0; i < p.len(); i++) {
         auto &post_op = p.entry_[i];
         if (post_op.is_eltwise()) {
             dst_value = eltwise_injectors_ref[eltwise_inj_idx]->compute_scalar(dst_value);
@@ -1412,7 +1410,7 @@ inline void MKLDNNNormalizeNode::apply_post_ops_scalar(float &dst_value, int ind
             depthwise_inj_idx++;
         } else if (post_op.is_quantization()) {
             bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-            bool do_rounding = do_dequantization || output_prec == Precision::FP32 || i != p.len_ - 1;
+            bool do_rounding = do_dequantization || output_prec == Precision::FP32 || i != p.len() - 1;
 
             auto quant = post_op.quantization;
 

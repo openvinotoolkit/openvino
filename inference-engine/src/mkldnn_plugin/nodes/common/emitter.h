@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class jit_emitter {
 public:
-    jit_emitter(mkldnn::impl::cpu::jit_generator* host, mkldnn::impl::cpu::cpu_isa_t host_isa, const MKLDNNNode& node,
+    jit_emitter(mkldnn::impl::cpu::x64::jit_generator* host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode& node,
                 InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
         : h(host), host_isa_(host_isa), n(node), exec_prc_(exec_prc) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
@@ -33,8 +33,8 @@ protected:
     size_t get_vec_length() const;
 
     const MKLDNNNode& n;
-    mkldnn::impl::cpu::jit_generator* h;
-    mkldnn::impl::cpu::cpu_isa_t host_isa_;
+    mkldnn::impl::cpu::x64::jit_generator* h;
+    mkldnn::impl::cpu::x64::cpu_isa_t host_isa_;
     InferenceEngine::Precision exec_prc_;
 
     Xbyak::Opmask k_mask;
@@ -63,12 +63,12 @@ protected:
     Xbyak::Label l_table;
 
     enum {
-        _cmp_eq_oq = mkldnn::impl::cpu::jit_generator::_cmp_eq_oq,
-        _cmp_neq_uq = mkldnn::impl::cpu::jit_generator::_cmp_neq_uq,
-        _cmp_lt_os = mkldnn::impl::cpu::jit_generator::_cmp_lt_os,
-        _cmp_le_os = mkldnn::impl::cpu::jit_generator::_cmp_le_os,
-        _cmp_ge_os = mkldnn::impl::cpu::jit_generator::_cmp_nlt_us,
-        _cmp_gt_os = mkldnn::impl::cpu::jit_generator::_cmp_nle_us,
+        _cmp_eq_oq = mkldnn::impl::cpu::x64::jit_generator::_cmp_eq_oq,
+        _cmp_neq_uq = mkldnn::impl::cpu::x64::jit_generator::_cmp_neq_uq,
+        _cmp_lt_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_lt_os,
+        _cmp_le_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_le_os,
+        _cmp_ge_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_nlt_us,
+        _cmp_gt_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_nle_us,
     };
 
     virtual void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,

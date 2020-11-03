@@ -231,7 +231,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
                                                     {blkDims, order, offset, offsets, strides});
             }
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::ndhwc);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::ndhwc);
 
             return;
         }
@@ -303,7 +303,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
                                                      {blkDims, order, offset, offsets, strides});
             }
             if (canInplace) {
-                auto dstFormat = numOfDim == 4lu ? sizeS == 8lu ? mkldnn::memory::nChw8c : mkldnn::memory::format_tag::nChw16c
+                auto dstFormat = numOfDim == 4lu ? sizeS == 8lu ? mkldnn::memory::format_tag::nChw8c : mkldnn::memory::format_tag::nChw16c
                                                  : sizeS == 8lu ? mkldnn::memory::format_tag::nCdhw8c : mkldnn::memory::format_tag::nCdhw16c;
                 supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, dstFormat);
             }
@@ -423,7 +423,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
     }
 
     size_t maxCount = 0;
-    mkldnn::memory::format convertTo = MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims());
+    mkldnn::memory::format_tag convertTo = MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims());
     for (auto &it : formatFrequency) {
         if (it.second > maxCount) {
             maxCount = it.second;

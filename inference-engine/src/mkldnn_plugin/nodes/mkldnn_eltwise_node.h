@@ -8,10 +8,6 @@
 #include <mkldnn_node.h>
 #include <string>
 #include <vector>
-<<<<<<< HEAD
-=======
-//#include <c_types_map.hpp>
->>>>>>> DNTC. Big patch on plugin surces.
 #include <memory>
 #include <caseless.hpp>
 
@@ -137,7 +133,7 @@ private:
     void init() override;
 
     EltwiseOpType eltwiseOp = Add;
-    mkldnn::algorithm eltwiseAlgorithm = mkldnn::algorithm_undef;
+    mkldnn::algorithm eltwiseAlgorithm = mkldnn::algorithm::undef;
 
     std::shared_ptr<jit_uni_eltwise_kernel> eltwise_kernel = nullptr;
     jit_eltwise_params jep = {};

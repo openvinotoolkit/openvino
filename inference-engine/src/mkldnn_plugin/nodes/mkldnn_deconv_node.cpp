@@ -136,16 +136,16 @@ void MKLDNNDeconvolutionNode::setBiasAsPostOp(const InferenceEngine::Blob::Ptr& 
     for (int i = 0; i < biases->size(); i++) {
         weights[i] = 1;
     }
-    PostOpsIntBlobMemory[0]->SetData(memory::data_type::f32, memory::x, &weights[0],
+    PostOpsIntBlobMemory[0]->SetData(memory::data_type::f32, memory::format_tag::x, &weights[0],
             biases->size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
     PostOpsIntBlobMemory[1]->Create(depthwiseDims, memory::data_type::f32, memory::format_tag::x);
     PostOpsIntBlobMemory[1]->FillZero();
-    PostOpsIntBlobMemory[1]->SetData(memory::data_type::f32, memory::x, biases->buffer(),
+    PostOpsIntBlobMemory[1]->SetData(memory::data_type::f32, memory::format_tag::x, biases->buffer(),
             biases->size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
-    ops.append_depthwise(depthwise_scale_shift,
+    ops.append_depthwise(algorithm::depthwise_scale_shift,
                          (const float *) PostOpsIntBlobMemory[0]->GetData(),
                          (const float *) PostOpsIntBlobMemory[1]->GetData());
 
@@ -166,12 +166,12 @@ void MKLDNNDeconvolutionNode::filterSupportedDescriptors() {
         while (itd != descs.end()) {
             bool isSuitableDesc = true;
             if (!inputMemoryFormatsFilter.empty()) {
-                auto src_fmt = std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.src_desc.format;
+                auto src_fmt = MKLDNNMemoryDesc(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.src_desc).getFormat();
                 if (src_fmt != inputMemoryFormatsFilter[0])
                     isSuitableDesc = false;
             }
             if (!outputMemoryFormatsFilter.empty()) {
-                auto dst_fmt = std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.dst_desc.format;
+                auto dst_fmt = MKLDNNMemoryDesc(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.dst_desc).getFormat();
                 if (dst_fmt != outputMemoryFormatsFilter[0])
                     isSuitableDesc = false;
             }
@@ -186,7 +186,8 @@ void MKLDNNDeconvolutionNode::filterSupportedDescriptors() {
 
 void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     if (prim) {
-        strm.submit({*prim});
+        THROW_IE_EXCEPTION << "Unimplemented";
+//        strm.submit({*prim});
     }
 }
 
@@ -201,10 +202,7 @@ void MKLDNNDeconvolutionNode::createPrimitive() {
     auto prim_desc = createPrimitiveDescriptor<convolution_backward_data::primitive_desc,
             convolution_backward_data::desc, convolution_forward::primitive_desc>(attr);
 
-    prim.reset(new convolution_backward_data(prim_desc,
-            getParentEdgeAt(0)->getMemory().GetPrimitive(),
-            getWeights(),
-            getChildEdgeAt(0)->getMemory().GetPrimitive()));
+    prim.reset(new convolution_backward_data(prim_desc));
 }
 
 void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
@@ -216,18 +214,28 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<InferenceEngine
     if ((withGroups && !isDW) && (in_candidate.blocksExtended() || out_candidate.blocksExtended()))
         return;
 
-    MKLDNNMemoryDesc wgh_candidate{weightsDims, in_candidate.getDataType(), memory::any};
+    MKLDNNMemoryDesc wgh_candidate{weightsDims, in_candidate.getDataType(), memory::format_tag::any};
     for (auto alg : {algorithm::convolution_winograd, algorithm::convolution_direct}) {
         try {
+            auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
+                return memory::dims(orig_dims.begin(), orig_dims.end());
+            };
+
             std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
             conv_desc.reset(new convolution_forward::desc(prop_kind::forward_inference, alg,
-                                                          out_candidate, wgh_candidate, in_candidate, stride, dilation,
-                                                          paddingL, paddingR, padding_kind::zero));
+                                                          out_candidate, wgh_candidate, in_candidate,
+                                                          convert(stride),
+                                                          convert(dilation),
+                                                          convert(paddingL),
+                                                          convert(paddingR)));
 
             std::shared_ptr<mkldnn::convolution_backward_data::desc> deconv_desc;
             deconv_desc.reset(new convolution_backward_data::desc(alg, out_candidate, wgh_candidate,
-                                                        in_candidate, stride, dilation, paddingL, paddingR,
-                                                        padding_kind::zero));
+                                                        in_candidate,
+                                                        convert(stride),
+                                                        convert(dilation),
+                                                        convert(paddingL),
+                                                        convert(paddingR)));
             descs_fwd.push_back(conv_desc);
             descs_bwd.push_back(deconv_desc);
 

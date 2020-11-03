@@ -55,7 +55,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
         }
 
         for (auto& config : configs) {
-            std::vector<memory::format> outFormats;
+            std::vector<memory::format_tag> outFormats;
             for (auto& outConfig : config.outConfs) {
                 outFormats.push_back(MKLDNNMemory::Convert(outConfig.desc.getLayout()));
             }

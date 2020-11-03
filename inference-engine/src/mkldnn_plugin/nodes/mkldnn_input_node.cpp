@@ -47,7 +47,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
-    memory::format outFormat = mkldnn::memory::format_undef;
+    memory::format_tag outFormat = mkldnn::memory::format_tag::undef;
     if (getType() == Input || getType() == MemoryInput) {
         precision = getCnnLayer()->outData[0]->getPrecision();
         if (precision == InferenceEngine::Precision::U16 || isMeanImage) {
