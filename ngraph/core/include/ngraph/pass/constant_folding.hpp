@@ -32,17 +32,9 @@ namespace ngraph
 class NGRAPH_API ngraph::pass::ConstantFolding : public ngraph::pass::GraphRewrite
 {
 public:
-    ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap())
-        : GraphRewrite()
-    {
-        m_cfmap = cfmap;
-        m_enable_shape_inference = true;
-        construct_constant_default();
-    }
+    ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap());
 
 private:
-    void construct_constant_default();
-
     void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
                                             const Output<Node>& replacement);
 
