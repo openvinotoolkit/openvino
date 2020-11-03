@@ -84,9 +84,10 @@ namespace opset0_downgrade
             {
                 reshaped_output_shape.insert(reshaped_output_shape.begin() + axis, 1);
             }
-            auto reshaped_product = make_shared<op::Reshape>(replacement_node->output(0),
-                                                             get_default_order(output_shape),
-                                                             reshaped_output_shape);
+            auto shape_pattern = op::Constant::create(
+                element::u64, {reshaped_output_shape.size()}, reshaped_output_shape);
+            auto reshaped_product =
+                make_shared<op::v1::Reshape>(replacement_node->output(0), shape_pattern, false);
             return reshaped_product;
         }
         else
@@ -186,28 +187,6 @@ namespace opset0_downgrade
         const auto autob = node->get_autob();
         const bool pydiv = node->is_pythondiv();
         auto replacement_node = make_shared<op::v0::Divide>(input_arg0, input_arg1, pydiv, autob);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Reshape> node)
-    {
-        shared_ptr<Node> replacement_node;
-
-        const auto target_shape_input = node->input_value(1).get_node_shared_ptr();
-        const auto input_rank = node->get_input_partial_shape(0).rank();
-        if (op::is_constant(target_shape_input) && node->get_output_partial_shape(0).is_static() &&
-            input_rank.is_static())
-        {
-            const auto output_shape = node->get_output_shape(0);
-            replacement_node = make_shared<op::Reshape>(
-                node->input_value(0), get_default_order(input_rank.get_length()), output_shape);
-        }
-        else
-        {
-            NGRAPH_CHECK(replacement_node, "Unable to convert Reshape:v1 with dynamic shape.");
-        }
-
         replace_node(node, replacement_node);
         return replacement_node;
     }
@@ -354,8 +333,9 @@ namespace opset0_downgrade
             {
                 reshaped_output_shape.insert(reshaped_output_shape.begin() + axis, 1);
             }
-            count_node = make_shared<op::Reshape>(
-                count_node->output(0), get_default_order(output_shape), reshaped_output_shape);
+            auto shape_pattern = op::Constant::create(
+                element::u64, {reshaped_output_shape.size()}, reshaped_output_shape);
+            count_node = make_shared<op::v1::Reshape>(count_node->output(0), shape_pattern, false);
         }
 
         const auto replacement_node =
@@ -431,10 +411,9 @@ namespace opset0_downgrade
 
         if (p.reshape_in_shape != p.reshape_out_shape)
         {
-            replacement_node =
-                make_shared<op::Reshape>(replacement_node,
-                                         ngraph::get_default_order(p.reshape_in_shape),
-                                         p.reshape_out_shape);
+            auto shape_pattern = op::Constant::create(
+                element::u64, {p.reshape_out_shape.size()}, p.reshape_out_shape);
+            replacement_node = make_shared<op::v1::Reshape>(replacement_node, shape_pattern, false);
         }
 
         if (!p.reverse_axes.empty())
@@ -489,44 +468,6 @@ namespace opset0_downgrade
         // values output will be 0, indices 1
         vector<int64_t> output_order{1, 0};
         replace_node(node, replacement_node, output_order);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Transpose> node)
-    {
-        const auto data = node->input_value(0);
-
-        const auto data_pshape = data.get_partial_shape();
-        NGRAPH_CHECK(data_pshape.is_static(),
-                     "Unable to convert Transpose:v1 to Reshape:v0 "
-                     "if data shape is dynamic. Node: ",
-                     *node);
-        const auto data_shape = data_pshape.to_shape();
-
-        const auto order_node = node->input_value(1).get_node_shared_ptr();
-        NGRAPH_CHECK(op::is_constant(order_node),
-                     "Unable to convert Transpose:v1 to Reshape:v0 "
-                     "if order node is not constant. Node: ",
-                     *node);
-        const auto order_const = as_type_ptr<op::Constant>(order_node);
-
-        auto order = order_const->get_axis_vector_val();
-        Shape out_shape = data_shape;
-        if (order.empty())
-        {
-            order.resize(out_shape.size());
-            iota(begin(order), end(order), 0);
-        }
-        else
-        {
-            for (size_t i = 0; i < order.size(); ++i)
-            {
-                out_shape[i] = data_shape.at(order.at(i));
-            }
-        }
-
-        auto replacement_node = make_shared<op::v0::Reshape>(data, order, out_shape);
-        replace_node(node, replacement_node);
         return replacement_node;
     }
 
