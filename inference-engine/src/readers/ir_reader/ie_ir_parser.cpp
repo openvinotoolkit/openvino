@@ -1643,7 +1643,8 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ROIPooling>::c
     auto pooled_w = GetUIntAttr(dn, "pooled_w");
     auto spatial_scale = GetFloatAttr(dn, "spatial_scale");
     auto method = GetStrAttr(dn, "method", "max");
-    return std::make_shared<ngraph::op::ROIPooling>(inputs[0], inputs[1], pooled_h, pooled_w, spatial_scale, method);
+    return std::make_shared<ngraph::op::ROIPooling>(inputs[0], inputs[1],
+                                                    ngraph::Shape {pooled_h, pooled_w}, spatial_scale, method);
 }
 
 // PSROIPooling layer

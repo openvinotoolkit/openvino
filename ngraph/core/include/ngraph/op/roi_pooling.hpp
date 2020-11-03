@@ -31,8 +31,8 @@ namespace ngraph
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 enum class ROIPoolingMethod
                 {
-                    Bilinear, // Bilinear interpolation
-                    Max       // Maximum
+                    BLN, // Bilinear interpolation
+                    MAX  // Maximum
                 };
 
                 ROIPooling() = default;
@@ -40,38 +40,33 @@ namespace ngraph
                 ///
                 /// \param input          Input feature map {N, C, H, W}
                 /// \param coords         Coordinates of bounding boxes
-                /// \param pooled_h       Height of the ROI output features
-                /// \param pooled_w       Width of the ROI output features
+                /// \param output_size    Height/Width of ROI output features
                 /// \param spatial_scale  Ratio of input feature map over input image size
                 /// \param method         Method of pooling - Max or Bilinear
                 ROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,
-                           const int pooled_h,
-                           const int pooled_w,
+                           const Shape& output_size,
                            const float spatial_scale,
                            const std::string& method = "max");
 
                 ROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,
-                           const int pooled_h,
-                           const int pooled_w,
+                           const Shape& output_size,
                            const float spatial_scale,
-                           ROIPoolingMethod method = ROIPoolingMethod::Max);
+                           ROIPoolingMethod method = ROIPoolingMethod::MAX);
 
                 void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                int get_pooled_h() const { return m_pooled_h; }
-                int get_pooled_w() const { return m_pooled_w; }
+                const Shape& get_output_size() const { return m_output_size; }
                 float get_spatial_scale() const { return m_spatial_scale; }
                 ROIPoolingMethod get_method() const { return m_method; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
             private:
-                int m_pooled_h;
-                int m_pooled_w;
+                Shape m_output_size;
                 float m_spatial_scale;
                 ROIPoolingMethod m_method;
             };

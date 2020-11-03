@@ -23,13 +23,11 @@ constexpr NodeTypeInfo op::ROIPooling::type_info;
 
 op::ROIPooling::ROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,
-                           const int pooled_h,
-                           const int pooled_w,
+                           const Shape& output_size,
                            const float spatial_scale,
                            const string& method)
     : Op({input, coords})
-    , m_pooled_h(pooled_h)
-    , m_pooled_w(pooled_w)
+    , m_output_size(output_size)
     , m_spatial_scale(spatial_scale)
     , m_method(EnumNames<ROIPooling::ROIPoolingMethod>::as_enum(method))
 {
@@ -38,13 +36,11 @@ op::ROIPooling::ROIPooling(const Output<Node>& input,
 
 op::ROIPooling::ROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,
-                           const int pooled_h,
-                           const int pooled_w,
+                           const Shape& output_size,
                            const float spatial_scale,
                            ROIPoolingMethod method)
     : Op({input, coords})
-    , m_pooled_h(pooled_h)
-    , m_pooled_w(pooled_w)
+    , m_output_size(output_size)
     , m_spatial_scale(spatial_scale)
     , m_method(method)
 {
@@ -65,16 +61,20 @@ void op::ROIPooling::validate_and_infer_types()
         Shape coords_shape = get_input_partial_shape(1).to_shape();
         NODE_VALIDATION_CHECK(this,
                               input_shape.size() == 4,
-                              "ROIPooling expects 4 dimensions for input feature maps. Got ",
+                              "ROIPooling expects 4 dimensions for input. Got ",
                               input_shape.size());
         NODE_VALIDATION_CHECK(this,
                               coords_shape.size() == 2,
                               "ROIPooling expects 2 dimensions for box coordinates. Got ",
                               coords_shape.size());
-        Shape output_shape{coords_shape[0],
-                           input_shape[1],
-                           static_cast<uint64_t>(m_pooled_h),
-                           static_cast<uint64_t>(m_pooled_w)};
+        NODE_VALIDATION_CHECK(this,
+                              input_shape.size() - 2 == m_output_size.size(),
+                              "Spatial dimensions on input: ",
+                              input_shape.size() - 2,
+                              " doesn't match dimensions on requested output_size: ",
+                              m_output_size.size());
+        Shape output_shape{coords_shape[0], input_shape[1]};
+        output_shape.insert(output_shape.end(), m_output_size.begin(), m_output_size.end());
         set_output_type(0, input_et, output_shape);
     }
     else
@@ -87,13 +87,12 @@ shared_ptr<Node> op::ROIPooling::clone_with_new_inputs(const OutputVector& new_a
 {
     check_new_args_count(this, new_args);
     return make_shared<ROIPooling>(
-        new_args.at(0), new_args.at(1), m_pooled_h, m_pooled_w, m_spatial_scale, m_method);
+        new_args.at(0), new_args.at(1), m_output_size, m_spatial_scale, m_method);
 }
 
 bool op::ROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("pooled_h", m_pooled_h);
-    visitor.on_attribute("pooled_w", m_pooled_w);
+    visitor.on_attribute("output_size", m_output_size);
     visitor.on_attribute("spatial_scale", m_spatial_scale);
     visitor.on_attribute("method", m_method);
     return true;
@@ -109,8 +108,8 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::v0::ROIPooling::ROIPoolingMethod>(
             "op::v0::ROIPooling::ROIPoolingMethod",
-            {{"bilinear", op::v0::ROIPooling::ROIPoolingMethod::Bilinear},
-             {"max", op::v0::ROIPooling::ROIPoolingMethod::Max}});
+            {{"bilinear", op::v0::ROIPooling::ROIPoolingMethod::BLN},
+             {"max", op::v0::ROIPooling::ROIPoolingMethod::MAX}});
         return enum_names;
     }
 

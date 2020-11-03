@@ -975,16 +975,16 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ROIPooling>::createLayer(const std::shar
     auto castedLayer = ngraph::as_type_ptr<ngraph::op::ROIPooling>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
-    res->params["pooled_h"] = asString(castedLayer->get_pooled_h());
-    res->params["pooled_w"] = asString(castedLayer->get_pooled_w());
+    res->params["pooled_h"] = asString(castedLayer->get_output_size()[0]);
+    res->params["pooled_w"] = asString(castedLayer->get_output_size()[1]);
     res->params["spatial_scale"] = asString(castedLayer->get_spatial_scale());
     auto method = castedLayer->get_method();
     switch(method) {
-        case ::ngraph::op::ROIPooling::ROIPoolingMethod::Bilinear: {
+        case ::ngraph::op::ROIPooling::ROIPoolingMethod::BLN: {
             res->params["method"] = "bilinear";
             break;
         }
-        case ::ngraph::op::ROIPooling::ROIPoolingMethod::Max: {
+        case ::ngraph::op::ROIPooling::ROIPoolingMethod::MAX: {
             res->params["method"] = "max";
             break;
         }

@@ -1353,7 +1353,7 @@ TEST(attributes, roi_pooling_op)
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
     const auto coords = make_shared<op::Parameter>(element::i32, Shape{2, 3});
 
-    const auto op = make_shared<opset3::ROIPooling>(data, coords, 5, 5, 0.123, "Bilinear");
+    const auto op = make_shared<opset3::ROIPooling>(data, coords, Shape{5, 5}, 0.123, "Bilinear");
     NodeBuilder builder(op);
     const auto g_op = as_type_ptr<opset3::ROIPooling>(builder.create());
 
