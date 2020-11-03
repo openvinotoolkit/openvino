@@ -9,7 +9,11 @@
 using namespace BehaviorTestsDefinitions;
 using namespace InferenceEngine;
 
-const std::vector<BlobKind> blobKinds{BlobKind::Simple, BlobKind::Compound, BlobKind::BatchOfSimple};
+const std::vector<FuncTestUtils::BlobKind> blobKinds = {
+    FuncTestUtils::BlobKind::Simple,
+    FuncTestUtils::BlobKind::Compound,
+    FuncTestUtils::BlobKind::BatchOfSimple
+};
 
 const SetBlobOfKindConfig cpuConfig{}; //nothing special
 const SetBlobOfKindConfig multiConfig{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}};

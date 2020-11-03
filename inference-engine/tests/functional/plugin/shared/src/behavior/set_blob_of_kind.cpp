@@ -13,21 +13,8 @@ using namespace InferenceEngine;
 
 namespace BehaviorTestsDefinitions {
 
-std::ostream& operator<<(std::ostream& os, BlobKind kind) {
-    switch (kind) {
-    case BlobKind::Simple:
-        return os << "Simple";
-    case BlobKind::Compound:
-        return os << "Compound";
-    case BlobKind::BatchOfSimple:
-        return os << "BatchOfSimple";
-    default:
-        THROW_IE_EXCEPTION << "Test does not support the blob kind";
-  }
-}
-
 std::string SetBlobOfKindTest::getTestCaseName(testing::TestParamInfo<SetBlobOfKindParams> obj) {
-    BlobKind blobKind;
+    FuncTestUtils::BlobKind blobKind;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::tie(blobKind, targetDevice, configuration) = obj.param;
@@ -39,27 +26,6 @@ std::string SetBlobOfKindTest::getTestCaseName(testing::TestParamInfo<SetBlobOfK
 }
 
 namespace {
-
-Blob::Ptr makeBlobOfKind(const TensorDesc& td, BlobKind blobKind) {
-    switch (blobKind) {
-    case BlobKind::Simple:
-        return FuncTestUtils::createAndFillBlob(td);
-    case BlobKind::Compound:
-        return make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>{});
-    case BlobKind::BatchOfSimple: {
-        const auto subBlobsNum = td.getDims()[0];
-        auto subBlobDesc = td;
-        subBlobDesc.getDims()[0] = 1;
-        std::vector<Blob::Ptr> subBlobs;
-        for (size_t i = 0; i < subBlobsNum; i++) {
-            subBlobs.push_back(makeBlobOfKind(subBlobDesc, BlobKind::Simple));
-        }
-        return make_shared_blob<BatchedBlob>(subBlobs);
-    }
-    default:
-        THROW_IE_EXCEPTION << "Test does not support the blob kind";
-    }
-}
 
 bool isBatchedBlobSupported(const std::shared_ptr<Core>& core, const LayerTestsUtils::TargetDevice& targetDevice) {
     const std::vector<std::string> supported_metrics = core->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_METRICS));
@@ -76,13 +42,15 @@ bool isBatchedBlobSupported(const std::shared_ptr<Core>& core, const LayerTestsU
                     METRIC_VALUE(BATCHED_BLOB)) != optimization_caps.end();
 }
 
-bool isBlobKindSupported(const std::shared_ptr<Core>& core, const LayerTestsUtils::TargetDevice& targetDevice, BlobKind blobKind) {
+bool isBlobKindSupported(const std::shared_ptr<Core>& core,
+                         const LayerTestsUtils::TargetDevice& targetDevice,
+                         FuncTestUtils::BlobKind blobKind) {
     switch (blobKind) {
-    case BlobKind::Simple:
+    case FuncTestUtils::BlobKind::Simple:
         return true;
-    case BlobKind::Compound:
+    case FuncTestUtils::BlobKind::Compound:
         return false;
-    case BlobKind::BatchOfSimple:
+    case FuncTestUtils::BlobKind::BatchOfSimple:
         return isBatchedBlobSupported(core, targetDevice);
     default:
         THROW_IE_EXCEPTION << "Test does not support the blob kind";
@@ -102,7 +70,6 @@ void SetBlobOfKindTest::Run() {
 
     if (isBlobKindSupported(core, targetDevice, blobKind)) {
         Infer();
-        Validate();
     } else {
         ExpectSetBlobThrow();
     }

@@ -9,19 +9,11 @@
 
 namespace BehaviorTestsDefinitions {
 
-enum class BlobKind {
-    Simple,
-    Compound,
-    BatchOfSimple
-};
-
-std::ostream& operator<<(std::ostream& os, BlobKind kind);
-
 using SetBlobOfKindConfig = std::remove_reference<decltype(((LayerTestsUtils::LayerTestsCommon*)0)->GetConfiguration())>::type;
 
-using SetBlobOfKindParams = std::tuple<BlobKind,             // The kind of blob
-                                       std::string,          // Device name
-                                       SetBlobOfKindConfig>; // configuration
+using SetBlobOfKindParams = std::tuple<FuncTestUtils::BlobKind, // The kind of blob
+                                       std::string,             // Device name
+                                       SetBlobOfKindConfig>;    // configuration
 
 class SetBlobOfKindTest : public testing::WithParamInterface<SetBlobOfKindParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
@@ -34,7 +26,7 @@ protected:
     void SetUp() override;
 
 private:
-    BlobKind blobKind;
+    FuncTestUtils::BlobKind blobKind;
 };
 
 } // namespace BehaviorTestsDefinitions
