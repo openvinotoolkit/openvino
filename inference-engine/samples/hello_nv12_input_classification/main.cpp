@@ -74,15 +74,13 @@ std::vector<std::string> readInputFileNames(const std::string& path) {
     std::vector<std::string> files;
 
     if (S_ISDIR(sb.st_mode)) {
-        DIR* dp;
-        dp = opendir(path.c_str());
+        DIR *dp = opendir(path.c_str());
         if (dp == nullptr) {
             slog::warn << "Directory " << path << " cannot be opened!" << slog::endl;
             return {};
         }
 
-        struct dirent* ep;
-        while (nullptr != (ep = readdir(dp))) {
+        for (struct dirent* ep = readdir(dp); ep != nullptr; ep = readdir(dp)) {
             std::string fileName = ep->d_name;
             if (fileName == "." || fileName == ".." || fileName.substr(fileName.size() - 4) != ".yuv") continue;
             files.push_back(path + "/" + ep->d_name);
