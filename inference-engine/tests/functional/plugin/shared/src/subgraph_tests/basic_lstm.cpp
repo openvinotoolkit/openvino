@@ -195,10 +195,9 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
     // Calculate References for the network before transformation passes
     auto referenceOutputs = CalculateRefs();
 
-    // Apply LowLatency transformation
+    // Apply LowLatency and UnrollTensorIterator transformations
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::LowLatency>();
-    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+    manager.register_pass<ngraph::pass::LowLatency>(); // LowLatency enables UnrollTI
     manager.run_passes(function);
     LoadNetwork();
     auto states = executableNetwork.QueryState();

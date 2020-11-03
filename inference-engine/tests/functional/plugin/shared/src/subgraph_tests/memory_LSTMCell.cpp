@@ -10,6 +10,7 @@
 
 #include "ie_core.hpp"
 
+#include "ie_transformations.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
@@ -293,16 +294,22 @@ namespace SubgraphTestsDefinitions {
         Validate();
     }
 
-    void MemoryLSTMCellTest::RunLowLatency() {
+    void MemoryLSTMCellTest::RunLowLatency(bool regular_api) {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         CreatePureTensorIteratorModel();
-        // Apply LowLatency transformation (insert Assigns/ReadValues)
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::LowLatency>();
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-        manager.run_passes(function);
-        LoadNetwork();
+        if (regular_api) {
+            cnnNetwork = InferenceEngine::CNNNetwork{function};
+            InferenceEngine::LowLatency(cnnNetwork);
+            ConfigureNetwork();
+            executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+        } else {
+            // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::LowLatency>(); // LowLatency enables UnrollTI
+            manager.run_passes(function);
+            LoadNetwork();
+        }
         auto states = executableNetwork.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
@@ -333,5 +340,9 @@ namespace SubgraphTestsDefinitions {
 
     TEST_P(MemoryLSTMCellTest, CompareWithRefs_LowLatencyTransformation) {
         RunLowLatency();
+    };
+
+    TEST_P(MemoryLSTMCellTest, CompareWithRefs_LowLatencyRegularAPITransformation) {
+        RunLowLatency(true);
     };
 }  // namespace SubgraphTestsDefinitions

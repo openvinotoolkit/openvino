@@ -32,7 +32,7 @@ private:
 protected:
     void SetUp() override;
     void Run() override;
-    void RunLowLatency();
+    void RunLowLatency(bool regular_api = false);
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<memoryLSTMCellParams> &obj);
 };

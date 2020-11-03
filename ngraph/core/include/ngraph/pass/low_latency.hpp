@@ -7,25 +7,23 @@
 #include <memory>
 #include <vector>
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph
 {
     namespace pass
     {
-        class TRANSFORMATIONS_API LowLatency;
+        class NGRAPH_API LowLatency;
 
     } // namespace pass
 } // namespace ngraph
 
 /**
- * @ingroup ie_transformation_common_api
  * @brief The transformation finds all TensorIterator layers in the network, processes all back
  * edges that describe a connection between Result and Parameter of the TensorIterator body,
  * and inserts ReadValue layer between Parameter and the next layers after this Parameter,
  * and Assign layer after the layers before the Result layer.
+ * Supported platforms: CPU, GNA.
  *
  *  The example below describes the changes to the inner part (body, back edges) of the Tensor
  * Iterator layer.
@@ -40,9 +38,20 @@ namespace ngraph
  *                                                              \
  *                                                               -> Result ] -> back_edge_1
  *
- *  It is recommended to use this transformation in conjunction with the UnrollTI transformation.
- *  After applying both of these transformations, you will have a network that allows you to infer
- *  step by step, the state will store between inferences.
+ *  It is recommended to use this transformation in conjunction with the Reshape feature to set sequence
+ *  dimension to 1 and with the UnrollTensorIterator transformation.
+ *  For convenience, we have already enabled the unconditional execution of the UnrollTensorIterator
+ *  transformation when using the LowLatency transformation for CPU, GNA plugins, no action is required here.
+ *  After applying both of these transformations, the resulting network can be inferred step by step,
+ *  the states will store between inferences.
+ *
+ *    An illustrative example, not real API:
+ *
+ *    network->reshape(...) // Set sequence dimension to 1, recalculating shapes. Optional, depends on the network.
+ *    LowLatency(network)   // Applying LowLatency and UnrollTensorIterator transformations.
+ *    network->infer (...)  // Calculating new values for states.
+ *    // All states are stored between inferences via Assign, ReadValue layers.
+ *    network->infer (...)  // Using stored states, calculating new values for states.
  * *
  */
 

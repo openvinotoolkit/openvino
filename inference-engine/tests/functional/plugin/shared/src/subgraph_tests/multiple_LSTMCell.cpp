@@ -20,6 +20,7 @@
 
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <ie_transformations.hpp>
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/op_conversions/low_latency.hpp"
 #include "subgraph_tests/multiple_LSTMCell.hpp"
@@ -442,20 +443,26 @@ void MultipleLSTMCellTest::Run() {
     Validate();
 }
 
-void MultipleLSTMCellTest::RunLowLatency() {
+void MultipleLSTMCellTest::RunLowLatency(bool regular_api) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,
                                                   InferenceEngine::SizeVector({1, hiddenSize}),
                                                   InferenceEngine::Layout::NC);
     // Calculate values after LowLatency transformation
     CreatePureTensorIteratorModel();
-    function->validate_nodes_and_infer_types();
-    // Apply LowLatency transformation (insert Assigns/ReadValues)
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::LowLatency>();
-    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-    manager.run_passes(function);
-    LoadNetwork();
+    if (regular_api) {
+        cnnNetwork = InferenceEngine::CNNNetwork{function};
+        InferenceEngine::LowLatency(cnnNetwork);
+        ConfigureNetwork();
+        executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+    } else {
+        function->validate_nodes_and_infer_types();
+        // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::LowLatency>(); // LowLatency enables UnrollTI
+        manager.run_passes(function);
+        LoadNetwork();
+    }
     auto states = executableNetwork.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
@@ -495,5 +502,9 @@ TEST_P(MultipleLSTMCellTest, CompareWithRefs) {
 
 TEST_P(MultipleLSTMCellTest, CompareWithRefs_LowLatencyTransformation) {
     RunLowLatency();
+};
+
+TEST_P(MultipleLSTMCellTest, CompareWithRefs_LowLatencyRegularAPITransformation) {
+    RunLowLatency(true);
 };
 }  // namespace SubgraphTestsDefinitions
