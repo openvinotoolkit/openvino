@@ -210,61 +210,6 @@ TEST(constant_folding, constant_unsqueeze)
     ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(constant_folding, constant_reshape)
-{
-    Shape shape_in{2, 4};
-    Shape shape_out{2, 4, 1};
-
-    vector<float> values_in{0, 1, 2, 3, 4, 5, 6, 7};
-    auto constant = make_shared<op::Constant>(element::f32, shape_in, values_in);
-    auto reshape = make_shared<op::Reshape>(constant, AxisVector{0, 1}, shape_out);
-    reshape->set_friendly_name("test");
-    auto f = make_shared<Function>(reshape, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Reshape>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<float>();
-
-    ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
-}
-
-TEST(constant_folding, DISABLED_constant_reshape_permute)
-{
-    Shape shape_in{2, 4};
-    Shape shape_out{4, 2};
-
-    vector<double> values_in{0, 1, 2, 3, 4, 5, 6, 7};
-    auto constant = make_shared<op::Constant>(element::f64, shape_in, values_in);
-    auto reshape = make_shared<op::Reshape>(constant, AxisVector{1, 0}, shape_out);
-    reshape->set_friendly_name("test");
-    auto f = make_shared<Function>(reshape, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Reshape>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<double>();
-
-    vector<double> values_permute{0, 4, 1, 5, 2, 6, 3, 7};
-    ASSERT_TRUE(test::all_close_f(values_permute, values_out, MIN_FLOAT_TOLERANCE_BITS));
-}
-
 TEST(constant_folding, constant_broadcast_v1)
 {
     vector<int32_t> values_in{0, 1};
