@@ -20,16 +20,10 @@ import numpy as np
 from generator import generate, generator
 
 from extensions.middle.SliceConverter import ConvertSlice
-from extensions.ops.Cast import Cast
-from extensions.ops.parameter import Parameter
-from mo.front.common.partial_infer.concat import concat_infer
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
-from mo.ops.slice import Slice
-from mo.ops.strided_slice import StridedSlice
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, \
-    regular_op_with_empty_data, result, connect, const, empty_data, regular_op
+    regular_op_with_empty_data, result, connect, const, empty_data
 
 
 @generator
