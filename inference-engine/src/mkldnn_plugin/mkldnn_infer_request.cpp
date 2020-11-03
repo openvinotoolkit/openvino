@@ -42,7 +42,7 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
     IE_SUPPRESS_DEPRECATED_START
-    if (execNetwork->QueryState().size() == 0){
+    if (execNetwork->QueryState().size() == 0) {
         for (auto &node : graph->GetNodes()) {
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
@@ -58,7 +58,7 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
            }
         }
     } else {
-    	memoryStates = execNetwork->QueryState();
+        memoryStates = execNetwork->QueryState();
     }
     IE_SUPPRESS_DEPRECATED_END
 }
