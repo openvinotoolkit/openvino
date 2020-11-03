@@ -31,7 +31,7 @@ public:
 
     /**
      * @brief Gets name of current memory state, if length of array is not enough name is truncated by len, null
-     * terminator is inserted as well.
+     * terminator is inserted as well. As memory state name variable_id from according ReadValue used. 
      *
      * @param name preallocated buffer for receiving name
      * @param len Length of the buffer
@@ -41,7 +41,7 @@ public:
     virtual StatusCode GetName(char* name, size_t len, ResponseDesc* resp) const noexcept = 0;
 
     /**
-     * @brief reset internal memory state for relevant iexecutable network, to a value specified in SetState
+     * @brief Reset internal memory state for relevant infer request, to a value specified as default for according ReadValue node
      *
      * @param  resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success*
@@ -49,20 +49,19 @@ public:
     virtual StatusCode Reset(ResponseDesc* resp) noexcept = 0;
 
     /**
-     * @brief  Sets the new state that is used for all future Reset() operations as a base.
+     * @brief  Sets the new state for the next inference.
      *
      * This method can fail if Blob size does not match the internal state size or precision
      *
-     * @param  newState is the data to use as base state
+     * @param  newState is the data to use as new state
      * @param  resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
     virtual StatusCode SetState(Blob::Ptr newState, ResponseDesc* resp) noexcept = 0;
 
     /**
-     * @brief returns the value of the last memory state.
+     * @brief Returns the value of the memory state.
      *
-     * @details Since we roll memory after each infer, we can query the input state always and still get the last state.
      * @param lastState
      * @param  resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success
