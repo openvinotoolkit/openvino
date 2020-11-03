@@ -277,7 +277,7 @@ TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination) {
             } else {
                 k = make_shared<op::Constant>(element::i64, Shape{}, std::vector<int64_t>{shape[last_dim].get_length()});
             }
-            A1 = make_shared<op::v1::TopK>(A, k, last_dim, op::TopKMode::MAX, op::TopKSortType::NONE);
+            A1 = make_shared<op::v1::TopK>(A, k, last_dim, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         } else {
             A1 = make_shared<op::v0::Abs>(A);
         }
@@ -748,7 +748,7 @@ TEST(nop_elimination, topk_convert_elimination) {
     auto check_usecase = []() {
         auto A = make_shared<op::Parameter>(element::f32, Shape{20, 3, 4});
         auto A1 = make_shared<op::v0::Abs>(A);
-        auto B = make_shared<op::v1::TopK>(A1, op::Constant::create(element::i64, {}, {10}), 0, op::TopKMode::MAX, op::TopKSortType::NONE);
+        auto B = make_shared<op::v1::TopK>(A1, op::Constant::create(element::i64, {}, {10}), 0, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         auto C = make_shared<op::Convert>(B->output(0), B->output(0).get_element_type());
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(C), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);

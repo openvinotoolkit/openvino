@@ -27,14 +27,14 @@ const std::vector<int64_t> k = {
         10,
 };
 
-const std::vector<ngraph::op::TopKMode> modes = {
-        ngraph::op::TopKMode::MIN,
-        ngraph::op::TopKMode::MAX
+const std::vector<ngraph::opset5::TopK::Mode> modes = {
+        ngraph::opset5::TopK::Mode::MIN,
+        ngraph::opset5::TopK::Mode::MAX
 };
 
-const std::vector<ngraph::op::TopKSortType> sortTypes = {
-        ngraph::op::TopKSortType::SORT_INDICES,
-        ngraph::op::TopKSortType::SORT_VALUES,
+const std::vector<ngraph::opset5::TopK::SortType> sortTypes = {
+        ngraph::opset5::TopK::SortType::SORT_INDICES,
+        ngraph::opset5::TopK::SortType::SORT_VALUES,
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_TopK_IndicesValuesSort, TopKLayerTest,
@@ -56,7 +56,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_NoneSort, TopKLayerTest,
             ::testing::Values(1),
             ::testing::ValuesIn(axes),
             ::testing::ValuesIn(modes),
-            ::testing::Values(ngraph::op::TopKSortType::NONE),
+            ::testing::Values(ngraph::opset5::TopK::SortType::NONE),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

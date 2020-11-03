@@ -33,21 +33,21 @@ namespace ngraph
 
             std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_arg_max() const
             {
-                return make_topk_subgraph(ngraph::op::TopKMode::MAX);
+                return make_topk_subgraph(default_opset::TopK::Mode::MAX);
             }
 
             std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_arg_min() const
             {
-                return make_topk_subgraph(ngraph::op::TopKMode::MIN);
+                return make_topk_subgraph(default_opset::TopK::Mode::MIN);
             }
 
             std::shared_ptr<ngraph::Node>
-                ArgMinMaxFactory::make_topk_subgraph(ngraph::op::TopKMode mode) const
+                ArgMinMaxFactory::make_topk_subgraph(default_opset::TopK::Mode mode) const
             {
                 const auto k_node =
                     default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
                 const auto topk = std::make_shared<default_opset::TopK>(
-                    m_input_node, k_node, m_axis, mode, ngraph::op::TopKSortType::NONE);
+                    m_input_node, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
 
                 if (m_keep_dims == 0)
                 {

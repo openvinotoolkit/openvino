@@ -92,8 +92,8 @@ protected:
         // TopK
         const auto k = make_shared<op::Constant>(element::i32, Shape{}, vector<int>{1});
         size_t axis = 1;
-        ngraph::op::TopKMode mode = ngraph::op::TopKMode::MAX;
-        ngraph::op::TopKSortType sort = ngraph::op::TopKSortType::NONE;
+        ngraph::op::v1::TopK::Mode mode = ngraph::op::v1::TopK::Mode::MAX;
+        ngraph::op::v1::TopK::SortType sort = ngraph::op::v1::TopK::SortType::NONE;
         auto argmaxNode = std::make_shared<opset1::TopK>(convNode, k, axis, mode, sort);
         argmaxNode->set_friendly_name("TopK_1");
 

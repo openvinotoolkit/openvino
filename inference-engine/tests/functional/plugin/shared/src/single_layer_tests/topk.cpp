@@ -12,8 +12,8 @@ namespace LayerTestsDefinitions {
     InferenceEngine::SizeVector inputShape;
     std::string targetDevice;
     int64_t keepK, axis;
-    ngraph::op::TopKMode mode;
-    ngraph::op::TopKSortType sort;
+    ngraph::opset4::TopK::Mode mode;
+    ngraph::opset4::TopK::SortType sort;
     std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
@@ -33,8 +33,8 @@ void TopKLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     int64_t keepK, axis;
-    ngraph::op::TopKMode mode;
-    ngraph::op::TopKSortType sort;
+    ngraph::opset4::TopK::Mode mode;
+    ngraph::opset4::TopK::SortType sort;
     std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

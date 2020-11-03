@@ -1257,8 +1257,8 @@ TEST(attributes, topk_op)
     auto k = make_shared<op::Parameter>(element::i32, Shape{});
 
     auto axis = 0;
-    auto mode = op::TopKMode::MAX;
-    auto sort_type = op::TopKSortType::SORT_VALUES;
+    auto mode = opset1::TopK::Mode::MAX;
+    auto sort_type = opset1::TopK::SortType::SORT_VALUES;
 
     auto topk = make_shared<opset1::TopK>(data, k, axis, mode, sort_type);
     NodeBuilder builder(topk);
