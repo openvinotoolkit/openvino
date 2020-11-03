@@ -4,15 +4,24 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
+
+#include <ngraph/function.hpp>
 #include <ngraph/graph_util.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "generic_ie.hpp"
-#include <transformations/init_node_info.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include "legacy/convert_function_to_cnn_network.hpp"
+
+using namespace ngraph;
 
 TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
     std::string model = R"V0G0N(
@@ -358,31 +367,16 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
     });
 }
 
-static InferenceEngine::details::CNNNetworkImplPtr read_network_v10(const std::string& model, Blob::Ptr weights) {
+static std::shared_ptr<ngraph::Function> function_from_model(const std::string& model, Blob::Ptr weights) {
     Core ie;
-    auto result = std::make_shared<InferenceEngine::details::CNNNetworkImpl>();
 
     auto ngraphImpl = ie.ReadNetwork(model, weights);
     auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
 
-    ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
-
-    ::ngraph::pass::Manager manager;
-    manager.register_pass<::ngraph::pass::InitNodeInfo>();
-    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
-    manager.register_pass<::ngraph::pass::CommonOptimizations>();
-    manager.run_passes(graph);
-
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, result.get(), false);
-    IE_SUPPRESS_DEPRECATED_END
-
-    return result;
+    return graph;
 }
 
-static void compareIRsV10(const std::string& model, const std::string& ref, size_t weightsSize = 0, const std::function<void(Blob::Ptr&)>& fillBlob = {}) {
-    Core ie;
+static Blob::Ptr construct_weights(size_t weightsSize = 0, const std::function<void(Blob::Ptr&)>& fillBlob = {}) {
     Blob::Ptr weights;
 
     if (weightsSize) {
@@ -393,35 +387,10 @@ static void compareIRsV10(const std::string& model, const std::string& ref, size
             fillBlob(weights);
     }
 
-    auto network = read_network_v10(model, weights);
-    auto cnnNetwork = ie.ReadNetwork(ref, weights);
-
-    IE_SUPPRESS_DEPRECATED_START
-    FuncTestUtils::compareCNNNetworks(InferenceEngine::CNNNetwork(network), cnnNetwork, false);
-
-    for (auto it = details::CNNNetworkIterator(network.get()); it != details::CNNNetworkIterator(); it++) {
-        InferenceEngine::CNNLayerPtr layer = *it;
-        ASSERT_NE(nullptr, layer->getNode());
-    }
-
-    ASSERT_EQ(nullptr, cnnNetwork.getFunction());
-    for (auto it = details::CNNNetworkIterator(cnnNetwork); it != details::CNNNetworkIterator(); it++) {
-        InferenceEngine::CNNLayerPtr layer = *it;
-        ASSERT_EQ(nullptr, layer->getNode());
-    }
-    IE_SUPPRESS_DEPRECATED_END
+    return weights;
 }
 
-// When IRv10 model contains NMS-1, NMS-3, or NMS-4, we read the network, and then CNNNetworkImpl constructor
-// performs all nGraph transformations, and converts a resulting graph to legacy IR. In particular, NMS-1, NMS-3, NMS-4
-// are converted into NMS-5, and then NMS-5 will be converted into the inner operation NMSIE3. According to
-// specifications, each of operations NMS-1, NMS-3, NMS-4 has one output port, but NMS-5 has three output ports,
-// and one or two output ports can be disconnected. Hence, we will get legacy IR with CNNLayer "NonMaxSuppression"
-// with three output ports and with one element in OutputDataMap. Hence, we can create neither reference legacy IR with
-// one output, nor legacy IR with three outputs, because the function that compares instances of CNNLayer, uses
-// a comparison of the number of all output ports, not only connected ports. Moreover, we cannot creates IRs V10
-// with NMS-5, because output shapes of NMS-5 are dynamic.
-TEST_F(NGraphReaderTests, DISABLED_ReadNonMaxSuppression4) {
+TEST_F(NGraphReaderTests, ReadNonMaxSuppression4) {
    std::string model = R"V0G0N(
 <net name="Network" version="10">
    <layers>
@@ -507,118 +476,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadNonMaxSuppression4) {
        </layer>
        <layer id="7" name="output" type="Result" version="opset1">
            <input>
-               <port id="0" precision="I64">
-                   <dim>16000</dim>
-                   <dim>3</dim>
-               </port>
-           </input>
-       </layer>
-   </layers>
-   <edges>
-       <edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
-       <edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
-       <edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
-       <edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
-       <edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
-       <edge from-layer="5" from-port="5" to-layer="6" to-port="0"/>
-       <edge from-layer="5" from-port="5" to-layer="6" to-port="1"/>
-       <edge from-layer="6" from-port="2" to-layer="7" to-port="0"/>
-   </edges>
-</net>
-)V0G0N";
-   std::string refModel = R"V0G0N(
-<net name="Network" version="10">
-   <layers>
-       <layer id="0" name="in1" type="Parameter" version="opset1">
-           <data element_type="f32" shape="1,15130,4"/>
-           <output>
-               <port id="0" precision="FP32">
-                   <dim>1</dim>
-                   <dim>15130</dim>
-                   <dim>4</dim>
-               </port>
-           </output>
-       </layer>
-       <layer id="1" name="in2" type="Parameter" version="opset1">
-           <data element_type="f32" shape="1,80,15130"/>
-           <output>
-               <port id="0" precision="FP32">
-                   <dim>1</dim>
-                   <dim>80</dim>
-                   <dim>15130</dim>
-               </port>
-           </output>
-       </layer>
-       <layer id="2" name="max_output_boxes_per_class" precision="I64" type="Const" version="opset1">
-           <data offset="0" size="8"/>
-           <output>
-               <port id="0" precision="I64"/>
-           </output>
-       </layer>
-       <layer id="3" name="iou_threshold" precision="FP32" type="Const" version="opset1">
-           <data offset="8" size="4"/>
-           <output>
-               <port id="0" precision="FP32"/>
-           </output>
-       </layer>
-       <layer id="4" name="score_threshold" precision="FP32" type="Const" version="opset1">
-           <data offset="12" size="4"/>
-           <output>
-               <port id="0" precision="FP32"/>
-           </output>
-       </layer>
-       <layer id="5" name="nms" type="NonMaxSuppression" version="opset5">
-           <data box_encoding="corner" output_type="i32" sort_result_descending="0"/>
-           <input>
-               <port id="0" precision="FP32">
-                   <dim>1</dim>
-                   <dim>15130</dim>
-                   <dim>4</dim>
-               </port>
-               <port id="1" precision="FP32">
-                   <dim>1</dim>
-                   <dim>80</dim>
-                   <dim>15130</dim>
-               </port>
-               <port id="2" precision="I64"/>
-               <port id="3" precision="FP32"/>
-               <port id="4" precision="FP32"/>
-           </input>
-           <output>
-               <port id="5" precision="I32">
-                   <dim>16000</dim>
-                   <dim>3</dim>
-               </port>
-               <port id="6" precision="FP32">
-                   <dim>16000</dim>
-                   <dim>3</dim>
-               </port>
-               <port id="7" precision="I32">
-                   <dim>1</dim>
-               </port>
-           </output>
-       </layer>
-       <layer id="6" name="mul" type="Multiply" version="opset1">
-           <input>
                <port id="0" precision="I32">
-                   <dim>16000</dim>
-                   <dim>3</dim>
-               </port>
-               <port id="1" precision="I32">
-                   <dim>16000</dim>
-                   <dim>3</dim>
-               </port>
-           </input>
-           <output>
-               <port id="2" precision="I32">
-                   <dim>16000</dim>
-                   <dim>3</dim>
-               </port>
-           </output>
-       </layer>
-       <layer id="7" name="output" type="Result" version="opset1">
-           <input>
-               <port id="0" precision="I64">
                    <dim>16000</dim>
                    <dim>3</dim>
                </port>
@@ -638,7 +496,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadNonMaxSuppression4) {
 </net>
 )V0G0N";
 
-    compareIRsV10(model, refModel, 16, [](Blob::Ptr& weights) {
+    auto weights = construct_weights(16, [](Blob::Ptr& weights) {
         auto * i64w = weights->buffer().as<int64_t*>();
         i64w[0] = 200;
 
@@ -646,4 +504,25 @@ TEST_F(NGraphReaderTests, DISABLED_ReadNonMaxSuppression4) {
         fp32w[2] = 0.5;
         fp32w[3] = 0.05;
     });
+
+    auto graph = function_from_model(model, weights);
+
+    ::ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::InitNodeInfo>();
+    manager.register_pass<::ngraph::pass::CommonOptimizations>();
+    manager.run_passes(graph);
+
+    auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 15130, 4});
+    auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 80, 15130});
+    auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {200});
+    auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.5});
+    auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.05});
+    auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                           opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, ngraph::element::i32);
+
+    auto mul = std::make_shared<opset5::Multiply>(nms, nms);
+    auto graph_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{boxes, scores});
+
+    auto res = compare_functions(graph, graph_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
