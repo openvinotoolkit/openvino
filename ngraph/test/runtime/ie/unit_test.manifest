@@ -303,7 +303,7 @@ slice_scalar
 slice_3d_start_just_oob
 shape_of_scalar
 reverse_0d
-reverse_1d_nochange
+reverse_1d
 reverse_2d_nochange
 reverse_3d_nochange
 product_trivial
@@ -587,6 +587,7 @@ abc_int64
 # Unsupported primitive of type: Round
 IE_CPU.onnx_model_round
 IE_CPU.onnx_model_round_half_nearest_even
+round_away_from_zero
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -636,7 +637,9 @@ select_v1
 reverse_1d_0
 reverse_2d_0
 reverse_2d_1
+reverse_2d_1_mask
 reverse_2d_01
+reverse_2d_01_mask
 reverse_3d_0
 reverse_3d_1
 reverse_3d_2
@@ -910,6 +913,9 @@ broadcast_algo_matrix_backward_4
 broadcast_algo_matrix_stride_1
 broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
+
+# Cannot find blob with name: Parameter_1
+dynamic_transpose
 
 # Failing from new reason after unblocking more Blob types
 gather_2d_negative_and_positive_indices_axis_0_2d_input
@@ -1476,16 +1482,30 @@ IE_GPU.builder_opset1_collapse_dyn_shape
 IE_GPU.onnx_model_fake_quantize_const_inputs_infer
 IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
 
-# ONNX Loop
-onnx_controlflow_loop_2d_add_execution
+# No Constant/Identity termination condition output body is not supported by current nG Loop
+# is_termination_condition_always_true returns false
+onnx_controlflow_loop_2d_no_identity_termination_cond
+onnx_controlflow_loop_2d_const_no_identity_termination_cond
+onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 
-# ONNX Loop - tests disabled temporarily
-onnx_controlflow_loop_2d_add_check_model
-onnx_controlflow_loop_scalars_check_model
+#dynamic trip count
+onnx_controlflow_loop_2d_trip_count_dynamic
+
+# Input body shape is changed during Loop iterations
+# Exception is throw during Loop shape inference
+# Is it expected?
+onnx_controlflow_loop_concat_values
+
+# Infinitive Loop is not supported
+onnx_controlflow_loop_infinite
+
+# Loop is not supported yet by IE backend
+onnx_controlflow_loop_2d_add
+onnx_controlflow_loop_2d_no_identity_termination_cond_false
 onnx_controlflow_loop_add_initializer_from_parent_scope
-onnx_controlflow_loop_add_input_from_parent_scope
 onnx_controlflow_loop_add_node_from_parent_scope
-onnx_controlflow_loop_add_value_access_to_body_scope_exception
 onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
-onnx_controlflow_loop_2d_add_exception_if_no_identity_cond
+onnx_controlflow_loop_scalars
 onnx_controlflow_loop_2d_add_const_cond
+onnx_controlflow_loop_no_variadic_inputs_and_outputs
+onnx_controlflow_loop_power

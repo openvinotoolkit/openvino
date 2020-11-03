@@ -60,7 +60,7 @@ function(build_ngraph)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
     endif()
 
-    if(NOT (ANDROID OR WINDOWS_STORE))
+    if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
@@ -126,6 +126,7 @@ build_ngraph()
 
 add_subdirectory(inference-engine)
 
+add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 
 #

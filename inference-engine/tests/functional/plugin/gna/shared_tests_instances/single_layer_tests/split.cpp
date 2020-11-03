@@ -26,6 +26,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_NumSplitsCheck, SplitLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({30, 30})),
+                                ::testing::Values(std::vector<size_t>({})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         SplitLayerTest::getTestCaseName);
 
