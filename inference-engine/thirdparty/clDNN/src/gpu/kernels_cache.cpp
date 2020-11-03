@@ -258,10 +258,13 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
     // Compute hash value for each bucket
     // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
     // of the precompiled binaries or get_undef_jit calls
+    // Hash is computed for string that contains compilation options + driver version +
+    // full source code (jit + template + undef sections) of all kernels in the bucket
     for (auto& c : scode) {
         program_code& code = c.second;
+        auto options = c.first;
         for (size_t i = 0; i < code.source.size(); i++) {
-            std::string full_code;
+            std::string full_code = options + " " + _context.get_device_info().driver_version;
             for (auto& ss : code.source[i])
                 full_code += ss;
             code.hash_values.push_back(std::hash<std::string>()(full_code));
