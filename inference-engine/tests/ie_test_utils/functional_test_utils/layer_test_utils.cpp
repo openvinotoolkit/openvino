@@ -46,27 +46,17 @@ void Summary::updateOPsStats(ngraph::NodeTypeInfo op, bool passed) {
 }
 
 void TestEnvironment::TearDown() {
-    ngraph::OpSet opset;
-    switch (opsetVersion) {
-        case 1:
-            opset = ngraph::get_opset1();
-            break;
-        case 2:
-            opset = ngraph::get_opset2();
-            break;
-        case 3:
-            opset = ngraph::get_opset3();
-            break;
-        case 4:
-            opset = ngraph::get_opset4();
-            break;
-        case 5:
-            opset = ngraph::get_opset5();
-            break;
-        default:
-            throw ngraph::ngraph_error("Unsupported opset");
+    std::vector<ngraph::OpSet> opsets;
+    opsets.push_back(ngraph::get_opset1());
+    opsets.push_back(ngraph::get_opset2());
+    opsets.push_back(ngraph::get_opset3());
+    opsets.push_back(ngraph::get_opset4());
+    opsets.push_back(ngraph::get_opset5());
+    std::set<ngraph::NodeTypeInfo> opsInfo;
+    for (const auto &opset : opsets) {
+        const auto &type_info_set = opset.get_type_info_set();
+        opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
-    std::set<ngraph::NodeTypeInfo> opsInfo = opset.get_type_info_set();
 
     auto &s = Summary::getInstance();
     auto stats = s.getOPsStats();
@@ -104,19 +94,16 @@ void TestEnvironment::TearDown() {
     }
 
     pugi::xml_node opsNode = root.append_child("ops_list");
-    opsNode.append_attribute("opset_version").set_value(std::to_string(opsetVersion).c_str());
     for (const auto &op : opsInfo) {
-        pugi::xml_node entry = opsNode.append_child("operation");
-        entry.append_attribute("name").set_value(op.name);
-        entry.append_attribute("version").set_value(op.version);
+        std::string name = std::string(op.name) + "-" + std::to_string(op.version);
+        pugi::xml_node entry = opsNode.append_child(name.c_str());
     }
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(s.deviceName.c_str());
     for (const auto &it : stats) {
-        pugi::xml_node entry = currentDeviceNode.append_child("operation");
-        entry.append_attribute("name").set_value(it.first.name);
-        entry.append_attribute("version").set_value(it.first.version);
+        std::string name = std::string(it.first.name) + "-" + std::to_string(it.first.version);
+        pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("passed").set_value(std::to_string(it.second.passed).c_str());
         entry.append_attribute("failed").set_value(std::to_string(it.second.failed).c_str());
         entry.append_attribute("passrate").set_value(std::to_string(it.second.getPassrate()).c_str());

@@ -111,7 +111,6 @@ public:
     void TearDown() override;
 
 private:
-    uint opsetVersion = 5;
     std::string reportFileName = "report.xml";
 };
 
