@@ -37,8 +37,6 @@ set (SRC
     pass/fused_op_decomposition.hpp
     pass/implicit_broadcast_elimination.cpp
     pass/implicit_broadcast_elimination.hpp
-    pass/like_replacement.cpp
-    pass/like_replacement.hpp
     pass/liveness.cpp
     pass/liveness.hpp
     pass/opset0_downgrade.cpp
@@ -59,6 +57,11 @@ if(COMMAND ie_faster_build)
     ie_faster_build(ngraph_backend
         UNITY
     )
+endif()
+
+if(COMMAND ie_add_vs_version_file)
+    ie_add_vs_version_file(NAME ngraph_backend
+                           FILEDESCRIPTION "nGraph backend library")
 endif()
 
 target_compile_definitions(ngraph_backend

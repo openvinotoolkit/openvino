@@ -85,6 +85,10 @@ namespace
         ie_ops.insert(opset2.begin(), opset2.end());
         auto& opset3 = get_opset3().get_type_info_set();
         ie_ops.insert(opset3.begin(), opset3.end());
+        auto& opset4 = get_opset4().get_type_info_set();
+        ie_ops.insert(opset4.begin(), opset4.end());
+        auto& opset5 = get_opset5().get_type_info_set();
+        ie_ops.insert(opset5.begin(), opset5.end());
         return ie_ops;
     }
 }
