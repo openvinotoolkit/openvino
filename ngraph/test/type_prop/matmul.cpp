@@ -440,9 +440,16 @@ TEST(type_prop, matmul_batch_dynamic_bounds)
                                 Dimension(0, 1),  // 7
                                 Dimension(0, 3),  // 8
                                 1,                // 9
-                                1,                // 10
-                                5,                // 11
-                                6};               // 12
+                                Dimension(1, -1), // 10
+                                Dimension(1, 10), // 11
+                                Dimension(2, -1), // 12
+                                Dimension(1, -1), // 13
+                                Dimension(2, -1), // 14
+                                Dimension(1, -1), // 15
+                                1,                // 16
+                                1,                // 17
+                                5,                // 18
+                                6};               // 19
 
     auto B_shape = PartialShape{dynamic,           // 0
                                 Dimension(10, 20), // 1
@@ -453,10 +460,17 @@ TEST(type_prop, matmul_batch_dynamic_bounds)
                                 dynamic,           // 6
                                 Dimension(0, 1),   // 7
                                 Dimension(2, 5),   // 8
-                                dynamic,           // 9
-                                3,                 // 10
-                                6,                 // 11
-                                4};                // 12
+                                Dimension(5, 10),  // 9
+                                Dimension(1, 5),   // 10
+                                Dimension(1, 5),   // 11
+                                Dimension(1, 5),   // 12
+                                Dimension(2, -1),  // 13
+                                Dimension(2, -1),  // 14
+                                Dimension(1, -1),  // 15
+                                dynamic,           // 16
+                                3,                 // 17
+                                6,                 // 18
+                                4};                // 19
 
     auto expected_output_shape = PartialShape{dynamic,           // 0
                                               Dimension(10, 20), // 1
@@ -467,10 +481,17 @@ TEST(type_prop, matmul_batch_dynamic_bounds)
                                               Dimension(1, -1),  // 6
                                               Dimension(0, 1),   // 7
                                               Dimension(2, 5),   // 8
-                                              Dimension(1, -1),  // 9
-                                              3,                 // 10
-                                              5,                 // 11
-                                              4};                // 12
+                                              Dimension(5, 10),  // 9
+                                              Dimension(1, -1),  // 10
+                                              Dimension(1, 10),  // 11
+                                              Dimension(2, -1),  // 12
+                                              Dimension(2, -1),  // 13
+                                              Dimension(2, -1),  // 14
+                                              Dimension(1, -1),  // 15
+                                              Dimension(1, -1),  // 16
+                                              3,                 // 17
+                                              5,                 // 18
+                                              4};                // 19
 
     auto A = make_shared<op::Parameter>(element::f32, A_shape);
     auto B = make_shared<op::Parameter>(element::f32, B_shape);

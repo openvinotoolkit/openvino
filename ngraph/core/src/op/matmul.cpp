@@ -137,76 +137,37 @@ namespace matmul
             // expand dim with value 1 to bigger dim if dimensions are not equal
             for (auto i = 0; i < max_rank - 2; i++)
             {
-                // Both dimensions are static
-                if (small_batch_matrix[i].is_static() && big_batch_matrix[i].is_static())
+                // Dimension with value 1 can be expanded to any bigger
+                auto min_dim_val = std::min(small_batch_matrix[i].get_min_length(),
+                                            big_batch_matrix[i].get_min_length());
+                if (min_dim_val > 1)
                 {
-                    // Check if batch dimension broadcast is possible
-                    NGRAPH_CHECK(
-                        (small_batch_matrix[i].get_length() == big_batch_matrix[i].get_length()) ||
-                            (std::min(small_batch_matrix[i].get_length(),
-                                      big_batch_matrix[i].get_length()) == 1),
-                        "Incompatible batch dimensions.");
-
-                    output_shape[i] = std::max(small_batch_matrix[i].get_length(),
-                                               big_batch_matrix[i].get_length());
+                    NGRAPH_CHECK(Dimension::merge(
+                                     merged_dimension, small_batch_matrix[i], big_batch_matrix[i]),
+                                 "Incompatible batch dimensions.");
+                    output_shape[i] = merged_dimension;
                 }
-                // At least one dimension is dynamic
                 else
                 {
-                    // Dimension with value 1 can be expanded to any bigger
-                    auto min_dim_val = std::min(small_batch_matrix[i].get_min_length(),
-                                                big_batch_matrix[i].get_min_length());
-                    if (min_dim_val > 1)
+                    Dimension::value_type upper_bound, lower_bound;
+                    lower_bound = std::max(small_batch_matrix[i].get_min_length(),
+                                           big_batch_matrix[i].get_min_length());
+
+                    if (lower_bound <= 1)
                     {
-                        NGRAPH_CHECK(Dimension::merge(merged_dimension,
-                                                      small_batch_matrix[i],
-                                                      big_batch_matrix[i]),
-                                     "Incompatible batch dimensions bounds.");
-                        output_shape[i] = merged_dimension;
-                        continue;
+                        // Both of the dimensions have 1 in range,
+                        // upper_bound is the higher max value
+                        upper_bound = std::max(small_batch_matrix[i].get_interval().get_max_val(),
+                                               big_batch_matrix[i].get_interval().get_max_val());
                     }
-
-                    // Both dimensions are dynamic and at least one of them has value <= 1
-                    if (small_batch_matrix[i].is_dynamic() && big_batch_matrix[i].is_dynamic())
-                    {
-                        auto upper_bound_limit = -1;
-                        auto upper_bound = std::min(small_batch_matrix[i].get_max_length(),
-                                                    big_batch_matrix[i].get_max_length());
-
-                        if (upper_bound != upper_bound_limit)
-                        {
-                            upper_bound = std::max(small_batch_matrix[i].get_max_length(),
-                                                   big_batch_matrix[i].get_max_length());
-                        }
-
-                        auto lower_bound = std::max(small_batch_matrix[i].get_min_length(),
-                                                    big_batch_matrix[i].get_min_length());
-                        output_shape[i] = Dimension(lower_bound, upper_bound);
-                    }
-                    // One dimension is static and one dynamic
                     else
                     {
-                        Dimension dim_static, dim_dynamic;
-                        if (small_batch_matrix[i].is_static())
-                        {
-                            dim_static = small_batch_matrix[i];
-                            dim_dynamic = big_batch_matrix[i];
-                        }
-                        else
-                        {
-                            dim_static = big_batch_matrix[i];
-                            dim_dynamic = small_batch_matrix[i];
-                        }
-
-                        if (dim_static.get_length() <= 1 && dim_dynamic.get_min_length() <= 1)
-                        {
-                            output_shape[i] = Dimension(1, dim_dynamic.get_max_length());
-                        }
-                        else
-                        {
-                            output_shape[i] = dim_static;
-                        }
+                        // Set upper_bound same as upper bound the dimension without 1 in range
+                        upper_bound = small_batch_matrix[i].get_min_length() <= 1
+                                          ? big_batch_matrix[i].get_max_length()
+                                          : small_batch_matrix[i].get_max_length();
                     }
+                    output_shape[i] = Dimension(lower_bound, upper_bound);
                 }
             }
         }
