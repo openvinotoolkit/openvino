@@ -128,6 +128,9 @@
                 <tab type="user" title="Draw Face Attributes Python Sample" url="@ref gst_samples_python_draw_face_attributes_README"/>
                 <tab type="user" title="Benchmark Sample" url="@ref gst_samples_benchmark_README"/>
             </tab>
+            <tab type="usergroup" title="Add-Ons" url="">
+              <tab type="user" title="Model Server" url="@ref openvino_docs_ovms"/>  
+            </tab>
         </tab>
 
         <!-- Chinese docs -->
