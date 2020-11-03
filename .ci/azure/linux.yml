@@ -50,9 +50,9 @@ jobs:
 
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
-      python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
       # For running Python API tests
-      python3 -m pip install -r ./inference-engine/ie_bridges/python/src/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
       unzip ninja-linux.zip
