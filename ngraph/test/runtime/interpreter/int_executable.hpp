@@ -823,7 +823,12 @@ protected:
         case OP_TYPEID::Loop_v5:
         {
             auto loop = dynamic_cast<const op::v5::Loop&>(node);
-            reference::loop(loop, out, args);
+            reference::loop(loop.get_function(),
+                            loop.get_output_descriptions(),
+                            loop.get_input_descriptions(),
+                            loop.get_special_body_ports(),
+                            out,
+                            args);
             break;
         }
         case OP_TYPEID::Log:

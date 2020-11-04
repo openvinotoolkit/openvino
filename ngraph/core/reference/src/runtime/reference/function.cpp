@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <cstring>
+#include <ngraph/pass/visualize_tree.hpp>
 
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/runtime/reference/function.hpp"
@@ -74,6 +75,8 @@ namespace ngraph
                     tensor_map.insert({tensor, func_outputs[output_count]});
                 }
 
+                ngraph::pass::VisualizeTree vt("loop_test.svg");
+                vt.run_on_function(function);
                 // for each ordered op in the graph
                 for (const auto& op : function->get_ordered_ops())
                 {
@@ -112,6 +115,7 @@ namespace ngraph
                     if (!op->evaluate(op_outputs, op_inputs))
                     {
                         // exception
+                        std::cout << "ERRROR!11" << std::endl;
                         // generate_calls(type, *op.get(), op_outputs, op_inputs);
                     }
 
@@ -157,15 +161,13 @@ namespace ngraph
                     inputTensors.push_back(tensor);
                 }
 
-                auto outputTensors = std::vector<std::shared_ptr<ngraph::runtime::Tensor>>{};
                 const auto &results = function->get_results();
-                outputTensors.reserve(results.size());
-                for (size_t i = 0; i <results.size(); ++i) {
-                    outputTensors[i] = std::make_shared<HostTensor>();
+                std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
+                for (size_t i = 0; i < results.size(); ++i) {
+                    outputTensors.push_back(std::make_shared<HostTensor>());
                 }
-
                 call(outputTensors, inputTensors, function);
-                auto outputs = std::vector<std::vector<std::uint8_t>>(results.size());
+                std::vector<std::vector<std::uint8_t>> outputs(results.size());
                 for (const auto &result : results) {
                     const auto &resultIndex = function->get_result_index(result);
                     auto &output = outputs[resultIndex];

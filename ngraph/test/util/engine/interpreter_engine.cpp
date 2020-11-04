@@ -116,8 +116,8 @@ test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> fun
     m_executable = m_backend->compile(m_function);
     for (auto i = 0; i < m_function->get_output_size(); ++i)
     {
-        m_result_tensors.push_back(m_backend->create_tensor(m_function->get_output_element_type(i),
-                                                            m_function->get_output_shape(i)));
+        m_result_tensors.push_back(m_backend->create_dynamic_tensor(m_function->get_output_element_type(i),
+                                                            m_function->get_output_partial_shape(i)));
     }
 }
 

@@ -10,7 +10,7 @@
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
+// See the License for the specific language governing permissions and`
 // limitations under the License.
 //*****************************************************************************
 
@@ -25,7 +25,12 @@ namespace ngraph
     {
         namespace reference
         {
-            void loop(ngraph::opset5::Loop& loop,
+            void loop(const std::shared_ptr<Function>& body,
+                      const std::vector<std::shared_ptr<opset5::TensorIterator::OutputDescription>>&
+                          out_descs,
+                      const std::vector<std::shared_ptr<opset5::TensorIterator::InputDescription>>&
+                          input_descs,
+                      opset5::Loop::SpecialBodyPorts special_ports,
                       const std::vector<std::shared_ptr<HostTensor>>& out,
                       const std::vector<std::shared_ptr<HostTensor>>& args);
         }
