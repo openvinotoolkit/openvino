@@ -27,6 +27,10 @@ namespace ngraph
 {
     namespace onnx_import
     {
+        /// \brief      Type of container which stores opset version and domain in ONNX format
+        using OpsetImportType =
+            ::google::protobuf::RepeatedPtrField<ONNX_NAMESPACE::OperatorSetIdProto>;
+
         std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto);
 
         class Model
@@ -44,7 +48,7 @@ namespace ngraph
             const std::string& get_producer_name() const { return m_model_proto->producer_name(); }
             const ONNX_NAMESPACE::GraphProto& get_graph() const { return m_model_proto->graph(); }
             std::int64_t get_model_version() const { return m_model_proto->model_version(); }
-            std::vector<int64_t> get_opset_versions() const;
+            const OpsetImportType& get_opset_import() const;
             const std::string& get_producer_version() const
             {
                 return m_model_proto->producer_version();
