@@ -12,19 +12,19 @@
 
 Before matrix multiplication, there is an implicit shape alignment for input arguments. It consists of the following steps:
 
-1. Applying transpositions specified by optional `transpose_a` and `transpose_b` attributes for 2D tensors and bigger.
+1. Applying transpositions specified by optional `transpose_a` and `transpose_b` attributes. Only the two right-most dimensions are transposed, other dimensions remain the same. Transpose attributes are ignored for 1D tensors.
 
 2. One-dimensional tensors unsqueezing is applied for each input independently. The axes inserted in this step are not included in the output shape.
-    * If rank of the **first** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 at ROW_INDEX_DIM, to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`.
-    * If rank of the **second** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 at COL_INDEX_DIM, to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
+    * If rank of the **first** input is equal to 1, it is always unsqueezed to 2D tensor **row vector** (regardless of `transpose_a`) by adding axes with size 1 at ROW_INDEX_DIM, to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`. 
+    * If rank of the **second** input is equal to 1, it is always unsqueezed to 2D tensor **column vector** (regardless of `transpose_b`) by adding axes with size 1 at COL_INDEX_DIM, to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
 
-3. If ranks of input arguments are different after steps 1 and 2, each is unsqueezed from the left side of the shape by necessary number of axes to make both shapes of the same rank.
+3. If ranks of input arguments are different after steps 1 and 2, the tensor with a smaller rank is unsqueezed from the left side of the shape by necessary number of axes to make both shapes of the same rank.
 
 4. Usual rules of the broadcasting are applied for batch dimensions.
 
-Temporary axes inserted to one-dimensional tensors are removed from the final output shape after multiplying.
+Temporary axes inserted in **step 2** are removed from the final output shape after multiplying.
 After vector-matrix multiplication, the temporary axis inserted at ROW_INDEX_DIM is removed. After matrix-vector multiplication, the temporary axis inserted at COL_INDEX_DIM is removed.
-Output shape of two equal size vectors multiplication is squeezed to scalar.
+Output shape of two 1D tensors multiplication `[S] x [S]` is squeezed to scalar.
 
 Output shape inference logic examples (ND here means bigger than 1D):
 
@@ -34,13 +34,13 @@ Output shape inference logic examples (ND here means bigger than 1D):
 * ND x ND: `[B, ..., X, Y] x [B, ..., Y, Z] => [B, ..., X, Z]`
 
 
-Two attributes, `transpose_a` and `transpose_b` specifies embedded transposition for two right-most dimension for the first and the second input tensors correspondingly. It implies swapping of ROW_INDEX_DIM and COL_INDEX_DIM in the corresponding input tensor. Batch dimensions and 1D tensors are not affected by these attributes.
+Two attributes, `transpose_a` and `transpose_b` specify embedded transposition for two right-most dimensions for the first and the second input tensors correspondingly. It implies swapping of ROW_INDEX_DIM and COL_INDEX_DIM in the corresponding input tensor. Batch dimensions and 1D tensors are not affected by these attributes.
 
 **Attributes**
 
 * *transpose_a*
 
-  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 1st input; **False** means no transpose, **True** means transpose
+  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 1st input; **False** means no transpose, **True** means transpose. It is ignored if first input is 1D tensor.
   * **Range of values**: False or True
   * **Type**: boolean
   * **Default value**: False
@@ -48,7 +48,7 @@ Two attributes, `transpose_a` and `transpose_b` specifies embedded transposition
 
 * *transpose_b*
 
-  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 2nd input; **False** means no transpose, **True** means transpose
+  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 2nd input; **False** means no transpose, **True** means transpose. It is ignored if second input is 1D tensor.
   * **Range of values**: False or True
   * **Type**: boolean
   * **Default value**: False
