@@ -86,7 +86,6 @@ public:
         std::vector<int> decodedTargetLenB(batchNum, 0);
         std::vector<std::vector<int>> targetDB(batchNum);
         std::vector<std::vector<std::vector<float>>> logProbabilitiesB(batchNum);
-        size_t workAmount2 = 0lu;
         std::vector<std::string> errorMsgB(parallel_get_max_threads());
 
         auto threadBody_1 = [&](const int ithr, const int nthr) {
@@ -152,7 +151,6 @@ public:
                 for (size_t ll = 0; ll < actualLogitLen; ll++) {
                     logProbabilities[ll].resize(decodedTargetLen);
                 }
-                workAmount2 += actualLogitLen;
             } // for batch
         }; // threadBody_1
 
@@ -168,6 +166,11 @@ public:
         }
 
         const size_t TC = maxTime * classesNum;
+
+        size_t workAmount2 = 0lu;
+        for (size_t b = 0; b < batchNum; b++) {
+            workAmount2 += logitsLength[b];
+        }
 
         auto threadBody_2 = [&](const int ithr, const int nthr) {
             size_t start(0lu), end(0lu);

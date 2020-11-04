@@ -53,7 +53,5 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 38841
         R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
         R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
-        // TODO: Issue: 41694
-        R"(.*smoke_Set2.*CTCLossLayerTest.*)",
     };
 }
