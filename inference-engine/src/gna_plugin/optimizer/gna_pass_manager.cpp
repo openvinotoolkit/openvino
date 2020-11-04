@@ -631,11 +631,25 @@ void InsertIdentityLayerPass::run() {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     for (auto & l : *pLayers) {
         for (auto && prev : getCandidatesForIdentityInsertion(l)) {
+            // Do an upstream search until Functional layer is found
+            auto original_prev_layer = prev;
+            auto true_layer = l;
+            while (LayerInfo(prev).isNonFunctional()) {
+                if (CNNNetHasPrevLayer(prev.get()) && prev->outData.size() == 1) {
+                    true_layer = prev;
+                    prev = CNNNetPrevLayer(prev);
+                } else {
+                    gnawarn() << "Could not find Functional parent for " << original_prev_layer->name << ", using original layer";
+                    prev = original_prev_layer;
+                    true_layer = l;
+                    break;
+                }
+            }
             int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
             // actual insertion
             auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
 
-            gnalog() << "Inserted "<< activationName << " between: " << prev->name << " and " << l->name << "\n" << std::flush;
+            gnalog() << "Inserted "<< activationName << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
 
             CNNLayerPtr activationLayer =
                 std::make_shared<GenericLayer>(LayerParams({activationName, "identity", Precision::FP32}));
@@ -643,17 +657,17 @@ void InsertIdentityLayerPass::run() {
             // TODO: why index is 0 ? - better use direct indexing in getCandidateFunction
             // detecting ins-data-idx
             size_t insDataIdx = std::numeric_limits<size_t>::max();
-            for (size_t i = 0; i != l->insData.size(); i++) {
-                if (getCreatorLayer(l->insData[i].lock()).lock() == prev) {
+            for (size_t i = 0; i != true_layer->insData.size(); i++) {
+                if (getCreatorLayer(true_layer->insData[i].lock()).lock() == prev) {
                     insDataIdx = i;
                     break;
                 }
             }
             if (insDataIdx == std::numeric_limits<size_t>::max()) {
-                THROW_GNA_EXCEPTION << "cannot insert identity layer after" << prev->name << " and before " << l->name;
+                THROW_GNA_EXCEPTION << "cannot insert identity layer after" << prev->name << " and before " << true_layer->name;
             }
 
-            auto inputData = l->insData[insDataIdx].lock();
+            auto inputData = true_layer->insData[insDataIdx].lock();
 
             auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), inputData->getTensorDesc());
             auto activationLayerWithQuant = quantized ?
@@ -681,7 +695,7 @@ void InsertIdentityLayerPass::run() {
                 activationLayerWithQuant->params["original_num_rows"] = prev->params["original_num_rows"];
             }
 
-            CNNNetworkInsertLayer(prev, notAll ? l : CNNLayerPtr(nullptr), activationLayerWithQuant);
+            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), activationLayerWithQuant);
         }
     }
 }

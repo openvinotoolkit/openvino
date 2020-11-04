@@ -25,96 +25,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            // clang-format off
-        /// \brief Tensor reshape operation.
-        ///
-        /// "Converts" an input tensor into a new shape with the same number of elements.
-        ///
-        /// Given that the input tensor has shape \f$[d_1,\dots,d_n]\f$, the output may have any
-        /// shape \f$[d'_1,\dots,d'_m]\f$ such that
-        /// \f$\Pi_{0 \leq i \lt n}(d_i) = \Pi_{0 \leq i \lt m}(d'_i)\f$. For example, a
-        /// \f$3\times{}4\f$ matrix can be reshaped into a 3-tensor of shape
-        /// \f$3\times{}2\times{}2\f$, a matrix of shape \f$6\times{}2\f$, or a vector of size
-        /// \f$12\f$, but not, for example, a matrix of size \f$4\times{}4\f$.
-        ///
-        /// The parameter `input_order` indicates the order in which to "walk" over the input axes.
-        /// Given a tensor of shape \f$(d_1,\dots,d_n)\f$, an input order of
-        /// \f$(a_0, a_1, \dots, a_{n-1})\f$ results in the coordinate for axis \f$a_{n-1}\f$ being
-        /// varied most frequently, followed by axis \f$a-2\f$, and so on down to \f$a_0\f$.
-        ///
-        /// (TODO: example.)
-        ///
-        /// ## Parameters
-        ///
-        /// |                | Description                                                |
-        /// | -------------- | ---------------------------------------------------------- |
-        /// | `input_order`  | The order in which to walk over the input axes.            |
-        /// | `output_shape` | The shape \f$[d'_1,\dots,d'_m]\f$ for the reshaped tensor. |
-        ///
-        /// ## Inputs
-        ///
-        /// |       | Type                              | Description                                                                                                  |
-        /// | ----- | --------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-        /// | `arg` | \f$E[d_1,\dots,d_n]~(n \geq 0)\f$ | An input tensor of any type and shape, as long as the product of \f$d_i\f$ equals the product of \f$d'_i\f$. |
-        ///
-        /// ## Output
-        ///
-        /// | Type                     | Description                                                                                            |
-        /// | ------------------------ | ------------------------------------------------------------------------------------------------------ |
-        /// | \f$E[d'_1,\dots,d'_m]\f$ | The tensor \f$T\f$, where \f$T\f$ is the input tensor with its elements rearranged as described above. |
-            // clang-format on
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. "
-                "Use v1::Reshape instead of it.") NGRAPH_API Reshape : public Op
-            {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-            public:
-                static constexpr NodeTypeInfo type_info{"Reshape", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a reshape operation.
-                Reshape() = default;
-                /// \brief Constructs a reshape operation.
-                ///
-                /// \param arg The tensor to be reshaped.
-                /// \param input_order The order in which to iterate over input axes. This must be a
-                ///                    permutation of the sequence \f$(0,\dots,n-1)\f$ where \f$n\f$
-                ///                    is
-                ///                    the rank of the input tensor.
-                /// \param output_shape The output shape. If the input shape is
-                ///                     \f$(a_0,\dots,a_{k-1})\f$ then the output shape must
-                ///                     be of the form \f$(b_0,\dots,b_{j-1})\f$ where
-                ///                     \f$\Pi(a_i) = \Pi(b_i)\f$.
-                Reshape(const Output<Node>& arg,
-                        const AxisVector& input_order,
-                        const Shape& output_shape);
-
-                void validate_and_infer_types() override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-                bool visit_attributes(AttributeVisitor& visitor) override;
-
-                /// \return The order in which to iterate over input axes.
-                const AxisVector& get_input_order() const { return m_input_order; }
-                void set_input_order(const AxisVector& input_order) { m_input_order = input_order; }
-                /// \return The shape of the output tensor.
-                const Shape& get_reshape_output_shape() const { return m_output_shape; }
-                void set_output_shape(const Shape& output_shape) { m_output_shape = output_shape; }
-                bool get_is_transpose() const { return m_is_transpose; }
-                void set_is_transpose(bool is_transpose) { m_is_transpose = is_transpose; }
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-
-            protected:
-                AxisVector m_input_order;
-                Shape m_output_shape;
-                bool m_is_transpose{false};
-                NGRAPH_SUPPRESS_DEPRECATED_END
-            };
-        }
-
         namespace v1
         {
             /// \brief Tensor dynamic reshape operation.
@@ -131,16 +41,19 @@ namespace ngraph
                 ///        transpose.
                 ///
                 /// \param arg The tensor to be reshaped.
-                /// \param pattern The node that defines output shape pattern.
+                /// \param shape_pattern The node that defines output shape shape_pattern.
                 ///        If the input shape is \f$(a_0,\dots,a_{k-1})\f$ then the output shape
                 ///        must
                 ///        be of the form \f$(b_0,\dots,b_{j-1})\f$ where \f$\Pi(a_i) = \Pi(b_i)\f$.
                 ///        A value of -1 is allowed for at most one dimension, in which case the
                 ///        dimension size is inferred based on element count of input tensor.
-                /// \param special_zero Treats zeros in `pattern` as wildcard flags indicating a
+                /// \param special_zero Treats zeros in `shape_pattern` as wildcard flags indicating
+                /// a
                 ///        copy from input shape at the same index.
                 ///
-                Reshape(const Output<Node>& arg, const Output<Node>& pattern, bool special_zero);
+                Reshape(const Output<Node>& arg,
+                        const Output<Node>& shape_pattern,
+                        bool special_zero);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -160,8 +73,5 @@ namespace ngraph
                 bool m_special_zero;
             };
         }
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Reshape;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }
