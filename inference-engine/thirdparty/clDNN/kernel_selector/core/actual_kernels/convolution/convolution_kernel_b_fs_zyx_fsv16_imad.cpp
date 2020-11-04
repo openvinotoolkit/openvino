@@ -320,6 +320,9 @@ ParamsKey Convolution_kernel_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableGroupedConvolution();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS);
     k.EnableDilation();
     k.DisableTuning();
     return k;
@@ -422,10 +425,30 @@ bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params, cons
     }
 
     KernelData kd = KernelData::Default<convolution_params>(params);
-    convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
+    convolution_params& conv_params = *static_cast<convolution_params*>(kd.params.get());
 
-    if (newParams.split != 1)
+    if (conv_params.split != 1)
         return false;
+
+    if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
+        if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
+            (conv_params.compensation.empty()))
+            return false;
+    }
+    else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
+        if ((conv_params.activations_zero_points.empty()) &&
+            (conv_params.compensation.empty()))
+            return false;
+    }
+    else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
+        if (conv_params.weights_zero_points.empty())
+            return false;
+    } else {
+        if (!conv_params.activations_zero_points.empty() ||
+            !conv_params.weights_zero_points.empty() ||
+            !conv_params.compensation.empty())
+            return false;
+    }
 
     return true;
 }
