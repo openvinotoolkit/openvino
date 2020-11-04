@@ -878,7 +878,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         }
 
         auto dims = input.second->getTensorDesc().getDims();
-        if (inputLayout == Layout::CHW && (dims[0] != 0 || dims[1] != 0)) {
+        if (inputLayout == Layout::CHW && (dims[0] != 1 || dims[1] != 1)) {
             THROW_GNA_EXCEPTION << "For Layout::CHW only dimension with height = 1 and channel = 1 is supported, but was: "
                                 << dims;
         }
