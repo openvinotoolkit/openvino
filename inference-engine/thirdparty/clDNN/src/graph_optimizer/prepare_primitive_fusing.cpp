@@ -279,7 +279,9 @@ void prepare_primitive_fusing::fuse_bias(program_impl &p) {
         auto fuse_bias_f = [&p](program_node& prev_node, program_node& new_node, program_node& bias_node, program_node& eltw_node) {
             auto eltw_id = eltw_node.id();
             p.replace(prev_node, new_node);
-            new_node.dependencies.push_back(&bias_node);
+            // Insert bias_node into 3-rd position in dependencies vector to get correct order in case of asymmetric quantization
+            // which means that node can have > 2 dependencies even without bias
+            new_node.dependencies.insert(new_node.dependencies.begin() + 2, &bias_node);
             bias_node.users.push_back(&new_node);
 
             // Remove all edges connected with peer node
@@ -311,6 +313,9 @@ void prepare_primitive_fusing::fuse_bias(program_impl &p) {
                                                                      conv.get_output_layout().size,
                                                                      conv.get_output_layout().data_type);
 
+            conv_with_bias_prim->activations_zero_points = desc->activations_zero_points;
+            conv_with_bias_prim->weights_zero_points = desc->weights_zero_points;
+            conv_with_bias_prim->compensation = desc->compensation;
             auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
             new_conv_node.as<convolution>().set_transposed(conv.get_transposed());
