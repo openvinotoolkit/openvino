@@ -91,12 +91,11 @@ xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that i
 xfail_issue_35929 = xfail_test(reason="RuntimeError: Incorrect precision f64!")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
-xfail_issue_36437 = xfail_test(reason="RuntimeError: Cannot find blob with name: <value>")
+xfail_issue_40485 = xfail_test(reason="Computation missmatch")
 xfail_issue_36476 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U32 is "
                                "not supported yet...")
 xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U64 is "
                                "not supported yet...")
-xfail_issue_36479 = xfail_test(reason="Assertion error - basic computation on ndarrays mismatch")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
 xfail_issue_36483 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
@@ -115,7 +114,6 @@ xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get
 xfail_issue_38085 = xfail_test(reason="RuntimeError: Interpolate operation should be converted to Interp")
 xfail_issue_38086 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
 xfail_issue_38087 = xfail_test(reason="RuntimeError: Cannot cast to tensor desc. Format is unsupported!")
-xfail_issue_38090 = xfail_test(reason="AssertionError: Items types are not equal")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Gradient")
@@ -200,6 +198,7 @@ xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                       "com.microsoft.Pad, com.microsoft.Range")
 xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test data")
+xfail_issue_40686 = xfail_test(reason="NANs as results")
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
 xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
                                       "with dynamic shape")
@@ -222,3 +221,4 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
 xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
 xfail_issue_41815 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::NonMaxSuppression casted "
                                       "(yolo_evaluation_layer_1/concat_6:0_btc[0]:f32{1,2535,4},")
+xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")

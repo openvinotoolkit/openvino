@@ -296,6 +296,7 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
+    backend/logical_and.in.cpp
     backend/logical_not.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp

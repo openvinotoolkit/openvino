@@ -120,6 +120,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                     if (graph->hasMeanImageFor(input.first)) {
                         // If a mean image exists, we convert the blob and send FP32
                         copyConvert<float>(InferenceEngine::Precision::FP32, input, convertedInputs);
+                    } else if (dynamic_cast<InferenceEngine::TBlob<bool> *>(input.second.get())) {
+                        pushInput<bool>(input.first, input.second);
                     } else {
                         // Instead we can send I8 directly
                         pushInput<uint8_t>(input.first, input.second);
