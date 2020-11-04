@@ -46,7 +46,7 @@ NGRAPH_TEST(onnx, check_ir_version_support)
     //
     // The last step is to also update the details::onnx::contains_onnx_model_keys() function
     // in the same file to make sure that prototxt format validation also covers the changes in ONNX
-    EXPECT_EQ(ONNX_NAMESPACE::Version::IR_VERSION, 6)
+    EXPECT_EQ(ONNX_NAMESPACE::Version::IR_VERSION, 7)
         << "The IR_VERSION defined in ONNX does not match the version that OpenVINO supports. "
            "Please check the source code of this test for details and explanation how to proceed.";
 }

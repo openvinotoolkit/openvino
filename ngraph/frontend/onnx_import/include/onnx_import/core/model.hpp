@@ -29,6 +29,9 @@ namespace ngraph
     {
         std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto);
 
+        std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto,
+                                       const std::string& domain);
+
         class Model
         {
         public:

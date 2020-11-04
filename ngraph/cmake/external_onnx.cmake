@@ -20,7 +20,7 @@ include(FetchContent)
 # ONNX.proto definition version
 #------------------------------------------------------------------------------
 
-set(ONNX_VERSION 1.6.0)
+set(ONNX_VERSION 1.7.0)
 
 #------------------------------------------------------------------------------
 # Download and install libonnx ...
