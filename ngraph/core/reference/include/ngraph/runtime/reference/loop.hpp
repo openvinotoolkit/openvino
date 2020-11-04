@@ -26,13 +26,11 @@ namespace ngraph
         namespace reference
         {
             void loop(const std::shared_ptr<Function>& body,
-                      const std::vector<std::shared_ptr<opset5::TensorIterator::OutputDescription>>&
-                          out_descs,
-                      const std::vector<std::shared_ptr<opset5::TensorIterator::InputDescription>>&
-                          input_descs,
-                      opset5::Loop::SpecialBodyPorts special_ports,
-                      const std::vector<std::shared_ptr<HostTensor>>& out,
-                      const std::vector<std::shared_ptr<HostTensor>>& args);
+                      const op::util::OutputDescriptionVector& out_descs,
+                      const op::util::InputDescriptionVector& input_descs,
+                      const opset5::Loop::SpecialBodyPorts& special_ports,
+                      const HostTensorVector& out,
+                      const HostTensorVector& args);
         }
     }
 }

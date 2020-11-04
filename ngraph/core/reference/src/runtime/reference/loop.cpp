@@ -15,28 +15,46 @@
 //*****************************************************************************
 
 #include "runtime/reference/loop.hpp"
+#include "runtime/reference/concat.hpp"
 #include "runtime/reference/function.hpp"
 
 namespace ngraph {
     namespace runtime {
         namespace reference {
-            void loop(const std::shared_ptr<Function>& body,
-                      const std::vector<std::shared_ptr<opset5::TensorIterator::OutputDescription>>& out_descs,
-                      const std::vector<std::shared_ptr<opset5::TensorIterator::InputDescription>>& input_descs,
-                      opset5::Loop::SpecialBodyPorts special_ports,
-                      const std::vector<std::shared_ptr<HostTensor>> &out,
-                      const std::vector<std::shared_ptr<HostTensor>> &args) {
-                const auto &func = body;
-                const auto &special_body_ports = special_ports;
-                const auto &cur_iter_idx = special_body_ports.current_iteration_input_idx;
+            void loop(const std::shared_ptr<Function>& func,
+                      const op::util::OutputDescriptionVector& out_descs,
+                      const op::util::InputDescriptionVector& input_descs,
+                      const opset5::Loop::SpecialBodyPorts& special_ports,
+                      const HostTensorVector &out,
+                      const HostTensorVector &args) {
+                const auto &cur_iter_idx = special_ports.current_iteration_input_idx;
+                auto val = std::find_if(input_descs.begin(), input_descs.end(),
+                    [&cur_iter_idx](const op::util::InputDescriptionPtr& in_desc) {
+                        return in_desc->m_body_parameter_index == cur_iter_idx;
+                    });
+                bool cur_iter_initial_value_exist = val != input_descs.end();
+                bool cur_iter_back_edge_exist = false;
 
-                // -2 due to trip_count and execution_condition inputs which aren't map to body inputs
-                std::vector<std::vector<std::uint8_t>> inputs_to_body(
-                        args.size() - 2 + (special_body_ports.current_iteration_input_idx >= 0));
-                // param_idx, result_idx in the body
-                std::vector<std::pair<uint64_t, uint64_t>> back_edges;
+                // If current_iteration_input is exist and initial value is not provided, we
+                // should allocate input_descs.size() + 1 inputs and set default value (0) for current_iteration input.
+                int64_t inputs_count = input_descs.size() + (cur_iter_idx >= 0 ? !cur_iter_initial_value_exist : 0);
+                std::vector<std::vector<std::uint8_t>> inputs_to_body(inputs_count);
+                if (cur_iter_idx >= 0 && !cur_iter_initial_value_exist) {
+                    const auto& cur_iter = func->get_parameters().at(cur_iter_idx);
+                    if (cur_iter->get_partial_shape().is_dynamic()) {
+                        cur_iter->set_partial_shape(Shape{1});
+                        cur_iter->validate_and_infer_types();
+                    }
+                    inputs_to_body.at(cur_iter_idx).resize(sizeof(int64_t));
+                    reinterpret_cast<int64_t *>(inputs_to_body.at(cur_iter_idx).data())[0] = 0;
+                }
 
-                // Port map : inputs and back edges
+                // Port map processing: inputs and back edges
+                struct BackEdge {
+                    uint64_t param_idx;
+                    uint64_t result_idx;
+                };
+                std::vector<BackEdge> back_edges;
                 for (const auto &desc : input_descs) {
                     auto *data_ptr = args[desc->m_input_index]->get_data_ptr<uint8_t>();
                     auto size_bytes = args[desc->m_input_index]->get_size_in_bytes();
@@ -44,26 +62,12 @@ namespace ngraph {
                     std::memcpy(inputs_to_body[desc->m_body_parameter_index].data(), data_ptr, size_bytes);
                     if (const auto &merged_desc = std::dynamic_pointer_cast<opset5::Loop::MergedInputDescription>(
                             desc)) {
-                        back_edges.emplace_back(merged_desc->m_body_parameter_index, merged_desc->m_body_value_index);
+                        back_edges.push_back({merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
+                        cur_iter_back_edge_exist |= merged_desc->m_body_parameter_index == cur_iter_idx;
                     }
                 }
 
-                if (cur_iter_idx >= 0) {
-                    PartialShape pshape(Shape{1});
-                    body->get_parameters()[cur_iter_idx]->set_partial_shape(pshape);
-                    body->get_parameters()[cur_iter_idx]->set_element_type(ngraph::element::i64);
-                    body->get_parameters()[cur_iter_idx]->validate_and_infer_types();
-                }
-                if (cur_iter_idx >= 0 && inputs_to_body.at(cur_iter_idx).empty()) {
-                    // todo issue?
-                    inputs_to_body.at(cur_iter_idx).resize(sizeof(int64_t));
-                }
-
-                auto type = out[0]->get_element_type(); // todo: check this, not sure about
-                bool is_dynamic_shape = false;
-                std::vector<std::vector<std::uint8_t>> outs;
-                auto exec_condition = args[1]->get_data_ptr<bool>();
-
+                // Get TripCount
                 int64_t trip_count = 0;
                 if (args[0]->get_element_type() == ngraph::element::i32) {
                     auto *trip_count_p = args[0]->get_data_ptr<int32_t>();
@@ -72,63 +76,85 @@ namespace ngraph {
                     auto *trip_count_p = args[0]->get_data_ptr<int64_t>();
                     trip_count = trip_count_p[0];
                 } else {
-                    // todo issue, not supported type
+                    NGRAPH_CHECK(false, "Unsupported element type for trip_count input. Expected int32 or int64.");
                 }
+                NGRAPH_CHECK(trip_count != 0, "Zero count of iteration not supported");
+
+                // Loop iterations
+                auto exec_condition = args[1]->get_data_ptr<bool>();
                 if (exec_condition[0]) {
-                    for (int64_t cur_iter = 0; cur_iter < (trip_count >= 0 ? trip_count : std::numeric_limits<int64_t>::max()); ++cur_iter) {
-                        // evaluate body
-                        if (cur_iter_idx >= 0) {
-                            // todo issue?
-                            reinterpret_cast<int64_t *>(inputs_to_body.at(cur_iter_idx).data())[0] = cur_iter;
+                    // Find all ConcatOutputDescription
+                    std::vector<std::shared_ptr<opset5::Loop::ConcatOutputDescription>> concat_outputs;
+                    for (const auto &desc : out_descs) {
+                        if (const auto &concat_desc = std::dynamic_pointer_cast<opset5::Loop::ConcatOutputDescription>(desc)) {
+                            concat_outputs.push_back(concat_desc);
                         }
-                        outs = reference::function(func, inputs_to_body);
-                        // Port map: outputs
-                        for (const auto &desc : out_descs) {
-                            if (const auto &concat_desc = std::dynamic_pointer_cast<opset5::Loop::ConcatOutputDescription>(
-                                    desc)) {
-                                // if the output shape wasn't set during shape inference
-                                if (out[concat_desc->m_output_index]->get_partial_shape().is_dynamic()) {
-                                    auto cur_shape = func->get_results()[concat_desc->m_body_value_index]->get_shape();
-                                    out[concat_desc->m_output_index]->set_shape(cur_shape);
-                                    is_dynamic_shape = true;
-                                } else if (is_dynamic_shape) {
-                                    // increase the size of concat output
-                                    auto cur_shape = out[concat_desc->m_output_index]->get_shape();
-                                    auto el_size = out[concat_desc->m_output_index]->get_element_type().size();
-                                    std::vector<uint8_t> tmp_buffer(ngraph::shape_size(cur_shape) * el_size);
-                                    Shape old_shape = cur_shape;
-                                    std::memcpy(tmp_buffer.data(), out[concat_desc->m_output_index]->get_data_ptr(),
-                                                el_size * ngraph::shape_size(old_shape));
-                                    cur_shape.at(concat_desc->m_axis) += 1;
-                                    out[concat_desc->m_output_index]->set_shape(cur_shape);
-                                    std::memcpy(out[concat_desc->m_output_index]->get_data_ptr(), tmp_buffer.data(),
-                                                el_size * ngraph::shape_size(old_shape));
-                                }
-                                auto part_size = outs[concat_desc->m_body_value_index].size();
-                                // copy the output from each iteration
-                                std::memcpy(
-                                        out[concat_desc->m_output_index]->get_data_ptr<uint8_t>() +
-                                        cur_iter * part_size,
-                                        outs[concat_desc->m_body_value_index].data(), part_size);
-                            }
+                    }
+                    // Allocate vectors for store output values
+                    std::vector<std::vector<std::vector<uint8_t>>> values_to_concat(concat_outputs.size());
+                    std::vector<std::vector<std::uint8_t>> body_outputs;
+
+                    // Negative value means infinity count of iterations
+                    trip_count = trip_count >= 0 ? trip_count :  std::numeric_limits<int64_t>::max();
+                    for (int64_t cur_iter = 0; cur_iter < trip_count; ++cur_iter) {
+                        // Evaluate body
+                        body_outputs = reference::function(func, inputs_to_body);
+
+                        // Store values for later concatenation
+                        for(size_t i = 0; i < values_to_concat.size(); ++i) {
+                            values_to_concat[i].push_back(body_outputs[concat_outputs[i]->m_body_value_index]);
                         }
-                        for (int i = 0; i < back_edges.size(); ++i) {
-                            inputs_to_body[back_edges[i].first] = outs[back_edges[i].second];
-                        }
-                        bool *body_exec_condition = reinterpret_cast<bool *>(outs[special_body_ports.body_condition_output_idx].data());
+
+                        // Check execution condition
+                        auto body_exec_condition = reinterpret_cast<bool*>(body_outputs[special_ports.body_condition_output_idx].data());
                         if (!body_exec_condition[0])
                             break;
+
+                        // If there are no rules for calculating the current iteration, just increment it.
+                        if (cur_iter_idx >= 0 && !cur_iter_back_edge_exist) {
+                            const auto& cur_iter_param = func->get_parameters().at(cur_iter_idx);
+                            if (cur_iter_param->get_element_type() == element::i64)
+                                reinterpret_cast<int64_t *>(inputs_to_body.at(cur_iter_idx).data())[0] = cur_iter + 1;
+                            else if (cur_iter_param->get_element_type() == element::i32)
+                                reinterpret_cast<int32_t *>(inputs_to_body.at(cur_iter_idx).data())[0] = cur_iter + 1;
+                            else
+                                NGRAPH_CHECK(false, "Unsupported element type for current iteration input. Expected int32 or int64.");
+                        }
+
+                        // Back-edge processing
+                        for (auto & back_edge : back_edges) {
+                            inputs_to_body[back_edge.param_idx] = body_outputs[back_edge.result_idx];
+                        }
                     }
 
                     for (const auto &desc : out_descs) {
                         if (const auto &body_desc = std::dynamic_pointer_cast<opset5::Loop::BodyOutputDescription>(
                                 desc)) {
-                            // copy output values from the last iteration
+                            // Copy output values from the last iteration
                             std::memcpy(out[body_desc->m_output_index]->get_data_ptr(),
-                                        outs[body_desc->m_body_value_index].data(),
-                                        outs[body_desc->m_body_value_index].size());
+                                        body_outputs[body_desc->m_body_value_index].data(),
+                                        body_outputs[body_desc->m_body_value_index].size());
                         }
                     }
+
+                    // Concatenate and copy all values stored in values_to_concat vector to outputs
+                    for (size_t i = 0; i < concat_outputs.size(); ++i) {
+                        const auto& concat_desc = concat_outputs[i];
+                        auto shape = func->get_results().at(concat_desc->m_body_value_index)->get_shape();
+                        std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);
+                        shape.at(concat_desc->m_axis) = values_to_concat[i].size();
+                        out[concat_desc->m_output_index]->set_shape(shape);
+                        std::vector<const char*> pointers_on_values;
+                        pointers_on_values.reserve(values_to_concat[i].size());
+                        for (const auto& vec : values_to_concat[i]) {
+                            pointers_on_values.push_back(reinterpret_cast<const char *>(vec.data()));
+                        }
+                        reference::concat(pointers_on_values, out[concat_desc->m_output_index]->get_data_ptr<char>(),
+                                          shapes_to_concat, shape, concat_desc->m_axis,
+                                          out[concat_desc->m_output_index]->get_element_type().size());
+                    }
+                } else {
+                    NGRAPH_CHECK(false, "ExecutionCondition is false. Zero count of iteration not supported.");
                 }
             }
         }

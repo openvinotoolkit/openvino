@@ -30,7 +30,6 @@ namespace ngraph
     {
         namespace reference
         {
-
             bool call(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
                       const std::vector<std::shared_ptr<runtime::Tensor>>& inputs,
                       const std::shared_ptr<ngraph::Function>& function)
@@ -111,7 +110,7 @@ namespace ngraph
                         }
                         op_outputs.push_back(host_tensor);
                     }
-
+                    op->validate_and_infer_types();
                     if (!op->evaluate(op_outputs, op_inputs))
                     {
                         // exception
