@@ -31,8 +31,8 @@ namespace ngraph
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 enum class ROIPoolingMethod
                 {
-                    BLN, // Bilinear interpolation
-                    MAX  // Maximum
+                    Bilinear,   // Bilinear interpolation
+                    Max         // Maximum
                 };
 
                 ROIPooling() = default;
@@ -53,7 +53,7 @@ namespace ngraph
                            const Output<Node>& coords,
                            const Shape& output_size,
                            const float spatial_scale,
-                           ROIPoolingMethod method = ROIPoolingMethod::MAX);
+                           ROIPoolingMethod method = ROIPoolingMethod::Max);
 
                 void validate_and_infer_types() override;
 

@@ -108,8 +108,8 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::v0::ROIPooling::ROIPoolingMethod>(
             "op::v0::ROIPooling::ROIPoolingMethod",
-            {{"bilinear", op::v0::ROIPooling::ROIPoolingMethod::BLN},
-             {"max", op::v0::ROIPooling::ROIPoolingMethod::MAX}});
+            {{"bilinear", op::v0::ROIPooling::ROIPoolingMethod::Bilinear},
+             {"max", op::v0::ROIPooling::ROIPoolingMethod::Max}});
         return enum_names;
     }
 

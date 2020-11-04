@@ -980,11 +980,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ROIPooling>::createLayer(const std::shar
     res->params["spatial_scale"] = asString(castedLayer->get_spatial_scale());
     auto method = castedLayer->get_method();
     switch(method) {
-        case ::ngraph::op::ROIPooling::ROIPoolingMethod::BLN: {
+        case ::ngraph::op::ROIPooling::ROIPoolingMethod::Bilinear: {
             res->params["method"] = "bilinear";
             break;
         }
-        case ::ngraph::op::ROIPooling::ROIPoolingMethod::MAX: {
+        case ::ngraph::op::ROIPooling::ROIPoolingMethod::Max: {
             res->params["method"] = "max";
             break;
         }
