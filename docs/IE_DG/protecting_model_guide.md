@@ -43,8 +43,9 @@ Extensions](https://software.intel.com/en-us/sgx).
 Use `InferenceEngine::Core::ReadNetwork()` to set model representations and
 weights respectively.
 
-Note: Reading a ONNX model which uses weights saved in external files
-is not supported by `ReadNetwork(const std::string& model, const Blob::CPtr& weights)` overload.
+There are no possibility now to read external weights from memory for ONNX models.
+Function `ReadNetwork(const std::string& model, const Blob::CPtr& weights)`
+should be called with `weights` equal `nullptr` in such a case.
 
 @snippet openvino/docs/snippets/protecting_model_guide.cpp part1
 
