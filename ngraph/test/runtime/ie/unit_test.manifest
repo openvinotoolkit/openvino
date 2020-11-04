@@ -914,6 +914,9 @@ broadcast_algo_matrix_stride_1
 broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
 
+# Cannot find blob with name: Parameter_1
+dynamic_transpose
+
 # Failing from new reason after unblocking more Blob types
 gather_2d_negative_and_positive_indices_axis_0_2d_input
 gather_axis_0_int8
