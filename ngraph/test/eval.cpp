@@ -62,7 +62,6 @@
 #include "ngraph/op/sinh.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/squeeze.hpp"
-#include "ngraph/op/stop_gradient.hpp"
 #include "ngraph/op/tan.hpp"
 #include "ngraph/op/tanh.hpp"
 #include "ngraph/op/topk.hpp"
@@ -884,7 +883,7 @@ TEST(eval, evaluate_relu_2Ffprop_i32)
 TEST(eval, evaluate_round)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{5});
-    auto round = make_shared<op::Round>(p);
+    auto round = make_shared<op::v5::Round>(p, op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto fun = make_shared<Function>(OutputVector{round}, ParameterVector{p});
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
@@ -899,7 +898,7 @@ TEST(eval, evaluate_round)
 TEST(eval, evaluate_round_2D)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{3, 5});
-    auto round = make_shared<op::Round>(p);
+    auto round = make_shared<op::v5::Round>(p, op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto fun = make_shared<Function>(OutputVector{round}, ParameterVector{p});
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result},

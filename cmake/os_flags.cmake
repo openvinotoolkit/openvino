@@ -127,8 +127,10 @@ function(ie_avx512_optimization_flags flags)
 endfunction()
 
 function(ie_arm_neon_optimization_flags flags)
-    if(WIN32 OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # nothing
     elseif(ANDROID)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
             set(${flags} "-mfpu=neon" PARENT_SCOPE)
