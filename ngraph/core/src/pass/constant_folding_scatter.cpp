@@ -101,13 +101,13 @@ static shared_ptr<op::Constant>
     case element::Type_t::f32:
     case element::Type_t::f64:
     case element::Type_t::u1:
-    default:
-        NGRAPH_CHECK(false,
-                     "Encountered unsupported axis element type in "
-                     "constant_scatter_elem_updt_callback: ",
-                     axis_type);
-        break;
+    default: break;
     }
+
+    NGRAPH_CHECK(
+        false,
+        "Encountered unsupported axis element type in constant_scatter_elem_updt_callback: ",
+        axis_type);
 }
 
 template <typename T>
@@ -152,13 +152,13 @@ static shared_ptr<op::Constant> dispatch_const_fold_data(const shared_ptr<op::Co
     case element::Type_t::f32:
     case element::Type_t::f64:
     case element::Type_t::u1:
-    default:
-        NGRAPH_CHECK(false,
-                     "Encountered unsupported indices element type in "
-                     "constant_scatter_elem_updt_callback: ",
-                     indices_type);
-        break;
+    default: break;
     }
+
+    NGRAPH_CHECK(
+        false,
+        "Encountered unsupported indices element type in constant_scatter_elem_updt_callback: ",
+        indices_type);
 }
 
 void pass::ConstantFolding::construct_constant_scatter_elements_update()

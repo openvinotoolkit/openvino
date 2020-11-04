@@ -50,6 +50,8 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputLayout(DataLayout::bfyx);
@@ -67,6 +69,7 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSubGroup();
     k.EnableSubGroupShort();
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -132,7 +135,7 @@ JitConstants ConvolutionKernel_bfyx_to_bfyx_f16::GetJitConstants(const convoluti
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = GetUnitType(params);
+        auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_vec = { "_VEC",
                                            {"b", "(f_block*16)", "y", "x"},
                                            "dst",

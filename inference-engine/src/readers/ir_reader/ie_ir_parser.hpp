@@ -59,6 +59,7 @@ public:
 
 private:
     std::map<std::string, ngraph::OpSet> opsets;
+    const std::vector<IExtensionPtr> _exts;
 
     struct GenericLayerParams {
         struct LayerPortData {
@@ -261,6 +262,12 @@ private:
                 return;
             int64_t value;
             stringToType<int64_t>(val, value);
+            adapter.set(value);
+        }
+
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+            std::vector<int32_t> value;
+            if (!getParameters<int32_t>(node.child("data"), name, value)) return;
             adapter.set(value);
         }
 

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,24 +14,33 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/stop_gradient.hpp"
-#include "ngraph/op/broadcast.hpp"
+#pragma once
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include <vector>
 
-using namespace std;
-using namespace ngraph;
+#include "ngraph/op/op.hpp"
 
-constexpr NodeTypeInfo op::StopGradient::type_info;
-
-op::StopGradient::StopGradient(const Output<Node>& arg)
-    : UnaryElementwiseArithmetic(arg)
+namespace ngraph
 {
-    constructor_validate_and_infer_types();
-}
+    namespace op
+    {
+        /// Root of nodes that can be sink nodes
+        class NGRAPH_API Sink : public Op
+        {
+        public:
+            virtual ~Sink() = 0;
+            NGRAPH_RTTI_DECLARATION;
 
-shared_ptr<Node> op::StopGradient::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<StopGradient>(new_args.at(0));
+        protected:
+            Sink()
+                : Op()
+            {
+            }
+            Sink(const OutputVector& arguments)
+                : Op(arguments)
+            {
+            }
+        };
+    }
+    using SinkVector = std::vector<std::shared_ptr<op::Sink>>;
 }
