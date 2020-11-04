@@ -173,8 +173,6 @@ xfail_issue_38726 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "LessOrEqual")
 xfail_issue_38732 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ConvInteger")
-xfail_issue_38733 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "Celu")
 xfail_issue_38734 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Adam")
 xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
