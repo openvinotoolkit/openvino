@@ -1,0 +1,222 @@
+//*****************************************************************************
+// Copyright 2017-2020 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
+
+#pragma once
+
+#include "ngraph/shape.hpp"
+
+namespace ngraph
+{
+    namespace runtime
+    {
+        namespace reference
+        {
+            using ROIPoolingMethod = op::v0::ROIPooling::ROIPoolingMethod;
+            template <typename T>
+            void roi_pooling(const T* feature_maps,
+                             const T* rois,
+                             T* output,
+                             const Shape& feature_maps_shape,
+                             const Shape& rois_shape,
+                             const Shape& output_shape,
+                             const float spatial_scale,
+                             const ROIPoolingMethod& pooling_method)
+            {
+                const int channels = feature_maps_shape[1];
+                const int height = feature_maps_shape[2];
+                const int width = feature_maps_shape[3];
+
+                const int pooled_h = output_shape[2];
+                const int pooled_w = output_shape[3];
+
+                const int num_rois = rois_shape[0];
+
+                for (unsigned int i = 0; i < shape_size(output_shape); i++)
+                {
+                    output[i] = std::numeric_limits<T>::lowest();
+                }
+
+                for (unsigned int roi_num = 0; roi_num < num_rois; roi_num++)
+                {
+                    // ROI index
+                    int roi_idx = rois_shape[1] * roi_num;
+
+                    // ROI batch id
+                    int roi_batch_id = rois[roi_idx + 0];
+
+                    if (pooling_method == ROIPoolingMethod::Max)
+                    {
+                        T* output_ptr = output;
+
+                        // ROI coordinates scaled to input feature maps
+                        int roi_w_start = std::round(rois[roi_idx + 1] * spatial_scale);
+                        int roi_h_start = std::round(rois[roi_idx + 2] * spatial_scale);
+                        int roi_w_end = std::round(rois[roi_idx + 3] * spatial_scale);
+                        int roi_h_end = std::round(rois[roi_idx + 4] * spatial_scale);
+
+                        // Force malformed ROIs to be 1x1
+                        int roi_height = std::max(roi_h_end - roi_h_start, 1);
+                        int roi_width = std::max(roi_w_end - roi_w_start, 1);
+
+                        // Divide ROIs into sub-regions for max pooling
+                        T bin_size_h = static_cast<T>(roi_height) / pooled_h;
+                        T bin_size_w = static_cast<T>(roi_width) / pooled_w;
+
+                        const T* batch_data =
+                            feature_maps + roi_batch_id * channels * height * width;
+
+                        for (unsigned int c = 0; c < channels; c++)
+                        {
+                            for (unsigned int ph = 0; ph < pooled_h; ph++)
+                            {
+                                for (unsigned int pw = 0; pw < pooled_w; pw++)
+                                {
+                                    // Compute pooling region for this output unit:
+                                    //  start (included) = floor(ph * roi_height / pooled_h)
+                                    //  end (excluded) = ceil((ph + 1) * roi_height / pooled_h)
+                                    int h_start = static_cast<int>(
+                                        std::floor(static_cast<T>(ph) * bin_size_h));
+                                    int w_start = static_cast<int>(
+                                        std::floor(static_cast<T>(pw) * bin_size_w));
+                                    int h_end = static_cast<int>(
+                                        std::ceil(static_cast<T>(ph + 1) * bin_size_h));
+                                    int w_end = static_cast<int>(
+                                        std::ceil(static_cast<T>(pw + 1) * bin_size_w));
+
+                                    // Add roi offsets and clip to input boundaries
+                                    h_start = std::min(std::max(h_start + roi_h_start, 0), height);
+                                    w_start = std::min(std::max(w_start + roi_w_start, 0), width);
+                                    h_end = std::min(std::max(h_end + roi_h_start, 0), height);
+                                    w_end = std::min(std::max(w_end + roi_w_start, 0), width);
+
+                                    const int pool_index =
+                                        roi_num * channels * pooled_h * pooled_w +
+                                        c * pooled_h * pooled_w + ph * pooled_w + pw;
+
+                                    // Define an empty pooling region to be zero
+                                    bool is_empty = (h_end <= h_start) || (w_end <= w_start);
+                                    if (is_empty)
+                                    {
+                                        output_ptr[pool_index] = 0;
+                                    }
+
+                                    for (unsigned int h = h_start; h < h_end; h++)
+                                    {
+                                        for (unsigned int w = w_start; w < w_end; w++)
+                                        {
+                                            const int index = h * width + w;
+                                            output_ptr[pool_index] =
+                                                std::max(batch_data[index], output_ptr[pool_index]);
+                                        }
+                                    }
+                                }
+                            }
+                            // Increment all data pointers by one channel
+                            batch_data += height * width;
+                            output_ptr += pooled_w * pooled_h;
+                        }
+                    }
+                    else if (pooling_method == ROIPoolingMethod::Bilinear)
+                    {
+                        T roi_w_start = rois[roi_idx + 1];
+                        T roi_h_start = rois[roi_idx + 2];
+                        T roi_w_end = rois[roi_idx + 3];
+                        T roi_h_end = rois[roi_idx + 4];
+
+                        for (unsigned int c = 0; c < channels; c++)
+                        {
+                            for (unsigned int ph = 0; ph < pooled_h; ph++)
+                            {
+                                for (unsigned int pw = 0; pw < pooled_w; pw++)
+                                {
+                                    T height_scale =
+                                        (roi_h_end - roi_h_start) * (height - 1) / (pooled_h - 1);
+                                    T width_scale =
+                                        (roi_w_end - roi_w_start) * (width - 1) / (pooled_w - 1);
+
+                                    T in_y = (ph * height_scale + roi_h_start * (width - 1));
+                                    T in_x = (pw * width_scale + roi_w_start * (width - 1));
+
+                                    size_t output_idx = roi_idx * channels * pooled_h * pooled_w +
+                                                        c * pooled_h * pooled_w + ph * pooled_w +
+                                                        pw;
+                                    if (in_y < 0 || in_y > height - 1 || in_x < 0 ||
+                                        in_x > width - 1)
+                                    {
+                                        output[output_idx] = 0;
+                                    }
+                                    else
+                                    {
+                                        int top_y_index = static_cast<int>(floorf(in_y));
+                                        int bottom_y_index = static_cast<int>(ceilf(in_y));
+                                        int left_x_index = static_cast<int>(floorf(in_x));
+                                        int right_x_index = static_cast<int>(ceilf(in_x));
+
+                                        if (right_x_index > width - 1)
+                                        {
+                                            right_x_index = width - 1;
+                                        }
+
+                                        if (bottom_y_index > height - 1)
+                                        {
+                                            bottom_y_index = height - 1;
+                                        }
+
+                                        int top_left_idx =
+                                            roi_batch_id * channels * height * width +
+                                            c * height * width + top_y_index * width + left_x_index;
+
+                                        int top_right_idx =
+                                            roi_batch_id * channels * height * width +
+                                            c * height * width + top_y_index * width +
+                                            right_x_index;
+
+                                        int bottom_left_idx =
+                                            roi_batch_id * channels * height * width +
+                                            c * height * width + bottom_y_index * width +
+                                            left_x_index;
+
+                                        int bottom_right_idx =
+                                            roi_batch_id * channels * height * width +
+                                            c * height * width + bottom_y_index * width +
+                                            right_x_index;
+
+                                        const T top_left = feature_maps[top_left_idx];
+                                        const T top_right = feature_maps[top_right_idx];
+                                        const T bottom_left = feature_maps[bottom_left_idx];
+                                        const T bottom_right = feature_maps[bottom_right_idx];
+
+                                        const T top =
+                                            top_left +
+                                            (top_right - top_left) * (in_x - left_x_index);
+                                        const T bottom =
+                                            bottom_left +
+                                            (bottom_right - bottom_left) * (in_x - left_x_index);
+
+                                        output[output_idx] =
+                                            top + (bottom - top) * (in_y - top_y_index);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } // namespace reference
+
+    } // namespace runtime
+
+} // namespace ngraph
