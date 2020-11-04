@@ -130,6 +130,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
             // on on entire ngraph::Function
+            matcher_pass->set_pass_config(get_pass_config());
             function_changed = GraphRewrite(matcher_pass).run_on_function(func);
         }
         else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass))
@@ -144,6 +145,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
                 continue;
             }
 
+            function_pass->set_pass_config(get_pass_config());
             if (dynamic_pointer_cast<Validate>(pass))
             {
                 if (function_changed)
@@ -165,6 +167,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
                              << "function is dynamic. Skipping this transformation";
                 continue;
             }
+            node_pass->set_pass_config(get_pass_config());
             for (shared_ptr<Node> n : func->get_ops())
             {
                 function_changed |= node_pass->run_on_node(n);

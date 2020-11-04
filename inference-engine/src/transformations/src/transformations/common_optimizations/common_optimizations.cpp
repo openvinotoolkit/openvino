@@ -55,6 +55,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations",
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
     ngraph::pass::Manager manager(get_pass_config());
 
+    auto pass_config = get_pass_config();
+    manager.set_pass_config(pass_config);
+
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
@@ -112,6 +115,9 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
+    if (pass_config->get_disabled_list().size() != 0 && !pass_config->is_disabled<ngraph::pass::ConvertInterpolate1ToInterpolate4>()) {
+        manager.get_pass_config()->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
+    }
 
     manager.register_pass<ngraph::pass::ConvertPreviousNMSToNMS5>();
 
