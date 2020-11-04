@@ -687,7 +687,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Unsqueeze>::createLayer(const std::share
     return res;
 }
 
-template <>
+/*template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::FakeQuantize>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "FakeQuantize",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -696,7 +696,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::FakeQuantize>::createLayer(const std::sh
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
     res->params["levels"] = asString(castedLayer->get_levels());
     return res;
-}
+}*/
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ConvolutionIE>::createLayer(
@@ -1150,13 +1150,13 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GatherIE>::createLayer(const std::shared
     return res;
 }
 
-template <>
+/*template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::GatherTreeIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "GatherTree",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
     return res;
-}
+}*/
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ReverseSequence>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
@@ -1992,7 +1992,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::OneHotIE>::createLayer(const std::shared
     return res;
 }
 
-template <>
+/*template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::HardSigmoid_IE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = { layer->get_friendly_name(), "HardSigmoid", details::convertPrecision(layer->get_output_element_type(0)) };
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
@@ -2003,7 +2003,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::HardSigmoid_IE>::createLayer(const std::
     res->params["alpha"] = asString(castedLayer->get_alpha());
     res->params["beta"] = asString(castedLayer->get_beta());
     return res;
-}
+}*/
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::GRN>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {

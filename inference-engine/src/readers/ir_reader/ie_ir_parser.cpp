@@ -403,17 +403,17 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::Reshape>>("Reshape"),
         std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
         //std::make_shared<LayerCreator<ngraph::op::Elu>>("ELU"),
-        std::make_shared<LayerCreator<ngraph::op::FakeQuantize>>("FakeQuantize"),
+        //std::make_shared<LayerCreator<ngraph::op::FakeQuantize>>("FakeQuantize"),
         std::make_shared<LayerCreator<ngraph::op::v1::Gather>>("Gather"),
-        std::make_shared<LayerCreator<ngraph::op::v1::GatherTree>>("GatherTree"),
+        //std::make_shared<LayerCreator<ngraph::op::v1::GatherTree>>("GatherTree"),
         std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Convolution>>("Convolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolution>>("GroupConvolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::ConvolutionBackpropData>>("ConvolutionBackpropData"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolutionBackpropData>>("GroupConvolutionBackpropData"),
         std::make_shared<LayerCreator<ngraph::op::v1::BinaryConvolution>>("BinaryConvolution"),
-        std::make_shared<LayerCreator<ngraph::op::GRN>>("GRN"),
-        std::make_shared<LayerCreator<ngraph::op::HardSigmoid>>("HardSigmoid"),
+        //std::make_shared<LayerCreator<ngraph::op::GRN>>("GRN"),
+        //std::make_shared<LayerCreator<ngraph::op::HardSigmoid>>("HardSigmoid"),
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
@@ -835,7 +835,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PriorBox>::cre
 }
 
 // FakeQuantize layer
-template <>
+/*template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::FakeQuantize>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
@@ -846,7 +846,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::FakeQuantize>:
 
     return std::make_shared<ngraph::op::FakeQuantize>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4],
                                                       GetUIntAttr(dn, "levels"));
-}
+}*/
 
 // ReverseSequence layer
 template <>
@@ -1723,13 +1723,13 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Gather>::c
 }
 
 // GatherTree layer
-template <>
+/*template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GatherTree>::createLayer(
         const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 4);
     return std::make_shared<ngraph::op::v1::GatherTree>(inputs[0], inputs[1], inputs[2], inputs[3]);
-}
+}*/
 
 // OneHot layer
 template <>
@@ -1771,16 +1771,16 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::NormalizeL2>::
 }
 
 // HardSigmoid layer
-template <>
+/*template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::HardSigmoid>::createLayer(
     const ngraph::OutputVector & inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 3);
     return std::make_shared<ngraph::op::HardSigmoid>(inputs[0], inputs[1], inputs[2]);
-}
+}*/
 
 // GRN layer
-template <>
+/*template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::GRN>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
@@ -1791,7 +1791,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::GRN>::createLa
         THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
 
     return std::make_shared<ngraph::op::GRN>(inputs[0], GetFloatAttr(dn, "bias"));
-}
+}*/
 
 // LogicalAnd layer
 template <>
