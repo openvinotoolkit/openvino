@@ -33,10 +33,9 @@ bool InterpolateTransformation::transform(TransformationContext &context, ngraph
 }
 
 bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    // std::shared_ptr<opset1::Interpolate> interpolate = as_type_ptr<opset1::Interpolate>(layer);
-    // const auto attrs = interpolate->get_attrs();
-    // return attrs.mode == "nearest";
-    return true;
+    std::shared_ptr<opset1::Interpolate> interpolate = as_type_ptr<opset1::Interpolate>(layer);
+    const auto attrs = interpolate->get_attrs();
+    return attrs.mode == "nearest";
 }
 
 bool InterpolateTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
@@ -50,19 +49,20 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
     if (dequantization.empty()) {
         return false;
     }
-    // const auto interpolate = as_type_ptr<opset1::Interpolate>(layer);
-    // const auto interpAttrs = interpolate->get_attrs();
+    const auto interpolate = as_type_ptr<opset1::Interpolate>(layer);
+    const auto interpAttrs = interpolate->get_attrs();
 
-    // if (interpAttrs.axes.count(0) || interpAttrs.axes.count(1)) {
-    //     return false;
-    // }
-    // if (interpAttrs.mode != "nearest") {
-    //     return false;
-    // }
+    if (interpAttrs.axes.count(0) || interpAttrs.axes.count(1)) {
+        return false;
+    }
 
-    // if (interpAttrs.pads_begin[0] != 0 || interpAttrs.pads_end[0] != 0 || interpAttrs.align_corners) {
-    //     return false;
-    // }
+    if (interpAttrs.mode != "nearest") {
+        return false;
+    }
+
+    if (interpAttrs.pads_begin[0] != 0 || interpAttrs.pads_end[0] != 0 || interpAttrs.align_corners) {
+        return false;
+    }
 
     return true;
 }
