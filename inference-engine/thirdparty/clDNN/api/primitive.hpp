@@ -130,6 +130,7 @@ struct primitive_info {
                    const layout& output_layout,
                    const std::string& layout_str,
                    const std::string& kernel_id,
+                   const data_types& runtime_precision,
                    bool is_cpu,
                    int exec_id)
         : original_id(original_id),
@@ -140,6 +141,7 @@ struct primitive_info {
           output_layout(output_layout),
           layout_str(layout_str),
           kernel_id(kernel_id),
+          runtime_precision(runtime_precision),
           is_cpu(is_cpu),
           exec_id(exec_id) {}
 
@@ -151,6 +153,7 @@ struct primitive_info {
     layout output_layout;
     std::string layout_str;
     std::string kernel_id;
+    data_types runtime_precision;
     bool is_cpu;
     int exec_id;
 };

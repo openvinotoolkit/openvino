@@ -178,6 +178,7 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
                 { "tile", "Tile" },
                 { "resample", "Resample" },
                 { "interp", "Interp" },
+                { "reduce", "Reduce" },
                 { "reduce_max", "ReduceMax" },
                 { "reduce_min", "ReduceMin" },
                 { "reduce_mean", "ReduceMean" },
@@ -364,11 +365,13 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
 
         std::map<std::string, std::string> info;
         Precision prec = data_type_to_precision(prim_info.output_layout.data_type);
+        Precision inference_precision = data_type_to_precision(prim_info.runtime_precision);
         info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = prec.name();
         info[ExecGraphInfoSerialization::LAYER_TYPE] = to_IE_type_name(prim_info.type_id);
         info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = prim_info.layout_str;
         info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(prim_info.exec_id);
         info[ExecGraphInfoSerialization::IMPL_TYPE] = prim_info.kernel_id;
+        info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = inference_precision.name();
 
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
         for (auto& fused_id : prim_info.c_fused_ids) {

@@ -4151,7 +4151,6 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
 
     build_options opts;
     opts.set_option(build_option::optimize_data(true));
-    opts.set_option(build_option::graph_dumps_dir("graph"));
 
     set_values<char>(input, {  1,  2, -3,  4, -5,
                                2, -2,  3, -4,  6,
