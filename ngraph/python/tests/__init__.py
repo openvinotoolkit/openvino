@@ -153,8 +153,6 @@ xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "Squeeze_13532[0]:i32{}, Squeeze_13529[0]:i32{}) -> (dynamic?)'"
                                       "with friendly_name 'OneHot_13534':"
                                       "Depth must be integral element type.")
-xfail_issue_38717 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "GreaterOrEqual")
 xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
                                       "and QLinearMatMul"
                                       "Input0 scale and input0 zero point shape must be same and 1")
