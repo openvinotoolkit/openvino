@@ -10,8 +10,8 @@ INSTANTIATE_TEST_CASE_P(
 		::testing::ValuesIn(s_ResampleInput),
 		::testing::Values<Factor>(2.0f, 0.5f),
 		::testing::Values<Antialias>(false),
-		::testing::Values<CoordinateTransformMode>(2),
-		::testing::Values<NearestMode>(2),
+		::testing::Values<CoordinateTransformMode>(0),
+		::testing::Values<NearestMode>(1),
 		::testing::Values<HwOptimization>(false, true),
 		::testing::Values(""))
 );
