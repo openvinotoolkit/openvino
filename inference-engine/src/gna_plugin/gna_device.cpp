@@ -90,8 +90,22 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     return reqId;
 }
 
-uint32_t GNADeviceHelper::createModel(const Gna2Model& gnaModel) const {
+void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
+    for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
+        if (gnaModel.Operations->Type == Gna2OperationTypeConvolution) {
+            snprintf(
+                const_cast<char*>(gnaModel.Operations[i].Operands[1]->Layout),
+                sizeof(gnaModel.Operations[i].Operands[1]->Layout) / sizeof(char),
+                "GNA1");
+        }
+    }
+}
+
+uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     uint32_t modelId;
+    if (isUpTo20GnaDevice()) {
+        enforceLegacyCnns(gnaModel);
+    }
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
 
     checkGna2Status(status, gnaModel);
@@ -108,13 +122,30 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
     checkGna2Status(status);
     if (gna2HwConsistency != Gna2DeviceVersionSoftwareEmulation) {
-        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, gna2HwConsistency);
+        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId,
+            isUpTo20GnaDevice() ? gna2HwConsistency : detectedGnaDevVersion);
         checkGna2Status(status);
     }
     status = Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, reqConfId);
     checkGna2Status(status);
 
     return reqConfId;
+}
+
+uint32_t GNADeviceHelper::getNumberOfGnaDevices() {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    uint32_t numberOfGnaDevices = 0;
+    auto status = Gna2DeviceGetCount(&numberOfGnaDevices);
+    checkGna2Status(status);
+    return numberOfGnaDevices;
+}
+
+uint32_t GNADeviceHelper::selectGnaDevice() {
+    const auto deviceCount = getNumberOfGnaDevices();
+    if (deviceCount != 1) {
+        THROW_GNA_EXCEPTION << "Unsupported number of GNA devices detected = " << deviceCount;
+    }
+    return 0;
 }
 
 void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel) {

@@ -7,6 +7,7 @@ if (LINUX)
         if (NOT EXISTS "/etc/lsb-release")
             execute_process(COMMAND find -L /etc/ -maxdepth 1 -type f -name *-release -exec cat {} \;
                     OUTPUT_VARIABLE release_data RESULT_VARIABLE result)
+            string(REPLACE "Red Hat" "CentOS" release_data "${release_data}")
             set(name_regex "NAME=\"([^ \"\n]*).*\"\n")
             set(version_regex "VERSION=\"([0-9]+(\\.[0-9]+)?)[^\n]*\"")
         else ()

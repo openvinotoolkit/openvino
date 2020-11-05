@@ -118,9 +118,6 @@ struct resample_gpu : typed_primitive_gpu_impl<resample> {
             get_default_optional_params<kernel_selector::resample_optional_params>(arg.get_program());
 
         const auto& primitive = arg.get_primitive();
-        if (primitive->with_activation)
-            convert_activation_func_params(primitive, us_params.activations);
-
         size_t dimsNum = arg.get_output_layout().format.dimension();
         us_params.resampleType = convert_to_sample_type(primitive->operation_type);
         us_params.nearestMode = convert_to_nearest_mode(primitive->round_mode);

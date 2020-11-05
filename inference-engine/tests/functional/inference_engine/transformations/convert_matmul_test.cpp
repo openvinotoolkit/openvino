@@ -252,3 +252,18 @@ TEST(TransformationTests, ConvertMatMulTest7) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, ConvertMatMulDynamic) {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
+        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, true);
+
+        auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::ConvertMatMulToFC>();
+        m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
+        m.register_pass<ngraph::pass::ReshapeFullyConnected>();
+        ASSERT_NO_THROW(m.run_passes(f));
+}

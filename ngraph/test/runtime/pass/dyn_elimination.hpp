@@ -57,7 +57,6 @@ namespace ngraph
             DynElimination();
 
         private:
-            void construct_transpose();
             void construct_range();
         };
     }

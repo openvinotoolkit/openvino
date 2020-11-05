@@ -195,6 +195,13 @@ def lstm_sequence(
     }
     return _get_node_factory_opset5().create("LSTMSequence", node_inputs, attributes)
 
+def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
+    """Return a node which performs HSigmoid.
+
+    :param data: Tensor with input data floating point type.
+    :return: The new node which performs HSigmoid
+    """
+    return _get_node_factory_opset5().create("HSigmoid", as_nodes(data), {})
 
 @nameable_op
 def gru_sequence(
@@ -306,14 +313,34 @@ def rnn_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B)
+    inputs = as_nodes(X, H_t, sequence_lengths, W, R, B)
 
     attributes = {
         "hidden_size": hidden_size,
         "direction": direction.lower(),
         "activations": activations,
         "activations_alpha": activations_alpha,
-        "activations_beta": activations_beta,
+        "activations_beta": activations_alpha,
         "clip": clip,
     }
-    return _get_node_factory_opset5().create("RNNSequence", node_inputs, attributes)
+
+    return _get_node_factory_opset5().create("RNNSequence", inputs, attributes)
+
+
+@nameable_op
+def loop(
+    trip_count: NodeInput,
+    execution_condition: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs Loop.
+
+    :param trip_count: A scalar or 1D tensor with 1 element specifying
+        maximum number of iterations.
+    :param execution_condition: A scalar or 1D tensor with 1 element
+        specifying whether to execute the first iteration or not.
+    :return: The new node which performs Loop.
+    """
+    inputs = as_nodes(trip_count, execution_condition)
+
+    return _get_node_factory_opset5().create("Loop", inputs)
