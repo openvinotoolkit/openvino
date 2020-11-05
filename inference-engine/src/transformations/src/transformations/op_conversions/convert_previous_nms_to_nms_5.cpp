@@ -15,11 +15,9 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-using NMS5BoxEncoding = ngraph::opset5::NonMaxSuppression::BoxEncodingType;
-
 struct NMSAttributes {
     ngraph::element::Type output_type;
-    NMS5BoxEncoding box_encoding;
+    ngraph::opset5::NonMaxSuppression::BoxEncodingType box_encoding;
     bool sort_result_descending;
     bool is_supported_nms;
 };

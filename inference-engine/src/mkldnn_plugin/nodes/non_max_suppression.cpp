@@ -21,9 +21,9 @@ public:
     explicit NonMaxSuppressionImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() < 2 || layer->insData.size() > 6)
-                THROW_IE_EXCEPTION << "NMS" << "has incorrect number of input edges: " << layer->insData.size();
+                THROW_IE_EXCEPTION << layer->name << "has incorrect number of input edges: " << layer->insData.size();
             if (layer->outData.size() < 1 || layer->outData.size() > 3)
-                THROW_IE_EXCEPTION << "NMS" << "has incorrect number of output edges: " << layer->outData.size();
+                THROW_IE_EXCEPTION << layer->name << "has incorrect number of output edges: " << layer->outData.size();
 
             if (layer->insData[NMS_BOXES].lock()->getTensorDesc().getPrecision() != Precision::FP32)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect 'boxes' input precision. Only FP32 is supported!";
