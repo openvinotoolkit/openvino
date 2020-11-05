@@ -26,7 +26,7 @@ A few key features:
 - [Model reshaping](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md#model-reshaping). The server supports reshaping models in runtime. 
 - [Model ensemble](https://github.com/openvinotoolkit/model_server/blob/main/docs/ensemble_scheduler.md) (preview). Connect multiple models to deploy complex processing solutions and reduce overhead of sending data back and forth.
 
-> **NOTE**: OVMS has been tested on CentOS\* and Ubuntu\*. Publically released [Docker images](https://hub.docker.com/r/openvino/model_server) are based on CentOS.
+> **NOTE**: OVMS has been tested on CentOS\* and Ubuntu\*. Publicly released [Docker images](https://hub.docker.com/r/openvino/model_server) are based on CentOS.
 
 ## Build OpenVINO Model Server
 

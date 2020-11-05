@@ -61,8 +61,6 @@
 
         <!-- DOCUMENTATION category -->
         <tab type="usergroup" title="DOCUMENTATION"><!--automatically generated-->
-            <!-- Model Downloader -->
-            <!-- <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='model_downloader'])"/> -->
             <!-- DLDT Documentation-->
             <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='converting_and_preparing_models'])"/>
             <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='intermediate_representaton_and_operations_sets'])"/>
