@@ -271,11 +271,8 @@ void HandleMultipleActivationsForTheLayerPass::run() {
 
 void ForbidActivationFusingPass::run() {
     for (auto& l : *pLayers) {
-        if (l->insData.empty()) continue;
-        auto prevLayer = CNNNetPrevLayerSkipCertain(l, 0, [](CNNLayerPtr ptr) {
-            return LayerInfo(ptr).isNonFunctional();
-            });
         if (LayerInfo(l).isActivation()) {
+            auto prevLayer = CNNNetPrevLayer(l);
             if (LayerInfo(prevLayer).has32BOutput()) {
                 // find all layers directly connected to the outputs of the previous layer
                 const auto allUsingPrev = CNNNetGetAllNextLayersSkipCertain(prevLayer, -1,
@@ -284,8 +281,7 @@ void ForbidActivationFusingPass::run() {
                             for (const auto& output : prevLayer->outData) {
                                 if (areEqualDatas(input.lock(), output) &&
                                     areEqualDatas(l->insData[0].lock(), output) &&
-                                    ((nextLayer->type == "Eltwise" && nextLayer->params.at("operation") == "sum")
-                                        || nextLayer == l)) {
+                                    (LayerInfo(nextLayer).isEltwiseSum() || nextLayer == l)) {
                                     return false;
                                 }
                             }
