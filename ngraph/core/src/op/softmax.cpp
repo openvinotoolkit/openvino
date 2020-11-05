@@ -25,7 +25,6 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/op/sum.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
 #include "ngraph/util.hpp"
