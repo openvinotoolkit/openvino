@@ -21,5 +21,5 @@ public:
     MOCK_METHOD2(GetBlob, void(const char *name, InferenceEngine::Blob::Ptr &));
     MOCK_METHOD3(SetBlob, void(const char*, const InferenceEngine::Blob::Ptr&, const InferenceEngine::PreProcessInfo&));
     MOCK_METHOD2(GetPreProcess, void(const char*, const InferenceEngine::PreProcessInfo**));
-    MOCK_METHOD0(QueryState, std::vector<InferenceEngine::IMemoryStateInternal::Ptr>());
+    MOCK_METHOD0(QueryState, std::vector<InferenceEngine::IVariableStateInternal::Ptr>());
 };

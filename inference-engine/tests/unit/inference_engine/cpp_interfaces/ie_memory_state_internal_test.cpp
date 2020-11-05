@@ -27,24 +27,24 @@ inline typename InferenceEngine::InferRequest make_infer_request(std::shared_ptr
 }
 
 
-class MemoryStateTests : public ::testing::Test {
+class VariableStateTests : public ::testing::Test {
  protected:
     shared_ptr<MockIExecutableNetworkInternal> mockExeNetworkInternal;
     shared_ptr<MockIAsyncInferRequestInternal> mockInferRequestInternal;
-    shared_ptr<MockIMemoryStateInternal> mockMemoryStateInternal;
+    shared_ptr<MockIVariableStateInternal> mockVariableStateInternal;
 
     virtual void SetUp() {
         mockExeNetworkInternal = make_shared<MockIExecutableNetworkInternal>();
         mockInferRequestInternal = make_shared<MockIAsyncInferRequestInternal>();
-        mockMemoryStateInternal = make_shared<MockIMemoryStateInternal>();
+        mockVariableStateInternal = make_shared<MockIVariableStateInternal>();
     }
 };
 
-TEST_F(MemoryStateTests, ExecutableNetworkCanConvertOneMemoryStateFromCppToAPI) {
+TEST_F(VariableStateTests, ExecutableNetworkCanConvertOneVariableStateFromCppToAPI) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn(1);
-    toReturn[0] = mockMemoryStateInternal;
+    std::vector<IVariableStateInternal::Ptr> toReturn(1);
+    toReturn[0] = mockVariableStateInternal;
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
 
@@ -53,10 +53,10 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvertOneMemoryStateFromCppToAPI) 
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(MemoryStateTests, ExecutableNetworkCanConvertZeroMemoryStateFromCppToAPI) {
+TEST_F(VariableStateTests, ExecutableNetworkCanConvertZeroVariableStateFromCppToAPI) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
+    std::vector<IVariableStateInternal::Ptr> toReturn;
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).WillOnce(Return(toReturn));
 
@@ -65,12 +65,12 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvertZeroMemoryStateFromCppToAPI)
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(MemoryStateTests, ExecutableNetworkCanConvert2MemoryStatesFromCPPtoAPI) {
+TEST_F(VariableStateTests, ExecutableNetworkCanConvert2VariableStatesFromCPPtoAPI) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).Times(3).WillRepeatedly(Return(toReturn));
 
@@ -79,58 +79,58 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvert2MemoryStatesFromCPPtoAPI) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(MemoryStateTests, MemoryStatePropagatesReset) {
+TEST_F(VariableStateTests, VariableStatePropagatesReset) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), Reset()).Times(1);
+    EXPECT_CALL(*mockVariableStateInternal.get(), Reset()).Times(1);
 
     auto state = net.QueryState();
     state.front().Reset();
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(MemoryStateTests, MemoryStatePropagatesExceptionsFromReset) {
+TEST_F(VariableStateTests, VariableStatePropagatesExceptionsFromReset) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), Reset()).WillOnce(Throw(std::logic_error("some error")));
+    EXPECT_CALL(*mockVariableStateInternal.get(), Reset()).WillOnce(Throw(std::logic_error("some error")));
 
     auto state = net.QueryState();
     EXPECT_ANY_THROW(state.front().Reset());
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(MemoryStateTests, MemoryStatePropagatesGetName) {
+TEST_F(VariableStateTests, VariableStatePropagatesGetName) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetName()).WillOnce(Return("someName"));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetName()).WillOnce(Return("someName"));
 
     auto state = net.QueryState();
     EXPECT_STREQ(state.front().GetName().c_str(), "someName");
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithZeroLen) {
+TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithZeroLen) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetName()).WillOnce(Return("someName"));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetName()).WillOnce(Return("someName"));
 
-    IMemoryState::Ptr pState;
+    IVariableState::Ptr pState;
 
     static_cast<IExecutableNetwork::Ptr>(net)->QueryState(pState, 0, nullptr);
     char *name = reinterpret_cast<char *>(1);
@@ -139,16 +139,16 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithZeroLen) {
 }
 
 
-TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfOne) {
+TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfOne) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetName()).WillOnce(Return("someName"));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetName()).WillOnce(Return("someName"));
 
-    IMemoryState::Ptr pState;
+    IVariableState::Ptr pState;
 
     static_cast<IExecutableNetwork::Ptr>(net)->QueryState(pState, 0, nullptr);
     char name[1];
@@ -157,16 +157,16 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfOne) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfTwo) {
+TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfTwo) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetName()).WillOnce(Return("someName"));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetName()).WillOnce(Return("someName"));
 
-    IMemoryState::Ptr pState;
+    IVariableState::Ptr pState;
 
     static_cast<IExecutableNetwork::Ptr>(net)->QueryState(pState, 0, nullptr);
     char name[2];
@@ -175,15 +175,15 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfTwo) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(MemoryStateTests, MemoryStateCanPropagateSetState) {
+TEST_F(VariableStateTests, VariableStateCanPropagateSetState) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
+    std::vector<IVariableStateInternal::Ptr> toReturn;
     Blob::Ptr saver;
-    toReturn.push_back(mockMemoryStateInternal);
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), SetState(_)).WillOnce(SaveArg<0>(&saver));
+    EXPECT_CALL(*mockVariableStateInternal.get(), SetState(_)).WillOnce(SaveArg<0>(&saver));
 
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
@@ -195,19 +195,19 @@ TEST_F(MemoryStateTests, MemoryStateCanPropagateSetState) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(MemoryStateTests, MemoryStateCanPropagateGetLastState) {
+TEST_F(VariableStateTests, VariableStateCanPropagateGetLastState) {
     IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
+    std::vector<IVariableStateInternal::Ptr> toReturn;
 
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
 
-    toReturn.push_back(mockMemoryStateInternal);
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetState()).WillOnce(Return(stateBlob));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetState()).WillOnce(Return(stateBlob));
 
 
     auto saver = net.QueryState().front().GetState();
@@ -217,20 +217,20 @@ TEST_F(MemoryStateTests, MemoryStateCanPropagateGetLastState) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-class MemoryStateInternalMockImpl : public MemoryStateInternal {
+class VariableStateInternalMockImpl : public VariableStateInternal {
  public:
-    using MemoryStateInternal::MemoryStateInternal;
+    using VariableStateInternal::VariableStateInternal;
     MOCK_METHOD0(Reset, void());
 };
 
-TEST_F(MemoryStateTests, MemoryStateInternalCanSaveName) {
-    IMemoryStateInternal::Ptr pState(new MemoryStateInternalMockImpl("name"));
+TEST_F(VariableStateTests, VariableStateInternalCanSaveName) {
+    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("name"));
     ASSERT_STREQ(pState->GetName().c_str(), "name");
 }
 
 
-TEST_F(MemoryStateTests, MemoryStateInternalCanSaveState) {
-    IMemoryStateInternal::Ptr pState(new MemoryStateInternalMockImpl("name"));
+TEST_F(VariableStateTests, VariableStateInternalCanSaveState) {
+    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("name"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
@@ -243,8 +243,8 @@ TEST_F(MemoryStateTests, MemoryStateInternalCanSaveState) {
 }
 
 
-TEST_F(MemoryStateTests, MemoryStateInternalCanSaveStateByReference) {
-    IMemoryStateInternal::Ptr pState(new MemoryStateInternalMockImpl("name"));
+TEST_F(VariableStateTests, VariableStateInternalCanSaveStateByReference) {
+    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("name"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
@@ -261,10 +261,10 @@ TEST_F(MemoryStateTests, MemoryStateInternalCanSaveStateByReference) {
 }
 
 // Tests for InferRequest::QueryState
-TEST_F(MemoryStateTests, InferRequestCanConvertOneMemoryStateFromCppToAPI) {
+TEST_F(VariableStateTests, InferRequestCanConvertOneVariableStateFromCppToAPI) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn(1);
-    toReturn[0] = mockMemoryStateInternal;
+    std::vector<IVariableStateInternal::Ptr> toReturn(1);
+    toReturn[0] = mockVariableStateInternal;
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
 
@@ -272,9 +272,9 @@ TEST_F(MemoryStateTests, InferRequestCanConvertOneMemoryStateFromCppToAPI) {
     ASSERT_EQ(state.size(), 1);
 }
 
-TEST_F(MemoryStateTests, InferRequestCanConvertZeroMemoryStateFromCppToAPI) {
+TEST_F(VariableStateTests, InferRequestCanConvertZeroVariableStateFromCppToAPI) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
+    std::vector<IVariableStateInternal::Ptr> toReturn;
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).WillOnce(Return(toReturn));
 
@@ -282,11 +282,11 @@ TEST_F(MemoryStateTests, InferRequestCanConvertZeroMemoryStateFromCppToAPI) {
     ASSERT_EQ(state.size(), 0);
 }
 
-TEST_F(MemoryStateTests, InferRequestCanConvert2MemoryStatesFromCPPtoAPI) {
+TEST_F(VariableStateTests, InferRequestCanConvert2VariableStatesFromCPPtoAPI) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(3).WillRepeatedly(Return(toReturn));
 
@@ -294,66 +294,66 @@ TEST_F(MemoryStateTests, InferRequestCanConvert2MemoryStatesFromCPPtoAPI) {
     ASSERT_EQ(state.size(), 2);
 }
 
-TEST_F(MemoryStateTests, InfReqMemoryStatePropagatesReset) {
+TEST_F(VariableStateTests, InfReqVariableStatePropagatesReset) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), Reset()).Times(1);
+    EXPECT_CALL(*mockVariableStateInternal.get(), Reset()).Times(1);
 
     auto state = req.QueryState();
     state.front().Reset();
 }
 
-TEST_F(MemoryStateTests, InfReqMemoryStatePropagatesExceptionsFromReset) {
+TEST_F(VariableStateTests, InfReqVariableStatePropagatesExceptionsFromReset) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), Reset()).WillOnce(Throw(std::logic_error("some error")));
+    EXPECT_CALL(*mockVariableStateInternal.get(), Reset()).WillOnce(Throw(std::logic_error("some error")));
 
     auto state = req.QueryState();
     EXPECT_ANY_THROW(state.front().Reset());
 }
 
-TEST_F(MemoryStateTests, InfReqMemoryStatePropagatesGetName) {
+TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetName) {
 auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetName()).WillOnce(Return("someName"));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetName()).WillOnce(Return("someName"));
 
     auto state = req.QueryState();
     EXPECT_STREQ(state.front().GetName().c_str(), "someName");
 }
 
-TEST_F(MemoryStateTests, InfReqMemoryStatePropagatesGetNameWithZeroLen) {
+TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithZeroLen) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetName()).WillOnce(Return("someName"));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetName()).WillOnce(Return("someName"));
 
-    IMemoryState::Ptr pState;
+    IVariableState::Ptr pState;
 
     static_cast<IInferRequest::Ptr>(req)->QueryState(pState, 0, nullptr);
     char *name = reinterpret_cast<char *>(1);
     EXPECT_NO_THROW(pState->GetName(name, 0, nullptr));
 }
 
-TEST_F(MemoryStateTests, InfReqMemoryStatePropagatesGetNameWithLenOfOne) {
+TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfOne) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetName()).WillOnce(Return("someName"));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetName()).WillOnce(Return("someName"));
 
-    IMemoryState::Ptr pState;
+    IVariableState::Ptr pState;
 
     static_cast<IInferRequest::Ptr>(req)->QueryState(pState, 0, nullptr);
     char name[1];
@@ -361,15 +361,15 @@ TEST_F(MemoryStateTests, InfReqMemoryStatePropagatesGetNameWithLenOfOne) {
     EXPECT_STREQ(name, "");
 }
 
-TEST_F(MemoryStateTests, InfReqMemoryStatePropagatesGetNameWithLenOfTwo) {
+TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfTwo) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
-    toReturn.push_back(mockMemoryStateInternal);
+    std::vector<IVariableStateInternal::Ptr> toReturn;
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetName()).WillOnce(Return("someName"));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetName()).WillOnce(Return("someName"));
 
-    IMemoryState::Ptr pState;
+    IVariableState::Ptr pState;
 
     static_cast<IInferRequest::Ptr>(req)->QueryState(pState, 0, nullptr);
     char name[2];
@@ -377,14 +377,14 @@ TEST_F(MemoryStateTests, InfReqMemoryStatePropagatesGetNameWithLenOfTwo) {
     EXPECT_STREQ(name, "s");
 }
 
-TEST_F(MemoryStateTests, InfReqMemoryStateCanPropagateSetState) {
+TEST_F(VariableStateTests, InfReqVariableStateCanPropagateSetState) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
+    std::vector<IVariableStateInternal::Ptr> toReturn;
     Blob::Ptr saver;
-    toReturn.push_back(mockMemoryStateInternal);
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), SetState(_)).WillOnce(SaveArg<0>(&saver));
+    EXPECT_CALL(*mockVariableStateInternal.get(), SetState(_)).WillOnce(SaveArg<0>(&saver));
 
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
@@ -395,17 +395,17 @@ TEST_F(MemoryStateTests, InfReqMemoryStateCanPropagateSetState) {
     ASSERT_FLOAT_EQ(saver->buffer().as<float*>()[2], 125);
 }
 
-TEST_F(MemoryStateTests, InfReqMemoryStateCanPropagateGetLastState) {
+TEST_F(VariableStateTests, InfReqVariableStateCanPropagateGetLastState) {
     auto req = make_infer_request(mockInferRequestInternal);
-    std::vector<IMemoryStateInternal::Ptr> toReturn;
+    std::vector<IVariableStateInternal::Ptr> toReturn;
 
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
-    toReturn.push_back(mockMemoryStateInternal);
+    toReturn.push_back(mockVariableStateInternal);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).WillRepeatedly(Return(toReturn));
-    EXPECT_CALL(*mockMemoryStateInternal.get(), GetState()).WillOnce(Return(stateBlob));
+    EXPECT_CALL(*mockVariableStateInternal.get(), GetState()).WillOnce(Return(stateBlob));
 
     auto saver = req.QueryState().front().GetState();
     ASSERT_FLOAT_EQ(saver->cbuffer().as<const float*>()[0], 123);

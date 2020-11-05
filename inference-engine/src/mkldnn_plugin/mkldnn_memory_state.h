@@ -11,9 +11,9 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNMemoryState : public InferenceEngine::IMemoryStateInternal {
+class MKLDNNVariableState : public InferenceEngine::IVariableStateInternal {
 public:
-    MKLDNNMemoryState(std::string name, MKLDNNMemoryPtr storage) :
+    MKLDNNVariableState(std::string name, MKLDNNMemoryPtr storage) :
             name(name), storage(storage) {}
 
     std::string GetName() const override;

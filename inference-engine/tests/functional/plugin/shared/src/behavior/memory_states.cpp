@@ -7,7 +7,7 @@
 #include "behavior/memory_states.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 
-std::string MemoryStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj) {
+std::string VariableStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj) {
     std::ostringstream result;
     InferenceEngine::CNNNetwork net;
     std::string targetDevice;
@@ -17,23 +17,23 @@ std::string MemoryStateTest::getTestCaseName(const testing::TestParamInfo<memory
     return result.str();
 }
 
-void MemoryStateTest::SetUp() {
+void VariableStateTest::SetUp() {
     std::tie(net, statesToQuery, deviceName) = GetParam();
 }
 
-InferenceEngine::ExecutableNetwork MemoryStateTest::PrepareNetwork() {
+InferenceEngine::ExecutableNetwork VariableStateTest::PrepareNetwork() {
     net.addOutput("Memory_1");
     net.addOutput("Memory_2");
     auto ie = PluginCache::get().ie(deviceName);
     return ie->LoadNetwork(net, deviceName);
 }
 
-TEST_P(MemoryStateTest, smoke_MemoryState_QueryState) {
+TEST_P(VariableStateTest, smoke_VariableState_QueryState) {
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
 
     auto states = executableNet.QueryState();
-    ASSERT_TRUE(states.size() == 2) << "Incorrect number of MemoryStates";
+    ASSERT_TRUE(states.size() == 2) << "Incorrect number of VariableStates";
 
     for (auto&& state : states) {
         auto name = state.GetName();
@@ -43,7 +43,7 @@ TEST_P(MemoryStateTest, smoke_MemoryState_QueryState) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
+TEST_P(VariableStateTest, smoke_VariableState_SetState) {
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
     const float new_state_val = 13.0f;
@@ -72,7 +72,7 @@ TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(MemoryStateTest, smoke_MemoryState_Reset) {
+TEST_P(VariableStateTest, smoke_VariableState_Reset) {
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
     const float new_state_val = 13.0f;
@@ -111,12 +111,12 @@ TEST_P(MemoryStateTest, smoke_MemoryState_Reset) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(MemoryStateTest, inferreq_smoke_MemoryState_QueryState) {
+TEST_P(VariableStateTest, inferreq_smoke_VariableState_QueryState) {
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
     auto states = inferReq.QueryState();
-    ASSERT_TRUE(states.size() == 2) << "Incorrect number of MemoryStates";
+    ASSERT_TRUE(states.size() == 2) << "Incorrect number of VariableStates";
 
     for (auto&& state : states) {
         auto name = state.GetName();
@@ -125,7 +125,7 @@ TEST_P(MemoryStateTest, inferreq_smoke_MemoryState_QueryState) {
     }
 }
 
-TEST_P(MemoryStateTest, inferreq_smoke_MemoryState_SetState) {
+TEST_P(VariableStateTest, inferreq_smoke_VariableState_SetState) {
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
@@ -154,7 +154,7 @@ TEST_P(MemoryStateTest, inferreq_smoke_MemoryState_SetState) {
     }
 }
 
-TEST_P(MemoryStateTest, inferreq_smoke_MemoryState_Reset) {
+TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 

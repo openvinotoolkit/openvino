@@ -12,7 +12,7 @@
 
 using namespace InferenceEngine;
 
-class MockIMemoryState : public InferenceEngine::IMemoryState {
+class MockIVariableState : public InferenceEngine::IVariableState {
 public:
     MOCK_QUALIFIED_METHOD3(GetName, const noexcept, StatusCode(char * , size_t, ResponseDesc *));
     MOCK_QUALIFIED_METHOD1(Reset, noexcept, StatusCode(ResponseDesc *));

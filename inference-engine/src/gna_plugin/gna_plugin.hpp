@@ -84,7 +84,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
-    std::vector<InferenceEngine::MemoryStateInternal::Ptr> memoryStates;
+    std::vector<InferenceEngine::VariableStateInternal::Ptr> memoryStates;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);
@@ -160,7 +160,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      * @return
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr>  QueryState();
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState();
 
      /**
       * test-wise API

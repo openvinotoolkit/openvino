@@ -10,15 +10,15 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-std::string  MKLDNNMemoryState::GetName() const {
+std::string  MKLDNNVariableState::GetName() const {
     return name;
 }
 
-void  MKLDNNMemoryState::Reset() {
+void  MKLDNNVariableState::Reset() {
     storage->FillZero();
 }
 
-void  MKLDNNMemoryState::SetState(Blob::Ptr newState) {
+void  MKLDNNVariableState::SetState(Blob::Ptr newState) {
     auto prec = newState->getTensorDesc().getPrecision();
     auto data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
     auto data_layout = MKLDNNMemory::Convert(newState->getTensorDesc().getLayout());
@@ -28,7 +28,7 @@ void  MKLDNNMemoryState::SetState(Blob::Ptr newState) {
     storage->SetData(data_type, data_layout, data_ptr, data_size);
 }
 
-InferenceEngine::Blob::CPtr MKLDNNMemoryState::GetState() const {
+InferenceEngine::Blob::CPtr MKLDNNVariableState::GetState() const {
     auto state_precision = MKLDNNMemory::convertToIePrec(storage->GetDataType());
     auto shape = SizeVector({ storage->GetElementsCount() });
     auto data_layout = MKLDNNMemory::GetPlainLayout(storage->GetDims());

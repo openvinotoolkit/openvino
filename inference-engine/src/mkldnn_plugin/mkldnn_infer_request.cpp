@@ -54,7 +54,7 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
                 if (suffix_idx != std::string::npos)
                     state_name = state_name.substr(0, suffix_idx);
 
-                memoryStates.emplace_back(new MKLDNNMemoryState(state_name, state_store));
+                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
            }
         }
     } else {
@@ -417,6 +417,6 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBatch(int new_batch) {
     m_curBatch = new_batch;
 }
 
-std::vector<InferenceEngine::IMemoryStateInternal::Ptr> MKLDNNPlugin::MKLDNNInferRequest::QueryState() {
+std::vector<InferenceEngine::IVariableStateInternal::Ptr> MKLDNNPlugin::MKLDNNInferRequest::QueryState() {
     return memoryStates;
 }

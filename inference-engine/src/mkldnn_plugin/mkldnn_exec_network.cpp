@@ -190,7 +190,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                 if (suffix_idx != std::string::npos)
                     state_name = state_name.substr(0, suffix_idx);
 
-                memoryStates.emplace_back(new MKLDNNMemoryState(state_name, state_store));
+                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
             }
         }
     }
@@ -315,7 +315,7 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
 }
 
 IE_SUPPRESS_DEPRECATED_START
-std::vector<IMemoryStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
+std::vector<IVariableStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
     return memoryStates;
 }
 IE_SUPPRESS_DEPRECATED_END
