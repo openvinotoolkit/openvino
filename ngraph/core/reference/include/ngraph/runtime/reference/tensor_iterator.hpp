@@ -10,16 +10,14 @@
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
+// See the License for the specific language governing permissions and`
 // limitations under the License.
 //*****************************************************************************
 
 #pragma once
 
 #include <cmath>
-#include <cstddef>
-#include <vector>
-#include "ngraph/function.hpp"
+#include <ngraph/opsets/opset5.hpp>
 
 namespace ngraph
 {
@@ -27,9 +25,12 @@ namespace ngraph
     {
         namespace reference
         {
-            std::vector<std::vector<std::uint8_t>>
-                function(const std::shared_ptr<Function>& function,
-                         const std::vector<std::vector<std::uint8_t>>& inputs);
+            void tensor_iterator(uint64_t num_iterations,
+                                 const std::shared_ptr<Function>& body,
+                                 const op::util::OutputDescriptionVector& out_descs,
+                                 const op::util::InputDescriptionVector& input_descs,
+                                 const HostTensorVector& out,
+                                 const HostTensorVector& args);
         }
     }
 }

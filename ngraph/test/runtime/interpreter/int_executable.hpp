@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <ngraph/runtime/host_tensor.hpp>
+#include <ngraph/runtime/reference/loop.hpp>
 #include "backend.hpp"
 #include "int_backend_visibility.hpp"
 #include "ngraph/ops.hpp"
@@ -62,7 +63,6 @@
 #include "ngraph/runtime/reference/gru_cell.hpp"
 #include "ngraph/runtime/reference/log.hpp"
 #include "ngraph/runtime/reference/log_softmax.hpp"
-#include <ngraph/runtime/reference/loop.hpp>
 #include "ngraph/runtime/reference/lrn.hpp"
 #include "ngraph/runtime/reference/lstm_cell.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
@@ -98,6 +98,7 @@
 #include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/runtime/reference/tan.hpp"
 #include "ngraph/runtime/reference/tanh.hpp"
+#include "ngraph/runtime/reference/tensor_iterator.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "op/avg_pool.hpp"
@@ -820,17 +821,6 @@ protected:
                                                 rnn_seq->get_direction());
             break;
         }
-        case OP_TYPEID::Loop_v5:
-        {
-            auto loop = dynamic_cast<const op::v5::Loop&>(node);
-            reference::loop(loop.get_function(),
-                            loop.get_output_descriptions(),
-                            loop.get_input_descriptions(),
-                            loop.get_special_body_ports(),
-                            out,
-                            args);
-            break;
-        }
         case OP_TYPEID::Log:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1335,6 +1325,17 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
+        case OP_TYPEID::TensorIterator:
+        {
+            auto ti = dynamic_cast<const op::v0::TensorIterator&>(node);
+            reference::tensor_iterator(ti.get_num_iterations(),
+                                       ti.get_function(),
+                                       ti.get_output_descriptions(),
+                                       ti.get_input_descriptions(),
+                                       out,
+                                       args);
+            break;
+        }
         case OP_TYPEID::TopK:
         {
             const op::TopK* topk = static_cast<const op::TopK*>(&node);
@@ -1475,7 +1476,6 @@ protected:
         case OP_TYPEID::SpaceToDepth:
         case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
-        case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:
         case OP_TYPEID::UnknownOp:
             throw unsupported_op("Unsupported op '" + node.description() + "'");
@@ -1494,6 +1494,7 @@ protected:
         case OP_TYPEID::LogicalAnd_v1:
         case OP_TYPEID::LogicalOr_v1:
         case OP_TYPEID::LogicalXor_v1:
+        case OP_TYPEID::Loop_v5:
         case OP_TYPEID::MatMul:
         case OP_TYPEID::Maximum:
         case OP_TYPEID::Minimum:

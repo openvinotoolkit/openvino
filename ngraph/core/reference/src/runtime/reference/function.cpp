@@ -20,9 +20,9 @@
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/runtime/reference/function.hpp"
 
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
+#include "ngraph/runtime/tensor.hpp"
 
 namespace ngraph
 {
@@ -63,7 +63,8 @@ namespace ngraph
                 }
 
                 // map function outputs -> HostTensor
-                for (size_t output_count = 0; output_count < function->get_results().size(); ++output_count)
+                for (size_t output_count = 0; output_count < function->get_results().size();
+                     ++output_count)
                 {
                     auto output = function->get_results()[output_count];
                     if (!is_type<op::Result>(output))
@@ -117,7 +118,6 @@ namespace ngraph
                         std::cout << "ERRROR!11" << std::endl;
                         // generate_calls(type, *op.get(), op_outputs, op_inputs);
                     }
-
                 }
                 return true;
             }
@@ -127,50 +127,68 @@ namespace ngraph
                 return std::make_shared<runtime::HostTensor>();
             }
 
-            std::shared_ptr<runtime::Tensor>
-            create_tensor(const element::Type& type, const Shape& shape)
+            std::shared_ptr<runtime::Tensor> create_tensor(const element::Type& type,
+                                                           const Shape& shape)
             {
                 return std::make_shared<runtime::HostTensor>(type, shape);
             }
 
-            std::vector<std::vector<std::uint8_t>> function(const std::shared_ptr<ngraph::Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs) {
-                const auto &parameters = function->get_parameters();
-                const auto &parametersNumber = parameters.size();
-                const auto &inputsNumber = inputs.size();
+            std::vector<std::vector<std::uint8_t>>
+                function(const std::shared_ptr<ngraph::Function>& function,
+                         const std::vector<std::vector<std::uint8_t>>& inputs)
+            {
+                const auto& parameters = function->get_parameters();
+                const auto& parametersNumber = parameters.size();
+                const auto& inputsNumber = inputs.size();
                 NGRAPH_CHECK(parametersNumber == inputsNumber,
-                             "Got function (", function->get_friendly_name(), ") with ", parametersNumber, " parameters, but ",
-                             inputsNumber, " input blobs");
+                             "Got function (",
+                             function->get_friendly_name(),
+                             ") with ",
+                             parametersNumber,
+                             " parameters, but ",
+                             inputsNumber,
+                             " input blobs");
 
                 auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
-                for (const auto &parameter : parameters) {
-                    const auto &parameterIndex = function->get_parameter_index(parameter);
-                    const auto &parameterShape = parameter->get_shape();
-                    const auto &parameterType = parameter->get_element_type();
-                    const auto &parameterSize = shape_size(parameterShape) * parameterType.size();
+                for (const auto& parameter : parameters)
+                {
+                    const auto& parameterIndex = function->get_parameter_index(parameter);
+                    const auto& parameterShape = parameter->get_shape();
+                    const auto& parameterType = parameter->get_element_type();
+                    const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
 
-                    const auto &input = inputs[parameterIndex];
-                    const auto &inputSize = input.size();
+                    const auto& input = inputs[parameterIndex];
+                    const auto& inputSize = input.size();
                     NGRAPH_CHECK(parameterSize == inputSize,
-                                 "Got parameter (", parameter->get_friendly_name(), ") of size ", parameterSize,
-                                 " bytes, but corresponding input with index ", parameterIndex,
-                                 " has ", inputSize, " bytes");
+                                 "Got parameter (",
+                                 parameter->get_friendly_name(),
+                                 ") of size ",
+                                 parameterSize,
+                                 " bytes, but corresponding input with index ",
+                                 parameterIndex,
+                                 " has ",
+                                 inputSize,
+                                 " bytes");
 
                     auto tensor = create_tensor(parameterType, parameterShape);
                     tensor->write(input.data(), parameterSize);
                     inputTensors.push_back(tensor);
                 }
 
-                const auto &results = function->get_results();
+                const auto& results = function->get_results();
                 std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
-                for (size_t i = 0; i < results.size(); ++i) {
+                for (size_t i = 0; i < results.size(); ++i)
+                {
                     outputTensors.push_back(std::make_shared<HostTensor>());
                 }
                 call(outputTensors, inputTensors, function);
                 std::vector<std::vector<std::uint8_t>> outputs(results.size());
-                for (const auto &result : results) {
-                    const auto &resultIndex = function->get_result_index(result);
-                    auto &output = outputs[resultIndex];
-                    output.resize(shape_size(result->get_shape()) * result->get_element_type().size());
+                for (const auto& result : results)
+                {
+                    const auto& resultIndex = function->get_result_index(result);
+                    auto& output = outputs[resultIndex];
+                    output.resize(shape_size(result->get_shape()) *
+                                  result->get_element_type().size());
                     outputTensors[resultIndex]->read(output.data(), output.size());
                 }
                 return outputs;
