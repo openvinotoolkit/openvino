@@ -104,9 +104,6 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual bool evaluate(const HostTensorVector& output_values,
-                                      const HostTensorVector& input_values) const override;
-
                 const ngraph::AxisSet& get_axes() const { return m_axes; }
                 RoundMode get_round_mode() const { return m_round_mode; }
             private:

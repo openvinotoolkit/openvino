@@ -429,43 +429,6 @@ TEST(constant_folding, constant_unary_binary)
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
-TEST(constant_folding, const_quantize)
-{
-    Shape input_shape{12};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto quant_type = element::u8;
-    auto output_type = element::u8;
-    typedef uint8_t output_c_type;
-
-    vector<float> values_in{1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 7.0};
-    auto constant = op::Constant::create(element::f32, input_shape, values_in);
-    auto scale = op::Constant::create(element::f32, scale_offset_shape, {2});
-    auto offset = op::Constant::create(quant_type, scale_offset_shape, {1});
-    auto mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY;
-    auto quantize =
-        make_shared<op::Quantize>(constant, scale, offset, output_type, quantization_axes, mode);
-    quantize->set_friendly_name("test");
-    auto f = make_shared<Function>(quantize, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Quantize>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<output_c_type>();
-
-    vector<output_c_type> values_quantize{2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5};
-    ASSERT_EQ(values_quantize, values_out);
-}
-
 TEST(constant_folding, const_convert)
 {
     Shape input_shape{3, 4};
