@@ -163,27 +163,11 @@ namespace detail
 
         switch (indices->get_element_type())
         {
-        case element::Type_t::i8: evaluate<int8_t, out_t>(output_values, input_values, axis); break;
-        case element::Type_t::i16:
-            evaluate<int16_t, out_t>(output_values, input_values, axis);
-            break;
         case element::Type_t::i32:
             evaluate<int32_t, out_t>(output_values, input_values, axis);
             break;
         case element::Type_t::i64:
             evaluate<int64_t, out_t>(output_values, input_values, axis);
-            break;
-        case element::Type_t::u8:
-            evaluate<uint8_t, out_t>(output_values, input_values, axis);
-            break;
-        case element::Type_t::u16:
-            evaluate<uint16_t, out_t>(output_values, input_values, axis);
-            break;
-        case element::Type_t::u32:
-            evaluate<uint32_t, out_t>(output_values, input_values, axis);
-            break;
-        case element::Type_t::u64:
-            evaluate<uint64_t, out_t>(output_values, input_values, axis);
             break;
         default: return false; break;
         }
@@ -202,49 +186,14 @@ namespace detail
         case element::Type_t::boolean:
             return dispatch_by_output_type<char>(output_values, input_values, axis);
             break;
-        case element::Type_t::bf16:
-            return dispatch_by_output_type<bfloat16>(output_values, input_values, axis);
-            break;
-        case element::Type_t::f16:
-
-            return dispatch_by_output_type<float16>(output_values, input_values, axis);
-            break;
         case element::Type_t::f32:
-
             return dispatch_by_output_type<float>(output_values, input_values, axis);
             break;
-        case element::Type_t::f64:
-
-            return dispatch_by_output_type<double>(output_values, input_values, axis);
-            break;
-        case element::Type_t::i8:
-
-            return dispatch_by_output_type<int8_t>(output_values, input_values, axis);
-            break;
-        case element::Type_t::i16:
-
-            return dispatch_by_output_type<int16_t>(output_values, input_values, axis);
-            break;
         case element::Type_t::i32:
-
             return dispatch_by_output_type<int32_t>(output_values, input_values, axis);
             break;
         case element::Type_t::i64:
-
             return dispatch_by_output_type<int64_t>(output_values, input_values, axis);
-            break;
-        case element::Type_t::u8:
-
-            return dispatch_by_output_type<uint8_t>(output_values, input_values, axis);
-            break;
-        case element::Type_t::u16:
-            return dispatch_by_output_type<uint16_t>(output_values, input_values, axis);
-            break;
-        case element::Type_t::u32:
-            return dispatch_by_output_type<uint32_t>(output_values, input_values, axis);
-            break;
-        case element::Type_t::u64:
-            return dispatch_by_output_type<uint64_t>(output_values, input_values, axis);
             break;
         default: return false;
         }

@@ -2420,14 +2420,14 @@ TEST(constant_folding, constant_v1_variadic_split_axis_1_3_splits_neg_length)
 
 TEST(constant_folding, constant_v1_one_hot)
 {
-    vector<int64_t> indices{0, 1, 2};
-    float16 on_value = 1.123f;
-    float16 off_value = 0.321f;
+    const vector<int64_t> indices{0, 1, 2};
+    const float on_value = 1.123f;
+    const float off_value = 0.321f;
 
     const auto indices_const = op::Constant::create(element::i64, Shape{3}, indices);
     const auto depth_const = op::Constant::create(element::i64, Shape{}, {3});
-    const auto on_const = op::Constant::create(element::f16, Shape{}, {on_value});
-    const auto off_const = op::Constant::create(element::f16, Shape{}, {off_value});
+    const auto on_const = op::Constant::create(element::f32, Shape{}, {on_value});
+    const auto off_const = op::Constant::create(element::f32, Shape{}, {off_value});
     int64_t axis = 1;
 
     auto one_hot_v1 =
@@ -2446,28 +2446,28 @@ TEST(constant_folding, constant_v1_one_hot)
     ASSERT_TRUE(res);
 
     ASSERT_EQ((Shape{3, 3}), res->get_output_shape(0));
-    ASSERT_EQ(vector<float16>({on_value,
-                               off_value,
-                               off_value,
-                               off_value,
-                               on_value,
-                               off_value,
-                               off_value,
-                               off_value,
-                               on_value}),
-              res->get_vector<float16>());
+    ASSERT_EQ(vector<float>({on_value,
+                             off_value,
+                             off_value,
+                             off_value,
+                             on_value,
+                             off_value,
+                             off_value,
+                             off_value,
+                             on_value}),
+              res->get_vector<float>());
 }
 
 TEST(constant_folding, constant_v1_one_hot_negative_axes)
 {
-    vector<int64_t> indices{0, 2, -1, 1};
-    int16_t on_value = 4;
-    int16_t off_value = 1;
+    const vector<int64_t> indices{0, 2, -1, 1};
+    const int32_t on_value = 4;
+    const int32_t off_value = 1;
 
     const auto indices_const = op::Constant::create(element::i64, Shape{4}, indices);
     const auto depth_const = op::Constant::create(element::i64, Shape{}, {3});
-    const auto on_const = op::Constant::create(element::i16, Shape{}, {on_value});
-    const auto off_const = op::Constant::create(element::i16, Shape{}, {off_value});
+    const auto on_const = op::Constant::create(element::i32, Shape{}, {on_value});
+    const auto off_const = op::Constant::create(element::i32, Shape{}, {off_value});
     int64_t axis = -1;
 
     auto one_hot_v1 =
@@ -2486,7 +2486,7 @@ TEST(constant_folding, constant_v1_one_hot_negative_axes)
     ASSERT_TRUE(res);
 
     ASSERT_EQ((Shape{4, 3}), res->get_output_shape(0));
-    ASSERT_EQ(vector<int16_t>({on_value,
+    ASSERT_EQ(vector<int32_t>({on_value,
                                off_value,
                                off_value,
                                off_value,
@@ -2498,7 +2498,7 @@ TEST(constant_folding, constant_v1_one_hot_negative_axes)
                                off_value,
                                on_value,
                                off_value}),
-              res->get_vector<int16_t>());
+              res->get_vector<int32_t>());
 }
 
 TEST(constant_folding, constant_v1_one_hot_negative_axes_2)
