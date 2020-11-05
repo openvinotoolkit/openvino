@@ -268,6 +268,26 @@ TEST(copy, power)
     ASSERT_TRUE(check_binary<op::Power>());
 }
 
+TEST(copy, reduce_sum)
+{
+    Shape shape{4, 3};
+    AxisSet axes{1};
+    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
+
+    auto axes_node = op::Constant::create(element::i64, {axes.size()}, axes.to_vector());
+    auto node = make_shared<op::v1::ReduceSum>(arg0, axes_node, true);
+    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
+                          op::Constant::create(element::i64, {axes.size()}, axes.to_vector())};
+    auto new_node = node->clone_with_new_inputs(new_args);
+    auto node_cast = as_type_ptr<op::v1::ReduceSum>(new_node);
+    ASSERT_NE(node_cast, nullptr);
+
+    ASSERT_TRUE(nullptr != new_node);
+    ASSERT_TRUE(new_args == new_node->input_values());
+    ASSERT_TRUE(axes == node_cast->get_reduction_axes());
+    ASSERT_TRUE(true == node_cast->get_keep_dims());
+}
+
 TEST(copy, reshape)
 {
     Shape shape_in{2, 3, 4};
@@ -368,24 +388,6 @@ TEST(copy, strided_slice)
 TEST(copy, subtract)
 {
     ASSERT_TRUE(check_binary<op::Subtract>());
-}
-
-TEST(copy, sum)
-{
-    Shape shape{4, 3};
-    AxisSet axes{1};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
-
-    auto node = make_shared<op::Sum>(arg0, axes);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
-                          node->input_value(1).get_node_shared_ptr()};
-    auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Sum>(new_node);
-    ASSERT_NE(node_cast, nullptr);
-
-    ASSERT_TRUE(nullptr != new_node);
-    ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(axes == node_cast->get_reduction_axes());
 }
 
 TEST(copy, tan)

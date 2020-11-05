@@ -22,7 +22,6 @@
 #include "ngraph/op/reduce_mean.hpp"
 #include "ngraph/op/reduce_prod.hpp"
 #include "ngraph/op/reduce_sum.hpp"
-#include "ngraph/op/sum.hpp"
 #include "ngraph/runtime/reference/max.hpp"
 #include "ngraph/runtime/reference/mean.hpp"
 #include "ngraph/runtime/reference/min.hpp"
@@ -65,14 +64,6 @@ static shared_ptr<op::Constant>
                                        constant->get_output_shape(0),
                                        reduce_prod->get_reduction_axes(),
                                        reduce_prod->get_keep_dims());
-    }
-    else if (auto sum = as_type_ptr<op::Sum>(reduction_node))
-    {
-        runtime::reference::sum<T>(constant->get_data_ptr<T>(),
-                                   data_ptr,
-                                   constant->get_output_shape(0),
-                                   sum->get_reduction_axes(),
-                                   false);
     }
     else if (auto reduce_sum = as_type_ptr<op::v1::ReduceSum>(reduction_node))
     {
@@ -159,7 +150,7 @@ void pass::ConstantFolding::construct_constant_arithmetic_reduction()
     auto constant_axes_label =
         make_shared<pattern::op::Label>(element::i64, Shape{2}, pattern::has_class<op::Constant>());
     auto is_supported_reduction = [](std::shared_ptr<Node> n) {
-        return (pattern::has_class<op::Sum>()(n) || pattern::has_class<op::v1::ReduceMax>()(n) ||
+        return (pattern::has_class<op::v1::ReduceMax>()(n) ||
                 pattern::has_class<op::v1::ReduceMin>()(n) ||
                 pattern::has_class<op::v1::ReduceProd>()(n) ||
                 pattern::has_class<op::v1::ReduceSum>()(n) ||

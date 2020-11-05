@@ -45,14 +45,6 @@ static bool eliminate_nop(const std::shared_ptr<Node>& node) {
     return false;
 }
 
-static bool eliminate_sum(const std::shared_ptr<Node>& node) {
-    auto sum = as_type_ptr<op::v0::Sum>(node);
-    if (sum->get_reduction_axes().empty()) {
-        return replace_output_update_name(node->output(0), node->input_value(0));
-    }
-    return false;
-}
-
 static bool eliminate_convert(const std::shared_ptr<Node>& node) {
     bool is_out_type_agnostic = false;
     static const std::set<NodeTypeInfo> type_agnostic{TI(opset3::NonZero)};
@@ -335,7 +327,6 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
 bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
     static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
         dispatcher{{TI(opset3::Pad), &eliminate_nop},
-                   {TI(op::v0::Sum), &eliminate_sum},
                    {TI(opset3::Convert), &eliminate_convert},
                    {TI(op::v1::StridedSlice), &eliminate_nop},
                    {TI(opset3::Reshape), &eliminate_reshape_v1},

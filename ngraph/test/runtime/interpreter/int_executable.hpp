@@ -1390,7 +1390,6 @@ protected:
         case OP_TYPEID::Softmax:
         case OP_TYPEID::Split_v1:
         case OP_TYPEID::Squeeze:
-        case OP_TYPEID::Sum:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:

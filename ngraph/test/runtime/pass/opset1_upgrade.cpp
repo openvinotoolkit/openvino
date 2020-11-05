@@ -307,15 +307,6 @@ namespace opset1_upgrade
         return op_cast_binary_elementwise_node<op::v0::Subtract, op::v1::Subtract>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Sum> node)
-    {
-        bool keep_dims = false;
-        auto replacement_node =
-            make_shared<op::v1::ReduceSum>(node->input_value(0), node->input_value(1), keep_dims);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::TopK> node)
     {
         NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),

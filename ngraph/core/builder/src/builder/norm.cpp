@@ -25,7 +25,6 @@
 #include "ngraph/op/power.hpp"
 #include "ngraph/op/reduce_sum.hpp"
 #include "ngraph/op/sqrt.hpp"
-#include "ngraph/op/sum.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/shape.hpp"
 

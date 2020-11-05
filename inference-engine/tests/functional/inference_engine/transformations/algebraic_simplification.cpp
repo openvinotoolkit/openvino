@@ -97,7 +97,8 @@ TEST(algebraic_simplification, multiply_prod_negative) {
 TEST(algebraic_simplification, multiply_sum_negative) {
     auto fconst1 = ngraph::op::Constant::create(element::f64, Shape{2}, {1.0, 1.0});
     auto broadcast = builder::opset1::make_broadcast(fconst1, Shape{2, 5}, AxisSet{1});
-    auto sum_fconst1 = std::make_shared<op::Sum>(broadcast, AxisSet{0, 1});
+    auto axes = op::Constant::create(element::i64, {2}, {0, 1});
+    auto sum_fconst1 = std::make_shared<op::v1::ReduceSum>(broadcast, axes);
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::AlgebraicSimplification>();

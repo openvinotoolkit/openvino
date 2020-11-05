@@ -178,7 +178,6 @@ set(SRC
     type_prop/split.cpp
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
-    type_prop/sum.cpp
     type_prop/swish.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
@@ -339,7 +338,6 @@ set(MULTI_TEST_SRC
     backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/subtract.in.cpp
-    backend/sum.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp

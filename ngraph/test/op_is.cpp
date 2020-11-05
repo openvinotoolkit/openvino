@@ -623,6 +623,15 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
+    void op_is_ReduceSum()
+    {
+        op::v1::ReduceSum node;
+        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
+        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
+        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
+        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
+    }
+
     void op_is_Relu()
     {
         op::Relu node;
@@ -817,15 +826,6 @@ namespace
         op::Subtract node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_Sum()
-    {
-        op::Sum node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
