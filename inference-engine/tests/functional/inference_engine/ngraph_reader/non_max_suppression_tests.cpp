@@ -493,8 +493,6 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression4) {
     auto ngraphImpl = ie.ReadNetwork(model, weights);
     auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
 
-    auto graph = function_from_model(model, weights);
-
     ::ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
     manager.register_pass<::ngraph::pass::CommonOptimizations>();
