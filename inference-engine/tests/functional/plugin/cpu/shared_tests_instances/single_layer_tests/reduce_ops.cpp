@@ -25,6 +25,7 @@ const std::vector<bool> keepDims = {
 const std::vector<std::vector<size_t>> inputShapes = {
         std::vector<size_t>{10, 20, 30, 40},
         std::vector<size_t>{3, 5, 7, 9},
+        std::vector<size_t>{10},
 };
 
 const std::vector<std::vector<int>> axes = {
