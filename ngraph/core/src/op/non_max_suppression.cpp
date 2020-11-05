@@ -682,8 +682,6 @@ std::shared_ptr<Node>
     }
 }
 
-using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
-
 namespace
 {
     constexpr size_t boxes_port = 0;
@@ -825,8 +823,7 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
 {
     int64_t max_output_boxes{0};
 
-    size_t num_of_inputs = inputs().size();
-    if (num_of_inputs < 3)
+    if (inputs().size() < 3)
     {
         return 0;
     }
@@ -842,8 +839,7 @@ float op::v5::NonMaxSuppression::iou_threshold_from_input() const
 {
     float iou_threshold = 0.0f;
 
-    size_t num_of_inputs = inputs().size();
-    if (num_of_inputs < 4)
+    if (inputs().size() < 4)
     {
         return iou_threshold;
     }
@@ -859,8 +855,7 @@ float op::v5::NonMaxSuppression::score_threshold_from_input() const
 {
     float score_threshold = 0.0f;
 
-    size_t num_of_inputs = inputs().size();
-    if (num_of_inputs < 5)
+    if (inputs().size() < 5)
     {
         return score_threshold;
     }
@@ -876,8 +871,7 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
 {
     float soft_nms_sigma = 0.0f;
 
-    size_t num_of_inputs = inputs().size();
-    if (num_of_inputs < 6)
+    if (inputs().size() < 6)
     {
         return soft_nms_sigma;
     }

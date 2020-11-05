@@ -153,8 +153,7 @@ int64_t op::NonMaxSuppressionIE3::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
     size_t num_of_inputs = inputs().size();
-    if (num_of_inputs < 3)
-    {
+    if (num_of_inputs < 3) {
         return 0;
     }
 
