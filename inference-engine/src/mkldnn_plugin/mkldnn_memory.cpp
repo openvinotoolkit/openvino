@@ -658,6 +658,18 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         desc({}, mkldnn::memory::data_type::undef, mkldnn::memory::format_tag::undef) {
     auto dims = tDesc.getDims();
 
+    // TODO: implicit conversion of dims is no good...
+    if (tDesc.getLayout() == Layout::SCALAR) {
+        desc.data.format_kind = dnnl_blocked;
+        desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
+        desc.data.ndims = 1;
+        desc.data.dims[0] = 1;
+        desc.data.padded_dims[0] = 1;
+        desc.data.padded_offsets[0] = 0;
+        desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
+        return;
+    }
+
     if (tDesc.getLayout() == Layout::ANY) {
         desc.data.format_kind = dnnl_format_kind_any;
         desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
