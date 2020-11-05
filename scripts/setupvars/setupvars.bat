@@ -93,7 +93,7 @@ if not "%bitness%"=="64" (
    exit /B 1
 )
 
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%Major%.%Minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%pyversion_major%.%pyversion_minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
 
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_checker (
     set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_checker;%PYTHONPATH%
