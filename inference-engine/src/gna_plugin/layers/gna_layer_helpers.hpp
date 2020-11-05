@@ -37,12 +37,8 @@ inline InferenceEngine::Blob::Ptr getParamFromInputAsBlob(InferenceEngine::CNNLa
     if (!iLayer->blobs.count("custom")) {
         THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot get custom blob";
     }
-    auto data = iLayer->blobs["custom"];
-    if (data->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32) {
-        THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot cast custom blob to type FP32, since it is of type: "
-                                          << data->getTensorDesc().getPrecision();
-    }
-    return data;
+
+    return iLayer->blobs["custom"];
 }
 }  // namespace LayerUtils
 }  // namespace GNAPluginNS

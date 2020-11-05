@@ -8,6 +8,7 @@
 #include "gna_layer_info.hpp"
 #include "gna_plugin_log.hpp"
 #include "gna_layer_helpers.hpp"
+#include "frontend/weights_converter.hpp"
 
 #include <ie_algorithm.hpp>
 
@@ -89,17 +90,39 @@ class GNAFakeQuantizeLayer {
         auto shape     = getShapeForRange(input, idx);
         auto rangeSize = InferenceEngine::details::product(shape.begin(), shape.end());
 
-        auto minPtr = getParamFromInputAsFloats(input, idx);
-        std::vector<float> minValues(minPtr, minPtr + rangeSize);
+        auto dataMin = LayerUtils::getParamFromInputAsBlob(input, idx);
+        auto dataMax = LayerUtils::getParamFromInputAsBlob(input, idx + 1);
+        std::vector<float> minValues(rangeSize), maxValues(rangeSize);
+        switch (dataMin->getTensorDesc().getPrecision()) {
+        case InferenceEngine::Precision::FP32: {
+            memcpy(&minValues[0], dataMin->buffer().as<float*>(), rangeSize * sizeof(float));
+            memcpy(&maxValues[0], dataMax->buffer().as<float*>(), rangeSize * sizeof(float));
+            break;
+        }
+        case InferenceEngine::Precision::FP16: {
+            auto dataMinFP32 = make_fp32_blob(dataMin);
+            memcpy(&minValues[0], dataMinFP32->buffer().as<float*>(), rangeSize * sizeof(float));
 
-        auto maxPtr = getParamFromInputAsFloats(input, idx + 1);
-        std::vector<float> maxValues(maxPtr, maxPtr + rangeSize);
+            auto dataMaxFP32 = make_fp32_blob(dataMax);
+            memcpy(&maxValues[0], dataMaxFP32->buffer().as<float*>(), rangeSize * sizeof(float));
+            break;
+        }
+        default:
+            THROW_GNA_LAYER_EXCEPTION(input) << "cannot cast custom blob to type FP32, since it is of type: "
+                << dataMin->getTensorDesc().getPrecision();
+            break;
+
+        }
 
         return {minValues, maxValues};
     }
 
     static float*  getParamFromInputAsFloats(InferenceEngine::CNNLayerPtr input, size_t idx) {
         auto data = LayerUtils::getParamFromInputAsBlob(input, idx);
+        if (data->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32) {
+            THROW_GNA_LAYER_EXCEPTION(input) << "cannot cast custom blob to type FP32, since it is of type: "
+                << data->getTensorDesc().getPrecision();
+        }
         return data->buffer().as<float*>();
     }
 

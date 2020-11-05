@@ -156,12 +156,16 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
 
         if (InferenceEngine::details::CaselessEq<std::string>()(cnnLayer->type, "Memory")) {
-             if (CNNNetHasPrevLayer(cnnLayer)) {
+            if (!CNNNetHasPrevLayer(cnnLayer) && quant->_dst_quant.IsScaleSet()) {
+                quant->_src_quant = quant->_dst_quant;
+            }
+
+            if (CNNNetHasPrevLayer(cnnLayer)) {
                 auto prevLayer = CNNNetPrevLayer(cnnLayer);
                 auto prevInfo = LayerInfo(prevLayer);
                 auto inputQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
-               // locating corresponding memory layers with same ID
-                for (auto && input : CNNNetGetAllInputLayers(cnnLayer)) {
+                // locating corresponding memory layers with same ID
+                for (auto&& input : CNNNetGetAllInputLayers(cnnLayer)) {
                     LayerInfo ll(input);
                     if (!ll.isMemory() ||
                         !InferenceEngine::details::CaselessEq<std::string>()(input->params["id"], cnnLayer->params["id"])) {
@@ -177,30 +181,30 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                         return true;
                     }
 
-                    if (!fp32eq(quantSibling->_dst_quant.GetScale(), 1.0f)) {
+                    if (quant->_dst_quant.IsScaleSet()) {
                         // means we already restarted propagation input memory layer
                         // need to search for requantiseable layer prior memory output layer
                         InferenceEngine::CNNLayerPtr restartedLayer;
 
-                        gnalog() << "Memory layer :"<< input->name << " scale factor: " << quantSibling->_dst_quant.GetScale()
+                        gnalog() << "Memory layer :" << input->name << " scale factor: " << quantSibling->_dst_quant.GetScale()
                             << " doesn't match its outputs counterpart: " << cnnLayer->name << " scale factor: " << inputQuant->_dst_quant.GetScale() << "\n";
-                        gnalog() << "[UFS] searching for quantizeable input layer for: "<< cnnLayer->name << "\n";
+                        gnalog() << "[UFS] searching for quantizeable input layer for: " << cnnLayer->name << "\n";
 
-                        CNNNetDFS(InferenceEngine::CNNLayerPtr(cnnLayer, [](InferenceEngine::CNNLayer *) {}),
-                                  [&restartedLayer, cnnLayer](InferenceEngine::CNNLayerPtr layer) {
-                                      gnalog() << "[UFS] from : " << cnnLayer->name << " reached: " << layer->name;
-                                      // found that direct input to concat is a indirect parent of align filter - so no link required
-                                      auto info = LayerInfo(layer);
-                                      if (!info.isWeightable() && !info.isActivation()) {
-                                          gnalog() << "... skipped\n";
-                                          return;
-                                      }
-                                      restartedLayer = layer;
-                                      gnalog() << "... OK,  need requantize\n";
-                                  }, true, [&restartedLayer, &cnnLayer](InferenceEngine::CNNLayer *from) {
-                                    // aborting UFS once found suitable layer
-                                    return make_upstream_order(restartedLayer == nullptr ? from : nullptr);
-                                });
+                        CNNNetDFS(InferenceEngine::CNNLayerPtr(cnnLayer, [](InferenceEngine::CNNLayer*) {}),
+                            [&restartedLayer, cnnLayer](InferenceEngine::CNNLayerPtr layer) {
+                                gnalog() << "[UFS] from : " << cnnLayer->name << " reached: " << layer->name;
+                                // found that direct input to concat is a indirect parent of align filter - so no link required
+                                auto info = LayerInfo(layer);
+                                if (!info.isWeightable() && !info.isActivation()) {
+                                    gnalog() << "... skipped\n";
+                                    return;
+                                }
+                                restartedLayer = layer;
+                                gnalog() << "... OK,  need requantize\n";
+                            }, true, [&restartedLayer, &cnnLayer](InferenceEngine::CNNLayer* from) {
+                                // aborting UFS once found suitable layer
+                                return make_upstream_order(restartedLayer == nullptr ? from : nullptr);
+                            });
 
                         if (restartedLayer == nullptr) {
                             THROW_GNA_EXCEPTION << "cannot requantize input to " << cnnLayer->name;
@@ -212,19 +216,20 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                         if (restarLayerInfo.isActivation()) {
                             // requantize activation by just changing it's output scale factor
                             quantDataForMemoryOutput->_dst_quant.SetScale(quantSibling->_dst_quant.GetScale());
-                        } else {
-                            THROW_GNA_EXCEPTION << "quantization error : input scale factor ( " << inputQuant->_dst_quant.GetScale() <<") "
-                                  << " for " << cnnLayer->name << ", that is child of " << prevLayer->name <<" doesnt match : "
-                                  << activation_scale_factor;
+                        }
+                        else {
+                            THROW_GNA_EXCEPTION << "quantization error : input scale factor ( " << inputQuant->_dst_quant.GetScale() << ") "
+                                << " for " << cnnLayer->name << ", that is child of " << prevLayer->name << " doesnt match : "
+                                << activation_scale_factor;
                         }
 
                         result = ScaleFactorUpdateResult(restartedLayer.get());
                         return true;
                     }
 
-                    gnawarn() << "[INFO] quantization : input scale factor (" << inputQuant->_dst_quant.GetScale() <<")"
-                              << " for " << cnnLayer->name << ", that is child of " << prevLayer->name <<" doesnt match : "
-                              << activation_scale_factor << ", restarting from corresponding memory: "<< input->name << std::endl;
+                    gnawarn() << "[INFO] quantization : input scale factor (" << inputQuant->_dst_quant.GetScale() << ")"
+                        << " for " << cnnLayer->name << ", that is child of " << prevLayer->name << " doesnt match : "
+                        << activation_scale_factor << ", restarting from corresponding memory: " << input->name << std::endl;
 
                     // try updating memory input layer scale factor and restart from it
                     quantSibling->_src_quant = quantSibling->_dst_quant = inputQuant->_dst_quant;
@@ -236,6 +241,11 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         }
 
         if (cnnLayer->type == "Const") {
+            if (quant->_dst_quant.IsScaleSet()) {
+                quant->_src_quant = quant->_dst_quant;
+                return ScaleFactorUpdateResult();
+            }
+
             auto blob = cnnLayer->blobs["custom"];
             auto blob_precision = blob->getTensorDesc().getPrecision();
 
@@ -285,10 +295,6 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         }
 
         quant->_src_quant = inputQuant->_dst_quant;
-        if (layerInfo.isActivation() && !fp32eq(quant->_dst_quant.GetScale(), 1.0f)) {
-            return true;
-        }
-
         if (layerInfo.isActivation()) {
             // todo: calculate proper scale factor where we need to expand it a bit to be safe to stay in int16 weights
             // set the initial value
