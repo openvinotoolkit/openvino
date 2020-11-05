@@ -11,6 +11,12 @@
 
 #include <details/ie_irelease.hpp>
 
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    using path_type = std::wstring;
+#else
+    using path_type = std::string;
+#endif
+
 namespace InferenceEngine {
 /*
  * @brief This is a helper class to wrap memory mapped files
@@ -18,12 +24,6 @@ namespace InferenceEngine {
 class IMmap : public details::IRelease {
 public:
     using Ptr = std::shared_ptr<IMmap>;
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    using path_type = std::wstring;
-#else
-    using path_type = std::string;
-#endif
 
     /**
      * @brief Returns a pointer to mapped memory

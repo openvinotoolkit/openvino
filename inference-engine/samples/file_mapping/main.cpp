@@ -17,7 +17,7 @@
 #include <mutex>
 
 #include <inference_engine.hpp>
-#include <mmap/ie_mmap.hpp>
+#include <details/ie_mmap_allocator.hpp>
 
 #include <format_reader_ptr.h>
 
@@ -98,9 +98,18 @@ int main(int argc, char *argv[]) {
         std::string xml_content((std::istreambuf_iterator<char>(xml_file)), std::istreambuf_iterator<char>());
 
         std::string bin_file = FLAGS_m.substr(0, FLAGS_m.find_last_of('.')) + ".bin";
-        IMmap::Ptr bin_map = make_mmap(bin_file);
-        TensorDesc bin_td(Precision::U8, { bin_map->size() }, Layout::C);
-        Blob::Ptr bin_blob = make_shared_blob<uint8_t>(bin_td, reinterpret_cast<uint8_t*>(bin_map->data()));
+
+        /** Get file size, needed to create a tensor descriptor  **/
+        std::ifstream bin_stream(bin_file, std::ios::in);
+        bin_stream.seekg(0, std::ios::end);
+        size_t bin_size = bin_stream.tellg();
+        bin_stream.close();
+
+        /** Create allocator and blob with model data **/
+        std::shared_ptr<IAllocator> mmap = details::make_mmap_allocator(bin_file);
+        TensorDesc bin_td(Precision::U8, { bin_size }, Layout::C);
+        Blob::Ptr bin_blob = make_shared_blob<uint8_t>(bin_td, mmap);
+        bin_blob->allocate();
 
         /** Read network model **/
         CNNNetwork network = ie.ReadNetwork(xml_content, bin_blob);

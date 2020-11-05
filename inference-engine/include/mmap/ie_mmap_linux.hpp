@@ -121,7 +121,7 @@ private:
  * @return A new Mmap
  */
 
-std::shared_ptr<IMmap> make_mmap(const IMmap::path_type& path, size_t size = 0, size_t offset = 0, LockOp lock = LOCK_FOR_READ) {
+std::shared_ptr<IMmap> make_mmap(const path_type& path, size_t size = 0, size_t offset = 0, LockOp lock = LOCK_FOR_READ) {
     return shared_from_irelease(new MmapLinux(path, size, offset, lock));
 }
 }  // namespace InferenceEngine
