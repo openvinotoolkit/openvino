@@ -49,9 +49,15 @@ TEST_P(CancellationTests, canCancelAsyncRequest) {
     InferenceEngine::StatusCode cancelStatus = cancel.get();
 
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        ASSERT_EQ(true, cancelled);
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_CANCELLED), waitStatus);
+        ASSERT_EQ(true, cancelStatus == InferenceEngine::StatusCode::OK ||
+                        cancelStatus == InferenceEngine::StatusCode::INFER_NOT_STARTED);
+        if (cancelStatus == InferenceEngine::StatusCode::OK) {
+            ASSERT_EQ(true, cancelled);
+            ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_CANCELLED), waitStatus);
+        } else {
+            ASSERT_EQ(false, cancelled);
+            ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
+        }
     } else {
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::NOT_IMPLEMENTED), cancelStatus);
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
