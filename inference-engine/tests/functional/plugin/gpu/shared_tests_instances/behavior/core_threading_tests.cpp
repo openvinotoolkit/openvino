@@ -13,6 +13,7 @@ namespace {
 Params params[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO) }}},
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(CACHE_DIR), "cache" }}},
 };
 
 }  // namespace

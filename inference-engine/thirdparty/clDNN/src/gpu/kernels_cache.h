@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ public:
 
     struct program_code {
         std::vector<source_code> source;
+        std::vector<size_t> hash_values;
         uint32_t kernels_counter = 0;
         std::string options;
         bool dump_custom_program = false;
@@ -96,6 +97,9 @@ private:
     sorted_code get_program_source(const kernels_code& kernels_source_code) const;
     kernels_map build_program(const program_code& pcode) const;
 
+    std::string get_cache_path() const;
+    bool is_cache_enabled() const;
+    size_t get_max_kernels_per_batch() const;
 public:
     explicit kernels_cache(gpu_toolkit& context, uint32_t prog_id);
     kernel_id set_kernel_source(const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,

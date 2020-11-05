@@ -6,8 +6,18 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <sys/stat.h>
 
 #include "test_constants.hpp"
+#include "w_dirent.h"
+#include "common_utils.hpp"
+
+#ifdef _WIN32
+#include <direct.h>
+#define rmdir(dir) _rmdir(dir)
+#else  // _WIN32
+#include <unistd.h>
+#endif  // _WIN32
 
 namespace CommonTestUtils {
 
@@ -62,4 +72,47 @@ inline void removeIRFiles(const std::string &xmlFilePath, const std::string &bin
         std::remove(binFileName.c_str());
     }
 }
+
+// Removes all files with extension=ext from the given directory
+// Return value:
+// < 0 - error
+// >= 0 - count of removed files
+inline int removeFilesWithExt(std::string path, std::string ext) {
+    struct dirent *ent;
+    DIR *dir = opendir(path.c_str());
+    int ret = 0;
+    if (dir != nullptr) {
+        while ((ent = readdir(dir)) != NULL) {
+            auto file = makePath(path, std::string(ent->d_name));
+            struct stat stat_path;
+            stat(file.c_str(), &stat_path);
+            if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext)) {
+                auto err = std::remove(file.c_str());
+                if (err != 0) {
+                    closedir(dir);
+                    return err;
+                }
+                ret++;
+            }
+        }
+        closedir(dir);
+    }
+
+    return ret;
+}
+
+inline int removeDir(const std::string &path) {
+    return rmdir(path.c_str());
+}
+
+inline bool directoryExists(const std::string &path) {
+    struct stat sb;
+
+    if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
+        return true;
+    }
+
+    return false;
+}
+
 }  // namespace CommonTestUtils
