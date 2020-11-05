@@ -23,15 +23,21 @@ namespace LayerTestsDefinitions {
 std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple> &obj) {
     std::vector<size_t> inShapes, blockShape, cropsBegin, cropsEnd;
     InferenceEngine::Precision  netPrc;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     std::string targetName;
-    std::tie(blockShape, cropsBegin, cropsEnd, inShapes, netPrc, targetName) = obj.param;
+    std::tie(blockShape, cropsBegin, cropsEnd, inShapes, netPrc, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inShapes) << "_";
     result << "netPRC=" << netPrc.name() << "_";
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
     result << "BS=" << CommonTestUtils::vec2str(blockShape) << "_";
     result << "CB=" << CommonTestUtils::vec2str(cropsBegin) << "_";
     result << "CE=" << CommonTestUtils::vec2str(cropsEnd) << "_";
-    result << "targetDevice=" << targetName << "_";
+    result << "trgDev=" << targetName << "_";
     return result.str();
 }
 
@@ -39,7 +45,7 @@ void BatchToSpaceLayerTest::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::INTERPRETER_TRANSFORMATIONS);
     std::vector<size_t> inputShape, blockShape, cropsBegin, cropsEnd;
     InferenceEngine::Precision netPrecision;
-    std::tie(blockShape, cropsBegin, cropsEnd, inputShape, netPrecision, targetDevice) = this->GetParam();
+    std::tie(blockShape, cropsBegin, cropsEnd, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

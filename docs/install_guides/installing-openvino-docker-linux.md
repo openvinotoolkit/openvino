@@ -202,7 +202,7 @@ Build a Docker image using the same steps as for CPU.
 Use one of the following options to run **Possible solutions for Intel® Neural Compute Stick 2:**
 
 - **Solution #1**:
-	1. Get rid of UDEV by rebuilding `libusb` without UDEV support in the Docker* image (add the following commands to the `Dockerfile` example for CPU above):<br>
+1. Get rid of UDEV by rebuilding `libusb` without UDEV support in the Docker* image (add the following commands to the `Dockerfile` example for CPU above):<br>
 ```sh
 RUN usermod -aG users openvino
 WORKDIR /opt
@@ -228,11 +228,12 @@ WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
     ldconfig
 ```
-<br>
-	2. Run the Docker* image:<br>
+
+2. Run the Docker* image:<br>
 ```sh
 docker run --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 ```
+<br>
 
 - **Solution #2**:
    Run container in privileged mode, enable Docker network configuration as host, and mount all devices to container:<br>
@@ -284,51 +285,16 @@ docker run --rm --net=host -v /var/tmp:/var/tmp –ipc=host  -ti <image_name>
 > - Alternatively, you can start hddldaemon with the root user on host, but this approach is not recommended.
 
 ## Use a Docker* Image for FPGA
-### Build a Docker* Image for FPGA
 
-FPGA card is not available in container by default, but it can be mounted there with the following pre-requisites:
-- FPGA device is up and ready to run inference.
-- FPGA bitstreams were pushed to the device over PCIe.
+Intel will be transitioning to the next-generation programmable deep-learning solution based on FPGAs in order to increase the level of customization possible in FPGA deep-learning. As part of this transition, future standard releases (i.e., non-LTS releases) of Intel® Distribution of OpenVINO™ toolkit will no longer include the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA.
 
-To build a Docker* image for FPGA:
+Intel® Distribution of OpenVINO™ toolkit 2020.3.X LTS release will continue to support Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA. For questions about next-generation programmable deep-learning solutions based on FPGAs, please talk to your sales representative or contact us to get the latest FPGA updates.
 
-1. Set additional environment variables in the `Dockerfile`:<br>
-```sh
-ENV CL_CONTEXT_COMPILER_MODE_INTELFPGA=3
-ENV DLA_AOCX=/opt/intel/openvino/a10_devkit_bitstreams/2-0-1_RC_FP11_Generic.aocx
-ENV PATH=/opt/altera/aocl-pro-rte/aclrte-linux64/bin:$PATH
-```
-2. Install the following UDEV rule:<br>
-```sh
-cat <<EOF > fpga.rules
-KERNEL=="acla10_ref*",GROUP="users",MODE="0660"
-EOF
-sudo cp fpga.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-sudo ldconfig
-```
-Make sure that a container user is added to the "users" group with the same GID as on host.
-
-### Run the Docker* container for FPGA 
-
-To run the built Docker* container for FPGA, use the following command:
-
-```sh
-docker run --rm -it \
---mount type=bind,source=/opt/intel/intelFPGA_pro,destination=/opt/intel/intelFPGA_pro \
---mount type=bind,source=/opt/altera,destination=/opt/altera \
---mount type=bind,source=/etc/OpenCL/vendors,destination=/etc/OpenCL/vendors \
---mount type=bind,source=/opt/Intel/OpenCL/Boards,destination=/opt/Intel/OpenCL/Boards \
---device /dev/acla10_ref0:/dev/acla10_ref0 \
-<image_name>
-```
-
-## Examples
-* [ubuntu18_runtime dockerfile](https://docs.openvinotoolkit.org/downloads/ubuntu18_runtime.dockerfile) - Can be used to build OpenVINO™ runtime image containing minimal dependencies needed to use OpenVINO™ in production environment.
-* [ubuntu18_dev dockerfile](https://docs.openvinotoolkit.org/downloads/ubuntu18_dev.dockerfile) - Can be used to build OpenVINO™ developer image containing full OpenVINO™ package to use in development environment.
+For instructions for previous releases with FPGA Support, see documentation for the [2020.4 version](https://docs.openvinotoolkit.org/2020.4/openvino_docs_install_guides_installing_openvino_docker_linux.html#use_a_docker_image_for_fpga) or lower.
 
 ## Additional Resources
+
+* [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 
 * Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)  
 

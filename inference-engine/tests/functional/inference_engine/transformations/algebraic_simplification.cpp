@@ -15,6 +15,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/builder/autobroadcast.hpp>
 #include <transformations/common_optimizations/algebraic_simplification.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
@@ -80,8 +81,9 @@ TEST(algebraic_simplification, multiply_negative_tests) {
 
 TEST(algebraic_simplification, multiply_prod_negative) {
     auto fconst1 = ngraph::op::Constant::create(element::f64, Shape{2}, {1.0, 1.0});
-    auto broadcast = std::make_shared<op::Broadcast>(fconst1, Shape{2, 5}, AxisSet{1});
-    auto prod_fconst1 = std::make_shared<op::Product>(broadcast, AxisSet{0, 1});
+    auto broadcast = builder::opset1::make_broadcast(fconst1, Shape{2, 5}, AxisSet{1});
+    auto axes = op::Constant::create(element::i64, {2}, {0, 1});
+    auto prod_fconst1 = std::make_shared<op::v1::ReduceProd>(broadcast, axes);
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::AlgebraicSimplification>();
@@ -94,8 +96,9 @@ TEST(algebraic_simplification, multiply_prod_negative) {
 
 TEST(algebraic_simplification, multiply_sum_negative) {
     auto fconst1 = ngraph::op::Constant::create(element::f64, Shape{2}, {1.0, 1.0});
-    auto broadcast = std::make_shared<op::Broadcast>(fconst1, Shape{2, 5}, AxisSet{1});
-    auto sum_fconst1 = std::make_shared<op::Sum>(broadcast, AxisSet{0, 1});
+    auto broadcast = builder::opset1::make_broadcast(fconst1, Shape{2, 5}, AxisSet{1});
+    auto axes = op::Constant::create(element::i64, {2}, {0, 1});
+    auto sum_fconst1 = std::make_shared<op::v1::ReduceSum>(broadcast, axes);
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::AlgebraicSimplification>();
@@ -108,9 +111,20 @@ TEST(algebraic_simplification, multiply_sum_negative) {
 
 TEST(algebraic_simplification, concat_parameter_slices_reversed) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
-    auto slice1 = make_shared<op::Slice>(a, Coordinate{0, 0}, Coordinate{32, 100}, Strides{1, 1});
-    auto slice2 = make_shared<op::Slice>(a, Coordinate{32, 0}, Coordinate{64, 100}, Strides{1, 1});
-    auto slice3 = make_shared<op::Slice>(a, Coordinate{64, 0}, Coordinate{96, 100}, Strides{1, 1});
+    auto strides = op::Constant::create(element::i64, {2}, {1, 1});
+    std::vector<int64_t> mask(2, 0);
+    auto slice1 = make_shared<op::v1::StridedSlice>(a,
+            op::Constant::create(element::i64, {2}, {0, 0}),
+            op::Constant::create(element::i64, {2}, {32, 100}),
+            strides, mask, mask);
+    auto slice2 = make_shared<op::v1::StridedSlice>(a,
+            op::Constant::create(element::i64, {2}, {32, 0}),
+            op::Constant::create(element::i64, {2}, {64, 100}),
+            strides, mask, mask);
+    auto slice3 = make_shared<op::v1::StridedSlice>(a,
+            op::Constant::create(element::i64, {2}, {64, 0}),
+            op::Constant::create(element::i64, {2}, {96, 100}),
+            strides, mask, mask);
 
     size_t concat_axis = 0;
     auto concat = make_shared<op::Concat>(NodeVector{slice3, slice2, slice1}, concat_axis);
@@ -126,9 +140,20 @@ TEST(algebraic_simplification, concat_parameter_slices_reversed) {
 TEST(algebraic_simplification, concat_parameter_slices_element_count) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     // slicing 30 elements out of 96; should trigger a check that some elements are missing
-    auto slice1 = make_shared<op::Slice>(a, Coordinate{0, 0}, Coordinate{10, 100}, Strides{1, 1});
-    auto slice2 = make_shared<op::Slice>(a, Coordinate{10, 0}, Coordinate{20, 100}, Strides{1, 1});
-    auto slice3 = make_shared<op::Slice>(a, Coordinate{20, 0}, Coordinate{30, 100}, Strides{1, 1});
+    auto strides = op::Constant::create(element::i64, {2}, {1, 1});
+    std::vector<int64_t> mask(2, 0);
+    auto slice1 = make_shared<op::v1::StridedSlice>(a,
+            op::Constant::create(element::i64, {2}, {0, 0}),
+            op::Constant::create(element::i64, {2}, {10, 100}),
+            strides, mask, mask);
+    auto slice2 = make_shared<op::v1::StridedSlice>(a,
+            op::Constant::create(element::i64, {2}, {10, 0}),
+            op::Constant::create(element::i64, {2}, {20, 100}),
+            strides, mask, mask);
+    auto slice3 = make_shared<op::v1::StridedSlice>(a,
+            op::Constant::create(element::i64, {2}, {20, 0}),
+            op::Constant::create(element::i64, {2}, {30, 100}),
+            strides, mask, mask);
 
     size_t concat_axis = 0;
     auto concat = make_shared<op::Concat>(NodeVector{slice1, slice2, slice3}, concat_axis);
@@ -143,9 +168,20 @@ TEST(algebraic_simplification, concat_parameter_slices_element_count) {
 
 TEST(algebraic_simplification, concat_parameter_non_uniform_slices) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
-    auto slice1 = make_shared<op::Slice>(a, Coordinate{0, 0}, Coordinate{38, 100}, Strides{1, 1});
-    auto slice2 = make_shared<op::Slice>(a, Coordinate{38, 0}, Coordinate{64, 100}, Strides{1, 1});
-    auto slice3 = make_shared<op::Slice>(a, Coordinate{64, 0}, Coordinate{96, 100}, Strides{1, 1});
+    auto strides = op::Constant::create(element::i64, {2}, {1, 1});
+    std::vector<int64_t> mask(2, 0);
+    auto slice1 = make_shared<op::v1::StridedSlice>(a,
+            op::Constant::create(element::i64, {2}, {0, 0}),
+            op::Constant::create(element::i64, {2}, {38, 100}),
+            strides, mask, mask);
+    auto slice2 = make_shared<op::v1::StridedSlice>(a,
+            op::Constant::create(element::i64, {2}, {38, 0}),
+            op::Constant::create(element::i64, {2}, {64, 100}),
+            strides, mask, mask);
+    auto slice3 = make_shared<op::v1::StridedSlice>(a,
+            op::Constant::create(element::i64, {2}, {64, 0}),
+            op::Constant::create(element::i64, {2}, {96, 100}),
+            strides, mask, mask);
 
     size_t concat_axis = 0;
     auto concat = make_shared<op::Concat>(NodeVector{slice1, slice2, slice3}, concat_axis);
@@ -162,12 +198,20 @@ TEST(algebraic_simplification, concat_different_inputs) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto goe1 = -a;
     auto goe2 = -a;
-    auto slice1 =
-        make_shared<op::Slice>(goe1, Coordinate{0, 0}, Coordinate{32, 100}, Strides{1, 1});
-    auto slice2 =
-        make_shared<op::Slice>(goe2, Coordinate{32, 0}, Coordinate{64, 100}, Strides{1, 1});
-    auto slice3 =
-        make_shared<op::Slice>(goe1, Coordinate{64, 0}, Coordinate{96, 100}, Strides{1, 1});
+    auto strides = op::Constant::create(element::i64, {2}, {1, 1});
+    std::vector<int64_t> mask(2, 0);
+    auto slice1 = make_shared<op::v1::StridedSlice>(goe1,
+            op::Constant::create(element::i64, {2}, {0, 0}),
+            op::Constant::create(element::i64, {2}, {32, 100}),
+            strides, mask, mask);
+    auto slice2 = make_shared<op::v1::StridedSlice>(goe2,
+            op::Constant::create(element::i64, {2}, {32, 0}),
+            op::Constant::create(element::i64, {2}, {64, 100}),
+            strides, mask, mask);
+    auto slice3 = make_shared<op::v1::StridedSlice>(goe1,
+            op::Constant::create(element::i64, {2}, {64, 0}),
+            op::Constant::create(element::i64, {2}, {96, 100}),
+            strides, mask, mask);
 
     size_t concat_axis = 0;
     auto concat = make_shared<op::Concat>(NodeVector{slice1, slice2, slice3}, concat_axis);

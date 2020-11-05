@@ -346,7 +346,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     if (queryNetworkResult.supportedLayersMap.empty()) {
         auto it = _config.find("TARGET_FALLBACK");
         if (it != _config.end()) {
-            _heteroPlugin->QueryNetwork(network_, _config, queryNetworkResult);
+            queryNetworkResult = _heteroPlugin->QueryNetwork(network_, _config);
         } else {
             THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
         }
@@ -934,17 +934,12 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
                                                 _blobNameMap);
 }
 
-void HeteroExecutableNetwork::CreateInferRequest(IInferRequest::Ptr &asyncRequest) {
-    auto heteroInferRequest = std::dynamic_pointer_cast<HeteroInferRequest>(
-            CreateInferRequestImpl(_networkInputs, _networkOutputs));
-    heteroInferRequest->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncThreadSafeImpl = std::make_shared<HeteroAsyncInferRequest>(heteroInferRequest, _taskExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase<HeteroAsyncInferRequest>(asyncThreadSafeImpl),
-                       [](IInferRequest *p) { p->Release(); });
-    asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+IInferRequest::Ptr HeteroExecutableNetwork::CreateInferRequest() {
+    return CreateAsyncInferRequestFromSync<HeteroAsyncInferRequest>();
 }
 
-void HeteroExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {
+InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string &name) const {
+    InferenceEngine::Parameter result;
     if (name == "TARGET_FALLBACK") {
         auto it = _config.find(name);
         if (it != _config.end()) {
@@ -964,14 +959,15 @@ void HeteroExecutableNetwork::GetConfig(const std::string &name, InferenceEngine
             auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
             for (auto && configKey : param.as<std::vector<std::string>>()) {
                 if (configKey == name) {
-                    result = execNetwork.GetConfig(configKey);
-                    return;
+                    return execNetwork.GetConfig(configKey);
                 }
             }
         }
 
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
     }
+
+    return result;
 }
 
 using Metrics = std::map<std::string, Parameter>;
@@ -1011,7 +1007,7 @@ void collectPluginMetrics(std::vector<std::string> & baseMetrics,
 
 }  // namespace
 
-void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {
+InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string &name) const {
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> heteroMetrics = {
             METRIC_KEY(NETWORK_NAME),
@@ -1035,7 +1031,7 @@ void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine
             collectPluginMetrics(heteroMetrics, pluginMetrics);
         }
 
-        result = IE_SET_METRIC(SUPPORTED_METRICS, heteroMetrics);
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> heteroConfigKeys = {
             "TARGET_FALLBACK",
@@ -1058,15 +1054,15 @@ void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine
             collectPluginMetrics(heteroConfigKeys, pluginConfigKeys);
         }
 
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, heteroConfigKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, heteroConfigKeys);
     } else if (METRIC_KEY(NETWORK_NAME) == name) {
-        result = IE_SET_METRIC(NETWORK_NAME, _name);
+        IE_SET_METRIC_RETURN(NETWORK_NAME, _name);
     } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = 0u;
         for (auto&& desc : networks) {
             value = std::max(value, desc._network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
         // find metric key among plugin metrics
         for (auto&& desc : networks) {
@@ -1074,8 +1070,7 @@ void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine
             auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
             for (auto && metricKey : param.as<std::vector<std::string>>()) {
                 if (metricKey == name) {
-                    result = execNetwork.GetMetric(metricKey);
-                    return;
+                    return execNetwork.GetMetric(metricKey);
                 }
             }
         }

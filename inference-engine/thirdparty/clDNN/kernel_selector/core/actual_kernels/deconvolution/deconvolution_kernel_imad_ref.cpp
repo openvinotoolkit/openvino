@@ -60,27 +60,19 @@ WeightsLayout DeconvolutionKernel_imad_ref::GetPreferredWeightsLayout(const deco
 }
 
 DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_ref::SetDefault(const deconvolution_params& params) const {
-    auto dispatch = Parent::SetDefault(params);
+    DispatchData dispatchData = Parent::SetDefault(params);
 
-    std::vector<size_t> global = {
+    dispatchData.gws = {
          params.output.Feature().v,
          params.output.X().v * params.output.Y().v * params.output.Z().v,
          params.output.Batch().v
     };
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    dispatch.gws0 = global[0];
-    dispatch.gws1 = global[1];
-    dispatch.gws2 = global[2];
+    dispatchData.efficiency = FORCE_PRIORITY_9;
 
-    dispatch.lws0 = local[0];
-    dispatch.lws1 = local[1];
-    dispatch.lws2 = local[2];
-
-    dispatch.efficiency = FORCE_PRIORITY_9;
-
-    return dispatch;
+    return dispatchData;
 }
 
 JitConstants DeconvolutionKernel_imad_ref::GetJitConstants(const deconvolution_params& params) const {

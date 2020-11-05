@@ -6,7 +6,9 @@ cmake_policy(SET CMP0054 NEW)
 
 set(TARGET_NAME InferenceEngineUnitTests)
 
-#rpath enabled for unit tests only
+disable_deprecated_warnings()
+
+# rpath enabled for unit tests only
 SET (CMAKE_SKIP_RPATH OFF)
 
 # collect sources
@@ -71,11 +73,7 @@ if (ENABLE_MKL_DNN)
             ${CMAKE_BINARY_DIR}/include/)
 
     source_group("mkldnn" FILES ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE})
-
-    foreach(obj_lib IN LISTS mkldnn_plugin_object_libraries)
-        list(APPEND mkldnn_object_files $<TARGET_OBJECTS:${obj_lib}>)
-    endforeach()
-    list(APPEND MKLDNN_TESTS ${mkldnn_object_files})
+    list(APPEND MKLDNN_TESTS $<TARGET_OBJECTS:MKLDNNPlugin_obj>)
 endif ()
 
 if (ENABLE_MYRIAD)
@@ -122,6 +120,11 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 
+# because IE unit tests use plugin and IE object files compiled with LTO
+if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+endif()
+
 ## Mock macros doesn't use "override" specificator
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-error=inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-error=inconsistent-missing-override >)
@@ -139,9 +142,14 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     ${GNA_TEST_ENGINE}
 
     # dynamic libraries
-    inference_engine_lp_transformations
     inference_engine_transformations
     inference_engine_ir_v7_reader)
+
+if(USE_CNNNETWORK_LPT)
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations)
+endif()
 
 if(TARGET libGNAStubs)
     target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)

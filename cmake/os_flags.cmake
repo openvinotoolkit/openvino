@@ -126,44 +126,35 @@ function(ie_avx512_optimization_flags flags)
     endif()
 endfunction()
 
+function(ie_arm_neon_optimization_flags flags)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # nothing
+    elseif(ANDROID)
+        if(ANDROID_ABI STREQUAL "arm64-v8a")
+            set(${flags} "-mfpu=neon" PARENT_SCOPE)
+        elseif(ANDROID_ABI STREQUAL "armeabi-v7a-hard with NEON")
+            set(${flags} "-march=armv7-a -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon" PARENT_SCOPE)
+        elseif((ANDROID_ABI STREQUAL "armeabi-v7a with NEON") OR
+               (ANDROID_ABI STREQUAL "armeabi-v7a" AND
+                DEFINED CMAKE_ANDROID_ARM_NEON AND CMAKE_ANDROID_ARM_NEON))
+            set(${flags} "-march=armv7-a -mfloat-abi=softfp -mfpu=neon" PARENT_SCOPE)
+        endif()
+    else()
+        if(AARCH64)
+            set(${flags} "-O2 -ftree-vectorize" PARENT_SCOPE)
+        elseif(ARM)
+            set(${flags} "-mfpu=neon" PARENT_SCOPE)
+        endif()
+    endif()
+endfunction()
+
 #
 # Enables Link Time Optimization compilation
 #
 macro(ie_enable_lto)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" AND OFF)
-        ProcessorCount(N)
-        if(UNIX)
-            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ipo")
-            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ipo")
-            set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -ipo-jobs${N}")
-            set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -ipo-jobs${N}")
-            set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} -ipo-jobs${N}")
-        else()
-            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Qipo")
-            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Qipo")
-            set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /Qipo-jobs:${N}")
-            set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /Qipo-jobs:${N}")
-            set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /Qipo-jobs:${N}")
-        endif()
-    elseif(UNIX)
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
-        # LTO causes issues with gcc 4.8.5 during cmake pthread check
-        if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
-            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
-        endif()
-
-        # modify linker and ar
-        if(LINUX)
-            set(CMAKE_AR  "gcc-ar")
-            set(CMAKE_RANLIB "gcc-ranlib")
-        endif()
-    elseif(MSVC AND OFF)
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL")
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL")
-        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG:STATUS")
-        set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG:STATUS")
-        set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /LTCG:STATUS")
-    endif()
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endmacro()
 
 #
@@ -227,6 +218,7 @@ if(WIN32)
     # Compiler specific flags
 
     ie_add_compiler_flags(/bigobj)
+    ie_add_compiler_flags(/MP)
 
     # Disable noisy warnings
 

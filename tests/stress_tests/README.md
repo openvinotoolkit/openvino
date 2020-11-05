@@ -72,15 +72,6 @@ gtest-parallel ./MemCheckTests
 ``` bash
 gtest-parallel ./StressMemLeaksTests
 ```
-There are the next available command-line keys:
-1. --test_conf < path > - path to config with description of arguments 
-   used to parametrize tests
-2. --test_conf < path > - path to config with definition of environment values 
-   (path to models etc.) 
-3. --refs_conf < path > (available for MemCheckTests only) - path to config with references used to 
-   compare with results of a run
-4. --collect_results_only < bool > (available for MemCheckTests only) - boolean value that disable comparison and 
-   provide memory consumption results only 
 
 MemCheckTests logs can be used to gather reference values based on current
 memory consumption:

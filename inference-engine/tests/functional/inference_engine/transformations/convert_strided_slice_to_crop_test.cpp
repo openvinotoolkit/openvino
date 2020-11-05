@@ -17,9 +17,9 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <ngraph_ops/crop_ie.hpp>
+#include <legacy/ngraph_ops/crop_ie.hpp>
 
-#include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <ngraph/op/reshape.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>

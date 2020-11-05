@@ -117,7 +117,8 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 }
 
 // tested function: GetAvailableDevices, UnregisterPlugin
-TEST_F(CoreThreadingTests, GetAvailableDevices) {
+// TODO: some initialization (e.g. thread/dlopen) sporadically fails during such stress-test scenario
+TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
     InferenceEngine::Core ie;
     runParallel([&] () {
         std::vector<std::string> devices = ie.GetAvailableDevices();

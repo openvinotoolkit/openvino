@@ -30,3 +30,14 @@
 #else
 #define NGRAPH_API NGRAPH_HELPER_DLL_IMPORT
 #endif // ngraph_EXPORTS
+
+#ifndef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef _WIN32
+#if defined __INTEL_COMPILER || defined _MSC_VER
+#define ENABLE_UNICODE_PATH_SUPPORT
+#endif
+#elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) ||              \
+    defined(__clang__)
+#define ENABLE_UNICODE_PATH_SUPPORT
+#endif
+#endif

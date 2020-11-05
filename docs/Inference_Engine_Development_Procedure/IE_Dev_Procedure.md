@@ -30,7 +30,6 @@
     * [IE TESTS]
     * [IE DOCS]
     * [IE MKLDNN]
-    * [IE FPGA]
     * [IE GNA]
     * [IE CLDNN]
     * [IE MYRIAD]

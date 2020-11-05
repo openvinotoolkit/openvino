@@ -27,6 +27,10 @@ const std::vector<std::vector<size_t>> inputOrder = {
 const auto params = testing::Combine(
         testing::ValuesIn(inputOrder),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapes),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );

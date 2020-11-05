@@ -13,6 +13,10 @@
 
 namespace InferenceEngine {
 
+#if defined(_MSC_VER)
+#pragma warning(disable : 4250)
+#endif
+
 /**
  * @brief minimum API to be implemented by plugin, which is used in InferRequestBase forwarding mechanism
  * @ingroup ie_dev_api_async_infer_request_api
@@ -50,7 +54,7 @@ public:
      * IInferRequest::CompletionCallback
      * @param ptr A weak pointer to InferRequestBase
      */
-    void SetPublicInterfacePtr(IInferRequest::Ptr ptr) {
+    void SetPointerToPublicInterface(IInferRequest::Ptr ptr) {
         _publicInterface = ptr;
     }
 

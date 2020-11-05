@@ -236,10 +236,11 @@ message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS ${NGRAPH_FORWARD_CMAKE_ARGS}")
 if (LINUX)
     include(GNUInstallDirs)
 else()
-    set(CMAKE_INSTALL_BINDIR "bin")
-    set(CMAKE_INSTALL_INCLUDEDIR "include")
-    set(CMAKE_INSTALL_DOCDIR "doc")
-    set(CMAKE_INSTALL_LIBDIR "lib")
+    set(CMAKE_INSTALL_BINDIR "bin" CACHE STRING "User executables (bin)")
+    set(CMAKE_INSTALL_LIBDIR "lib" CACHE STRING "Object code libraries (lib)")
+    set(CMAKE_INSTALL_INCLUDEDIR "include" CACHE STRING "C header files (include)")
+    set(CMAKE_INSTALL_DOCDIR "doc" CACHE STRING "Document files (doc)")
+    mark_as_advanced(CMAKE_INSTALL_BINDIR CMAKE_INSTALL_LIBDIR CMAKE_INSTALL_INCLUDEDIR, CMAKE_INSTALL_DOCDIR)
 endif()
 
 if (DEFINED NGRAPH_INSTALL_PREFIX)
@@ -476,22 +477,10 @@ endif()
 
 add_subdirectory(core)
 
-add_subdirectory(frontend)
-
-if (NGRAPH_TEST_UTIL_ENABLE)
-    include(cmake/external_gtest.cmake)
-endif()
-
-add_subdirectory(test)
-
-if (NGRAPH_PYTHON_BUILD_ENABLE)
-    add_subdirectory(python)
-endif()
-
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     include(CMakePackageConfigHelpers)
-
-    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
 
     install(EXPORT ngraphTargets
         FILE ngraphTargets.cmake
@@ -511,6 +500,18 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
         COMPONENT ngraph)
+endif()
+
+add_subdirectory(frontend)
+
+if (NGRAPH_TEST_UTIL_ENABLE)
+    include(cmake/external_gtest.cmake)
+endif()
+
+add_subdirectory(test)
+
+if (NGRAPH_PYTHON_BUILD_ENABLE)
+    add_subdirectory(python)
 endif()
 
 install(DIRECTORY

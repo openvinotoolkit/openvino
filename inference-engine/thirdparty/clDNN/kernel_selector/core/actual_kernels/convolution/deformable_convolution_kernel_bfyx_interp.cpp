@@ -45,7 +45,7 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
 }
 
 CommonDispatchData DeformableConvolutionKernel_bfyx_interp::SetDefault(const convolution_params& params) const {
-    CommonDispatchData kd;
+    CommonDispatchData dispatchData;
 
     const auto& out = params.output;
 
@@ -54,17 +54,17 @@ CommonDispatchData DeformableConvolutionKernel_bfyx_interp::SetDefault(const con
     auto b = out.Batch().v;
     auto kernel_size = params.kernelSize.x * params.kernelSize.y;
 
-    kd.gws0 = Align(x * y, 16);
-    kd.gws1 = params.deformable_groups * b;
-    kd.gws2 = kernel_size;
+    dispatchData.gws[0] = Align(x * y, 16);
+    dispatchData.gws[1] = params.deformable_groups * b;
+    dispatchData.gws[2] = kernel_size;
 
-    kd.lws0 = 16;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 16;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_2;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    return kd;
+    return dispatchData;
 }
 
 
@@ -91,14 +91,14 @@ KernelsData DeformableConvolutionKernel_bfyx_interp::GetKernelsData(const Params
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
-    CommonDispatchData runInfo = SetDefault(newParams);
+    CommonDispatchData dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, DEFAULT,
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, DEFAULT,
                      false, false, static_cast<int>(newParams.inputs.size()));
 
     return {kd};
