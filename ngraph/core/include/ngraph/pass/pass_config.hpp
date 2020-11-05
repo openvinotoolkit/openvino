@@ -72,7 +72,7 @@ namespace ngraph
         public:
             /// \brief Disable transformation by its type_info
             /// \param type_info Transformation type_info
-            void disable(const DiscreteTypeInfo& type_info) { m_disabled.insert(type_info); }
+            void disable(const DiscreteTypeInfo& type_info);
             /// \brief Disable transformation by its class type (based on type_info)
             template <typename T>
             void disable()
@@ -82,7 +82,7 @@ namespace ngraph
 
             /// \brief Enable transformation by its type_info
             /// \param type_info Transformation type_info
-            void enable(const DiscreteTypeInfo& type_info) { m_disabled.erase(type_info); }
+            void enable(const DiscreteTypeInfo& type_info);
             /// \brief Enable transformation by its class type (based on type_info)
             template <typename T>
             void enable()
@@ -161,12 +161,31 @@ namespace ngraph
                 return is_disabled(T::type_info);
             }
 
+            /// \brief Check either transformation type is force enabled or not
+            /// \param type_info Transformation type_info
+            /// \return true if transformation type was force enabled and false otherwise
+            bool is_enabled(const DiscreteTypeInfo& type_info) const
+            {
+                return m_enabled.count(type_info);
+            }
+
+            /// \brief Check either transformation class type is force enabled or not
+            /// \return true if transformation type was force enabled and false otherwise
+            template <typename T>
+            bool is_enabled() const
+            {
+                return is_enabled(T::type_info);
+            }
+
+            void add_disabled_passes(const PassConfig& rhs);
+
         private:
             param_callback m_callback = [](const std::shared_ptr<const ::ngraph::Node>&) {
                 return false;
             };
             param_callback_map m_callback_map;
             std::unordered_set<DiscreteTypeInfo> m_disabled;
+            std::unordered_set<DiscreteTypeInfo> m_enabled;
         };
     }
 }

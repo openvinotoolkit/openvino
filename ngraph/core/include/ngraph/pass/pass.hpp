@@ -62,7 +62,7 @@ namespace ngraph
 
             /// \brief Set PassConfig for particular transformation instance
             /// \param pass_config is a PassConfig shared_ptr
-            void set_pass_config(const std::shared_ptr<PassConfig>& pass_config)
+            virtual void set_pass_config(const std::shared_ptr<PassConfig>& pass_config)
             {
                 m_pass_config = pass_config;
             }

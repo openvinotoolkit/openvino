@@ -88,6 +88,7 @@ set(SRC
     op_is.cpp
     opset1.cpp
     partial_shape.cpp
+    pass_config.cpp
     pass_liveness.cpp
     pass_manager.cpp
     pass_shape_relevance.cpp

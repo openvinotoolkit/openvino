@@ -150,7 +150,7 @@ public:
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
         auto pass_config = get_pass_config();
         pass->set_pass_config(pass_config);
-        if (!Enabled)
+        if (!Enabled && !pass_config->is_enabled<T>())
         {
             pass_config->disable<T>();
         }
@@ -167,6 +167,8 @@ public:
                      const ngraph::graph_rewrite_callback& callback);
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
+    void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;
 
 protected:
     bool m_enable_shape_inference = false;

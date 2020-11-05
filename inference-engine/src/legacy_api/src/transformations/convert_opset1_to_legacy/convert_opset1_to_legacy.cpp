@@ -61,7 +61,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLega
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
     OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::IELegacy, "ngraph::pass::ConvertOpSet1ToLegacy");
 
-    ngraph::pass::Manager manager;
+    ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
@@ -148,7 +148,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    manager.set_pass_config(get_pass_config());
     manager.run_passes(f);
     return true;
 }

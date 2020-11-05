@@ -53,7 +53,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations",
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::CommonOptimizations");
 
-    ngraph::pass::Manager manager;
+    ngraph::pass::Manager manager(get_pass_config());
 
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -118,8 +118,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
-    // Propagate local PassConfig to internal pass::Manager
-    manager.set_pass_config(get_pass_config());
     manager.run_passes(f);
     return true;
 }
