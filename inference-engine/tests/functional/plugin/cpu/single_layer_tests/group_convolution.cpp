@@ -60,9 +60,7 @@ protected:
         auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
                 ngraph::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                                       padEnd, dilation, padType, convOutChannels, numGroups));
-        groupConv->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
-        function = std::make_shared<ngraph::Function>(results, params, "groupConvolution");
+        function = makeNgraphFunction(ngPrc, params, groupConv, "groupConvolution");
     }
 };
 

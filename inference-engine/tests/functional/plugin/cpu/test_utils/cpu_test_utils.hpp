@@ -50,6 +50,15 @@ public:
     CPUInfo getCPUInfo() const;
     void CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
 
+    std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,
+                                                         ngraph::ParameterVector &params,
+                                                         const std::shared_ptr<ngraph::Node> &lastNode,
+                                                         std::string name) const;
+
+protected:
+    virtual std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
+                                                      ngraph::ParameterVector &params,
+                                                      const std::shared_ptr<ngraph::Node> &lastNode) const;
 protected:
     std::string getPrimitiveType() const;
     std::vector<cpu_memory_format_t> inFmts, outFmts;

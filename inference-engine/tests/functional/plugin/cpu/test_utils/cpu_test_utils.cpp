@@ -170,8 +170,23 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     return cpuInfo;
 }
 
+std::shared_ptr<ngraph::Function>
+CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
+                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) const {
+   auto newLastNode = modifyGraph(ngPrc, params, lastNode);
+
+   ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(newLastNode)};
+   return std::make_shared<ngraph::Function>(results, params, name);
+}
+
+std::shared_ptr<ngraph::Node>
+CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+    lastNode->get_rt_info() = getCPUInfo();
+    return lastNode;
+}
+
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
-    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
+auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {
             if (formats[i] == nChw16c)
                 formats[i] = nChw8c;

@@ -90,8 +90,8 @@ protected:
         }
 
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
-        eltwise->get_rt_info() = getCPUInfo();
-        function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
+
+        function = makeNgraphFunction(ngPrc, input, eltwise, "Eltwise");
     }
 };
 
