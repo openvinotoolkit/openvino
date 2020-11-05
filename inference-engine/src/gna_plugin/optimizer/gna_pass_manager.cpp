@@ -91,7 +91,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
 
     auto diagonalWithQuant = quantized ?
                              InferenceEngine::injectData<QuantizedLayerParams>(diagLayer) : diagLayer;
-
+    
     getCreatorLayer(dataPtr) = diagonalWithQuant;
     diagonalWithQuant->outData.push_back(dataPtr);
     // actual insertion
@@ -2089,48 +2089,58 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             continue;
         }
         GNAFakeQuantizeLayer fqLayer(l);
-
-        auto nextLayer = CNNNetGetNextLayerSkipCertain(*fqLayer, 0, 0, donotSkip).first;
         auto prevLayer = CNNNetPrevLayerSkipCertain(*fqLayer, 0, donotSkip);
-
         if (prevLayer->outData.size() != 1) {
             THROW_GNA_LAYER_EXCEPTION(prevLayer) << " fake quantize input that connected to something else not supported";
         }
-        auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayer);
 
-        if (insDatas.size() != 1) {
-            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: " << LAYER_NAME(nextLayer) << " is not correct";
-        }
-        nextLayer->insData[insDatas.front()] = prevLayer->outData.front();
-        getInputTo(prevLayer->outData.front()).clear();
-        getInputTo(prevLayer->outData.front())[nextLayer->name] = nextLayer;
-
-        // After layer gets removed lets absorb its params in QuantParams structure
-
-        // replacing scale factor from this fq layer
         auto inputRange = fqLayer.getInputRange();
         auto outputRange = fqLayer.getOutputRange();
         if (inputRange.second.size() != 1 || inputRange.second.size() != 1 ||
             outputRange.second.size() != 1 || outputRange.second.size() != 1) {
-            THROW_GNA_LAYER_EXCEPTION(fqLayer)
-                << "unsupported,per-channel quantisation for layer : " << nextLayer->name;
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << "unsupported per-channel quantisation";
         }
+
         float fqLevels = fqLayer.getLevels();
         float scaleInput = (fqLevels - 1) / (inputRange.second[0] - inputRange.first[0]);
         float scaleOutputs = (fqLevels - 1) / (outputRange.second[0] - outputRange.first[0]);
 
-        // TODO: proper mapping into scale factors
-        auto quantParamsNextLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(nextLayer);
-        quantParamsNextLayer->_src_quant.SetScale(scaleOutputs);
-        quantParamsNextLayer->_src_quant.SetLevels(fqLevels);
-        quantParamsNextLayer->_src_quant.SetMinValues({ outputRange.first[0] });
-        quantParamsNextLayer->_src_quant.SetMaxValues({ outputRange.second[0] });
-
+        // Before FQ layer is removed, the previous layer has to be updated with its quantization data
         auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
-        //quantParamsPrevLayer->_dst_quant.SetScale(scaleOutputs);
+        quantParamsPrevLayer->_dst_quant.SetScale(scaleOutputs);
         quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);
         quantParamsPrevLayer->_dst_quant.SetMinValues({ inputRange.first[0] });
         quantParamsPrevLayer->_dst_quant.SetMaxValues({ inputRange.second[0] });
+
+        auto prevData = prevLayer->outData.front();
+        getInputTo(prevLayer->outData.front()).clear();
+
+        // Find all output layers connected to FQ
+        auto nextLayers = CNNNetGetAllNextLayersSkipCertain(*fqLayer, -1, donotSkip);
+        if (nextLayers.empty()) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize does not have any output layers connected";
+        }
+
+        // Connect all next layers after FQ to the layer that is before FQ
+        // and propagate quantization data
+        for (size_t i = 0; i < nextLayers.size(); ++i) {
+            auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
+            if (insDatas.size() != 1) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
+                    << LAYER_NAME(nextLayers[i]) << " is not correct";
+            }
+
+            nextLayers[i]->insData[insDatas.front()] = prevData;
+            getInputTo(prevLayer->outData.front())[nextLayers[i]->name] = nextLayers[i];
+
+            // After layer gets removed lets absorb its params in QuantParams structure
+            // replacing scale factor from this fq layer
+            auto quantParamsNextLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(nextLayers[i]);
+            quantParamsNextLayer->_src_quant.SetScale(scaleOutputs);
+            quantParamsNextLayer->_src_quant.SetLevels(fqLevels);
+            quantParamsNextLayer->_src_quant.SetMinValues({ outputRange.first[0] });
+            quantParamsNextLayer->_src_quant.SetMaxValues({ outputRange.second[0] });
+        }
     }
 }
 
