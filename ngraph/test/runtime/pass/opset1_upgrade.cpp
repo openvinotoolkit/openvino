@@ -302,57 +302,6 @@ namespace opset1_upgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Slice> node)
-    {
-        const auto data = node->input_value(0);
-        const auto begin = op::Constant::create(
-            element::i64, Shape{node->get_lower_bounds().size()}, node->get_lower_bounds());
-        const auto end = op::Constant::create(
-            element::i64, Shape{node->get_upper_bounds().size()}, node->get_upper_bounds());
-        const auto strides = op::Constant::create(
-            element::i64, Shape{node->get_strides().size()}, node->get_strides());
-        int64_t input_size = node->get_lower_bounds().size();
-
-        auto replacement_node = make_shared<op::v1::StridedSlice>(data,
-                                                                  begin,
-                                                                  end,
-                                                                  strides,
-                                                                  vector<int64_t>(input_size, 0),
-                                                                  vector<int64_t>(input_size, 0));
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Split> node)
-    {
-        const auto& splits_vec = node->get_splits();
-        const auto first_elem = splits_vec.front();
-
-        const bool split_evenly =
-            std::all_of(splits_vec.begin(), splits_vec.end(), [first_elem](const size_t split) {
-                return split == first_elem;
-            });
-
-        std::shared_ptr<Node> replacement_node;
-        if (split_evenly)
-        {
-            replacement_node = make_shared<op::v1::Split>(
-                node->input_value(0), node->input_value(1), splits_vec.front());
-        }
-        else
-        {
-            const auto split_lengths =
-                ngraph::op::Constant::create(element::u64, Shape{splits_vec.size()}, splits_vec);
-
-            replacement_node = make_shared<op::v1::VariadicSplit>(
-                node->input_value(0), node->input_value(1), split_lengths);
-        }
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Subtract> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Subtract, op::v1::Subtract>(node);
