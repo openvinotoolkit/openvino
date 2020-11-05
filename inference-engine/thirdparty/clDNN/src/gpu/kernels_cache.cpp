@@ -341,7 +341,6 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
                 // If read is successful, then remove kernels from compilation bucket
                 auto bin = loadBinaryFromFile(cached_bin_name);
                 if (!bin.empty()) {
-                    sources_bucket_to_compile.clear();
                     precompiled_kernels.push_back(bin);
                 }
             }
@@ -360,7 +359,7 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
             try {
                 cl::vector<cl::Kernel> kernels;
                 // Run compilation
-                if (!sources_bucket_to_compile.empty()) {
+                if (precompiled_kernels.empty()) {
                     cl::Program program(_context.context(), sources_bucket_to_compile);
                     program.build({_context.device()}, program_source.options.c_str());
 
@@ -381,9 +380,6 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
                         saveBinaryToFile(cached_bin_name, getProgramBinaries(program));
                     }
                 } else {
-                    if (precompiled_kernels.empty()) {
-                        throw std::runtime_error("[clDNN] No binaries found!\n");
-                    }
                     cl::Program program(_context.context(), {_context.device()}, precompiled_kernels);
                     program.build({_context.device()}, program_source.options.c_str());
                     program.createKernels(&kernels);
