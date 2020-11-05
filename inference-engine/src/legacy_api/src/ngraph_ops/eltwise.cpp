@@ -15,8 +15,8 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::Eltwise::type_info;
 
-op::Eltwise::Eltwise(const Output<Node>& data1, const Output<Node>& data2, const ELTWISE_TYPE eltwise_type)
-    : Op({data1, data2}), eltwise_type(eltwise_type) {
+op::Eltwise::Eltwise(const Output<Node>& data1, const Output<Node>& data2, const ELTWISE_TYPE eltwise_type, const element::Type output_type)
+    : Op({data1, data2}), eltwise_type(eltwise_type), m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -25,7 +25,7 @@ std::shared_ptr<Node> op::Eltwise::clone_with_new_inputs(const OutputVector& new
         throw ngraph_error("Incorrect number of new arguments");
     }
 
-    return make_shared<Eltwise>(new_args.at(0), new_args.at(1), eltwise_type);
+    return make_shared<Eltwise>(new_args.at(0), new_args.at(1), eltwise_type, m_output_type);
 }
 
 void op::Eltwise::validate_and_infer_types() {
@@ -34,8 +34,12 @@ void op::Eltwise::validate_and_infer_types() {
     element::Type data2_et = get_input_element_type(1);
 
     element::Type et_result;
-    NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, data1_et, data2_et),
-                          "Element types for first and second do not match :", data1_et, " and ", data2_et);
+    if (m_output_type == element::undefined) {
+        NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, data1_et, data2_et),
+                              "Element types for first and second do not match :", data1_et, " and ", data2_et);
+    } else {
+        et_result = m_output_type;
+    }
 
     if (get_input_partial_shape(0).rank().is_dynamic() ||
         get_input_partial_shape(1).rank().is_dynamic()) {

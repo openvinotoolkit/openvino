@@ -22,33 +22,21 @@
 #include "ngraph/runtime/reference/copy.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
-
-constexpr NodeTypeInfo op::Round::type_info;
-
-op::v0::Round::Round(const Output<Node>& arg)
-    : UnaryElementwiseArithmetic(arg)
-{
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node> op::v0::Round::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Round>(new_args.at(0));
-}
 
 namespace roundop
 {
     // function used by TYPE_CASE
     template <element::Type_t ET>
-    inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    inline bool evaluate(const HostTensorPtr& arg0,
+                         const HostTensorPtr& out,
+                         const size_t count,
+                         const op::v5::Round::RoundMode mode)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::round<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        runtime::reference::round<T>(
+            arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
         return true;
     }
 
@@ -60,7 +48,10 @@ namespace roundop
         return true;
     }
 
-    bool evaluate_round(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    bool evaluate_round(const HostTensorPtr& arg0,
+                        const HostTensorPtr& out,
+                        const size_t count,
+                        const op::v5::Round::RoundMode mode)
     {
         bool rc = true;
         out->set_unary(arg0);
@@ -85,22 +76,17 @@ namespace roundop
             break;
             COPY_TENSOR(u64)(arg0, out, count);
             break;
-            TYPE_CASE(f16)(arg0, out, count);
+            TYPE_CASE(f16)(arg0, out, count, mode);
             break;
-            TYPE_CASE(f32)(arg0, out, count);
+            TYPE_CASE(f32)(arg0, out, count, mode);
+            break;
+            TYPE_CASE(bf16)(arg0, out, count, mode);
             break;
         default: rc = false; break;
         }
         return rc;
     }
 }
-
-bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Round::evaluate");
-    return roundop::evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
 
 NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
 
@@ -127,6 +113,13 @@ shared_ptr<Node> op::v5::Round::clone_with_new_inputs(const OutputVector& new_ar
 {
     check_new_args_count(this, new_args);
     return make_shared<v5::Round>(new_args.at(0), m_mode);
+}
+
+bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v5::Round::evaluate");
+    return roundop::evaluate_round(
+        inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
 }
 
 namespace ngraph

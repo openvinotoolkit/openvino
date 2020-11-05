@@ -38,10 +38,9 @@ ParamsKey BinaryConvolutionKernelRef::GetSupportedKey() const {
     return k;
 }
 
-BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelRef::SetDefault(
-    const binary_convolution_params& params,
-    int) const {
-    DispatchData kd = BinaryConvolutionKernelBase::SetDefault(params);
+BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelRef::SetDefault(const binary_convolution_params& params,
+                                                                                 int) const {
+    DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -50,22 +49,22 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelRef::SetDefault
     auto y = out.Y().v;
     auto x = out.X().v;
 
-    kd.gws0 = b;
-    kd.gws1 = f;
-    kd.gws2 = x * y;
+    dispatchData.gws[0] = b;
+    dispatchData.gws[1] = f;
+    dispatchData.gws[2] = x * y;
 
-    kd.lws0 = 1;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
-    return kd;
+    return dispatchData;
 }
 
 JitConstants BinaryConvolutionKernelRef::GetJitConstants(const binary_convolution_params& params,
-                                                         const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                         const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     int pad_physical_val = params.pad_value == -1.0f ? 0x00000000 : 0xFFFFFFFF;
     int leftovers_mask = (0xFFFFFFFF >> (32 - params.inputs[0].Feature().v % 32));

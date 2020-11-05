@@ -42,24 +42,19 @@ ParamsKey PoolingKerneGPU_b_fs_yx_fsv4::GetSupportedKey() const {
 }
 
 PoolingKernelBase::DispatchData PoolingKerneGPU_b_fs_yx_fsv4::SetDefault(const pooling_params& params) const {
-    DispatchData runInfo = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    runInfo.gws0 = params.output.X().v;  // X
-    runInfo.gws1 = params.output.Y().v;  // Y
+    dispatchData.gws[0] = params.output.X().v;  // X
+    dispatchData.gws[1] = params.output.Y().v;  // Y
     // we got b_fs_yx_fsv4 format, we process 4 features per workitem
-    runInfo.gws2 = CeilDiv(params.output.Feature().v, 4) * params.output.Batch().v;
+    dispatchData.gws[2] = CeilDiv(params.output.Feature().v, 4) * params.output.Batch().v;
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    auto local = GetOptimalLocalWorkGroupSizes({ runInfo.gws0, runInfo.gws1, runInfo.gws2 }, params.engineInfo);
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants PoolingKerneGPU_b_fs_yx_fsv4::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants PoolingKerneGPU_b_fs_yx_fsv4::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     const size_t in_x_pitch = 4;
     const size_t in_y_pitch = 4 * params.inputs[0].X().LogicalDimPadded();

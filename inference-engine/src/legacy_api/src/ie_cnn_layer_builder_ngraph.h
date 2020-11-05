@@ -18,7 +18,7 @@
 #include "blob_factory.hpp"
 
 #include <legacy/ie_layers.h>
-#include <legacy/ie_ngraph_utils.hpp>
+#include <ie_ngraph_utils.hpp>
 
 namespace InferenceEngine {
 

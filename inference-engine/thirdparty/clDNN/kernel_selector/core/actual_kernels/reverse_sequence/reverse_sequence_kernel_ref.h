@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,9 +37,9 @@ struct reverse_sequence_optional_params : optional_params {
     reverse_sequence_optional_params() : optional_params(KernelType::REVERSE_SEQUENCE) {}
 };
 
-class ReverseSequenceKernelRef : public common_kernel_base {
+class ReverseSequenceKernelRef : public KernelBaseOpenCL {
 public:
-    ReverseSequenceKernelRef() : common_kernel_base("reverse_sequence_ref") {}
+    ReverseSequenceKernelRef() : KernelBaseOpenCL("reverse_sequence_ref") {}
     virtual ~ReverseSequenceKernelRef() {}
     virtual JitConstants GetJitConstants(const reverse_sequence_params& params) const;
     virtual CommonDispatchData SetDefault(const reverse_sequence_params& params, const optional_params&) const;

@@ -22,7 +22,6 @@
 #include <mutex>
 
 #include <ie_extension.h>
-#include <legacy/ie_layers.h>
 #include <ie_core.hpp>
 
 typedef std::chrono::high_resolution_clock Time;
@@ -50,8 +49,6 @@ struct IENetwork {
     size_t getBatch();
 
     void addOutput(const std::string &out_layer, size_t port_id);
-
-    const std::vector <InferenceEngine::CNNLayerPtr> getLayers();
 
     const std::map<std::string, InferenceEngine::InputInfo::Ptr> getInputsInfo();
 

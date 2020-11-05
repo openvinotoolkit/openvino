@@ -44,9 +44,17 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
         auto add = label_to_output[m_add].get_node_shared_ptr();
 
+        if (m_transformation_callback(mul)) {
+            return false;
+        }
+
         Output<Node> input = label_to_output[m_data];
         Output<Node> mul_const = label_to_output[m_mul_constant];
         Output<Node> add_const = label_to_output[m_add_constant];
+
+        if ((input.get_element_type() != mul_const.get_element_type()) || (add_const.get_element_type() != mul_const.get_element_type())) {
+            return false;
+        }
 
         // Replace Add->Multiply with Multiply->Add
         // As new Multiply can be fused with operation above it we add this Multiply

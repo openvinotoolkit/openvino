@@ -693,6 +693,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::SOFTSIGN;
         case cldnn::activation_func::hard_sigmoid:
             return kernel_selector::activation_function::HARD_SIGMOID;
+        case cldnn::activation_func::hsigmoid:
+            return kernel_selector::activation_function::HSIGMOID;
         case cldnn::activation_func::swish:
             return kernel_selector::activation_function::SWISH;
         case cldnn::activation_func::hswish:
@@ -701,6 +703,10 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::MISH;
         case cldnn::activation_func::gelu:
             return kernel_selector::activation_function::GELU;
+        case cldnn::activation_func::round_half_to_even:
+            return kernel_selector::activation_function::ROUND_HALF_TO_EVEN;
+        case cldnn::activation_func::round_half_away_from_zero:
+            return kernel_selector::activation_function::ROUND_HALF_AWAY_FROM_ZERO;
         default:
             throw std::runtime_error("Unknown activation function");
             break;
