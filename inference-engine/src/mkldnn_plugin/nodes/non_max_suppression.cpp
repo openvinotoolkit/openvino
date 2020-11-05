@@ -80,7 +80,9 @@ public:
                 Precision inPrecision = Precision::FP32;
                 if (i == NMS_MAXOUTPUTBOXESPERCLASS)
                     inPrecision = Precision::I32;
-                const SizeVector& inDims = layer->insData[i].lock()->getTensorDesc().getDims();
+                auto inData = layer->insData[i].lock();
+                if (!inData) THROW_IE_EXCEPTION << "Layer " << layer->name << " has empty input with index: " << i;
+                const SizeVector& inDims = inData ->getTensorDesc().getDims();
                 inConfig.desc = TensorDesc(inPrecision, inDims, InferenceEngine::TensorDesc::getLayoutByDims(inDims));
                 config.inConfs.push_back(inConfig);
             }
