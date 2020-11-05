@@ -39,8 +39,6 @@ function(add_common_target TARGET_NAME STATIC_IE)
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
     if(WIN32)
-        target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
-
         set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
     endif()
 
@@ -54,6 +52,10 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_transformations
                                          PRIVATE openvino::itt)
+
+    if(NOT STATIC_IE)
+        target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_legacy)
+    endif()
 endfunction()
 
 add_common_target("vpu_common_lib" FALSE)

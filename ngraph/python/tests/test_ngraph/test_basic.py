@@ -26,10 +26,8 @@ from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_34323,
-                   xfail_issue_35929,
+from tests import (xfail_issue_35929,
                    xfail_issue_36476,
-                   xfail_issue_36479,
                    xfail_issue_36480)
 
 
@@ -62,11 +60,11 @@ def test_ngraph_function_api():
     [
         np.float32,
         pytest.param(np.float64, marks=xfail_issue_35929),
-        pytest.param(np.int8, marks=xfail_issue_36479),
+        np.int8,
         np.int16,
         np.int32,
         np.int64,
-        pytest.param(np.uint8, marks=xfail_issue_36479),
+        np.uint8,
         np.uint16,
         pytest.param(np.uint32, marks=xfail_issue_36476),
         np.uint64,
@@ -142,7 +140,6 @@ def test_broadcast_3():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="AssertionError: assert dtype('float32') == <class 'bool'")
 @pytest.mark.parametrize(
     "destination_type, input_data",
     [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
@@ -281,7 +278,6 @@ def test_backend_config():
     runtime.set_config(dummy_config)
 
 
-@xfail_issue_34323
 def test_result():
     node = np.array([[11, 10], [1, 8], [3, 4]])
     result = run_op_node([node], ng.result)
