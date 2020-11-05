@@ -102,7 +102,6 @@ public:
     void ScheduleToWorkerInferRequest();
 
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
-    static thread_local WorkerInferRequest*                     _thisWorkerInferRequestPreferred;
     static thread_local std::string                             _thisPreferredDeviceName;
     std::atomic_bool                                            _terminate = {false};
     std::mutex                                                  _mutex;
@@ -124,8 +123,7 @@ class MultiDeviceInferRequest : public InferenceEngine::InferRequestInternal {
         using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
         explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
                                          const InferenceEngine::OutputsDataMap& networkOutputs,
-                                         MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with = nullptr,
-                                         std::string preferredDeviceName = "");
+                                         MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with = nullptr);
         void GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>&) const override {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
         }
@@ -134,7 +132,6 @@ class MultiDeviceInferRequest : public InferenceEngine::InferRequestInternal {
         }
         // Multi-Device impl specific: sets the data (blobs from the device-less request to the specific device request)
         void SetBlobsToAnotherRequest(InferenceEngine::InferRequest& req);
-        std::string _preferredDeviceName;
         MultiDeviceExecutableNetwork::WorkerInferRequest* _request_to_share_blobs_with = nullptr;
     };
 
