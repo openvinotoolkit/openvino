@@ -64,14 +64,16 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(InferRequest& req) {
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         GetBlob(name.c_str(), blob);
-        req.SetBlob(name.c_str(), blob);
+        if (req.GetBlob(name.c_str()) != blob)
+            req.SetBlob(name.c_str(), blob);
     }
     for (const auto &it : _networkOutputs) {
         Blob::Ptr blob;
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         GetBlob(name.c_str(), blob);
-        req.SetBlob(name.c_str(), blob);
+        if (req.GetBlob(name.c_str()) != blob)
+            req.SetBlob(name.c_str(), blob);
     }
 }
 
@@ -196,7 +198,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                                                            const std::unordered_map<std::string, InferenceEngine::Parameter>&   config,
                                                            const bool                                                           needPerfCounters) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
-    _devicePriorities{networkDevices},
+    _devicePriorities{networkDevices}, _devicePrioritiesInitial{networkDevices},
     _networksPerDevice{networksPerDevice},
     _config{config},
     _needPerfCounters{needPerfCounters} {
@@ -251,7 +253,6 @@ void MultiDeviceExecutableNetwork::GetContext(RemoteContext::Ptr& pContext, Resp
             if (e.getStatus() != NOT_IMPLEMENTED)
                 throw;
         } catch (const NotImplemented& ex) {
-            std::cout << ex.what();
         }
     }
     THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str;
@@ -314,15 +315,13 @@ InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateI
     size_t sum = 0;
     MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with = nullptr;
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
-    for (auto&& _workers : _workerRequests) {
-        const auto& dev_name  = _workers.first;
-        auto&& dev_requests = _workers.second;
-        sum += _workers.second.size();
-        if (num < sum) {
-            // taking requests in reversed order, as these are popped from the top of the idle requests queue:
-            request_to_share_blobs_with = &dev_requests.at(sum - num - 1);
+    for (const auto& device : _devicePrioritiesInitial) {
+        auto& dev_requests = _workerRequests[device.deviceName];
+        if ((num - sum) < dev_requests.size()) {
+            request_to_share_blobs_with = &dev_requests.at(num - sum);
             break;
         }
+        sum += dev_requests.size();
     }
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }

@@ -106,6 +106,7 @@ public:
     std::atomic_bool                                            _terminate = {false};
     std::mutex                                                  _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
+    const std::vector<DeviceInformation>                        _devicePrioritiesInitial;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
     ThreadSafeQueue<Task>                                       _inferPipelineTasks;
     DeviceMap<ThreadSafeQueue<Task>>                            _inferPipelineTasksDeviceSpecific;
