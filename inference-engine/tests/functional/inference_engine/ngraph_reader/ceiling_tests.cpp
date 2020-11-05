@@ -67,7 +67,7 @@ TEST_F(NGraphReaderTests, ReadCeilingNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="Ceiling" id="1" type="Ceiling" precision="FP32">
+        <layer name="Ceiling" id="1" type="Ceil" precision="FP32">
             <input>
                 <port id="1">
                     <dim>1</dim>
