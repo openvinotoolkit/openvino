@@ -44,6 +44,11 @@ pass::Manager::~Manager()
 {
 }
 
+pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config)
+    : m_pass_config(std::move(pass_config))
+{
+}
+
 void pass::Manager::run_passes(shared_ptr<Function> func)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::Manager::run_passes");
