@@ -56,6 +56,7 @@ public:
                                                          std::string name) const;
 
 protected:
+    virtual void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
     virtual std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
                                                       ngraph::ParameterVector &params,
                                                       const std::shared_ptr<ngraph::Node> &lastNode) const;

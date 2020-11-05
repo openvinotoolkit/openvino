@@ -94,7 +94,7 @@ TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Interpolate");
+    CheckPluginRelatedResults(executableNetwork, "Interpolate");
 }
 
 namespace {

@@ -99,7 +99,7 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Eltwise");
+    CheckPluginRelatedResults(executableNetwork, "Eltwise");
 }
 
 namespace {

@@ -4,6 +4,7 @@
 
 #include <shared_test_classes/single_layer/group_convolution.hpp>
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -15,21 +16,24 @@ using groupConvSpecificParams = LayerTestsDefinitions::groupConvSpecificParams;
 
 typedef std::tuple<
         groupConvLayerTestParamsSet,
-        CPUSpecificParams> groupConvLayerCPUTestParamsSet;
+        CPUSpecificParams,
+        fusingSpecificParams> groupConvLayerCPUTestParamsSet;
 
 class GroupConvolutionLayerCPUTest : public testing::WithParamInterface<groupConvLayerCPUTestParamsSet>,
-                                     virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                                     virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
         groupConvLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, cpuParams, fusingParams) = obj.param;
 
         std::ostringstream result;
         result << LayerTestsDefinitions::GroupConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<groupConvLayerTestParamsSet>(
                 basicParamsSet, 0));
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
+        result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         return result.str();
     }
@@ -38,9 +42,11 @@ protected:
     void SetUp() {
         groupConvLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        std::tie(postFunction, postNodes, fusedOps) = fusingParams;
 
         groupConvSpecificParams groupConvParams;
         std::vector<size_t> inputShape;
@@ -68,7 +74,7 @@ TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Convolution");
+    CheckPluginRelatedResults(executableNetwork, "Convolution");
 }
 
 namespace {
@@ -122,6 +128,22 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(std::vector
 /* ===================== */
 
 /* COMMON PARAMS */
+std::vector<fusingSpecificParams> fusingParamsSet {
+        emptyFusingSpec,
+        // activations
+        fusingRelu,
+        fusingElu,
+        fusingSigmoid,
+        fusingClamp,
+        fusingPRelu,
+        fusingSwish,
+        // other patterns
+        fusingReluScaleShift,
+        fusingFakeQuantizePerChannelRelu,
+        fusingSum,
+};
+
+
 /* ============= GroupConvolution params (planar layout) ============= */
 const SizeVector numOutChannels_Planar = {6};
 const SizeVector numGroups_Planar = {2, 3};
@@ -178,7 +200,8 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_Planar_FP32, GroupConvolutionLayerCPU
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 12, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_2D))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_2D)),
+                                ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (Planar 3D) ============= */
@@ -208,7 +231,8 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_Planar_FP32, GroupConvolutionLayerCPU
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 12, 7, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_3D))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_3D)),
+                                ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (Blocked 2D) ============= */
@@ -240,7 +264,8 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_Blocked_FP32, GroupConvolutionLayerCP
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 64, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_2D))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_2D)),
+                                ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (Blocked 3D) ============= */
@@ -272,7 +297,8 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_Blocked_FP32, GroupConvolutionLayerCP
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 64, 7, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_3D))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_3D)),
+                                ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 2D) ============= */
@@ -304,7 +330,8 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_DW_FP32, GroupConvolutionLayerCPUTest
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 32, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_2D))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_2D)),
+                                ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 3D) ============= */
@@ -336,7 +363,8 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_DW_FP32, GroupConvolutionLayerCPUTest
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 32, 7, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_3D))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_3D)),
+                                ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 /* ========= */
 
@@ -360,7 +388,7 @@ groupConvLayerCPUTestParamsSet makeSingleGroupConvCPUTestCase(SizeVector kernels
         InferenceEngine::Precision::UNSPECIFIED,
         InferenceEngine::Layout::ANY,
         InferenceEngine::Layout::ANY, inputShapes, CommonTestUtils::DEVICE_CPU);
-    return groupConvLayerCPUTestParamsSet(basicParamsSet, CPUParams);
+    return groupConvLayerCPUTestParamsSet(basicParamsSet, CPUParams, emptyFusingSpec);
 }
 
 /* ============= GEMM GroupConvolution ============= */

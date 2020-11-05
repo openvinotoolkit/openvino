@@ -112,7 +112,7 @@ TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, pluginTypeNode);
+    CheckPluginRelatedResults(executableNetwork, pluginTypeNode);
 };
 
 /* ============= Common Convolution Params ============= */
