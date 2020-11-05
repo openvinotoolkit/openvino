@@ -364,6 +364,8 @@ void MKLDNNPermuteNode::createPrimitive() {
     } else if (mayiuse(cpu::x64::sse42)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse42>(jpp));
     }
+    if (permute_kernel)
+        permute_kernel->create_ker();
 }
 
 static void permute_to_0231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {

@@ -205,6 +205,9 @@ public:
 
             softmax_kernel.reset(new SoftmaxGeneric());
 
+            if (logistic_kernel)
+                logistic_kernel->create_ker();
+
             addConfig(layer, {DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();

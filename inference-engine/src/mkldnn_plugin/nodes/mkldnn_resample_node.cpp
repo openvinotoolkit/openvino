@@ -432,6 +432,8 @@ void MKLDNNResampleNode::createPrimitive() {
             resample_nearest_kernel.reset(new jit_uni_resample_nearest_kernel_f32<cpu::sse42>(jcp, *attr.get()));
             blk_size = 8;
         }
+        if (resample_nearest_kernel)
+            resample_nearest_kernel->create_ker();
     }
 }
 

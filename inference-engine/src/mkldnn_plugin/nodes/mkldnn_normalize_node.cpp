@@ -871,6 +871,11 @@ void MKLDNNNormalizeNode::createPrimitive() {
         normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::sse42>(jcp));
         normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::sse42>(jcp, *attr.get()));
     }
+    if (normalize_kernel)
+        normalize_kernel->create_ker();
+
+    if (normalize_modulo_kernel)
+        normalize_modulo_kernel->create_ker();
 
     const auto &p = (*attr.get()).post_ops_;
     for (int i = 0; i < p.len(); i++) {

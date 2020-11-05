@@ -183,6 +183,8 @@ SoftmaxGeneric::SoftmaxGeneric() {
         softmax_kernel.reset(new jit_uni_softmax_kernel_f32<sse42>());
         block_size = 4;
     }
+    if (softmax_kernel)
+        softmax_kernel->create_ker();
 }
 
 void SoftmaxGeneric::execute(const float *src_data, float *dst_data, int B, int C, int H, int W) {

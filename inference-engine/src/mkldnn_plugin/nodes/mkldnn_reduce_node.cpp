@@ -1398,6 +1398,12 @@ void MKLDNNReduceNode::createPrimitive() {
         blk_size = 8;
     }
 
+    if (reduce_kernel)
+        reduce_kernel->create_ker();
+
+    if (reduce_post_kernel)
+        reduce_post_kernel->create_ker();
+
     jit_mode = jit_mode && reduce_kernel;
 }
 
