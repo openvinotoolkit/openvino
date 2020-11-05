@@ -70,6 +70,7 @@ private:
         virtual ~IDesc() {}
         virtual mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr &attr,
                                                                                   const mkldnn::engine &engine) const = 0;
+        static constexpr bool allow_emty = true;
     };
 
     template <class T>
@@ -80,7 +81,7 @@ private:
 
         mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr &attr,
                                                                           const mkldnn::engine &engine) const override {
-            return mkldnn::primitive_desc_iterator(&desc->data, &attr, engine, nullptr);
+            return mkldnn::primitive_desc_iterator(&desc->data, &attr, engine, nullptr, allow_emty);
         }
 
         std::shared_ptr<T>& getPtr() {
@@ -99,7 +100,7 @@ private:
 
         mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr &attr,
                                                                           const mkldnn::engine &engine) const override {
-            return mkldnn::primitive_desc_iterator(&desc->data, &attr, engine, prim.get()->get());
+            return mkldnn::primitive_desc_iterator(&desc->data, &attr, engine, prim.get()->get(), allow_emty);
         }
 
         std::shared_ptr<T>& getPtr() {

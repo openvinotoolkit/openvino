@@ -42,6 +42,11 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
     explicit jit_uni_mvn_mean_variance_kernel_f32(jit_mvn_config_params jcp) : jit_uni_mvn_mean_variance_kernel(jcp), jit_generator() {}
 
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
     void generate() override {
         this->preamble();
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -215,6 +220,12 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_kernel_f32)
 
     explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
     void generate() override {
         const auto &p = attr_.post_ops_;
         for (int i = 0; i < p.len(); i++) {
@@ -586,6 +597,15 @@ void MKLDNNMVNNode::createPrimitive() {
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::sse42>(jcp));
         }
     }
+    if (mvn_kernel)
+        mvn_kernel->create_ker();
+
+    if (mvn_mean_kernel)
+        mvn_mean_kernel->create_ker();
+
+    if (mvn_variance_kernel)
+        mvn_variance_kernel->create_ker();
+
 }
 
 void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {

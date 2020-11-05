@@ -58,7 +58,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].desc = MKLDNNMemoryDesc(srcDims, inputDataType, memory::format_tag::any);
     config.outConfs.resize(outDims.size());
 
-    std::vector<memory::format> outFormats;
+    std::vector<memory::format_tag> outFormats;
 
     auto axis_size = 0;
     auto dstFirstDims = getChildEdgeAt(0)->getDims();
@@ -331,7 +331,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
         }
     }
 
-    std::map<mkldnn::memory::format, size_t> formatFrequency;
+    std::map<mkldnn::memory::format_tag, size_t> formatFrequency;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto parent = parentEdge->getParent();

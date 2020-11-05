@@ -12,6 +12,7 @@
 #include <mkldnn_extension_utils.h>
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
+#include "utils/general_utils.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -186,8 +187,11 @@ void MKLDNNDeconvolutionNode::filterSupportedDescriptors() {
 
 void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     if (prim) {
-        THROW_IE_EXCEPTION << "Unimplemented";
-//        strm.submit({*prim});
+        auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+
+        (*prim).execute(strm, {{DNNL_ARG_DIFF_DST, src}, {DNNL_ARG_WEIGHTS, getWeights()},
+                               {DNNL_ARG_DIFF_SRC, dst}});
     }
 }
 

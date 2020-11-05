@@ -10,6 +10,7 @@
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
+#include "utils/general_utils.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

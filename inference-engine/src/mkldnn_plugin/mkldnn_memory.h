@@ -48,7 +48,7 @@ public:
         return static_cast<mkldnn::memory::data_type>(desc.data.data_type);
     }
 
-    size_t GetElementSize() const { THROW_IE_EXCEPTION << "Unimplemented"; };
+    size_t GetElementSize() const;
 
     MKLDNNDims getDims() const {
         return MKLDNNDims(desc.data.dims, desc.data.ndims);
@@ -89,10 +89,7 @@ public:
     }
 
     const MKLDNNMemoryDesc GetDesc() const {
-        // TODO[oneDNN]: TBD
-        THROW_IE_EXCEPTION << "Unimplemented";
-//        return prim->get_primitive_desc().desc();
-        return {};
+        return MKLDNNMemoryDesc {prim->get_desc()};
     }
 
     void* GetData() const {

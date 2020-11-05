@@ -496,8 +496,8 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
         auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
         auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
 
-
-        // TODO: stub here. should be improved
+        // General implementation in case of all input are dnnl inputs and
+        // all outputs are dnnl outputs.
         (*prim).execute(strm, {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}});
     }
 }

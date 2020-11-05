@@ -621,15 +621,4 @@ public:
 #define REG_MKLDNN_PRIM_FOR(__prim, __type) \
 static MKLDNNNode::Registrar<__prim> REG_MKLDNN_CONCAT(_reg_, __LINE__)(__type)
 
-template <typename T, typename U>
-inline T div_up(const T a, const U b) {
-    assert(b);
-    return (a + b - 1) / b;
-}
-
-template <typename T, typename U>
-inline T rnd_up(const T a, const U b) {
-    return div_up(a, b) * b;
-}
-
 }  // namespace MKLDNNPlugin

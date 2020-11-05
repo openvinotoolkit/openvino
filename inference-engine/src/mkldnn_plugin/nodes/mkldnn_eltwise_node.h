@@ -98,6 +98,8 @@ struct jit_uni_eltwise_kernel {
     explicit jit_uni_eltwise_kernel(jit_eltwise_params jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_eltwise_params jep_;
     MKLDNNEltwiseNode& eltwiseNode;
 };

@@ -317,66 +317,23 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::da
     MKLDNNMemory::CreateBlockingDesc(desc);
 }
 
+size_t MKLDNNMemoryDesc::GetElementSize() const {
+    const auto type = desc.data_type();
+    switch (type) {
+        case memory::data_type::f16 :
+        case memory::data_type::bf16 :
+            return 2;
+        case memory::data_type::f32 :
+        case memory::data_type::s32 :
+            return 4;
+        case memory::data_type::s8 :
+        case memory::data_type::u8 :
+            return 1;
+        default:
+            THROW_IE_EXCEPTION << "Unknown data type";
+    }
+}
 
-/**
-
-Acb16a
-Acb4a
-Acb8a
-BAc16a16b
-BAc16b16a
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- */
 static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by_ndims {
     {0, {
         mkldnn::memory::format_tag::a   // TODO :: really 1d layout for scalar??

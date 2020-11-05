@@ -382,7 +382,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         canOptimize = false;
     }
 
-    std::map<mkldnn::memory::format, size_t> formatFrequency;
+    std::map<mkldnn::memory::format_tag, size_t> formatFrequency;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto parent = parentEdge->getParent();
@@ -482,8 +482,7 @@ void MKLDNNConcatNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 
-    std::vector<memory::primitive_desc> srcs_pd;
-    std::vector<primitive::at> srcs_p;
+    std::vector<memory::desc> srcs_d;
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
@@ -499,20 +498,18 @@ void MKLDNNConcatNode::createPrimitive() {
             desc.data.dims[j] = dims[j];
         }
 
-        srcs_pd.emplace_back(desc, getEngine());
-        srcs_p.emplace_back(srcMemPtr->GetPrimitive());
+        srcs_d.emplace_back(desc);
     }
 
     auto desc = getChildEdgeAt(0)->getMemory().GetDescriptor();
     auto dims = getChildEdgeAt(0)->getDims();
     for (size_t i = 0; i < dims.ndims(); i++) {
         desc.data.dims[i] = dims[i];
-        desc.data.layout_desc.blocking.padding_dims[i] = dims[i];
+        desc.data.padded_dims[i] = dims[i];
     }
 
-    auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_pd);
-
-    prim.reset(new concat(primitive_desc, srcs_p, getChildEdgeAt(0)->getMemory().GetPrimitive()));
+    auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
+    prim.reset(new concat(primitive_desc));
 }
 
 size_t MKLDNNConcatNode::inverseOrder(const SizeVector& order, size_t axis) {

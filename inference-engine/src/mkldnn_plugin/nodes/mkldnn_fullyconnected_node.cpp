@@ -11,6 +11,7 @@
 #include <vector>
 #include <mkldnn_extension_utils.h>
 #include <mkldnn.hpp>
+#include "utils/general_utils.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

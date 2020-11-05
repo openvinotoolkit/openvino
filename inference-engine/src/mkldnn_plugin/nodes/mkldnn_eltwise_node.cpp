@@ -39,6 +39,11 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
 
     explicit jit_uni_eltwise_generic(jit_eltwise_params jep, MKLDNNEltwiseNode& eltwiseNode) : jit_uni_eltwise_kernel(jep, eltwiseNode), jit_generator() {}
 
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
     void generate() override {
         Precision exec_prc = Precision::UNSPECIFIED;
 
@@ -1290,6 +1295,9 @@ void MKLDNNEltwiseNode::createPrimitive() {
     } else if (mayiuse(x64::sse42)) {
         eltwise_kernel.reset(new jit_uni_eltwise_generic<x64::sse42>(jep, *this));
     }
+
+    if (eltwise_kernel)
+        eltwise_kernel->create_ker();
 }
 
 void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {

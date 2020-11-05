@@ -5,13 +5,15 @@
 #include "mkldnn_quantize_node.h"
 #include "desc_iterator.hpp"
 #include <legacy/ie_layers.h>
-#include <string>
-#include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "utils/general_utils.h"
+
 #include <algorithm>
 #include <set>
 #include <cmath>
+#include <string>
+#include <vector>
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES

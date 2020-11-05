@@ -35,6 +35,7 @@
 #include <ie_plugin_config.hpp>
 
 #include "utils/blob_dump.h"
+#include "utils/general_utils.h"
 
 /*****************************************************
  * Debug capability
