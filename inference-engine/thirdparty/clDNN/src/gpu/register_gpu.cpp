@@ -76,7 +76,6 @@ void register_implementations_gpu() {
     REGISTER_GPU(space_to_depth);
     REGISTER_GPU(strided_slice);
     REGISTER_GPU(tile);
-    REGISTER_GPU(fused_conv_eltwise);
     REGISTER_GPU(lstm_dynamic_input);
     REGISTER_GPU(lstm_dynamic_timeloop);
     REGISTER_GPU(generic_layer);

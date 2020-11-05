@@ -40,13 +40,13 @@ enum class cache_version {
     version_2_empty
 };
 
-std::string reference_impl_name = "fused_conv_eltwise_gpu_ref";
+std::string reference_impl_name = "convolution_gpu_ref";
 std::string eus_marker = "__EUs__";
 
 std::string cache_v1 =
 R"__a({
     "__EUs__": {
-        "18283230515392601293": ["fused_conv_eltwise_gpu_ref", 0]
+        "18283230515392601293": ["convolution_gpu_ref", 0]
     }
 })__a";
 
@@ -56,7 +56,7 @@ R"__a({
     },
     "version_1": {
         "__EUs__": {
-            "18283230515392601293": ["fused_conv_eltwise_gpu_ref", 0]
+            "18283230515392601293": ["convolution_gpu_ref", 0]
         }
     }
 })__a";
@@ -66,7 +66,7 @@ R"__a({
     "version_2": {
         "__EUs__": {
             "CONVOLUTION": {
-                "F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;1_1_1;1_1_1;1_1_1;0_0_0;1;1": ["fused_conv_eltwise_gpu_ref", 0]
+                "F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;1_1_1;1_1_1;1_1_1;0_0_0;1;1": ["convolution_gpu_ref", 0]
             }
         }
     }
@@ -77,7 +77,7 @@ R"__a({
     "version_2": {
         "__EUs__": {
             "CONVOLUTION": {
-                "F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;1_1_1;1_1_1;1_1_1;0_0_0;1;1": ["fused_conv_eltwise_gpu_ref", 0]
+                "F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;1_1_1;1_1_1;1_1_1;0_0_0;1;1": ["convolution_gpu_ref", 0]
             }
         }
     },

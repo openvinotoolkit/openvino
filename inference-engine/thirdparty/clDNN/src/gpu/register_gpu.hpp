@@ -69,7 +69,6 @@
 #include "api/tile.hpp"
 #include "api/resample.hpp"
 #include "api/gather_tree.hpp"
-#include "api_extension/fused_conv_eltwise.hpp"
 #include "api_extension/lstm_dynamic_input.hpp"
 #include "api_extension/lstm_dynamic_timeloop.hpp"
 #include "generic_layer.hpp"
@@ -143,7 +142,6 @@ REGISTER_GPU(space_to_batch);
 REGISTER_GPU(space_to_depth);
 REGISTER_GPU(strided_slice);
 REGISTER_GPU(tile);
-REGISTER_GPU(fused_conv_eltwise);
 REGISTER_GPU(lstm_dynamic_input);
 REGISTER_GPU(lstm_dynamic_timeloop);
 REGISTER_GPU(generic_layer);

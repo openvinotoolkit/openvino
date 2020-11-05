@@ -167,28 +167,6 @@ private:
     void prepare_asymmetric_quantization(program_impl& p);
 };
 
-class prepare_conv_eltw_fusing : public base_pass {
-public:
-    explicit prepare_conv_eltw_fusing(layout_optimizer& lo_ref, bool b_fs_yx_fsv16_opt = false) :
-        base_pass("prepare_conv_eltw_fusing"), _lo(lo_ref), b_fs_yx_fsv16_opt(b_fs_yx_fsv16_opt) {}
-
-private:
-    void run(program_impl& p) override;
-    void fuse_conv_eltwise(program_impl& p, program_node* node);
-    void fuse_conv_depth_to_space(program_impl& p, program_node* node);
-    layout_optimizer& _lo;
-    bool b_fs_yx_fsv16_opt;
-};
-
-class prepare_conv_eltw_read_write_opt : public base_pass {
-public:
-    prepare_conv_eltw_read_write_opt() : base_pass("prepare_conv_eltw_read_write_opt") {}
-
-private:
-    void run(program_impl& p) override;
-    void conv_eltwise_read_write_opt(program_impl& p, program_node* node);
-};
-
 class prepare_primitive_fusing : public base_pass {
 public:
     explicit prepare_primitive_fusing(layout_optimizer& lo_ref) :

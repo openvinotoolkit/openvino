@@ -18,8 +18,6 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include "api_extension/fused_conv_eltwise.hpp"
-#include "include/fused_conv_eltwise_inst.h"
 #include "include/binary_convolution_inst.h"
 #include "include/deformable_convolution_inst.h"
 #include "lstm_dynamic_input_inst.h"
@@ -32,11 +30,6 @@ post_optimize_weights::post_optimize_weights(reorder_factory& rf_ref)
 // function which prepares given primitive for weights optimization
 template<typename T> post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const T& node) {
     return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->weights).size());
-}
-
-template <>
-post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset<fused_conv_eltwise_node>(const fused_conv_eltwise_node& node) {
-    return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->conv.weights).size());
 }
 
 template <>
@@ -94,8 +87,6 @@ void post_optimize_weights::run(program_impl& p) {
             optimize_weights(node->as<deformable_conv>(), p);
         } else if (node->type() == fully_connected::type_id()) {
             optimize_weights(node->as<fully_connected>(), p);
-        } else if (node->type() == fused_conv_eltwise::type_id()) {
-            optimize_weights(node->as<fused_conv_eltwise>(), p);
         } else if (node->type() == lstm_dynamic_input::type_id()) {
             optimize_weights(node->as<lstm_dynamic_input>(), p);
         }
