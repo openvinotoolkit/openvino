@@ -36,6 +36,10 @@ bool isQuantizationPerChannel(const std::shared_ptr<ngraph::Node>& node) {
         const Shape& in = input.get_shape();
         const Shape& out = node->output(0).get_shape();
         for (size_t i = 0; i < 2; ++i) {
+            if ((i >= in.size()) || (i >= out.size())) {
+                // all previous dimensions are equal
+                return true;
+            }
             if (in[i] != out[i]) {
                 return false;
             }

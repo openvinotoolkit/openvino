@@ -951,14 +951,38 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
         parent = std::make_shared<DequantizationConvert>(parent, dequantization.convert->get_output_element_type(0));
         ngraph::copy_runtime_info({ newOperation, parent }, parent);
     }
+
     if (moveSubtract && (dequantization.subtract != nullptr)) {
         auto subtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
-        parent = std::make_shared<DequantizationSubtract>(parent, subtractConstant);
+        const element::Type parentPrecision = parent->get_output_element_type(0);
+        if (parentPrecision.bitwidth() < subtractConstant->output(0).get_element_type().bitwidth()) {
+            THROW_IE_LPT_EXCEPTION(*parent) <<
+                "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
+                ", subtract dequantization constant " << subtractConstant->get_friendly_name() << ":" << subtractConstant->output(0).get_element_type();
+        }
+
+        parent = std::make_shared<DequantizationSubtract>(
+            parent,
+            subtractConstant->output(0).get_element_type() == parentPrecision ?
+                subtractConstant :
+                fold<opset1::Convert>(subtractConstant->output(0), parentPrecision));
         ngraph::copy_runtime_info({ newOperation, parent }, parent);
     }
+
     if (dequantization.multiply != nullptr) {
         auto multiplyConstant = dequantization.multiply->get_input_node_shared_ptr(1);
-        parent = std::make_shared<DequantizationMultiply>(parent, multiplyConstant);
+        const element::Type parentPrecision = parent->get_output_element_type(0);
+        if (parentPrecision.bitwidth() < multiplyConstant->output(0).get_element_type().bitwidth()) {
+            THROW_IE_LPT_EXCEPTION(*parent) <<
+                "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
+                ", multiply dequantization constant " << multiplyConstant->get_friendly_name() << ":" << multiplyConstant->output(0).get_element_type();
+        }
+
+        parent = std::make_shared<DequantizationMultiply>(
+            parent,
+            multiplyConstant->output(0).get_element_type() == parentPrecision ?
+                multiplyConstant :
+                fold<opset1::Convert>(multiplyConstant->output(0), parentPrecision));
         ngraph::copy_runtime_info({ newOperation, parent }, parent);
     }
     replace_node(operation, parent);
