@@ -60,5 +60,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_LoadNetworkAccuracy.*)",
         R"(.*smoke_BehaviorTests.*)",
         R"(.*smoke_Multi_BehaviorTests.*)",
+        R"(.*smoke_Convolution2D.*)",
+        R"(.*smoke_Convolution3D.*)",
+        R"(.*SetAffinityWithKSO.*)"
     };
 }
