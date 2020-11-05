@@ -28,7 +28,7 @@ def build_argparser():
     parser = ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
-    args.add_argument("-m", "--model", help="Required. Path to an .xml file with a trained model.", required=True, type=str)
+    args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.", required=True, type=str)
     args.add_argument("-i", "--input", help="Required. Path to a folder with images or path to an image files", required=True,
                       type=str, nargs="+")
     args.add_argument("-l", "--cpu_extension",
@@ -55,17 +55,17 @@ def build_argparser():
 def main():
     log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
     args = build_argparser().parse_args()
-    model_xml = args.model
-    model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
     # Plugin initialization for specified device and load extensions library if specified
     log.info("Creating Inference Engine")
     ie = IECore()
     if args.cpu_extension and 'CPU' in args.device:
         ie.add_extension(args.cpu_extension, "CPU")
-    # Read IR
-    log.info("Loading network files:\n\t{}\n\t{}".format(model_xml, model_bin))
-    net = ie.read_network(model=model_xml, weights=model_bin)
+
+    # Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+    model = args.model
+    log.info(f"Loading network:\n\t{model}")
+    net = ie.read_network(model=model)
 
     assert len(net.input_info.keys()) == 1, "Sample supports only single input topologies"
     assert len(net.outputs) == 1, "Sample supports only single output topologies"

@@ -44,6 +44,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
                                                    new_dilations,
                                                    new_pads_begin,
                                                    new_pad_end,
+                                                   node->get_output_element_type(0),
                                                    node->get_group(),
                                                    node->get_auto_pad());
     } else {
@@ -54,6 +55,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
                                                    new_dilations,
                                                    new_pads_begin,
                                                    new_pad_end,
+                                                   node->get_output_element_type(0),
                                                    node->get_group(),
                                                    node->get_auto_pad());
     }
@@ -107,7 +109,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<opset1:
 matcher_pass_callback get_callback() {
     return [](pattern::Matcher& m) {
         auto node = m.get_match_root();
-        if (!node || node->input(0).get_partial_shape().rank().get_length() != 3) {
+        if (node->input(0).get_partial_shape().rank().get_length() != 3) {
             return false;
         }
 
@@ -152,7 +154,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DOps, "Reshape1DOps", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DConvolution, "Reshape1DConvolution", 0);
 
 ngraph::pass::Reshape1DConvolution::Reshape1DConvolution() {
-    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>();
+    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::has_static_shape());
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
     this->register_matcher(m, get_callback());
 }
@@ -160,7 +162,7 @@ ngraph::pass::Reshape1DConvolution::Reshape1DConvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DAvgPool, "Reshape1DAvgPool", 0);
 
 ngraph::pass::Reshape1DAvgPool::Reshape1DAvgPool() {
-    auto pool = ngraph::pattern::wrap_type<opset1::AvgPool>();
+    auto pool = ngraph::pattern::wrap_type<opset1::AvgPool>(pattern::has_static_shape());
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DAvgPool");
     this->register_matcher(m, get_callback());
 }
@@ -168,7 +170,7 @@ ngraph::pass::Reshape1DAvgPool::Reshape1DAvgPool() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DMaxPool, "Reshape1DMaxPool", 0);
 
 ngraph::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
-    auto pool = ngraph::pattern::wrap_type<opset1::MaxPool>();
+    auto pool = ngraph::pattern::wrap_type<opset1::MaxPool>(pattern::has_static_shape());
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DMaxPool");
     this->register_matcher(m, get_callback());
 }

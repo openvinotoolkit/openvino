@@ -5,10 +5,8 @@
 #include "mkldnn_bin_conv_node.h"
 #include "mkldnn_reorder_node.h"
 #include "mkldnn_input_node.h"
-#include "mkldnn_activation_node.h"
-#include "desc_iterator.hpp"
 #include "mkldnn_eltwise_node.h"
-#include "mkldnn_depthwise_node.h"
+#include "desc_iterator.hpp"
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_conv_node.h"
 #include <legacy/ie_layers.h>
@@ -116,7 +114,6 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
         paddingR[i] = (dst - calc_dst) * stride[i];
     }
 
-    withSum = isFusedWith(Eltwise);
     withDWConv = isFusedWith(Convolution);
     withBinarization = isFusedWith(Quantize);
     for (auto &node : fusedWith) {
@@ -138,11 +135,18 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
 #endif
     }
 
-    int expectedInputEdgesNum = baseInputsNumber + isFusedWith(Eltwise);
+    withSum = false;
+    int expectedInputEdgesNum = baseInputsNumber;
     for (int i = 0; i < fusedWith.size(); i++) {
         auto *convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(fusedWith[i].get());
         if (convolutionNode) {
             expectedInputEdgesNum += convolutionNode->getBaseIntputsNumber() - 1;
+        }
+
+        auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+        if (eltwiseNode && eltwiseNode->isSum()) {
+            withSum = true;
+            expectedInputEdgesNum++;
         }
     }
 
@@ -164,88 +168,13 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
     for (auto &node : fusedWith) {
 #if defined (COMPILED_CPU_MKLDNN_ELTWISE_NODE)
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode && eltwiseNode->isSum()) {
+            ops.append_sum(1.0);
+            continue;
+        }
+
         if (eltwiseNode) {
-            if (eltwiseNode->getCnnLayer()->precision == Precision::I8) {
-                auto it = eltwiseNode->getCnnLayer()->blobs.find("eltwise-sum-scale");
-                if (it != eltwiseNode->getCnnLayer()->blobs.end()) {
-                    // currently there is the only one scale while we need scale by channel :(
-                    ops.append_sum(it->second->buffer().as<float*>()[0]);
-                }
-            } else {
-                ops.append_sum(1.0);
-            }
-            continue;
-        }
-#endif
-
-#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-        if (activationNode) {
-            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(),
-                               activationNode->getBeta());
-            continue;
-        }
-#endif
-
-#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
-        auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
-        if (depthwiseNode) {
-            auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
-
-            if (initWeights) {
-                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(biasesDims[0], 16))});
-
-                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
-                PostOpsIntBlobMemory[blob_idx]->FillZero();
-
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
-                                                             depthwiseLayer->_weights->buffer(),
-                                                             depthwiseLayer->_weights->size() *
-                                                             MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                if (depthwiseNode->isBroadcast()) {
-                    float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
-                    for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                        static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
-                    }
-                }
-
-                if (depthwiseNode->getAlgorithm() == depthwise_scale_shift) {
-                    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
-                                                                memory::format::x);
-                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
-                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
-                                                                 depthwiseLayer->_biases->buffer(),
-                                                                 depthwiseLayer->_biases->size() *
-                                                                 MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                    if (depthwiseNode->isBroadcast()) {
-                        float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
-                        for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                            static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
-                        }
-                    }
-
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
-
-                    blob_idx += 2;
-                } else {
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         nullptr);
-
-                    blob_idx += 1;
-                }
-            } else {
-                ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                     nullptr,
-                                     nullptr);
-            }
-
+            eltwiseNode->appendPostOps(ops);
             continue;
         }
 #endif

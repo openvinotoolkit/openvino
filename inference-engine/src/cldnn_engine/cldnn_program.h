@@ -195,6 +195,7 @@ public:
         Ceiling,
         Erf,
         HardSigmoid,
+        HSigmoid,
         Log,
         Neg,
         Reciprocal,
@@ -223,6 +224,7 @@ public:
         CTCGreedyDecoder,
         PriorBoxClustered,
         CumSum,
+        Round,
         EmbeddingBagPackedSum,
         EmbeddingBagOffsetsSum,
         EmbeddingSegmentsSum,
@@ -386,6 +388,7 @@ private:
     void CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateRoundPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);

@@ -34,8 +34,8 @@ namespace ngraph
             class NGRAPH_API Unsqueeze : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Unsqueeze", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Unsqueeze() = default;
                 Unsqueeze(const Output<Node>& data, const Output<Node>& axes);
 
@@ -45,6 +45,8 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool constant_fold(OutputVector& output_values,
+                                   const OutputVector& inputs_values) override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

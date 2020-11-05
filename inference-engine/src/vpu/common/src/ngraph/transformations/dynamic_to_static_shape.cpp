@@ -27,8 +27,8 @@
 #include "vpu/utils/error.hpp"
 
 #include "ngraph/opsets/opset3.hpp"
+#include <ngraph/validation_util.hpp>
 #include "ngraph/opsets/opset5.hpp"
-#include "vpu/ngraph/operations/dynamic_non_max_suppression.hpp"
 
 namespace vpu {
 
@@ -69,44 +69,61 @@ bool propagateUpperBoundFromExistingDSR(std::shared_ptr<ngraph::Function>& funct
     return function_changed;
 }
 
+void validateDynamicFunction(const ngraph::Function& function) {
+    for (auto const& split : function.get_ordered_ops()) {
+        if (split->get_type_info() != ngraph::opset5::Split::type_info) {
+            continue;
+        }
+
+        VPU_THROW_UNLESS(split->get_input_size() >= 2, "There is Split operation \"{}\" without specified axis", split->get_friendly_name());
+        const auto& axis = ngraph::as_type_ptr<ngraph::opset5::Constant>(split->input_value(1).get_node_shared_ptr());
+        VPU_THROW_UNLESS(axis != nullptr, "There is Split operation \"{}\" with dynamic axis \"{}\", but only constant axis is supported",
+                         split->get_friendly_name(), split->input_value(1).get_node_shared_ptr()->get_friendly_name());
+        const auto axisValue = ngraph::normalize_axis(split.get(), axis->cast_vector<std::int64_t>().front(), split->get_input_partial_shape(0).rank());
+        VPU_THROW_UNLESS(split->get_input_partial_shape(0)[axisValue].is_static(),
+                         "There is Split operation \"{}\" by dynamic dimension, but only split by static dimension is supported: shape = \"{}\", axis = \"{}\"",
+                         split->get_friendly_name(), split->get_input_partial_shape(0), axisValue);
+    }
+}
+
 const Transformations& getDefaultTransformations() {
     static const Transformations transformations = {
-        {ngraph::opset3::Add::type_info,                       dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::Multiply::type_info,                  dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::Subtract::type_info,                  dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::VariadicSplit::type_info,             dynamicToStaticShapeVariadicSplit},
-        {ngraph::opset3::Divide::type_info,                    dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::Equal::type_info,                     dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::Greater::type_info,                   dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::Power::type_info,                     dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::Maximum::type_info,                   dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::Minimum::type_info,                   dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::Less::type_info,                      dynamicToStaticShapeBinaryEltwise},
-        {ngraph::vpu::op::DynamicNonMaxSuppression::type_info, dynamicToStaticNonMaxSuppression},
-        {ngraph::opset3::NonZero::type_info,                   dynamicToStaticShapeNonZero},
-        {ngraph::opset3::TopK::type_info,                      dynamicToStaticShapeTopK},
-        {ngraph::opset3::Transpose::type_info,                 dynamicToStaticShapeTranspose},
-        {ngraph::opset3::Concat::type_info,                    dynamicToStaticShapeConcat},
-        {ngraph::opset3::Convert::type_info,                   dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::Clamp::type_info,                     dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::Floor::type_info,                     dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::Log::type_info,                       dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::Relu::type_info,                      dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::ScatterUpdate::type_info,             dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::Sigmoid::type_info,                   dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::Softmax::type_info,                   dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::Exp::type_info,                       dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::Sqrt::type_info,                      dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::LogicalNot::type_info,                dynamicToStaticUnaryElementwise},
-        {ngraph::opset3::StridedSlice::type_info,              dynamicToStaticShapeStridedSlice},
-        {ngraph::opset3::Squeeze::type_info,                   dynamicToStaticShapeSqueeze},
-        {ngraph::opset3::Gather::type_info,                    dynamicToStaticShapeGather},
-        {ngraph::opset3::Unsqueeze::type_info,                 dynamicToStaticShapeUnsqueeze},
-        {ngraph::opset3::ROIAlign::type_info,                  dynamicToStaticShapeROIAlign},
-        {ngraph::opset3::Reshape::type_info,                   dynamicToStaticShapeReshape},
-        {ngraph::opset3::Broadcast::type_info,                 dynamicToStaticShapeBroadcast},
-        {ngraph::opset3::MatMul::type_info,                    dynamicToStaticShapeMatMul},
-        {ngraph::opset5::Split::type_info,                     dynamicToStaticShapeSplit},
+        {ngraph::opset3::Add::type_info,               dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Multiply::type_info,          dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Subtract::type_info,          dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::VariadicSplit::type_info,     dynamicToStaticShapeVariadicSplit},
+        {ngraph::opset3::Divide::type_info,            dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Equal::type_info,             dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Greater::type_info,           dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Power::type_info,             dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Maximum::type_info,           dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Minimum::type_info,           dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Less::type_info,              dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset5::NonMaxSuppression::type_info, dynamicToStaticNonMaxSuppression},
+        {ngraph::opset3::NonZero::type_info,           dynamicToStaticShapeNonZero},
+        {ngraph::opset3::TopK::type_info,              dynamicToStaticShapeTopK},
+        {ngraph::opset3::Transpose::type_info,         dynamicToStaticShapeTranspose},
+        {ngraph::opset3::Concat::type_info,            dynamicToStaticShapeConcat},
+        {ngraph::opset3::Convert::type_info,           dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::Clamp::type_info,             dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::Floor::type_info,             dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::Log::type_info,               dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::Relu::type_info,              dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::ScatterUpdate::type_info,     dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::Sigmoid::type_info,           dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::Softmax::type_info,           dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::Exp::type_info,               dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::Sqrt::type_info,              dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::LogicalNot::type_info,        dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::StridedSlice::type_info,      dynamicToStaticShapeStridedSlice},
+        {ngraph::opset3::Squeeze::type_info,           dynamicToStaticShapeSqueeze},
+        {ngraph::opset3::Gather::type_info,            dynamicToStaticShapeGather},
+        {ngraph::opset3::Unsqueeze::type_info,         dynamicToStaticShapeUnsqueeze},
+        {ngraph::opset3::ROIAlign::type_info,          dynamicToStaticShapeROIAlign},
+        {ngraph::opset3::Reshape::type_info,           dynamicToStaticShapeReshape},
+        {ngraph::opset3::Broadcast::type_info,         dynamicToStaticShapeBroadcast},
+        {ngraph::opset3::MatMul::type_info,            dynamicToStaticShapeMatMul},
+        {ngraph::opset5::Split::type_info,             dynamicToStaticShapeSplit},
 
         // reduction
         {ngraph::opset3::ReduceLogicalAnd::type_info, dynamicToStaticShapeReduce},
@@ -141,6 +158,9 @@ bool DynamicToStaticShape::run_on_function(std::shared_ptr<ngraph::Function> fun
     // Ensure that existing DSRs in function propagate upper-bound shapes, not dynamism.
     // Basically this is possible in test cases, when the function is initially configured with DSR as inputs.
     function_changed |= propagateUpperBoundFromExistingDSR(function);
+
+    // Operation-specific testing that needs to be performed in dynamic context before DSRs are introduced
+    validateDynamicFunction(*function);
 
     for (const auto& operation : function->get_ordered_ops()) {
         if (!isDynamic(*operation)) {

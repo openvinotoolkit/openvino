@@ -16,7 +16,7 @@
 import numpy as np
 
 from extensions.ops.elementwise import Mul, Sub, Add, Maximum, Minimum, Div, Greater, GreaterEqual, Equal, Less, \
-    LessEqual, Pow, NotEqual, LogicalAnd, LogicalOr
+    LessEqual, Pow, NotEqual, LogicalAnd, LogicalOr, Round
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.graph.graph import Node
@@ -413,4 +413,14 @@ class OnesFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         AttributedPower.update_node_stat(node, {'scale': 0, 'shift': 1})
+        return cls.enabled
+
+
+class RoundExtractor(FrontExtractorOp):
+    op = 'round'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Round.update_node_stat(node, {'mode': 'half_away_from_zero'})
         return cls.enabled
