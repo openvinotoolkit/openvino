@@ -367,29 +367,6 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
     });
 }
 
-static std::shared_ptr<ngraph::Function> function_from_model(const std::string& model, Blob::Ptr weights) {
-    Core ie;
-
-    auto ngraphImpl = ie.ReadNetwork(model, weights);
-    auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
-
-    return graph;
-}
-
-static Blob::Ptr construct_weights(size_t weightsSize = 0, const std::function<void(Blob::Ptr&)>& fillBlob = {}) {
-    Blob::Ptr weights;
-
-    if (weightsSize) {
-        weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {weightsSize}, Layout::C));
-        weights->allocate();
-        CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
-        if (fillBlob)
-            fillBlob(weights);
-    }
-
-    return weights;
-}
-
 TEST_F(NGraphReaderTests, ReadNonMaxSuppression4) {
    std::string model = R"V0G0N(
 <net name="Network" version="10">
@@ -496,14 +473,25 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression4) {
 </net>
 )V0G0N";
 
-    auto weights = construct_weights(16, [](Blob::Ptr& weights) {
-        auto * i64w = weights->buffer().as<int64_t*>();
-        i64w[0] = 200;
+    constexpr size_t weightsSize = 16;
 
-        auto * fp32w = weights->buffer().as<float*>();
-        fp32w[2] = 0.5;
-        fp32w[3] = 0.05;
-    });
+    Blob::Ptr weights;
+
+    weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {weightsSize}, Layout::C));
+    weights->allocate();
+    CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
+
+    auto * i64w = weights->buffer().as<int64_t*>();
+    i64w[0] = 200;
+
+    auto * fp32w = weights->buffer().as<float*>();
+    fp32w[2] = 0.5;
+    fp32w[3] = 0.05;
+
+    Core ie;
+
+    auto ngraphImpl = ie.ReadNetwork(model, weights);
+    auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
 
     auto graph = function_from_model(model, weights);
 
