@@ -152,7 +152,6 @@ set(SRC
     type_prop/prelu.cpp
     type_prop/proposal.cpp
     type_prop/quantize.cpp
-    type_prop/quantized_convolution.cpp
     type_prop/quantized_dot.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
@@ -173,14 +172,12 @@ set(SRC
     type_prop/select.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
-    type_prop/slice.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
     type_prop/split.cpp
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
-    type_prop/sum.cpp
     type_prop/swish.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
@@ -296,6 +293,7 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
+    backend/logical_and.in.cpp
     backend/logical_not.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
@@ -317,7 +315,6 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/quantize_dequantize.in.cpp
-    backend/quantized_convolution.in.cpp
     backend/quantized_dot.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
@@ -338,11 +335,10 @@ set(MULTI_TEST_SRC
     backend/sign.in.cpp
     backend/sin.in.cpp
     backend/sinh.in.cpp
-    backend/slice.in.cpp
     backend/softmax.in.cpp
+    backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/subtract.in.cpp
-    backend/sum.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp
