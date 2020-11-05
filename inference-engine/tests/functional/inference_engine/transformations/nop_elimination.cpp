@@ -26,19 +26,6 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace ngraph;
 using namespace std;
 
-TEST(nop_elimination, eliminate_sum) {
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto s = make_shared<op::v0::Sum>(A, AxisSet{});
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::Sum>(f), 0);
-}
-
 TEST(nop_elimination, eliminate_convert) {
     Shape shape{};
     auto type = element::f32;
