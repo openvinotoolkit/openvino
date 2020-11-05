@@ -154,7 +154,8 @@ namespace ngraph
                                     inputs_to_body.at(cur_iter_idx).data())[0] = cur_iter + 1;
                             else if (cur_iter_param->get_element_type() == element::i32)
                                 reinterpret_cast<int32_t*>(
-                                    inputs_to_body.at(cur_iter_idx).data())[0] = cur_iter + 1;
+                                    inputs_to_body.at(cur_iter_idx).data())[0] =
+                                    static_cast<int32_t>(cur_iter + 1);
                             else
                                 NGRAPH_CHECK(false,
                                              "Unsupported element type for current iteration "

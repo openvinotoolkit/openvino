@@ -24,7 +24,6 @@
 #include <vector>
 
 #include <ngraph/runtime/host_tensor.hpp>
-#include <ngraph/runtime/reference/loop.hpp>
 #include "backend.hpp"
 #include "int_backend_visibility.hpp"
 #include "ngraph/ops.hpp"

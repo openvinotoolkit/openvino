@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include <cstring>
-#include <ngraph/pass/visualize_tree.hpp>
 
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/runtime/reference/function.hpp"
@@ -67,16 +66,10 @@ namespace ngraph
                      ++output_count)
                 {
                     auto output = function->get_results()[output_count];
-                    if (!is_type<op::Result>(output))
-                    {
-                        throw ngraph_error("One of function's outputs isn't op::Result");
-                    }
                     descriptor::Tensor* tensor = &output->get_output_tensor(0);
                     tensor_map.insert({tensor, func_outputs[output_count]});
                 }
 
-                ngraph::pass::VisualizeTree vt("loop_test.svg");
-                vt.run_on_function(function);
                 // for each ordered op in the graph
                 for (const auto& op : function->get_ordered_ops())
                 {
@@ -114,23 +107,10 @@ namespace ngraph
                     op->validate_and_infer_types();
                     if (!op->evaluate(op_outputs, op_inputs))
                     {
-                        // exception
-                        std::cout << "ERRROR!11" << std::endl;
-                        // generate_calls(type, *op.get(), op_outputs, op_inputs);
+                        throw ngraph_error("Evaluate function is not implemented.");
                     }
                 }
                 return true;
-            }
-
-            std::shared_ptr<runtime::Tensor> create_tensor()
-            {
-                return std::make_shared<runtime::HostTensor>();
-            }
-
-            std::shared_ptr<runtime::Tensor> create_tensor(const element::Type& type,
-                                                           const Shape& shape)
-            {
-                return std::make_shared<runtime::HostTensor>(type, shape);
             }
 
             std::vector<std::vector<std::uint8_t>>
@@ -170,13 +150,15 @@ namespace ngraph
                                  inputSize,
                                  " bytes");
 
-                    auto tensor = create_tensor(parameterType, parameterShape);
+                    auto tensor =
+                        std::make_shared<runtime::HostTensor>(parameterType, parameterShape);
                     tensor->write(input.data(), parameterSize);
                     inputTensors.push_back(tensor);
                 }
 
                 const auto& results = function->get_results();
                 std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
+                outputTensors.reserve(results.size());
                 for (size_t i = 0; i < results.size(); ++i)
                 {
                     outputTensors.push_back(std::make_shared<HostTensor>());

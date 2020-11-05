@@ -127,9 +127,6 @@ INTERPRETER.ctc_greedy_decoder_f16
 # LogSoftmax's reference implementation doesn't handle scalar input properly
 onnx_model_logsoftmax_0D
 
-# Infinitive Loop is not supported
-onnx_controlflow_loop_infinite
-
 # No Constant/Identity termination condition output body is not supported by current nG Loop
 # is_termination_condition_always_true returns false
 onnx_controlflow_loop_2d_no_identity_termination_cond
@@ -140,3 +137,6 @@ onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 # Exception is throw during Loop shape inference
 # Is it expected?
 onnx_controlflow_loop_concat_values
+
+# Infinitive Loop is not supported
+onnx_controlflow_loop_infinite
