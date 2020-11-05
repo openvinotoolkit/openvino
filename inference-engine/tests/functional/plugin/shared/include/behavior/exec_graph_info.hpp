@@ -19,6 +19,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include <chrono>
 
 namespace BehaviorTestsDefinitions {
 using ExecGraphTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -34,6 +35,23 @@ inline std::vector<std::string> separateStrToVec(std::string str, const char sep
     }
     return result;
 }
+
+namespace {
+    std::string timestamp() {
+        auto now = std::chrono::system_clock::now();
+        auto epoch = now.time_since_epoch();
+        auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
+        return std::to_string(ns.count());
+    }
+
+    std::string test_name() {
+        std::string test_name =
+            ::testing::UnitTest::GetInstance()->current_test_info()->name();
+        std::replace_if(test_name.begin(), test_name.end(),
+                        [](char c) { return (c == '/' || c == '='); }, '_');
+        return test_name;
+    }
+} // namespace
 
 TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -225,6 +243,10 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
 TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::string out_xml_path = test_name() + "_" + timestamp() + ".xml";
+    std::string out_bin_path = test_name() + "_" + timestamp() + ".bin";
+
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
@@ -235,8 +257,9 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
         // Create InferRequest
         InferenceEngine::InferRequest req;
         ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-        execGraph.serialize("exeNetwork.xml", "exeNetwork.bin");
-        ASSERT_EQ(0, std::remove("exeNetwork.xml"));
+        execGraph.serialize(out_xml_path, out_bin_path);
+        ASSERT_EQ(0, std::remove(out_xml_path.c_str()));
+        ASSERT_EQ(0, std::remove(out_bin_path.c_str()));
     } else {
         ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice).GetExecGraphInfo(),
                      InferenceEngine::details::InferenceEngineException);
