@@ -20,7 +20,6 @@ import numpy as np
 
 from extensions.middle.EltwiseInputReshape import EltwiseInputReshape
 from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.eliminate import shape_inference
 from mo.middle.passes.eliminate_test import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 
@@ -86,7 +85,6 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
                              'placeholder_3_data': {'shape': np.array([64, 1])},
                              'eltwise_1_data': {'shape': np.array([1, 3, 64, 64])}
                              }, nodes_with_edges_only=True)
-        shape_inference(graph)
 
         graph_ref = build_graph(nodes_attributes,
                                 [
@@ -120,7 +118,6 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
 
         pattern = EltwiseInputReshape()
         pattern.find_and_replace_pattern(graph)
-        shape_inference(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'eltwise_1', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -216,7 +213,6 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
 
         pattern = EltwiseInputReshape()
         pattern.find_and_replace_pattern(graph)
-        shape_inference(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'eltwise_4', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -278,7 +274,6 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
 
         pattern = EltwiseInputReshape()
         pattern.find_and_replace_pattern(graph)
-        shape_inference(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -334,7 +329,6 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
 
         pattern = EltwiseInputReshape()
         pattern.find_and_replace_pattern(graph)
-        shape_inference(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -397,7 +391,6 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
 
         pattern = EltwiseInputReshape()
         pattern.find_and_replace_pattern(graph)
-        shape_inference(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -451,7 +444,6 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
 
         pattern = EltwiseInputReshape()
         pattern.find_and_replace_pattern(graph)
-        shape_inference(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -495,7 +487,6 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
 
         pattern = EltwiseInputReshape()
         pattern.find_and_replace_pattern(graph)
-        shape_inference(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat', check_op_attrs=True)
         self.assertTrue(flag, resp)

@@ -69,7 +69,6 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
 class EltwiseInputReshape(MiddleReplacementPattern):
     # This pass should be called directly from pipeline before layout change and other permutations
     enabled = False
-    force_shape_inference = True
 
     def find_and_replace_pattern(self, graph: Graph):
         # Generate a map for producers of eltwise nodes with non-normalized shapes
@@ -97,11 +96,21 @@ class EltwiseInputReshape(MiddleReplacementPattern):
             for unsqueeze_dims in mapping[producer_port].keys():
                 unsqueeze_name = producer_node.soft_get('name', producer_node.id) + '/EltwiseReshape'
                 unsqueeze_node = create_op_with_const_inputs(graph, Unsqueeze, {1: int64_array(list(unsqueeze_dims))},
-                                                             {'name': unsqueeze_name,
-                                                              'override_output_shape': True})
+                                                             {'name': unsqueeze_name})
 
                 unsqueeze_node.in_port(0).connect(producer_port)
 
                 # Insert Reshape with determined output shape between the current producer and eltwise node
                 for consumer_port in mapping[producer_port][unsqueeze_dims]:
                     consumer_port.connect(unsqueeze_node.out_port(0))
+
+                # The shape and value adjustments must be explicitly done within the transformation
+                # since the transformation is called from Fusing transformation that excludes
+                # automatic call of shape inference pass
+                producer_port_value = producer_port.data.get_value()
+                producer_port_shape = producer_port.data.get_shape()
+                new_shape = np.insert(producer_port_shape, np.zeros_like(unsqueeze_dims), 1)
+                if producer_port_value is not None:
+                    unsqueeze_node.out_port(0).data.set_value(np.reshape(producer_port_value, new_shape))
+                else:
+                    unsqueeze_node.out_port(0).data.set_shape(new_shape)
