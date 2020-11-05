@@ -25,8 +25,10 @@ namespace MultiDevicePlugin {
 // ------------------------------MultiDeviceInferRequest----------------------------
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
-                                                 MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with)
-        : InferRequestInternal(networkInputs, networkOutputs), _request_to_share_blobs_with(request_to_share_blobs_with) {
+                                                 MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with,
+                                                 std::string preferredDeviceName)
+        : InferRequestInternal(networkInputs, networkOutputs),
+        _request_to_share_blobs_with(request_to_share_blobs_with), _preferredDeviceName(preferredDeviceName) {
     if (request_to_share_blobs_with) {
         // borrow device-friendly blobs from the request
         for (const auto &it : _networkInputs)
@@ -64,8 +66,10 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(InferRequest& req) {
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         GetBlob(name.c_str(), blob);
-        if (req.GetBlob(name.c_str()) != blob)
+        if (req.GetBlob(name.c_str()) != blob) {
             req.SetBlob(name.c_str(), blob);
+            std::cout << "SetBlobsToAnotherRequest from " << this << " to " << &req << std::endl;
+        }
     }
     for (const auto &it : _networkOutputs) {
         Blob::Ptr blob;
@@ -94,9 +98,14 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                     MultiDeviceExecutableNetwork* network)
                 : _request{_request_}, _network(network) {}
             void run(Task task) override {
-                // by default, no preferred device:
-                _network->_thisPreferredDeviceName = "";
-                // if any input is remote, let' use the corresponding device
+//                // by default, no preferred device:
+//                _network->_thisPreferredDeviceName = "";
+
+                // by default, the preferred device is the one that we have shared the blobs with:
+                _network->_thisPreferredDeviceName = _request->_preferredDeviceName;
+                _network->_thisWorkerInferRequestPreferred = _request->_request_to_share_blobs_with;
+
+                // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
                 for (const auto &it : _network->GetInputsInfo()) {
                     Blob::Ptr b;
                     _request->GetBlob(it.first.c_str(), b);
@@ -115,8 +124,8 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         _pipeline.push_back(
         { /*TaskExecutor*/ std::make_shared<CheckRemoteBlobs>(_inferRequest.get(), _multiDeviceExecutableNetwork.get()),
                 /*task*/ [&multiDeviceExecutableNetwork ] {
-                    if (!multiDeviceExecutableNetwork->_thisPreferredDeviceName.empty())
-                        std::cout << "Preferred device:" << multiDeviceExecutableNetwork->_thisPreferredDeviceName <<std::endl;
+//                    if (!multiDeviceExecutableNetwork->_thisPreferredDeviceName.empty())
+//                        std::cout << "Preferred device:" << multiDeviceExecutableNetwork->_thisPreferredDeviceName <<std::endl;
         }});
 
         // as generally the scheduling algo may select any device, so we shall:
@@ -171,13 +180,14 @@ MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
 
 thread_local MultiDeviceExecutableNetwork::WorkerInferRequest* MultiDeviceExecutableNetwork::_thisWorkerInferRequest = nullptr;
+thread_local MultiDeviceExecutableNetwork::WorkerInferRequest* MultiDeviceExecutableNetwork::_thisWorkerInferRequestPreferred = nullptr;
 thread_local std::string MultiDeviceExecutableNetwork::_thisPreferredDeviceName = "";
 
 struct IdleGuard {
     explicit IdleGuard(MultiDeviceExecutableNetwork::WorkerInferRequest* workerInferRequestPtr,
                        MultiDeviceExecutableNetwork::NotBusyWorkerRequests& notBusyWorkerRequests) :
-        _workerInferRequestPtr{workerInferRequestPtr},
-        _notBusyWorkerRequests{&notBusyWorkerRequests} {
+            _workerInferRequestPtr{workerInferRequestPtr},
+            _notBusyWorkerRequests{&notBusyWorkerRequests} {
     }
     ~IdleGuard() {
         if (nullptr != _notBusyWorkerRequests) {
@@ -264,25 +274,23 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
         return _devicePriorities;
     }();
     for (auto&& device : devices) {
-        auto& idleWorkerRequests = _idleWorkerRequests[device.deviceName];
-        WorkerInferRequest* workerRequestPtr = nullptr;
-        if (idleWorkerRequests.try_pop(workerRequestPtr)) {
-            IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
-            Task inferPipelineTask;
-            // let's check the queue of the device-specific tasks first
-            if (_inferPipelineTasksDeviceSpecific[device.deviceName].try_pop(inferPipelineTask)) {
-                _thisWorkerInferRequest = workerRequestPtr;
-                inferPipelineTask();
-                idleGuard.Release();
-                break;
+        Task inferPipelineTask;
+        std::vector<IdleGuard> guards;
+        if (_inferPipelineTasksDeviceSpecific[device.deviceName].try_pop(inferPipelineTask)) {
+            auto &idleWorkerRequests = _idleWorkerRequests[device.deviceName];
+            WorkerInferRequest *workerRequestPtr = nullptr;
+            while (idleWorkerRequests.try_pop(workerRequestPtr)) {
+                IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
+                // let's check the queue of the device-specific tasks first
+                if (_thisWorkerInferRequestPreferred == workerRequestPtr) {
+                    _thisWorkerInferRequest = workerRequestPtr;
+                    inferPipelineTask();
+                    idleGuard.Release();
+                    return;
+                }
+                guards.push_back(idleGuard);
             }
-            // if no device-specific tasks, let's try to take device-agnostic task
-            if (_inferPipelineTasks.try_pop(inferPipelineTask)) {
-                _thisWorkerInferRequest = workerRequestPtr;
-                inferPipelineTask();
-                idleGuard.Release();
-                break;
-            }
+            std::cout << "Impossible!" << std::endl;
         }
     }
 }
@@ -312,6 +320,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
 InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
     auto num = _numRequestsCreated++;
+    std::string device_name = "";
     size_t sum = 0;
     MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with = nullptr;
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
@@ -319,11 +328,17 @@ InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateI
         auto& dev_requests = _workerRequests[device.deviceName];
         if ((num - sum) < dev_requests.size()) {
             request_to_share_blobs_with = &dev_requests.at(num - sum);
+            std::cout << "ith multi request: " << num << "  device: " << device.deviceName <<" took blobs from :"
+            << num-sum << std::endl;
+            device_name =  device.deviceName;
             break;
         }
         sum += dev_requests.size();
     }
-    return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
+    auto res = std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, device_name);
+    std::cout << "MultiDeviceInferRequest " << res.get() << " shared with addr: "
+                << &request_to_share_blobs_with->_inferRequest << std::endl;
+    return res;
 }
 
 void MultiDeviceExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& asyncRequest) {
