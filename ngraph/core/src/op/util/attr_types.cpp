@@ -66,7 +66,7 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::RoundingType>(
             "op::RoundingType",
-            {{"FLOOR", op::RoundingType::FLOOR}, {"CEIL", op::RoundingType::CEIL}});
+            {{"floor", op::RoundingType::FLOOR}, {"ceil", op::RoundingType::CEIL}});
         return enum_names;
     }
 
