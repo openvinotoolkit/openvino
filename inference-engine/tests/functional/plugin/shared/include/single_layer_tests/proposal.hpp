@@ -56,6 +56,7 @@ class ProposalLayerTest
           virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<proposalLayerTestParamsSet> obj);
+    static std::string SerializeProposalSpecificParams(proposalSpecificParams& params);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
