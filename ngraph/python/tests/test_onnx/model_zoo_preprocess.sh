@@ -47,8 +47,9 @@ if [ "$MODELS_DIR" = false ] ; then
     exit 170
 fi
 
+MODEL_ZOO_DIR="$MODELS_DIR/model_zoo"
 ONNX_MODELS_DIR="$MODELS_DIR/model_zoo/onnx_model_zoo"
-MSFT_MODELS_DIR="$MODELS_DIR/model_zoo/MSFT"
+ONNX_MODELS_COMMIT_SHA="db621492211d75cce197c5fda500fff209e8ba6a"
 
 if [ "$CLONE" = true ] ; then
     if [ "$CLEAN_DIR" = true ] ; then
@@ -62,7 +63,8 @@ cd "$ONNX_MODELS_DIR"
 # remove already downloaded models
 git clean -f -x -d
 git checkout .
-git pull -p
+git fetch -p
+git checkout $ONNX_MODELS_COMMIT_SHA
 # pull models from the lfs repository
 # onnx models are included in the tar.gz archives
 git lfs pull --include="*" --exclude="*.onnx"
@@ -85,9 +87,8 @@ mv *.pb test_data_set_0/
 # Prepare MSFT models
 if [ "$ENABLE_MSFT" = true ] ; then
     if [ "$CLEAN_DIR" = true ] ; then
-        rm -rf "$MSFT_MODELS_DIR"
+        rm -rf "$MODEL_ZOO_DIR/MSFT"
     fi
-    mkdir -p "$MSFT_MODELS_DIR"
-    wget -O "$MSFT_MODELS_DIR/20191107.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
-    unzip "$MSFT_MODELS_DIR/20191107.zip" -d "$MSFT_MODELS_DIR/20191107" && rm "$MSFT_MODELS_DIR/20191107.zip"
+    wget https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip -O "$MODEL_ZOO_DIR/MSFT.zip"
+    unzip "$MODEL_ZOO_DIR/MSFT.zip" -d "$MODEL_ZOO_DIR" && rm "$MODEL_ZOO_DIR/MSFT.zip"
 fi

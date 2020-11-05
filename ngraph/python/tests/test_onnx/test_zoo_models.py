@@ -25,15 +25,12 @@ from tests.test_onnx.utils.model_importer import ModelImportRunner
 
 from tests import (
     xfail_issue_38701,
-    xfail_issue_39682,
     xfail_issue_41813,
     xfail_issue_41815,
     xfail_issue_41814,
-    xfail_issue_39683,
     xfail_issue_36533,
     xfail_issue_39684,
     xfail_issue_34323,
-    xfail_issue_36537,
     xfail_issue_39685,
     xfail_issue_37957,
     xfail_issue_36465,
@@ -145,7 +142,6 @@ if len(zoo_models) > 0:
             (xfail_issue_34323, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_10_download_sample_10_bertsquad10_cpu"),
             (xfail_issue_34323, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
             (xfail_issue_34323, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
-            (xfail_issue_36537, "test_onnx_model_zoo_vision_classification_efficientnet_lite4_model_efficientnet_lite4_11_efficientnet_lite4_efficientnet_lite4_cpu"),
             (xfail_issue_39685, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_sequence_classification_9_roberta_sequence_classification_9_roberta_sequence_classification_9_cpu"),
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
             (xfail_issue_36533, "test_onnx_model_zoo_vision_classification_mobilenet_model_mobilenetv2_7_mobilenetv2_1.0_mobilenetv2_1.0_cpu"),

@@ -178,11 +178,6 @@ xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the
 
 # Model ONNX Zoo issues:
 xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismatch")
-xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape:"
-                                      "%s does not match the expected: %s."
-                                      "<PartialShape: <value>>, <PartialShape: <value>>)")
-xfail_issue_39682 = xfail_test(reason="model with IR version >= 3 must specify opset_import for ONNX")
-xfail_issue_39683 = xfail_test(reason="convolution.W in initializer but not in graph input")
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
                                       "('Expected %s parameters, received %s.', 1, 3)")
 xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::Transpose 315,"
@@ -201,8 +196,6 @@ xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of 
 xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
                                       "with dynamic shape")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
-xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape: "
-                                      "<value> does not match the expected: <value>")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
