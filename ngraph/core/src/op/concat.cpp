@@ -19,7 +19,6 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
-#include "ngraph/op/slice.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 
