@@ -86,10 +86,11 @@ namespace ngraph
 
                     const auto box_encoding =
                         center_point_box == 0
-                            ? default_opset::NonMaxSuppression::BoxEncodingType::CORNER
-                            : default_opset::NonMaxSuppression::BoxEncodingType::CENTER;
+                            ? ngraph::op::v4::NonMaxSuppression::BoxEncodingType::CORNER
+                            : ngraph::op::v4::NonMaxSuppression::BoxEncodingType::CENTER;
 
-                    return {std::make_shared<default_opset::NonMaxSuppression>(
+                    // Since NMS-5 currently does not work on CPU plugin v4 version have to be used.
+                    return {std::make_shared<ngraph::op::v4::NonMaxSuppression>(
                         boxes,
                         scores,
                         max_output_boxes_per_class,
