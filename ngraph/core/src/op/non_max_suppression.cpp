@@ -709,24 +709,6 @@ namespace
 
         return is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
     }
-
-    float float_from_constant_node(const std::shared_ptr<op::Constant>& constant,
-                                   const element::Type& et)
-    {
-        float result = 0.0f;
-        switch (et)
-        {
-        case element::Type_t::bf16:
-            result = static_cast<float>(constant->cast_vector<bfloat16>().at(0));
-            break;
-        case element::Type_t::f16:
-            result = static_cast<float>(constant->cast_vector<float16>().at(0));
-            break;
-        case element::Type_t::f32: result = constant->cast_vector<float>().at(0); break;
-        default: throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5"); break;
-        }
-        return result;
-    }
 }
 
 void op::v5::NonMaxSuppression::validate()
@@ -868,8 +850,7 @@ float op::v5::NonMaxSuppression::iou_threshold_from_input() const
 
     const auto iou_threshold_input =
         as_type_ptr<op::Constant>(input_value(iou_threshold_port).get_node_shared_ptr());
-    iou_threshold =
-        float_from_constant_node(iou_threshold_input, get_input_element_type(iou_threshold_port));
+    iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
     return iou_threshold;
 }
@@ -886,8 +867,7 @@ float op::v5::NonMaxSuppression::score_threshold_from_input() const
 
     const auto score_threshold_input =
         as_type_ptr<op::Constant>(input_value(score_threshold_port).get_node_shared_ptr());
-    score_threshold = float_from_constant_node(score_threshold_input,
-                                               get_input_element_type(score_threshold_port));
+    score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
     return score_threshold;
 }
@@ -904,8 +884,7 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
 
     const auto soft_nms_sigma_input =
         as_type_ptr<op::Constant>(input_value(soft_nms_sigma_port).get_node_shared_ptr());
-    soft_nms_sigma =
-        float_from_constant_node(soft_nms_sigma_input, get_input_element_type(soft_nms_sigma_port));
+    soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
     return soft_nms_sigma;
 }
