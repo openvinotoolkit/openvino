@@ -4,15 +4,29 @@
 
 #pragma once
 
-#include <memory>
-#include <vector>
-
 #include "ie_layouts.h"
 #include "mkldnn_dims.h"
 #include <mkldnn.hpp>
-#include <string>
 #include <mkldnn_types.h>
+
+#include <string>
 #include <functional>
+#include <memory>
+#include <vector>
+
+/**
+ * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
+ *
+ * MKLDNNMemoryDesc - the descriptor of tensor representation in memory. Describes all required information
+ * for proper allocation and handling tensor in some buffer. The real memory is not present, just description.
+ * This object answers on question how and where data with logical index [x1, x2, .. xN] placed in real buffer.
+ * In the simplest case it describe a mapping between "logical offset" and "real offset".
+ *
+ * MKLDNNMemory is an abstraction of some real tensor which contains some data. As in short it's a pair of
+ * memory descriptor and raw buffer handler to contains data. In case of system memory raw buffer it's simple
+ * "void*" on some system memory buffer.
+ *
+ */
 
 namespace MKLDNNPlugin {
 
@@ -23,11 +37,12 @@ public:
     explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc): desc(desc) {}
     MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
 
-    mkldnn::memory::format_tag getFormat() const {
-        // TODO: TBD
-//        return static_cast<mkldnn::memory::format_tag>(desc.data.format);
-        return mkldnn::memory::format_tag::undef;
-    }
+    /**
+     * Try to define original format tag use on creation
+     *
+     * @return format tag if was able to define it
+     */
+    mkldnn::memory::format_tag getFormat() const;
 
     mkldnn::memory::data_type getDataType() const {
         return static_cast<mkldnn::memory::data_type>(desc.data.data_type);
@@ -50,7 +65,8 @@ public:
     operator mkldnn::memory::desc() const;
     operator InferenceEngine::TensorDesc() const;
 
-    bool isPlainFormat() const { THROW_IE_EXCEPTION << "UNIMPLEMENTED"; };
+    bool isPlainFormat() const;
+
 private:
     mkldnn::memory::desc desc;
 };
@@ -69,22 +85,15 @@ public:
     }
 
     mkldnn::memory::desc GetDescriptor() const {
-        // TODO: TBD
-//        return prim->get_primitive_desc().desc();
-        return {};
+        return prim->get_desc();
     }
 
     const MKLDNNMemoryDesc GetDesc() const {
-        // TODO: TBD
+        // TODO[oneDNN]: TBD
+        THROW_IE_EXCEPTION << "Unimplemented";
 //        return prim->get_primitive_desc().desc();
         return {};
     }
-
-
-    /// TODO: Should be avoid to use
-//    mkldnn::memory::primitive_desc GetPrimitiveDescriptor() const {
-//        return prim->get_primitive_desc();
-//    }
 
     void* GetData() const {
         void* data = prim->get_data_handle();
@@ -105,7 +114,7 @@ public:
     }
 
 
-        mkldnn::memory::data_type GetDataType() const {
+    mkldnn::memory::data_type GetDataType() const {
         return static_cast<mkldnn::memory::data_type>(GetDescriptor().data.data_type);
     }
 
@@ -141,6 +150,7 @@ public:
     static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format_tag format);
     static mkldnn::memory::format_tag Convert(const InferenceEngine::Layout layout);
     static InferenceEngine::Precision convertToIePrec(mkldnn::memory::data_type dataType);
+    static mkldnn::memory::data_type convertToDataType(const InferenceEngine::Precision &precision);
 
     static std::string formatToString(mkldnn::memory::format_tag fmt);
 

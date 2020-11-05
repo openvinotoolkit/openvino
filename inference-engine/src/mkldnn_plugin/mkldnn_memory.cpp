@@ -10,6 +10,8 @@
 #include <unordered_set>
 #include <utility>
 
+#include "utils/general_utils.h"
+
 #include <mkldnn_types.h>
 #include "mkldnn_memory.h"
 #include "mkldnn_extension_utils.h"
@@ -123,7 +125,7 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
 
 void MKLDNNMemory::SetData(const MKLDNNMemory& src, bool ftz) const {
     mkldnn::reorder reorderPrim(src.GetPrimitive(), GetPrimitive());
-    mkldnn::stream loc_stream(eng, stream::flags::in_order);
+    mkldnn::stream loc_stream(eng, stream::flags::default_order);
     reorderPrim.execute(loc_stream, *src.prim, *this->prim);
 
     if (ftz && src.GetDataType() == mkldnn::memory::data_type::f32 && prim->get_desc().data.format_kind == dnnl_format_kind_wino &&
@@ -242,6 +244,26 @@ Precision MKLDNNMemory::convertToIePrec(memory::data_type dataType) {
     }
 }
 
+memory::data_type MKLDNNMemory::convertToDataType(const InferenceEngine::Precision &precision) {
+    switch (precision) {
+        case Precision::FP32:
+            return memory::data_type::f32;
+        case Precision::FP16:
+            return memory::data_type::f16;
+        case Precision::BF16:
+            return memory::data_type::bf16;
+        case Precision::I32:
+            return memory::data_type::s32;
+        case Precision::U8:
+            return memory::data_type::u8;
+        case Precision::I8:
+            return memory::data_type::s8;
+        default:
+            THROW_IE_EXCEPTION << "Unknown mkldnn data type";
+    }
+}
+
+
 memory::format_tag MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
     switch (layout) {
         case NCHW:
@@ -295,881 +317,464 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::da
     MKLDNNMemory::CreateBlockingDesc(desc);
 }
 
-MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
-//    Precision precision;
-//    switch (desc.data.data_type) {
-//        case mkldnn_f32:
-//            precision = Precision::FP32;
-//            break;
-//        case mkldnn_u8:
-//            precision = Precision::U8;
-//            break;
-//        case mkldnn_s8:
-//            precision = Precision::I8;
-//            break;
-//        case mkldnn_s16:
-//            precision = Precision::I16;
-//            break;
-//        case mkldnn_s32:
-//            precision = Precision::I32;
-//            break;
-//        case mkldnn_bin:
-//            precision = Precision::BIN;
-//            break;
-//        case mkldnn_bf16:
-//            precision = Precision::BF16;
-//            break;
-//        default:
-//            THROW_IE_EXCEPTION << "Cannot cast to TensorDesc. Unsupported precision!";
-//    }
-//    Layout layout;
-//    SizeVector order;
-//    SizeVector blkDims;
-//    auto blkInfo = desc.data.layout_desc.blocking;
-//    auto offset = static_cast<size_t>(blkInfo.offset_padding);
-//    SizeVector offsetsForDims;
-//    SizeVector dims = getDims().ToSizeVector();
-//    switch (getFormat()) {
-//        case memory::format_tag_undef:
-//            THROW_IE_EXCEPTION << "Cannot cast to tensor desc. Format is undefined!";
-//        case memory::any:
-//            layout = Layout::ANY;
-//            return TensorDesc(precision, dims, layout);
-//        case memory::x:
-//            layout = Layout::C;
-//            order = {0};
-//            blkDims = dims;
-//            break;
-//        case memory::oi:
-//        case memory::nc:
-//            layout = Layout::NC;
-//            order = {0, 1};
-//            blkDims = dims;
-//            break;
-//        case memory::tnc:
-//            layout = Layout::CHW;
-//            order = {0, 1, 2};
-//            blkDims = dims;
-//            break;
-//        case memory::ntc:
-//            layout = Layout::CHW;
-//            order = {1, 0, 2};
-//            blkDims = {static_cast<size_t>(dims[1]),
-//                       static_cast<size_t>(dims[0]),
-//                       static_cast<size_t>(dims[2])};
-//            break;
-//        case memory::oihw:
-//        case memory::nchw:
-//            layout = Layout::NCHW;
-//            order = {0, 1, 2, 3};
-//            blkDims = dims;
-//            break;
-//        case memory::hwio:
-//            layout = Layout::BLOCKED;
-//            order = {2, 3, 1, 0};
-//            blkDims = dims;
-//            break;
-//        case memory::dhwio:
-//            layout = Layout::BLOCKED;
-//            order = {2, 3, 4, 1, 0};
-//            blkDims = dims;
-//            break;
-//        case memory::hwigo:
-//            layout = Layout::BLOCKED;
-//            order = {3, 4, 2, 0, 1};
-//            blkDims = dims;
-//            break;
-//        case memory::dhwigo:
-//            order = {3, 4, 5, 2, 0, 1};
-//            blkDims = dims;
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::oidhw:
-//        case memory::ncdhw:
-//            layout = Layout::NCDHW;
-//            order = {0, 1, 2, 3, 4};
-//            blkDims = dims;
-//            break;
-//        case memory::ohwi:
-//        case memory::nhwc:
-//            layout = Layout::NHWC;
-//            order = {0, 2, 3, 1};
-//            if (precision == Precision::BIN) {
-//                blkDims = {static_cast<size_t>(dims[0]),
-//                           static_cast<size_t>(dims[2]),
-//                           static_cast<size_t>(dims[3]),
-//                           static_cast<size_t>(rnd_up(dims[1], 8))};
-//            } else {
-//                blkDims = {static_cast<size_t>(dims[0]),
-//                           static_cast<size_t>(dims[2]),
-//                           static_cast<size_t>(dims[3]),
-//                           static_cast<size_t>(dims[1])};
-//            }
-//            break;
-//        case memory::odhwi:
-//        case memory::ndhwc:
-//            layout = Layout::NDHWC;
-//            order = {0, 2, 3, 4, 1};
-//            blkDims = {static_cast<size_t>(dims[0]),
-//                       static_cast<size_t>(dims[2]),
-//                       static_cast<size_t>(dims[3]),
-//                       static_cast<size_t>(dims[4]),
-//                       static_cast<size_t>(dims[1])};
-//            break;
-//        case memory::oIhw8i:
-//        case memory::nChw8c:
-//            order = {0, 1, 2, 3, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOhwi8o:
-//        case memory::nCdhw8c:
-//            order = {0, 1, 2, 3, 4, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOdhwi8o:
-//            order = {0, 1, 2, 3, 4, 5, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::nChw16c:
-//            order = {0, 1, 2, 3, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOhwi16o:
-//        case memory::nCdhw16c:
-//            order = {0, 1, 2, 3, 4, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOdhwi16o:
-//            order = {0, 1, 2, 3, 4, 5, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::Ohwi8o:
-//            order = {0, 1, 2, 3, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::Ohwi16o:
-//            order = {0, 1, 2, 3, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::Odhwi8o:
-//            order = {0, 2, 3, 4, 1, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::Odhwi16o:
-//            order = {0, 2, 3, 4, 1, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIhw8i8o:
-//            order = {0, 1, 2, 3, 1, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIhw16i16o:
-//            order = {0, 1, 2, 3, 1, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIhw8o8i:
-//            order = {0, 1, 2, 3, 0, 1};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIhw16o16i:
-//            order = {0, 1, 2, 3, 0, 1};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::IOhw16o16i:
-//            order = {1, 0, 2, 3, 0, 1};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIdhw8i8o:
-//            order = {0, 1, 2, 3, 4, 1, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIdhw16i16o:
-//            order = {0, 1, 2, 3, 4, 1, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIdhw8o8i:
-//            order = {0, 1, 2, 3, 4, 1, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIdhw16o16i:
-//            order = {0, 1, 2, 3, 4, 0, 1};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIhw4o4i:
-//            order = {0, 1, 2, 3, 4, 1, 2};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 4 + (blkDims[1] % 4 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 4 + (blkDims[2] % 4 ? 1 : 0);
-//            blkDims.push_back(4);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIhw8i8o:
-//            order = {0, 1, 2, 3, 4, 2, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 8 + (blkDims[2] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIhw8o8i:
-//            order = {0, 1, 2, 3, 4, 1, 2};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 8 + (blkDims[2] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIhw16i16o:
-//            order = {0, 1, 2, 3, 4, 2, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 16 + (blkDims[2] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIhw16o16i:
-//            order = {0, 1, 2, 3, 4, 1, 2};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 16 + (blkDims[2] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OhIw8o4i:
-//            order = {0, 2, 1, 3, 0, 1};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 4 + (blkDims[1] % 4 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIhw4i16o4i:
-//            order = {0, 1, 2, 3, 1, 0, 1};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(4);
-//            blkDims.push_back(16);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIhw2i8o4i:
-//            order = {0, 1, 2, 3, 4, 2, 1, 2};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 8 + (blkDims[2] % 8 ? 1 : 0);
-//            blkDims.push_back(2);
-//            blkDims.push_back(8);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIhw4i16o4i:
-//            order = {0, 1, 2, 3, 4, 2, 1, 2};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 16 + (blkDims[2] % 16 ? 1 : 0);
-//            blkDims.push_back(4);
-//            blkDims.push_back(16);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OdhIw8o4i:
-//            order = {0, 2, 3, 1, 4, 0, 1};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 4 + (blkDims[1] % 4 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::OIdhw4i16o4i:
-//            order = {0, 1, 2, 3, 4, 1, 0, 1};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims.push_back(4);
-//            blkDims.push_back(16);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOhIw8o4i:
-//            order = {0, 1, 3, 2, 4, 1, 2};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 4 + (blkDims[2] % 4 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOdhIw8o4i:
-//            order = {0, 1, 3, 4, 2, 5, 1, 2};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 4 + (blkDims[2] % 4 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIdhw4i16o4i:
-//            order = {0, 1, 2, 3, 4, 5, 2, 1, 2};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 16 + (blkDims[2] % 16 ? 1 : 0);
-//            blkDims.push_back(4);
-//            blkDims.push_back(16);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIdhw4i4o:
-//            order = {0, 1, 2, 3, 4, 5, 2, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 4 + (blkDims[1] % 4 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 4 + (blkDims[2] % 4 ? 1 : 0);
-//            blkDims.push_back(4);
-//            blkDims.push_back(4);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIdhw8i8o:
-//            order = {0, 1, 2, 3, 4, 5, 2, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 8 + (blkDims[2] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::gOIdhw16i16o:
-//            order = {0, 1, 2, 3, 4, 5, 2, 1};
-//            blkDims = dims;
-//            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
-//            blkDims[2] = blkDims[2] / 16 + (blkDims[2] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::goihw:
-//            order = {0, 1, 2, 3, 4};
-//            blkDims = dims;
-//            layout = Layout::GOIHW;
-//            break;
-//        case memory::goidhw:
-//            order = {0, 1, 2, 3, 4, 5};
-//            blkDims = dims;
-//            layout = Layout::GOIDHW;
-//            break;
-//        case memory::Goihw8g:
-//            order = {0, 1, 2, 3, 4, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::Goihw16g:
-//            order = {0, 1, 2, 3, 4, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::Goidhw8g:
-//            order = {0, 1, 2, 3, 4, 5, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
-//            blkDims.push_back(8);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::Goidhw16g:
-//            order = {0, 1, 2, 3, 4, 5, 0};
-//            blkDims = dims;
-//            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
-//            blkDims.push_back(16);
-//            layout = Layout::BLOCKED;
-//            break;
-//        case memory::blocked:
-//            order.clear();
-//            blkDims = dims;
-//            for (size_t i = 0; i < blkDims.size(); i++) {
-//                order.push_back(i);
-//                if ((i && blkInfo.strides[0][i - 1] < blkInfo.strides[0][i]) || blkInfo.block_dims[i] != 1) {
-//                    THROW_IE_EXCEPTION << "Cannot cast to tensor desc."
-//                                       << " Unsupported blocked format.";
-//                }
-//            }
-//            if (order.size() == 3 && order[0] == 0 && order[1] == 1 && order[2] == 2)
-//                layout = Layout::CHW;
-//            else
-//                layout = Layout::BLOCKED;
-//            break;
-//        default:
-//            THROW_IE_EXCEPTION << "Cannot cast to tensor desc. Format is unsupported!";
-//    }
-//
-//    SizeVector strides(blkDims.size());
-//
-//    if (layout == Layout::NHWC || layout == Layout::NDHWC || layout == Layout::CHW) {
-//        for (size_t i = 0; i < order.size(); i++) {
-//            strides[i] = static_cast<size_t>(blkInfo.strides[0][order[i]]);
-//        }
-//    } else {
-//        strides[blkDims.size() - 1] = 1;
-//        for (size_t i = 2; i <= order.size(); i++) {
-//            if (blkDims.size() - i < dims.size()) {
-//                strides[blkDims.size() - i] = static_cast<size_t>(blkInfo.strides[0][order[blkDims.size() - i]]);
-//            } else {
-//                strides[blkDims.size() - i] = strides[blkDims.size() - i + 1] * blkDims[blkDims.size() - i + 1];
-//            }
-//        }
-//    }
-//
-//    for (size_t i = 0; i < blkDims.size() && i < TENSOR_MAX_DIMS; i++) {
-//        if (i < dims.size())
-//            offsetsForDims.push_back(blkInfo.offset_padding_to_data[i]);
-//        else
-//            offsetsForDims.push_back(0);
-//    }
-//
-//    TensorDesc tensorDesc(precision, dims, {blkDims, order, offset, offsetsForDims, strides});
-//
-//    tensorDesc.setLayout(layout);
-//    return tensorDesc;
-    THROW_IE_EXCEPTION << "Converter is not implemented";
-    return {};
+
+/**
+
+Acb16a
+Acb4a
+Acb8a
+BAc16a16b
+BAc16b16a
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ */
+static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by_ndims {
+    {0, {
+        mkldnn::memory::format_tag::a   // TODO :: really 1d layout for scalar??
+     }}, {1, {
+        mkldnn::memory::format_tag::a
+     }}, {2, {
+        mkldnn::memory::format_tag::ab,
+        mkldnn::memory::format_tag::ba
+     }}, {3, {
+        mkldnn::memory::format_tag::abc,
+        mkldnn::memory::format_tag::acb,
+        mkldnn::memory::format_tag::bac,
+        mkldnn::memory::format_tag::bca,
+        mkldnn::memory::format_tag::cba,
+
+        mkldnn::memory::format_tag::Abc16a,
+        mkldnn::memory::format_tag::ABc16a16b,
+        mkldnn::memory::format_tag::ABc4a4b,
+        mkldnn::memory::format_tag::aBc16b,
+        mkldnn::memory::format_tag::aBc32b,
+        mkldnn::memory::format_tag::ABc16b16a,
+        mkldnn::memory::format_tag::Abc4a,
+        mkldnn::memory::format_tag::aBc4b,
+        mkldnn::memory::format_tag::ABc4b16a4b,
+        mkldnn::memory::format_tag::ABc2b8a4b,
+        mkldnn::memory::format_tag::ABc16b16a4b,
+        mkldnn::memory::format_tag::ABc16b16a2b,
+        mkldnn::memory::format_tag::ABc4b4a,
+        mkldnn::memory::format_tag::ABc8a16b2a,
+        mkldnn::memory::format_tag::ABc8a8b,
+        mkldnn::memory::format_tag::ABc8a4b,
+        mkldnn::memory::format_tag::aBc8b,
+        mkldnn::memory::format_tag::ABc8b16a2b,
+        mkldnn::memory::format_tag::ABc8b8a,
+        mkldnn::memory::format_tag::Acb16a,
+        mkldnn::memory::format_tag::Acb4a,
+        mkldnn::memory::format_tag::Acb8a,
+        mkldnn::memory::format_tag::BAc16a16b,
+        mkldnn::memory::format_tag::BAc16b16a,
+
+     }}, {4, {
+        mkldnn::memory::format_tag::abcd,
+        mkldnn::memory::format_tag::abdc,
+        mkldnn::memory::format_tag::acdb,
+        mkldnn::memory::format_tag::bacd,
+        mkldnn::memory::format_tag::bcda,
+        mkldnn::memory::format_tag::cdba,
+        mkldnn::memory::format_tag::dcab,
+
+        mkldnn::memory::format_tag::Abcd8a,
+        mkldnn::memory::format_tag::Abcd16a,
+        mkldnn::memory::format_tag::Abcd32a,
+        mkldnn::memory::format_tag::ABcd16a16b,
+        mkldnn::memory::format_tag::aBcd16b,
+        mkldnn::memory::format_tag::aBcd32b,
+        mkldnn::memory::format_tag::ABcd16b16a,
+        mkldnn::memory::format_tag::aBCd16b16c,
+        mkldnn::memory::format_tag::aBCd16c16b,
+        mkldnn::memory::format_tag::Abcd4a,
+        mkldnn::memory::format_tag::aBcd4b,
+        mkldnn::memory::format_tag::ABcd4b16a4b,
+        mkldnn::memory::format_tag::ABcd2b8a4b,
+        mkldnn::memory::format_tag::ABcd4b4a,
+        mkldnn::memory::format_tag::ABcd4a4b,
+        mkldnn::memory::format_tag::aBCd4c16b4c,
+        mkldnn::memory::format_tag::aBCd2c8b4c,
+        mkldnn::memory::format_tag::ABcd16b16a4b,
+        mkldnn::memory::format_tag::ABcd16b16a2b,
+        mkldnn::memory::format_tag::aBCd16c16b4c,
+        mkldnn::memory::format_tag::aBCd16c16b2c,
+        mkldnn::memory::format_tag::aBCd4c4b,
+        mkldnn::memory::format_tag::aBCd4b4c,
+        mkldnn::memory::format_tag::ABcd8a16b2a,
+        mkldnn::memory::format_tag::ABcd8a8b,
+        mkldnn::memory::format_tag::ABcd8a4b,
+
+        mkldnn::memory::format_tag::aBcd8b,
+        mkldnn::memory::format_tag::ABcd8b16a2b,
+        mkldnn::memory::format_tag::aBCd8b16c2b,
+        mkldnn::memory::format_tag::ABcd8b8a,
+        mkldnn::memory::format_tag::aBCd8b8c,
+        mkldnn::memory::format_tag::aBCd8b4c,
+        mkldnn::memory::format_tag::aBCd8c16b2c,
+        mkldnn::memory::format_tag::aBCd8c8b,
+
+        mkldnn::memory::format_tag::ABcd4a8b8a4b,
+        mkldnn::memory::format_tag::ABcd2a8b8a2b,
+
+        mkldnn::memory::format_tag::aBdc16b,
+        mkldnn::memory::format_tag::aBdc4b,
+        mkldnn::memory::format_tag::aBdc8b,
+        mkldnn::memory::format_tag::aCBd16b16c,
+        mkldnn::memory::format_tag::aCBd16c16b,
+        mkldnn::memory::format_tag::Acdb16a,
+        mkldnn::memory::format_tag::Acdb4a,
+        mkldnn::memory::format_tag::Acdb8a,
+        mkldnn::memory::format_tag::BAcd16a16b,
+        mkldnn::memory::format_tag::BAcd16b16a,
+        mkldnn::memory::format_tag::ABcd32a32b,
+        mkldnn::memory::format_tag::Acdb32a,
+        mkldnn::memory::format_tag::aBCd2b4c2b,
+        mkldnn::memory::format_tag::aBCd2c4b2c,
+        mkldnn::memory::format_tag::aBCd4b8c2b,
+        mkldnn::memory::format_tag::aBCd4c8b2c,
+
+    }}, {5, {
+        mkldnn::memory::format_tag::abcde,
+        mkldnn::memory::format_tag::abdec,
+        mkldnn::memory::format_tag::acbde,
+        mkldnn::memory::format_tag::acdeb,
+        mkldnn::memory::format_tag::bacde,
+        mkldnn::memory::format_tag::bcdea,
+        mkldnn::memory::format_tag::cdeba,
+        mkldnn::memory::format_tag::decab,
+
+        mkldnn::memory::format_tag::Abcde16a,
+        mkldnn::memory::format_tag::Abcde32a,
+        mkldnn::memory::format_tag::ABcde16a16b,
+        mkldnn::memory::format_tag::aBcde16b,
+        mkldnn::memory::format_tag::aBcde32b,
+        mkldnn::memory::format_tag::ABcde16b16a,
+        mkldnn::memory::format_tag::aBCde16b16c,
+        mkldnn::memory::format_tag::aBCde16c16b,
+        mkldnn::memory::format_tag::aBCde2c8b4c,
+        mkldnn::memory::format_tag::Abcde4a,
+        mkldnn::memory::format_tag::aBcde4b,
+        mkldnn::memory::format_tag::ABcde4b4a,
+        mkldnn::memory::format_tag::ABcde4a4b,
+        mkldnn::memory::format_tag::aBCde4b4c,
+        mkldnn::memory::format_tag::aBCde4c16b4c,
+        mkldnn::memory::format_tag::aBCde16c16b4c,
+        mkldnn::memory::format_tag::aBCde16c16b2c,
+        mkldnn::memory::format_tag::aBCde4c4b,
+        mkldnn::memory::format_tag::Abcde8a,
+        mkldnn::memory::format_tag::ABcde8a8b,
+        mkldnn::memory::format_tag::ABcde8a4b,
+        mkldnn::memory::format_tag::aBcde8b,
+        mkldnn::memory::format_tag::ABcde8b16a2b,
+        mkldnn::memory::format_tag::ABcde4b16a4b,
+        mkldnn::memory::format_tag::ABcde2b8a4b,
+        mkldnn::memory::format_tag::aBCde8b16c2b,
+        mkldnn::memory::format_tag::ABcde8b8a,
+        mkldnn::memory::format_tag::aBCde8b8c,
+        mkldnn::memory::format_tag::aBCde8b4c,
+        mkldnn::memory::format_tag::aBCde4b8c8b4c,
+        mkldnn::memory::format_tag::aBCde2b8c8b2c,
+        mkldnn::memory::format_tag::aBCde8c16b2c,
+        mkldnn::memory::format_tag::aBCde8c8b,
+        mkldnn::memory::format_tag::aBdec16b,
+        mkldnn::memory::format_tag::aBdec4b,
+        mkldnn::memory::format_tag::aBdec8b,
+        mkldnn::memory::format_tag::aCBde16b16c,
+        mkldnn::memory::format_tag::aCBde16c16b,
+        mkldnn::memory::format_tag::Acdeb16a,
+        mkldnn::memory::format_tag::Acdeb4a,
+        mkldnn::memory::format_tag::Acdeb8a,
+        mkldnn::memory::format_tag::BAcde16b16a,
+        mkldnn::memory::format_tag::BAcde16a16b,
+        mkldnn::memory::format_tag::aBdec32b,
+        mkldnn::memory::format_tag::aBCde2b4c2b,
+        mkldnn::memory::format_tag::aBCde2c4b2c,
+        mkldnn::memory::format_tag::aBCde4b8c2b,
+        mkldnn::memory::format_tag::aBCde4c8b2c,
+     }}, {6, {
+
+     }},
+};
+
+mkldnn::memory::format_tag MKLDNNMemoryDesc::getFormat() const {
+    // TODO[OneDNN]: Previously it was a field of tdesc, but now the brute
+    //               force search here. Please avoid of using this method.
+    const auto dims = desc.dims();
+    const auto type = desc.data_type();
+
+    for (const auto &fmt : form_tags_by_ndims.at(dims.size())) {
+        // Try to create with format and compare result with existing desc
+        memory::desc tmp_desc(dims, type, fmt);
+        if (tmp_desc == desc)
+            return fmt;
+    }
+
+    return mkldnn::memory::format_tag::undef;
 }
 
+bool MKLDNNMemoryDesc::isPlainFormat() const {
+    if (desc.data.format_kind != dnnl_blocked ||
+        desc.data.format_desc.blocking.inner_nblks != 0)
+        return false;
+
+    const auto ndims = desc.data.ndims;
+    const auto dims = desc.data.dims;
+    const auto &strides = desc.data.format_desc.blocking.strides;
+    bool is_plain_strides = (strides[ndims-1] == 1);
+    for (int i = 0; i < ndims - 1; i++) {
+        is_plain_strides &= (strides[i] == strides[i+1] * dims[i+1]);
+    }
+
+    return is_plain_strides;
+}
+
+/**
+ * Convert to  IE::TensorDesc
+ *
+ * mkl:  IOhw_4i16o4i    dims {32, 64, 128, 128}
+ *   strides               // the order of outer dims is encoded here
+ *   inner_blks   4 16 4
+ *   inner_idxs   1  0 1
+ *
+ * IE tensor desc has more expressive ability. Any oneDNN blocked tensor can be covreted.
+ * How to convert into IE representation:
+ *    0. Detect a new_outer_order of outer_dims via descending strides.
+ *    1. IE strides :  concatenate strides in new_outer_order and inner strides.
+ *    2. IE dims    :  concatenate outer dims in new_outer_order with auto padding and inner blocks
+ *    3. IE order   :  concatenate new_outer_order and inner_idxs
+ */
+MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
+    const auto dims = desc.dims();
+
+    if (desc.data.format_kind == dnnl_format_kind_any)
+        return TensorDesc {
+                MKLDNNMemory::convertToIePrec(desc.data_type()),
+                SizeVector {begin(dims), end(dims)},
+                Layout::ANY};
+
+    if (desc.data.format_kind != dnnl_blocked)
+        THROW_IE_EXCEPTION << "Conversion is not possible";
+
+    const auto &blk_desc = desc.data.format_desc.blocking;
+
+    const size_t outer_ndims = dims.size();
+    const size_t inner_ndims = blk_desc.inner_nblks;
+    const size_t total_ndims = outer_ndims + inner_ndims;
+
+    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
+    std::vector<size_t> outer_order(outer_ndims);
+    std::iota(outer_order.begin(), outer_order.end(), 0);
+    std::sort(outer_order.begin(), outer_order.end(),
+              [&blk_desc] (size_t ind_l, size_t ind_r) {
+        return blk_desc.strides[ind_l] > blk_desc.strides[ind_r];
+    });
+
+    // strides of inner dims. In case of 4i16o4i will be {64, 4, 1}
+    std::vector<size_t> inner_strides(inner_ndims, 1);
+    for (size_t i = 1; i < blk_desc.inner_nblks; i++) {
+        inner_strides[blk_desc.inner_nblks - 1 - i] = inner_strides[blk_desc.inner_nblks - i] * blk_desc.inner_blks[blk_desc.inner_nblks - i];
+    }
+
+    // total inner block size. in case of 4i16o4i will be {16, 16, 1, 1}
+    std::vector<size_t> total_block_per_dim(outer_ndims, 1);
+    for (int i = 0; i < inner_ndims; i++) {
+        total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
+    }
+
+    // IE blocked order
+    // [new_outer_order] U [inner_idxs]
+    SizeVector ie_blk_order(total_ndims, 0);
+    std::copy(outer_order.begin(), outer_order.end(), ie_blk_order.begin());
+    std::copy(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, ie_blk_order.begin() + dims.size());
+
+    // IE blocked strides
+    // [outer_strides via new_outer_order] U [inner_strides]
+    SizeVector ie_blk_strides(total_ndims, 0);
+    std::copy(inner_strides.rbegin(), inner_strides.rend(), ie_blk_strides.rbegin());
+    std::transform(outer_order.begin(), outer_order.end(), ie_blk_strides.begin(),
+                   [&] (size_t i) { return blk_desc.strides[i]; });
+
+    // IE blocked dims
+    // [dims via new_outer_order with auto pad] U [inner_blk_dims]
+    SizeVector ie_blk_dims(total_ndims, 0);
+    std::copy(blk_desc.inner_blks, blk_desc.inner_blks + blk_desc.inner_nblks,
+              ie_blk_dims.end() - blk_desc.inner_nblks);
+    std::transform(outer_order.begin(), outer_order.end(), ie_blk_dims.begin(),
+                   [&] (size_t i) { return div_up(dims[i], total_block_per_dim[i]); });
+
+    // IE offset padded to data. Same as for oneDNN
+    SizeVector ie_blk_offset_to_data {desc.data.padded_offsets, desc.data.padded_offsets + desc.data.ndims};
+    size_t ie_blk_offset0 = desc.data.offset0;
+
+    // TODO: The tensor desc implementation allow to specify offset_to_data for inner blocked dims.
+    //       Which is not obvious behavior. It required offset_to_data.size == total_ndims, so will
+    //       fill it with zero.
+    ie_blk_offset_to_data.insert(ie_blk_offset_to_data.end(), inner_ndims, 0);
+
+
+    BlockingDesc ie_blk_desc { ie_blk_dims,
+                               ie_blk_order,
+                               ie_blk_offset0,
+                               ie_blk_offset_to_data,
+                               ie_blk_strides };
+    TensorDesc res {
+        MKLDNNMemory::convertToIePrec(desc.data_type()),
+        SizeVector {begin(dims), end(dims)},
+        ie_blk_desc };
+    // TODO: BLOCKED is the most common layout which covers all other permuted layout like NHWC.
+    //       But for some cases we have to specify it more correctly.. may be.. or just keep
+    //       auto detected layout in constructor of TensorDesc.
+
+    return res;
+}
+
+/**
+ * Construct from IE::TensorDesc
+ * @param tDesc
+ *
+ * IE  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
+ *   blockedDims  {4, 2, 128, 128, 4, 16, 4}                      // total dims(inner, outermost, auto blocked/padded). Generally sorted by strides.
+ *   strides      {8388608, 4194304,  32768, 256, 64,  4, 1}      // strides for blockedDims, growing sequence
+ *   order        {1, 0,   2,   3, 1,  0, 1}                      // matching to original dims
+ *
+ *   All vectors blockedDims/strides/order have same size equals total num of internal blocked dims(inner_dims + outer_dims)
+ *
+ *   Tensor descriptor filing is not deterministic. It allows any permutation of index which keeps order of
+ *   real dims spliting.
+ *      for {1, 0, 2, 3, 1, 0, 1} we can swap elements [1] <=> [4]
+ *      but not [0]<=>[4] because it breacke spliting original dims into internal blocked dims
+ *   Normalization of representation: Make strides growing but keep layout same as original. Not all
+ *   layout allow us to meet normalize form of tensor desc.
+ *
+ *   Limitation of conversion first N elements of order should be permutation of [0,1,2 ... N]
+ */
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
-        desc({}, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::undef) {
-    mkldnn::memory::data_type data_type;
-    switch (tDesc.getPrecision()) {
-        case Precision::FP32:
-            data_type = mkldnn::memory::data_type::f32;
-            break;
-        case Precision::U8:
-            data_type = mkldnn::memory::data_type::u8;
-            break;
-        case Precision::I8:
-            data_type = mkldnn::memory::data_type::s8;
-            break;
-//        case Precision::I16:
-//            data_type = mkldnn::memory::data_type::s16;
-//            break;
-        case Precision::I32:
-            data_type = mkldnn::memory::data_type::s32;
-            break;
-//        case Precision::BIN:
-//            data_type = mkldnn::memory::data_type::bin;
-//            break;
-        case Precision::BOOL:
-            data_type = mkldnn::memory::data_type::u8;
-            break;
-        case Precision::BF16:
-            data_type = mkldnn::memory::data_type::bf16;
-            break;
-        default:
-            THROW_IE_EXCEPTION << "Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision: " << tDesc.getPrecision();
+        desc({}, mkldnn::memory::data_type::undef, mkldnn::memory::format_tag::undef) {
+    auto dims = tDesc.getDims();
+
+    if (tDesc.getLayout() == Layout::ANY) {
+        desc.data.format_kind = dnnl_format_kind_any;
+        desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
+        desc.data.ndims = dims.size();
+        std::copy(dims.begin(), dims.end(), desc.data.dims);
+        std::copy(dims.begin(), dims.end(), desc.data.padded_dims);
+        desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
+        std::fill(desc.data.padded_offsets, desc.data.padded_offsets + dims.size(), 0);
+        return;
     }
 
-    mkldnn::memory::format_tag mkldnnFormat = memory::format_tag::undef;
-    SizeVector blkdDims = tDesc.getBlockingDesc().getBlockDims();
-    SizeVector order = tDesc.getBlockingDesc().getOrder();
-    SizeVector offsetsToData = tDesc.getBlockingDesc().getOffsetPaddingToData();
-    SizeVector strides = tDesc.getBlockingDesc().getStrides();
-    auto realDims = MKLDNNDims(tDesc.getDims());
-    switch (tDesc.getLayout()) {
-        case ANY:
-            mkldnnFormat = memory::format_tag::any;
-            break;
-        case NCHW:
-            mkldnnFormat = memory::format_tag::nchw;
-            break;
-        case NCDHW:
-            mkldnnFormat = memory::format_tag::ncdhw;
-            break;
-        case NHWC:
-            mkldnnFormat = memory::format_tag::nhwc;
-            break;
-        case NDHWC:
-            mkldnnFormat = memory::format_tag::ndhwc;
-            break;
-        case OIHW:
-            mkldnnFormat = memory::format_tag::oihw;
-            break;
-        case GOIHW:
-            mkldnnFormat = memory::format_tag::goihw;
-            break;
-        case OIDHW:
-            mkldnnFormat = memory::format_tag::oidhw;
-            break;
-        case GOIDHW:
-            mkldnnFormat = memory::format_tag::goidhw;
-            break;
-        case SCALAR:
-        case C:
-            mkldnnFormat = memory::format_tag::x;
-            break;
-        case CHW:
-            if (order == SizeVector{0, 1, 2})
-                mkldnnFormat = memory::format_tag::tnc;
-            else if (order == SizeVector{1, 0, 2})
-                mkldnnFormat = memory::format_tag::ntc;
-            else
-                mkldnnFormat = memory::format_tag::undef;
-            break;
-        case HW:
-        case NC:
-            mkldnnFormat = memory::format_tag::nc;
-            break;
-        case BLOCKED:
-            mkldnnFormat = memory::format_tag::undef;
-            if (realDims.ndims() == 1) {
-                mkldnnFormat = memory::format_tag::x;
-            } else if (realDims.ndims() == 2) {
-                mkldnnFormat = memory::format_tag::nc;
-            } else if (realDims.ndims() == 3) {
-                if (order == SizeVector{0, 1, 2})
-                    mkldnnFormat = memory::format_tag::tnc;
-                else if (order == SizeVector{1, 0, 2})
-                    mkldnnFormat = memory::format_tag::ntc;
-            } else if (realDims.ndims() == 4) {
-                if (order.size() == 7 &&
-                    order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1 && order[5] == 0 && order[6] == 1) {
-                    if (blkdDims[4] == 4 && blkdDims[5] == 16 && blkdDims[6] == 4) {
-                        mkldnnFormat = memory::format_tag::OIhw4i16o4i;
-                    }
-//                } else if (order.size() == 6 && order[0] == 0 && order[1] == 2 && order[2] == 1 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
-//                    if (blkdDims[4] == 8 && blkdDims[5] == 4) {
-//                        mkldnnFormat = memory::format_tag::OhIw8o4i;
-//                    }
-                } else if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1 && order[5] == 0) {
-                    if (blkdDims[4] == 8 && blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format_tag::OIhw8i8o;
-                    } else if (blkdDims[4] == 16 && blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format_tag::OIhw16i16o;
-                    }
-                } else if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
-                    if (blkdDims[4] == 8 && blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format_tag::OIhw8o8i;
-                    } else if (blkdDims[4] == 16 && blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format_tag::OIhw16o16i;
-                    }
-                } else if (order.size() == 6 && order[0] == 1 && order[1] == 0 && order[2] == 2 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
-                    if (blkdDims[4] == 16 && blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format_tag::IOhw16o16i;
-                    }
-                } else if (order.size() == 5 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 0) {
-                    if (blkdDims[4] == 8) {
-                        mkldnnFormat = memory::format_tag::Ohwi8o;
-                    } else if (blkdDims[4] == 16) {
-                        mkldnnFormat = memory::format_tag::Ohwi16o;
-                    }
-                } else if (order.size() == 5 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1) {
-                    if (blkdDims[4] == 8) {
-                        mkldnnFormat = memory::format_tag::nChw8c;
-                    } else if (blkdDims[4] == 16) {
-                        mkldnnFormat = memory::format_tag::nChw16c;
-                    }
-                } else if (order.size() == 4) {
-                    if (order[0] == 2 && order[1] == 3 && order[2] == 1 && order[3] == 0) {
-                        mkldnnFormat = memory::format_tag::hwio;
-                    } else if (order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3) {
-                        mkldnnFormat = memory::format_tag::nchw;
-                    } else if (order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 1) {
-                        mkldnnFormat = memory::format_tag::nhwc;
-                    }
-                }
-            } else if (realDims.ndims() == 5) {
-                if (order.size() == 5 && order[0] == 2 && order[1] == 3 && order[2] == 4 && order[3] == 1 && order[4] == 0) {
-                    mkldnnFormat = memory::format_tag::dhwio;
-                } else if (order.size() == 5 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4) {
-                    mkldnnFormat = memory::format_tag::goihw;
-                } else if (order.size() == 5 && order[0] == 3 && order[1] == 4 && order[2] == 2 && order[3] == 0 && order[4] == 1) {
-                    mkldnnFormat = memory::format_tag::hwigo;
-                } else if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 0) {
-                    if (blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format_tag::Goihw8g;
-                    } else if (blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format_tag::Goihw16g;
-                    }
-                } else if (order.size() == 6 &&
-                        order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1) {
-                    if (blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format_tag::nCdhw8c;
-                    } else if (blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format_tag::nCdhw16c;
-                    }
-                } else if (order.size() == 6 &&
-                           order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 4 && order[4] == 1 && order[5] == 0) {
-                    if (blkdDims[5] == 8) {
-                        mkldnnFormat = memory::format_tag::Odhwi8o;
-                    } else if (blkdDims[5] == 16) {
-                        mkldnnFormat = memory::format_tag::Odhwi16o;
-                    }
-                } else if (order.size() == 7 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1 && order[6] == 0) {
-                    if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format_tag::OIdhw8i8o;
-                    } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format_tag::OIdhw16i16o;
-                    }
-                } else if (order.size() == 7 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 0 && order[6] == 1) {
-                    if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format_tag::OIdhw8o8i;
-                    } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format_tag::OIdhw16o16i;
-                    }
-//                } else if (order.size() == 7 &&
-//                           order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 1 && order[4] == 4 && order[5] == 0 && order[6] == 1) {
-//                    if (blkdDims[5] == 8) {
-//                        mkldnnFormat = memory::format_tag::OdhIw8o4i;
-//                    }
-                } else if (order.size() == 8 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1 && order[6] == 0 &&
-                           order[7] == 1) {
-                    if (blkdDims[7] == 4) {
-                        mkldnnFormat = memory::format_tag::OIdhw4i16o4i;
-                    }
-                } else if (order.size() == 7 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 2 && order[6] == 1) {
-                    if (blkdDims[6] == 4) {
-                        mkldnnFormat = memory::format_tag::gOIhw4i4o;
-                    } else if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format_tag::gOIhw8i8o;
-                    } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format_tag::gOIhw16i16o;
-                    }
-                } else if (order.size() == 7 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1 && order[6] == 2) {
-                    if (blkdDims[6] == 4) {
-                        mkldnnFormat = memory::format_tag::gOIhw4o4i;
-                    } else if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format_tag::gOIhw8o8i;
-                    } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format_tag::gOIhw16o16i;
-                    }
-//                } else if (order.size() == 7 &&
-//                           order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 2 && order[4] == 4 && order[5] == 1 && order[6] == 2) {
-//                    if (blkdDims[5] == 8 && blkdDims[6] == 4) {
-//                        mkldnnFormat = memory::format_tag::gOhIw8o4i;
-//                    }
-                } else if (order.size() == 8 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 &&
-                           order[5] == 2 && order[6] == 1 && order[7] == 2) {
-                    if (blkdDims[5] == 2 && blkdDims[6] == 8 && blkdDims[7] == 4) {
-                        mkldnnFormat = memory::format_tag::gOIhw2i8o4i;
-                    } else if (blkdDims[5] == 4 && blkdDims[6] == 16 && blkdDims[7] == 4) {
-                        mkldnnFormat = memory::format_tag::gOIhw4i16o4i;
-                    }
-                } else if (order.size() == 5) {
-                    if (order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4) {
-                        mkldnnFormat = memory::format_tag::ncdhw;
-                    } else if (order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 4 && order[4] == 1) {
-                        mkldnnFormat = memory::format_tag::ndhwc;
-                    }
-                }
-            } else if (realDims.ndims() == 6) {
-                if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5) {
-                    mkldnnFormat = memory::format_tag::goidhw;
-                } else if (order.size() == 6 && order[0] == 3 && order[1] == 4 && order[2] == 5 && order[3] == 2 && order[4] == 0 && order[5] == 1) {
-                    mkldnnFormat = memory::format_tag::dhwigo;
-                } else if (order.size() == 7 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 && order[6] == 0) {
-                    if (blkdDims[6] == 8) {
-                        THROW_IE_EXCEPTION << "Unsupported";
-//                        mkldnnFormat = memory::format_tag::Goidhw8g;
-                    } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format_tag::Goidhw16g;
-                    }
-                } else if (order.size() == 7 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 && order[6] == 1) {
-                    if (blkdDims[6] == 8) {
-                        mkldnnFormat = memory::format_tag::gOdhwi8o;
-                    } else if (blkdDims[6] == 16) {
-                        mkldnnFormat = memory::format_tag::gOdhwi16o;
-                    }
-//                } else if (order.size() == 8 &&
-//                           order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 4 && order[4] == 2 && order[5] == 5 &&
-//                           order[6] == 1 && order[7] == 2) {
-//                    if (blkdDims[6] == 8 && blkdDims[7] == 4) {
-//                        mkldnnFormat = memory::format_tag::gOdhIw8o4i;
-//                    }
-                } else if (order.size() == 8 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 &&
-                           order[6] == 2 && order[7] == 1) {
-                    if (blkdDims[6] == 4 && blkdDims[7] == 4) {
-                        mkldnnFormat = memory::format_tag::gOIdhw4i4o;
-                    } else if (blkdDims[6] == 8 && blkdDims[7] == 8) {
-                        mkldnnFormat = memory::format_tag::gOIdhw8i8o;
-                    } else if (blkdDims[6] == 16 && blkdDims[7] == 16) {
-                        mkldnnFormat = memory::format_tag::gOIdhw16i16o;
-                    }
-                } else if (order.size() == 9 &&
-                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 &&
-                           order[6] == 2 && order[7] == 1 && order[8] == 2) {
-                    if (blkdDims[6] == 4 && blkdDims[7] == 16 && blkdDims[8] == 4) {
-                        mkldnnFormat = memory::format_tag::gOIdhw4i16o4i;
-                    }
-                }
-            }
-            break;
-        case CN:
-            mkldnnFormat = memory::format_tag::ba;
-            break;
-    }
-    if (mkldnnFormat == memory::format_tag::undef)
-        THROW_IE_EXCEPTION << "Cannot detect the right memory format!";
+    SizeVector ie_blkdDims = tDesc.getBlockingDesc().getBlockDims();
+    SizeVector ie_order = tDesc.getBlockingDesc().getOrder();
+    SizeVector ie_offsetsToData = tDesc.getBlockingDesc().getOffsetPaddingToData();
+    SizeVector ie_strides = tDesc.getBlockingDesc().getStrides();
 
-    bool notDefault = false;
-    size_t currentStride = 1;
-    for (size_t i = 0; i < order.size(); i++) {
-        if (offsetsToData[i] != 0) {
-            notDefault = true;
-            break;
-        }
-        if (strides[strides.size() - (1 +i)] != currentStride) {
-            notDefault = true;
-            break;
-        }
-        currentStride *= blkdDims[blkdDims.size() - (1 + i)];
+    size_t outer_ndims = dims.size();
+    size_t inner_ndims = ie_order.size() - dims.size();
+
+    bool is_descending_strides = true;
+    for (int i = 1; i < ie_strides.size(); i++) {
+        is_descending_strides &= (ie_strides[i-1] >= ie_strides[i]);
     }
 
-    bool blocked = false;
-    std::unordered_set<size_t> exist_order;
-    for (auto& ord : order) {
-        if (exist_order.find(ord) != exist_order.end()) {
-            blocked = true;
-            break;
-        }
-        exist_order.insert(ord);
+    // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to permute blocked dims
+    //       and may be we can achieve correct "descending strides" form which allow conversion.
+    if (!is_descending_strides)
+        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+
+    std::vector<size_t> outer_order(outer_ndims, outer_ndims + 1); // outer_order[i] is index of stride for i-th dimension
+    for (size_t i = 0; i < outer_ndims; i++) {
+        outer_order[ie_order[i]] = i;
+    }
+    bool outer_is_correct_permutation_of_n =
+            std::find(outer_order.begin(), outer_order.end(), outer_ndims + 1) == outer_order.end();
+
+    if (!outer_is_correct_permutation_of_n)
+        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+
+    bool inner_block_are_dense = (ie_strides.back() == 1);
+    for (int i = outer_ndims; i < ie_strides.size() - 1; i++) {
+        inner_block_are_dense &= (ie_strides[i] == ie_strides[i+1] * ie_blkdDims[i+1]);
     }
 
-    THROW_IE_EXCEPTION << "not Implemented yet";
-//    if (notDefault && mkldnnFormat == memory::blocked && blocked)
-//        THROW_IE_EXCEPTION << "Currently MKLDNNPlugin supports only packaged memory for unknown blocked format";
-//
-//    if (mkldnnFormat == memory::blocked) {
-//        desc = MKLDNNMemoryDesc(realDims, data_type, memory::any);
-//        desc.data.format = mkldnn_blocked;
-//
-//        auto& blk = desc.data.layout_desc.blocking;
-//
-//        blk.offset_padding = tDesc.getBlockingDesc().getOffsetPadding();
-//
-//        for (size_t i = 0; i < realDims.ndims(); i++) {
-//            blk.block_dims[i] = 1;
-//            blk.strides[1][i] = 1;
-//            blk.padding_dims[i] = realDims[i];
-//            blk.offset_padding_to_data[i] = offsetsToData[i];
-//        }
-//
-//        int perm[TENSOR_MAX_DIMS] = {0};
-//
-//        for (size_t i = 0; i < realDims.ndims(); ++i) {
-//            perm[i] = i;
-//        }
-//
-//        blk.strides[0][perm[realDims.ndims() - 1]] = 1;
-//
-//        for (int d = 1; d < realDims.ndims(); ++d) {
-//            const int prev_idx = perm[realDims.ndims() - d];
-//            const int curr_idx = perm[realDims.ndims() - 1 - d];
-//
-//            blk.strides[0][curr_idx] = realDims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, realDims[prev_idx]);
-//        }
-//    } else {
-//        desc = MKLDNNMemoryDesc(realDims, data_type, mkldnnFormat);
-//    }
-//
-//    desc.data.layout_desc.blocking.offset_padding = tDesc.getBlockingDesc().getOffsetPadding();
-//    for (size_t i = 0; i < tDesc.getBlockingDesc().getOffsetPaddingToData().size() && i < TENSOR_MAX_DIMS; i++) {
-//        desc.data.layout_desc.blocking.offset_padding_to_data[i] = static_cast<ptrdiff_t>(offsetsToData[i]);
-//    }
-//
-//    if (notDefault) {
-//        for (size_t i = 0; i < strides.size() && i < desc.data.ndims; i++) {
-//            desc.data.layout_desc.blocking.strides[0][i] = static_cast<ptrdiff_t>(strides[order[i]]);
-//        }
-//    }
+    if (!inner_block_are_dense)
+        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+
+    bool inner_pad_offsets_is_zero = std::all_of(ie_offsetsToData.begin() + outer_ndims, ie_offsetsToData.end(),
+                                                 [](size_t pad) { return  pad == 0; });
+
+    if (!inner_pad_offsets_is_zero)
+        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+
+    // Fill general memory desc fields
+    desc.data.format_kind = dnnl_blocked;
+    desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
+    desc.data.ndims = dims.size();
+    desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
+    std::copy(dims.begin(), dims.end(), desc.data.dims);
+    std::copy(ie_offsetsToData.begin(), ie_offsetsToData.begin() + outer_ndims, desc.data.padded_offsets);
+    std::fill(desc.data.padded_dims, desc.data.padded_dims + outer_ndims, 1);
+    for (size_t i = 0; i < ie_order.size(); i++) {
+        auto idx = ie_order[i];
+        desc.data.padded_dims[idx] *= ie_blkdDims[i];
+    }
+
+    // Fill blocking desc
+    auto &dnn_blk_desc = desc.data.format_desc.blocking;
+    dnn_blk_desc.inner_nblks = inner_ndims;
+    std::copy(ie_blkdDims.end() - inner_ndims, ie_blkdDims.end(), dnn_blk_desc.inner_blks);
+    std::copy(ie_order.end() - inner_ndims, ie_order.end(), dnn_blk_desc.inner_idxs);
+    for (size_t i = 0; i < outer_ndims; i++) {
+        dnn_blk_desc.strides[i] = ie_strides[outer_order[i]];
+    }
 }
 
 bool MKLDNNMemoryDesc::blocksExtended() const {
