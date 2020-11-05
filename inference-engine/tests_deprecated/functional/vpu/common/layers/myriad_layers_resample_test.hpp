@@ -70,8 +70,8 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, int coordTra
                 int iy_r = (int)(round(iy));
 
                 if (coordTransMode == 2) { // asymmetric
-                    ix = ox*fx + fx / 2.0f;
-                    iy = oy*fy + fy / 2.0f;
+                    ix = ox*fx;
+                    iy = oy*fy;
                 }
                 if (nearestMode == 2) { // floor
                     ix_r = (int)(floor(ix));
