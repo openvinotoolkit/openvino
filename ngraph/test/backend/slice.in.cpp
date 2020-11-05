@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "gtest/gtest.h"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
@@ -197,15 +198,15 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_reshape)
+NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_transpose)
 {
     Shape shape_a{4, 5};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 4};
     auto B = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{4, 5});
-    auto C = make_shared<op::Reshape>(B, AxisVector{1, 0}, Shape{5, 3});
+    auto C = builder::opset1::transpose(B);
     auto D = make_shared<op::Slice>(C, Coordinate{1, 0}, Coordinate{5, 3});
-    auto E = make_shared<op::Reshape>(D, AxisVector{1, 0}, Shape{3, 4});
+    auto E = builder::opset1::transpose(D);
     auto r = make_shared<op::Slice>(E, Coordinate{1, 0}, Coordinate{3, 4});
     auto f = make_shared<Function>(r, ParameterVector{A});
 

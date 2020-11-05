@@ -462,6 +462,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_initializer_wo_input)
     test_case.run();
 }
 
+NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamicquantizelinear.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({-1.f, -2.1f, -1.3f, -2.5f, -3.34f, -4.f});
+    test_case.add_expected_output<uint8_t>(Shape{6}, {191, 121, 172, 96, 42, 0});
+    test_case.add_expected_output<float>(Shape{}, {0.0156862754f});
+    test_case.add_expected_output<uint8_t>(Shape{}, {255});
+    test_case.run();
+}
+
 // ############################################################################ OPERATOR TESTS
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_addmul_abc)
 {

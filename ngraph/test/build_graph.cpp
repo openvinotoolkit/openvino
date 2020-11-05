@@ -158,7 +158,7 @@ TEST(build_graph, multi_output_split_dynamic)
 {
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    const auto split = make_shared<op::Split>(data, axis, 2);
+    const auto split = make_shared<op::v1::Split>(data, axis, 2);
     auto abs = make_shared<op::Abs>(split->output(1));
     EXPECT_TRUE(abs->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 
@@ -214,7 +214,7 @@ TEST(build_graph, build_graph_with_sink)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), SinkVector({assign}), ParameterVector{arg});
@@ -235,7 +235,7 @@ TEST(build_graph, build_graph_with_sink_output_ctor)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(
@@ -257,7 +257,7 @@ TEST(build_graph, build_graph_with_add_sink)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), ParameterVector{arg});
@@ -284,7 +284,7 @@ TEST(build_graph, build_graph_with_wrong_remove_sink)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), SinkVector({assign}), ParameterVector{arg});
@@ -308,7 +308,7 @@ TEST(build_graph, build_graph_with_remove_sink)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), SinkVector({assign}), ParameterVector{arg});
@@ -334,7 +334,7 @@ TEST(build_graph, build_graph_with_add_result)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto res2 = make_shared<op::Result>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), ParameterVector{arg});
@@ -361,7 +361,7 @@ TEST(build_graph, build_graph_with_remove_result)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto res2 = make_shared<op::Result>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res, res2}), ParameterVector{arg});

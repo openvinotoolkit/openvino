@@ -56,6 +56,8 @@ NGRAPH_OP(MaxPool, op::v1)
 NGRAPH_OP(Mod, op::v1)
 NGRAPH_OP(OneHot, op::v1)
 NGRAPH_OP(Pad, op::v1)
+NGRAPH_OP(Split, op::v1)
+NGRAPH_OP(Reshape, op::v1)
 NGRAPH_OP(Select, op::v1)
 NGRAPH_OP(GatherTree, op::v1)
 

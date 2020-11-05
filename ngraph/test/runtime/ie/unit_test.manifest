@@ -15,6 +15,7 @@ onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
 onnx_model_quantize_linear_axis_negative
+onnx_expand_function
 
 # DequantizeLinear:
 # C++ exception with description "Unsupported precisions!
@@ -74,6 +75,16 @@ onnx_model_split_equal_parts_2d
 onnx_model_split_variable_parts_2d
 onnx_top_k_opset_10_const_k
 onnx_top_k_opset_11_const_k_smallest
+split_1d
+split_2d_axis_0
+split_2d_axis_1
+split_3d_axis_0
+split_3d_axis_1
+split_3d_axis_2
+split_4d_axis_0
+split_4d_axis_1
+split_4d_axis_2
+split_4d_axis_3
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
@@ -913,6 +924,9 @@ broadcast_algo_matrix_backward_4
 broadcast_algo_matrix_stride_1
 broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
+
+# Cannot find blob with name: Parameter_1
+dynamic_transpose
 
 # Failing from new reason after unblocking more Blob types
 gather_2d_negative_and_positive_indices_axis_0_2d_input

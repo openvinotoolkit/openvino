@@ -27,7 +27,7 @@
 #include "ngraph/op/dot.hpp"
 #include "ngraph/op/quantized_dot.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/op/slice.hpp"
+#include "ngraph/op/strided_slice.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -56,7 +56,10 @@ static Output<Node> get_sub_matrix(const Output<Node>& node, size_t idx)
     lower_bounds.at(0) = idx;
     upper_bounds.at(0) = idx + 1;
 
-    auto sub_matrix = Output<Node>{make_shared<op::Slice>(node, lower_bounds, upper_bounds)};
+    std::vector<int64_t> mask(shape.size(), 0);
+    auto begin = op::Constant::create(element::i64, {lower_bounds.size()}, lower_bounds);
+    auto end = op::Constant::create(element::i64, {upper_bounds.size()}, upper_bounds);
+    auto sub_matrix = make_shared<op::v1::StridedSlice>(node, begin, end, mask, mask);
     // Remove first single entry dim.
     return builder::opset1::squeeze(sub_matrix);
 }
@@ -149,8 +152,7 @@ OutputVector builder::MatmulFactory::make_matmul_op()
         Shape result_shape(next(begin(shape)), end(shape));
         result_shape.insert(
             begin(result_shape), begin(left_shape), next(begin(left_shape), left_shape.size() - 2));
-        return {make_shared<op::Reshape>(result, get_default_order(shape.size()), result_shape)
-                    ->add_provenance_group_members_above(m_inputs)};
+        return {builder::opset1::reshape(result, result_shape)};
     }
 }
 
