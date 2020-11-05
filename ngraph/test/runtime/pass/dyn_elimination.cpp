@@ -20,7 +20,6 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/range.hpp"
-#include "ngraph/op/slice.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/pattern/op/label.hpp"

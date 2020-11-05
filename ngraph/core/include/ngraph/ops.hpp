@@ -145,7 +145,6 @@
 #include "ngraph/op/sign.hpp"
 #include "ngraph/op/sin.hpp"
 #include "ngraph/op/sinh.hpp"
-#include "ngraph/op/slice.hpp"
 #include "ngraph/op/softmax.hpp"
 #include "ngraph/op/softplus.hpp"
 #include "ngraph/op/space_to_batch.hpp"

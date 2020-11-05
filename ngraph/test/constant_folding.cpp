@@ -1978,13 +1978,17 @@ TEST(constant_folding, const_gather_v1_subgraph_skip_if_not_single_input)
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
 }
 
-TEST(constant_folding, const_slice)
+TEST(constant_folding, const_strided_slice)
 {
     Shape shape_in{16};
 
     vector<int> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     auto constant = make_shared<op::Constant>(element::i32, shape_in, values_in);
-    auto slice = make_shared<op::Slice>(constant, Coordinate{2}, Coordinate{15}, Strides{3});
+    auto begin = op::Constant::create(element::i64, {1}, {2});
+    auto end = op::Constant::create(element::i64, {1}, {15});
+    auto stride = op::Constant::create(element::i64, {1}, {3});
+    auto slice = make_shared<op::v1::StridedSlice>(
+        constant, begin, end, stride, std::vector<int64_t>{0}, std::vector<int64_t>{0});
     slice->set_friendly_name("test");
 
     auto f = make_shared<Function>(slice, ParameterVector{});
@@ -1993,7 +1997,7 @@ TEST(constant_folding, const_slice)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Slice>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =

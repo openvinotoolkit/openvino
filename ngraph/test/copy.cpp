@@ -322,7 +322,7 @@ TEST(copy, sinh)
     ASSERT_TRUE(check_unary<op::Sinh>());
 }
 
-TEST(copy, slice)
+TEST(copy, strided_slice)
 {
     Shape shape_in{2, 3, 4};
     Coordinate lower{0, 0, 0};
@@ -330,18 +330,39 @@ TEST(copy, slice)
     Strides strides{1, 1, 1};
 
     auto arg0 = make_shared<op::Parameter>(element::f32, shape_in);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in)};
+    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in),
+                          op::Constant::create(element::u64, {lower.size()}, lower),
+                          op::Constant::create(element::u64, {upper.size()}, upper),
+                          op::Constant::create(element::i64, {strides.size()}, strides)};
 
-    auto node = make_shared<op::Slice>(arg0, lower, upper, strides);
+    auto begin_node = op::Constant::create(element::i64, {lower.size()}, lower);
+    auto end_node = op::Constant::create(element::i64, {upper.size()}, upper);
+    auto strides_node = op::Constant::create(element::i64, {strides.size()}, strides);
+    auto node = make_shared<op::v1::StridedSlice>(arg0,
+                                                  begin_node,
+                                                  end_node,
+                                                  strides_node,
+                                                  std::vector<int64_t>{0, 0, 1},
+                                                  std::vector<int64_t>{1, 0, 0},
+                                                  std::vector<int64_t>{0, 1, 0},
+                                                  std::vector<int64_t>{0, 0, 1},
+                                                  std::vector<int64_t>{1, 0, 0});
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Slice>(new_node);
+    auto node_cast = as_type_ptr<op::v1::StridedSlice>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(lower == node_cast->get_lower_bounds());
-    ASSERT_TRUE(upper == node_cast->get_upper_bounds());
-    ASSERT_TRUE(strides == node_cast->get_strides());
+    std::vector<int64_t> expected_begin_mask{0, 0, 1};
+    std::vector<int64_t> expected_end_mask{1, 0, 0};
+    std::vector<int64_t> expected_new_axis_mask{0, 1, 0};
+    std::vector<int64_t> expected_shrink_axis_mask{0, 0, 1};
+    std::vector<int64_t> expected_ellipsis_mask{1, 0, 0};
+    ASSERT_TRUE(expected_begin_mask == node_cast->get_begin_mask());
+    ASSERT_TRUE(expected_end_mask == node_cast->get_end_mask());
+    ASSERT_TRUE(expected_new_axis_mask == node_cast->get_new_axis_mask());
+    ASSERT_TRUE(expected_shrink_axis_mask == node_cast->get_shrink_axis_mask());
+    ASSERT_TRUE(expected_ellipsis_mask == node_cast->get_ellipsis_mask());
 }
 
 TEST(copy, subtract)

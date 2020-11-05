@@ -1353,7 +1353,6 @@ protected:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SpaceToDepth:
-        case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
         case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:
@@ -1389,12 +1388,12 @@ protected:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
         case OP_TYPEID::Softmax:
+        case OP_TYPEID::Split_v1:
         case OP_TYPEID::Squeeze:
         case OP_TYPEID::Sum:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
-        case OP_TYPEID::Slice:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

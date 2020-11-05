@@ -360,86 +360,6 @@ namespace opset0_downgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::StridedSlice> node)
-    {
-        auto convert_mask_to_axes = [](const std::vector<int64_t>& mask) {
-            AxisSet axes{};
-            for (auto i = 0; i < mask.size(); ++i)
-            {
-                if (mask[i] == 1)
-                {
-                    axes.emplace(i);
-                }
-            }
-            return axes;
-        };
-
-        const auto input_data = node->input_value(0);
-        const auto input_data_pshape = input_data.get_partial_shape();
-
-        NGRAPH_CHECK(input_data_pshape.is_static(),
-                     "Unable to convert StridedSlice:v1 to Slice:v0 "
-                     "if input rank is not static. Node: ",
-                     *node);
-
-        const auto begin_const =
-            as_type_ptr<op::Constant>(node->input_value(1).get_node_shared_ptr());
-        const auto end_const =
-            as_type_ptr<op::Constant>(node->input_value(2).get_node_shared_ptr());
-        const auto strides = as_type_ptr<op::Constant>(node->input_value(3).get_node_shared_ptr());
-
-        NGRAPH_CHECK(begin_const && end_const && strides,
-                     "Unable to convert StridedSlice:v1 to Slice:v0 "
-                     "if begin, end or strides are not constant. Node: ",
-                     *node);
-
-        SlicePlan p = make_slice_plan(input_data_pshape.to_shape(),
-                                      begin_const->get_vector<int64_t>(),
-                                      end_const->get_vector<int64_t>(),
-                                      strides->get_vector<int64_t>(),
-                                      convert_mask_to_axes(node->get_begin_mask()),
-                                      convert_mask_to_axes(node->get_end_mask()),
-                                      convert_mask_to_axes(node->get_new_axis_mask()),
-                                      convert_mask_to_axes(node->get_shrink_axis_mask()),
-                                      convert_mask_to_axes(node->get_ellipsis_mask()));
-
-        shared_ptr<Node> replacement_node =
-            make_shared<op::v0::Slice>(input_data,
-                                       Coordinate(p.begins.begin(), p.begins.end()),
-                                       Coordinate(p.ends.begin(), p.ends.end()),
-                                       Strides(p.strides.begin(), p.strides.end()));
-
-        if (p.reshape_in_shape != p.reshape_out_shape)
-        {
-            auto shape_pattern = op::Constant::create(
-                element::u64, {p.reshape_out_shape.size()}, p.reshape_out_shape);
-            replacement_node = make_shared<op::v1::Reshape>(replacement_node, shape_pattern, false);
-        }
-
-        if (!p.reverse_axes.empty())
-        {
-            replacement_node = make_shared<op::v1::Reverse>(
-                replacement_node,
-                op::Constant::create(
-                    element::u64, {p.reverse_axes.size()}, p.reverse_axes.to_vector()),
-                op::v1::Reverse::Mode::INDEX);
-        }
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Split> node)
-    {
-        const auto num_splits = node->get_num_splits();
-
-        auto replacement_node =
-            make_shared<op::v0::Split>(node->input_value(0), node->input_value(1), num_splits);
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Subtract> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Subtract, op::v1::Subtract>(node);
@@ -468,25 +388,6 @@ namespace opset0_downgrade
         // values output will be 0, indices 1
         vector<int64_t> output_order{1, 0};
         replace_node(node, replacement_node, output_order);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::VariadicSplit> node)
-    {
-        const auto split_lengths = node->input_value(2).get_node_shared_ptr();
-
-        NGRAPH_CHECK(op::is_constant(split_lengths),
-                     "Unable to convert VariadicSplit:v1 to Split:v0 "
-                     "if 'split_lengths' input is not constant. Node: ",
-                     *node);
-
-        const auto splits = as_type_ptr<op::Constant>(split_lengths)->cast_vector<int64_t>();
-        const std::vector<size_t> splits_unsigned{splits.begin(), splits.end()};
-
-        auto replacement_node =
-            make_shared<op::v0::Split>(node->input_value(0), node->input_value(1), splits_unsigned);
-
-        replace_node(node, replacement_node);
         return replacement_node;
     }
 

@@ -29,22 +29,22 @@ TEST(type_prop, split)
 
     try
     {
-        const std::vector<size_t> splits = {1, 6}; // should sum up to 6
         const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-        const auto split = make_shared<op::Split>(data, axis, splits);
+        const auto split = make_shared<op::v1::Split>(data, axis, 7);
         FAIL() << "Split node was created with incorrect data.";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("has to be equal to the sum of splits passed to the op: 7"));
+            error.what(),
+            std::string("The input tensor's dimension pointed by the 'axis' parameter: 6 has to be "
+                        "a multiple of the 'num_splits' attribute value: 7"));
     }
 
     try
     {
-        const std::vector<size_t> splits = {4, 2};
         const auto axis = op::Constant::create(element::i64, Shape{}, {-5});
-        const auto split = make_shared<op::Split>(data, axis, splits); // invalid axis
+        const auto split = make_shared<op::v1::Split>(data, axis, 4); // invalid axis
         FAIL() << "Split node was created with incorrect data.";
     }
     catch (const ngraph_error& error)
@@ -53,7 +53,7 @@ TEST(type_prop, split)
     }
 
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    const auto split = make_shared<op::Split>(data, axis, 2);
+    const auto split = make_shared<op::v1::Split>(data, axis, 2);
     EXPECT_EQ(split->outputs().size(), 2);
     EXPECT_EQ(split->get_output_shape(0), (Shape{2, 3}));
     EXPECT_EQ(split->get_output_shape(1), (Shape{2, 3}));
@@ -64,38 +64,17 @@ TEST(type_prop, split)
 TEST(type_prop, split_axis_must_be_scalar)
 {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    const std::vector<size_t> splits = {1, 6};
     const auto axis = op::Constant::create(element::i64, Shape{2}, {0, 1});
 
     try
     {
-        const auto split = make_shared<op::Split>(data, axis, splits);
+        const auto split = make_shared<op::v1::Split>(data, axis, 1);
         FAIL() << "Incorrect axis of Split not detected.";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("The 'axis' input node must be scalar"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason.";
-    }
-}
-
-TEST(type_prop, split_axis_must_be_constant)
-{
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    const std::vector<size_t> splits = {1, 6};
-    const auto axis = make_shared<op::Parameter>(element::i32, Shape{});
-
-    try
-    {
-        const auto split = make_shared<op::Split>(data, axis, splits);
-        FAIL() << "Not constant axis of Split not detected.";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("The 'axis' input node must be constant"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("The 'axis' input is expected to be a scalar"));
     }
     catch (...)
     {
