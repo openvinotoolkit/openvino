@@ -6,6 +6,7 @@
 
 #include <ngraph/node.hpp>
 #include <legacy/ngraph_ops/nms_ie.hpp>
+#include <ngraph/opsets/opset5.hpp>
 
 #include <memory>
 #include <vector>
@@ -16,6 +17,8 @@ class StaticShapeNonMaxSuppression : public ngraph::op::NonMaxSuppressionIE3 {
 public:
     static constexpr NodeTypeInfo type_info{"StaticShapeNonMaxSuppression", 0};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
+
+    explicit StaticShapeNonMaxSuppression(const ngraph::opset5::NonMaxSuppression& nms);
 
     StaticShapeNonMaxSuppression(const Output<Node>& boxes,
                                  const Output<Node>& scores,

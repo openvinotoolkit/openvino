@@ -21,16 +21,7 @@ void dynamicToStaticNonMaxSuppression(std::shared_ptr<ngraph::Node> node) {
     VPU_THROW_UNLESS(nms, "dynamicToStaticNonMaxSuppression transformation for {} of type {} expects {} as node for replacement",
                      node->get_friendly_name(), node->get_type_info(), ngraph::opset5::NonMaxSuppression::type_info);
 
-    auto staticShapeNMS = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
-            nms->input_value(0),
-            nms->input_value(1),
-            nms->input_value(2),
-            nms->input_value(3),
-            nms->input_value(4),
-            nms->input_value(5),
-            nms->get_box_encoding() == ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER ? 1 : 0,
-            nms->get_sort_result_descending(),
-            nms->get_output_type());
+    auto staticShapeNMS = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(*nms);
 
     auto dsrIndices = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
             staticShapeNMS->output(0), staticShapeNMS->output(2));
