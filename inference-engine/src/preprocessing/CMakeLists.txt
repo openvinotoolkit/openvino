@@ -172,7 +172,7 @@ target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # developer package
 
