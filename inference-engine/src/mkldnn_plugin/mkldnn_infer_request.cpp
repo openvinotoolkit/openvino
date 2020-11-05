@@ -112,7 +112,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                         copyConvert<float>(InferenceEngine::Precision::FP32, input, convertedInputs);
                     } else {
                         // Instead we can send I16 directly
-                        pushInput<int16_t>(input.first, input.second);
+                        copyConvert<int32_t>(InferenceEngine::Precision::I32, input, convertedInputs);
                     }
                     break;
                 case InferenceEngine::Precision::U8:
