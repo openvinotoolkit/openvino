@@ -39,7 +39,7 @@ namespace InferenceEngine {
  *  For convenience, we have already enabled the unconditional execution of the UnrollTensorIterator
  *  transformation when using the LowLatency transformation for CPU, GNA plugins, no action is required here.
  *  After applying both of these transformations, the resulting network can be inferred step by
- *  step,the states will store between inferences.
+ *  step, the states will store between inferences.
  *
  *    An illustrative example, not real API:
  *
@@ -48,6 +48,8 @@ namespace InferenceEngine {
  *    network->infer (...)  // Calculating new values for states.
  *    // All states are stored between inferences via Assign, ReadValue layers.
  *    network->infer (...)  // Using stored states, calculating new values for states.
+ *
+ * @param network A network to apply LowLatency transformation
  * *
  */
 INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);

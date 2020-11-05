@@ -16,7 +16,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "transformations/op_conversions/low_latency.hpp"
+#include "transformations/common_optimizations/low_latency.hpp"
 
 #include "subgraph_tests/basic_lstm.hpp"
 

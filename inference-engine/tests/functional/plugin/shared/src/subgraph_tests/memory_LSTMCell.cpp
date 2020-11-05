@@ -21,7 +21,7 @@
 
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "transformations/op_conversions/low_latency.hpp"
+#include "transformations/common_optimizations/low_latency.hpp"
 #include "subgraph_tests/memory_LSTMCell.hpp"
 
 namespace SubgraphTestsDefinitions {

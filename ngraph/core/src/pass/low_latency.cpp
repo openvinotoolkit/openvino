@@ -25,7 +25,6 @@ ngraph::pass::LowLatency::LowLatency()
         // Mark the TI layer to be unrolled. Enable unconditional ti unrolling for all plugins.
         auto& rt_info = ti->get_rt_info();
         rt_info["UNROLL_TI"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(1);
-        ;
 
         int64_t variable_id = 0;
         std::vector<std::shared_ptr<ngraph::op::Sink>> assigns;
@@ -64,7 +63,7 @@ ngraph::pass::LowLatency::LowLatency()
         }
         // save Assign in the func so that it gets into graph traversals and isn't deleted.
         func->add_sinks(assigns);
-        return true;
+        return false;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "LowLatency");

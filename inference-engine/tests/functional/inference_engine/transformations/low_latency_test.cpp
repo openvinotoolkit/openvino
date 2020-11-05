@@ -14,7 +14,7 @@
 
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/low_latency.hpp>
+#include <transformations/common_optimizations/low_latency.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

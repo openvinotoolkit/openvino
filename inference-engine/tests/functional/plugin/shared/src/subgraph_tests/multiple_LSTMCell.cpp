@@ -22,7 +22,7 @@
 #include <ngraph/pass/visualize_tree.hpp>
 #include <ie_transformations.hpp>
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "transformations/op_conversions/low_latency.hpp"
+#include "transformations/common_optimizations/low_latency.hpp"
 #include "subgraph_tests/multiple_LSTMCell.hpp"
 
 namespace SubgraphTestsDefinitions {
