@@ -1028,114 +1028,6 @@ protected:
 
             break;
         }
-
-        case OP_TYPEID::QuantizedConvolution:
-        {
-            const op::QuantizedConvolution* qc =
-                static_cast<const op::QuantizedConvolution*>(&node);
-
-            auto input_element_type = qc->get_input_element_type(0);
-            auto filter_element_type = qc->get_input_element_type(1);
-            auto output_element_type = qc->get_output_element_type(0);
-
-            if (input_element_type == element::u8 && filter_element_type == element::i8 &&
-                output_element_type == element::i8)
-            {
-                reference::convolution<uint8_t, int8_t, int8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int8_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::u8 &&
-                     output_element_type == element::u8)
-            {
-                reference::convolution<uint8_t, uint8_t, uint8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<uint8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const uint8_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::i8 &&
-                     output_element_type == element::i32)
-            {
-                reference::convolution<uint8_t, int8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::u8 &&
-                     output_element_type == element::i32)
-            {
-                reference::convolution<uint8_t, uint8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else
-            {
-                std::stringstream ss;
-                ss << "unsupported element type";
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        }
-
         case OP_TYPEID::QuantizedDot:
         {
             const op::QuantizedDot* qd = static_cast<const op::QuantizedDot*>(&node);
@@ -1245,17 +1137,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::Reverse:
-        {
-            const op::Reverse* reverse = static_cast<const op::Reverse*>(&node);
-            reference::reverse(args[0]->get_data_ptr<const char>(),
-                               out[0]->get_data_ptr<char>(),
-                               node.get_input_shape(0),
-                               node.get_output_shape(0),
-                               reverse->get_reversed_axes(),
-                               args[0]->get_element_type().size());
-            break;
-        }
         case OP_TYPEID::ReverseSequence:
         {
             const op::ReverseSequence* reverse = static_cast<const op::ReverseSequence*>(&node);
@@ -1273,15 +1154,6 @@ protected:
             {
                 throw ngraph_error("only int32 indices are supported");
             }
-            break;
-        }
-        case OP_TYPEID::Round:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            reference::round<T>(args[0]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                element_count,
-                                op::v5::Round::RoundMode::HALF_TO_EVEN);
             break;
         }
         case OP_TYPEID::Select:
@@ -1481,9 +1353,7 @@ protected:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SpaceToDepth:
-        case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
-        case OP_TYPEID::StopGradient:
         case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:
         case OP_TYPEID::UnknownOp:
@@ -1509,21 +1379,20 @@ protected:
         case OP_TYPEID::Multiply:
         case OP_TYPEID::NonZero_v3:
         case OP_TYPEID::NotEqual:
-        case OP_TYPEID::Or:
         case OP_TYPEID::Power:
         case OP_TYPEID::Range:
-        case OP_TYPEID::Reshape:
+        case OP_TYPEID::Reshape_v1:
         case OP_TYPEID::Result:
+        case OP_TYPEID::Reverse_v1:
         case OP_TYPEID::Round_v5:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
         case OP_TYPEID::Softmax:
+        case OP_TYPEID::Split_v1:
         case OP_TYPEID::Squeeze:
-        case OP_TYPEID::Sum:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
-        case OP_TYPEID::Slice:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

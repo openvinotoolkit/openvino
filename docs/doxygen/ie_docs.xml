@@ -22,6 +22,7 @@
                             <tab type="user" title="Converting BERT from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow"/>
                             <tab type="user" title="Convert TensorFlow* XLNet Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow"/>
                             <tab type="user" title="Converting TensorFlow* Wide and Deep Models from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models"/>
+                            <tab type="user" title="Converting EfficientDet Models from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models"/>
                         </tab>
                         <tab type="usergroup" title="Converting a MXNet* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet">
                             <tab type="user" title="Converting a Style Transfer Model from MXNet" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet"/>
