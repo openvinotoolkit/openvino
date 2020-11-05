@@ -33,6 +33,8 @@ struct jit_uni_softmax_kernel {
 
     jit_uni_softmax_kernel() : ker_(nullptr) {}
     virtual ~jit_uni_softmax_kernel() {}
+
+    virtual void create_ker() = 0;
 };
 
 template <cpu_isa_t isa>
@@ -40,6 +42,11 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_softmax_kernel_f32)
 
     jit_uni_softmax_kernel_f32() : jit_uni_softmax_kernel(), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
 
     void generate() override {
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 0.0f));

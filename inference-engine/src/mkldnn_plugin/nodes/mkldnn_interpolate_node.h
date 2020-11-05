@@ -79,6 +79,8 @@ struct jit_uni_interpolate_kernel {
     explicit jit_uni_interpolate_kernel(jit_interpolate_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_interpolate_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_interpolate_config_params jcp_;
     const mkldnn_primitive_attr &attr_;
 };

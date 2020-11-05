@@ -41,6 +41,8 @@ struct jit_uni_interp_kernel {
 
     jit_uni_interp_kernel() : ker_(nullptr) {}
     virtual ~jit_uni_interp_kernel() {}
+
+    virtual void create_ker() = 0;
 };
 
 template <cpu_isa_t isa>
@@ -48,6 +50,11 @@ struct jit_uni_interp_kernel_f32 : public jit_uni_interp_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interp_kernel_f32)
 
     jit_uni_interp_kernel_f32() : jit_uni_interp_kernel(), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
 
     void generate() override {
         this->preamble();

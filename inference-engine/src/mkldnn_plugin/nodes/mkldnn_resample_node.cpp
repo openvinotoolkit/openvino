@@ -42,6 +42,12 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
 
     explicit jit_uni_resample_nearest_kernel_f32(jit_resample_config_params jcp, const mkldnn_primitive_attr &attr)
             : jit_uni_resample_nearest_kernel(jcp, attr), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
     void generate() override {
         const auto &p = attr_.post_ops_;
         for (int i = 0; i < p.len(); i++) {

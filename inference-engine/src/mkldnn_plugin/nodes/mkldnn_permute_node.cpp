@@ -27,6 +27,11 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
 
     explicit jit_uni_permute_kernel_f32(jit_permute_conf_t jpp) : jit_uni_permute_kernel(jpp), jit_generator() {}
 
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
     void generate() override {
         this->preamble();
 

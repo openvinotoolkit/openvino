@@ -37,6 +37,8 @@ struct jit_uni_logistic_kernel {
 
     void operator()(const jit_args_logistic *args) { assert(ker_); ker_(args); }
 
+    virtual void create_ker() = 0;
+
     jit_uni_logistic_kernel() : ker_(nullptr) {}
     virtual ~jit_uni_logistic_kernel() {}
 };
@@ -46,6 +48,11 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
     jit_uni_logistic_kernel_f32() : jit_uni_logistic_kernel(), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
 
     void generate() override {
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));

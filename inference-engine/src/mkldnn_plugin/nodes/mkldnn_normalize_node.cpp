@@ -31,6 +31,12 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_modulo_kernel_f32)
 
     jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp) : jit_uni_normalize_modulo_kernel(jcp), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
     void generate() override {
         this->preamble();
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -143,6 +149,11 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
     explicit jit_uni_normalize_kernel_f32(jit_normalize_config_params jcp, const mkldnn_primitive_attr &attr)
     : jit_uni_normalize_kernel(jcp, attr), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
 
     void generate() override {
         const auto &p = attr_.post_ops_;

@@ -74,6 +74,11 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
     : jit_uni_reduce_kernel(jcp), jit_generator() {}
 
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
     void generate() override {
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1));
 
@@ -784,6 +789,11 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp)
     : jit_uni_reduce_post_kernel(jcp), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
 
     void generate() override {
         log_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_log, 0.f, 0.f, 1.f));

@@ -56,6 +56,8 @@ struct jit_uni_reduce_kernel {
     explicit jit_uni_reduce_kernel(jit_reduce_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
     virtual ~jit_uni_reduce_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_reduce_config_params jcp_;
 };
 
@@ -66,6 +68,8 @@ struct jit_uni_reduce_post_kernel {
         assert(ker_);
         ker_(args);
     }
+
+    virtual void create_ker() = 0;
 
     explicit jit_uni_reduce_post_kernel(jit_reduce_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
     virtual ~jit_uni_reduce_post_kernel() {}
