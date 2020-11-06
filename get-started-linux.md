@@ -216,7 +216,7 @@ To run the Image Classification sample application with an input image on the pr
 
    >**NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute 
    Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
-   performing [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2).
+   performing [additional hardware configuration steps](build-instruction.md#optional-additional-installation-steps-for-the-intel-neural-compute-stick-2).
    ```sh
    ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
    ```
