@@ -102,7 +102,9 @@ namespace ngraph
                     const auto& function_output =
                         m_function->get_results()[m_allocated_expected_outputs];
 
-                    network_out_name = function_output->get_friendly_name();
+                    network_out_name = function_output->get_input_node_ptr(0)->get_friendly_name();
+                    auto port = function_output->get_input_source_output(0).get_index();
+                    network_out_name += '.' + std::to_string(port);
 
                     NGRAPH_CHECK(
                         m_network_outputs.count(network_out_name) == 1,
@@ -111,7 +113,7 @@ namespace ngraph
                         " was not found in the CNNNetwork built from it. Function's output name: ",
                         function_output->get_friendly_name());
 
-                    network_output = m_network_outputs[function_output->get_friendly_name()];
+                    network_output = m_network_outputs[network_out_name];
                 }
 
                 auto blob =

@@ -129,7 +129,6 @@ onnx_model_logsoftmax_0D
 
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference
-# Is it expected?
 onnx_controlflow_loop_concat_values
 
 # Infinitive Loop is not supported
