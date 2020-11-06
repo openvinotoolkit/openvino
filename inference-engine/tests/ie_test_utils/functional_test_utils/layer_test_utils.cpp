@@ -1,13 +1,31 @@
 // Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <chrono>
 
-#include <transformations/op_conversions/convert_batch_to_space.hpp>
-#include <transformations/op_conversions/convert_space_to_batch.hpp>
-
+#include "transformations/op_conversions/convert_batch_to_space.hpp"
+#include "transformations/op_conversions/convert_space_to_batch.hpp"
+#include "transformations/serialize.hpp"
 #include "layer_test_utils.hpp"
 #include "plugin_config.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
+namespace {
+std::string timestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto epoch = now.time_since_epoch();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
+    return std::to_string(ns.count());
+}
+
+std::string test_name() {
+    std::string test_name =
+        ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::replace_if(test_name.begin(), test_name.end(),
+                    [](char c) { return !std::isalnum(c); }, '_');
+    return test_name;
+}
+}  // namespace
 namespace LayerTestsUtils {
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
@@ -20,6 +38,30 @@ void LayerTestsCommon::Run() {
     LoadNetwork();
     Infer();
     Validate();
+}
+
+void LayerTestsCommon::Serialize() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    std::string out_xml_path = test_name() + "_" + timestamp() + ".xml";
+    std::string out_bin_path = test_name() + "_" + timestamp() + ".bin";
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
+    manager.run_passes(function);
+
+    InferenceEngine::Core ie;
+    auto result = ie.ReadNetwork(out_xml_path, out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+        compare_functions(result.getFunction(), function);
+
+    ASSERT_TRUE(success) << message;
+
+    std::remove(out_xml_path.c_str());
+    std::remove(out_bin_path.c_str());
 }
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {

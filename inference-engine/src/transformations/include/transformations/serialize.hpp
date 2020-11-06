@@ -6,6 +6,7 @@
 #include <string>
 
 #include "ngraph/pass/pass.hpp"
+#include "ngraph/opsets/opset.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ngraph {
