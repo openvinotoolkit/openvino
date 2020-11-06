@@ -6,8 +6,9 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -87,18 +88,18 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getReference(
     parent = maxPool;
 
     if (parent->get_output_element_type(0) != originalFunctionPrecision) {
-        const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
+        const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::pass::low_precision::DequantizationConvert>(parent, originalFunctionPrecision);
         parent = convert;
     }
 
     if (!values.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::opset1::Subtract>(
+        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.subtractValues.size() }), values.subtractValues));
         parent = subtract;
     }
 
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
+    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(
         parent,
         std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
     multiply->set_friendly_name("output");
