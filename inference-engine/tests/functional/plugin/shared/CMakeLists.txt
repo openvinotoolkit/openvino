@@ -43,7 +43,3 @@ ie_faster_build(${TARGET_NAME}
 if (TARGET MKLDNNPlugin)
     add_dependencies(${TARGET_NAME} MKLDNNPlugin)
 endif()
-
-if (ENABLE_SKIPPED_TESTS)
-    target_compile_definitions(${TARGET_NAME} INTERFACE ENABLE_SKIPPED_TESTS)
-endif()
