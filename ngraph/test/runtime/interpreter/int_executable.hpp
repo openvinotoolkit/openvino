@@ -1387,7 +1387,7 @@ protected:
         case OP_TYPEID::Round_v5:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
-        case OP_TYPEID::Softmax:
+        case OP_TYPEID::Softmax_v1:
         case OP_TYPEID::Split_v1:
         case OP_TYPEID::Squeeze:
         case OP_TYPEID::Subtract:

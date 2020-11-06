@@ -284,24 +284,6 @@ namespace opset1_upgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Softmax> node)
-    {
-        NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),
-                     "axes parameter is expected to be a static constant");
-
-        AxisSet axes = node->get_axes();
-
-        NGRAPH_CHECK(
-            axes.size() == 1,
-            "Unable to convert Softmax:0 to Softmax:1 with zero or more than one axis. Node: ",
-            *node);
-
-        auto replacement_node =
-            make_shared<op::v1::Softmax>(node->input_value(0), axes.to_vector()[0]);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Subtract> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Subtract, op::v1::Subtract>(node);

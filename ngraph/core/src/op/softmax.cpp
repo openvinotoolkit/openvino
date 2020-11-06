@@ -29,105 +29,8 @@
 #include "ngraph/runtime/reference/softmax.hpp"
 #include "ngraph/util.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
-
-// *** SOFTMAX OP SET 0 ***
-constexpr NodeTypeInfo op::v0::Softmax::type_info;
-
-op::v0::Softmax::Softmax(const Output<Node>& arg, const AxisSet& axes)
-    : Op({arg})
-{
-    set_argument(
-        1,
-        op::Constant::create(element::i64, Shape{axes.to_vector().size()}, axes.to_vector())
-            ->output(0));
-    add_provenance_group_member(input_value(1).get_node_shared_ptr());
-    constructor_validate_and_infer_types();
-}
-
-op::v0::Softmax::Softmax(const Output<Node>& arg, const Output<Node>& axes)
-    : Op({arg, axes})
-{
-    constructor_validate_and_infer_types();
-}
-
-bool op::v0::Softmax::are_axes_constant() const
-{
-    return op::is_constant(input_value(1).get_node());
-}
-
-const AxisSet op::v0::Softmax::get_axes() const
-{
-    AxisSet axes;
-    auto const_op = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr());
-    if (const_op)
-    {
-        axes = const_op->get_axis_set_val();
-    }
-    else
-    {
-        throw ngraph_error("get_axes called on a Softmax node whose 'axes' input is not constant");
-    }
-    return axes;
-}
-
-void op::v0::Softmax::set_axes(const AxisSet& axes)
-{
-    shared_ptr<Node> current_const = input_value(1).get_node_shared_ptr();
-    shared_ptr<Node> replacement_const =
-        op::Constant::create(element::i64, Shape{axes.to_vector().size()}, axes.to_vector());
-    this->input(1).replace_source_output(replacement_const->output(0));
-    replace_provenance_group_member(current_const, replacement_const);
-}
-
-void op::v0::Softmax::validate_and_infer_types()
-{
-    const PartialShape& input_shape = get_input_partial_shape(0);
-
-    if (input_shape.is_dynamic())
-    {
-        set_output_type(0, get_input_element_type(0), input_shape);
-    }
-    else
-    {
-        set_output_type(0, get_input_element_type(0), input_shape.to_shape());
-
-        if (are_axes_constant())
-        {
-            auto m_axes = get_axes();
-            for (auto axis : m_axes)
-            {
-                NODE_VALIDATION_CHECK(this,
-                                      axis < input_shape.rank().get_length(),
-                                      "Reduction axis (",
-                                      axis,
-                                      ") is out of bounds (argument shape: ",
-                                      input_shape,
-                                      ").");
-            }
-            // empty axes == all axes
-            if (m_axes.size() == 0)
-            {
-                for (size_t i = 0; i < get_shape().size(); ++i)
-                {
-                    m_axes.insert(i);
-                }
-                set_axes(m_axes);
-            }
-        }
-    }
-
-    set_input_is_relevant_to_shape(1);
-}
-
-shared_ptr<Node> op::v0::Softmax::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<Softmax>(new_args.at(0), new_args.at(1));
-}
 
 namespace
 {
@@ -150,14 +53,6 @@ namespace
                try_evaluate_softmax<element::Type_t::f32>(arg, out, shape, axes) ||
                try_evaluate_softmax<element::Type_t::f64>(arg, out, shape, axes);
     }
-}
-
-bool op::v0::Softmax::evaluate(const HostTensorVector& outputs,
-                               const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Softmax::evaluate");
-    outputs[0]->set_unary(inputs[0]);
-    return evaluate_softmax(inputs[0], outputs[0], get_axes());
 }
 
 // *** SOFTMAX OP SET V1 ***
