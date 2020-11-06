@@ -517,7 +517,6 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
 #endif
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<InsertPermuteConvolutionOutputNHWCToNCHWPass>();
-        passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
         passes->registerPass<BroadcastConstPass>();
         passIdx = passes->run(passIdx);
