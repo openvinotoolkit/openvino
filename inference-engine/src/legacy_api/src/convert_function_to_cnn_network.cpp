@@ -143,7 +143,6 @@ private:
     std::shared_ptr<::ngraph::Node> node;
     std::map<std::string, std::string> params;
     std::map<std::string, CreatorFor> creators;
-
 };
 
 void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& name,

@@ -268,7 +268,7 @@ private:
                 auto data = static_cast<char*>(adapter.get_ptr());
                 size_t length = std::min(value.size(), adapter.size());
                 value.copy(data, length);
-            } else if (name == "value") {
+            } else if (name == "value" && type == "Const") {
                 std::vector<int64_t> shape;
                 std::string el_type_str;
 
