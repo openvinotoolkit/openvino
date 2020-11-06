@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,9 @@
 // limitations under the License.
 */
 
-#include <gtest/gtest.h>
-#include "api/engine.hpp"
-#include "test_utils/test_utils.h"
-#include "api/network.hpp"
-#include "api/topology.hpp"
-#include "api/input_layout.hpp"
-#include "api/activation.hpp"
-#include "api/cldnn.hpp"
-
 #include "test_utils.h"
+
+#include <cldnn/runtime/cldnn.hpp>
 
 #define CL_HPP_ENABLE_EXCEPTIONS
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
@@ -239,6 +232,3 @@ TEST(gpu_device_query, DISABLED_release_device)
     //check if simple execution was finished correctly
     execute_simple_topology(eng);
 }
-
-
-

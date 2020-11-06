@@ -15,25 +15,22 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/permute.hpp"
-#include "api/reorder.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/data.hpp>
-#include <api/fully_connected.hpp>
-#include <api/reshape.hpp>
-#include <api/crop.hpp>
+
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/permute.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/fully_connected.hpp>
+#include <cldnn/primitives/reshape.hpp>
+#include <cldnn/primitives/crop.hpp>
+
 #include <cmath>
-#include <gmock/gmock.h>
 #include <limits>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 using namespace testing;
 
 TEST(permute_gpu_f32, output_ordering_test)

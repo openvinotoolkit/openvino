@@ -17,7 +17,7 @@
 #include "average_unpooling_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "json_object.h"
 #include <string>
 

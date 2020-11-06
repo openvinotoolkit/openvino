@@ -16,15 +16,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <gtest/gtest.h>
-
 #include "test_utils.h"
 
-#include "api/topology.hpp"
-#include "api/network.hpp"
-#include "api/input_layout.hpp"
-#include "api/non_max_suppression.hpp"
-#include "api/data.hpp"
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/non_max_suppression.hpp>
+#include <cldnn/primitives/data.hpp>
 
 using namespace cldnn;
 

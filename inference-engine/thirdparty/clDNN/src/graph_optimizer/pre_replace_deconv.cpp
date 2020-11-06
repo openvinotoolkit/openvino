@@ -28,7 +28,7 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 void pre_replace_deconv::run(program_impl& p) {
     bool update_processing_order = false;

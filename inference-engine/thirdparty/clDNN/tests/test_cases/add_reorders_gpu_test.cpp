@@ -15,25 +15,19 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/reorder.hpp>
-#include <api/data.hpp>
-#include <api/activation.hpp>
-#include <api/mutable_data.hpp>
-#include <api/layout.hpp>
-#include <api/tile.hpp>
-#include <api/reshape.hpp>
+#include "test_utils.h"
 
-#include <api/concatenation.hpp>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/activation.hpp>
+#include <cldnn/primitives/mutable_data.hpp>
+#include <cldnn/primitives/tile.hpp>
+#include <cldnn/primitives/reshape.hpp>
+#include <cldnn/primitives/concatenation.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 /*
 These tests are inteded to check if additional reorders are being added  properly during

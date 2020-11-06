@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "reorg_yolo/reorg_yolo_kernel_selector.h"
 #include "reorg_yolo/reorg_yolo_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 namespace cldnn {
 namespace gpu {

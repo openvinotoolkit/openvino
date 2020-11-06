@@ -15,25 +15,27 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "network_impl.h"
-#include "engine_impl.h"
-#include "event_impl.h"
-#include "program_impl.h"
-#include "api/data.hpp"
-#include "api/mutable_data.hpp"
-#include "api/input_layout.hpp"
-#include <src/include/to_string_utils.h>
 
-#include "error_handler.h"
+#include "cldnn/primitives/data.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
+#include "cldnn/primitives/input_layout.hpp"
+
+#include "network_impl.h"
+#include "program_impl.h"
+#include "to_string_utils.h"
+#include "cldnn/runtime/error_handler.h"
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "kernel_selector_helper.h"
-#include "gpu/memory_gpu.h"
-#include <algorithm>
 
-#include "gpu/ocl_toolkit.h"
+#include "runtime/memory_gpu.h"
+#include "runtime/engine_impl.h"
+#include "runtime/event_impl.h"
+#include "runtime/ocl_toolkit.h"
+
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <memory>
@@ -55,7 +57,7 @@
 namespace cldnn {
 
 network::network(program const& program, uint16_t stream_id)
-    : _impl(program.get()->get_engine().allocate_network(*program.get(), stream_id).detach()) {}
+    : _impl(network_impl::allocate_network(program.get()->get_engine(), *program.get(), stream_id).detach()) {}
 
 engine network::get_engine() const {
     auto impl = engine_impl::ptr(&_impl->get_engine());
@@ -300,7 +302,7 @@ network_impl::network_impl(const program_impl& program, uint16_t stream_id, bool
     build_insts_deps();
     build_exec_order();
     validate_primitives();
-    _program->dump_memory_pool();
+    init_kernels();
 }
 
 network_impl::~network_impl() {
@@ -316,23 +318,53 @@ network_impl::~network_impl() {
     }
 }
 
+network_impl::ptr network_impl::allocate_network(const engine_impl& engine, const program_impl& program, uint16_t stream_id, bool is_internal) {
+    if (stream_id >= engine.configuration().n_streams)
+        throw std::invalid_argument("Unable to create network with stream_id=" + std::to_string(stream_id));
+    network_impl::ptr netw_impl{ new network_impl(program, stream_id, is_internal), false };
+    return netw_impl;
+}
+
+network_impl::ptr network_impl::build_network(engine_impl& engine,
+                                              const topology_impl& topology,
+                                              const build_options& options,
+                                              uint16_t stream_id,
+                                              bool is_internal) {
+    network_impl::ptr netw_impl{ new network_impl(engine, topology, options, stream_id, is_internal), false };
+    return netw_impl;
+}
+
+network_impl::ptr network_impl::build_network(engine_impl& engine,
+                                              const std::set<std::shared_ptr<program_node>>& nodes,
+                                              const build_options& options,
+                                              bool is_internal) {
+    network_impl::ptr netw_impl{ new network_impl(engine, nodes, options, is_internal), false };
+    return netw_impl;
+}
+
 network_impl::network_impl(engine_impl& engine,
                            const topology_impl& topo,
                            const build_options& options,
                            uint16_t stream_id,
                            bool is_internal)
-    : network_impl(*engine.build_program(topo, options, is_internal), stream_id, is_internal) {}
+    : network_impl(*program_impl::build_program(engine, topo, options, is_internal), stream_id, is_internal) {}
 
 network_impl::network_impl(engine_impl& engine,
                            const std::set<std::shared_ptr<program_node>>& nodes,
                            const build_options& options,
                            bool is_internal)
-    : network_impl(*engine.build_program(nodes, options, is_internal), 0, is_internal) {}
+    : network_impl(*program_impl::build_program(engine, nodes, options, is_internal), 0, is_internal) {}
 
 void network_impl::validate_primitives() {
     for (auto const& prim : _exec_order) {
         bool valid = prim->validate();
         CLDNN_ERROR_NOT_EQUAL(prim->id(), "validate", valid, "", true, "has not a valid instance.");
+    }
+}
+
+void network_impl::init_kernels() {
+    for (auto const& prim : _exec_order) {
+        prim->init_kernels();
     }
 }
 

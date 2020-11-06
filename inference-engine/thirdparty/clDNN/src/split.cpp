@@ -16,8 +16,8 @@
 
 #include "split_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
-#include "error_handler.h"
+#include "runtime/memory_impl.h"
+#include "cldnn/runtime/error_handler.h"
 #include "json_object.h"
 #include <string>
 

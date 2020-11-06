@@ -7,9 +7,9 @@
 
 #include "ngraph/op/parameter.hpp"
 
-#include "api/input_layout.hpp"
-#include "api/reorder.hpp"
-#include "api/data.hpp"
+#include "cldnn/primitives/input_layout.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/data.hpp"
 
 using namespace InferenceEngine;
 

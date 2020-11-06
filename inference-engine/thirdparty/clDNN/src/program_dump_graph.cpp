@@ -21,7 +21,7 @@
 #include "data_inst.h"
 #include "condition_inst.h"
 
-#include "gpu/ocl_toolkit.h"
+#include "runtime/ocl_toolkit.h"
 
 #include <algorithm>
 #include <vector>
@@ -238,9 +238,6 @@ void dump_graph_init(std::ofstream& graph,
         }
         if (node->is_type<data>() || node->is_constant()) {
             graph << ", shape=box";
-        }
-        if (node->is_type<internal_primitive>()) {
-            graph << ", color=blue";
         }
 
         if (node->is_reusing_memory()) {

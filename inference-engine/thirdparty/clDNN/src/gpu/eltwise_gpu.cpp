@@ -17,7 +17,7 @@
 #include "eltwise_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
@@ -31,9 +31,8 @@ struct eltwise_gpu : typed_primitive_gpu_impl<eltwise> {
     using parent::parent;
 
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<eltwise>& instance,
-                                                int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<eltwise>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
         return args;
     }
 

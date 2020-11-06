@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "embedding_bag/embedding_bag_kernel_selector.h"
 #include "embedding_bag/embedding_bag_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "data_inst.h"
 
 using namespace cldnn;

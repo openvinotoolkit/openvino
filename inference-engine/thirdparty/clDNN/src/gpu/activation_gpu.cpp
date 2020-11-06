@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +17,10 @@
 #include "activation_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 #include "activation/activation_kernel_selector.h"
 #include "activation/activation_kernel_base.h"
-#include "api/activation.hpp"
 #include "register_gpu.hpp"
 
 namespace cldnn {
@@ -31,9 +30,8 @@ struct activation_gpu : typed_primitive_gpu_impl<activation> {
     using parent = typed_primitive_gpu_impl<activation>;
     using parent::parent;
 
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<activation>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<activation>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
 
         if (_outer.is_parameterized()) {
             args.slope = (memory_impl::cptr) &instance.slope_memory();

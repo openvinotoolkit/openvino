@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "shuffle_channels/shuffle_channels_kernel_selector.h"
 #include "shuffle_channels/shuffle_channels_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 using namespace cldnn;
 

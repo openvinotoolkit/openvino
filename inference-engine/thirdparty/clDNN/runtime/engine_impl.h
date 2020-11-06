@@ -1,0 +1,94 @@
+/*
+// Copyright (c) 2016 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma once
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/refcounted_obj.h"
+#include "runtime/memory_pool.h"
+#include "runtime/device_impl.h"
+#include "runtime/event_impl.h"
+
+#include <memory>
+#include <set>
+#include <vector>
+#include <utility>
+#include <string>
+
+namespace cldnn {
+namespace gpu {
+class gpu_toolkit;
+}
+
+class build_options;
+using gpu_toolkit = gpu::gpu_toolkit;
+
+struct memory_impl;
+struct event_impl;
+struct topology_impl;
+struct program_node;
+
+template <class>
+struct typed_program_node;
+
+struct engine_impl : public refcounted_obj<engine_impl> {
+public:
+    explicit engine_impl(const device_impl& dev, const engine_configuration& conf);
+    ~engine_impl();
+    engine_types type() const { return engine_types::ocl; }
+    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout, uint32_t net_id, bool reset = true);
+    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout, allocation_type type, uint32_t net_id = 0, bool reset = true);
+    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout,
+                                                    primitive_id,
+                                                    uint32_t network_id,
+                                                    std::set<primitive_id>,
+                                                    allocation_type type,
+                                                    bool reusable = true);
+    refcounted_obj_ptr<memory_impl> reinterpret_buffer(const memory_impl& memory, const layout& new_layout);
+    refcounted_obj_ptr<memory_impl> reinterpret_handle(const layout& new_layout,
+                                                       const shared_mem_params* params,
+                                                       uint32_t net_id);
+    bool is_the_same_buffer(const memory_impl& mem1, const memory_impl& mem2);
+
+    refcounted_obj_ptr<event_impl> create_user_event(uint32_t net_id, bool set = false);
+    void wait_for_events(std::vector<event_impl::ptr> const& events);
+
+    void compile_program(uint32_t program_id);
+
+    void flush_network(uint32_t net_id);
+    void release_pending_memory(uint32_t net_id);
+
+    const engine_configuration& configuration() const { return _configuration; }
+    void set_mem_pool(bool flag) { _configuration.enable_memory_pool = flag; }
+    std::shared_ptr<gpu_toolkit> get_context() const { return _context; }
+    gpu::device_info_internal get_device_info() const;
+    void* get_user_context() const;
+    memory_pool& get_memory_pool() { return _memory_pool; }
+
+    uint64_t get_max_used_device_memory() const { return _memory_pool.get_max_peak_device_memory_used(); }
+    uint64_t get_used_device_memory() const { return _memory_pool.get_temp_memory_used(); }
+
+    bool use_memory_pool() const;
+    bool use_unified_shared_memory() const;
+    bool supports_allocation(allocation_type type) const;
+    allocation_type get_lockable_preffered_memory_allocation_type(bool is_image_layout = false) const;
+
+private:
+    engine_configuration _configuration;
+    std::shared_ptr<gpu_toolkit> _context;
+    memory_pool _memory_pool;
+};
+}  // namespace cldnn

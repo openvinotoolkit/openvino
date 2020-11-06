@@ -15,19 +15,15 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/crop.hpp"
-#include <api/eltwise.hpp>
-#include <api/reorder.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/crop.hpp>
+#include <cldnn/primitives/eltwise.hpp>
+#include <cldnn/primitives/reorder.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 template<typename T>
 std::vector<T> generate_random_input(size_t b, size_t f, size_t z, size_t y, size_t x, int min, int max) {

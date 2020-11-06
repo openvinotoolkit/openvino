@@ -16,13 +16,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/pooling.hpp"
-#include "api/proposal.hpp"
-#include "api/roi_pooling.hpp"
-
 #include "program_helpers.h"
 #include "pass_manager.h"
 
+#include "pooling_inst.h"
+#include "proposal_inst.h"
+#include "roi_pooling_inst.h"
 #include "quantize_inst.h"
 #include "binary_convolution_inst.h"
 #include "activation_inst.h"
@@ -58,7 +57,7 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 void prepare_primitive_fusing::run(program_impl& p) {
     fuse_reorders(p);

@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "depth_to_space/depth_to_space_kernel_selector.h"
 #include "depth_to_space/depth_to_space_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "common_types.h"
 
 using namespace cldnn;

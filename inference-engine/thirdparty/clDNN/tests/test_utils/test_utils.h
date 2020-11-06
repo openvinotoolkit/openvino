@@ -18,30 +18,39 @@
 
 #pragma once
 
-#include "api/memory.hpp"
-#include "api/tensor.hpp"
-#include "api/program.hpp"
-#include "api/network.hpp"
+#include <cldnn/runtime/memory.hpp>
+#include <cldnn/runtime/tensor.hpp>
+#include <cldnn/runtime/engine.hpp>
+#include <cldnn/graph/program.hpp>
+#include <cldnn/graph/network.hpp>
+#include <cldnn/graph/topology.hpp>
+#include <cldnn/primitives/primitive.hpp>
+#include <cldnn/primitives/concatenation.hpp>
+#include <cldnn/primitives/lrn.hpp>
+#include <cldnn/primitives/roi_pooling.hpp>
+#include <cldnn/primitives/scale.hpp>
+#include <cldnn/primitives/softmax.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/normalize.hpp>
+#include <cldnn/primitives/convolution.hpp>
+#include <cldnn/primitives/activation.hpp>
+#include <cldnn/primitives/pooling.hpp>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/data.hpp>
+
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+#include "float16.h"
+#include "random_gen.h"
+#include "instrumentation.h"
+#include "uniform_quantized_real_distribution.hpp"
+#include <src/include/to_string_utils.h>
+
 #include <iostream>
 #include <limits>
 #include <random>
 #include <algorithm>
 #include <memory>
-#include <gtest/gtest.h>
-#include <api/primitive.hpp>
-#include "float16.h"
-#include "random_gen.h"
-#include "api/concatenation.hpp"
-#include "api/lrn.hpp"
-#include "api/roi_pooling.hpp"
-#include "api/scale.hpp"
-#include "api/softmax.hpp"
-#include "api/reorder.hpp"
-#include "api/normalize.hpp"
-#include "api/convolution.hpp"
-#include "api/activation.hpp"
-#include "api/pooling.hpp"
-
 #include <chrono>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -715,4 +724,3 @@ inline void print_blob(cldnn::memory& mem, std::string name)
     }
 }
 } // namespace tests
-

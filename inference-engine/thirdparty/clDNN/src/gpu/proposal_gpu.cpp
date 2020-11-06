@@ -15,12 +15,12 @@
 */
 
 #include "proposal_inst.h"
-#include "kernel.h"
+#include "runtime/kernel.h"
+#include "runtime/engine_impl.h"
 #include "implementation_map.h"
 #include "network_impl.h"
-#include "engine_impl.h"
 #include "math_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "register_gpu.hpp"
 
 #include <algorithm>

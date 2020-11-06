@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "api/network.hpp"
-
-#include "engine_impl.h"
-#include "event_impl.h"
+#include "cldnn/runtime/refcounted_obj.h"
+#include "cldnn/graph/network.hpp"
+#include "runtime/engine_impl.h"
+#include "runtime/event_impl.h"
 #include "program_impl.h"
-#include "refcounted_obj.h"
+#include "implementation_map.h"
 
 #include <map>
 #include <vector>
@@ -50,6 +50,21 @@ public:
                  bool is_internal);
     ~network_impl();
 
+
+    static refcounted_obj_ptr<network_impl> build_network(engine_impl& engine,
+                                                          const topology_impl& topology,
+                                                          const build_options& options,
+                                                          uint16_t stream_id,
+                                                          bool is_internal = false);
+    static refcounted_obj_ptr<network_impl> build_network(engine_impl& engine,
+                                                          const std::set<std::shared_ptr<program_node>>& nodes,
+                                                          const build_options& options,
+                                                          bool is_internal);
+
+    static refcounted_obj_ptr<network_impl> allocate_network(const engine_impl& engine,
+                                                             const program_impl& program,
+                                                             uint16_t stream_id,
+                                                             bool is_internal = false);
     const program_impl& get_program() const { return *_program; }
     engine_impl& get_engine() const { return _program->get_engine(); }
 
@@ -76,6 +91,7 @@ public:
     const program_impl::graph_optimizer_info& get_optimizer_passes_info() const;
     void execute(const std::vector<event_impl::ptr>& events);
     void validate_primitives();
+    void init_kernels();
     void set_arguments();
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,22 +15,19 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/split.hpp"
-#include "api/scale.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include <api/reorder.hpp>
-#include "test_utils/test_utils.h"
+
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/split.hpp>
+#include <cldnn/primitives/scale.hpp>
+#include <cldnn/primitives/reorder.hpp>
 
 #include <sstream>
 #include <iomanip>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 template<typename T>
 std::vector<T> generate_random_input(size_t b, size_t f, size_t y, size_t x, int min, int max) {
@@ -70,7 +67,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    
+
     // lambda exoression to create the primitive id for the splits
     auto create_split_id = [](size_t splitNum) {
         std::stringstream ss;
@@ -80,7 +77,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
     };
 
     // Create the splits with the split ids for the topology
-    for (size_t splitNum = 0; splitNum < split_offsets.size(); splitNum++) 
+    for (size_t splitNum = 0; splitNum < split_offsets.size(); splitNum++)
     {
         input_ids_offsets.push_back({ create_split_id(splitNum), split_offsets[splitNum]});
     }
@@ -97,7 +94,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
 
     // The number of splits should match the expected number of splits
     EXPECT_EQ(outputs.size(), size_t(split_offsets.size()));
-    
+
     std::vector<cldnn::tensor> expected_sizes;
     for (size_t splitNum = 0; splitNum < split_offsets.size(); splitNum++)  // Calculate the expected sizes
     {
@@ -143,25 +140,25 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         auto input_feature_offset = split_offsets[splitNum].feature[0];
         auto input_y_offset = split_offsets[splitNum].spatial[1];
         auto input_x_offset = split_offsets[splitNum].spatial[0];
-        
+
         // iterator to iterate through input buffer
         auto input_batch_itr = input_batch_offset;
         auto input_feature_itr = input_feature_offset;
         auto input_y_itr = input_y_offset;
         auto input_x_itr = input_x_offset;
-        
+
         for (auto b = 0; b < output_batch; ++b) {  // B
-            
+
                 // reset the input feature iterator
-            input_feature_itr = input_feature_offset; 
+            input_feature_itr = input_feature_offset;
             for (auto f = 0; f < output_feature; f++) {  // F
-                
+
                 // reset the input y iterator
-                input_y_itr = input_y_offset;  
+                input_y_itr = input_y_offset;
                 for (auto y = 0; y < output_y; y++) {  // Y
-                    
+
                     // reset the input x iterator
-                    input_x_itr = input_x_offset;  
+                    input_x_itr = input_x_offset;
                     for (auto x = 0; x < output_x; x++) {  // X
                         auto linear_id = input_x_itr + x_size * (input_y_itr + y_size * (input_feature_itr + feature_num * input_batch_itr)); // index in input
                         auto output_linear_id = x + output_x * (y + output_y * (f + output_feature * b)); // index in output
@@ -192,7 +189,7 @@ TEST(split_gpu_f32, split_1d_uneven_2_splits) {
     auto y_size = 3;
     std::vector<cldnn::tensor> split_offsets = {
                                                 {0, 0, 0, 0},
-                                                {0, 1, 0, 0}                                                
+                                                {0, 1, 0, 0}
                                                };
 
     split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
@@ -213,7 +210,7 @@ TEST(split_gpu_i64, split_1d_uneven_2_splits) {
     auto y_size = 3;
     std::vector<cldnn::tensor> split_offsets = {
                                                 {0, 0, 0, 0},
-                                                {0, 1, 0, 0}                                                
+                                                {0, 1, 0, 0}
                                                };
 
     split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
@@ -661,7 +658,7 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
     set_values(scale_input1, scale_input_vec1);
     std::vector<float> scale_input_vec2 = { 3.f };
     set_values(scale_input2, scale_input_vec2);
-   
+
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 

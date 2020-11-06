@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
 // limitations under the License.
 */
 
-#include <gtest/gtest.h>
-#include <api/tensor.hpp>
+#include "test_utils.h"
 
 TEST(tensor_api, order_new_notation)
 {

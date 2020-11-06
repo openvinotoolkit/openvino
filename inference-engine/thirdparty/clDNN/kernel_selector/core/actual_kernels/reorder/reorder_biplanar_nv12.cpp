@@ -44,7 +44,7 @@ KernelsData reorder_biplanar_nv12::GetKernelsData(const Params& params, const op
         return {};
     }
     KernelsData kd = GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_9);
-    kd[0].kernels[0].arguments = GetArgsDesc(2, false, false);
+    kd[0].kernels[0].params.arguments = GetArgsDesc(2, false, false);
     return kd;
 }
 }  // namespace kernel_selector

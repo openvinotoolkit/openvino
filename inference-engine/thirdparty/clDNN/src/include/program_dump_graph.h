@@ -18,7 +18,7 @@
 
 #include "program_impl.h"
 #include "program_node.h"
-#include "gpu/ocl_toolkit.h"
+#include "runtime/ocl_toolkit.h"
 #include <fstream>
 #include <string>
 

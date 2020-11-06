@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "space_to_batch/space_to_batch_kernel_selector.h"
 #include "space_to_batch/space_to_batch_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "data_inst.h"
 #include <vector>
 

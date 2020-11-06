@@ -15,11 +15,11 @@
 */
 
 #include "generic_layer_inst.h"
-#include "kernel.h"
+#include "runtime/kernel.h"
+#include "runtime/engine_impl.h"
 #include "implementation_map.h"
 #include "kernel_selector_helper.h"
 #include "network_impl.h"
-#include "engine_impl.h"
 #include "register_gpu.hpp"
 #include <vector>
 
@@ -30,36 +30,44 @@ namespace neural {
 struct generic_layer_gpu : typed_primitive_impl<generic_layer> {
     const generic_layer_node& outer;
     const kernel_selector::cl_kernel_data& _cl_kernel_data;
-    gpu::kernel _kernel;
+    std::vector<gpu::kernel> _kernels;
+    gpu::kernel_id _kernel_id;
 
-    explicit generic_layer_gpu(const generic_layer_node& arg)
-        : outer(arg),
-          _cl_kernel_data(*outer.get_primitive()->generic_params.clKernel.get()),
-          _kernel(arg.get_program().get_engine().get_context(),
-                  outer.get_primitive()->generic_params.clKernel->kernelString,
-                  arg.get_program().get_id()) {}
+    generic_layer_gpu(const generic_layer_node& arg)
+        : outer(arg)
+        , _cl_kernel_data(*outer.get_primitive()->generic_params.clKernel.get())
+        , _kernels() {
+        _kernel_id = outer.get_program().add_kernel(outer.get_primitive()->generic_params.clKernel->code.kernelString);
+    }
+
+    void init_kernels_impl(generic_layer_inst& instance) override {
+        auto context = instance.get_network().get_engine().get_context();
+
+        gpu::kernel kernel(context, outer.get_program().get_kernel(_kernel_id, false), _kernel_id);
+        _kernels.emplace_back(std::move(kernel));
+    }
 
     void set_arguments_impl(generic_layer_inst& instance) override {
         auto net_id = instance.get_network().get_id();
-        gpu::kernel::kernel_arguments_data args;
-        args.scalars = &_cl_kernel_data.scalars;
+        gpu::kernel_arguments_data args;
+        args.scalars = &_cl_kernel_data.params.scalars;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back((memory_impl::cptr) &instance.input_memory(i));
         }
         args.output = (memory_impl::cptr) &instance.output_memory();
-        _kernel.set_arguments(net_id, _cl_kernel_data, args);
+        _kernels.front().set_arguments(net_id, _cl_kernel_data.params, args);
     }
 
     void cleanup_impl(generic_layer_inst& instance) override {
         auto net_id = instance.get_network().get_id();
-        _kernel.cleanup(net_id);
+        _kernels.front().cleanup(net_id);
     }
 
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events, generic_layer_inst& instance) override {
         uint32_t net_id = instance.get_network().get_id();
-        _kernel.set_output_event(net_id, instance.node.is_output());
-        return _kernel.run(net_id, _cl_kernel_data, events);
+        _kernels.front().set_output_event(net_id, instance.node.is_output());
+        return _kernels.front().run(net_id, _cl_kernel_data.params, events);
     }
 };
 

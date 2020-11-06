@@ -19,7 +19,7 @@
 #include "convolution_inst.h"
 #include "fully_connected_inst.h"
 #include "data_inst.h"
-#include "memory_impl.h"
+#include "runtime/memory_impl.h"
 #include "program_impl.h"
 
 #include <vector>
@@ -221,4 +221,3 @@ void concat_input_order::run(program_impl& p) {
         }
     }
 }
-

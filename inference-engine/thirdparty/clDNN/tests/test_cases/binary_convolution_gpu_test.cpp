@@ -1,5 +1,5 @@
 ﻿/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,23 +16,17 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <gtest/gtest.h>
-#include <api/memory.hpp>
-#include <api/input_layout.hpp>
-#include "api/binary_convolution.hpp"
-#include "api/reorder.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <iostream>
-#include <api/data.hpp>
-#include <src/include/to_string_utils.h>
-#include "float16.h"
 #include "test_utils.h"
 
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/binary_convolution.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/data.hpp>
+
+#include <iostream>
+
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 // Batch, groups, IC, IW, IH, OC, OW, OH, KH, KW, SH, SW, PH, PW
 struct TestParams {
@@ -506,4 +500,3 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
         EXPECT_EQ(float16_to_float32(output_ptr[i]), output_vec[i]) << "index="<< i;
     }
 }
-

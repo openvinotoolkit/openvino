@@ -16,10 +16,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
-#include "internal_primitive.h"
-#include "internal_primitive_type_base.h"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
 #include "primitive_type.h"
@@ -64,9 +62,10 @@
 #include "reduce_inst.h"
 #include "strided_slice_inst.h"
 #include "to_string_utils.h"
-#include "gpu/memory_gpu.h"
+#include "gpu/register_gpu.hpp"
 
-#include "gpu/ocl_toolkit.h"
+#include "runtime/memory_gpu.h"
+#include "runtime/ocl_toolkit.h"
 
 #include "kernel_base.h"
 
@@ -85,7 +84,7 @@
 #include <stdexcept>
 
 program::program(engine const& engine, topology const& topology, build_options const& options)
-    : _impl(engine.get()->build_program(*topology.get(), options).detach()) {}
+    : _impl(program_impl::build_program(*engine.get(), *topology.get(), options).detach()) {}
 
 void program::retain() {
     _impl->add_ref();
@@ -101,8 +100,10 @@ program_impl::program_impl(engine_impl& engine_ref,
                            bool is_internal,
                            bool no_optimizations)
     : engine(&engine_ref),
+      program_state(*engine_ref.get_context()),
       options(options),
       processing_order() {
+    init_primitives();
     kernel_selector::KernelBase::ResetCounter();
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
@@ -119,8 +120,10 @@ program_impl::program_impl(engine_impl& engine_ref,
                            build_options const& options,
                            bool is_internal)
     : engine(&engine_ref),
+      program_state(*engine_ref.get_context()),
       options(options),
       processing_order() {
+    init_primitives();
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
@@ -128,7 +131,44 @@ program_impl::program_impl(engine_impl& engine_ref,
 }
 
 program_impl::~program_impl() {
-    engine->get_context()->remove_program(prog_id);
+}
+
+void program_impl::init_primitives() {
+    static bool is_initialized = false;
+    if (!is_initialized) {
+        gpu::register_implementations_gpu();
+        is_initialized = true;
+    }
+}
+
+void program_impl::compile() {
+    auto& cache = program_state._kernels_cache;
+    cache.build_all();
+}
+
+gpu::kernel_id program_impl::add_kernel(const std::shared_ptr<kernel_selector::kernel_string> kernelSring) {
+    return program_state._kernels_cache.set_kernel_source(kernelSring, false, false);
+}
+
+gpu::kernel_type program_impl::get_kernel(gpu::kernel_id id, bool one_time_kernel) {
+    return program_state._kernels_cache.get_kernel(id, one_time_kernel);
+}
+
+program_impl::ptr program_impl::build_program(engine_impl& engine,
+                                              const topology_impl& topology,
+                                              const build_options& options,
+                                              bool is_internal,
+                                              bool no_optimizations) {
+    program_impl::ptr progr_impl{ new program_impl(engine, topology, options, is_internal, no_optimizations), false };
+    return progr_impl;
+}
+
+program_impl::ptr program_impl::build_program(engine_impl& engine,
+                                              const std::set<std::shared_ptr<program_node>>& nodes,
+                                              const build_options& options,
+                                              bool is_internal) {
+    program_impl::ptr progr_impl{ new program_impl(engine, nodes, options, is_internal), false };
+    return progr_impl;
 }
 
 program_node& program_impl::get_node(primitive_id const& id) {
@@ -349,8 +389,6 @@ void program_impl::set_options() {
     prog_id = ++id_gen;
     assert(prog_id != 0);
 
-    get_engine().get_context()->add_program(prog_id);
-
     if ((options.get<build_option_type::tuning_config>()->config.mode == tuning_mode::tuning_tune_and_cache ||
          options.get<build_option_type::tuning_config>()->config.mode == tuning_mode::tuning_retune_and_cache) &&
         !engine->configuration().enable_profiling) {
@@ -368,12 +406,13 @@ void program_impl::build_program(bool is_internal) {
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
     prepare_memory_dependencies();
-    engine->compile_program(*this);
+    compile();
 
-    if (!is_internal)
+    if (!is_internal) {
         prim_info = get_current_stage_info();
+        transfer_memory_to_device();
+    }
 
-    if (!is_internal)  transfer_memory_to_device();
     cleanup();
 }
 
@@ -381,7 +420,7 @@ void program_impl::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     for (auto& node : processing_order) {
-        if (!node->is_type<internal_primitive>() && !node->is_type<data>())
+        if (!node->is_type<data>())
             node->get_output_layout();
     }
 
@@ -405,7 +444,7 @@ void program_impl::pre_optimize_graph(bool is_internal) {
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {
-        if (!node->is_type<internal_primitive>() && !node->is_type<data>())
+        if (!node->is_type<data>())
             node->get_output_layout();
     }
 
@@ -543,8 +582,7 @@ void program_impl::transfer_memory_to_device() {
 
 void program_impl::cleanup() {
     for (auto& node : processing_order)
-        if (!node->is_type<internal_primitive>())
-            node->get_output_layout();
+        node->get_output_layout();
 
     // in debug build, at the end, mark all nodes as outputs so user can query for buffers of all not-optimized nodes,
     // including internal ones etc.
@@ -752,18 +790,12 @@ void program_impl::rename(program_node& node, primitive_id const& new_id) {
     nodes_map.emplace(new_id, node_ptr);
     nodes_map.erase(node.id());
 
-    if (!node.is_type<internal_primitive>())
-        const_cast<primitive_id&>(node.desc->id) = new_id;
-    else
-        reinterpret_cast<details::internal_program_node_base&>(node).internal_id = new_id;
+    const_cast<primitive_id&>(node.desc->id) = new_id;
 }
 
 void program_impl::swap_names(program_node& node1, program_node& node2) {
     const auto _extract_id = [](program_node& node) -> primitive_id& {
-        if (!node.is_type<internal_primitive>())
-            return const_cast<primitive_id&>(node.desc->id);
-        else
-            return reinterpret_cast<details::internal_program_node_base&>(node).internal_id;
+        return const_cast<primitive_id&>(node.desc->id);
     };
 
     nodes_map.at(node1.id()).swap(nodes_map.at(node2.id()));
@@ -975,24 +1007,6 @@ void program_impl::remove_nodes(std::list<program_node*>& to_remove) {
         optimized_out.push_back(node->id());
         nodes_map.erase(node->id());
     }
-}
-
-void program_impl::dump_memory_pool() const {
-    if (!get_engine().configuration().enable_memory_pool)
-        return;
-    auto path = get_dir_path(options);
-    if (path.empty()) {
-        return;
-    }
-    path += "cldnn_memory_pool.log";
-    auto dep = get_memory_dependencies_string();
-    get_engine().dump_memory_pool(*this, path, dep);
-    std::string dump_file_name;
-    if (pm->get_pass_count() < 10)
-        dump_file_name += "0";
-    dump_file_name += std::to_string(pm->get_pass_count()) + "_memory_pool";
-    pm->inc_pass_count();
-    dump_program(dump_file_name.c_str(), true);
 }
 
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use

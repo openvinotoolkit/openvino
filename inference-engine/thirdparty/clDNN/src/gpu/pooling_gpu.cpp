@@ -17,7 +17,7 @@
 #include "pooling_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 #include "pooling/pooling_kernel_selector.h"
 #include "pooling/pooling_kernel_base.h"
@@ -81,9 +81,8 @@ struct pooling_gpu : typed_primitive_gpu_impl<pooling> {
     using parent::parent;
 
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<pooling>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<pooling>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
         if (!instance.argument.argmax.empty())
             args.inputs.push_back((memory_impl::cptr) &instance.dep_memory(1));
         return args;

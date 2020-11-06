@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "reshape/reshape_kernel_ref.h"
 #include "reshape/reshape_kernel_selector.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 namespace cldnn {
 namespace gpu {

@@ -7,7 +7,7 @@
 #include <map>
 #include <string>
 #include <memory>
-#include <api/engine.hpp>
+#include <cldnn/runtime/engine.hpp>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include "cldnn_remote_context.h"
 

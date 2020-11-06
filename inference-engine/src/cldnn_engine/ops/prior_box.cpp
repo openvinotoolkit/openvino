@@ -8,7 +8,7 @@
 #include "ngraph/op/prior_box.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
 
-#include "api/prior_box.hpp"
+#include "cldnn/primitives/prior_box.hpp"
 
 namespace CLDNNPlugin {
 

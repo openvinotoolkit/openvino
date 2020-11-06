@@ -17,10 +17,11 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "engine_impl.h"
+#include "runtime/engine_impl.h"
+#include "runtime/kernel.h"
 #include "kernel_selector_common.h"
+#include "kernel_selector_helper.h"
 #include "kernel_runner_interface.h"
-#include "kernel.h"
 #include <vector>
 
 namespace cldnn {
@@ -37,7 +38,7 @@ private:
     const int runs_per_kernel = 15;
 
     void prepare_kernel_args(const kernel_selector::KernelsData& kernels_data,
-                             gpu::kernel::kernel_arguments_data& args);
+                             gpu::kernel_arguments_data& args);
 
     engine_impl::ptr engine;
     uint32_t program_id;

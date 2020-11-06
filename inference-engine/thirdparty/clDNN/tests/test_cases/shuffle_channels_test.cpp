@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,16 +13,13 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/shuffle_channels.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/shuffle_channels.hpp>
 
 #include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;

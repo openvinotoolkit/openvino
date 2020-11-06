@@ -16,9 +16,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/detection_output.hpp"
+#include "cldnn/primitives/detection_output.hpp"
 #include "primitive_inst.h"
 #include "topology_impl.h"
+
 #include <string>
 
 #define PRIOR_BOX_SIZE 4  // Each prior-box consists of [xmin, ymin, xmax, ymax].

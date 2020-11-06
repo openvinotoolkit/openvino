@@ -23,7 +23,7 @@
 #include "lstm/lstm_gemm_kernel_selector.h"
 #include "lstm/lstm_gemm_kernel_base.h"
 #include "network_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 namespace cldnn {
 namespace gpu {
@@ -33,9 +33,8 @@ struct lstm_gemm_gpu : typed_primitive_gpu_impl<lstm_gemm> {
     using parent::parent;
 
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<lstm_gemm>& instance,
-                                                        int32_t) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, 0);
 
         args.output = (memory_impl::cptr) &instance.output_memory();
         args.weights = (memory_impl::cptr) &instance.weights_memory();

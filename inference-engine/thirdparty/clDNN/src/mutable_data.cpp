@@ -17,9 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "mutable_data_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
+#include "runtime/memory_impl.h"
 #include <random>
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "json_object.h"
 #include <string>
 #include <memory>

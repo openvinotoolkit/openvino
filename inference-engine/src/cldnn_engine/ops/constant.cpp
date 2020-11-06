@@ -17,7 +17,7 @@
 #include "ngraph/op/variadic_split.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-#include "api/data.hpp"
+#include "cldnn/primitives/data.hpp"
 
 namespace CLDNNPlugin {
 

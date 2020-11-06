@@ -17,7 +17,7 @@
 #include "extract_image_patches_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 
 #include "extract_image_patches/extract_image_patches_kernel_selector.h"

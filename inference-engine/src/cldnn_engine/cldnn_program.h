@@ -15,8 +15,8 @@
 
 #include "cldnn_config.h"
 
-#include <api/engine.hpp>
-#include <api/topology.hpp>
+#include <cldnn/runtime/engine.hpp>
+#include <cldnn/graph/topology.hpp>
 
 // Forward declarations for cldnn part
 namespace cldnn {

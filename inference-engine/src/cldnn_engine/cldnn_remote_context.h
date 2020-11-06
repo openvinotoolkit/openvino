@@ -4,15 +4,11 @@
 
 #pragma once
 
-#include <string>
-#include <map>
-#include <memory>
-#include <atomic>
+#include <cldnn/runtime/memory.hpp>
+#include <cldnn/runtime/engine.hpp>
 #include <ie_parameter.hpp>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include "cldnn_config.h"
-#include <api/memory.hpp>
-#include <api/engine.hpp>
 #include "cldnn_common_utils.h"
 
 #ifndef NOMINMAX
@@ -24,6 +20,11 @@
 #else
 #include <gpu/gpu_context_api_va.hpp>
 #endif
+
+#include <string>
+#include <map>
+#include <memory>
+#include <atomic>
 
 namespace CLDNNPlugin {
 class CLDNNRemoteAllocator;

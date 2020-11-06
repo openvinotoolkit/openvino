@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "quantize/quantize_kernel_selector.h"
 #include "quantize/quantize_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 using namespace cldnn;
 
@@ -32,9 +32,8 @@ struct quantize_gpu : typed_primitive_gpu_impl<quantize> {
     using parent::parent;
 
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<quantize>& instance,
-                                                int32_t) const override {
-        kernel::kernel_arguments_data args;
+    kernel_arguments_data get_arguments(typed_primitive_inst<quantize>& instance, int32_t) const override {
+        kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back((memory_impl::cptr) &instance.input_memory(i));

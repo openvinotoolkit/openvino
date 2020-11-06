@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
 
 #pragma once
 
-#include <api/layout.hpp>
-#include <api/tensor.hpp>
+#include "cldnn/runtime/layout.hpp"
+#include "cldnn/runtime/tensor.hpp"
+
+#include "meta_utils.h"
 
 #include <algorithm>
 #include <cassert>
 #include <stdexcept>
-
-#include "meta_utils.h"
 
 namespace cldnn {
 

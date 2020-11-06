@@ -16,17 +16,13 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/convolution.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include "test_utils/float16.h"
-#include <api/data.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/convolution.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/reorder.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -34,10 +30,9 @@
 #include <thread>
 #include <type_traits>
 #include <fstream>
-#include <api/reorder.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 namespace cldnn
 {
@@ -315,10 +310,10 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                           1, 2, -2, 4, 2,
                           3, 5, 3, -3, 1,
                           5, 4, 3, 2, 1 });
-    
+
     VF<int8_t> output_vec = { 53, 54, 30, 52, 47, 37 };
 
-    
+
     layout reorder_layout(data_types::i8, format::bfyx, {1, 1, 2, 3});
     topology topology(input_layout("input0", input0.get_layout()),
                       input_layout("input1", input1.get_layout()),
@@ -370,20 +365,20 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     //  Output : 1x1x3
     //
     //  Input0:
-    // -3 6 0 2 -1 -1 6 0 5 4 1 6 2 4 0 5 
-    // -2 -1 1 0 2 3 3 3 6 2 4 7 3 6 7 -1 
-    // 7 7 5 -3 1 -1 5 4 0 3 -2 6 2 5 2 4 
-    // 5 -1 3 6 2 0 -3 -1 0 3 0 -1 1 6 1 6 
-    // 5 -2 2 -1 5 6 3 4 1 0 6 6 7 2 6 3 
-    // 6 7 -1 5 5 6 -1 0 -1 5 5 2 3 -1 -3 4 
+    // -3 6 0 2 -1 -1 6 0 5 4 1 6 2 4 0 5
+    // -2 -1 1 0 2 3 3 3 6 2 4 7 3 6 7 -1
+    // 7 7 5 -3 1 -1 5 4 0 3 -2 6 2 5 2 4
+    // 5 -1 3 6 2 0 -3 -1 0 3 0 -1 1 6 1 6
+    // 5 -2 2 -1 5 6 3 4 1 0 6 6 7 2 6 3
+    // 6 7 -1 5 5 6 -1 0 -1 5 5 2 3 -1 -3 4
     //
     //  Input1:
-    //  4 -2 0 0 6 2 0 4 6 4 4 4 -3 -1 4 -3 
-    //  1 0 -1 5 -1 1 4 2 7 7 0 2 3 4 -1 3 
-    //  7 7 2 -3 -1 5 -2 2 6 -3 0 7 0 3 3 3 
-    //  -1 0 -2 -2 7 -3 -3 -1 5 0 3 4 0 -1 2 5 
-    //  2 -1 2 -3 0 -3 -3 2 4 3 3 5 5 7 5 1 
-    //  2 2 -3 6 6 7 1 -1 -2 5 1 -1 4 5 -3 -2 
+    //  4 -2 0 0 6 2 0 4 6 4 4 4 -3 -1 4 -3
+    //  1 0 -1 5 -1 1 4 2 7 7 0 2 3 4 -1 3
+    //  7 7 2 -3 -1 5 -2 2 6 -3 0 7 0 3 3 3
+    //  -1 0 -2 -2 7 -3 -3 -1 5 0 3 4 0 -1 2 5
+    //  2 -1 2 -3 0 -3 -3 2 4 3 3 5 5 7 5 1
+    //  2 2 -3 6 6 7 1 -1 -2 5 1 -1 4 5 -3 -2
     //
     // Filters:
     // -1, 2, -2, 2, -2, 1, 1, 0, -1, 1, 2, -2, 2, 1, -2, 0,
@@ -406,7 +401,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     set_values<int8_t>(input0, {-3, 6, 0, 2, -1, -1, 6, 0, 5, 4, 1, 6, 2, 4, 0, 5,
                                 -2, -1, 1, 0, 2, 3, 3, 3, 6, 2, 4, 7, 3, 6, 7, -1,
                                 7, 7, 5, -3, 1, -1, 5, 4, 0, 3, -2, 6, 2, 5, 2, 4,
-                                5, -1, 3, 6, 2, 0, -3, -1, 0, 3, 0, -1, 1, 6, 1, 6, 
+                                5, -1, 3, 6, 2, 0, -3, -1, 0, 3, 0, -1, 1, 6, 1, 6,
                                 5, -2, 2, -1, 5, 6, 3, 4, 1, 0, 6, 6, 7, 2, 6, 3,
                                 6, 7, -1, 5, 5, 6, -1, 0, -1, 5, 5, 2, 3, -1, -3, 4 });
 
@@ -416,7 +411,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                                  -1, 0, -2, -2, 7, -3, -3, -1, 5, 0, 3, 4, 0, -1, 2, 5,
                                  2, -1, 2, -3, 0, -3, -3, 2, 4, 3, 3, 5, 5, 7, 5, 1,
                                  2, 2, -3, 6, 6, 7, 1, -1, -2, 5, 1, -1, 4, 5, -3, -2});
-    
+
     VF<int8_t> output_vec = { -14, -35, -10 };
 
     layout reorder_layout(data_types::i8, format::bfyx, {1, 1, 3, 1});

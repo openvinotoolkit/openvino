@@ -22,7 +22,7 @@
 #include "register_gpu.hpp"
 
 #include "network_impl.h"
-#include "events_waiter.h"
+#include "runtime/events_waiter.h"
 #include <vector>
 
 namespace cldnn {
@@ -32,6 +32,7 @@ class wait_for_events_gpu : public primitive_impl {
 public:
     explicit wait_for_events_gpu(const program_node& /*node*/) {}
 
+    void init_kernels(primitive_inst& /*instance*/) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
     void cleanup(primitive_inst& /*instance*/) override {}
 

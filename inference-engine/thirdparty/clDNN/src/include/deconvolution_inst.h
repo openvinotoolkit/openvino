@@ -16,8 +16,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/deconvolution.hpp"
+
+#include "cldnn/primitives/deconvolution.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 

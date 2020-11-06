@@ -2,31 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cldnn/runtime/cldnn.hpp>
+#include <cldnn/graph/network.hpp>
+#include <cldnn/runtime/profiling.hpp>
+
+#include "cldnn_graph.h"
+#include "simple_math.h"
+#include <cldnn/cldnn_config.hpp>
+#include "cldnn_infer_request.h"
+
+#include <description_buffer.hpp>
+#include <threading/ie_executor_manager.hpp>
+#include <exec_graph_info.hpp>
+#include <generic_ie.hpp>
+
+#include <ie_ngraph_utils.hpp>
+#include <ngraph/variant.hpp>
+
 #include <list>
 #include <set>
 #include <unordered_set>
 #include <sstream>
-#include <api/cldnn.hpp>
-#include <api/network.hpp>
-#include <api/profiling.hpp>
-#include <api/custom_gpu_primitive.hpp>
 #include <chrono>
 #include <cmath>
 #include <algorithm>
-#include "cldnn_graph.h"
-#include "simple_math.h"
-#include <description_buffer.hpp>
-#include <cldnn/cldnn_config.hpp>
-#include "cldnn_infer_request.h"
-#include <threading/ie_executor_manager.hpp>
 #include <fstream>
 #include <utility>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <exec_graph_info.hpp>
-#include <ie_ngraph_utils.hpp>
-#include "generic_ie.hpp"
-#include <ngraph/variant.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;

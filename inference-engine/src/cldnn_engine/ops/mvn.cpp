@@ -7,7 +7,7 @@
 
 #include "ngraph/op/mvn.hpp"
 
-#include "api/mvn.hpp"
+#include "cldnn/primitives/mvn.hpp"
 
 namespace CLDNNPlugin {
 

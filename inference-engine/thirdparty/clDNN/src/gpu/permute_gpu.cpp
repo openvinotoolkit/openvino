@@ -17,7 +17,7 @@
 #include "permute_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 #include "permute/permute_kernel_selector.h"
 #include "permute/permute_kernel_ref.h"

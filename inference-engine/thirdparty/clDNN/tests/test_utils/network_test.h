@@ -16,14 +16,15 @@
 #include <gtest/gtest.h>
 #include "test_utils/test_utils.h"
 
-#include "api/data.hpp"
-#include "api/engine.hpp"
-#include "api/fully_connected.hpp"
-#include "api/input_layout.hpp"
-#include "api/layout.hpp"
-#include "api/memory.hpp"
-#include "api/primitive.hpp"
-#include "api/tensor.hpp"
+#include <cldnn/runtime/engine.hpp>
+#include <cldnn/runtime/layout.hpp>
+#include <cldnn/runtime/memory.hpp>
+#include <cldnn/runtime/tensor.hpp>
+
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/fully_connected.hpp>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/primitive.hpp>
 
 #include <map>
 #include <set>

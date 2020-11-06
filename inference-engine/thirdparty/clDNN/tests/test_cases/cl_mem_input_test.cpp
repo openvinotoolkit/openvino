@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,16 +15,11 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/activation.hpp"
-#include <api/topology.hpp>
-#include <api/tensor.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include <api/data.hpp>
-#include "test_utils/test_utils.h"
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/activation.hpp>
+#include <cldnn/primitives/data.hpp>
 
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
 #define CL_HPP_TARGET_OPENCL_VERSION 120
@@ -34,7 +29,7 @@
 #include "CL/cl_intel_planar_yuv.h"
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -65,8 +60,8 @@ std::vector<unsigned char> createSampleData(int width, int height)
     }
     for (int i = 0; i < height / 2; i++) {
         for (int j = 0; j < width; j += 2) {
-            data[width * height + i * width + j] = (i + j) % 255; 
-            data[width * height + i * width + j + 1] = (i + j) % 255; 
+            data[width * height + i * width + j] = (i + j) % 255;
+            data[width * height + i * width + j + 1] = (i + j) % 255;
         }
     }
 
@@ -85,7 +80,7 @@ std::vector<float> createReferenceData(std::vector<unsigned char> data, int widt
             float B = (1.164f * (float)(y_comp - 16) + 1.596f * (float)(v_comp - 128));
             float G = (1.164f * (float)(y_comp - 16) - 0.813f * (float)(v_comp - 128) - 0.391f * (u_comp - 128));
             float R = (1.164f * (float)(y_comp - 16) + 2.018f * (float)(u_comp - 128));
-            
+
             R = std::min(std::max(R, 0.f), 255.f);
             G = std::min(std::max(G, 0.f), 255.f);
             B = std::min(std::max(B, 0.f), 255.f);
@@ -334,4 +329,3 @@ TEST(cl_mem_check, check_input) {
     }
     checkStatus(clReleaseMemObject(img), "clReleaseMemObject");
 }
-

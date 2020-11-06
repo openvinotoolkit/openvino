@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,16 +13,13 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/reverse_sequence.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/reverse_sequence.hpp>
 
 #include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -151,8 +148,8 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
     auto output_ptr = output.pointer<float>();
 
     std::vector<float> expected_results = {
-            9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 
-            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 
+            9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f,
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
             18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f
     };
 
@@ -197,9 +194,9 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa3) {
     auto output_ptr = output.pointer<float>();
 
     std::vector<float> expected_results = {
-            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 
-            6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 
-            13.0f, 12.0f, 15.0f, 14.0f, 17.0f, 16.0f, 
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+            6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f,
+            13.0f, 12.0f, 15.0f, 14.0f, 17.0f, 16.0f,
             19.0f, 18.0f, 21.0f, 20.0f, 23.0f, 22.0f
     };
 
@@ -244,9 +241,9 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa2) {
     auto output_ptr = output.pointer<float>();
 
     std::vector<float> expected_results = {
-            2.0f, 3.0f, 0.0f, 1.0f, 4.0f, 5.0f, 
-            8.0f, 9.0f, 6.0f, 7.0f, 10.0f, 11.0f, 
-            14.0f, 15.0f, 12.0f, 13.0f, 16.0f, 17.0f, 
+            2.0f, 3.0f, 0.0f, 1.0f, 4.0f, 5.0f,
+            8.0f, 9.0f, 6.0f, 7.0f, 10.0f, 11.0f,
+            14.0f, 15.0f, 12.0f, 13.0f, 16.0f, 17.0f,
             20.0f, 21.0f, 18.0f, 19.0f, 22.0f, 23.0f
     };
 
@@ -291,9 +288,9 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba2_sa0) {
     auto output_ptr = output.pointer<float>();
 
     std::vector<float> expected_results = {
-            0.0f, 1.0f, 2.0f, 3.0f, 16.0f, 17.0f, 
-            6.0f, 7.0f, 8.0f, 9.0f, 22.0f, 23.0f, 
-            12.0f, 13.0f, 14.0f, 15.0f, 4.0f, 5.0f, 
+            0.0f, 1.0f, 2.0f, 3.0f, 16.0f, 17.0f,
+            6.0f, 7.0f, 8.0f, 9.0f, 22.0f, 23.0f,
+            12.0f, 13.0f, 14.0f, 15.0f, 4.0f, 5.0f,
             18.0f, 19.0f, 20.0f, 21.0f, 10.0f, 11.0f
     };
 

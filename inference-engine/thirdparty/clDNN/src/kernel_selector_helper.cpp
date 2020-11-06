@@ -16,7 +16,7 @@
 #include "kernel_selector_params.h"
 #include "to_string_utils.h"
 
-#include "gpu/ocl_toolkit.h"
+#include "runtime/ocl_toolkit.h"
 
 #include "program_node.h"
 #include "program_impl.h"

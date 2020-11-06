@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include "memory_impl.h"
-#include "engine_impl.h"
+#include "runtime/memory_impl.h"
+#include "runtime/engine_impl.h"
 #include "meta_utils.h"
 
 #include "data_inst.h"

@@ -9,9 +9,9 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph_ops/nms_ie_internal.hpp>
 
-#include "api/reorder.hpp"
-#include "api/mutable_data.hpp"
-#include "api/non_max_suppression.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
+#include "cldnn/primitives/non_max_suppression.hpp"
 
 namespace CLDNNPlugin {
 

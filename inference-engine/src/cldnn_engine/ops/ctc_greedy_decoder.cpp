@@ -7,7 +7,7 @@
 
 #include "ngraph/op/ctc_greedy_decoder.hpp"
 
-#include "api/ctc_greedy_decoder.hpp"
+#include "cldnn/primitives/ctc_greedy_decoder.hpp"
 
 namespace CLDNNPlugin {
 

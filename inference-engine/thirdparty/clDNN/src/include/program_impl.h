@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@
 
 #pragma once
 
-#include "api/program.hpp"
+#include "cldnn/graph/program.hpp"
+#include "cldnn/runtime/refcounted_obj.h"
 
-#include "refcounted_obj.h"
-#include "engine_impl.h"
+#include "runtime/engine_impl.h"
+#include "kernels_cache.h"
 
 #include <list>
 #include <string>
@@ -40,6 +41,13 @@ class layout_optimizer;
 class pass_manager;
 class base_pass;
 class program_impl_wrapper;
+
+struct gpu_program_state {
+    gpu::kernels_cache _kernels_cache;
+
+    gpu_program_state(gpu_toolkit& context) : _kernels_cache(context) {}
+};
+
 /*
     cldnn_program implementation
 */
@@ -162,7 +170,6 @@ public:
     program_node const& get_node(primitive_id const& id) const;
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) { return nodes_map.at(prim); }
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) const { return nodes_map.at(prim); }
-    void dump_memory_pool() const;
 
     // returns already existing program_node for given primitive 'prim' (lookup in 'nodes_map')
     // if it was previously created, otherwise creates and then returns program_node
@@ -222,9 +229,23 @@ public:
     void reset_program();
     uint32_t get_id() const { return prog_id; }
 
+    static refcounted_obj_ptr<program_impl> build_program(engine_impl& engine,
+                                                          const topology_impl& topology,
+                                                          const build_options& options,
+                                                          bool is_internal = false,
+                                                          bool no_optimizations = false);
+    static refcounted_obj_ptr<program_impl> build_program(engine_impl& engine,
+                                                          const std::set<std::shared_ptr<program_node>>& nodes,
+                                                          const build_options& options,
+                                                          bool is_internal);
+    static void init_primitives();
+    void compile();
+    gpu::kernel_id add_kernel(const std::shared_ptr<kernel_selector::kernel_string> kernel_sring);
+    gpu::kernel_type get_kernel(gpu::kernel_id id, bool one_time_kernel);
 private:
     uint32_t prog_id = 0;
     engine_impl::ptr engine;
+    gpu_program_state program_state;
     build_options options;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;

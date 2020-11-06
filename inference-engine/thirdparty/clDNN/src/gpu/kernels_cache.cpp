@@ -15,8 +15,10 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "runtime/ocl_toolkit.h"
 #include "kernels_cache.h"
-#include "ocl_toolkit.h"
+#include "kernel_selector_helper.h"
+
 #include <algorithm>
 #include <cassert>
 #include <sstream>
@@ -26,7 +28,6 @@
 #include <memory>
 #include <utility>
 
-#include "kernel_selector_helper.h"
 
 #ifndef ENABLE_UNICODE_PATH_SUPPORT
 # ifdef _WIN32
@@ -181,6 +182,8 @@ inline bool does_options_support_batch_compilation(const std::string& options) {
 namespace cldnn {
 namespace gpu {
 
+std::mutex kernels_cache::_mutex;
+
 std::string kernels_cache::get_cache_path() const {
     auto path = _context.get_configuration().kernels_cache_path;
     if (path.empty()) {
@@ -274,17 +277,16 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
     return scode;
 }
 
-kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(context), _prog_id(prog_id) {}
+kernels_cache::kernels_cache(gpu_toolkit& context) : _context(context) {}
 
-kernels_cache::kernel_id kernels_cache::set_kernel_source(
+kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
     bool dump_custom_program,
     bool one_time_kernel) {
-    std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
 
     // we need unique id in order to avoid conflict across topologies.
     const auto kernel_num = _kernels.size() + _kernels_code.size();
-    kernels_cache::kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
+    kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
 
     auto res = _kernels_code.emplace( kernel_string, id, dump_custom_program, one_time_kernel );
 
@@ -430,7 +432,7 @@ void kernels_cache::build_all() {
     if (!_pending_compilation)
         return;
 
-    std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
+    std::lock_guard<std::mutex> lock(_mutex);
 
     auto sorted_program_code = get_program_source(_kernels_code);
 

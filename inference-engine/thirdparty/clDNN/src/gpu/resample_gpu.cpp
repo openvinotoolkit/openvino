@@ -17,7 +17,7 @@
 #include "resample_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 #include "kernel_selector/core/actual_kernels/resample/resample_kernel_selector.h"
 #include "kernel_selector/core/actual_kernels/resample/resample_kernel_base.h"

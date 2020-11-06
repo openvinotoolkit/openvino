@@ -8,8 +8,8 @@
 #include "ngraph/op/normalize_l2.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/normalize.hpp"
-#include "api/data.hpp"
+#include "cldnn/primitives/normalize.hpp"
+#include "cldnn/primitives/data.hpp"
 
 namespace CLDNNPlugin {
 

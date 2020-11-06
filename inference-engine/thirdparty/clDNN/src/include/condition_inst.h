@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <api/condition.hpp>
-
+#include <cldnn/primitives/condition.hpp>
 #include "network_impl.h"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 
@@ -36,9 +36,10 @@ private:
 
         void set(const program_node& node) {
             add_or_change_input_layout(node);
-            _program = node.get_program().get_engine().build_program(_topology,
-                                                                     node.get_program().get_options(),
-                                                                     true);  // rebuild program
+            _program = program_impl::build_program(node.get_program().get_engine(),
+                                                   _topology,
+                                                   node.get_program().get_options(),
+                                                   true);  // rebuild program
         }
         program_impl::ptr get() const { return _program; }
 

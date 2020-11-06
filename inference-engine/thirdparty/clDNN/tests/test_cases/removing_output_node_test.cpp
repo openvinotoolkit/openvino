@@ -15,21 +15,17 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
 
-#include <api/data.hpp>
-#include <api/reshape.hpp>
-#include <api/input_layout.hpp>
-#include <api/shuffle_channels.hpp>
-#include <api/strided_slice.hpp>
+#include "test_utils.h"
 
-#include "test_utils/test_utils.h"
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/reshape.hpp>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/shuffle_channels.hpp>
+#include <cldnn/primitives/strided_slice.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 using namespace testing;
 
 TEST(removing_output_node, multiple_outputs) {

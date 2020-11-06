@@ -7,7 +7,7 @@
 
 #include "ngraph/op/shuffle_channels.hpp"
 
-#include "api/shuffle_channels.hpp"
+#include "cldnn/primitives/shuffle_channels.hpp"
 
 namespace CLDNNPlugin {
 

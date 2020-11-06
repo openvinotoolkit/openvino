@@ -966,6 +966,7 @@ include_directories(
     ${CLDNN_UTILS__RAPIDJSON_INCDIRS}
     "${CLDNN__KHR_CLHPP_DIR}"
     "${CLDNN__CODEGEN_INCDIR}"
+    "${CLDNN__API_DIR}"
   )
 
 include_directories(SYSTEM
@@ -981,6 +982,7 @@ set_target_properties(clDNN_OpenCL
 # =================================== Link targets and dependencies ====================================
 if(CLDNN__INCLUDE_CORE)
   add_subdirectory(src)
+  add_subdirectory(runtime)
   add_subdirectory(api_test_builds)
 endif()
 if(CLDNN__INCLUDE_TESTS)

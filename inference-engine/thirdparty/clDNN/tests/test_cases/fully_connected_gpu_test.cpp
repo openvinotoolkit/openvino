@@ -15,20 +15,14 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/fully_connected.hpp"
-#include <api/quantize.hpp>
-#include <api/topology.hpp>
-#include <api/tensor.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <src/include/to_string_utils.h>
-#include <api/data.hpp>
-#include "instrumentation.h"
-#include "test_utils/network_test.h"
+
+#include "test_utils.h"
+#include "network_test.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include "cldnn/primitives/fully_connected.hpp"
+#include <cldnn/primitives/quantize.hpp>
+#include <cldnn/primitives/data.hpp>
 
 #include <cmath>
 
@@ -38,7 +32,7 @@ namespace cldnn
 }
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 cldnn::format::type layout_4d(cldnn::format f) {
     switch (f.value) {

@@ -25,10 +25,10 @@
 #include "fused_conv_eltwise_inst.h"
 
 #include "network_impl.h"
-#include "engine_impl.h"
-#include "memory_impl.h"
+#include "runtime/engine_impl.h"
+#include "runtime/memory_impl.h"
 
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "json_object.h"
 #include <string>
 #include <vector>
@@ -107,6 +107,10 @@ event_impl::ptr primitive_inst::execute(const std::vector<event_impl::ptr>& even
         }
     }
     return _impl->execute(dependencies, *this);
+}
+
+void primitive_inst::init_kernels() {
+    _impl->init_kernels(*this);
 }
 
 void primitive_inst::set_arguments() {

@@ -13,17 +13,11 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/engine.hpp>
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/gemm.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
+#include "test_utils.h"
 
-#include "test_utils/test_utils.h"
-#include "test_utils/uniform_quantized_real_distribution.hpp"
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/gemm.hpp>
 
 #include <cstddef>
 
@@ -36,9 +30,9 @@ TEST(gemm_gpu, basic_bfyx_t1) {
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 4 } });
 
     std::vector<float> input_data = {
-        1.f, -2.f,  3.f,  
-        -4.f, 5.f,  6.f, 
-        1.f, 2.f, 3.f, 
+        1.f, -2.f,  3.f,
+        -4.f, 5.f,  6.f,
+        1.f, 2.f, 3.f,
         3.f, 2.f, -1.f,
 
     };
@@ -86,8 +80,8 @@ TEST(gemm_gpu, basic_bfyx_t2) {
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
 
     std::vector<float> input_data = {
-        1.f, -2.f,  3.f, -4.f, 
-        5.f,  6.f, 1.f, 2.f, 
+        1.f, -2.f,  3.f, -4.f,
+        5.f,  6.f, 1.f, 2.f,
         3.f, 3.f, 2.f, -1.f,
 
     };
@@ -133,9 +127,9 @@ TEST(gemm_gpu, basic_bfyx_t1t2) {
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 4, 1 } });
 
     std::vector<float> input_data = {
-        1.f, -2.f,  3.f, 
-        -4.f, 5.f,  6.f, 
-        1.f, 2.f, 3.f, 
+        1.f, -2.f,  3.f,
+        -4.f, 5.f,  6.f,
+        1.f, 2.f, 3.f,
         3.f, 2.f, -1.f,
 
         1.f, -2.f,  3.f,
@@ -191,12 +185,12 @@ TEST(gemm_gpu, basic_input3) {
     float alpha = 2.f;
     float beta = 10.f;
 
-    std::vector<float> input_data = { 
+    std::vector<float> input_data = {
         1.0f, 2.0f, 3.0f,
         1.0f, 0.0f, 1.0f
     };
 
-    std::vector<float> input_data2 = { 
+    std::vector<float> input_data2 = {
         3.0f, 3.0f,
         1.0f, 2.0f,
         1.0f, 2.0f,
@@ -241,7 +235,7 @@ TEST(gemm_gpu, basic_input3) {
 
     EXPECT_EQ(output_ptr.size(), (uint32_t)4);
 
-    for (uint32_t i = 0; i < out_data.size(); ++i) {         
+    for (uint32_t i = 0; i < out_data.size(); ++i) {
         EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 }
@@ -261,7 +255,7 @@ TEST(gemm_gpu, basic_input3_t1t2) {
     };
 
     std::vector<float> input_data2 = {
-        3.0f, 3.0f, 1.0f, 
+        3.0f, 3.0f, 1.0f,
         2.0f, 1.0f, 2.0f,
     };
 
@@ -524,8 +518,8 @@ TEST(gemm_gpu, basic_bfyx) {
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 1, 4 } });
 
     std::vector<float> input_data = {
-        1.f, -2.f,  3.f,  -4.f, 
-        5.f,  6.f,  7.f,   8.f, 
+        1.f, -2.f,  3.f,  -4.f,
+        5.f,  6.f,  7.f,   8.f,
         -10.f, 12.f, 13.f, -13.f,
 
         1.f, -2.f,  3.f,  -4.f,
@@ -534,9 +528,9 @@ TEST(gemm_gpu, basic_bfyx) {
     };
 
     std::vector<float> input_data2 = {
-        2.f, 
-        5.f, 
-        -4.f,  
+        2.f,
+        5.f,
+        -4.f,
         -7.f,
         2.f,
         5.f,
@@ -569,7 +563,7 @@ TEST(gemm_gpu, basic_bfyx) {
     auto output = outputs.at("output").get_memory();
     auto output_ptr = output.pointer<float>();
 
-    
+
     EXPECT_EQ(output_ptr.size(), (uint32_t)6);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
             EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);

@@ -13,19 +13,16 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/depth_to_space.hpp>
-#include <api/topology.hpp>
-#include <api/reshape.hpp>
-#include <api/network.hpp>
-#include "api/permute.hpp"
-#include "api/reorder.hpp"
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/depth_to_space.hpp>
+#include <cldnn/primitives/reshape.hpp>
+#include <cldnn/primitives/permute.hpp>
+#include <cldnn/primitives/reorder.hpp>
 
 #include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;

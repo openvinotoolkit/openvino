@@ -149,7 +149,7 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
                      !newParams.bias.empty(),
                      1,
                      GetFusedPrimitiveInputsCount(params));
-    kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
     kd.estimatedTime = dispatchData.efficiency;
 

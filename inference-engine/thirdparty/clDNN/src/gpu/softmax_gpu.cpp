@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "softmax/softmax_kernel_selector.h"
 #include "softmax/softmax_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 namespace cldnn {
 namespace gpu {

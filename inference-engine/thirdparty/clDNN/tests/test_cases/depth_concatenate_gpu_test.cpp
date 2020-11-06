@@ -16,22 +16,18 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/concatenation.hpp"
-#include "api/convolution.hpp"
-#include "api/data.hpp"
-#include "api/eltwise.hpp"
-#include "api/fully_connected.hpp"
-#include "api/pooling.hpp"
-#include "api/crop.hpp"
-#include "api/resample.hpp"
-#include "api/reshape.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/concatenation.hpp>
+#include <cldnn/primitives/convolution.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/eltwise.hpp>
+#include <cldnn/primitives/fully_connected.hpp>
+#include <cldnn/primitives/pooling.hpp>
+#include <cldnn/primitives/crop.hpp>
+#include <cldnn/primitives/resample.hpp>
+#include <cldnn/primitives/reshape.hpp>
 
 using namespace cldnn;
 using namespace tests;

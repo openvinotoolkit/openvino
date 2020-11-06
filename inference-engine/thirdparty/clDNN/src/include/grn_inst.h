@@ -16,8 +16,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/grn.hpp"
+#include "cldnn/primitives/grn.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

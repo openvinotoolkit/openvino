@@ -17,7 +17,7 @@
 #include "normalize_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 #include "normalize/normalize_kernel_selector.h"
 #include "normalize/normalize_kernel_base.h"
@@ -34,9 +34,8 @@ struct normalize_gpu : typed_primitive_gpu_impl<normalize> {
     using parent::parent;
 
 protected:
-     kernel::kernel_arguments_data get_arguments(typed_primitive_inst<normalize>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+     kernel_arguments_data get_arguments(typed_primitive_inst<normalize>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
         args.scale_table = (memory_impl::cptr) &instance.scale_memory();
         return args;
     }

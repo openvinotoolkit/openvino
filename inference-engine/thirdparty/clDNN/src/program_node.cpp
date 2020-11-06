@@ -83,7 +83,6 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
     node_info->add("id", id());
     node_info->add("type", desc->type_string());
-    node_info->add("internal", bool_to_str(this->is_type<internal_primitive>()));
     node_info->add("valid output layout", bool_to_str(valid_output_layout));
 
     json_composite output_layout_info;
@@ -285,17 +284,4 @@ bool program_node::need_lockable_memory() const {
     });
 
     return need_lockable_mem;
-}
-
-primitive_id details::internal_program_node_base::get_next_internal_id() {
-    static std::atomic<uint64_t> counter{0};
-    auto idx = counter++;
-    return primitive_id("_cldnn_internal_") + std::to_string(idx);
-}
-
-details::internal_program_node_base::internal_program_node_base(program_impl& prog)
-    : program_node(nullptr, prog), internal_id(get_next_internal_id()) {}
-
-void details::internal_program_node_base::set_implementation(std::unique_ptr<primitive_impl>&& impl) {
-    selected_impl = std::move(impl);
 }

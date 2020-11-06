@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "data_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
+#include "runtime/memory_impl.h"
 
 #include "json_object.h"
 #include <string>

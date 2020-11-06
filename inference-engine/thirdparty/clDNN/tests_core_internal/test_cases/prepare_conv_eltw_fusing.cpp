@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,19 +14,19 @@
 // limitations under the License.
 */
 
-#include <memory>
+#include "test_utils.h"
 
-#include <gtest/gtest.h>
+#include "runtime/engine_impl.h"
 
 #include "program_impl.h"
 #include "data_inst.h"
-#include "engine_impl.h"
 #include "eltwise_inst.h"
 #include "network_impl.h"
 #include "pass_manager.h"
 
-#include "test_utils.h"
 #include "program_impl_wrapper.h"
+
+#include <memory>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -79,14 +79,14 @@ std::map<primitive_id, network_output> test_prepare_conv_eltw_fusing(bool eltw1,
     {
         topology.add(eltwise("eltw3", "conv1", "conv2", cldnn::eltwise_mode::sum));
     }
-    program_impl::ptr prog = engine.get()->build_program(*topology.get(), build_opt, false, true);
+    program_impl::ptr prog = program_impl::build_program(*engine.get(), *topology.get(), build_opt, false, true);
 
     layout_optimizer lo;
     program_impl_wrapper::apply_opt_pass<prepare_conv_eltw_fusing>(*prog, lo);
 
     program_impl_wrapper::run_graph_compilation(*prog);
     program_impl_wrapper::prepare_memory_dependencies(*prog);
-    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = engine.get()->allocate_network(*prog, 0);
+    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = network_impl::allocate_network(*engine.get(), *prog, 0);
     network network = (cldnn::network) net.get();
     network.set_input_data("input", input);
 

@@ -17,7 +17,7 @@
 #include "max_unpooling_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "network_impl.h"
 #include "kernel_selector_helper.h"
 #include "max_unpooling/max_unpooling_kernel_selector.h"
@@ -32,9 +32,8 @@ struct max_unpooling_gpu : typed_primitive_gpu_impl<max_unpooling> {
     using parent::parent;
 
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<max_unpooling>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<max_unpooling>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
         args.inputs.push_back((memory_impl::cptr) &instance.dep_memory(1));
         return args;
     }

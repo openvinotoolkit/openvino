@@ -15,21 +15,18 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/input_layout.hpp>
-#include "api/cum_sum.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/data.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/cum_sum.hpp>
+#include <cldnn/primitives/data.hpp>
 
 #include <algorithm>
 #include <fstream>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 template<typename T = float>
 static std::vector<T> cumsum(const std::vector<T>& input,

@@ -13,16 +13,12 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/data.hpp>
-#include <api/lrn.hpp>
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/network.hpp>
-#include <api/topology.hpp>
+#include "test_utils.h"
 
-#include <tests/test_utils/test_utils.h>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/lrn.hpp>
+#include <cldnn/primitives/input_layout.hpp>
 
 using namespace cldnn;
 using namespace ::tests;

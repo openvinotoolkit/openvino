@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 namespace cldnn {
 namespace gpu {
@@ -34,8 +34,8 @@ protected:
         return parent::optimized_out(instance) || _outer.can_be_optimized();
     }
 
-    kernel::kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
         auto input = &instance.input_memory();
         auto input_layout = input->get_layout();
         if (_outer.has_mean()) {

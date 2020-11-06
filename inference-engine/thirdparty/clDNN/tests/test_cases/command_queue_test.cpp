@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,15 +15,13 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include <api/input_layout.hpp>
 #include "test_utils/test_utils.h"
-#include "api/arg_max_min.hpp"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/arg_max_min.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 using namespace std;
 
 // Run some topology too see if command queue does work correctly

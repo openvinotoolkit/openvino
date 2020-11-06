@@ -15,21 +15,18 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/scale.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include "api/reorder.hpp"
-#include "api/data.hpp"
+
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include "cldnn/primitives/scale.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/data.hpp"
 
 #include <iostream>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 TEST(scale_gpu, basic_in2x3x2x2_mixed_types_in_fp32_out_fp16) {
     const auto& engine = get_test_engine();

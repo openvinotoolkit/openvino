@@ -17,8 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "kernel_runner.h"
-#include "kernel.h"
+#include "kernels_cache.h"
+#include "runtime/kernel.h"
 #include "weight_bias_params.h"
+#include "kernel_selector_helper.h"
 #include <chrono>
 #include <vector>
 #include <limits>
@@ -31,7 +33,7 @@ kernel_runner::kernel_runner(engine_impl& engine_ref, uint32_t program_id, bool 
     : engine(&engine_ref), program_id(program_id), weights_and_bias_exist(weights_and_bias_exist), zero_points_exist(zero_points_exist) {}
 
 void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kernels_data,
-                                        gpu::kernel::kernel_arguments_data& args) {
+                                        gpu::kernel_arguments_data& args) {
     const auto& base_params = *static_cast<kernel_selector::base_params*>(kernels_data[0].params.get());
     // Prepare input buffers
     if (input_buffers.empty()) {
@@ -195,12 +197,15 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
         batch_end = batch_start + current_compilation_batch;
 
         std::vector<gpu::kernel> kernels;
+        gpu::kernels_cache cache(*context);
 
         for (auto it = batch_start; it < batch_end; it++) {
-            kernels.push_back(kernel(context, it->kernels[0].kernelString, program_id, false, true));
+            auto kernel_id = cache.set_kernel_source(it->kernels[0].code.kernelString, false, true);
+
+            kernels.push_back(kernel(context, cache.get_kernel(kernel_id, true), kernel_id));
         }
 
-        gpu::kernel::kernel_arguments_data args;
+        gpu::kernel_arguments_data args;
 
         prepare_kernel_args(kernels_data, args);
         context->queue(0).finish();
@@ -214,8 +219,8 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
             for (int iteration = 0; iteration < runs_per_kernel; iteration++) {
                 event_impl::ptr event;
                 try {
-                    kernels[i].set_arguments(0, it->kernels[0], args);
-                    event = kernels[i].run(0, it->kernels[0], {});
+                    kernels[i].set_arguments(0, it->kernels[0].params, args);
+                    event = kernels[i].run(0, it->kernels[0].params, {});
                 } catch (std::exception& e) {
                     std::cout << "[clDNN] Could not run kernel for auto-tune: " << it->kernelName
                               << " with auto-tune index " << it->autoTuneIndex << std::endl

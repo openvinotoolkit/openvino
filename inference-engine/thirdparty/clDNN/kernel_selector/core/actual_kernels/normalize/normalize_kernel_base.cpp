@@ -84,7 +84,7 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
                      1,
                      GetFusedPrimitiveInputsCount(params));
 
-    kernel.arguments.push_back({ArgumentDescriptor::Types::SCALE_TABLE, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALE_TABLE, 0});
 
     kd.estimatedTime = estimated_time;
 

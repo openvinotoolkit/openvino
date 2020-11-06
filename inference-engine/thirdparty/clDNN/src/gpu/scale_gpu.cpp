@@ -20,7 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 using namespace cldnn;
 
@@ -32,8 +32,8 @@ struct scale_gpu : typed_primitive_gpu_impl<scale> {
     using parent::parent;
 
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
         args.inputs = {(memory_impl::cptr) &instance.input_memory(), (memory_impl::cptr) &instance.scale_memory()};
         args.output = (memory_impl::cptr) &instance.output_memory();
 

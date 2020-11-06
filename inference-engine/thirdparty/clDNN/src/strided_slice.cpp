@@ -16,7 +16,7 @@
 
 #include "strided_slice_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "json_object.h"
 #include "data_inst.h"
 #include <string>

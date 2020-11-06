@@ -17,7 +17,7 @@
 #include "arg_max_min_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 #include "arg_max_min/arg_max_min_kernel_selector.h"
 #include "arg_max_min/arg_max_min_kernel_base.h"
@@ -31,9 +31,8 @@ struct arg_max_min_gpu : typed_primitive_gpu_impl<arg_max_min> {
     using parent::parent;
 
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance,
-                                                        int32_t) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, 0);
 
         if (args.inputs.size() == 3) {
             args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K

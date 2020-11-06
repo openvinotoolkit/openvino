@@ -98,10 +98,10 @@ KernelsData PermuteKernelRef::GetKernelsData(const Params& params, const optiona
     const auto& in = newParams.inputs[0];
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
-    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params));
+    kernel.params.workGroups.global = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
+    kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.params.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

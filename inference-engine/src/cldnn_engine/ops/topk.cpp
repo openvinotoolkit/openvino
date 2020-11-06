@@ -7,8 +7,8 @@
 
 #include "ngraph/op/topk.hpp"
 
-#include "api/arg_max_min.hpp"
-#include "api/mutable_data.hpp"
+#include "cldnn/primitives/arg_max_min.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
 
 namespace CLDNNPlugin {
 

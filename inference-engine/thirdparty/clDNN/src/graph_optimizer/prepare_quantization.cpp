@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/quantize.hpp"
-#include "api/binary_convolution.hpp"
-#include "api/scale.hpp"
-#include "api/pooling.hpp"
-
+#include "pooling_inst.h"
 #include "quantize_inst.h"
 #include "binary_convolution_inst.h"
 #include "scale_inst.h"
@@ -28,10 +24,10 @@
 #include "data_inst.h"
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include <algorithm>
 #include "to_string_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
+#include <algorithm>
 #include <string>
 #include <memory>
 #include <vector>

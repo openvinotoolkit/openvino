@@ -13,20 +13,16 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/engine.hpp>
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/concatenation.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/pooling.hpp>
-#include <api/condition.hpp>
-#include <api/softmax.hpp>
-#include <api/scale.hpp>
-#include <api/data.hpp>
-#include "test_utils/test_utils.h"
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/concatenation.hpp>
+#include <cldnn/primitives/pooling.hpp>
+#include <cldnn/primitives/condition.hpp>
+#include <cldnn/primitives/softmax.hpp>
+#include <cldnn/primitives/scale.hpp>
+#include <cldnn/primitives/data.hpp>
 
 #include <cstddef>
 
@@ -68,7 +64,7 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     auto scale_mem = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    
+
     topology branch_true = generate_simple_branch(true, "condi");
     topology branch_false = generate_simple_branch(false, "condi");
 
@@ -78,13 +74,13 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
     );
     topology.add(
         input_layout("compare", compare.get_layout())
-    );    
+    );
     topology.add(
         input_layout("scale_data", scale_mem.get_layout())
     );
     topology.add(
         condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
-    );  
+    );
     topology.add(
         scale("output", "condi", "scale_data")
     );
@@ -139,7 +135,7 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
     topology.add(
         concatenation("concat", { "input0", "input1" }, concatenation::along_x)
     );
-    topology.add( 
+    topology.add(
         condition("condi", "concat", branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
 
@@ -214,11 +210,11 @@ std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cl
                         ret_true.push_back(values.at(linear_idx));
                         ret_false.push_back(-1.0f);
                         break;
-                    case cond_functions::GREATER: 
+                    case cond_functions::GREATER:
                         ret_true.push_back(values.at(linear_idx) - 1.0f);
                         ret_false.push_back(99.0f);
                         break;
-                    case cond_functions::LESS: 
+                    case cond_functions::LESS:
                         ret_true.push_back(values.at(linear_idx) + 1.0f);
                         ret_false.push_back(-1.0f);
                         break;
@@ -334,7 +330,7 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
 
 TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
 
-    /*   
+    /*
         <prims...>
         <if>
         <...>
@@ -343,7 +339,7 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
         <if>
         <...>
         <end_if>
-        <prims...>    
+        <prims...>
     */
     const auto& engine = get_test_engine();
     build_options bs;
@@ -551,7 +547,7 @@ TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
     bs.set_option(build_option::optimize_data(true));
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    
+
     topology branch_true;
     branch_true.add(
         pooling("pooling_when_true", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
@@ -606,6 +602,6 @@ TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
     topology.add(
         pooling("pooling_check_name", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
-    
+
     EXPECT_ANY_THROW(network net(engine, topology, bs););
 }

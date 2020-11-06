@@ -7,7 +7,7 @@
 
 #include "ngraph/op/extractimagepatches.hpp"
 
-#include "api/extract_image_patches.hpp"
+#include "cldnn/primitives/extract_image_patches.hpp"
 
 namespace CLDNNPlugin {
 

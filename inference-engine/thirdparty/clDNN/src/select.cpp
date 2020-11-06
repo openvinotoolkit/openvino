@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "select_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "json_object.h"
 #include <string>
 
@@ -74,7 +74,7 @@ select_inst::typed_primitive_inst(network_impl& network, select_node const& node
                               "Positive input format",
                               deps[1]->get_output_layout().format,
                               "");
-             
+
     if (deps[2]->get_output_layout().size != cldnn::tensor(1))
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Mask format",

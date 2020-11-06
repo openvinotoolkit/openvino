@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/memory.hpp"
-#include "api/primitive.hpp"
-#include "api/program.hpp"
-
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/primitives/primitive.hpp"
+#include "cldnn/graph/program.hpp"
 #include "topology_impl.h"
 
 #include <memory>
@@ -47,7 +46,5 @@ struct primitive_type {
                                                     const program_node& node) const = 0;
     virtual layout calc_output_layout(const program_node& node) const = 0;
     virtual std::string to_string(const program_node& node) const = 0;
-
-    virtual bool is_internal_type() const { return false; }
 };
 }  // namespace cldnn

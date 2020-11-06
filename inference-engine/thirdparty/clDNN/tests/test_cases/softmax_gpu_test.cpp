@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,18 +14,14 @@
 // limitations under the License.
 */
 
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/softmax.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/softmax.hpp>
 
 using namespace cldnn;
 using namespace std;
-using namespace tests;
+using namespace ::tests;
 
 class softmax_gpu_xb_f32_test_fixture: public ::testing::Test {
 public:
@@ -1021,4 +1017,3 @@ INSTANTIATE_TEST_CASE_P(DISABLED_SOFTMAX,
     softmax_test,
     ::testing::Combine(::testing::ValuesIn(softmax_test::generate_generic_test_params()), ::testing::ValuesIn(softmax_test::generate_specific_test_params())),
     softmax_test::custom_param_name);
-

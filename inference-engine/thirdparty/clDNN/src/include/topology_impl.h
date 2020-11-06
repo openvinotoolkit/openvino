@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/primitive.hpp"
-#include "api/input_layout.hpp"
-#include "refcounted_obj.h"
+
+#include "cldnn/primitives/primitive.hpp"
+#include "cldnn/primitives/input_layout.hpp"
+#include "cldnn/runtime/refcounted_obj.h"
 
 #include <map>
 #include <memory>

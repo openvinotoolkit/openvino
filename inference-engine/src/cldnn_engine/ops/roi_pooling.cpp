@@ -9,7 +9,7 @@
 #include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 
-#include "api/roi_pooling.hpp"
+#include "cldnn/primitives/roi_pooling.hpp"
 
 namespace CLDNNPlugin {
 

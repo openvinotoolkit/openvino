@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,17 +15,14 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/select.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
+
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include "cldnn/primitives/select.hpp"
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 // select_gpu_f32
 TEST(select_gpu_f32, select_basic) {
@@ -656,7 +653,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
         0.f,
 
         0.1f,
-        0.5f,  
+        0.5f,
 
         -0.f,
         -0.5f,
@@ -812,7 +809,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in2_2x2x2x1) {
         0.5f,  0.7f,
 
         0.f,   0.f,
-        0.f,   0.f,        
+        0.f,   0.f,
 
         -0.f,  -0.1f,
         -0.f,  -0.5f,
@@ -1054,7 +1051,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in1_2x2x2x1) {
         0.f,   0.f,
 
         0.1f,  0.3f,
-        0.5f,  0.7f,   
+        0.5f,  0.7f,
 
         -0.f,  -0.1f,
         -0.f,  -0.5f,
@@ -1134,7 +1131,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
         0.f,
 
         0.1f,
-        0.5f,  
+        0.5f,
 
         -0.f,
         -0.5f,
@@ -1541,7 +1538,7 @@ TEST(select_gpu_f32, select_basic_1x1x2x2) {
 
     auto output = outputs.at("select").get_memory();
 
-    float answers[4] = { 
+    float answers[4] = {
         0.5f,    2.5f,    2.f,    0.f
     };
 

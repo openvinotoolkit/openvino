@@ -9,7 +9,7 @@
 
 #include "cldnn_custom_layer.h"
 
-#include <api/network.hpp>
+#include <cldnn/graph/network.hpp>
 
 namespace CLDNNPlugin {
 

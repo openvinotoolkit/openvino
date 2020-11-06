@@ -16,18 +16,15 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/convolution.hpp"
-#include "api/eltwise.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include "test_utils/float16.h"
-#include <api/data.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/convolution.hpp>
+#include <cldnn/primitives/eltwise.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/crop.hpp>
+#include <cldnn/primitives/reorder.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -37,12 +34,9 @@
 #include <type_traits>
 #include <fstream>
 #include <tuple>
-#include <api/crop.hpp>
-#include <api/reorder.hpp>
-#include <src/include/to_string_utils.h>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 namespace cldnn
 {

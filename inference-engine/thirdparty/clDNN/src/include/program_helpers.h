@@ -19,8 +19,10 @@
 #pragma once
 
 #include "program_node.h"
-#include "engine_impl.h"
+#include "runtime/engine_impl.h"
 #include "program_impl.h"
+#include "data_inst.h"
+
 #include <string>
 #include <vector>
 #include <utility>

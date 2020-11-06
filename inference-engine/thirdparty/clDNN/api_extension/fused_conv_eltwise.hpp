@@ -16,8 +16,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/primitive.hpp"
-#include "api/eltwise.hpp"
+#include "cldnn/primitives/primitive.hpp"
+#include "cldnn/primitives/eltwise.hpp"
 #include <vector>
 
 namespace cldnn {

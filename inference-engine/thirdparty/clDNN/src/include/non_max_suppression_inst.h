@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/non_max_suppression.hpp"
+#include "cldnn/primitives/non_max_suppression.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@
 #pragma once
 #include "api_extension/lstm_dynamic_input.hpp"
 #include "primitive_inst.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
+
 #include <memory>
 #include <string>
 

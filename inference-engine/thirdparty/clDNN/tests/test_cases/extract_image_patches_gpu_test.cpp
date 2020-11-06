@@ -15,19 +15,16 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/memory.hpp>
-#include <api/input_layout.hpp>
-#include <api/extract_image_patches.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/data.hpp>
+#include "test_utils.h"
 
-#include <test_utils/test_utils.h>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/extract_image_patches.hpp>
+#include <cldnn/primitives/data.hpp>
+
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 TEST(extract_image_patches_gpu, basic) {
     //  Input  : 1x1x10x10

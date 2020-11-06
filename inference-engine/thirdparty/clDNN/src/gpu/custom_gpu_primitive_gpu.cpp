@@ -15,13 +15,13 @@
 */
 
 #include "custom_gpu_primitive_inst.h"
-#include "kernel.h"
+#include "runtime/kernel.h"
+#include "runtime/engine_impl.h"
 #include "implementation_map.h"
 #include "kernel_selector_helper.h"
 #include "network_impl.h"
-#include "engine_impl.h"
 #include "jitter.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "register_gpu.hpp"
 
 #include <map>
@@ -40,37 +40,44 @@ namespace neural {
 struct custom_gpu_primitive_gpu : typed_primitive_impl<custom_gpu_primitive> {
     const custom_gpu_primitive_node& outer;
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
-    gpu::kernel _kernel;
+    std::vector<gpu::kernel> _kernels;
+    gpu::kernel_id _kernel_id;
 
     custom_gpu_primitive_gpu(const custom_gpu_primitive_node& arg,
                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
-        : outer(arg),
-          cl_kernel(cl_kernel),
-          _kernel(arg.get_program().get_engine().get_context(),
-                  cl_kernel->kernelString,
-                  arg.get_program().get_id(),
-                  arg.get_program().get_engine().get_context()->get_configuration().dump_custom_program) {}
+        : outer(arg)
+        , cl_kernel(cl_kernel)
+        , _kernels() {
+        _kernel_id = outer.get_program().add_kernel(cl_kernel->code.kernelString);
+    }
+
+    void init_kernels_impl(custom_gpu_primitive_inst& instance) override {
+        auto context = instance.get_network().get_engine().get_context();
+
+        gpu::kernel kernel(context, outer.get_program().get_kernel(_kernel_id, false), _kernel_id);
+        _kernels.emplace_back(std::move(kernel));
+    }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
         auto net_id = instance.get_network().get_id();
-        gpu::kernel::kernel_arguments_data args;
+        gpu::kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
             args.inputs.push_back((memory_impl::cptr) &(dep->output_memory()));
         }
         args.output = (memory_impl::cptr) &instance.output_memory();
-        _kernel.set_arguments(net_id, *cl_kernel.get(), args);
+        _kernels.front().set_arguments(net_id, cl_kernel.get()->params, args);
     }
 
     void cleanup_impl(custom_gpu_primitive_inst& instance) override {
         auto net_id = instance.get_network().get_id();
-        _kernel.cleanup(net_id);
+        _kernels.front().cleanup(net_id);
     }
 
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,
                                  custom_gpu_primitive_inst& instance) override {
         auto net_id = instance.get_network().get_id();
-        _kernel.set_output_event(net_id, instance.node.is_output());
-        return _kernel.run(net_id, *cl_kernel.get(), events);
+        _kernels.front().set_output_event(net_id, instance.node.is_output());
+        return _kernels.front().run(net_id, cl_kernel.get()->params, events);
     }
 };
 
@@ -207,19 +214,19 @@ static primitive_impl* create(const custom_gpu_primitive_node& arg) {
     const auto primitive = arg.get_primitive().get();
 
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
-    cl_kernel->kernelString = std::make_shared<kernel_selector::kernel_string>();
-    cl_kernel->kernelString->entry_point = primitive->kernel_entry_point;
-    cl_kernel->kernelString->options = primitive->build_options;
-    cl_kernel->kernelString->jit = get_jit_constant(arg);
+    cl_kernel->code.kernelString = std::make_shared<kernel_selector::kernel_string>();
+    cl_kernel->code.kernelString->entry_point = primitive->kernel_entry_point;
+    cl_kernel->code.kernelString->options = primitive->build_options;
+    cl_kernel->code.kernelString->jit = get_jit_constant(arg);
     for (const auto& s : primitive->kernels_code) {
-        cl_kernel->kernelString->str += s + "\n";
+        cl_kernel->code.kernelString->str += s + "\n";
     }
 
-    cl_kernel->workGroups.global = primitive->gws;
-    cl_kernel->workGroups.local = primitive->lws;
+    cl_kernel->params.workGroups.global = primitive->gws;
+    cl_kernel->params.workGroups.local = primitive->lws;
 
     for (const auto& p : primitive->kernel_arguments) {
-        cl_kernel->arguments.push_back(get_arg(p));
+        cl_kernel->params.arguments.push_back(get_arg(p));
     }
 
     return new custom_gpu_primitive_gpu(arg, cl_kernel);

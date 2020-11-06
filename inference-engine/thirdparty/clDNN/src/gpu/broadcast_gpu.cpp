@@ -19,7 +19,7 @@
 #include "kernel_selector_helper.h"
 #include "broadcast/broadcast_kernel_selector.h"
 #include "broadcast/broadcast_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 
 namespace cldnn {
 namespace gpu {

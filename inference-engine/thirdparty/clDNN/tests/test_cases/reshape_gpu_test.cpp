@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017-2019 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,19 +15,15 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
 
-#include <api/data.hpp>
-#include <api/reshape.hpp>
-#include <api/input_layout.hpp>
+#include "test_utils.h"
 
-#include "test_utils/test_utils.h"
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/reshape.hpp>
+#include <cldnn/primitives/input_layout.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 using namespace testing;
 
 void verify_float(const float& output_value, const float& value) {

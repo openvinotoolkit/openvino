@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #pragma once
-#include "api/pyramid_roi_align.hpp"
+#include "cldnn/primitives/pyramid_roi_align.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

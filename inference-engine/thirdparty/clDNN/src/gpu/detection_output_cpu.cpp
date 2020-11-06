@@ -15,7 +15,7 @@
 */
 
 #include "detection_output_inst.h"
-#include "kernel.h"
+#include "runtime/kernel.h"
 #include "network_impl.h"
 #include "implementation_map.h"
 #include "math_utils.h"

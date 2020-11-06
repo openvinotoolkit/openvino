@@ -17,7 +17,7 @@
 #include "ctc_greedy_decoder_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 #include "ctc_greedy_decoder/ctc_greedy_decoder_kernel_selector.h"
 #include "ctc_greedy_decoder/ctc_greedy_decoder_kernel_base.h"

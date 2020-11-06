@@ -7,8 +7,8 @@
 
 #include "ngraph/op/proposal.hpp"
 
-#include "api/proposal.hpp"
-#include "api/mutable_data.hpp"
+#include "cldnn/primitives/proposal.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
 
 namespace CLDNNPlugin {
 

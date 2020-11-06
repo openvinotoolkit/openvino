@@ -7,7 +7,7 @@
 
 #include "ngraph/op/space_to_depth.hpp"
 
-#include "api/space_to_depth.hpp"
+#include "cldnn/primitives/space_to_depth.hpp"
 
 namespace CLDNNPlugin {
 

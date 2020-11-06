@@ -15,22 +15,18 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/max_unpooling.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/reorder.hpp>
-#include <api/data.hpp>
-#include <api/mutable_data.hpp>
-#include <api/pooling.hpp>
-#include "test_utils/float16.h"
+
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/max_unpooling.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/mutable_data.hpp>
+#include <cldnn/primitives/pooling.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 TEST(max_unpooling_gpu, basic_in2x3x2x2) {
     //  Input  : 2x2x2x1

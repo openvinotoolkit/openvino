@@ -18,7 +18,7 @@
 
 #include "pass_manager.h"
 #include "program_node.h"
-#include "engine_impl.h"
+#include "runtime/engine_impl.h"
 #include "program_impl.h"
 #include "network_impl.h"
 #include "data_inst.h"
@@ -125,7 +125,7 @@ std::list<std::pair<primitive_id, memory_impl::ptr>> propagate_constants::calcul
 
     bo.set_option(build_option::optimize_data(false));
     bo.set_option(build_option::outputs(const_outputs));
-    network_impl::ptr net = engine.build_network(nodes, bo, true);
+    network_impl::ptr net = network_impl::build_network(engine, nodes, bo, true);
     for (auto& cin : const_inputs) net->set_input_data(cin->id(), cin->get_attached_memory());
 
     net->execute({});

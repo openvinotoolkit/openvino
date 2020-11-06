@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,18 +16,13 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <gtest/gtest.h>
-#include <api/memory.hpp>
-#include <api/input_layout.hpp>
-#include "api/mvn.hpp"
-#include "api/reorder.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <iostream>
-#include "float16.h"
 #include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/mvn.hpp>
+#include <cldnn/primitives/reorder.hpp>
+
+#include <iostream>
 
 using namespace cldnn;
 
@@ -122,7 +117,7 @@ void mvn_compute_mean_within_channels(cldnn::memory& output, bool normalize_vari
 TEST(mvn_gpu_test, mvn_test_across_channels_bfyx) {
     // mvn accross channels fp32 test with normalize_variance set to false
     using namespace cldnn;
-    using namespace tests;
+    using namespace ::tests;
 
     const auto& engine = get_test_engine();
 
@@ -149,7 +144,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx) {
 TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_fp16) {
     // mvn accross channels fp16 test with normalize_variance set to false
     using namespace cldnn;
-    using namespace tests;
+    using namespace ::tests;
 
     const auto& engine = get_test_engine();
 
@@ -176,7 +171,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_fp16) {
 TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance) {
     // mvn accross channels fp32 test with normalize_variance set to true
     using namespace cldnn;
-    using namespace tests;
+    using namespace ::tests;
 
     const auto& engine = get_test_engine();
 
@@ -203,7 +198,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance) {
 TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance_fp16) {
     // mvn accross channels fp16 test with normalize_variance set to true
     using namespace cldnn;
-    using namespace tests;
+    using namespace ::tests;
 
     const auto& engine = get_test_engine();
 
@@ -230,7 +225,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance_fp16) {
 TEST(mvn_gpu_test, mvn_test_within_channels_bfyx) {
     // mvn within channels fp32 test with normalize_variance set to false
     using namespace cldnn;
-    using namespace tests;
+    using namespace ::tests;
 
     const auto& engine = get_test_engine();
 
@@ -257,7 +252,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx) {
 TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_fp16) {
     // mvn within channels fp16 test with normalize_variance set to false
     using namespace cldnn;
-    using namespace tests;
+    using namespace ::tests;
 
     const auto& engine = get_test_engine();
 
@@ -284,7 +279,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_fp16) {
 TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_normalize_variance) {
     // mvn within channels fp32 test with normalize_variance set to true
     using namespace cldnn;
-    using namespace tests;
+    using namespace ::tests;
 
     const auto& engine = get_test_engine();
 
@@ -311,7 +306,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_normalize_variance) {
 TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_normalize_variance_fp16) {
     // mvn within channels fp16 test with normalize_variance set to true
     using namespace cldnn;
-    using namespace tests;
+    using namespace ::tests;
 
     const auto& engine = get_test_engine();
 

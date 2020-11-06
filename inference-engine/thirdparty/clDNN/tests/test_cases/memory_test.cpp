@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,24 +16,19 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <gtest/gtest.h>
-#include <api/engine.hpp>
-#include <api/memory.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/input_layout.hpp>
-#include <api/activation.hpp>
-#include <api/pooling.hpp>
-#include <api/concatenation.hpp>
-#include <api/data.hpp>
-#include <api/reshape.hpp>
-#include <api/crop.hpp>
-#include <api/scale.hpp>
+#include "test_utils.h"
 
-#include "test_utils/test_utils.h"
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/activation.hpp>
+#include <cldnn/primitives/pooling.hpp>
+#include <cldnn/primitives/concatenation.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/reshape.hpp>
+#include <cldnn/primitives/crop.hpp>
+#include <cldnn/primitives/scale.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 #if 0
 TEST(memory_tests, DISABLED_execution_loop)
@@ -48,7 +43,7 @@ TEST(memory_tests, DISABLED_execution_loop)
     };
 
     network net(eng, tpl);
-    
+
     while (true)
     {
         net.set_input_data("in", in);

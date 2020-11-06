@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-
-#include "api/primitive.hpp"
-#include "api/concatenation.hpp"
-
-#include "event_impl.h"
-#include "memory_impl.h"
-#include "meta_utils.h"
+#include "cldnn/primitives/primitive.hpp"
+#include "cldnn/primitives/concatenation.hpp"
+#include "runtime/event_impl.h"
+#include "runtime/memory_impl.h"
 #include "kernel_selector_helper.h"
+#include "meta_utils.h"
 #include "program_node.h"
+#include "primitive_type.h"
 
 #include <memory>
 #include <vector>
@@ -55,6 +54,7 @@ struct primitive_impl {
         : _weights_reorder_params(params), _kernel_name(kernel_name) {}
     virtual ~primitive_impl() = default;
 
+    virtual void init_kernels(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void cleanup(primitive_inst& instance) = 0;
     virtual event_impl::ptr execute(const std::vector<event_impl::ptr>& events, primitive_inst& instance) = 0;
@@ -109,6 +109,7 @@ public:
     }
 
     event_impl::ptr execute(const std::vector<event_impl::ptr>& events);
+    void init_kernels();
     void set_arguments();
     void cleanup();
     bool validate() const {
@@ -207,6 +208,16 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
+    void init_kernels(primitive_inst& instance) override {
+        if (instance.type() != PType::type_id())
+            throw std::invalid_argument("Implementation type does not match primitive type");
+        if (instance.get_impl() != this)
+            throw std::invalid_argument(
+                "Trying to init_kernels for primitive implementation with mismatching primitive instance");
+
+        return init_kernels_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
+    }
+
     void set_arguments(primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
@@ -227,6 +238,7 @@ private:
         return cleanup_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
+    virtual void init_kernels_impl(typed_primitive_inst<PType>& /*instance*/) {};
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {};
     virtual void cleanup_impl(typed_primitive_inst<PType>& /*instance*/) {};
     virtual event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& event,
@@ -244,13 +256,8 @@ private:
     virtual bool validate_impl(const typed_primitive_inst<PType>&) const { return true; }
 };
 
-namespace details {
 template <class PType>
-class api_typed_primitive_inst_base : public primitive_inst {
-    static_assert(meta::is_api_primitive<PType>::value,
-                  "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from "
-                  "cldnn::internal_primitive");
-
+class typed_primitive_inst_base : public primitive_inst {
 public:
     using typed_node = typed_program_node<PType>;
     using typed_impl = typed_primitive_impl<PType>;
@@ -258,15 +265,15 @@ public:
     const typed_node& node;
     const PType& argument;
 
-    api_typed_primitive_inst_base(network_impl& network, typed_node const& node)
-        : api_typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
+    typed_primitive_inst_base(network_impl& network, typed_node const& node)
+        : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
 protected:
-    api_typed_primitive_inst_base(network_impl& network, typed_node const& node, bool allocate_memory)
+    typed_primitive_inst_base(network_impl& network, typed_node const& node, bool allocate_memory)
         : primitive_inst(network, node, allocate_memory), node(_node), argument(*node.get_primitive()) {}
 
-    api_typed_primitive_inst_base(network_impl& network, typed_node const& node, memory_impl& buffer)
-        : api_typed_primitive_inst_base(network, node, false) {
+    typed_primitive_inst_base(network_impl& network, typed_node const& node, memory_impl& buffer)
+        : typed_primitive_inst_base(network, node, false) {
         _output = (memory_impl::ptr) &buffer;
     }
 
@@ -279,48 +286,6 @@ private:
         return true;
     }
 };
-
-template <class PType>
-class internal_typed_primitive_inst_base : public primitive_inst {
-    static_assert(meta::is_internal_primitive<PType>::value,
-                  "PType should name a non-const, non-volatile type derived from cldnn::internal_primitive");
-
-public:
-    using typed_node = typed_program_node<PType>;
-    using typed_impl = typed_primitive_impl<PType>;
-
-    const typed_node& node;
-
-    internal_typed_primitive_inst_base(network_impl& network, typed_node const& node)
-        : internal_typed_primitive_inst_base(
-              network,
-              node,
-              false)  // by default, do not allocate output buffer automatically for internal primitives
-    {}
-
-    template <class... Guard>
-    [[noreturn]] void desc(Guard&&...) const {
-        static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
-    }
-
-protected:
-    internal_typed_primitive_inst_base(network_impl& network, typed_node const& node, bool allocate_memory)
-        : primitive_inst(network, node, allocate_memory), node(_node) {}
-
-    internal_typed_primitive_inst_base(network_impl& network, typed_node const& node, memory_impl::ptr buffer)
-        : internal_typed_primitive_inst_base(network, node, false) {
-        _output = buffer;
-    }
-};
-}  // namespace details
-
-/*
-    Base class for all concrete primitive instances.
-*/
-template <class PType>
-using typed_primitive_inst_base = typename std::conditional<meta::is_api_primitive<PType>::value,
-                                                            details::api_typed_primitive_inst_base<PType>,
-                                                            details::internal_typed_primitive_inst_base<PType>>::type;
 
 /*
     Template class which represents instance of primitive 'PType'.
@@ -340,15 +305,5 @@ template <class PType>
 class typed_primitive_inst : public typed_primitive_inst_base<PType> {
     static_assert(meta::always_false<PType>::value, "Missing typed_primitive_inst specialization");
 };
-
-#define CLDNN_DEFINE_SIMPLE_PRIM_INST(PType)                                       \
-    template <>                                                                    \
-    struct typed_primitive_inst<PType> : public typed_primitive_inst_base<PType> { \
-        using typed_primitive_inst_base<PType>::typed_primitive_inst_base;         \
-        static std::string to_string(PType##_node const& arg) {                    \
-            return primitive_inst::generic_to_string(arg, #PType);                 \
-        }                                                                          \
-    };                                                                             \
-    using PType##_inst = typed_primitive_inst<PType>;
 
 }  // namespace cldnn

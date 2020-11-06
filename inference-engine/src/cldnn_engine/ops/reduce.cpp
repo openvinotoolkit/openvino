@@ -16,8 +16,8 @@
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/reduce.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/reduce.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 

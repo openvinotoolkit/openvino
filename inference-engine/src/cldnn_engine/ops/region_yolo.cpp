@@ -7,7 +7,7 @@
 
 #include "ngraph/op/region_yolo.hpp"
 
-#include "api/region_yolo.hpp"
+#include "cldnn/primitives/region_yolo.hpp"
 
 namespace CLDNNPlugin {
 

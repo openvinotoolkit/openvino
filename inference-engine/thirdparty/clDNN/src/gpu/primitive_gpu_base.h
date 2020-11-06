@@ -20,9 +20,9 @@
 #include <thread>
 #include "primitive_inst.h"
 #include "program_impl.h"
-#include "kernel.h"
-#include "events_waiter.h"
-#include "error_handler.h"
+#include "runtime/kernel.h"
+#include "runtime/events_waiter.h"
+#include "cldnn/runtime/error_handler.h"
 #include "kernel_selector_helper.h"
 #include "network_impl.h"
 #include "register_gpu.hpp"
@@ -45,6 +45,7 @@ struct typed_primitive_gpu_impl : public typed_primitive_impl<PType> {
     const typed_program_node<PType>& _outer;
     device_info_internal _device_info;
     kernel_selector::kernel_data _kernel_data;
+    std::vector<gpu::kernel_id> _kernel_ids;
     std::vector<gpu::kernel> _kernels;
     std::vector<memory_impl::cptr> _intermediates_memory;
 
@@ -58,12 +59,10 @@ struct typed_primitive_gpu_impl : public typed_primitive_impl<PType> {
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
 
-        _kernels.reserve(kd.kernels.size());
+        _kernel_ids.reserve(kd.kernels.size());
+        // Add selected kernels to kernels_cache for the following compilation and save output ids
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            gpu::kernel kernel(_outer.get_program().get_engine().get_context(),
-                               kd.kernels[i].kernelString,
-                               _outer.get_program().get_id());
-            _kernels.emplace_back(std::move(kernel));
+            _kernel_ids.emplace_back(_outer.get_program().add_kernel(kd.kernels[i].code.kernelString));
         }
 
         for (auto size : kd.internalBufferSizes) {
@@ -82,9 +81,8 @@ struct typed_primitive_gpu_impl : public typed_primitive_impl<PType> {
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
 
-    virtual kernel::kernel_arguments_data get_arguments(typed_primitive_inst<PType>& instance,
-                                                        int32_t /*split*/) const {
-        kernel::kernel_arguments_data args;
+    virtual kernel_arguments_data get_arguments(typed_primitive_inst<PType>& instance, int32_t /*split*/) const {
+        kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back((memory_impl::cptr)&instance.input_memory(i));
@@ -118,6 +116,21 @@ protected:
         return events_waiter(_outer.get_program().get_engine().get_context()).run(net_id, events);
     }
 
+    void init_kernels_impl(typed_primitive_inst<PType>& instance) override {
+        if (optimized_out(instance) || is_cpu()) {
+            return;
+        }
+        _kernels.clear();
+
+        auto context = instance.get_network().get_engine().get_context();
+
+        _kernels.reserve(_kernel_ids.size());
+        for (size_t k = 0; k < _kernel_ids.size(); ++k) {
+            gpu::kernel kernel(context, _outer.get_program().get_kernel(_kernel_ids[k], false), _kernel_ids[k]);
+            _kernels.emplace_back(std::move(kernel));
+        }
+    }
+
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         uint32_t net_id = instance.get_network().get_id();
         if (optimized_out(instance) || is_cpu()) {
@@ -130,14 +143,14 @@ protected:
         for (size_t k = 0; k < _kernels.size(); ++k) {
             for (decltype(split) i = 0; i < split; i++) {
                 auto args = get_arguments(instance, i);
-                args.scalars = &_kernel_data.kernels[k].scalars;
+                args.scalars = &_kernel_data.kernels[k].params.scalars;
                 args.split = i;
 
                 for (const auto& m : _intermediates_memory) {
                     args.intermediates.push_back(m);
                 }
 
-                _kernels[k].set_arguments(net_id, _kernel_data.kernels[k], args);
+                _kernels[k].set_arguments(net_id, _kernel_data.kernels[k].params, args);
             }
         }
     }
@@ -180,7 +193,7 @@ protected:
                     _kernels[k].set_output_event(net_id, instance.node.is_output());
                 }
 
-                auto event = _kernels[k].run(net_id, _kernel_data.kernels[k], tmp_events);
+                auto event = _kernels[k].run(net_id, _kernel_data.kernels[k].params, tmp_events);
                 new_events.push_back(event);
                 all_events.push_back(event);
             }

@@ -21,7 +21,7 @@
 #include "reduce/reduce_kernel_selector.h"
 #include "reduce/reduce_kernel_ref.h"
 #include "reduce/reduce_kernel_b_fs_yx_fsv16.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.h"
 #include "data_inst.h"
 
 using namespace cldnn;

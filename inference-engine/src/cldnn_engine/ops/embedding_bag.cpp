@@ -9,8 +9,8 @@
 #include "ngraph/op/embeddingbag_offsets_sum.hpp"
 #include "ngraph/op/embeddingbag_packedsum.hpp"
 
-#include "api/embedding_bag.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/embedding_bag.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 #include "transformations/utils/utils.hpp"
 

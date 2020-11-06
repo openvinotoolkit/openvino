@@ -49,7 +49,7 @@ KernelsData LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetKernelsData(const Par
     if ((input.Batch().v == 1) && (input.X().v >= 64) && (input.Y().v == 1)) {
         auto out = orgParams.output;
 
-        kernel.workGroups.global = {16, out.X().v, out.Batch().v};
+        kernel.params.workGroups.global = {16, out.X().v, out.Batch().v};
         kernelsData[0].estimatedTime = FORCE_PRIORITY_1;
     }
 

@@ -15,28 +15,23 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/convolution.hpp"
-#include "api/eltwise.hpp"
-#include "api/reorder.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/data.hpp>
-#include <api/depth_to_space.hpp>
 
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/convolution.hpp>
+#include <cldnn/primitives/eltwise.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/depth_to_space.hpp>
 #include <api_extension/fused_conv_eltwise.hpp>
 
 #include <cassert>
 #include <cmath>
-#include <gmock/gmock.h>
 #include <limits>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 using namespace testing;
 
 TEST(fused_conv_eltwise, basic_0)

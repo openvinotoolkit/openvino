@@ -15,19 +15,16 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/tile.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
+
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/tile.hpp>
 
 #include <iostream>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 template<typename data_t>
 void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num_tiles)

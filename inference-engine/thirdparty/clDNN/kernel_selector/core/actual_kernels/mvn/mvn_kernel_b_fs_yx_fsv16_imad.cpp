@@ -211,9 +211,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
                                          dispatchData.item_groups * intermidiate_bytes);
     }
@@ -235,9 +235,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
                                          intermidiate_bytes);
     }
@@ -259,10 +259,10 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
     }
     if (params.mvnNormalizeVariance) {
         // Variance second stage
@@ -282,9 +282,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
                                          intermidiate_bytes);
     }
@@ -307,9 +307,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          1,
                          GetFusedPrimitiveInputsCount(params));
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         if (params.mvnNormalizeVariance) {
-            kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         }
     }
     kd.internalBufferDataType = Datatype::F32;

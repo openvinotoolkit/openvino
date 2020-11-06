@@ -15,21 +15,18 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/detection_output.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
+
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/detection_output.hpp>
 
 namespace cldnn {
     template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
 }
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 template <typename T>
 class detection_output_test : public ::testing::Test {
