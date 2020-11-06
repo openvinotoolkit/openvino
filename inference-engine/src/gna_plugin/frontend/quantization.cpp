@@ -24,13 +24,26 @@ void QuantizationCallback<int16_t, int32_t>::runFakeQuantize() const {
     for (uint32_t row = 0; row < num_rows; row++) {
         for (uint32_t col = 0; col < num_columns; col++) {
             float rounding_value = (ptr_float_weights[row * num_columns + col] > 0) ? 0.5f : -0.5f;
-            float value = ptr_float_weights[row * num_columns + col] * *ptr_weight_scale_factor + rounding_value;
+            float value = ptr_float_weights[row * num_columns + col];
+            if (!*ptr_quantized_weights) {
+                value = value * *ptr_weight_scale_factor + rounding_value;
+            } else {
+                value -= MAX_VAL_2B_WEIGHT;
+            }
+
             int16_t* ptr_weight_16 = ptr_int_weights + (row * num_columns_padded + col);
-            if (value > 32767.0) {
-                *ptr_weight_16 = 32767;
+
+            if (*ptr_quantized_weights &&
+                (value > std::numeric_limits<int16_t>::max() ||
+                    value < std::numeric_limits<int16_t>::min())) {
+                THROW_GNA_EXCEPTION << "unsupported weights range for I16 quantisation: " << value;
+            }
+
+            if (value > std::numeric_limits<int16_t>::max()) {
+                *ptr_weight_16 = std::numeric_limits<int16_t>::max();
                 num_saturate++;
-            } else if (value < -32768.0) {
-                *ptr_weight_16 = -32768;
+            } else if (value < std::numeric_limits<int16_t>::min()) {
+                *ptr_weight_16 = std::numeric_limits<int16_t>::min();
                 num_saturate++;
             } else {
                 *ptr_weight_16 = (int16_t)value;
@@ -226,25 +239,28 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             THROW_GNA_EXCEPTION << "invalid channel multiplier: " << channel_multiplier;
         }
 
-        auto row_max = 0.0f;
-        for (uint32_t col = 0; col < num_columns; col++) {
-            auto value = fabs(ptr_float_weights[i * num_columns + col]);
-            if (value > row_max) {
-                row_max = value;
-            }
-        }
-
         for (uint32_t j = 0; j < num_columns; j++) {
             auto offset = i * num_columns + j;
             auto rounding_value = (ptr_float_weights[i * num_columns + j] > 0) ? 0.5f : -0.5f;
-            float value = ptr_float_weights[offset] * (*ptr_weight_scale_factor / ptr_int_biases[i].multiplier) + rounding_value;
+            float value = ptr_float_weights[offset];
+            if (!*ptr_quantized_weights) {
+                value = value * (*ptr_weight_scale_factor / ptr_int_biases[i].multiplier) + rounding_value;
+            } else {
+                value -= MAX_VAL_1B_WEIGHT;
+            }
             auto normalizedWeight = static_cast<int32_t>(value);
 
-            if (value > 127.0) {
-                normalizedWeight = 127;
+            if (*ptr_quantized_weights &&
+                (value > std::numeric_limits<int8_t>::max() ||
+                value < std::numeric_limits<int8_t>::min())) {
+                THROW_GNA_EXCEPTION << "unsupported weights range for I8 quantisation: " << value;
+            }
+
+            if (value > std::numeric_limits<int8_t>::max()) {
+                normalizedWeight = std::numeric_limits<int8_t>::max();
                 num_saturate++;
-            } else if (value < -128.0) {
-                normalizedWeight = -128;
+            } else if (value < std::numeric_limits<int8_t>::min()) {
+                normalizedWeight = std::numeric_limits<int8_t>::min();
                 num_saturate++;
             } else {
                 normalizedWeight = (int8_t)value;

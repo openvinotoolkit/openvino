@@ -111,7 +111,6 @@ class GNAFakeQuantizeLayer {
             THROW_GNA_LAYER_EXCEPTION(input) << "cannot cast custom blob to type FP32, since it is of type: "
                 << dataMin->getTensorDesc().getPrecision();
             break;
-
         }
 
         return {minValues, maxValues};

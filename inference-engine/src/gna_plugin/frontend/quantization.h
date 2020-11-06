@@ -31,12 +31,12 @@ struct QuantizationCallback {
     uint32_t num_rows_padded;
     uint32_t num_columns_padded;
 
-    // TODO: copied from fake quantize activation
     int32_t fq_levels;
     const float *fq_ptr_input_low;
     const float *fq_ptr_input_high;
     const float *fq_ptr_output_low;
     const float *fq_ptr_output_high;
+    const bool* ptr_quantized_weights;
 
     void runQuantize() const;
     void runFakeQuantize() const;

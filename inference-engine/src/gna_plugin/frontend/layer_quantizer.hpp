@@ -322,7 +322,8 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
             nullptr,
             nullptr,
             per_channel_weights ? &quantData->_weights_quant.GetMinValues().front(): nullptr,
-            per_channel_weights ? &quantData->_weights_quant.GetMaxValues().front(): nullptr);
+            per_channel_weights ? &quantData->_weights_quant.GetMaxValues().front(): nullptr,
+            &quantData->_weights_quantized);
     }
     wl->_weights = intWeights;
     wl->_biases = intBiases;

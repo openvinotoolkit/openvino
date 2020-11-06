@@ -91,7 +91,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
 
     auto diagonalWithQuant = quantized ?
                              InferenceEngine::injectData<QuantizedLayerParams>(diagLayer) : diagLayer;
-    
+
     getCreatorLayer(dataPtr) = diagonalWithQuant;
     diagonalWithQuant->outData.push_back(dataPtr);
     // actual insertion
@@ -1747,18 +1747,39 @@ void FuseFQIntoWeightsPass::run() {
             assignWeightsAndBiases(weightableLayer, quantizedWeights, biases);
 
             // modify scale factors for quantized component
+            auto levels = gnaFakeQuantizeLayer.getLevels();
+            auto inputRange = gnaFakeQuantizeLayer.getInputRange();
             auto outputRange = gnaFakeQuantizeLayer.getOutputRange();
+            if (outputRange.first.size() != outputRange.second.size()) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " number of min and max data must be equal, min size: "
+                    << outputRange.first.size() << ", max size: " << outputRange.second.size();
+            }
+
+            if (levels > std::numeric_limits<uint8_t>::max() && outputRange.first.size() > 1) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation for int16 weights."
+                    << " Per-channel quantization ";
+            }
+
+            // check if
+            // - weights were float values and need to be quantized,
+            // - weights are integer values and quantization can be skipped
+            for (size_t i = 0; i < outputRange.first.size(); ++i) {
+                if (inputRange.first[i] > outputRange.first[i] ||
+                    inputRange.second[i] > outputRange.second[i]) {
+                    quantized->_weights_quantized = true;
+                    break;
+                }
+            }
+
             quantized->_weights_quant.SetMinValues(outputRange.first);
             quantized->_weights_quant.SetMaxValues(outputRange.second);
-            quantized->_weights_quant.SetLevels(gnaFakeQuantizeLayer.getLevels());
-
-            auto inputRange = gnaFakeQuantizeLayer.getInputRange();
+            quantized->_weights_quant.SetLevels(levels);
 
             // lets find out minimum scale factor among channels
             if (quantized->_weights_quant.GetMinValues().empty()) {
                 THROW_GNA_LAYER_EXCEPTION(fqLayer) << " per channel/tensor weigths scales are missed";
             }
-            auto getScale = [&quantized](uint32_t i) {
+            auto getScale = [&quantized](size_t i) {
                 return (quantized->_weights_quant.GetLevels() - 1) /
                     (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
             };
@@ -1768,12 +1789,14 @@ void FuseFQIntoWeightsPass::run() {
                 min_channel_scale = std::min(min_channel_scale, getScale(i));
             }
 
-            // common scale calculation
             auto multiplier = 1.0f;
             if (quantized->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
+                // GNA supports additional multiplier for only 8bit weights.
+                // The multipler is used to extend dynamic range.
                 multiplier = MAX_OUT_MULTIPLIER;
             }
 
+            // Common weights scale calculation
             quantized->_weights_quant.SetScale(min_channel_scale * multiplier);
             continue;
         }
@@ -1824,7 +1847,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         auto outputRange = fqLayer.getOutputRange();
         if (inputRange.second.size() != 1 || inputRange.second.size() != 1 ||
             outputRange.second.size() != 1 || outputRange.second.size() != 1) {
-            THROW_GNA_LAYER_EXCEPTION(fqLayer) << "unsupported per-channel quantisation";
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation";
         }
 
         float fqLevels = fqLayer.getLevels();

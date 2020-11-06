@@ -181,7 +181,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                         return true;
                     }
 
-                    if (quant->_dst_quant.IsScaleSet()) {
+                    if (quantSibling->_dst_quant.IsScaleSet()) {
                         // means we already restarted propagation input memory layer
                         // need to search for requantiseable layer prior memory output layer
                         InferenceEngine::CNNLayerPtr restartedLayer;
@@ -216,8 +216,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                         if (restarLayerInfo.isActivation()) {
                             // requantize activation by just changing it's output scale factor
                             quantDataForMemoryOutput->_dst_quant.SetScale(quantSibling->_dst_quant.GetScale());
-                        }
-                        else {
+                        } else {
                             THROW_GNA_EXCEPTION << "quantization error : input scale factor ( " << inputQuant->_dst_quant.GetScale() << ") "
                                 << " for " << cnnLayer->name << ", that is child of " << prevLayer->name << " doesnt match : "
                                 << activation_scale_factor;
@@ -564,7 +563,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 });
 
             if (restartedLayer == nullptr) {
-                THROW_GNA_EXCEPTION << "cannot requantize " << layerIdToUpdate << "input to concat: " << concatLayer->name;
+                THROW_GNA_EXCEPTION << "cannot requantize " << layerIdToUpdate << " input to concat: " << concatLayer->name;
             }
             auto quantDataForConCatInput = InferenceEngine::getInjectedData<QuantizedLayerParams>(*restartedLayer);
 

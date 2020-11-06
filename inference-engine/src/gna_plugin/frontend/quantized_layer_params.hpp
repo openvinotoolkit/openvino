@@ -53,6 +53,7 @@ struct QuantizedLayerParams {
 
     // deprecate this
     Quantization _weights_quant;
+    bool _weights_quantized = false;
     Quantization _bias_quant;
     float _o_shift = 0.0f;
     float _b_shift = 0.0f;
