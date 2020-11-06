@@ -78,4 +78,9 @@ void ConvolutionLayerTest::SetUp() {
 TEST_P(ConvolutionLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(ConvolutionLayerTest, Serialization) {
+    Serialize();
+}
+
 }  // namespace LayerTestsDefinitions
