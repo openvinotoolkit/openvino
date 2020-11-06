@@ -56,7 +56,7 @@
                 <tab type="user" title="Known Issues" url="@ref openvino_docs_MO_DG_Known_Issues_Limitations"/>
             </tab>
             <!-- Model Downloader -->
-            <tab type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
+            <tab id="model_downloader" type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
             <!-- Custom Layers Guide -->
             <tab type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
         </tab>    
