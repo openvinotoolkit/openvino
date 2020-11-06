@@ -90,7 +90,8 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
         }
 
         if (newOp != nullptr) {
-            NetworkHelper::copyInfo(op, newOp);
+            ngraph::copy_runtime_info({ convert, op }, newOp);
+            newOp->set_friendly_name(op->get_friendly_name());
         }
     }
 

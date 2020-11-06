@@ -15,6 +15,7 @@ onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
 onnx_model_quantize_linear_axis_negative
+onnx_expand_function
 
 # DequantizeLinear:
 # C++ exception with description "Unsupported precisions!
@@ -74,6 +75,16 @@ onnx_model_split_equal_parts_2d
 onnx_model_split_variable_parts_2d
 onnx_top_k_opset_10_const_k
 onnx_top_k_opset_11_const_k_smallest
+split_1d
+split_2d_axis_0
+split_2d_axis_1
+split_3d_axis_0
+split_3d_axis_1
+split_3d_axis_2
+split_4d_axis_0
+split_4d_axis_1
+split_4d_axis_2
+split_4d_axis_3
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
@@ -1128,13 +1139,6 @@ IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
-
-# Wrong output when axis 0
-IE_CPU.log_softmax_1d_single_value
-IE_CPU.log_softmax_2d_axis0
-IE_CPU.log_softmax_2d_axis_neg2
-IE_CPU.log_softmax_3d_axis_0
-IE_CPU.log_softmax_3d_axis_neg3
 
 #-------------------------------------------------------------------------------
 #
