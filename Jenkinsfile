@@ -7,4 +7,6 @@ properties([
                      name: 'failFast')
     ])
 ])
-dldtPipelineEntrypoint(this)
+loadOpenVinoLibrary {
+    entrypoint(this)
+}
