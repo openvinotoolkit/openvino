@@ -187,10 +187,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             // Select has bool for first input and the type we are interested in for the second
             type = op->get_input_element_type(1);
         }
-        else if (is_type<op::TopK>(op))
-        {
-            type = op->get_output_element_type(1);
-        }
         else
         {
             type = op->get_output_element_type(0);

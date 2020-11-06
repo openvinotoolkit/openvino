@@ -80,7 +80,7 @@ namespace ngraph
                       size_t axis,
                       size_t k,
                       bool compute_max,
-                      op::TopK::SortType sort = op::TopK::SortType::NONE)
+                      op::v1::TopK::SortType sort = op::v1::TopK::SortType::NONE)
             {
                 using namespace std;
                 // reorder source axis visit order and make "axis" inner most
@@ -137,13 +137,13 @@ namespace ngraph
                     {
                         switch (sort)
                         {
-                        case op::TopK::SortType::NONE: break;
-                        case op::TopK::SortType::SORT_INDICES:
+                        case op::v1::TopK::SortType::NONE: break;
+                        case op::v1::TopK::SortType::SORT_INDICES:
                             std::sort(workspace.begin(),
                                       workspace.begin() + k,
                                       sort_indices_descending<T, U>);
                             break;
-                        case op::TopK::SortType::SORT_VALUES:
+                        case op::v1::TopK::SortType::SORT_VALUES:
                             std::sort(workspace.begin(), workspace.begin() + k, compare_max<T, U>);
                             break;
                         }
@@ -152,13 +152,13 @@ namespace ngraph
                     {
                         switch (sort)
                         {
-                        case op::TopK::SortType::NONE: break;
-                        case op::TopK::SortType::SORT_INDICES:
+                        case op::v1::TopK::SortType::NONE: break;
+                        case op::v1::TopK::SortType::SORT_INDICES:
                             std::sort(workspace.begin(),
                                       workspace.begin() + k,
                                       sort_indices_ascending<T, U>);
                             break;
-                        case op::TopK::SortType::SORT_VALUES:
+                        case op::v1::TopK::SortType::SORT_VALUES:
                             std::sort(workspace.begin(), workspace.begin() + k, compare_min<T, U>);
                             break;
                         }

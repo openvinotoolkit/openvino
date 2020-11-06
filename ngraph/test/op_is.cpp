@@ -868,7 +868,7 @@ namespace
 
     void op_is_TopK()
     {
-        op::TopK node;
+        op::v1::TopK node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));

@@ -451,49 +451,6 @@ TEST(provenance, fused_decomposition_tag)
     traverse_nodes(as_node_vector(decomposed_op->outputs()), tag_check, {p1});
 }
 
-TEST(provenance, topk_setk)
-{
-    auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{20, 3, 4});
-    p1->add_provenance_tag("P1");
-    auto tk = make_shared<op::TopK>(p1, 0, element::i32, 10);
-    tk->add_provenance_tag("TK");
-    auto tkc0 = tk->input_value(1).get_node_shared_ptr();
-    tkc0->add_provenance_tag("TKC0");
-    for (auto node : topological_sort(NodeVector{tk}))
-    {
-        if (node == p1)
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"P1"}));
-        }
-        else if (node == tkc0)
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"TK", "TKC0"}));
-        }
-        else
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"TK"}));
-        }
-    }
-    tk->set_k(5);
-    auto tkc1 = tk->input_value(1).get_node_shared_ptr();
-    tkc1->add_provenance_tag("TKC1");
-    for (auto node : topological_sort(NodeVector{tk}))
-    {
-        if (node == p1)
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"P1"}));
-        }
-        else if (node == tkc1)
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"TK", "TKC0", "TKC1"}));
-        }
-        else
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"TK"}));
-        }
-    }
-}
-
 TEST(provenance, empty_group)
 {
     auto p1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
@@ -513,64 +470,6 @@ TEST(provenance, empty_group)
             EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"abs"}));
         }
     }
-}
-
-TEST(provenance, opset1_upgrade_pass_topk)
-{
-    test::ProvenanceEnabler provenance_enabler;
-
-    const size_t axis = 2;
-    const size_t k = 10;
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{5, 10, 15});
-
-    const auto topk_v0 = make_shared<op::v0::TopK>(data, axis, element::i32, k);
-    const auto result = make_shared<op::Result>(topk_v0->output(0));
-    auto f = make_shared<Function>(ResultVector{result}, ParameterVector{data});
-
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Opset1Upgrade>();
-    pass_manager.run_passes(f);
-
-    const auto pass_replacement_node = f->get_result()->get_input_node_shared_ptr(0);
-    const auto topk_v1 = as_type_ptr<op::v1::TopK>(pass_replacement_node);
-
-    const std::string tag = "<Opset1_Upgrade (v0 TopK)>";
-    auto tag_check = [&tag](std::shared_ptr<ngraph::Node> node) {
-        auto tags = node->get_provenance_tags();
-        EXPECT_TRUE(tags.find(tag) != tags.end());
-    };
-    traverse_nodes({topk_v1}, tag_check, as_node_vector(topk_v0->input_values()));
-}
-
-TEST(provenance, opset0_downgrade_pass_topk)
-{
-    test::ProvenanceEnabler provenance_enabler;
-
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{5, 10, 15});
-    const int32_t k = 10;
-    const auto k_node = op::Constant::create(element::i64, Shape{}, {k});
-    const size_t axis = 2;
-    const auto mode = op::v1::TopK::Mode::MAX;
-    const auto sort = op::v1::TopK::SortType::SORT_INDICES;
-    const auto elem_type = element::i64;
-
-    const auto topk_v1 = make_shared<op::v1::TopK>(data, k_node, axis, mode, sort, elem_type);
-    const auto result = make_shared<op::Result>(topk_v1->output(0));
-    auto f = make_shared<Function>(ResultVector{result}, ParameterVector{data});
-
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Opset0Downgrade>();
-    pass_manager.run_passes(f);
-
-    const auto pass_replacement_node = f->get_result()->get_input_node_shared_ptr(0);
-    const auto topk_v0 = as_type_ptr<op::v0::TopK>(pass_replacement_node);
-
-    const std::string tag = "<Opset0_Downgrade (v1 TopK)>";
-    auto tag_check = [&tag](std::shared_ptr<ngraph::Node> node) {
-        auto tags = node->get_provenance_tags();
-        EXPECT_TRUE(tags.find(tag) != tags.end());
-    };
-    traverse_nodes({topk_v0}, tag_check, as_node_vector(topk_v1->input_values()));
 }
 
 TEST(provenance, opset1_upgrade_pass_graph)

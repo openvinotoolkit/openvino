@@ -290,8 +290,17 @@ TEST(algebraic_simplification, replace_transpose_with_reshape) {
         auto param = make_shared<op::Parameter>(element::f32, shape);
         shared_ptr<Node> A1;
         if (multiout) {
+            shared_ptr<Node> k;
             auto last_dim = shape.rank().get_length() - 1;
-            A1 = make_shared<op::v0::TopK>(param, last_dim, element::i32);
+            if (shape[last_dim].is_dynamic()) {
+                k = make_shared<op::v1::Gather>(make_shared<op::ShapeOf>(param),
+                                                op::Constant::create(element::i64, {}, {last_dim}),
+                                                op::Constant::create(element::i64, {}, {0}));
+            } else {
+                k = make_shared<op::Constant>(element::i64, Shape{}, std::vector<int64_t>{shape[last_dim].get_length()});
+            }
+            A1 = make_shared<op::v1::TopK>(param, k, last_dim,
+                                           op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         } else {
             A1 = make_shared<op::v0::Abs>(param);
         }
@@ -383,7 +392,7 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1) {
         shared_ptr<Node> A1;
         if (multiout) {
             auto last_dim = pshape.rank().get_length() - 1;
-            A1 = make_shared<op::v0::TopK>(A, last_dim, element::i32);
+            A1 = make_shared<op::v1::TopK>(A, op::Constant::create(element::i64, {}, {1}), last_dim, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         } else {
             A1 = make_shared<op::v0::Abs>(A);
         }
