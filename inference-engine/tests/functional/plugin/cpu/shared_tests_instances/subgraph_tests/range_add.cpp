@@ -24,21 +24,29 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-INSTANTIATE_TEST_CASE_P(BasicPositive, RangeAddSubgraphTest,
+INSTANTIATE_TEST_CASE_P(smoke_BasicPositive, RangeAddSubgraphTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(positiveStart),
                                 ::testing::ValuesIn(positiveStop),
                                 ::testing::ValuesIn(positiveStep),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeAddSubgraphTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BasicNegative, RangeAddSubgraphTest,
+INSTANTIATE_TEST_CASE_P(smoke_BasicNegative, RangeAddSubgraphTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(negativeStart),
                                 ::testing::ValuesIn(negativeStop),
                                 ::testing::ValuesIn(negativeStep),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeAddSubgraphTest::getTestCaseName);
 }  // namespace

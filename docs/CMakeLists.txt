@@ -3,7 +3,7 @@
 #
 
 if(NOT ENABLE_DOCKER)
-    add_subdirectory(examples)
+    add_subdirectory(snippets)
 
     # Detect nGraph
     find_package(ngraph QUIET)
@@ -17,10 +17,13 @@ if(NOT ENABLE_DOCKER)
         set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
     endif()
 
+    if (NGRAPH_ONNX_IMPORT_ENABLE)
+        add_subdirectory(onnx_custom_op)
+    endif()
     add_subdirectory(template_extension)
 
     set(all_docs_targets
-        ie_docs_examples
+        ie_docs_snippets
         template_extension
         templatePlugin TemplateBehaviorTests TemplateFunctionalTests)
     foreach(target_name IN LISTS all_docs_targets)

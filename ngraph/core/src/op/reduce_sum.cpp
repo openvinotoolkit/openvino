@@ -46,7 +46,7 @@ shared_ptr<Node> op::v1::ReduceSum::clone_with_new_inputs(const OutputVector& ne
     return make_shared<ReduceSum>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-namespace
+namespace reduce_sum
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg,
@@ -90,5 +90,5 @@ bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceSum::evaluate");
-    return evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    return reduce_sum::evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

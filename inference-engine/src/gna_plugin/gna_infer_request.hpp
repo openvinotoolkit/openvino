@@ -71,9 +71,9 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     }
 
     /**
-        * @brief methods with _ThreadUnsafe prefix are to implement in plugins
-        * or in default wrapper (e.g. AsyncInferRequestThreadSafeDefault)
-        */
+     * @brief methods with _ThreadUnsafe prefix are to implement in plugins
+     * or in default wrapper (e.g. AsyncInferRequestThreadSafeDefault)
+     */
     void StartAsyncImpl() override {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);

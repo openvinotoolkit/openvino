@@ -300,7 +300,7 @@ public:
 TEST_P(DynamicToStaticShapeEltwise, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(EltwiseBroadcast, DynamicToStaticShapeEltwise, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_EltwiseBroadcast, DynamicToStaticShapeEltwise, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,
@@ -327,7 +327,7 @@ INSTANTIATE_TEST_CASE_P(EltwiseBroadcast, DynamicToStaticShapeEltwise, testing::
 TEST_P(DynamicToStaticShapeEltwiseSingleDSR, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(EltwiseBroadcastSingleDSR, DynamicToStaticShapeEltwiseSingleDSR, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_EltwiseBroadcastSingleDSR, DynamicToStaticShapeEltwiseSingleDSR, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,

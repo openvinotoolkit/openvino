@@ -14,7 +14,7 @@ auto defaultBindThreadParameter = InferenceEngine::Parameter{std::string{CONFIG_
 auto defaultBindThreadParameter = InferenceEngine::Parameter{std::string{CONFIG_VALUE(YES)}};
 #endif
 INSTANTIATE_TEST_CASE_P(
-    Basic,
+    smoke_Basic,
     DefaultConfigurationTest,
     ::testing::Combine(
         ::testing::Values("CPU"),

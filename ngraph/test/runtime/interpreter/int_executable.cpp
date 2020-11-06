@@ -23,7 +23,6 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/util.hpp"
 #include "pass/fused_op_decomposition.hpp"
-#include "pass/like_replacement.hpp"
 #include "pass/liveness.hpp"
 #include "pass/opset0_downgrade.hpp"
 #include "pass/opset1_downgrade.hpp"
@@ -67,15 +66,15 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
         {
         case OP_TYPEID::Clamp:
         case OP_TYPEID::MatMul:
-        case OP_TYPEID::Squeeze:
+        case OP_TYPEID::NormalizeL2:
         case OP_TYPEID::PRelu:
+        case OP_TYPEID::Squeeze:
         case OP_TYPEID::Unsqueeze: retval = true; break;
         default: break;
         }
         return retval;
     };
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::LikeReplacement>();
     pass_manager.register_pass<pass::FusedOpDecomposition>(is_supported);
     pass_manager.register_pass<pass::Opset1Downgrade>();
     pass_manager.register_pass<pass::Opset0Downgrade>();
@@ -176,8 +175,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
 
         // get op type
         element::Type type;
-        if (is_type<op::Convert>(op) || is_type<op::Quantize>(op) || is_type<op::Dequantize>(op) ||
-            is_type<op::PriorBox>(op))
+        if (is_type<op::Convert>(op) || is_type<op::Quantize>(op) || is_type<op::PriorBox>(op))
         {
             type = op->get_input_element_type(0);
         }
@@ -188,10 +186,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             // All BinaryElementwiseComparision ops have the same type for inputs
             // Select has bool for first input and the type we are interested in for the second
             type = op->get_input_element_type(1);
-        }
-        else if (is_type<op::TopK>(op))
-        {
-            type = op->get_output_element_type(1);
         }
         else
         {

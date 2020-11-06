@@ -24,23 +24,20 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <ngraph/opsets/opset5.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
-#include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 namespace vpu {
-
-#define LAYER_PARSER(functor_name)                                                                                \
-    [this](const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) \
-        { functor_name(model, layer, inputs, outputs); }
 
 FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
     : _stageBuilder(std::move(stageBuilder)),
@@ -89,6 +86,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"ROIPooling",                                         LAYER_PARSER(parseROIPooling)},
         {"PSROIPooling",                                       LAYER_PARSER(parsePSROIPooling)},
         {"Interp",                                             LAYER_PARSER(parseInterp)},
+        {"Interpolate",                                        LAYER_PARSER(parseInterpolate)},
         {"Custom",                                             LAYER_PARSER(parseCustom)},
         {"MTCNN",                                              LAYER_PARSER(parseMTCNN)},
         {"LSTMCell",                                           LAYER_PARSER(parseLSTMCell)},
@@ -108,7 +106,6 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"Select",                                             LAYER_PARSER(parseSelect)},
         {"Erf",                                                LAYER_PARSER(parseErf)},
         {"ExperimentalDetectronDetectionOutput",               LAYER_PARSER(parseExpDetectionOutput)},
-        {"NonMaxSuppression",                                  LAYER_PARSER(parseNonMaxSuppression)},
         {"ExperimentalDetectronROIFeatureExtractor",           LAYER_PARSER(parseROIFeatureExtractor)},
         {"Convert",                                            LAYER_PARSER(parseConvert)},
         {"ReduceMax",                                          LAYER_PARSER(parseReduce)},
@@ -132,11 +129,14 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"Gelu",                                               LAYER_PARSER(parseGelu)},
         {"SoftPlus",                                           LAYER_PARSER(parseSoftPlus)},
         {"Swish",                                              LAYER_PARSER(parseSwish)},
+        {"Activation",                                         LAYER_PARSER(parseActivation)},
+        {"GatherND",                                           LAYER_PARSER(parseGatherND)},
+        {"HSwish",                                             LAYER_PARSER(parseHSwish)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
 
-ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
+ModelPtr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
     VPU_PROFILE(buildInitialModel);
 
     const auto& env = CompileEnv::get();
@@ -151,11 +151,13 @@ bool FrontEnd::isLayerSupported(const std::string& type) {
 }
 
 ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
-    std::shared_ptr<ie::ICNNNetwork> convertedNetwork;
     // disable transformations for some cases
     const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         const bool casesWithDynamicOrStaticUsage =
-            std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) || std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node);
+            std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset5::HSwish>(node);
 
         const bool casesWithOnlyDynamicUsage =
             (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
@@ -173,23 +175,22 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<::ngraph::pass::ConvertPriorBox>();
-    manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<vpu::DynamicToStaticShape>();
     manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+
     manager.set_callback(transformationsPredicate);
     manager.run_passes(nGraphFunc);
 
     vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
 
-    convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
-    return convertedNetwork;
+    return InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
 }
 
-std::set<std::string> FrontEnd::checkSupportedLayers(ie::ICNNNetwork& network) {
+std::set<std::string> FrontEnd::checkSupportedLayers(const ie::ICNNNetwork& network) {
     VPU_PROFILE(checkSupportedLayers);
 
     const auto& env = CompileEnv::get();
@@ -212,7 +213,7 @@ std::set<std::string> FrontEnd::checkSupportedLayers(ie::ICNNNetwork& network) {
         _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
     };
 
-    runCommonPasses(network, onUnsupportedLayer, onSupportedLayer);
+    runCommonPasses(cloneNetwork(network), onUnsupportedLayer, onSupportedLayer);
 
     return supportedLayers;
 }
@@ -367,22 +368,14 @@ void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::C
     _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
 }
 
-ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network) {
-    return runCommonPasses(network, [this](const Model& model, const ie::CNNLayerPtr& layer,
-                                                             const DataVector& inputs, const DataVector& outputs, const std::string& extraMessage)
-        { defaultOnUnsupportedLayerCallback(model, layer, inputs, outputs, extraMessage); });
+ModelPtr FrontEnd::runCommonPasses(const ie::ICNNNetwork& network) {
+    return runCommonPasses(cloneNetwork(network),
+        [this](const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs, const std::string& extraMessage) {
+            defaultOnUnsupportedLayerCallback(model, layer, inputs, outputs, extraMessage);});
 }
 
-ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLayerCallback& unsupportedLayer, const SupportedLayerCallback& supportedLayer) {
-    // NGraph -> CNN conversion may be called in 2 different moments: at
-    // the beginning if conversion was forced by configuration or after detect
-    // network batch and precision conversions. Conversion utility
-    // returns std::shared_ptr. ICNNNetwork is neither copyable nor movable.
-    // As a result, it is impossible to overwrite given "network" argument.
-    // Do not use network parameter in this function to avoid using wrong network
-    // reference (e.g. original instead of converted).
-    auto* originalOrConvertNetwork = &network;
-
+ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork::Ptr network,
+    const UnsupportedLayerCallback& unsupportedLayer, const SupportedLayerCallback& supportedLayer) {
     const auto& env = CompileEnv::get();
 
     //
@@ -416,7 +409,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
     // Create new VPU model
     //
 
-    const auto model = std::make_shared<ModelObj>(originalOrConvertNetwork->getName());
+    auto model = std::make_shared<ModelObj>(network->getName());
 
     model->attrs().set<int>("index", g_counter.fetch_add(1));
     model->attrs().set<Resources>("resources", env.resources);
@@ -425,39 +418,35 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
     // Update IE Network
     //
 
-    std::shared_ptr<ie::ICNNNetwork> convertedNetwork;
-
     {
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
 
-        if (originalOrConvertNetwork->getFunction() && env.config.forceDeprecatedCnnConversion) {
-            convertedNetwork = convertNetwork(*originalOrConvertNetwork);
-            originalOrConvertNetwork = convertedNetwork.get();
+        if (network->getFunction() && env.config.forceDeprecatedCnnConversion) {
+            network = convertNetwork(*network);
         }
 
-        detectNetworkBatch(*originalOrConvertNetwork, model);
+        detectNetworkBatch(*network, model);
 
-        if (originalOrConvertNetwork->getFunction()) {
-            convertedNetwork = convertNetwork(*originalOrConvertNetwork);
-            originalOrConvertNetwork = convertedNetwork.get();
+        if (network->getFunction()) {
+            network = convertNetwork(*network);
         }
 
-        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::I64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U32, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::BOOL, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(*network, ie::Precision::I64, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(*network, ie::Precision::U32, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(*network, ie::Precision::U64, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(*network, ie::Precision::BOOL, ie::Precision::I32);
 
-        removeConstLayers(*originalOrConvertNetwork);
+        removeConstLayers(*network);
 
-        unrollLoops(*originalOrConvertNetwork);
+        unrollLoops(*network);
     }
 
     //
     // Parse IR Network
     //
 
-    _ieParsedNetwork = parseNetwork(*originalOrConvertNetwork);
+    _ieParsedNetwork = parseNetwork(*network);
 
     //
     // Process internal VPU Model

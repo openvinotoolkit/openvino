@@ -55,7 +55,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseMathTypesINT = {
         ngraph::helpers::EltwiseTypes::DIVIDE,
 };
 
-INSTANTIATE_TEST_CASE_P(EltwiseMathFP,
+INSTANTIATE_TEST_CASE_P(smoke_EltwiseMathFP,
                         EltwiseLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inShapes),
@@ -63,11 +63,14 @@ INSTANTIATE_TEST_CASE_P(EltwiseMathFP,
                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(opTypes),
                             ::testing::ValuesIn(fpTypes),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                             ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         EltwiseLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(EltwiseMathInt,
+INSTANTIATE_TEST_CASE_P(smoke_EltwiseMathInt,
                         EltwiseLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
@@ -75,6 +78,9 @@ INSTANTIATE_TEST_CASE_P(EltwiseMathInt,
                                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                 ::testing::ValuesIn(opTypes),
                                 ::testing::ValuesIn(intTypes),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                 ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         EltwiseLayerTest::getTestCaseName);

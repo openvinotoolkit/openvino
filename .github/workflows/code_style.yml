@@ -38,7 +38,32 @@ jobs:
         with:
           name: ngraph_code_style_diff
           path: ngraph_code_style_diff.patch
-          
+
+  ShellCheck:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install ShellCheck
+        run: sudo apt --assume-yes install shellcheck
+
+      - name: Install dependencies
+        run: |
+          sudo apt --assume-yes install libusb-1.0-0-dev
+          python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+
+      - name: CMake
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: ShellCheck
+        run: make ie_shellcheck
+        working-directory: build
+
   Java:
     runs-on: ubuntu-18.04
     steps:

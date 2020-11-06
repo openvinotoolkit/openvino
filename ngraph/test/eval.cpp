@@ -62,7 +62,6 @@
 #include "ngraph/op/sinh.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/squeeze.hpp"
-#include "ngraph/op/stop_gradient.hpp"
 #include "ngraph/op/tan.hpp"
 #include "ngraph/op/tanh.hpp"
 #include "ngraph/op/topk.hpp"
@@ -593,24 +592,6 @@ TEST(eval, evaluate_broadcast_v3_explicit_dyn)
     ASSERT_EQ(result_val, expec);
 }
 
-TEST(eval, evaluate_broadcast_v0)
-{
-    Shape shape_a{2, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape target_shape = Shape{2, 3, 4};
-    auto bcast_v0 = make_shared<op::v0::Broadcast>(A, target_shape, AxisSet{1});
-    auto fun = make_shared<Function>(OutputVector{bcast_v0}, ParameterVector{A});
-
-    auto result = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate(
-        {result}, {make_host_tensor<element::Type_t::f32>(Shape{2, 4}, {1, 2, 3, 4, 1, 2, 3, 4})}));
-    EXPECT_EQ(result->get_element_type(), element::f32);
-    EXPECT_EQ(result->get_partial_shape(), (PartialShape{2, 3, 4}));
-    auto result_val = read_vector<float>(result);
-    vector<float> expec{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
-    ASSERT_EQ(result_val, expec);
-}
-
 TEST(eval, test_op_multi_out)
 {
     auto p = make_shared<op::Parameter>(element::f32, PartialShape{2, 3});
@@ -902,7 +883,7 @@ TEST(eval, evaluate_relu_2Ffprop_i32)
 TEST(eval, evaluate_round)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{5});
-    auto round = make_shared<op::Round>(p);
+    auto round = make_shared<op::v5::Round>(p, op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto fun = make_shared<Function>(OutputVector{round}, ParameterVector{p});
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
@@ -917,7 +898,7 @@ TEST(eval, evaluate_round)
 TEST(eval, evaluate_round_2D)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{3, 5});
-    auto round = make_shared<op::Round>(p);
+    auto round = make_shared<op::v5::Round>(p, op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto fun = make_shared<Function>(OutputVector{round}, ParameterVector{p});
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result},
@@ -1176,36 +1157,6 @@ TEST(eval, evaluate_tanh)
     ASSERT_FLOAT_VECTORS_EQ(input, result_val);
 }
 
-TEST(eval, evaluate_not)
-{
-    auto p = make_shared<op::Parameter>(element::boolean, Shape{2, 2});
-    auto op_not = make_shared<op::Not>(p);
-    auto fun = make_shared<Function>(OutputVector{op_not}, ParameterVector{p});
-    auto result = make_shared<HostTensor>();
-
-    ASSERT_TRUE(fun->evaluate(
-        {result}, {make_host_tensor<element::Type_t::boolean>(Shape{2, 2}, {1, 0, 1, 0})}));
-    EXPECT_EQ(result->get_element_type(), element::boolean);
-    auto result_val = read_vector<char>(result);
-    vector<char> expec{0, 1, 0, 1};
-    ASSERT_EQ(result_val, expec);
-}
-
-TEST(eval, evaluate_not_i32)
-{
-    auto p = make_shared<op::Parameter>(element::i32, Shape{2, 2});
-    auto op_not = make_shared<op::Not>(p);
-    auto fun = make_shared<Function>(OutputVector{op_not}, ParameterVector{p});
-    auto result = make_shared<HostTensor>();
-
-    ASSERT_TRUE(fun->evaluate(
-        {result}, {make_host_tensor<element::Type_t::i32>(Shape{2, 2}, {100, 0, -2, 0})}));
-    EXPECT_EQ(result->get_element_type(), element::i32);
-    auto result_val = read_vector<int32_t>(result);
-    vector<int32_t> expec{0, 1, 0, 1};
-    ASSERT_EQ(result_val, expec);
-}
-
 TEST(eval, evaluate_logical_not)
 {
     auto p = make_shared<op::Parameter>(element::boolean, Shape{2, 2});
@@ -1225,12 +1176,14 @@ TEST(eval, evaluate_dynamic_gather)
 {
     auto arg1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
-    auto gather = make_shared<op::v0::Gather>(arg1, arg2);
-    auto fun = make_shared<Function>(OutputVector{gather}, ParameterVector{arg1, arg2});
+    auto arg3 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto gather = make_shared<op::v1::Gather>(arg1, arg2, arg3);
+    auto fun = make_shared<Function>(OutputVector{gather}, ParameterVector{arg1, arg2, arg3});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result_tensor},
                               {make_host_tensor<element::Type_t::f32>({3}, {1.0f, 2.0f, 3.0f}),
-                               make_host_tensor<element::Type_t::i32>({2}, {1, 0})}));
+                               make_host_tensor<element::Type_t::i32>({2}, {1, 0}),
+                               make_host_tensor<element::Type_t::i32>({1}, {0})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{2}));
     auto cval = read_vector<float>(result_tensor);
@@ -1713,80 +1666,38 @@ TEST(eval, topk_v3_dyn_values_k0)
     ASSERT_EQ(result1_val, expec1);
 }
 
-TEST(eval, topk_v0_dyn)
+TEST(eval, topk_v1_dyn_k0)
 {
     Shape shape{2, 3, 2};
 
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto k = make_shared<op::Parameter>(element::i64, Shape{});
-    auto axis = make_shared<op::Parameter>(element::i64, Shape{});
 
     element::Type result_et{element::i32};
-    bool compute_max = true;
+    auto B = make_shared<op::v1::TopK>(
+        A, k, 1, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, result_et);
 
-    auto B = make_shared<op::v0::TopK>(
-        A, k, axis, result_et, compute_max, op::v0::TopK::SortType::SORT_VALUES);
-
-    auto fun = make_shared<Function>(OutputVector{B->output(0), B->output(1)},
-                                     ParameterVector{A, k, axis});
+    auto fun =
+        make_shared<Function>(OutputVector{B->output(0), B->output(1)}, ParameterVector{A, k});
 
     auto result0 = make_shared<HostTensor>();
     auto result1 = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result0, result1},
                               {make_host_tensor<element::Type_t::f32>(
                                    Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
-                               make_host_tensor<element::Type_t::i64>(Shape{}, {2}),
-                               make_host_tensor<element::Type_t::i64>(Shape{}, {1})}));
-    EXPECT_EQ(result0->get_element_type(), element::i32);
-    EXPECT_EQ(result0->get_partial_shape(), (PartialShape{2, 2, 2}));
-    EXPECT_EQ(result1->get_element_type(), element::f32);
-    EXPECT_EQ(result1->get_partial_shape(), (PartialShape{2, 2, 2}));
-    auto result1_val = read_vector<float>(result1);
-    auto result0_val = read_vector<int32_t>(result0);
-
-    vector<float> expec1{12, 9, 10, 4, 11, 7, 6, 3};
-    ASSERT_EQ(result1_val, expec1);
-
-    vector<int32_t> expec0{0, 1, 1, 2, 2, 2, 0, 1};
-    ASSERT_EQ(result0_val, expec0);
-}
-
-TEST(eval, topk_v0_dyn_k0)
-{
-    Shape shape{2, 3, 2};
-
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto k = make_shared<op::Parameter>(element::i64, Shape{});
-    auto axis = make_shared<op::Parameter>(element::i64, Shape{});
-
-    element::Type result_et{element::i32};
-    bool compute_max = true;
-
-    auto B = make_shared<op::v0::TopK>(
-        A, k, axis, result_et, compute_max, op::v0::TopK::SortType::SORT_VALUES);
-
-    auto fun = make_shared<Function>(OutputVector{B->output(0), B->output(1)},
-                                     ParameterVector{A, k, axis});
-
-    auto result0 = make_shared<HostTensor>();
-    auto result1 = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate({result0, result1},
-                              {make_host_tensor<element::Type_t::f32>(
-                                   Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
-                               make_host_tensor<element::Type_t::i64>(Shape{}, {0}),
-                               make_host_tensor<element::Type_t::i64>(Shape{}, {1})}));
-    EXPECT_EQ(result0->get_element_type(), element::i32);
+                               make_host_tensor<element::Type_t::i64>(Shape{}, {0})}));
+    EXPECT_EQ(result0->get_element_type(), element::f32);
     EXPECT_EQ(result0->get_partial_shape(), (PartialShape{2, 3, 2}));
-    EXPECT_EQ(result1->get_element_type(), element::f32);
+    EXPECT_EQ(result1->get_element_type(), element::i32);
     EXPECT_EQ(result1->get_partial_shape(), (PartialShape{2, 3, 2}));
-    auto result1_val = read_vector<float>(result1);
-    auto result0_val = read_vector<int32_t>(result0);
+    auto result0_val = read_vector<float>(result0);
+    auto result1_val = read_vector<int32_t>(result1);
 
-    vector<float> expec1{12, 9, 10, 4, 8, 2, 11, 7, 6, 3, 5, 1};
-    ASSERT_EQ(result1_val, expec1);
-
-    vector<int32_t> expec0{0, 1, 1, 2, 2, 0, 2, 2, 0, 1, 1, 0};
+    vector<float> expec0{12, 9, 10, 4, 8, 2, 11, 7, 6, 3, 5, 1};
     ASSERT_EQ(result0_val, expec0);
+
+    vector<int32_t> expec1{0, 1, 1, 2, 2, 0, 2, 2, 0, 1, 1, 0};
+    ASSERT_EQ(result1_val, expec1);
 }
 
 TEST(eval, topk_v3_param_dyn_values_k0)
@@ -1845,76 +1756,70 @@ TEST(eval, topk_v3_param_dyn_values_k2)
     ASSERT_EQ(result1_val, expec1);
 }
 
-TEST(eval, topk_v0_param_dyn_k2)
+TEST(eval, topk_v1_param_dyn_k2)
 {
     auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto k = make_shared<op::Parameter>(element::i64, Shape{});
-    auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    auto axis = 1;
 
     element::Type result_et{element::i32};
-    bool compute_max = true;
+    auto B = make_shared<op::v1::TopK>(
+        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, result_et);
 
-    auto B = make_shared<op::v0::TopK>(
-        A, k, axis, result_et, compute_max, op::v0::TopK::SortType::SORT_VALUES);
-
-    auto fun = make_shared<Function>(OutputVector{B->output(0), B->output(1)},
-                                     ParameterVector{A, k, axis});
+    auto fun =
+        make_shared<Function>(OutputVector{B->output(0), B->output(1)}, ParameterVector{A, k});
 
     auto result0 = make_shared<HostTensor>();
     auto result1 = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result0, result1},
                               {make_host_tensor<element::Type_t::f32>(
                                    Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
-                               make_host_tensor<element::Type_t::i64>(Shape{}, {2}),
-                               make_host_tensor<element::Type_t::i64>(Shape{}, {1})}));
-    EXPECT_EQ(result0->get_element_type(), element::i32);
+                               make_host_tensor<element::Type_t::i64>(Shape{}, {2})}));
+    EXPECT_EQ(result0->get_element_type(), element::f32);
     EXPECT_EQ(result0->get_partial_shape(), (PartialShape{2, 2, 2}));
-    EXPECT_EQ(result1->get_element_type(), element::f32);
+    EXPECT_EQ(result1->get_element_type(), element::i32);
     EXPECT_EQ(result1->get_partial_shape(), (PartialShape{2, 2, 2}));
-    auto result1_val = read_vector<float>(result1);
-    auto result0_val = read_vector<int32_t>(result0);
+    auto result0_val = read_vector<float>(result0);
+    auto result1_val = read_vector<int32_t>(result1);
 
-    vector<float> expec1{12, 9, 10, 4, 11, 7, 6, 3};
-    ASSERT_EQ(result1_val, expec1);
-
-    vector<int32_t> expec0{0, 1, 1, 2, 2, 2, 0, 1};
+    vector<float> expec0{12, 9, 10, 4, 11, 7, 6, 3};
     ASSERT_EQ(result0_val, expec0);
+
+    vector<int32_t> expec1{0, 1, 1, 2, 2, 2, 0, 1};
+    ASSERT_EQ(result1_val, expec1);
 }
 
-TEST(eval, topk_v0_param_dyn_k0)
+TEST(eval, topk_v1_param_dyn_k0)
 {
     auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto k = make_shared<op::Parameter>(element::i64, Shape{});
-    auto axis = make_shared<op::Parameter>(element::i64, Shape{});
 
     element::Type result_et{element::i32};
-    bool compute_max = true;
 
-    auto B = make_shared<op::v0::TopK>(
-        A, k, axis, result_et, compute_max, op::v0::TopK::SortType::SORT_VALUES);
+    auto B = make_shared<op::v1::TopK>(
+        A, k, 1, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, result_et);
 
-    auto fun = make_shared<Function>(OutputVector{B->output(0), B->output(1)},
-                                     ParameterVector{A, k, axis});
+    auto fun =
+        make_shared<Function>(OutputVector{B->output(0), B->output(1)}, ParameterVector{A, k});
 
     auto result0 = make_shared<HostTensor>();
     auto result1 = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result0, result1},
                               {make_host_tensor<element::Type_t::f32>(
                                    Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
-                               make_host_tensor<element::Type_t::i64>(Shape{}, {0}),
-                               make_host_tensor<element::Type_t::i64>(Shape{}, {1})}));
-    EXPECT_EQ(result0->get_element_type(), element::i32);
+                               make_host_tensor<element::Type_t::i64>(Shape{}, {0})}));
+    EXPECT_EQ(result0->get_element_type(), element::f32);
     EXPECT_EQ(result0->get_partial_shape(), (PartialShape{2, 3, 2}));
-    EXPECT_EQ(result1->get_element_type(), element::f32);
+    EXPECT_EQ(result1->get_element_type(), element::i32);
     EXPECT_EQ(result1->get_partial_shape(), (PartialShape{2, 3, 2}));
-    auto result1_val = read_vector<float>(result1);
-    auto result0_val = read_vector<int32_t>(result0);
+    auto result0_val = read_vector<float>(result0);
+    auto result1_val = read_vector<int32_t>(result1);
 
-    vector<float> expec1{12, 9, 10, 4, 8, 2, 11, 7, 6, 3, 5, 1};
-    ASSERT_EQ(result1_val, expec1);
-
-    vector<int32_t> expec0{0, 1, 1, 2, 2, 0, 2, 2, 0, 1, 1, 0};
+    vector<float> expec0{12, 9, 10, 4, 8, 2, 11, 7, 6, 3, 5, 1};
     ASSERT_EQ(result0_val, expec0);
+
+    vector<int32_t> expec1{0, 1, 1, 2, 2, 0, 2, 2, 0, 1, 1, 0};
+    ASSERT_EQ(result1_val, expec1);
 }
 
 TEST(eval, reduce_logical_and__neg_axis)

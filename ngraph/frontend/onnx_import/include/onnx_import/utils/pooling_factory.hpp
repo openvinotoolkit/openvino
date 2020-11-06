@@ -86,18 +86,6 @@ namespace ngraph
                 virtual ~LocalPoolingFactory() = default;
             };
 
-            ///
-            /// \brief      Factory class which generates sub-graphs for ONNX 'global' pooling
-            ///             operators.
-            /// \note       In a 'global' pooling operation, the kernel shape is calculated
-            ///             based on spatial dims
-            class GlobalPoolingFactory : public PoolingFactory
-            {
-            public:
-                explicit GlobalPoolingFactory(const Node& node);
-                virtual ~GlobalPoolingFactory() = default;
-            };
-
         } // namespace pooling
     }     // namespace onnx_import
 } // namespace ngraph

@@ -8,33 +8,31 @@
 #include <sstream>
 #include <utility>
 
-#include "ngraph_ops/crop_ie.hpp"
+#include "legacy/ngraph_ops/crop_ie.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
-#include "ngraph_ops/eltwise.hpp"
-#include "ngraph_ops/fully_connected.hpp"
-#include "ngraph_ops/gather_ie.hpp"
-#include "ngraph_ops/gather_tree_ie.hpp"
-#include "ngraph_ops/gru_cell_ie.hpp"
-#include "ngraph_ops/interp.hpp"
-#include "ngraph_ops/lrn_ie.hpp"
-#include <ngraph_ops/lstm_cell_ie.hpp>
+#include "legacy/ngraph_ops/eltwise.hpp"
+#include "legacy/ngraph_ops/fully_connected.hpp"
+#include "legacy/ngraph_ops/gather_ie.hpp"
+#include "legacy/ngraph_ops/gather_tree_ie.hpp"
+#include "legacy/ngraph_ops/gru_cell_ie.hpp"
+#include "legacy/ngraph_ops/interp.hpp"
+#include "legacy/ngraph_ops/lrn_ie.hpp"
+#include "legacy/ngraph_ops/lstm_cell_ie.hpp"
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
-#include "ngraph_ops/normalize_ie.hpp"
-#include "ngraph_ops/nms_ie.hpp"
-#include "ngraph_ops/onehot_ie.hpp"
-#include "ngraph_ops/pad_ie.hpp"
-#include "ngraph_ops/power.hpp"
-#include "ngraph_ops/prior_box_clustered_ie.hpp"
-#include "ngraph_ops/prior_box_ie.hpp"
-#include "ngraph_ops/proposal_ie.hpp"
-#include "ngraph_ops/relu_ie.hpp"
-#include "ngraph_ops/selu_ie.hpp"
-#include "ngraph_ops/scaleshift.hpp"
-#include "ngraph_ops/tile_ie.hpp"
-#include "ngraph_ops/topk_ie.hpp"
-#include "ngraph_ops/rnn_cell_ie.hpp"
-#include "ngraph_ops/hard_sigmoid_ie.hpp"
+#include "legacy/ngraph_ops/normalize_ie.hpp"
+#include "legacy/ngraph_ops/nms_ie.hpp"
+#include "legacy/ngraph_ops/onehot_ie.hpp"
+#include "legacy/ngraph_ops/pad_ie.hpp"
+#include "legacy/ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
+#include "legacy/ngraph_ops/prior_box_ie.hpp"
+#include "legacy/ngraph_ops/proposal_ie.hpp"
+#include "legacy/ngraph_ops/relu_ie.hpp"
+#include "legacy/ngraph_ops/selu_ie.hpp"
+#include "legacy/ngraph_ops/scaleshift.hpp"
+#include "legacy/ngraph_ops/tile_ie.hpp"
+#include "legacy/ngraph_ops/rnn_cell_ie.hpp"
+#include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
@@ -43,6 +41,7 @@
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/opsets/opset5.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include "legacy/graph_transformer.h"
@@ -114,8 +113,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GenericIE>::createLayer(const std::share
     return res;
 }
 
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     auto find_input_idx = [](const CNNLayerPtr& where, const DataPtr& what) {
         auto it = std::find_if(where->insData.begin(), where->insData.end(), [&](const DataWeakPtr& wk_ptr) {
             auto layer_data = wk_ptr.lock();
@@ -129,33 +127,23 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         return it - where->insData.begin();
     };
 
-    auto tensor_iterator = ngraph::as_type_ptr<ngraph::op::TensorIterator>(layer);
+    auto tensor_iterator = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(layer);
     if (!tensor_iterator) {
         THROW_IE_EXCEPTION << "Cannot cast layer to TensorIterator.";
     }
 
-    std::map<uint64_t, std::vector<std::pair<std::string, uint64_t>>> ngraph_parameter_id_to_ie_layer_port;
-    std::map<std::pair<std::string, uint64_t>, uint64_t> ie_layer_port_to_tensor_iterator_input_id;
-
-    // inputs/outputs of TensorIterator body (ie)
-    std::map<std::string, DataPtr> in_info_map;
-    std::map<std::string, DataPtr> out_info_map;
-
     // inputs/outputs of TensorIterator (ngraph representation)
-    auto parameters = tensor_iterator->get_body()->get_parameters();
-    auto results = tensor_iterator->get_body()->get_results();
+    auto parameters = tensor_iterator->get_function()->get_parameters();
+    auto results = tensor_iterator->get_function()->get_results();
 
     // Convert body (ngraph representation) to CNNNetwork.
     // This network will contain nodes of type = "Input" and data nodes with wrong names.
     // IE TensorIterator doesn't include such nodes so we create CNNNetwork in a separate scope
     // to call the destructor and delete these "Input"/data nodes.
 
-    // These layers will hold the necessary subnet after destruction of CNNNetwork.
-    std::set<InferenceEngine::CNNLayerPtr> body_input_layers;
-    // This map will save information about data nodes
-    std::map<std::string, std::vector<TensorDesc>> layer_name_to_tensor_desc;
+    TensorIterator::Body body;
     {
-        CNNNetwork body_net(tensor_iterator->get_body());
+        CNNNetwork body_net(tensor_iterator->get_function());
         CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
@@ -165,73 +153,102 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         }
 
         // Get inputs/outputs of cnn network
-        InputsDataMap in_info_map_with_parameters;
-        in_info_map_with_parameters = net.getInputsInfo();
-        out_info_map = net.getOutputsInfo();
+        auto in_info_map_with_parameters = net.getInputsInfo();
+        auto out_info_map = net.getOutputsInfo();
 
-        // Fill the map to get layer and port of the body by the parameter index.
+        IE_ASSERT(in_info_map_with_parameters.size() == parameters.size());
+        IE_ASSERT(out_info_map.size() == results.size());
+
+        InferenceEngine::TensorIterator::Body temp_body;
+        temp_body.inputs.resize(in_info_map_with_parameters.size());
+        temp_body.outputs.resize(out_info_map.size());
+
+        // Fill inputs/outs in order aligned with ng representation
         uint64_t counter = 0;
         for (const auto& param : parameters) {
             auto info = in_info_map_with_parameters.at(param->get_friendly_name());
-            auto data_ptr = info->getInputData();
-            auto input_to = getInputTo(data_ptr);
-            for (const auto& next_layer : input_to) {
-                auto port_idx = find_input_idx(next_layer.second, data_ptr);
-                ngraph_parameter_id_to_ie_layer_port[counter].push_back({next_layer.first, port_idx});
+            temp_body.inputs[counter++] = info->getInputData();
+        }
+
+        auto map_ng_result_to_ie_name = [] (std::shared_ptr<ngraph::op::v0::Result> res_op) {
+            auto result = res_op->input(0).get_source_output();
+
+            std::string name = result.get_node()->get_friendly_name();
+            if (result.get_node()->get_output_size() > 1) {
+                name += "." + std::to_string(result.get_index());
             }
-            counter++;
-        }
+            return name;
+        };
 
-        // Temporary body to call deep copy
-        InferenceEngine::TensorIterator::Body temp_body;
-        for (const auto& in : in_info_map_with_parameters) {
-            temp_body.inputs.emplace_back(in.second->getInputData());
-        }
-
-        for (const auto& out : out_info_map) {
-            temp_body.outputs.emplace_back(out.second);
+        counter = 0;
+        for (const auto& result : results) {
+            auto data = out_info_map.at(map_ng_result_to_ie_name(result));
+            temp_body.outputs[counter++] = data;
         }
 
         // This deep copy will hold all unreachable constants. See the comment in CopyTIBody function.
-        auto deep_cp_body = InferenceEngine::NetPass::CopyTIBody(temp_body);
-        for (const auto& data_ptr : deep_cp_body.inputs) {
-            auto input_to = getInputTo(data_ptr);
-            for (const auto& node : input_to) {
-                // Make it compatible with ir v7: delete Input layers in body
-                if (node.second->type != "Input") {
-                    body_input_layers.emplace(node.second);
-                    // Save information about data nodes to re-create them with correct names.
-                    for (const auto& data : node.second->insData) {
-                        layer_name_to_tensor_desc[node.second->name].emplace_back(data.lock()->getTensorDesc());
-                    }
-                }
+        body = InferenceEngine::NetPass::CopyTIBody(temp_body);
+
+        // Check if data is really const layer holder
+        auto is_constant_holder = [] (const DataPtr data) {
+            return data->getPrecision() == Precision::UNSPECIFIED;
+        };
+
+        // Strip unreached node holder from Inputs node.
+        auto holder = body.inputs.back();
+        if (is_constant_holder(holder)) {
+            auto& holder_map = getInputTo(holder);
+            // remove_if
+            for( auto it = holder_map.begin(); it != holder_map.end(); ) {
+                if( it->second->type == "Input")
+                    it = holder_map.erase(it);
+                else
+                    ++it;
             }
         }
 
-        for (const auto& data_ptr : deep_cp_body.outputs) {
-            out_info_map[data_ptr->getName()] = data_ptr;
+        // TODO: Disable this WA after total switch onto Ngraph
+        //   WA: Some plugins (like GPU) require matching of Data object name and producer Layer name.
+        //       Data name is expected in format "[layer_name]" or "[layer_name].[port_idx]" in case
+        //       of multiple inputs. We have to restore it if possible and ignore original names of
+        //       Ngraph parameter and result ops.
+        //       Will not change data name if:
+        //        - data has several consumer layers
+        //        - data has no consumer (example if data is straight used as output)
+        //
+        for (auto &in : body.inputs) {
+            if (is_constant_holder(in))
+                continue;
+
+            const auto input_to = getInputTo(in);
+            if (input_to.size() != 1)
+                continue;
+
+            const auto consumer_layer = input_to.begin()->second;
+            const auto consumer_in_port_set = consumer_layer->insData;
+            const auto found = std::find_if(consumer_in_port_set.begin(), consumer_in_port_set.end(),
+                                      [&in] (const DataWeakPtr &wptr) { return wptr.lock() == in; });
+            IE_ASSERT(found != consumer_in_port_set.end());
+            const auto consumer_port_idx = std::distance(consumer_in_port_set.begin(), found);
+
+            auto new_name = consumer_layer->name;
+            if (consumer_in_port_set.size() > 1) {
+                new_name += '.' + std::to_string(consumer_port_idx);
+            }
+            in->setName(new_name);
         }
-    }
 
-    auto holder = std::make_shared<Data>("const_holder", Precision::UNSPECIFIED);
-    for (const auto& input_layer : body_input_layers) {
-        // Save all constants to the holder so that they are not deleted.
-        if (input_layer->insData.empty()) {
-            getInputTo(holder)[input_layer->name] = input_layer;
-            continue;
-        }
-
-        // Re-create the data nodes with the correct names and fill inputs of TensorIterator (ie)
-        for (size_t i = 0; i < input_layer->insData.size(); i++) {
-            if (!input_layer->insData[i].lock()) {
-                std::string data_name = (input_layer->insData.size() == 1)
-                                            ? input_layer->name
-                                            : input_layer->name + "." + std::to_string(i);
-
-                DataPtr data(new Data(data_name, layer_name_to_tensor_desc[input_layer->name][i]));
-                input_layer->insData[i] = data;
-                getInputTo(data)[input_layer->name] = input_layer;
-                in_info_map[data_name] = data;
+        // TODO: this WA restore original precisions of outputs.
+        //       convertFunctionToICNNNetwork has internal fallback policy for unsupported
+        //       precisions for inputs/outputs ports. Particular for U8 will be translated
+        //       to FP32. However Loop body has strong requirements for continue_condition
+        //       port, it should be BOOL(U8).
+        //
+        for (int i = 0; i < results.size(); i++) {
+            auto result = results[i];
+            auto output = body.outputs[i];
+            if (result->get_element_type() == ngraph::element::u8) {
+                output->setPrecision(InferenceEngine::Precision::U8);
             }
         }
     }
@@ -240,44 +257,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     LayerParams params = {layer->get_friendly_name(), "TensorIterator",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::TensorIterator>(params);
-
-    // Body: inputs
-    uint64_t counter = 0;
-    for (const auto& in : in_info_map) {
-        res->body.inputs.emplace_back(in.second);
-
-        // Fill the map to get the input index by layer and port of the body.
-        auto input_to = getInputTo(in.second);
-        for (const auto& next_layer : input_to) {
-            auto port_idx = find_input_idx(next_layer.second, in.second);
-            ie_layer_port_to_tensor_iterator_input_id[{next_layer.first, port_idx}] = counter;
-        }
-        counter++;
-    }
-    // the holder should be the last input element.
-    res->body.inputs.emplace_back(holder);
-
-    // Body: outputs
-    for (const auto& out : out_info_map) {
-        res->body.outputs.emplace_back(out.second);
-    }
+    res->body = body;
 
     // Port map: outputs
     for (const auto& desc : tensor_iterator->get_output_descriptions()) {
-        auto result = results[desc->m_body_value_index]->input(0).get_source_output();
-
-        std::string name = result.get_node()->get_friendly_name();
-        if (result.get_node()->get_output_size() > 1) {
-            name += "." + std::to_string(result.get_index());
-        }
-        auto output_layer = out_info_map.at(name);
-
-        // Find index in outputs of the IE TensorIterator body
-        auto it = std::find(res->body.outputs.begin(), res->body.outputs.end(), output_layer);
-        if (it == res->body.outputs.end()) {
-            THROW_IE_EXCEPTION << "Output layer not found.";
-        }
-        auto body_output_idx = it - res->body.outputs.begin();
+        auto body_output_idx = desc->m_body_value_index;
 
         std::string type_name = desc->get_type_info().name;
         if (type_name == "ConcatOutputDescription") {
@@ -303,56 +287,58 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
 
     // Port map : inputs and back edges
     for (const auto& desc : tensor_iterator->get_input_descriptions()) {
-        for (const auto& mapping : ngraph_parameter_id_to_ie_layer_port[desc->m_body_parameter_index]) {
-            auto body_input_index = ie_layer_port_to_tensor_iterator_input_id.at(mapping);
-            std::string type_name = desc->get_type_info().name;
+        auto body_input_index = desc->m_body_parameter_index;
 
-            if (type_name == "SliceInputDescription") {
-                auto input_desc = ::ngraph::as_type_ptr<ngraph::op::TensorIterator::SliceInputDescription>(desc);
-                IE_ASSERT(input_desc != nullptr);
+        if (const auto slice_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::SliceInputDescription>(desc)) {
+            res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
+                static_cast<int>(slice_desc->m_input_index), static_cast<int>(body_input_index),
+                static_cast<int>(slice_desc->m_axis), static_cast<int>(slice_desc->m_stride),
+                static_cast<int>(slice_desc->m_start), static_cast<int>(slice_desc->m_end),
+                static_cast<int>(slice_desc->m_part_size)});
+        } else if (const auto merge_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::MergedInputDescription>(desc)) {
+            res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
+                static_cast<int>(merge_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
 
-                res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
-                    static_cast<int>(input_desc->m_input_index), static_cast<int>(body_input_index),
-                    static_cast<int>(input_desc->m_axis), static_cast<int>(input_desc->m_stride),
-                    static_cast<int>(input_desc->m_start), static_cast<int>(input_desc->m_end),
-                    static_cast<int>(input_desc->m_part_size)});
-            } else if (type_name == "MergedInputDescription") {
-                auto input_desc = ::ngraph::as_type_ptr<ngraph::op::TensorIterator::MergedInputDescription>(desc);
-                IE_ASSERT(input_desc != nullptr);
+            auto body_output_idx = merge_desc->m_body_value_index;
 
-                res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
-                    static_cast<int>(input_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
-
-                auto result = results[input_desc->m_body_value_index]->inputs()[0].get_source_output();
-
-                // Create correct name for output.
-                std::string output_name = result.get_node()->get_friendly_name();
-                if (result.get_node()->get_output_size() > 1) {
-                    output_name += "." + std::to_string(result.get_index());
-                }
-
-                auto output_layer = out_info_map.at(output_name);
-                // Find index in outputs of the IE TensorIterator body
-                auto it = std::find(res->body.outputs.begin(), res->body.outputs.end(), output_layer);
-                if (it == res->body.outputs.end()) {
-                    THROW_IE_EXCEPTION << "Output layer not found.";
-                }
-                auto body_output_idx = it - res->body.outputs.begin();
-
-                res->back_edges.emplace_back(InferenceEngine::TensorIterator::PortMap {
-                    static_cast<int>(body_output_idx), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
-            } else if (type_name == "InvariantInputDescription") {
-                auto input_desc = ::ngraph::as_type_ptr<ngraph::op::TensorIterator::InvariantInputDescription>(desc);
-                IE_ASSERT(input_desc != nullptr);
-
-                res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
-                        static_cast<int>(input_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
-            } else {
-                THROW_IE_EXCEPTION << "Incorrect type of the input description.";
-            }
+            res->back_edges.emplace_back(InferenceEngine::TensorIterator::PortMap {
+                static_cast<int>(body_output_idx), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
+        } else if (const auto inv_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::InvariantInputDescription>(desc)) {
+            res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
+                    static_cast<int>(inv_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
+        } else {
+            THROW_IE_EXCEPTION << "Incorrect type of the input description.";
         }
     }
 
+    if (const auto loop_op = std::dynamic_pointer_cast<const ngraph::opset5::Loop>(layer)) {
+        auto spec_port = loop_op->get_special_body_ports();
+        if (spec_port.current_iteration_input_idx != -1) {
+            auto ie_port_idx = spec_port.current_iteration_input_idx;
+            res->params["loop_body_current_iteration_idx"] = std::to_string(ie_port_idx);
+        }
+        if (spec_port.body_condition_output_idx != -1) {
+            auto body_output_idx = spec_port.body_condition_output_idx;
+            res->params["loop_body_condition_output_idx"] = std::to_string(body_output_idx);
+        }
+        res->params["loop_trip_count_idx"] = "0";
+        res->params["loop_execution_condition_idx"] = "1";
+    }
+
+    return res;
+}
+
+template<>
+CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto res = createSubGraphLayer(layer);
+    res->type = "TensorIterator";
+    return res;
+}
+
+template<>
+CNNLayer::Ptr NodeConverter<ngraph::opset5::Loop>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto res = createSubGraphLayer(layer);
+    res->type = "Loop";
     return res;
 }
 
@@ -619,7 +605,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Maximum>::createLayer(const std::sha
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::Minimum>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "Minimum operation should be decomposed";
+    LayerParams params = {layer->get_friendly_name(), "Eltwise",
+                          details::convertPrecision(layer->get_output_element_type(0))};
+    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
+    res->params["operation"] = "min";
+    return res;
 }
 
 template <>
@@ -647,12 +637,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Add>::createLayer(const std::shared_
     auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
     res->params["operation"] = "sum";
     return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::BatchNormInference>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "BatchNormInference operation should be fused or decomposed";
 }
 
 template <>
@@ -760,74 +744,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ConvolutionIE>::createLayer(
     NodeConverter<ngraph::op::Constant> converter;
     const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
     if (!keep_constants && converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-
-        if (castedLayer->inputs().size() == 3) {
-            const auto biasNode = castedLayer->input_value(2).get_node_shared_ptr();
-            if (converter.canCreate(biasNode)) {
-                const auto& bias = converter.createLayer(biasNode);
-                res->blobs["biases"] = bias->blobs["custom"];
-                res->_biases = bias->blobs["custom"];
-            }
-        }
-    }
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::DeconvolutionIE>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Deconvolution",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::DeconvolutionLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::DeconvolutionIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_pads_begin()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_begin"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_pads_end()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_end"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["strides"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_dilations()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["dilations"] = value;
-
-    // Restore kernel size and output
-    const auto& shape = castedLayer->get_input_shape(1);
-    res->params["output"] = asString(shape[1]);
-
-    value.clear();
-    for (size_t i = 2; i < shape.size(); i++) {
-        if (!value.empty()) value += ",";
-        value += asString(shape[i]);
-    }
-    res->params["kernel"] = value;
-    res->params["group"] = asString(castedLayer->get_group());
-
-    NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
-    if (converter.canCreate(weightsNode)) {
         const auto& weights = converter.createLayer(weightsNode);
         res->blobs["weights"] = weights->blobs["custom"];
         res->_weights = weights->blobs["custom"];
@@ -1232,14 +1148,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ReverseSequence>::createLayer(const std:
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Reshape>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Reshape",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReshapeLayer>(params);
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ShapeOf>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "ShapeOf",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1373,43 +1281,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std:
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "DetectionOutput",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::DetectionOutput>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto attr = castedLayer->get_attrs();
-    std::string param;
-
-    res->params["num_classes"] = asString(attr.num_classes);
-    res->params["background_label_id"] = asString(attr.background_label_id);
-    res->params["top_k"] = asString(attr.top_k);
-    res->params["variance_encoded_in_target"] = (attr.variance_encoded_in_target ? "1" : "0");
-    for (const auto& val : attr.keep_top_k) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["keep_top_k"] = param;
-    res->params["code_type"] = attr.code_type;
-    res->params["share_location"] = (attr.share_location ? "1" : "0");
-    res->params["nms_threshold"] = asString(attr.nms_threshold);
-    res->params["confidence_threshold"] = asString(attr.confidence_threshold);
-    res->params["clip_after_nms"] = (attr.clip_after_nms ? "1" : "0");
-    res->params["clip_before_nms"] = (attr.clip_before_nms ? "1" : "0");
-    res->params["decrease_label_id"] = (attr.decrease_label_id ? "1" : "0");
-    res->params["normalized"] = (attr.normalized ? "1" : "0");
-    res->params["input_height"] = asString(attr.input_height);
-    res->params["input_width"] = asString(attr.input_width);
-    res->params["objectness_score"] = asString(attr.objectness_score);
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ProposalIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Proposal",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1520,7 +1391,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxIE>::createLayer(const std::shar
         auto img_H = img_shape[2];
         auto data_H = data_shape[2];
         if (attr.step == -1)
-            attr.step = 1. * img_H / data_H;
+            attr.step = static_cast<float>(1. * img_H / data_H);
         else
             attr.step *= img_H;
         for (auto& size : attr.min_size)
@@ -1583,36 +1454,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PowerIE>::createLayer(const std::shared_
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::TopK>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "TopK",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::TopKLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::TopK>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["mode"] = ngraph::as_string<ngraph::op::v1::TopK::Mode>(castedLayer->get_mode());;
-    res->params["sort"] = ngraph::as_string<ngraph::op::v1::TopK::SortType>(castedLayer->get_sort_type());
-    res->params["axis"] = asString(castedLayer->get_axis());
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::TopKIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "TopK",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::TopKLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::TopKIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["mode"] = ngraph::as_string<ngraph::op::v1::TopK::Mode>(castedLayer->get_mode());;
-    res->params["sort"] = ngraph::as_string<ngraph::op::v1::TopK::SortType>(castedLayer->get_sort_type());
-    res->params["axis"] = asString(castedLayer->get_axis());
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Eltwise",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1624,6 +1465,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_
     switch (castedLayer->eltwise_type) {
     case ELTWISE_TYPE::Sum:
         type = "sum";
+        break;
+    case ELTWISE_TYPE::Sub:
+        type = "sub";
         break;
     case ELTWISE_TYPE::Prod:
         type = "prod";
@@ -2100,55 +1944,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Sqrt>::createLayer(const std::shared_ptr
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::StridedSlice>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "StridedSlice",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::StridedSliceLayer>(params);
-    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::v1::StridedSlice>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_begin_mask()) {
-        if (!value.empty()) value += ",";
-        // plugins require reverse value of this mask.
-        value += asString((1-val));
-    }
-    res->params["begin_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_end_mask()) {
-        if (!value.empty()) value += ",";
-        // plugins require reverse value of this mask.
-        value += asString((1-val));
-    }
-    res->params["end_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_new_axis_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["new_axis_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_shrink_axis_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["shrink_axis_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_ellipsis_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["ellipsis_mask"] = value;
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::OneHotIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "OneHot", Precision::FP32};
 
@@ -2185,14 +1980,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GRN>::createLayer(const std::shared_ptr<
 
     auto res = std::make_shared<InferenceEngine::GRNLayer>(params);
     res->params["bias"] = asString(castedLayer->get_bias());
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::LogicalNot>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Activation", details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    res->params["type"] = "not";
     return res;
 }
 

@@ -43,7 +43,7 @@ protected:
         std::vector<size_t> inputShape;
         std::vector<size_t> targetShape;
         auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(interpolateParams, netPrecision, inputShape, targetShape, targetDevice) = basicParamsSet;
+        std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) = basicParamsSet;
 
         ngraph::op::v4::Interpolate::InterpolateMode mode;
         ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
@@ -191,22 +191,30 @@ const auto interpolateCasesLinearOnnx = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
-INSTANTIATE_TEST_CASE_P(InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
+INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
                 interpolateCasesNN,
                 ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
                 ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTest,
+INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
                 interpolateCasesLinearOnnx,
                 ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
                 ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),

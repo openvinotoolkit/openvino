@@ -115,7 +115,7 @@ TEST_P(Faster100_5_1_1_Conv, CompareWithRefImpl) {
 };
 
 
-INSTANTIATE_TEST_CASE_P(bfloat16_NoReshape, Faster100_5_1_1_Conv,
+INSTANTIATE_TEST_CASE_P(smoke_bfloat16_NoReshape, Faster100_5_1_1_Conv,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::FP32),
@@ -124,7 +124,7 @@ INSTANTIATE_TEST_CASE_P(bfloat16_NoReshape, Faster100_5_1_1_Conv,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             Faster100_5_1_1_Conv::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, Faster100_5_1_1_Conv,
+INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Faster100_5_1_1_Conv,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

@@ -53,11 +53,11 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
     void ExportImpl(std::ostream& modelFile) override;
 
