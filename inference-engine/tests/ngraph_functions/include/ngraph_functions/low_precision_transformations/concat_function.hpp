@@ -23,6 +23,12 @@ public:
         const FakeQuantizeOnData& fakeQuantize1,
         const FakeQuantizeOnData& fakeQuantize2);
 
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize1,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize2);
+
     static std::shared_ptr<ngraph::Function> getOriginalWithNeighbors(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
@@ -68,6 +74,13 @@ public:
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantize1,
         const FakeQuantizeOnData& fakeQuantize2,
+        const DequantizationOperations& dequantizationOperations);
+
+    static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize1,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize2,
         const DequantizationOperations& dequantizationOperations);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
