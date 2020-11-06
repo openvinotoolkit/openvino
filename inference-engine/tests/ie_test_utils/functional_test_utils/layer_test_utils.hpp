@@ -82,15 +82,10 @@ public:
 };
 
 struct PassRate {
-    uint passed;
-    uint failed;
+    unsigned long passed = 0;
+    unsigned long failed = 0;
 
-    PassRate() {
-        passed = 0;
-        failed = 0;
-    }
-
-    PassRate(uint p, uint f) {
+    PassRate(unsigned long p, unsigned long f) {
         passed = p;
         failed = f;
     }
