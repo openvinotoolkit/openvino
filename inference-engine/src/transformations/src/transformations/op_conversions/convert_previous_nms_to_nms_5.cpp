@@ -15,6 +15,9 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+using namespace ngraph;
+
+namespace {
 struct NMSAttributes {
     ngraph::element::Type output_type;
     ngraph::opset5::NonMaxSuppression::BoxEncodingType box_encoding;
@@ -22,9 +25,6 @@ struct NMSAttributes {
     bool is_supported_nms;
 };
 
-using namespace ngraph;
-
-namespace {
     NMSAttributes get_nms4_attrs(const std::shared_ptr<ngraph::opset4::NonMaxSuppression>& nms4) {
         NMSAttributes attrs;
 

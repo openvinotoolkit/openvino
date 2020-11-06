@@ -461,8 +461,8 @@ namespace ngraph
                     SelectedIndex selected_index{
                         box_info.batch_index, box_info.class_index, box_info.index};
                     SelectedScore selected_score{static_cast<float>(box_info.batch_index),
-                                                static_cast<float>(box_info.class_index),
-                                                box_info.score};
+                                                 static_cast<float>(box_info.class_index),
+                                                 box_info.score};
 
                     selected_indices_ptr[idx] = selected_index;
                     selected_scores_ptr[idx] = selected_score;
