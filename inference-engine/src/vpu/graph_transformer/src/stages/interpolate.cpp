@@ -51,6 +51,7 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
             if (cmp(interpolateMode, "nearest")) {
                 // current "Resample" supports the following "Interpolate" modes only:
                 // coordinate_transformation_mode = half_pixel; nearest_mode = round_prefer_ceil;
+                // coordinate_transformation_mode = asymmetric; nearest_mode = floor;
                 // other "Interpolate" modes are translated to the default ones
                 const auto antialias = _layer->GetParamAsBool("antialias", false);
                 const auto coordinate_transformation_mode = _layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");

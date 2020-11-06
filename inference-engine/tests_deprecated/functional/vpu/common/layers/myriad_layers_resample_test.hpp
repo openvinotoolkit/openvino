@@ -26,8 +26,8 @@ using namespace InferenceEngine;
 
 PRETTY_PARAM(Factor, float)
 PRETTY_PARAM(Antialias, int)
-PRETTY_PARAM(CoordinateTransformMode, int)
-PRETTY_PARAM(NearestMode, int)
+PRETTY_PARAM(CoordinateTransformMode, InterpolateCoordTransMode)
+PRETTY_PARAM(NearestMode, InterpolateNearestMode)
 PRETTY_PARAM(HwOptimization, bool);
 PRETTY_PARAM(CustomConfig, std::string);
 
@@ -39,7 +39,7 @@ static inline float triangleCoeff(float x)
     return (1.0f - fabsf(x));
 }
 
-void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, int coordTransMode, int nearestMode) {
+void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, InterpolateCoordTransMode coordTransMode, InterpolateNearestMode nearestMode) {
     ie_fp16 *src_data = static_cast<ie_fp16*>(src->buffer());
     ie_fp16 *output_sequences = static_cast<ie_fp16*>(dst->buffer());
     ASSERT_NE(src_data, nullptr);
@@ -84,11 +84,11 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, int coordTra
                 int ix_r = (int)(round(ix)); // round prefer ceil
                 int iy_r = (int)(round(iy));
 
-                if (coordTransMode == static_cast<int>(InterpolateCoordTransMode::asymmetric)) { // asymmetric
+                if (coordTransMode == InterpolateCoordTransMode::asymmetric) { // asymmetric
                     ix = ox*fx;
                     iy = oy*fy;
                 }
-                if (nearestMode == static_cast<int>(InterpolateNearestMode::floor)) { // floor
+                if (nearestMode == InterpolateNearestMode::floor) { // floor
                     ix_r = (int)(floor(ix));
                     iy_r = (int)(floor(iy));
                 }
@@ -127,8 +127,8 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
     const SizeVector inputDims = std::get<0>(GetParam());
     const float factor = std::get<1>(GetParam());
     const bool antialias = std::get<2>(GetParam());
-    const int coordTransMode = std::get<3>(GetParam());
-    const int nearestMode = std::get<4>(GetParam());
+    const InterpolateCoordTransMode coordTransMode = std::get<3>(GetParam());
+    const InterpolateNearestMode nearestMode = std::get<4>(GetParam());
     const bool hwOptimization = std::get<5>(GetParam());
     const std::string customConfig = std::get<6>(GetParam());
 
@@ -154,8 +154,12 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
 
     std::map<std::string, std::string> params;
     params["antialias"] = std::to_string((int)antialias);
-    params["coordTransMode"] = std::to_string(coordTransMode);
-    params["nearestMode"] = std::to_string(nearestMode);
+    params["coordTransMode"] = "half_pixel";
+    if (coordTransMode == InterpolateCoordTransMode::asymmetric)
+        params["coordTransMode"] = "asymmetric";
+    params["nearestMode"] = "round_prefer_ceil";
+    if (nearestMode == InterpolateNearestMode::floor)
+        params["nearestMode"] = "floor";
     params["factor"] = std::to_string(factor);
 
     ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Resample").params(params),

@@ -106,12 +106,24 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
 
     ie::details::CaselessEq<std::string> cmp;
     const auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
+    const auto coord = layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+    const auto nearest = layer->GetParamAsString("nearest_mode", "round_prefer_ceil");
+    InterpolateCoordTransMode coordinate_transformation_mode = InterpolateCoordTransMode::half_pixel;
+    InterpolateNearestMode nearest_mode = InterpolateNearestMode::round_prefer_ceil;
+
+    if (cmp(coord, "asymmetric")) {
+        coordinate_transformation_mode = InterpolateCoordTransMode::asymmetric;
+    }
+    if (cmp(nearest, "floor")) {
+        nearest_mode = InterpolateNearestMode::floor;
+    }
+
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
         _stageBuilder->addResampleNearestStage(model,
                                                layer->name,
                                                layer,
                                                layer->GetParamAsInt("antialias", 0),
-                                               InterpolateCoordTransMode::half_pixel, InterpolateNearestMode::round_prefer_ceil,
+                                               coordinate_transformation_mode, nearest_mode,
                                                layer->GetParamAsFloat("factor", -1),
                                                inputs[0],
                                                outputs[0]);
