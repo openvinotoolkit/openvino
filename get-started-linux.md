@@ -188,7 +188,7 @@ Now you are ready to run the Image Classification Sample Application.
 
 The Inference Engine sample applications are automatically compiled when you 
 built the Inference Engine using the [build instructions](build-instruction.md). 
-The binary files are located in the `<OPENVINO_DIR>/inference-engine/bin/intel64/Release` 
+The binary files are located in the `<OPENVINO_DIR>/bin/intel64/Release` 
 directory.
 
 To run the Image Classification sample application with an input image on the prepared IR: 
