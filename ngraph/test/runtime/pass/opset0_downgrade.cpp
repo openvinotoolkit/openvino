@@ -324,32 +324,6 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::Subtract, op::v1::Subtract>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::TopK> node)
-    {
-        const auto axis = node->get_axis();
-        const auto sort_type = node->get_sort_type();
-        const auto index_elem_type = node->get_index_element_type();
-
-        bool compute_max;
-        switch (node->get_mode())
-        {
-        case op::v1::TopK::Mode::MAX: compute_max = true; break;
-        case op::v1::TopK::Mode::MIN: compute_max = false; break;
-        default: break;
-        }
-
-        const auto arg_node = node->input_value(0);
-        const auto k_node = node->input_value(1);
-
-        auto replacement_node = make_shared<op::v0::TopK>(
-            arg_node, k_node, axis, index_elem_type, compute_max, sort_type);
-
-        // values output will be 0, indices 1
-        vector<int64_t> output_order{1, 0};
-        replace_node(node, replacement_node, output_order);
-        return replacement_node;
-    }
-
     using DispatchMap = map<NodeTypeInfo, std::function<bool(shared_ptr<Node> node)>>;
 
     template <typename T>
