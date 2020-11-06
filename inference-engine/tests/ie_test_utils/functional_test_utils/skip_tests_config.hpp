@@ -15,6 +15,7 @@ namespace FuncTestUtils {
 namespace SkipTestsConfig {
 
 inline bool currentTestIsDisabled() {
+#ifndef ENABLE_SKIPPED_TESTS
     const auto fullName = ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()
                           + std::string(".") + ::testing::UnitTest::GetInstance()->current_test_info()->name();
     for (const auto &pattern : disabledTestPatterns()) {
@@ -22,6 +23,7 @@ inline bool currentTestIsDisabled() {
         if (std::regex_match(fullName, re))
             return true;
     }
+#endif
     return false;
 }
 
