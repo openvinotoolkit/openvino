@@ -260,8 +260,9 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         fakeQuantize->input_value(4) }));
 
     replace_node(fakeQuantize, newFakeQuantize);
-    NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
-
+    ngraph::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
+    newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
+    NetworkHelper::cleanRunTimeInfo(newFakeQuantize);
     return newFakeQuantize;
 }
 

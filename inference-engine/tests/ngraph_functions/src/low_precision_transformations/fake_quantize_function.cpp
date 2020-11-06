@@ -29,6 +29,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginal(
         input, element::f32, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
     fakeQuantize->set_friendly_name("fakeQuantize");
+    auto& rtInfo = fakeQuantize->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("fakeQuantize");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fakeQuantize) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");
@@ -55,15 +57,18 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
         fakeQuantizeOnData.outputLowValues,
         fakeQuantizeOnData.outputHighValues));
     std::shared_ptr<Node> parent = fakeQuantize;
+    auto& rtInfo = fakeQuantize->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("fakeQuantize");
 
     if (updatePrecisions) {
         const std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<DequantizationConvert>(parent, element::f32);
+        ngraph::copy_runtime_info({ fakeQuantize, convert }, convert);
         parent = convert;
-
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, fakeQuantizeOutputPrecision);
     } else {
         if (fakeQuantize->get_output_element_type(0) != element::f32) {
             const std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<DequantizationConvert>(parent, element::f32);
+            ngraph::copy_runtime_info({ fakeQuantize, convert }, convert);
             parent = convert;
         }
     }
@@ -78,6 +83,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
                 expectedSubtractValues),
             ngraph::op::AutoBroadcastSpec::NUMPY);
     if (subtract != nullptr) {
+        ngraph::copy_runtime_info({ fakeQuantize, subtract }, subtract);
         parent = subtract;
     }
 
@@ -90,10 +96,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
                 expectedMultiplyValues.size() == 1ul ? ngraph::Shape{ } : ngraph::Shape{ expectedMultiplyValues.size() },
                 expectedMultiplyValues));
     if (multiply != nullptr) {
+        ngraph::copy_runtime_info({ fakeQuantize, multiply }, multiply);
         parent = multiply;
     }
     parent->set_friendly_name("fakeQuantize");
-
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");
 }

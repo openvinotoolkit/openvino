@@ -64,6 +64,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         matMul->get_transpose_a(),
         matMul->get_transpose_b());
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMatMul, matMul->get_output_element_type(0));
+    NetworkHelper::copyInfo(matMul, newMatMul);
 
     auto transpose = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
         const Shape outputShape = node->get_output_shape(0);
@@ -95,6 +96,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
                 NetworkHelper::toScalar(as_type_ptr<opset1::Constant>(const1)),
                 const2)));
     replace_node(matMul, newMultiply);
+    ngraph::copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
     updateOutput(context, newMultiply, matMul);
 

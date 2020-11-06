@@ -160,8 +160,6 @@ public:
     // handles only specific case: Constant -> [dequantization operations] -> [node]
     static void foldDequantization(std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
 
-    static std::shared_ptr<Node> markAsDequantizationOp(std::shared_ptr<Node> op);
-
 private:
     static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);
 

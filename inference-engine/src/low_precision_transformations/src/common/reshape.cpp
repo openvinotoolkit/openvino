@@ -28,65 +28,109 @@ void ReshapeTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
     if (dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0).size() > 1ul) {
+        // Reshape Subtract or Multiply operation Constant.
+        //    1. modify reshape parameters to avoid reshape by spatial dimensions
+        //    2. broadcast element-wise constant if channels are changed
+        //    3. reshape element-wise constant with modified reshape parameters
         auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<Node>& op) {
-            if (reshape->output(0).get_shape().size() == 2ul) {
-                const auto inputShape = reshape->input(0).get_shape();
-
-                Shape shape(inputShape);
-                shape[0] = 1ul;
-
-                const std::shared_ptr<Node> broadcastedConstant = fold<opset1::Broadcast>(
-                    op->get_input_node_shared_ptr(1),
-                    std::make_shared<opset1::Constant>(element::i32, Shape{ shape.size() }, shape));
-
-                const std::shared_ptr<Node> reshapedConstant = fold<opset1::Reshape>(
-                    broadcastedConstant,
-                    reshape->get_input_node_shared_ptr(1),
-                    reshape->get_special_zero());
-
-                replace_node(op->get_input_node_shared_ptr(1), reshapedConstant);
-            } else {
-                // Original Reshape operation is used to update operation Constant.
-                // But original Reshape operation output data shape constant should be changed before reshape.
-
-                // simple broadcast operation Constant shape to shape on activations
-                auto newOperationConstantShape = op->input(1).get_shape();
-                auto const reshapeInputShape = reshape->input(0).get_shape();
-                if ((reshapeInputShape.size() - newOperationConstantShape.size()) == 1ul) {
-                    newOperationConstantShape.insert(newOperationConstantShape.begin(), 1ul);
-                }
-                const std::shared_ptr<opset1::Constant> originalConstant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
-                const std::shared_ptr<opset1::Constant> newOperationConstant = std::make_shared<opset1::Constant>(
-                    op->input(1).get_element_type(),
-                    newOperationConstantShape,
-                    originalConstant->cast_vector<float>());
-
-                // update Reshape constant
-                const std::vector<int> reshapeConstValues = as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1))->cast_vector<int>();
-                std::vector<int> newReshapeConstValues(reshapeConstValues);
-                for (int i = static_cast<int>(newReshapeConstValues.size() - 1); i >= 0; --i) {
-                    if (newOperationConstantShape.size() <= i) {
-                        newReshapeConstValues[i] = 1;
-                    } else if (newOperationConstantShape[i] == 1ul) {
-                        // not used dimension
-                        newReshapeConstValues[i] = 1;
-                    } else {
-                        break;
-                    }
-                }
-
-                const std::shared_ptr<opset1::Constant> newReshapedConstant = std::make_shared<opset1::Constant>(
-                    reshape->input(1).get_element_type(),
-                    Shape({ newReshapeConstValues.size() }),
-                    newReshapeConstValues);
-
-                const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
-                    newOperationConstant,
-                    newReshapedConstant,
-                    reshape->get_special_zero());
-
-                replace_node(op->get_input_node_shared_ptr(1), resultConstant);
+            const size_t constantIndex = as_type<ngraph::opset1::Constant>(op->get_input_node_ptr(1)) ? 1 : 0;
+            const Shape constantShape = op->input(constantIndex).get_shape();
+            // reshape for element-wise constant is not required
+            if (constantShape.empty() || (constantShape.size() == 1ul)) {
+                return;
             }
+
+            // simple broadcast operation Constant shape to shape on activations
+            auto newOperationConstantShape = op->input(1).get_shape();
+            auto const reshapeInputShape = reshape->input(0).get_shape();
+            Shape newOperationConstantBroadcastedShape(reshapeInputShape);
+            newOperationConstantBroadcastedShape[0] = 1ul;
+
+            if ((reshapeInputShape.size() - newOperationConstantShape.size()) == 1ul) {
+                newOperationConstantShape.insert(newOperationConstantShape.begin(), 1ul);
+            }
+            const std::shared_ptr<opset1::Constant> originalConstant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
+            const std::shared_ptr<opset1::Constant> newOperationConstant = std::make_shared<opset1::Constant>(
+                op->input(1).get_element_type(),
+                newOperationConstantShape,
+                originalConstant->cast_vector<float>());
+
+            // reshape -1 value hanling
+            auto getOverallValue = [](const Shape& shape, const std::vector<int>& reshapeValues, const bool specialZero) -> size_t {
+                size_t overallValue = shape_size(shape);
+                for (size_t i = 0; i < reshapeValues.size(); ++i) {
+                    auto reshapeValue = reshapeValues[i];
+                    if ((reshapeValue == 1ul) || (reshapeValue == -1) || ((reshapeValue == 0ul) && !specialZero)) {
+                        continue;
+                    }
+
+                    if ((reshapeValue == 0ul) && specialZero) {
+                        reshapeValue = shape[i];
+                    }
+
+                    overallValue = overallValue / reshapeValue;
+                }
+                return overallValue;
+            };
+
+            // modify reshape constant for element-wise constant reshape
+            // element-wise constant doesn't have spatial dimensions, as result we should remove spatial dimensions from reshape parameters
+            const std::vector<int> reshapeConstValues = as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1))->cast_vector<int>();
+
+            size_t overallValue = 0;
+            for (size_t i = 0; i < reshapeConstValues.size(); ++i) {
+                if (reshapeConstValues[i] == -1) {
+                    overallValue = getOverallValue(
+                        reshapeInputShape,
+                        reshapeConstValues,
+                        as_type_ptr<opset1::Reshape>(reshape)->get_special_zero());
+                    break;
+                }
+            }
+
+            std::vector<int> newReshapeConstValues(reshapeConstValues);
+            for (int i = static_cast<int>(newReshapeConstValues.size() - 1); i >= 0; --i) {
+                if (newOperationConstantShape.size() <= i) {
+                    // new dimension was added
+                    newReshapeConstValues[i] = 1;
+                } else if (newOperationConstantShape[i] == 1ul) {
+                    // keep the same
+                    newReshapeConstValues[i] = 1;
+                } else if (newReshapeConstValues[i] == -1) {
+                    // modified reshape parameters are different, but value instead '-1' has to be equal as original reshape
+                    newReshapeConstValues[i] = overallValue;
+                }
+            }
+
+            const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
+                reshape->input(1).get_element_type(),
+                Shape({ newReshapeConstValues.size() }),
+                newReshapeConstValues);
+
+            // if channels are different then broadcast spatial dimensions to reshape channels correctly
+            // limitation which has to be covered by canBeTransformed:
+            //    1. spatial dimensions have to be absent or equal to 1 after reshape
+            //    2. only second dimension can be changed
+
+            const bool shouldBroadcast = (shape_size(newReshapeConstValues) != 1ul) && (reshapeConstValues[1] != 0) &&
+                (((reshapeConstValues[1] != -1) && (constantShape[1] != reshapeConstValues[1])) ||
+                ((reshapeConstValues[1] == -1) && (constantShape[1] != overallValue)));
+
+            const std::shared_ptr<Node> broadcastedConstant = shouldBroadcast ?
+                fold<opset1::Broadcast>(
+                    newOperationConstant,
+                    std::make_shared<opset1::Constant>(
+                        element::i32,
+                        Shape({newOperationConstantBroadcastedShape.size()}),
+                        newOperationConstantBroadcastedShape)) :
+                newOperationConstant;
+
+            const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
+                broadcastedConstant,
+                newReshapeConstant,
+                reshape->get_special_zero());
+
+            replace_node(op->get_input_node_shared_ptr(1), resultConstant);
         };
 
         if (dequantization.subtract != nullptr) {

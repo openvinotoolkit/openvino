@@ -66,6 +66,8 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
     convolution->set_friendly_name("output");
+    auto& rtInfo = convolution->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("convolution");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionTransformation");
@@ -261,6 +263,8 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
         std::vector<element::Type>{});
 
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution, precisionAfterOperation);
+    auto& rtInfo = convolution->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("convolution");
 
     const auto deqAfter = makeDequantization(convolution, dequantizationAfter);
     deqAfter->set_friendly_name("output");

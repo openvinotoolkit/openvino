@@ -166,7 +166,7 @@ const std::vector<ReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, { {128}, ngraph::element::f32 }, {}},
+            {{}, { {128}, ngraph::element::f32, {}, false }, {}},
             ngraph::element::f32,
             {{}, {}, {0.1f}}
         }
@@ -181,7 +181,7 @@ const std::vector<ReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
-            {{}, { {127}, ngraph::element::f32 }, {}},
+            {{}, { {127}, ngraph::element::f32, {}, false }, {}},
             ngraph::element::f32,
             {{}, {}, {0.1f}}
         }

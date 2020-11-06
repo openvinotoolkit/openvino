@@ -632,7 +632,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             fq->get_levels(),
             fq->get_auto_broadcast()),
         true);
-    newFQ->set_friendly_name(fq->get_friendly_name());
+    NetworkHelper::copyInfo(fq, newFQ);
 
     std::shared_ptr<ngraph::Node> convert2;
     if (updatePrecision) {
@@ -650,10 +650,12 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
 
         convert2 = std::make_shared<DequantizationConvert>(convert, element::f32);
         convert2->set_friendly_name(convert->get_friendly_name() + "/DequantizationConvert");
+        ngraph::copy_runtime_info({ newFQ, convert2 }, convert2);
     } else {
         if (newFQ->get_output_element_type(0) != element::f32) {
             convert2 = std::make_shared<DequantizationConvert>(newFQ, element::f32);
             convert2->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationConvert");
+            ngraph::copy_runtime_info({ newFQ, convert2 }, convert2);
         }
     }
 
@@ -663,12 +665,14 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(convert2 == nullptr ? newFQ : convert2, shift);
     if (sub != nullptr) {
         sub->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationSubtract");
+        ngraph::copy_runtime_info({ newFQ, sub }, sub);
     }
 
     const std::shared_ptr<ngraph::opset1::Multiply> dequantize = std::make_shared<DequantizationMultiply>(
         sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub,
         scale);
     dequantize->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationMultiply");
+    ngraph::copy_runtime_info({ newFQ, dequantize }, dequantize);
 
     replace_node(fq, dequantize);
 
@@ -929,7 +933,7 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
 
     const std::shared_ptr<ngraph::Node> newOperation = operation->clone_with_new_inputs(inputs);
     newOperation->set_friendly_name(operation->get_friendly_name());
-    // copyInfo(operation, newOperation);
+    ngraph::copy_runtime_info(operation, newOperation);
 
     if (updatePrecision) {
         auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
@@ -945,18 +949,22 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     auto parent = newOperation;
     if (shouldConvert) {
         parent = std::make_shared<DequantizationConvert>(parent, dequantization.convert->get_output_element_type(0));
+        ngraph::copy_runtime_info({ newOperation, parent }, parent);
     }
     if (moveSubtract && (dequantization.subtract != nullptr)) {
         auto subtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
         parent = std::make_shared<DequantizationSubtract>(parent, subtractConstant);
+        ngraph::copy_runtime_info({ newOperation, parent }, parent);
     }
     if (dequantization.multiply != nullptr) {
         auto multiplyConstant = dequantization.multiply->get_input_node_shared_ptr(1);
         parent = std::make_shared<DequantizationMultiply>(parent, multiplyConstant);
+        ngraph::copy_runtime_info({ newOperation, parent }, parent);
     }
     replace_node(operation, parent);
 
     if ((!moveSubtract) && (dequantization.convert != nullptr) && (dequantization.subtract != nullptr)) {
+        NetworkHelper::cleanRunTimeInfo(dequantization.subtract);
         optimizeSubtract(dequantization.subtract);
     }
 
@@ -1034,13 +1042,6 @@ std::shared_ptr<Node> NetworkHelper::toScalarIfPossible(std::shared_ptr<Node> no
     }
 
     return NetworkHelper::toScalar(constant);
-}
-
-std::shared_ptr<Node> NetworkHelper::markAsDequantizationOp(std::shared_ptr<Node> op) {
-    auto opCopy = op->clone_with_new_inputs(op->input_values());
-    auto& rtInfo = opCopy->get_rt_info();
-    rtInfo["DEQUANTIZATION"] = std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr());
-    return opCopy;
 }
 
 }  // namespace low_precision
