@@ -113,8 +113,7 @@ REGISTER_TYPED_TEST_CASE_P(topk_type_prop,
                            topk_negative_axis_support,
                            topk_negative_axis_dynamic_rank,
                            topk_v1_partial_ouptut,
-                           topk_rank_static_k_unknown
-                           );
+                           topk_rank_static_k_unknown);
 
 typedef ::testing::Types<op::v1::TopK, op::v3::TopK> TopKTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(type_prop, topk_type_prop, TopKTypes, );
