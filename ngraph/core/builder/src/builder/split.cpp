@@ -15,67 +15,11 @@
 //*****************************************************************************
 
 #include "builder/split.hpp"
-#include "ngraph/op/slice.hpp"
 #include "ngraph/opsets/opset1.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
-
-namespace
-{
-    inline size_t get_valid_array_index(size_t idx, size_t axis_size)
-    {
-        return std::min(idx, axis_size);
-    }
-
-    std::shared_ptr<op::Slice> make_ng_slice(const Output<Node>& output,
-                                             const std::vector<int64_t>& axes,
-                                             const std::vector<size_t>& starts,
-                                             const std::vector<size_t>& ends)
-    {
-        std::vector<size_t> upper_bounds{output.get_shape()};
-        std::vector<size_t> lower_bounds(upper_bounds.size());
-        for (size_t index{0}; index < axes.size(); ++index)
-        {
-            int64_t axis{axes.at(index)};
-            lower_bounds.at(axis) =
-                get_valid_array_index(starts.at(index), output.get_shape().at(axis));
-            upper_bounds.at(axis) =
-                get_valid_array_index(ends.at(index), output.get_shape().at(axis));
-        }
-        return std::static_pointer_cast<op::Slice>(
-            std::make_shared<op::Slice>(output, lower_bounds, upper_bounds)
-                ->add_provenance_group_members_above({output}));
-    }
-}
-
-OutputVector
-    builder::split(const Output<Node>& value, const std::vector<size_t>& length_parts, int64_t axis)
-{
-    size_t start_index{0};
-    OutputVector outputs;
-    for (const auto& length_part : length_parts)
-    {
-        size_t end_index{start_index + length_part};
-        outputs.push_back(make_ng_slice(value, {axis}, {start_index}, {end_index}));
-        start_index = end_index;
-    }
-    return outputs;
-}
-
-OutputVector builder::split(const Output<Node>& value, size_t split_parts, int axis)
-{
-    size_t axis_to_split{static_cast<size_t>(axis)};
-    if (axis < 0)
-    {
-        axis_to_split = value.get_shape().size() + axis;
-    }
-
-    size_t length_axis_to_split{value.get_shape().at(axis_to_split)};
-    std::vector<size_t> length_parts(split_parts, length_axis_to_split / split_parts);
-    return split(value, length_parts, axis_to_split);
-}
 
 OutputVector builder::opset1::split(const Output<Node>& value,
                                     const std::vector<size_t>& split_lengths,
