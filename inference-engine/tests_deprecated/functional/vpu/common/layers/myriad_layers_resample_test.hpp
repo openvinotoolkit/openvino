@@ -5,6 +5,21 @@
 #include <cmath>
 #include "myriad_layers_tests.hpp"
 
+VPU_DECLARE_ENUM(InterpolateCoordTransMode,
+    half_pixel = 0,
+    pytorch_half_pixel = 1,
+    asymmetric = 2,
+    tf_half_pixel_for_nn = 3,
+    align_corners = 4
+)
+VPU_DECLARE_ENUM(InterpolateNearestMode,
+    round_prefer_floor = 0,
+    round_prefer_ceil = 1,
+    floor = 2,
+    ceil = 3,
+    simple = 4
+)
+
 using namespace InferenceEngine;
 
 #define ERROR_BOUND 1e-3
@@ -69,11 +84,11 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, int coordTra
                 int ix_r = (int)(round(ix)); // round prefer ceil
                 int iy_r = (int)(round(iy));
 
-                if (coordTransMode == 2) { // asymmetric
+                if (coordTransMode == static_cast<int>(InterpolateCoordTransMode::asymmetric)) { // asymmetric
                     ix = ox*fx;
                     iy = oy*fy;
                 }
-                if (nearestMode == 2) { // floor
+                if (nearestMode == static_cast<int>(InterpolateNearestMode::floor)) { // floor
                     ix_r = (int)(floor(ix));
                     iy_r = (int)(floor(iy));
                 }
@@ -139,8 +154,8 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
 
     std::map<std::string, std::string> params;
     params["antialias"] = std::to_string((int)antialias);
-    params["coordTransMode"] = std::to_string((int)coordTransMode);
-    params["nearestMode"] = std::to_string((int)nearestMode);
+    params["coordTransMode"] = std::to_string(coordTransMode);
+    params["nearestMode"] = std::to_string(nearestMode);
     params["factor"] = std::to_string(factor);
 
     ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Resample").params(params),
@@ -150,7 +165,7 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
 
     ASSERT_TRUE(Infer());
 
-    ASSERT_NO_FATAL_FAILURE(refResample(_inputMap.begin()->second, _refBlob, antialias, (int)coordTransMode, (int)nearestMode));
+    ASSERT_NO_FATAL_FAILURE(refResample(_inputMap.begin()->second, _refBlob, antialias, coordTransMode, nearestMode));
 
     CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, ERROR_BOUND);
 }

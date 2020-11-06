@@ -57,6 +57,14 @@ const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode =
         ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
 };
 
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesNearestMore = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestModeMore = {
+        ngraph::op::v4::Interpolate::NearestMode::floor,
+};
+
 const std::vector<std::vector<size_t>> pads = {
         {0, 0, 0, 0},
 };
@@ -87,6 +95,18 @@ const auto interpolateCasesNearestMode = ::testing::Combine(
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModesNearest),
         ::testing::ValuesIn(defaultNearestMode),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
+
+const auto interpolateCasesNearestModeMoreModes = ::testing::Combine(
+        ::testing::ValuesIn(nearestMode),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModesNearestMore),
+        ::testing::ValuesIn(defaultNearestModeMore),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
