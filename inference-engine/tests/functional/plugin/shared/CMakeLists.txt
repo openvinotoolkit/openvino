@@ -23,12 +23,11 @@ addIeTarget(
         INCLUDES
             PUBLIC
                 ${PUBLIC_HEADERS_DIR}
-                ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
         LINK_LIBRARIES
             PUBLIC
                 ${EXPORT_DEPENDENCIES}
             PRIVATE
-            inference_engine_transformations
+                inference_engine_transformations
         DEPENDENCIES
             mock_engine
             HeteroPlugin
@@ -45,6 +44,6 @@ if (TARGET MKLDNNPlugin)
     add_dependencies(${TARGET_NAME} MKLDNNPlugin)
 endif()
 
-if (${ENABLE_SKIPPED_TESTS})
+if (ENABLE_SKIPPED_TESTS)
     target_compile_definitions(${TARGET_NAME} INTERFACE ENABLE_SKIPPED_TESTS)
 endif()
