@@ -35,3 +35,10 @@ See the visualization of `Convolution` with the compressed weights:
 ![](../../img/compressed_int8_Convolution_weights.png)
 
 Both Model Optimizer and Post-Training Optimization tool generate a compressed IR by default. To generate an expanded INT8 IR, use `--disable_weights_compression`.
+
+---
+## See Also
+
+* [Quantization](@ref pot_compression_algorithms_quantization_README)
+* [Optimization Guide](../../../optimization_guide/dldt_optimization_guide.md)
+* [Low Precision Optimization Guide](@ref pot_docs_LowPrecisionOptimizationGuide)

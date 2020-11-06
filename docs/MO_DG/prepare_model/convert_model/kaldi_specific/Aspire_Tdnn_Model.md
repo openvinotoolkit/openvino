@@ -110,3 +110,8 @@ speech_sample -i feats.ark,ivector_online_ie.ark -m final.xml -d CPU -o predicti
 
 Results can be decoded as described in "Use of Sample in Kaldi* Speech Recognition Pipeline" chapter 
 in [the Speech Recognition Sample description](../../../../../inference-engine/samples/speech_sample/README.md).
+
+---
+## See Also
+
+* [Converting a Kaldi Model](../Convert_Model_From_Kaldi.md)
