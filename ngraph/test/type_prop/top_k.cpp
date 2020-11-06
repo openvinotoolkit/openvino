@@ -84,28 +84,24 @@ TYPED_TEST_P(topk_type_prop, topk_v1_partial_ouptut)
 
 TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown)
 {
+    const int64_t axis = 1;
     const auto data_shape = Shape{1, 10, 100};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const int64_t axis = 1;
-    const Dimension fully_dynamic_dimension{-1};
-    const PartialShape fully_dynamic_axis_shape{1, fully_dynamic_dimension, 100};
 
     {
         const auto k = make_shared<op::Parameter>(element::i32, PartialShape({}));
         const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
 
+        const PartialShape fully_dynamic_axis_shape{1, Dimension{-1}, 100};
         EXPECT_EQ(topk->get_output_partial_shape(0), fully_dynamic_axis_shape);
     }
     {
-        const int64_t c = 5;
-        const auto cnst = make_shared<op::v0::Constant>(element::i64, Shape{}, &c);
-        const auto conv = make_shared<op::v0::Convert>(cnst, element::i32);
-        const auto topk = make_shared<TypeParam>(data, conv, axis, "max", "value");
+        const auto k = make_shared<op::v0::Constant>(element::i64, Shape{}, 5);
+        const auto convert_k = make_shared<op::v0::Convert>(k, element::i32);
+        const auto topk = make_shared<TypeParam>(data, convert_k, axis, "max", "value");
 
-        Dimension empty_dimension;
-        empty_dimension.get_interval() = Interval{1, 0};
-        EXPECT_NE(topk->get_output_partial_shape(0), PartialShape({1, empty_dimension, 100}));
-        EXPECT_NE(topk->get_output_partial_shape(0), fully_dynamic_axis_shape);
+        const PartialShape ranged_dynamic_axis_shape{1, Dimension{5, 10}, 100};
+        EXPECT_EQ(topk->get_output_partial_shape(0), ranged_dynamic_axis_shape);
     }
 }
 
