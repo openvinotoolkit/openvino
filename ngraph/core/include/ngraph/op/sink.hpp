@@ -36,6 +36,7 @@ namespace ngraph
                 : Op()
             {
             }
+
             Sink(const OutputVector& arguments)
                 : Op(arguments)
             {

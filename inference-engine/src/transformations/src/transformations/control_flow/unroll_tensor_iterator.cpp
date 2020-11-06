@@ -15,12 +15,11 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
 
-ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
-    auto tensor_iterator = ngraph::pattern::wrap_type<ngraph::opset4::TensorIterator>();
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(m.get_match_root());
-        if (!ti) {
-            return false;
+bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    for (const auto& op : f->get_ops()) {
+        auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(op);
+        if (!ti || m_transformation_callback(ti)) {
+            continue;
         }
 
         const auto function = ti->get_body();
@@ -28,7 +27,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
 
         // negative value means inconsistent TI
         if (num_iter <= -1) {
-            return false;
+            continue;
         }
 
         // Create copies of the TensorIterator body, the number of copies is equal to the number of iterations.
@@ -183,9 +182,9 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
             }
         }
 
-        return true;
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "UnrollTensorIterator");
-    register_matcher(m, callback);
+        for (const auto& body_func : body_functions) {
+            f->add_sinks(body_func->get_sinks());
+        }
+    }
+    return true;
 }
