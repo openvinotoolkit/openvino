@@ -8,9 +8,10 @@
 #include <memory>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
+
 
 #include <ie_metric_helpers.hpp>
-#include <legacy/ie_util_internal.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include "multi_device_plugin.hpp"
 
@@ -163,13 +164,16 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     multiNetworkConfig.insert(*priorities);
-
+    if (network.getFunction() == nullptr) {
+        THROW_IE_EXCEPTION << "MULTI device supports just ngraph network representation";
+    }
     DeviceMap<ExecutableNetwork> executableNetworkPerDevice;
     for (auto& p : metaDevices) {
         auto & deviceName = p.deviceName;
         auto & deviceConfig = p.config;
-        auto clonedNetwork = cloneNetwork(network);
-        executableNetworkPerDevice.insert({ deviceName, GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig) });
+        executableNetworkPerDevice.insert({ deviceName, GetCore()->LoadNetwork(
+            CNNNetwork{ICNNNetwork::Ptr{const_cast<ICNNNetwork*>(&network),
+                                        [](ICNNNetwork*){}}}, deviceName, deviceConfig) });
         multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
     }
     if (executableNetworkPerDevice.empty())
@@ -201,57 +205,24 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&  
     if (priorities == fullConfig.end()) {
         THROW_IE_EXCEPTION << "KEY_MULTI_DEVICE_PRIORITIES key is not set for MULTI device";
     }
-
-    auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
+    if (network.getFunction() == nullptr) {
+        THROW_IE_EXCEPTION << "MULTI device supports just ngraph network representation";
+    }    auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
     std::unordered_set<std::string> supportedLayers;
-
-    auto allSupportsNgraph =
-        std::all_of(std::begin(metaDevices), std::end(metaDevices),
-            [&] (const DeviceInformation& value) -> bool {
-                auto clonedNetwork = cloneNetwork(network);
-                try { GetCore()->QueryNetwork(*clonedNetwork, value.deviceName, value.config); }
-                catch (const InferenceEngine::details::InferenceEngineException & ex) {
-                    std::string message = ex.what();
-                    return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
-                }
-                return true;
-            });
-
     for (auto&& value : metaDevices) {
-        auto queryNetwork = [&] (const InferenceEngine::ICNNNetwork & networkObject) {
-            auto clonedNetwork = cloneNetwork(networkObject);
-            auto deviceQr = GetCore()->QueryNetwork(*clonedNetwork, value.deviceName, value.config);
-            std::unordered_set<std::string> deviceSupportedLayers;
-            for (auto&& layerQr : deviceQr.supportedLayersMap) {
-                deviceSupportedLayers.emplace(layerQr.first);
-            }
-            supportedLayers = supportedLayers.empty()
-                            ? deviceSupportedLayers : (deviceSupportedLayers.empty()
-                            ? supportedLayers : Intersection(supportedLayers, deviceSupportedLayers));
-        };
-
-        if (network.getFunction()) {
-            if (!allSupportsNgraph) {
-                if (contains(fullConfig, CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN))) {
-                    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-                } else {
-                    auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
-                    if (cnnNetworkImpl == nullptr)
-                        THROW_IE_EXCEPTION << "Cannot create CNNNetworkImpl shared_ptr";
-                    queryNetwork(*cnnNetworkImpl);
-                }
-            } else {
-                queryNetwork(network);
-            }
-        } else {
-            queryNetwork(network);
+        auto deviceQr = GetCore()->QueryNetwork(CNNNetwork{ICNNNetwork::Ptr{const_cast<ICNNNetwork*>(&network),
+                                                           [](ICNNNetwork*){}}}, value.deviceName, value.config);
+        std::unordered_set<std::string> deviceSupportedLayers;
+        for (auto&& layerQr : deviceQr.supportedLayersMap) {
+            deviceSupportedLayers.emplace(layerQr.first);
         }
+        supportedLayers = supportedLayers.empty()
+                        ? deviceSupportedLayers : (deviceSupportedLayers.empty()
+                        ? supportedLayers : Intersection(supportedLayers, deviceSupportedLayers));
     }
-
     for (auto&& supportedLayer : supportedLayers) {
         queryResult.supportedLayersMap[supportedLayer] = GetName();
     }
-
     return queryResult;
 }
 
