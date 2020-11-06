@@ -216,8 +216,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                         if (restarLayerInfo.isActivation()) {
                             // requantize activation by just changing it's output scale factor
                             quantDataForMemoryOutput->_dst_quant.SetScale(quantSibling->_dst_quant.GetScale());
-                        }
-                        else {
+                        } else {
                             THROW_GNA_EXCEPTION << "quantization error : input scale factor ( " << inputQuant->_dst_quant.GetScale() << ") "
                                 << " for " << cnnLayer->name << ", that is child of " << prevLayer->name << " doesnt match : "
                                 << activation_scale_factor;

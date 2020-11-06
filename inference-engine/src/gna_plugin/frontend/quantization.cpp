@@ -239,14 +239,6 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             THROW_GNA_EXCEPTION << "invalid channel multiplier: " << channel_multiplier;
         }
 
-        auto row_max = 0.0f;
-        for (uint32_t col = 0; col < num_columns; col++) {
-            auto value = fabs(ptr_float_weights[i * num_columns + col]);
-            if (value > row_max) {
-                row_max = value;
-            }
-        }
-
         for (uint32_t j = 0; j < num_columns; j++) {
             auto offset = i * num_columns + j;
             auto rounding_value = (ptr_float_weights[i * num_columns + j] > 0) ? 0.5f : -0.5f;
@@ -261,7 +253,8 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             if (*ptr_quantized_weights &&
                 (value > std::numeric_limits<int8_t>::max() ||
                 value < std::numeric_limits<int8_t>::min())) {
-                THROW_GNA_EXCEPTION << "unsupported weights range for I8 quantization: " << value;
+                THROW_GNA_EXCEPTION << "unsupported weights range for I8 quantisation: " << value;
+            }
 
             if (value > std::numeric_limits<int8_t>::max()) {
                 normalizedWeight = std::numeric_limits<int8_t>::max();
