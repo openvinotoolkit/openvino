@@ -769,7 +769,7 @@ namespace
 
     void op_is_Softmax()
     {
-        op::Softmax node;
+        op::v1::Softmax node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
