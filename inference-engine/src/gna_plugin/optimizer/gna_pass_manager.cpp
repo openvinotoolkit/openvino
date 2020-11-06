@@ -667,11 +667,20 @@ void InsertPermuteConvolutionOutputNHWCToNCHWPass::run() {
                 continue;
             }
 
+            auto* convolution = dynamic_cast<ConvolutionLayer*>(l.get());
+            if (!convolution) {
+                THROW_GNA_EXCEPTION << "There needs to be a convolution for InsertPermuteConvolutionOutputNHWCToNCHWPass!";
+            }
+            //if kernel is pow of 2 and heigher than 8, then the issue doesn't appear
+            if (convolution->_kernel_x > 15 && !(convolution->_kernel_x & (convolution->_kernel_x-1))) {
+                continue;
+            }
+
             if (std::min(convolutionOutputDims[1], convolutionOutputDims[3]) > 8 ||
                 std::max(convolutionOutputDims[1], convolutionOutputDims[3]) % 8 != 0) {
                 gnalog() << "Skipping permute addition. The created permute wouldn't be supported because of permute dimensions ["
                     << convolutionOutputDims[0] << ", " << convolutionOutputDims[1] << ", " << convolutionOutputDims[2] << ", "
-                    << convolutionOutputDims[3] << "]. The output will need to be transposed from NHWC to NCHW.";
+                    << convolutionOutputDims[3] << "]. The output will need to be transposed from NHWC to NCHW.\n" << std::flush;
                 continue;
             }
 

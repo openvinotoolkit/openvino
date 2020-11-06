@@ -507,7 +507,6 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         if (policy.NHWCToNCHWPolicy != Policy::NHWCToNCHW::DISABLED) {
             passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         }
-        passes->registerPass<InsertPermuteConvolutionOutputNHWCToNCHWPass>();
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertCopyLayerPass>();
@@ -517,6 +516,8 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<ForbidActivationFusingPass>();
 #endif
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
+        passes->registerPass<InsertPermuteConvolutionOutputNHWCToNCHWPass>();
+        passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
         passes->registerPass<BroadcastConstPass>();
         passIdx = passes->run(passIdx);

@@ -29,7 +29,8 @@ const std::vector<bool> with_bias = {
 
 std::vector<std::vector<size_t>> input_shapes = {
     {1, 1, 1, 16},
-    {1, 1, 1, 168}
+    {1, 1, 1, 168},
+    {1, 1, 1, 640}
 };
 
 std::vector<size_t> output_channels = {

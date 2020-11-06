@@ -81,15 +81,16 @@ void InputConvTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     size_t kernel_y = 1;
-    size_t kernel_x = 9;
+    size_t kernel_x = inputShape[3] == 640 ? 512 : 9;
+    size_t stride = inputShape[3] == 640 ? 128 : 1;
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
-    auto conv_0 = ngraph::builder::makeConvolution(params[0], ngPrc, { kernel_y, kernel_x }, { 1, 1 }, { 0, 0 },
+    auto conv_0 = ngraph::builder::makeConvolution(params[0], ngPrc, { kernel_y, kernel_x }, { stride, stride }, { 0, 0 },
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, output_channels, with_bias,
         generateWeights(output_channels, kernel_x));
 
     //permute accepts and return 2-byte values. If it's the last operation in the model, that's why the output is incorrect for int16 then
-    size_t num_output_width = (((inputShape[1] * inputShape[2] * inputShape[3] - kernel_x * kernel_y) / inputShape[1]) + 1);
+    size_t num_output_width = (((inputShape[1] * inputShape[2] * inputShape[3] - kernel_x * kernel_y) / (inputShape[1] * stride)) + 1);
     std::vector<size_t> outFormShapes_0 = { 1, output_channels * num_output_width };
     auto pattern_0 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes_0);
     auto reshape_0 = std::make_shared<ngraph::opset1::Reshape>(conv_0, pattern_0, false);
