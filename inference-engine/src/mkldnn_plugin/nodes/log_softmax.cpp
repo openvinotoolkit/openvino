@@ -60,37 +60,41 @@ public:
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
         const float *src_data = inputs[0]->cbuffer().as<float *>() +
             inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        float* dst_data = outputs[0]->cbuffer().as<float *>() +
+        float* dst_data = outputs[0]->buffer().as<float *>() +
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         if (is_last_dim) {
             parallel_for(axis_step, [&](size_t i) {
-                float reduce_prod = 0.0f;
                 const float *src_dataPtr = &src_data[i * reduced_axis_size];
+                float *dst_dataPtr = &dst_data[i * reduced_axis_size];
+
+                float reduce_prod = 0.0f;
+                const float max = *std::max_element(src_dataPtr, src_dataPtr + reduced_axis_size);
                 for (size_t j = 0; j < reduced_axis_size; ++j)
-                    reduce_prod += expf(src_dataPtr[j]);
+                    reduce_prod += expf(src_dataPtr[j] - max);
+
                 reduce_prod = logf(reduce_prod);
-                float *dst_dataPtr = reinterpret_cast<float*>(&dst_data[i * reduced_axis_size]);
                 for (size_t j = 0; j < reduced_axis_size; ++j)
-                    dst_dataPtr[j] = src_dataPtr[j] - reduce_prod;
+                    dst_dataPtr[j] = src_dataPtr[j] - max - reduce_prod;
             });
         } else {
             parallel_for2d(axis_step, reduced_axis_stride, [&](size_t k, size_t i) {
-                float reduce_prod = 0.0f;
                 const float *src_dataPtr = &src_data[k * reduced_axis_stride * reduced_axis_size + i];
+                float *dst_dataPtr = &dst_data[k * reduced_axis_stride * reduced_axis_size + i];
+
+                float reduce_prod = 0.0f;
+                float max = std::numeric_limits<float>::min();
                 for (size_t j = 0; j < reduced_axis_size; ++j) {
-                    reduce_prod += expf((*src_dataPtr));
-                    src_dataPtr += reduced_axis_stride;
+                    if (src_dataPtr[j * reduced_axis_stride] > max)
+                        max = src_dataPtr[j * reduced_axis_stride];
                 }
 
+                for (size_t j = 0; j < reduced_axis_size; ++j)
+                    reduce_prod += expf(src_dataPtr[j * reduced_axis_stride] - max);
+
                 reduce_prod = logf(reduce_prod);
-                src_dataPtr = &src_data[k * reduced_axis_stride * reduced_axis_size + i];
-                float *dst_dataPtr = reinterpret_cast<float*>(&dst_data[k * reduced_axis_stride * reduced_axis_size + i]);
-                for (size_t j = 0; j < reduced_axis_size; ++j) {
-                    (*dst_dataPtr) = (*src_dataPtr) - reduce_prod;
-                    src_dataPtr += reduced_axis_stride;
-                    dst_dataPtr += reduced_axis_stride;
-                }
+                for (size_t j = 0; j < reduced_axis_size; ++j)
+                    dst_dataPtr[j * reduced_axis_stride] = src_dataPtr[j * reduced_axis_stride] - max - reduce_prod;
             });
         }
 

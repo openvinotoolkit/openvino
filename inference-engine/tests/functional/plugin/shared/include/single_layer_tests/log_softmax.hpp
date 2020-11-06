@@ -17,22 +17,22 @@
 
 namespace LayerTestsDefinitions {
 
-using softMaxLayerTestParams = std::tuple<
+using logSoftmaxLayerTestParams = std::tuple<
         InferenceEngine::Precision,         // netPrecision
         InferenceEngine::Precision,         // Input precision
         InferenceEngine::Precision,         // Output precision
         InferenceEngine::Layout,            // Input layout
         InferenceEngine::Layout,            // Output layout
         InferenceEngine::SizeVector,        // inputShape
-        size_t,                             // axis
+        int64_t,                            // axis
         std::string,                        // targetDevice
         std::map<std::string, std::string>  // config
 >;
 
-class SoftMaxLayerTest : public testing::WithParamInterface<softMaxLayerTestParams>,
-                         virtual public LayerTestsUtils::LayerTestsCommon {
+class LogSoftmaxLayerTest : public testing::WithParamInterface<logSoftmaxLayerTestParams>,
+                            virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<softMaxLayerTestParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<logSoftmaxLayerTestParams> obj);
 
 protected:
     void SetUp() override;

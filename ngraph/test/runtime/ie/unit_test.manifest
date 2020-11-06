@@ -1140,13 +1140,6 @@ IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
 
-# Wrong output when axis 0
-IE_CPU.log_softmax_1d_single_value
-IE_CPU.log_softmax_2d_axis0
-IE_CPU.log_softmax_2d_axis_neg2
-IE_CPU.log_softmax_3d_axis_0
-IE_CPU.log_softmax_3d_axis_neg3
-
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
