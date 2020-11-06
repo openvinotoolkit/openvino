@@ -20,7 +20,7 @@ set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma248x)
 #
 
 set(FIRMWARE_PACKAGE_VERSION 1452)
-set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.1")
+set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
 # CMake variables to override default firmware files
@@ -187,7 +187,7 @@ function(add_vpu_compile_custom_kernels)
             OUTPUT ${out_file}
             COMMAND
                 ${CMAKE_COMMAND} -E env
-                    "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X8X}/ldscripts/"
+                    "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X8X}/ldscripts/ma2x8x"
                     "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X8X}/lib"
                     "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X8X}/bin"
                     "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X8X}/bin"
