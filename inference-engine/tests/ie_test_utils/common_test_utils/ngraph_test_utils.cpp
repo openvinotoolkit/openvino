@@ -84,10 +84,16 @@ std::pair<bool, std::string> compare_functions(
      * - Do not check nodes attributes (requires visitor mechanism to be completed)
      */
 
-    const auto f1_results = f1->get_results();
-    const auto f2_results = f2->get_results();
+    const auto& f1_results = f1->get_results();
+    const auto& f2_results = f2->get_results();
     if (f1_results.size() != f2_results.size()) {
         return { false, "Number of results is different: " + std::to_string(f1_results.size()) + " and " + std::to_string(f2_results.size()) };
+    }
+
+    const auto& f1_sinks = f1->get_sinks();
+    const auto& f2_sinks = f2->get_sinks();
+    if (f1_sinks.size() != f2_sinks.size()) {
+        return { false, "Number of sinks is different: " + std::to_string(f1_sinks.size()) + " and " + std::to_string(f2_sinks.size()) };
     }
 
     auto typeInfoToStr = [](const ngraph::Node::type_info_t & typeInfo) {
@@ -118,6 +124,13 @@ std::pair<bool, std::string> compare_functions(
 
         if (!compareTypeInfo(type_info1, type_info2)) {
             return {false, typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2)};
+        }
+
+        const auto& dependencies_1 = node1->get_control_dependencies();
+        const auto& dependencies_2 = node2->get_control_dependencies();
+        if (dependencies_1.size() != dependencies_2.size()) {
+            return {false, "Number of dependencies is different: " + std::to_string(dependencies_1.size()) + " for " + node1->get_friendly_name() +
+                           + " and " + std::to_string(dependencies_2.size()) + " for " + node2->get_friendly_name()};
         }
 
         if (node1->inputs().size() != node2->inputs().size()) {

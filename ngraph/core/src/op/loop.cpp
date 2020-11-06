@@ -349,10 +349,12 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
     }
     op->m_num_iterations = m_num_iterations;
     op->m_special_body_ports = m_special_body_ports;
-    auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
+    auto func = std::make_shared<Function>(
+        m_body->get_results(), m_body->get_sinks(), m_body->get_parameters());
     auto spec_func = specialize_function(
         func, types, new_shapes, std::vector<void*>(body_params_args.size(), nullptr));
-    op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_parameters());
+    op->m_body = std::make_shared<Function>(
+        spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions)
     {

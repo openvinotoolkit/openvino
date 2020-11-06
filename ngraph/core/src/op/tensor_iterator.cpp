@@ -126,18 +126,8 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 auto start = make_positive(slice_input_description->m_start, dim_size);
                 auto end = make_positive(slice_input_description->m_end, dim_size);
 
-                if (m_num_iterations == -1)
-                {
-                    // +1 because the left and right borders are included [start, end]
-                    m_num_iterations = (abs(end - start) + 1) / part_size;
-                }
-                else
-                {
-                    NODE_VALIDATION_CHECK(this,
-                                          m_num_iterations == (abs(end - start) + 1) / part_size,
-                                          "Number of slices not the same");
-                }
-
+                // +1 because the left and right borders are included [start, end]
+                m_num_iterations = (abs(end - start) + 1) / part_size;
                 if (body_param_partial_shape.is_static())
                 {
                     // validate
@@ -316,10 +306,12 @@ std::shared_ptr<Node>
     }
 
     op->m_num_iterations = m_num_iterations;
-    auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
+    auto func = std::make_shared<Function>(
+        m_body->get_results(), m_body->get_sinks(), m_body->get_parameters());
     auto spec_func =
         specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
-    op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_parameters());
+    op->m_body = std::make_shared<Function>(
+        spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions)
     {
