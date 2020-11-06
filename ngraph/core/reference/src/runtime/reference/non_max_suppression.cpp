@@ -305,9 +305,8 @@ namespace ngraph
                 result.boxes_shape = inputs[boxes_port]->get_shape();
                 result.scores_shape = inputs[scores_port]->get_shape();
 
-                result.boxes_data = prepare_boxes_data(inputs[boxes_port],
-                                                       result.boxes_shape,
-                                                       nms5->get_box_encoding());
+                result.boxes_data =  prepare_boxes_data(
+                    inputs[boxes_port], result.boxes_shape, nms5->get_box_encoding());
                 result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
 
                 result.out_shape_size = shape_size(result.out_shape);
@@ -385,7 +384,7 @@ namespace ngraph
                         }
 
                         std::priority_queue<BoxInfo> sorted_boxes(std::less<BoxInfo>(),
-                                                                std::move(candidate_boxes));
+                                                                  std::move(candidate_boxes));
 
                         std::vector<BoxInfo> selected;
                         // Get the next box with top score, filter by iou_threshold
@@ -401,10 +400,11 @@ namespace ngraph
 
                             bool should_hard_suppress = false;
                             for (int64_t j = static_cast<int64_t>(selected.size()) - 1;
-                                j >= next_candidate.suppress_begin_index;
-                                --j)
+                                 j >= next_candidate.suppress_begin_index;
+                                 --j)
                             {
-                                float iou = intersectionOverUnion(next_candidate.box, selected[j].box);
+                                float iou =
+                                    intersectionOverUnion(next_candidate.box, selected[j].box);
                                 next_candidate.score *= func(iou);
 
                                 if (iou >= iou_threshold)
@@ -445,8 +445,8 @@ namespace ngraph
                 if (sort_result_descending)
                 {
                     std::sort(filteredBoxes.begin(),
-                            filteredBoxes.end(),
-                            [](const BoxInfo& l, const BoxInfo& r) { return l.score > r.score; });
+                              filteredBoxes.end(),
+                              [](const BoxInfo& l, const BoxInfo& r) { return l.score > r.score; });
                 }
 
                 size_t max_num_of_selected_indices = selected_indices_shape[0];
