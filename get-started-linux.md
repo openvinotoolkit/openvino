@@ -204,12 +204,12 @@ To run the Image Classification sample application with an input image on the pr
 
    **For CPU:**
    ```sh
-   ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car_1.bmp -m <ir_dir>/squeezenet1.1.xml -d CPU
+   ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d CPU
    ```
 
    **For GPU:**
    ```sh
-   ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car_1.bmp -m <ir_dir>/squeezenet1.1.xml -d GPU
+   ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d GPU
    ```
    
    **For MYRIAD:** 
@@ -218,20 +218,20 @@ To run the Image Classification sample application with an input image on the pr
    Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
    performing [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2).
    ```sh
-   ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car_1.bmp -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
+   ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
    ```
 
 When the Sample Application completes, you will have the label and confidence for the top-10 categories printed on the screen. Below is a sample output with inference results on CPU:    
 ```sh
 Top 10 results:
 
-Image /home/user/openvino/scripts/demo/car.png
+Image ../../../scripts/demo/car.png
 
 classid probability label
 ------- ----------- -----
-817     0.8363345   sports car, sport car
-511     0.0946488   convertible
-479     0.0419131   car wheel
+817     0.8363342   sports car, sport car
+511     0.0946487   convertible
+479     0.0419130   car wheel
 751     0.0091071   racer, race car, racing car
 436     0.0068161   beach wagon, station wagon, wagon, estate car, beach waggon, station waggon, waggon
 656     0.0037564   minivan
@@ -240,13 +240,9 @@ classid probability label
 864     0.0012027   tow truck, tow car, wrecker
 581     0.0005882   grille, radiator grille
 
-
-total inference time: 2.6642941
-Average running time of one iteration: 2.6642941 ms
-
-Throughput: 375.3339402 FPS
-
 [ INFO ] Execution successful
+
+[ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
 
 ## Additional Resources
