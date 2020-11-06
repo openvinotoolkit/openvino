@@ -27,7 +27,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-
+extern bool ignore_skips;
 namespace LayerTestsUtils {
 
 class Summary;
@@ -84,6 +84,8 @@ public:
 struct PassRate {
     unsigned long passed = 0;
     unsigned long failed = 0;
+
+    PassRate() = default;
 
     PassRate(unsigned long p, unsigned long f) {
         passed = p;

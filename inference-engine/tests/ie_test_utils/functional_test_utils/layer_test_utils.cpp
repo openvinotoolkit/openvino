@@ -120,7 +120,9 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
 }
 
 void LayerTestsCommon::Run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!ignore_skips) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    }
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
     auto reportStatus = [this, &s](bool passed) {
@@ -145,8 +147,18 @@ void LayerTestsCommon::Run() {
         Infer();
         Validate();
         reportStatus(true);
+    }
+    catch(const std::runtime_error& re) {
+        reportStatus(false);
+        std::cout << "Runtime error: " << re.what() << std::endl;
+        GTEST_FAIL();
+    } catch(const std::exception& ex) {
+        reportStatus(false);
+        std::cout << "Error occurred: " << ex.what() << std::endl;
+        GTEST_FAIL();
     } catch (...) {
         reportStatus(false);
+        std::cout << "Unknown failure occurred. Possible memory corruption" << std::endl;
         GTEST_FAIL();
     }
 }
