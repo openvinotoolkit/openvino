@@ -150,16 +150,13 @@ void LayerTestsCommon::Run() {
     }
     catch(const std::runtime_error& re) {
         reportStatus(false);
-        std::cout << "Runtime error: " << re.what() << std::endl;
-        GTEST_FAIL();
+        GTEST_FATAL_FAILURE_(re.what());
     } catch(const std::exception& ex) {
         reportStatus(false);
-        std::cout << "Error occurred: " << ex.what() << std::endl;
-        GTEST_FAIL();
+        GTEST_FATAL_FAILURE_(ex.what());
     } catch (...) {
         reportStatus(false);
-        std::cout << "Unknown failure occurred. Possible memory corruption" << std::endl;
-        GTEST_FAIL();
+        GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }
 
