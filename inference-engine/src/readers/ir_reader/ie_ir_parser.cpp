@@ -389,7 +389,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
                                                     const GenericLayerParams& params) {
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
-        //std::make_shared<LayerCreator<ngraph::op::Clamp>>("Clamp"),
         std::make_shared<LayerCreator<ngraph::op::Constant>>("Const"),
         std::make_shared<LayerCreator<ngraph::op::Convert>>("Convert"),
         std::make_shared<LayerCreator<ngraph::op::CTCGreedyDecoder>>("CTCGreedyDecoder"),
@@ -402,18 +401,14 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::Broadcast>>("Broadcast"),
         std::make_shared<LayerCreator<ngraph::op::v1::Reshape>>("Reshape"),
         std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
-        //std::make_shared<LayerCreator<ngraph::op::Elu>>("ELU"),
-        //std::make_shared<LayerCreator<ngraph::op::FakeQuantize>>("FakeQuantize"),
+        std::make_shared<LayerCreator<ngraph::op::FakeQuantize>>("FakeQuantize"),
         std::make_shared<LayerCreator<ngraph::op::v1::Gather>>("Gather"),
-        //std::make_shared<LayerCreator<ngraph::op::v1::GatherTree>>("GatherTree"),
         std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Convolution>>("Convolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolution>>("GroupConvolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::ConvolutionBackpropData>>("ConvolutionBackpropData"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolutionBackpropData>>("GroupConvolutionBackpropData"),
         std::make_shared<LayerCreator<ngraph::op::v1::BinaryConvolution>>("BinaryConvolution"),
-        //std::make_shared<LayerCreator<ngraph::op::GRN>>("GRN"),
-        //std::make_shared<LayerCreator<ngraph::op::HardSigmoid>>("HardSigmoid"),
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
@@ -835,7 +830,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PriorBox>::cre
 }
 
 // FakeQuantize layer
-/*template <>
+template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::FakeQuantize>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
@@ -846,7 +841,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::FakeQuantize>:
 
     return std::make_shared<ngraph::op::FakeQuantize>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4],
                                                       GetUIntAttr(dn, "levels"));
-}*/
+}
 
 // ReverseSequence layer
 template <>
