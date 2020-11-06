@@ -299,8 +299,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                 for (int br = 0; br < OUT_BLOCK_HEIGHT; br++) {
                     __attribute__((opencl_unroll_hint))
                     for (int bc = 0; bc < OUT_BLOCK_WIDTH; bc++) {
-                        PACKED_TYPE input = sub_group_broadcast(in[br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y], bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X);
-                        INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(input);
+                        INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(sub_group_broadcast(in[br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y],
+                                                                                    bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X));
 
                         out[br * OUT_BLOCK_WIDTH + bc] = TO_ACCUMULATOR_TYPE(IMAD(out[br * OUT_BLOCK_WIDTH + bc], inputs, AS_FILTER_TYPE_4(w[wi])));
 
