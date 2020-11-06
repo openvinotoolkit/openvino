@@ -289,44 +289,6 @@ namespace opset1_upgrade
         return op_cast_binary_elementwise_node<op::v0::Subtract, op::v1::Subtract>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::TopK> node)
-    {
-        NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),
-                     "parameter k is expected to be a static constant");
-        NGRAPH_CHECK(op::is_constant(node->input_value(2).get_node()),
-                     "parameter top_k_axis is expected to be a static constant");
-
-        const auto k = node->get_k();
-        const auto axis = node->get_top_k_axis();
-
-        std::string sort;
-        switch (node->get_sort())
-        {
-        case op::TopK::SortType::SORT_INDICES: sort = "index"; break;
-        case op::TopK::SortType::SORT_VALUES: sort = "value"; break;
-        case op::TopK::SortType::NONE: sort = "none"; break;
-        }
-
-        std::string mode;
-        if (node->get_compute_max())
-        {
-            mode = "max";
-        }
-        else
-        {
-            mode = "min";
-        }
-
-        const auto k_constant = op::Constant::create(element::i64, Shape{}, {k});
-        auto replacement_node =
-            make_shared<op::v1::TopK>(node->input_value(0), k_constant, axis, mode, sort);
-
-        // indices output will be 0, values 1
-        vector<int64_t> output_order{1, 0};
-        replace_node(node, replacement_node, output_order);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Xor> node)
     {
         auto replacement_node = make_shared<op::v1::LogicalXor>(

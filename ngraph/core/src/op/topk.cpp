@@ -28,203 +28,8 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
-
-constexpr NodeTypeInfo op::v0::TopK::type_info;
-
-op::v0::TopK::TopK(const Output<Node>& arg,
-                   size_t top_k_axis,
-                   const element::Type& index_element_type,
-                   size_t k,
-                   bool compute_max,
-                   SortType sort)
-    : Op({arg})
-    , m_index_element_type(index_element_type)
-    , m_compute_max(compute_max)
-    , m_sort(sort)
-{
-    set_argument(1, op::Constant::create(element::i64, Shape{1}, {k})->output(0));
-    set_argument(2, op::Constant::create(element::i64, Shape{1}, {top_k_axis})->output(0));
-    add_provenance_group_member(input_value(1).get_node_shared_ptr());
-    add_provenance_group_member(input_value(2).get_node_shared_ptr());
-    constructor_validate_and_infer_types();
-}
-
-op::v0::TopK::TopK(const Output<Node>& arg,
-                   const Output<Node>& k,
-                   size_t top_k_axis,
-                   const element::Type& index_element_type,
-                   bool compute_max,
-                   SortType sort)
-    : Op({arg, k})
-    , m_index_element_type(index_element_type)
-    , m_compute_max(compute_max)
-    , m_sort(sort)
-{
-    set_argument(2, op::Constant::create(element::i64, Shape{1}, {top_k_axis})->output(0));
-    add_provenance_group_member(input_value(2).get_node_shared_ptr());
-    constructor_validate_and_infer_types();
-}
-
-op::v0::TopK::TopK(const Output<Node>& arg,
-                   const Output<Node>& k,
-                   const Output<Node>& top_k_axis,
-                   const element::Type& index_element_type,
-                   bool compute_max,
-                   SortType sort)
-    : Op({arg, k, top_k_axis})
-    , m_index_element_type(index_element_type)
-    , m_compute_max(compute_max)
-    , m_sort(sort)
-{
-    constructor_validate_and_infer_types();
-}
-
-size_t op::v0::TopK::get_k() const
-{
-    size_t k = 0;
-    if (auto const_op = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
-    {
-        k = const_op->cast_vector<int64_t>()[0];
-    }
-    Dimension top_k_axis = get_top_k_axis_dynamic();
-    if (k == 0 && get_input_partial_shape(0).is_static() && top_k_axis.is_static())
-    {
-        k = get_input_partial_shape(0).to_shape()[top_k_axis.get_length()];
-    }
-    return k;
-}
-
-void op::v0::TopK::set_k(size_t k)
-{
-    shared_ptr<Node> current_const =
-        get_input_size() == 1 ? nullptr : input_value(1).get_node_shared_ptr();
-    auto replacement_const = op::Constant::create(element::i64, Shape{1}, {k})->output(0);
-    this->input(1).replace_source_output(replacement_const);
-    replace_provenance_group_member(current_const, replacement_const.get_node_shared_ptr());
-}
-
-size_t op::v0::TopK::get_top_k_axis() const
-{
-    auto d = get_top_k_axis_dynamic();
-    NGRAPH_CHECK(d.is_static(),
-                 "get_top_k_axis called on a TopK node whose 'top_k_axis' input is not constant");
-    return d.get_length();
-}
-
-Dimension op::v0::TopK::get_top_k_axis_dynamic() const
-{
-    auto const_op = dynamic_pointer_cast<op::Constant>(input_value(2).get_node_shared_ptr());
-    if (const_op)
-    {
-        return const_op->cast_vector<int64_t>()[0];
-    }
-    else
-    {
-        return Dimension::dynamic();
-    }
-}
-
-void op::v0::TopK::set_top_k_axis(size_t top_k_axis)
-{
-    shared_ptr<Node> current_const = input_value(2).get_node_shared_ptr();
-    auto replacement_const = op::Constant::create(element::i64, Shape{1}, {top_k_axis})->output(0);
-    this->input(2).replace_source_output(replacement_const);
-    replace_provenance_group_member(current_const, replacement_const.get_node_shared_ptr());
-}
-
-void op::v0::TopK::validate_and_infer_types()
-{
-    const PartialShape& input_shape = get_input_partial_shape(0);
-    Rank input_rank = input_shape.rank();
-    element::Type input_element_type = get_input_element_type(0);
-
-    NODE_VALIDATION_CHECK(
-        this, !m_index_element_type.is_dynamic(), "Argument element type must not be dynamic.");
-
-    NODE_VALIDATION_CHECK(this,
-                          m_index_element_type == element::i32 ||
-                              m_index_element_type == element::i64,
-                          "Argument element type must be i64 or i32 (got ",
-                          m_index_element_type,
-                          ").");
-
-    NODE_VALIDATION_CHECK(this,
-                          input_rank.is_dynamic() || input_rank.get_length() > 0,
-                          "Argument rank must be greater than 0.");
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(1).compatible(element::i64),
-                          "Element type for 'k' must be i64");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(2).compatible(element::i64),
-                          "Element type for 'top_k_axis' must be i64");
-
-    Dimension top_k_axis = get_top_k_axis_dynamic();
-    NODE_VALIDATION_CHECK(this,
-                          input_rank.is_dynamic() || top_k_axis.is_dynamic() ||
-                              top_k_axis.get_length() < input_rank.get_length(),
-                          "TopK axis (",
-                          top_k_axis,
-                          ") is out of bounds.");
-
-    size_t k = get_k();
-    NODE_VALIDATION_CHECK(this,
-                          input_rank.is_dynamic() || top_k_axis.is_dynamic() ||
-                              input_shape[top_k_axis.get_length()].is_dynamic() ||
-                              static_cast<size_t>(k) <=
-                                  input_shape[top_k_axis.get_length()].get_length(),
-                          "K (",
-                          k,
-                          ") exceeds the dimension (",
-                          input_shape[top_k_axis.get_length()],
-                          ") of the TopK axis (axis ",
-                          top_k_axis,
-                          ").");
-
-    PartialShape output_shape{input_shape};
-
-    if (input_rank.is_static())
-    {
-        if (top_k_axis.is_static())
-        {
-            if (k != 0)
-            {
-                output_shape[top_k_axis.get_length()] = k;
-            }
-            else if (k == 0 && output_shape[top_k_axis.get_length()].is_static())
-            {
-                output_shape[top_k_axis.get_length()] = input_shape[top_k_axis.get_length()];
-            }
-        }
-        else
-        {
-            // If top_k_axis is not static and k is not 0, then we could be changing any
-            // dimension. So we have to change all dimensions to dynamic.
-            output_shape = PartialShape::dynamic(input_rank);
-        }
-    }
-
-    set_input_is_relevant_to_shape(2);
-
-    set_output_size(2);
-    set_output_type(0, m_index_element_type, output_shape);
-    set_output_type(1, input_element_type, output_shape);
-}
-
-shared_ptr<Node> op::v0::TopK::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<TopK>(new_args.at(0),
-                             new_args.at(1),
-                             new_args.at(2),
-                             m_index_element_type,
-                             m_compute_max,
-                             m_sort);
-}
 
 namespace topk
 {
@@ -236,7 +41,7 @@ namespace topk
                                  const size_t axis,
                                  const size_t k,
                                  const bool compute_max,
-                                 const op::TopK::SortType sort)
+                                 const op::v1::TopK::SortType sort)
     {
         using T = typename element_type_traits<INPUT_ET>::value_type;
         using U = typename element_type_traits<INDEX_ET>::value_type;
@@ -267,7 +72,7 @@ namespace topk
                   const size_t axis,
                   const size_t k,
                   const bool max,
-                  const op::TopK::SortType sort,
+                  const op::v1::TopK::SortType sort,
                   const element::Type index_et)
     {
         bool rc = true;
@@ -293,7 +98,7 @@ namespace topk
                        const size_t axis,
                        const size_t k,
                        const bool max,
-                       const op::TopK::SortType sort,
+                       const op::v1::TopK::SortType sort,
                        const element::Type index_et)
     {
         bool rc = true;
@@ -356,77 +161,6 @@ namespace topk
         }
         return k;
     }
-
-    // used in only v0, where type is set as int64_t
-    size_t read_top_k_axis_from_host_tensor(const HostTensorPtr& arg)
-    {
-        NGRAPH_CHECK(arg->get_element_type() == element::i64,
-                     "TopK axis element type should be i64");
-        auto p = arg->get_data_ptr<int64_t>();
-        size_t axis = static_cast<size_t>(p[0]);
-        return axis;
-    }
-}
-
-Shape op::v0::TopK::compute_output_shape(const Shape input_shape,
-                                         const int64_t k,
-                                         const size_t axis) const
-{
-    Shape output_shape{input_shape};
-    if (k != 0)
-    {
-        output_shape[axis] = k;
-    }
-    return output_shape;
-}
-
-bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::TopK::evaluate");
-
-    // check data types for arg, k and output element type
-    Shape arg_shape = inputs[0]->get_shape();
-
-    // 1. get axis, mode ( max/min), sort_type
-    size_t axis = 0;
-    Dimension axis_dim = get_top_k_axis_dynamic();
-    if (axis_dim.is_static())
-    {
-        axis = axis_dim.get_length();
-    }
-    else
-    {
-        axis = topk::read_top_k_axis_from_host_tensor(inputs[2]);
-        NGRAPH_CHECK(axis <= arg_shape.size(), "TopK axis is out of bounds");
-    }
-    bool compute_max = get_compute_max();
-    SortType sort_type = get_sort();
-
-    // 2. get value of k - from constant node or from HT
-    size_t k = get_k();
-    if (k == 0)
-    {
-        k = topk::read_k_from_host_tensor(inputs[1]);
-        if (k == 0)
-        {
-            // the kernel can't handle k = 0, but output_shape[axis] = arg_shape[axis]
-            k = arg_shape[axis];
-        }
-    }
-    NGRAPH_CHECK(k <= arg_shape.at(axis), "K exceeds the dimension of the TopK axis");
-
-    // 3. Compute output_shape
-    auto output_shape = compute_output_shape(inputs[0]->get_shape(), k, axis);
-
-    return topk::evaluate_topk(inputs[0],
-                               outputs[0],
-                               outputs[1],
-                               output_shape,
-                               axis,
-                               k,
-                               compute_max,
-                               sort_type,
-                               get_index_element_type());
 }
 
 // v1 version starts
