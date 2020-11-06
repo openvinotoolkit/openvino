@@ -359,7 +359,9 @@ TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
     const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
 
     ASSERT_EQ(topk->get_provided_axis(), axis);
-    ASSERT_EQ(topk->get_axis(), data_shape.at(1));
+    const auto expect_shape = Shape{1, 2, 2, 4};
+    ASSERT_EQ(topk->get_output_shape(0), expect_shape);
+    ASSERT_EQ(topk->get_output_shape(1), expect_shape);
 }
 
 TYPED_TEST_P(topk_type_prop, topk_negative_axis_dynamic_rank)
@@ -396,6 +398,7 @@ TYPED_TEST_P(topk_type_prop, topk_v1_partial_ouptut)
     {
         auto k = make_shared<op::Constant>(element::i32, Shape{}, 3);
         auto topk = make_shared<TypeParam>(data, k, 1, "max", "value");
+        EXPECT_EQ(topk->get_output_shape(0), Shape({2, 3}));
         EXPECT_EQ(topk->get_output_partial_shape(0), PartialShape({2, 3}));
     }
 }
