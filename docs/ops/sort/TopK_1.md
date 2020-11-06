@@ -10,7 +10,7 @@
 
 * *axis*
 
-  * **Description**: Specifies the axis along which 
+  * **Description**: Specifies the axis along which to make the selection.
   * **Range of values**: An integer. Negative value means counting dimension from the end.
   * **Type**: `int`
   * **Default value**: None
