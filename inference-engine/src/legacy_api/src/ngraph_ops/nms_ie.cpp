@@ -102,7 +102,20 @@ void op::NonMaxSuppressionIE2::validate_and_infer_types() {
     set_output_type(0, nms->output(0).get_element_type(), nms->output(0).get_partial_shape());
 }
 
-NGRAPH_RTTI_DEFINITION(op::NonMaxSuppressionIE3, "NonMaxSuppressionIE", 3);
+NGRAPH_RTTI_DEFINITION(op::NonMaxSuppressionIE3, "NonMaxSuppressionIE3", 3);
+
+op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
+                                               const Output<Node>& scores,
+                                               const Output<Node>& max_output_boxes_per_class,
+                                               const Output<Node>& iou_threshold,
+                                               const Output<Node>& score_threshold,
+                                               int center_point_box,
+                                               bool sort_result_descending,
+                                               const ngraph::element::Type& output_type)
+        : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
+          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
+    constructor_validate_and_infer_types();
+}
 
 op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
                                                const Output<Node>& scores,
@@ -139,8 +152,13 @@ static constexpr size_t max_output_boxes_per_class_port = 2;
 int64_t op::NonMaxSuppressionIE3::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
+    size_t num_of_inputs = inputs().size();
+    if (num_of_inputs < 3) {
+        return 0;
+    }
+
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+        as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;

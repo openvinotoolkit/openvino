@@ -13,7 +13,7 @@
 #include "legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp"
-#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp"
@@ -133,7 +133,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertNMSToNMSIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertNMS4ToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertGRUSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertRNNSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();

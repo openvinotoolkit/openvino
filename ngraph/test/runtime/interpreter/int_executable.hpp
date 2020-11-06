@@ -69,6 +69,7 @@
 #include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
@@ -1301,6 +1302,43 @@ protected:
                                        norm->get_reduction_axes(),
                                        norm->get_eps(),
                                        norm->get_eps_mode());
+            break;
+        }
+        case OP_TYPEID::NonMaxSuppression_v5:
+        {
+            const op::v5::NonMaxSuppression* nms =
+                static_cast<const op::v5::NonMaxSuppression*>(&node);
+
+            auto info = reference::get_info_for_nms5_evaluation(nms, args);
+
+            std::vector<int64_t> selected_indices(info.out_shape_size);
+            std::vector<float> selected_scores(info.out_shape_size);
+            int64_t valid_outputs = 0;
+
+            reference::non_max_suppression(info.boxes_data.data(),
+                                           info.boxes_shape,
+                                           info.scores_data.data(),
+                                           info.scores_shape,
+                                           info.max_output_boxes_per_class,
+                                           info.iou_threshold,
+                                           info.score_threshold,
+                                           info.soft_nms_sigma,
+                                           selected_indices.data(),
+                                           info.out_shape,
+                                           selected_scores.data(),
+                                           info.out_shape,
+                                           &valid_outputs,
+                                           info.sort_result_descending);
+
+            auto selected_scores_type =
+                (args.size() < 4) ? element::f32 : args[3]->get_element_type();
+
+            reference::nms5_postprocessing(out,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
             break;
         }
 

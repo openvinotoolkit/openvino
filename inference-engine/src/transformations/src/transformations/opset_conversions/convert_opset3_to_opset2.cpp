@@ -5,7 +5,6 @@
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 
 #include "transformations/op_conversions/convert_broadcast3.hpp"
-#include "transformations/op_conversions/convert_nms3.hpp"
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
@@ -25,7 +24,6 @@ bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConvertBroadcast3>();
-    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS3>();
     manager.register_pass<ngraph::pass::ConvertShapeOf3>();
     manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
     manager.register_pass<ngraph::pass::ConvertTopK3>();

@@ -15,12 +15,15 @@
 //*****************************************************************************
 
 #include "int_executable.hpp"
+#include <cstring>
 #include "backend_manager.hpp"
 #include "ngraph/chrome_trace.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "ngraph/type/bfloat16.hpp"
+#include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 #include "pass/fused_op_decomposition.hpp"
 #include "pass/liveness.hpp"

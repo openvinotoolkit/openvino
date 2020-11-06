@@ -14,18 +14,20 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertNMS1ToNMS3;
+class INFERENCE_ENGINE_API_CLASS(ConvertNMS5ToLegacyMatcher);
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertNMS1ToNMS3: public ngraph::pass::GraphRewrite {
+/*
+ * Description:
+ *      Convert NMS-5 directly to inner NMS.
+ */
+
+
+class ngraph::pass::ConvertNMS5ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertNMS1ToNMS3() : GraphRewrite() {
-        convert_nms1_to_nms3();
-    }
-
-private:
-    void convert_nms1_to_nms3();
+    ConvertNMS5ToLegacyMatcher();
 };
+

@@ -65,4 +65,5 @@ NGRAPH_OP(RNNSequence, op::v5)
 NGRAPH_OP(BatchNormInference, op::v5)
 NGRAPH_OP(Round, op::v5)
 NGRAPH_OP(LogSoftmax, op::v5)
+NGRAPH_OP(NonMaxSuppression, op::v5)
 #undef ID_SUFFIX
