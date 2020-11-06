@@ -403,10 +403,39 @@ TYPED_TEST_P(topk_type_prop, topk_v1_partial_ouptut)
     }
 }
 
+TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown)
+{
+    const auto data_shape = Shape{1, 10, 100};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const int64_t axis = 1;
+    const Dimension fully_dynamic_dimension{-1};
+    const PartialShape fully_dynamic_axis_shape{1, fully_dynamic_dimension, 100};
+
+    {
+        const auto k = make_shared<op::Parameter>(element::i32, PartialShape({}));
+        const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
+
+        EXPECT_EQ(topk->get_output_partial_shape(0), fully_dynamic_axis_shape);
+    }
+    {
+        const int64_t c = 5;
+        const auto cnst = make_shared<op::v0::Constant>(element::i64, Shape{}, &c);
+        const auto conv = make_shared<op::v0::Convert>(cnst, element::i32);
+        const auto topk = make_shared<TypeParam>(data, conv, axis, "max", "value");
+
+        Dimension empty_dimension;
+        empty_dimension.get_interval() = Interval{1, 0};
+        EXPECT_NE(topk->get_output_partial_shape(0), PartialShape({1, empty_dimension, 100}));
+        EXPECT_NE(topk->get_output_partial_shape(0), fully_dynamic_axis_shape);
+    }
+}
+
 REGISTER_TYPED_TEST_CASE_P(topk_type_prop,
                            topk_negative_axis_support,
                            topk_negative_axis_dynamic_rank,
-                           topk_v1_partial_ouptut);
+                           topk_v1_partial_ouptut,
+                           topk_rank_static_k_unknown
+                           );
 
 typedef ::testing::Types<op::v1::TopK, op::v3::TopK> TopKTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(type_prop, topk_type_prop, TopKTypes, );
