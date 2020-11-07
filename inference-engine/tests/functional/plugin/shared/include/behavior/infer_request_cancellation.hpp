@@ -129,7 +129,7 @@ TEST_P(CancellationTests, canCancelInferRequest) {
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
     } else {
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
+        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::NOT_IMPLEMENTED), cancelStatus);
     }
 }
 }  // namespace BehaviorTestsDefinitions
