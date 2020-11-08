@@ -302,9 +302,6 @@ void op::v5::Loop::validate_and_infer_types()
             }
         }
     }
-    std::cout << "set output in ng loop \n";
-    outputs()[1].get_tensor().set_name("a_values");
-    outputs()[0].get_tensor().set_name("a_final");
 }
 
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
