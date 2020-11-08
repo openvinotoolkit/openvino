@@ -217,7 +217,7 @@ TEST(type_prop, matmul_1D_x_1D_incompatible)
     }
     catch (const ngraph_error& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
     }
     catch (...)
     {
@@ -261,7 +261,7 @@ TEST(type_prop, matmul_2D_x_1D_true_false)
     }
     catch (const ngraph_error& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
     }
     catch (...)
     {
@@ -282,7 +282,7 @@ TEST(type_prop, matmul_2D_x_1D_true_true)
     }
     catch (const ngraph_error& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
     }
     catch (...)
     {
@@ -315,7 +315,7 @@ TEST(type_prop, matmul_1D_x_2D_false_true)
     }
     catch (const ngraph_error& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
     }
     catch (...)
     {
@@ -346,7 +346,7 @@ TEST(type_prop, matmul_1D_x_2D_true_true)
     }
     catch (const ngraph_error& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
     }
     catch (...)
     {
@@ -425,7 +425,7 @@ TEST(type_prop, matmul_incompatible_batch_dims)
     }
     catch (const ngraph_error& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible batch dimensions"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul batch dimension"));
     }
     catch (...)
     {
@@ -533,20 +533,13 @@ TEST(type_prop, matmul_incompatible_matrix_dim_bounds)
     auto B =
         make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 2), Dimension(15, 20)});
 
-    try
-    {
-        auto matmul = make_shared<op::MatMul>(A, B);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incompatible matrix dimensions not detected. ";
-    }
-    catch (const ngraph_error& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
-    }
-    catch (...)
-    {
-        FAIL() << "MatMul shape validation failed for unexpected reason";
-    }
+    auto expected_output_shape = PartialShape{Dimension(2, 5), Dimension(15, 20)};
+
+    // No error for backward compatibility
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_output_partial_shape(0), expected_output_shape);
 }
 
 TEST(type_prop, matmul_incompatible_batch_dim_bounds)
@@ -554,18 +547,12 @@ TEST(type_prop, matmul_incompatible_batch_dim_bounds)
     auto A = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 5), 4, 3});
     auto B = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(6, 10), 3, 2});
 
-    try
-    {
-        auto matmul = make_shared<op::MatMul>(A, B);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incompatible batch dimensions not detected. ";
-    }
-    catch (const ngraph_error& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible batch dimensions"));
-    }
-    catch (...)
-    {
-        FAIL() << "MatMul shape validation failed for unexpected reason";
-    }
+    Dimension dynamic = Dimension::dynamic();
+    auto expected_output_shape = PartialShape{dynamic, 4, 2};
+
+    // No error for backward compatibility
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_output_partial_shape(0), expected_output_shape);
 }

@@ -101,10 +101,19 @@ namespace matmul
         // Check matrices dimensions compatibility,
         // COL_INDEX_DIM of the first matrix has to match ROW_INDEX_DIM of the second matrix.
         auto merged_dimension = Dimension::dynamic();
-        NGRAPH_CHECK(Dimension::merge(merged_dimension,
-                                      arg0_shape_tmp[arg0_rank - 1],
-                                      arg1_shape_tmp[arg1_rank - 2]),
-                     "Incompatible matrix dimensions.");
+        auto arg0_col_dim = arg0_shape_tmp[arg0_rank - 1];
+        auto arg1_row_dim = arg1_shape_tmp[arg1_rank - 2];
+        NGRAPH_CHECK(Dimension::merge(merged_dimension, arg0_col_dim, arg1_row_dim) ||
+                         arg0_col_dim.is_dynamic() || arg1_row_dim.is_dynamic(),
+                     "Incompatible MatMul matrix dimension. ",
+                     "First input dimension=",
+                     arg0_col_dim,
+                     " at COL_INDEX_DIM=",
+                     (arg0_rank - 1),
+                     " doesn't match the second input dimension=",
+                     arg1_row_dim,
+                     " at ROW_INDEX_DIM=",
+                     (arg1_rank - 2));
 
         // 3. If ranks of input arguments are different after steps 1 and 2,
         // the smaller tensor is unsqueezed from the left side of the shape
@@ -133,9 +142,18 @@ namespace matmul
             if (min_dim_val > 1)
             {
                 auto merged_dimension = Dimension::dynamic();
-                NGRAPH_CHECK(
-                    Dimension::merge(merged_dimension, small_batch_matrix[i], big_batch_matrix[i]),
-                    "Incompatible batch dimensions.");
+                NGRAPH_CHECK(Dimension::merge(
+                                 merged_dimension, small_batch_matrix[i], big_batch_matrix[i]) ||
+                                 small_batch_matrix[i].is_dynamic() ||
+                                 big_batch_matrix[i].is_dynamic(),
+                             "Incompatible MatMul batch dimension. ",
+                             "Can't merge dimension=",
+                             small_batch_matrix[i],
+                             " with dimension=",
+                             big_batch_matrix[i],
+                             " at index=",
+                             i);
+
                 output_shape[i] = merged_dimension;
             }
             else
