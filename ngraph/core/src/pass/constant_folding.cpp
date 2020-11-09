@@ -65,16 +65,57 @@ bool ngraph::pass::revalidate_and_ensure_static(shared_ptr<Node> n)
 {
     n->revalidate_and_infer_types();
 
+    const auto outputs = n->outputs();
+
     const auto is_any_output_dynamic =
-        std::any_of(n->outputs().begin(), n->outputs().end(), [](const Output<Node>& o) {
+        std::any_of(outputs.begin(), outputs.end(), [](const Output<Node>& o) {
             return o.get_partial_shape().is_dynamic() || o.get_element_type().is_dynamic();
         });
 
     return !is_any_output_dynamic;
 }
 
-bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> graph) {
-    return false;
+bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> graph)
+{
+    int modified_nodes = 0;
+
+    for (auto&& node : graph->get_ordered_ops())
+    {
+        OutputVector replacements(node->get_output_size());
+        if (node->constant_fold(replacements, node->input_values()))
+        {
+            // TODO: might not be true in all cases (ex: Gather's cf method override)
+            NGRAPH_CHECK(replacements.size() == node->get_output_size(),
+                         "constant_fold_default returned incorrect number of replacements for ",
+                         node);
+
+            for (size_t i = 0; i < replacements.size(); ++i)
+            {
+                auto node_output = node->output(i);
+                auto replacement = replacements.at(i);
+                if (replacement.get_node_shared_ptr() && (node_output != replacement))
+                {
+                    if (replacements.size() == 1)
+                    {
+                        replacement.get_node_shared_ptr()->set_friendly_name(
+                            node->get_friendly_name());
+                    }
+                    else
+                    {
+                        replacement.get_node_shared_ptr()->set_friendly_name(
+                            node->get_friendly_name() + "." + std::to_string(i));
+                    }
+                    node_output.replace(replacement);
+                    // Propagate runtime info attributes to replacement consumer nodes
+                    copy_runtime_info_to_target_inputs(node, replacement);
+
+                    ++modified_nodes;
+                }
+            }
+        }
+    }
+
+    return modified_nodes > 0;
 }
 
 void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
