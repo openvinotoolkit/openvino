@@ -374,9 +374,10 @@ static void permute_to_0231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
     // Supports only NCHW to NHWC
     int block_size = 1;
     if (!srcMemPtr->GetDesc().isPlainFormat()) {
-        // TODO: Not clear how to handle
-        THROW_IE_EXCEPTION << "Unimplemented";
-//        block_size = srcMemPtr->GetDescriptor().data.layout_desc.blocking.block_dims[1];
+        const auto &blk_desc = srcMemPtr->GetDescriptor().data.format_desc.blocking;
+        auto found = std::find(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, 1);
+        auto pos = std::distance(found, blk_desc.inner_idxs);
+        block_size = blk_desc.inner_blks[pos];
     }
 
     const int C = srcMemPtr->GetDims()[1];
@@ -406,9 +407,10 @@ static void permute_to_0213(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
     auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
     int block_size = 1;
     if (!srcMemPtr->GetDesc().isPlainFormat()) {
-        // TODO: Not clear how to handle
-        THROW_IE_EXCEPTION << "Unimplemented";
-//        block_size = srcMemPtr->GetDescriptor().data.layout_desc.blocking.block_dims[1];
+        const auto &blk_desc = srcMemPtr->GetDescriptor().data.format_desc.blocking;
+        auto found = std::find(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, 1);
+        auto pos = std::distance(found, blk_desc.inner_idxs);
+        block_size = blk_desc.inner_blks[pos];
     }
 
     const int C = srcMemPtr->GetDims()[1];
@@ -573,9 +575,10 @@ static void permute_to_0132(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
     auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
     int src_block_size = 1;
     if (!srcMemPtr->GetDesc().isPlainFormat()) {
-        // TODO: Not clear how to handle
-        THROW_IE_EXCEPTION << "Unimplemented";
-//        src_block_size = srcMemPtr->GetDescriptor().data.layout_desc.blocking.block_dims[1];
+        const auto &blk_desc = srcMemPtr->GetDescriptor().data.format_desc.blocking;
+        auto found = std::find(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, 1);
+        auto pos = std::distance(found, blk_desc.inner_idxs);
+        src_block_size = blk_desc.inner_blks[pos];
     }
 
     const int C = srcMemPtr->GetDims()[1];
