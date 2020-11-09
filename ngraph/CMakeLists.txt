@@ -460,9 +460,9 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     if (MSVC)
         # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
         # These two options can't be mixed, because they requires link two imcompatiable runtime.
-        set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
         set(protobuf_WITH_ZLIB  OFF CACHE BOOL "" FORCE)
-        set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
+        # set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
+        # set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
     endif()
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
         include(cmake/external_protobuf.cmake)
