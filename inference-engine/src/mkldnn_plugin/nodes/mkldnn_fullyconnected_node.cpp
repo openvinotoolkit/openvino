@@ -177,6 +177,20 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
     prim.reset(new inner_product_forward(*prim_desc));
 }
 
+void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
+    if (prim) {
+        auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+
+        if (withBiases)
+            (*prim).execute(strm, {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_BIAS, getBias()},
+                                   {DNNL_ARG_DST, dst}});
+        else
+            (*prim).execute(strm, {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()},
+                                   {DNNL_ARG_DST, dst}});
+    }
+}
+
 void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) {
     int blob_idx = 0;
     mkldnn::post_ops ops;
