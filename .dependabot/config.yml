@@ -1,9 +1,0 @@
-version: 1
-update_configs:
-  - package_manager: "python"
-    directory: "/ngraph/python"
-    update_schedule: "weekly"
-    default_reviewers:
-      - "postrational"
-    default_labels:
-      - "dependencies"
