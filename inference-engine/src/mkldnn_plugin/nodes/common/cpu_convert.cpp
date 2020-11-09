@@ -59,6 +59,9 @@ void convertFrom(void *srcPtr, void *dstPtr, Precision dstPrc, const size_t size
 }
 
 void cpu_convert(void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc, const size_t size) {
+    if (srcPtr == nullptr || dstPtr == nullptr)
+        THROW_IE_EXCEPTION << "cpu_convert has null data pointer";
+
     if (srcPrc == dstPrc) {
         cpu_memcpy(dstPtr, srcPtr, size*dstPrc.size());
         return;
