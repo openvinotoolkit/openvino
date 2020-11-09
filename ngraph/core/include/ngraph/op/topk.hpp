@@ -26,99 +26,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            // \brief Computes indices of top k maximum/minimum index along a specified axis for a
-            //        given tensor
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. "
-                "Use v1::TopK instead of it.") NGRAPH_API TopK : public Op
-            {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-            public:
-                using SortType = TopKSortType;
-
-                static constexpr NodeTypeInfo type_info{"TopK", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a TopK operation
-                TopK() = default;
-                /// \brief Constructs a TopK operation.
-                ///
-                /// \param arg The input tensor
-                /// \param top_k_axis The axis along which to compute top k indices
-                /// \param index_element_type produce indices. Currently, only int64 or int32 are
-                ///                           supported
-                /// \param k Number of top indices to compute. Compute all indices if k = 0
-                /// \param compute_max Compute top k max or top k min?
-                /// \param sort SortType for sorting results, default - SORT_VALUES
-                TopK(const Output<Node>& arg,
-                     size_t top_k_axis,
-                     const element::Type& index_element_type,
-                     size_t k = 0,
-                     bool compute_max = true,
-                     SortType sort = SortType::SORT_VALUES);
-                /// \brief Constructs a TopK operation.
-                ///
-                /// \param arg The input tensor
-                /// \param k Number of top indices to compute. Compute all indices if k = 0
-                /// \param top_k_axis The axis along which to compute top k indices
-                /// \param index_element_type produce indices. Currently, only int64 or int32 are
-                ///                           supported
-                /// \param compute_max Compute top k max or top k min?
-                /// \param sort SortType for sorting results, default - SORT_VALUES
-                TopK(const Output<Node>& arg,
-                     const Output<Node>& k,
-                     size_t top_k_axis,
-                     const element::Type& index_element_type,
-                     bool compute_max = true,
-                     SortType sort = SortType::SORT_VALUES);
-
-                /// \brief Constructs a TopK operation.
-                ///
-                /// \param arg The input tensor
-                /// \param k Number of top indices to compute. Compute all indices if k = 0
-                /// \param top_k_axis The axis along which to compute top k indices
-                /// \param index_element_type produce indices. Currently, only int64 or int32 are
-                /// supported
-                /// \param compute_max Compute top k max or top k min?
-                /// \param sort SortType for sorting results, default - NONE
-                TopK(const Output<Node>& arg,
-                     const Output<Node>& k,
-                     const Output<Node>& top_k_axis,
-                     const element::Type& index_element_type,
-                     bool compute_max = true,
-                     SortType sort = SortType::NONE);
-
-                void validate_and_infer_types() override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                size_t get_k() const;
-                void set_k(size_t k);
-
-                size_t get_top_k_axis() const;
-                Dimension get_top_k_axis_dynamic() const;
-                void set_top_k_axis(size_t k);
-
-                element::Type get_index_element_type() const { return m_index_element_type; }
-                bool get_compute_max() const { return m_compute_max; }
-                SortType get_sort() const { return m_sort; }
-                size_t get_default_output_index() const override { return no_default_index(); }
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-
-            protected:
-                element::Type m_index_element_type;
-                bool m_compute_max{false};
-                SortType m_sort{SortType::NONE};
-                Shape compute_output_shape(const Shape input_shape,
-                                           const int64_t k,
-                                           const size_t axis) const;
-                NGRAPH_SUPPRESS_DEPRECATED_END
-            };
-        } // namespace v0
-
         namespace v1
         {
             /// \brief Computes indices and values of the k maximum/minimum values
@@ -261,9 +168,5 @@ namespace ngraph
                                               const element::Type& k_element_type) const override;
             };
         } // namespace v3
-
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::TopK;
-        NGRAPH_SUPPRESS_DEPRECATED_END
-    } // op
+    }     // op
 } // ngraph
