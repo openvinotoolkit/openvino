@@ -234,7 +234,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
         convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
-
+    ngraph::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
 
     auto onWeights = convolution->get_input_node_shared_ptr(1);
