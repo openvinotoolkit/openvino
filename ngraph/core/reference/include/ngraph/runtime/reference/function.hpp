@@ -27,9 +27,8 @@ namespace ngraph
     {
         namespace reference
         {
-            std::vector<std::vector<std::uint8_t>>
-                function(const std::shared_ptr<Function>& function,
-                         const std::vector<std::vector<std::uint8_t>>& inputs);
+            HostTensorVector function(const std::shared_ptr<Function>& function,
+                                      const HostTensorVector& inputs);
         }
     }
 }

@@ -46,7 +46,10 @@ namespace ngraph
                 // current_iteration input.
                 int64_t inputs_count =
                     input_descs.size() + (cur_iter_idx >= 0 ? !cur_iter_initial_value_exist : 0);
-                std::vector<std::vector<std::uint8_t>> inputs_to_body(inputs_count);
+                HostTensorVector inputs_to_body;
+                for (int64_t i = 0; i < inputs_count; ++i)
+                    inputs_to_body.push_back(
+                        std::make_shared<HostTensor>(element::dynamic, PartialShape::dynamic()));
                 if (cur_iter_idx >= 0 && !cur_iter_initial_value_exist)
                 {
                     const auto& cur_iter = func->get_parameters().at(cur_iter_idx);
@@ -55,8 +58,13 @@ namespace ngraph
                         cur_iter->set_partial_shape(Shape{1});
                         cur_iter->validate_and_infer_types();
                     }
-                    inputs_to_body.at(cur_iter_idx).resize(sizeof(int64_t));
-                    reinterpret_cast<int64_t*>(inputs_to_body.at(cur_iter_idx).data())[0] = 0;
+
+                    auto init = std::make_shared<opset5::Constant>(
+                        func->get_parameters().at(cur_iter_idx)->get_element_type(),
+                        func->get_parameters().at(cur_iter_idx)->get_shape(),
+                        0);
+                    inputs_to_body.at(cur_iter_idx)->initialize(init);
+                    // reinterpret_cast<int64_t*>(inputs_to_body.at(cur_iter_idx).data())[0] = 0;
                 }
 
                 // Port map processing: inputs and back edges
@@ -68,11 +76,7 @@ namespace ngraph
                 std::vector<BackEdge> back_edges;
                 for (const auto& desc : input_descs)
                 {
-                    auto* data_ptr = args[desc->m_input_index]->get_data_ptr<uint8_t>();
-                    auto size_bytes = args[desc->m_input_index]->get_size_in_bytes();
-                    inputs_to_body[desc->m_body_parameter_index].resize(size_bytes);
-                    std::memcpy(
-                        inputs_to_body[desc->m_body_parameter_index].data(), data_ptr, size_bytes);
+                    inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
                     if (const auto& merged_desc =
                             std::dynamic_pointer_cast<opset5::Loop::MergedInputDescription>(desc))
                     {
@@ -120,9 +124,8 @@ namespace ngraph
                         }
                     }
                     // Allocate vectors for store output values
-                    std::vector<std::vector<std::vector<uint8_t>>> values_to_concat(
-                        concat_outputs.size());
-                    std::vector<std::vector<std::uint8_t>> body_outputs;
+                    std::vector<HostTensorVector> values_to_concat(concat_outputs.size());
+                    HostTensorVector body_outputs;
 
                     // Negative value means infinity count of iterations
                     trip_count = trip_count >= 0 ? trip_count : std::numeric_limits<int64_t>::max();
@@ -139,9 +142,10 @@ namespace ngraph
                         }
 
                         // Check execution condition
-                        auto body_exec_condition = reinterpret_cast<bool*>(
-                            body_outputs[special_ports.body_condition_output_idx].data());
-                        if (!body_exec_condition[0])
+                        bool body_exec_condition;
+                        body_outputs[special_ports.body_condition_output_idx]->read(
+                            &body_exec_condition, sizeof(bool));
+                        if (!body_exec_condition)
                             break;
 
                         // If there are no rules for calculating the current iteration, just
@@ -149,13 +153,17 @@ namespace ngraph
                         if (cur_iter_idx >= 0 && !cur_iter_back_edge_exist)
                         {
                             const auto& cur_iter_param = func->get_parameters().at(cur_iter_idx);
+                            int64_t iter_num = cur_iter + 1;
                             if (cur_iter_param->get_element_type() == element::i64)
-                                reinterpret_cast<int64_t*>(
-                                    inputs_to_body.at(cur_iter_idx).data())[0] = cur_iter + 1;
+                                inputs_to_body.at(cur_iter_idx)
+                                    ->write(&iter_num, cur_iter_param->get_element_type().size());
                             else if (cur_iter_param->get_element_type() == element::i32)
-                                reinterpret_cast<int32_t*>(
-                                    inputs_to_body.at(cur_iter_idx).data())[0] =
-                                    static_cast<int32_t>(cur_iter + 1);
+                            {
+                                int32_t iter_num_i32 = static_cast<int32_t>(iter_num);
+                                inputs_to_body.at(cur_iter_idx)
+                                    ->write(&iter_num_i32,
+                                            cur_iter_param->get_element_type().size());
+                            }
                             else
                                 NGRAPH_CHECK(false,
                                              "Unsupported element type for current iteration "
@@ -176,10 +184,9 @@ namespace ngraph
                                 std::dynamic_pointer_cast<opset5::Loop::BodyOutputDescription>(
                                     desc))
                         {
-                            // Copy output values from the last iteration
-                            std::memcpy(out[body_desc->m_output_index]->get_data_ptr(),
-                                        body_outputs[body_desc->m_body_value_index].data(),
-                                        body_outputs[body_desc->m_body_value_index].size());
+                            out[body_desc->m_output_index]->write(
+                                body_outputs[body_desc->m_body_value_index]->get_data_ptr(),
+                                body_outputs[body_desc->m_body_value_index]->get_size_in_bytes());
                         }
                     }
 
@@ -196,7 +203,7 @@ namespace ngraph
                         pointers_on_values.reserve(values_to_concat[i].size());
                         for (const auto& vec : values_to_concat[i])
                         {
-                            pointers_on_values.push_back(reinterpret_cast<const char*>(vec.data()));
+                            pointers_on_values.push_back(vec->get_data_ptr<char>());
                         }
                         reference::concat(
                             pointers_on_values,

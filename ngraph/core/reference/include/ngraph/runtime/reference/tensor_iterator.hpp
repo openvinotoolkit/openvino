@@ -25,12 +25,15 @@ namespace ngraph
     {
         namespace reference
         {
+            using custom_evaluate_function = std::function<HostTensorVector(
+                const std::shared_ptr<ngraph::Function>& function, const HostTensorVector& inputs)>;
             void tensor_iterator(uint64_t num_iterations,
                                  const std::shared_ptr<Function>& body,
                                  const op::util::OutputDescriptionVector& out_descs,
                                  const op::util::InputDescriptionVector& input_descs,
                                  const HostTensorVector& out,
-                                 const HostTensorVector& args);
+                                 const HostTensorVector& args,
+                                 const custom_evaluate_function& evaluate = nullptr);
         }
     }
 }

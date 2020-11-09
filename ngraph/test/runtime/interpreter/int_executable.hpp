@@ -1219,12 +1219,75 @@ protected:
         case OP_TYPEID::TensorIterator:
         {
             auto ti = dynamic_cast<const op::v0::TensorIterator&>(node);
+            reference::custom_evaluate_function evaluate =
+                [](const std::shared_ptr<ngraph::Function>& function,
+                   const HostTensorVector& inputs) -> HostTensorVector {
+                const auto& parameters = function->get_parameters();
+                const auto& parametersNumber = parameters.size();
+                const auto& inputsNumber = inputs.size();
+                NGRAPH_CHECK(parametersNumber == inputsNumber,
+                             "Got function (",
+                             function->get_friendly_name(),
+                             ") with ",
+                             parametersNumber,
+                             " parameters, but ",
+                             inputsNumber,
+                             " input blobs");
+
+                auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+                for (const auto& parameter : parameters)
+                {
+                    const auto& parameterIndex = function->get_parameter_index(parameter);
+                    const auto& parameterShape = parameter->get_shape();
+                    const auto& parameterType = parameter->get_element_type();
+                    const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
+
+                    const auto& input = inputs[parameterIndex];
+                    const auto& inputSize = input->get_size_in_bytes();
+                    NGRAPH_CHECK(parameterSize == inputSize,
+                                 "Got parameter (",
+                                 parameter->get_friendly_name(),
+                                 ") of size ",
+                                 parameterSize,
+                                 " bytes, but corresponding input with index ",
+                                 parameterIndex,
+                                 " has ",
+                                 inputSize,
+                                 " bytes");
+
+                    auto tensor =
+                        std::make_shared<runtime::HostTensor>(parameterType, parameterShape);
+                    tensor->write(input->get_data_ptr(), parameterSize);
+                    inputTensors.push_back(tensor);
+                }
+
+                const auto& results = function->get_results();
+                std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
+                outputTensors.reserve(results.size());
+                for (size_t i = 0; i < results.size(); ++i)
+                {
+                    outputTensors.push_back(std::make_shared<HostTensor>());
+                }
+                runtime::Backend::set_backend_shared_library_search_directory("");
+                auto backend = runtime::Backend::create("INTERPRETER");
+                auto handle = backend->compile(function);
+                handle->call_with_validate(outputTensors, inputTensors);
+                vector<shared_ptr<HostTensor>> func_outputs;
+                func_outputs.reserve(outputTensors.size());
+                for (const auto& tensor : outputTensors)
+                {
+                    auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
+                    func_outputs.push_back(host_tensor);
+                }
+                return func_outputs;
+            };
             reference::tensor_iterator(ti.get_num_iterations(),
                                        ti.get_function(),
                                        ti.get_output_descriptions(),
                                        ti.get_input_descriptions(),
                                        out,
-                                       args);
+                                       args,
+                                       evaluate);
             break;
         }
         case OP_TYPEID::TopK:
