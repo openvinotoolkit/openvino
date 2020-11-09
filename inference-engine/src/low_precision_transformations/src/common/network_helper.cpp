@@ -3,6 +3,7 @@
 //
 
 #include <low_precision/network_helper.hpp>
+#include <low_precision/layer_transformation.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -321,48 +322,34 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
     return nullptr;
 }
 
-std::shared_ptr<opset1::Constant> NetworkHelper::roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance) {
-    auto constant = as_type_ptr<opset1::Constant>(node);
-    assert(constant);
-    auto values = constant->cast_vector<float>();
+void round(const std::vector<float>& sourceValues, std::vector<float>& values) {
+    values.resize(sourceValues.size());
+    for (size_t i = 0; i < sourceValues.size(); ++i) {
+        values[i] = roundf(sourceValues[i]);
+    }
+}
 
-    auto castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(constant, target_type));
-    auto castedValues = castedConstant->cast_vector<float>();
+std::shared_ptr<opset1::Constant> NetworkHelper::roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance) {
+    const auto constant = as_type_ptr<opset1::Constant>(node);
+    assert(constant);
+    const auto values = constant->cast_vector<float>();
+
+    std::vector<float> castedValues;
+    round(values, castedValues);
+
+    const float min = DataPrecision::getMinValue(target_type, 256ul);
+    const float max = DataPrecision::getMaxValue(target_type, 256ul);
+
+    for (const auto& value : castedValues) {
+        if (value < min || value > max) {
+            return constant;
+        }
+    }
+
+    auto castedConstant = std::make_shared<opset1::Constant>(target_type, node->output(0).get_shape(), castedValues);
 
     // TODO: implement with constant folding when ReduceAnd constant folding is ready
     if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
-        return castedConstant;
-    }
-
-    auto round = [](
-        const std::shared_ptr<opset1::Constant>& constant,
-        element::Type target_type,
-        float tolerance,
-        std::vector<float>& values,
-        float increaseValue) -> std::shared_ptr<opset1::Constant> {
-        const auto castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(
-            fold<opset1::Add>(constant, std::make_shared<opset1::Constant>(constant->get_output_element_type(0), Shape{ 1 }, increaseValue)),
-            target_type));
-        const auto castedValues = castedConstant->cast_vector<float>();
-        if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
-            return castedConstant;
-        }
-
-        return nullptr;
-    };
-
-    castedConstant = round(constant, target_type, tolerance, values, 0.5f);
-    if (castedConstant != nullptr) {
-        return castedConstant;
-    }
-
-    castedConstant = round(constant, target_type, tolerance, values, -0.5f);
-    if (castedConstant != nullptr) {
-        return castedConstant;
-    }
-
-    castedConstant = round(constant, target_type, tolerance, values, 1.f);
-    if (castedConstant != nullptr) {
         return castedConstant;
     }
 
