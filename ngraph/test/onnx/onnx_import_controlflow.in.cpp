@@ -80,7 +80,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/loop/loop_2d_add_no_identity_termination_cond.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     // termination condition
     test_case.add_input<bool>({true});
     // a_init
@@ -150,7 +150,7 @@ NGRAPH_TEST(${BACKEND_NAME},
         SERIALIZED_ZOO,
         "onnx/loop/loop_2d_add_const_no_identity_termination_cond_static_shapes.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -192,7 +192,7 @@ NGRAPH_TEST(${BACKEND_NAME},
         SERIALIZED_ZOO,
         "onnx/loop/loop_2d_add_cond_and_trip_count_as_inputs_static_shapes.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     // trip count
     test_case.add_input<int64_t>({10});
 
@@ -306,7 +306,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic)
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_trip_count_dynamic.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     // trip count
     test_case.add_input<int64_t>({3});
     // a_init
@@ -387,7 +387,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_output
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/loop/loop_no_variadic_inputs_and_outputs.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     // trip_count
     test_case.add_input<int64_t>({1});
     // init condition
@@ -403,7 +403,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power)
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_pow.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     // trip_count
     test_case.add_input<int64_t>({5});
     // pow init
