@@ -17,10 +17,12 @@ If an ONNX model contains dynamic shapes for input, please use the `CNNNetwork::
 **Weights saved in external files:**
 
 OpenVINO™ supports ONNX models which use weights saved in external files. It is especially useful for models larger than 2GB because of protobuf limitations.
-If you want to read such model you should use ReadNetwork overload which takes `modelPath` as input parameter (both `std::string` and `std::wstring`).
-The feature is not supported by `ReadNetwork(const std::string& model, const Blob::CPtr& weights)` overload.
+If you want to read such model you should use `ReadNetwork` overload which takes `modelPath` as input parameter (both `std::string` and `std::wstring`).
+Note that `binPath` argument of `ReadNetwork` should be empty in such case, because paths to external weights are saved directly in an ONNX model.
+Otherwise the runtime exception will be thrown.
+Reading models with external weights is not supported by `ReadNetwork(const std::string& model, const Blob::CPtr& weights)` overload.
 
-The paths to external weights files are saved directly in the model file as relative to the model location.
+The paths to external weights files are saved in a model file as relative to the model location.
 It means that if there is a model:
 `home/user/workspace/models/model.onnx`
 and a file which contains external weights:
