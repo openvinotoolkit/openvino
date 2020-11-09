@@ -161,9 +161,9 @@ const std::vector<MVNTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {12.5f}, {0.45f}},
+            {{ngraph::element::f32}, {12.5f}, {}},
             ngraph::element::f32,
-            {}
+            {{}, {}, {1.f}}
         }
     },
     {
