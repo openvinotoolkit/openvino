@@ -57,11 +57,6 @@ namespace LayerTestsDefinitions {
                 inputShapes = {{batch, input_size}, {batch, hidden_size},
                                {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
                 break;
-            case TensorIteratorBody::CNN:
-                type = "CNN";
-                inputShapes = {{batch, input_size}, {batch, hidden_size},
-                               {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
-                break;
         }
 
         std::ostringstream result;
