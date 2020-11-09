@@ -58,12 +58,10 @@
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
-#ifndef USE_CNNNETWORK_LPT
 # include <low_precision/transformer.hpp>
 # include <low_precision/convolution.hpp>
 # include <low_precision/group_convolution.hpp>
 # include <low_precision/multiply_to_group_convolution.hpp>
-#endif
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -155,7 +153,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     manager.run_passes(nGraphFunc);
 
-#ifndef USE_CNNNETWORK_LPT
     using namespace ngraph::pass::low_precision;
     if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(
@@ -173,7 +170,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
         transformer.transform(nGraphFunc);
     }
-#endif
 
     ngraph::pass::Manager legacyManager;
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
