@@ -394,7 +394,14 @@ void runtime::dynamic::DynamicTensor::make_storage(const element::Type& element_
                  shape,
                  " which is incompatible with dynamic tensor shape ",
                  get_partial_shape());
-    m_wrapped_tensor = m_wrapped_backend->create_dynamic_tensor(element_type, shape);
+    if (shape.is_static())
+    {
+        m_wrapped_tensor = m_wrapped_backend->create_tensor(element_type, shape.get_shape());
+    }
+    else
+    {
+        m_wrapped_tensor = m_wrapped_backend->create_dynamic_tensor(element_type, shape);
+    }
 }
 
 const std::shared_ptr<ngraph::runtime::Tensor>&
