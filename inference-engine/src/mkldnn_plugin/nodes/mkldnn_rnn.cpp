@@ -5,6 +5,7 @@
 #include "mkldnn_rnn.h"
 #include "mkldnn_extension_utils.h"
 #include "desc_iterator.hpp"
+#include "utils/general_utils.h"
 
 #include <string>
 #include <utility>
@@ -13,13 +14,6 @@ using namespace mkldnn;
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
-
-template <typename T, typename P>
-inline bool one_of(T val, P item) { return val == item; }
-template <typename T, typename P, typename... Args>
-inline bool one_of(T val, P item, Args... item_others) {
-    return val == item || one_of(val, item_others...);
-}
 
 using _RNN = RNNSequenceLayer;  // alias
 

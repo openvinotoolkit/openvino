@@ -4,6 +4,7 @@
 
 #include "emitter.h"
 #include "ie_mkldnn_internal.h"
+#include "utils/general_utils.h"
 
 #include <vector>
 
@@ -12,15 +13,6 @@ using namespace mkldnn::impl;
 using namespace Xbyak;
 
 namespace MKLDNNPlugin {
-
-template <typename T, typename P>
-constexpr bool one_of(T val, P item) { return val == item; }
-
-template <typename T, typename P, typename... Args>
-constexpr bool one_of(T val, P item, Args... item_others) {
-    return val == item || one_of(val, item_others...);
-}
-
 
 size_t jit_emitter::get_max_vecs_count() const {
     return one_of(host_isa_, cpu::x64::avx512_common, cpu::x64::avx512_core) ? 32 : 16;
