@@ -13,7 +13,6 @@
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "legacy/ngraph_ops/gather_ie.hpp"
-#include "legacy/ngraph_ops/gather_tree_ie.hpp"
 #include "legacy/ngraph_ops/gru_cell_ie.hpp"
 #include "legacy/ngraph_ops/interp.hpp"
 #include "legacy/ngraph_ops/lrn_ie.hpp"
@@ -32,7 +31,6 @@
 #include "legacy/ngraph_ops/scaleshift.hpp"
 #include "legacy/ngraph_ops/tile_ie.hpp"
 #include "legacy/ngraph_ops/rnn_cell_ie.hpp"
-#include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
