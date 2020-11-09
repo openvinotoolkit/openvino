@@ -129,7 +129,7 @@ public:
         return cloned;
     }
 
-    bool visit_attributes(ngraph::AttributeVisitor&) override {
+    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
         return true;
     }
 };

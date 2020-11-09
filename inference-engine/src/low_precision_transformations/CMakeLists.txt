@@ -25,6 +25,9 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine LP transformations library")
+
 target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_transformations
@@ -38,7 +41,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO
 
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # developer package
 

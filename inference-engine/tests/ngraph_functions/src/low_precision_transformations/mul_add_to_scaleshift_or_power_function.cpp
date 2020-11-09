@@ -13,6 +13,7 @@
 #include <legacy/ngraph_ops/scaleshift.hpp>
 
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
 namespace ngraph {
@@ -61,7 +62,8 @@ namespace subgraph {
 
         std::shared_ptr<ngraph::Node> lastNode;
         if (isDequantization) {
-            const auto scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(input, weights, biases, precisionAfterOperation);
+            std::shared_ptr<Node> scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(input, weights, biases, precisionAfterOperation);
+            addDequantizationAttribute(scaleshift);
             scaleshift->set_friendly_name("add");
             lastNode = scaleshift;
         } else {

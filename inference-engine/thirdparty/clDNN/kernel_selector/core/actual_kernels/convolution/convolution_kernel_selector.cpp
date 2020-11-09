@@ -20,14 +20,11 @@
 #include "convolution_kernel_bfyx_gemm_like.h"
 #include "convolution_kernel_bfyx_direct_10_12_16.h"
 #include "convolution_kernel_bfyx_os_iyx_osv16.h"
-#include "convolution_kernel_bfyx_os_iyx_osv16_2_sg.h"
 #include "convolution_kernel_bfyx_iyxo.h"
 #include "convolution_kernel_yxfb_ref.h"
 #include "convolution_kernel_yxfb_yxio_b16.h"
 #include "convolution_kernel_yxfb_yxio_b8.h"
-#include "convolution_kernel_yxfb_yxio_b1_block.h"
 #include "convolution_kernel_yxfb_yxio_b1_block_multiple_x.h"
-// #include "convolution_kernel_bfyx_3x3_dw_opt.h"
 #include "convolution_kernel_winograd_2x3_s1.h"
 #include "convolution_kernel_bfyx_1x1.h"
 #include "convolution_kernel_bfyx_1x1_gemm_buf.h"
@@ -99,16 +96,12 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_bfyx_1x1>();
     Attach<ConvolutionKernel_bfyx_1x1_gemm_buf>();
     Attach<ConvolutionKernel_bfyx_depthwise_weights_lwg>();
-    // commented out to not get in our way, will enable in future after autotuning
-    // Attach<ConvolutionKernel_bfyx_os_iyx_osv16_2_sg>();
 
     // yxfb fp
     Attach<ConvolutionKernel_yxfb_Ref>();
     Attach<ConvolutionKernel_yxfb_yxio_b16>();
     Attach<ConvolutionKernel_yxfb_yxio_b8>();
     Attach<ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x>();
-    // Attach<ConvolutionKernel_yxfb_yxio_b1_block>(); // TODO: need to finish integration
-    // Attach<ConvolutionKernel_bfyx_3x3_dw_opt>();
 
     // Winograd
     Attach<ConvolutionKernel_Winograd_2x3_s1>();

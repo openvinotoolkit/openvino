@@ -112,7 +112,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         }
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
-
+        ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
         if (is_type<opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
             newAddOrSubtract = newMultiply->get_input_node_shared_ptr(0);
 
@@ -186,6 +186,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
 
         replace_node(add, newMultiply);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
+        ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
     }
 
     updateOutput(context, newMultiply, newAddOrSubtract);
