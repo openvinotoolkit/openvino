@@ -15,3 +15,6 @@ TEST(MemoryTest, SedDataCheck) {
     FAIL();
 }
 
+TEST(MemoryTest, SedDataWithAutoPadCheck) {
+    FAIL();
+}

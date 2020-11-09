@@ -69,3 +69,7 @@ TEST(MemoryTest, UpperBound) {
 TEST(MemoryTest, BlockedConversion) {
     FAIL();
 }
+
+TEST(MemoryTest, ComaptibleWithFormat) {
+    FAIL();
+}
