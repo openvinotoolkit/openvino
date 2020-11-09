@@ -653,6 +653,83 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     });
 
+    addSpecificCreator({"NonMaxSuppressionIE3"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression",
+            details::convertPrecision(node->get_output_element_type(0))};
+
+        auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::NonMaxSuppressionIE3>(node);
+        IE_ASSERT(castedLayer) << " Operation " << node->description() << " with name "
+            << node->get_friendly_name() << " cannot be casted to ngraph::op::NonMaxSuppressionIE3";
+
+        auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
+        res->params = params;
+
+        res->params["center_point_box"] = castedLayer->m_center_point_box ? "true" : "false";
+        res->params["sort_result_descending"] = castedLayer->m_sort_result_descending ? "true" : "false";
+
+        auto output_type = details::convertPrecision(castedLayer->m_output_type);
+        std::string output_type_str;
+        switch (output_type) {
+        case Precision::I32:
+            output_type_str = "I32";
+            break;
+        case Precision::I64:
+            output_type_str = "I64";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Unsupported output type";
+        }
+        res->params["output_type"] = output_type_str;
+
+        return res;
+    });
+
+    addSpecificCreator({"NonMaxSuppression"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression",
+            details::convertPrecision(node->get_output_element_type(0))};
+
+        auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::v5::NonMaxSuppression>(node);
+        IE_ASSERT(castedLayer) << " Operation " << node->description() << " with name "
+            << node->get_friendly_name() << " cannot be casted to ngraph::op::v5::NonMaxSuppression";
+
+        auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
+        res->params = params;
+
+        auto box_encoding = castedLayer->get_box_encoding();
+        switch (box_encoding) {
+            case ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CORNER:
+                res->params["center_point_box"] = "false";
+                break;
+            case ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER:
+                res->params["center_point_box"] = "true";
+                break;
+            default:
+                THROW_IE_EXCEPTION << "Unsupported box encoding for NonMaxSuppression op";
+                break;
+        }
+
+        auto output_type = details::convertPrecision(castedLayer->get_output_type());
+        std::string output_type_str;
+        switch (output_type) {
+        case Precision::I32:
+            output_type_str = "I32";
+            break;
+        case Precision::I64:
+            output_type_str = "I64";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Unsupported output type";
+        }
+        res->params["output_type"] = output_type_str;
+
+        bool sort_result_descending = castedLayer->get_sort_result_descending();
+        res->params["sort_result_descending"] = sort_result_descending ? "true" : "false";
+
+        return res;
+    });
+
     addSpecificCreator({"NonMaxSuppressionIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                  const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression", details::convertPrecision(node->get_output_element_type(0))};
