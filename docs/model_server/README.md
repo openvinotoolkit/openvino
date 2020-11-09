@@ -11,7 +11,7 @@ The server implements gRPC and REST API framework with data serialization and de
   
 OVMS is now implemented in C++ and provides much higher scalability compared to its predecessor in the Python version.
 You can take advantage of all the power of Xeon® CPU capabilities or AI accelerators and expose it over the network interface.
-Read the [release notes](https://github.com/openvinotoolkit/model_server/blob/main/releases) to find out what's new in the C++ version.
+Read the [release notes](https://github.com/openvinotoolkit/model_server/releases) to find out what's new in the C++ version.
 
 Review the [Architecture Concept](https://github.com/openvinotoolkit/model_server/blob/main/docs/architecture.md) document for more details.
 
@@ -26,7 +26,7 @@ A few key features:
 - [Model reshaping](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md#model-reshaping). The server supports reshaping models in runtime. 
 - [Model ensemble](https://github.com/openvinotoolkit/model_server/blob/main/docs/ensemble_scheduler.md) (preview). Connect multiple models to deploy complex processing solutions and reduce overhead of sending data back and forth.
 
-> **NOTE**: OVMS has been tested on CentOS\* and Ubuntu\*. Publically released Docker images are based on CentOS.
+> **NOTE**: OVMS has been tested on CentOS\* and Ubuntu\*. Publically released [Docker images](https://hub.docker.com/r/openvino/model_server) are based on CentOS.
 
 ## Build OpenVINO Model Server
 
@@ -125,6 +125,8 @@ REST API is recommended when the primary goal is in reducing the number of clien
 
 ## References
 
+* [Speed and Scale AI Inference Operations Across Multiple Architectures - webinar recording](https://techdecoded.intel.io/essentials/speed-and-scale-ai-inference-operations-across-multiple-architectures/)
+
 * [OpenVINO&trade;](https://software.intel.com/en-us/openvino-toolkit)
 
 * [TensorFlow Serving](https://github.com/tensorflow/serving)
@@ -133,9 +135,8 @@ REST API is recommended when the primary goal is in reducing the number of clien
 
 * [RESTful API](https://restfulapi.net/)
 
-* [Inference at scale in Kubernetes](https://www.intel.ai/inference-at-scale-in-kubernetes)
+* [Inference at Scale in Kubernetes](https://www.intel.ai/inference-at-scale-in-kubernetes)
 
-* [OpenVINO Model Server boosts AI](https://www.intel.ai/openvino-model-server-boosts-ai-inference-operations/)
 
 
 ---
