@@ -30,6 +30,10 @@
 
 namespace MKLDNNPlugin {
 
+/**
+ * Represent internal plugin speabstraction of tensor description
+ *
+ */
 class MKLDNNMemoryDesc {
 public:
     MKLDNNMemoryDesc(): desc({}, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::undef) {}
@@ -134,14 +138,11 @@ public:
 
     void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
+    // Like a plain format
     void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format, const void* data, size_t size, bool ftz = true) const;
     void SetData(const MKLDNNMemory& memory, bool ftz = true) const;
     void FillZero();
 
-    bool IsPlain();
-
-//    static bool IsPlainFormat(mkldnn::memory::format_tag format); // TODO: moved into instance method
-//    static bool IsGroupedFormat(mkldnn::memory::format_tag format); // TODO: try to avoid usage
     static mkldnn::memory::format_tag GetPlainFormat(mkldnn::memory::dims dims);
     static InferenceEngine::Layout GetPlainLayout(mkldnn::memory::dims dims);
     static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format_tag format);

@@ -85,6 +85,7 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
 void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format, const void* data, size_t size, bool ftz) const {
     uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dataType));
 
+    IE_ASSERT(!one_of(format, memory::format_tag::undef, memory::format_tag::any));
 
     auto dst_desc = GetDescriptor();
     memory::desc src_desc{dst_desc.dims(), dataType, format};
@@ -101,7 +102,7 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
         std::shared_ptr<mkldnn::reorder> pReorder =
                 std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
 
-        mkldnn::stream loc_stream(eng, stream::flags::in_order);
+        mkldnn::stream loc_stream(eng, stream::flags::default_flags);
         pReorder->execute(loc_stream, *src.prim, *this->prim);
     } else {
         uint8_t* dataPtr = static_cast<uint8_t*>(GetData());
@@ -124,11 +125,21 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
 }
 
 void MKLDNNMemory::SetData(const MKLDNNMemory& src, bool ftz) const {
-    mkldnn::reorder reorderPrim(src.GetPrimitive(), GetPrimitive());
-    mkldnn::stream loc_stream(eng, stream::flags::default_order);
-    reorderPrim.execute(loc_stream, *src.prim, *this->prim);
+    // TODO: Optimization. Reorder perfect is not good enough, so in triviale cases we
+    //       prefer use simple copy.
+    if (src.GetDesc() == this->GetDesc()) {
+        auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
+        auto dstPtr = static_cast<uint8_t*>(this->GetPtr());
+        auto size = this->GetSize();
+        cpu_memcpy(dstPtr, srcPtr, size);
+    } else {
+        mkldnn::reorder reorderPrim(src.GetPrimitive(), GetPrimitive());
+        mkldnn::stream loc_stream(eng, stream::flags::default_order);
+        reorderPrim.execute(loc_stream, *src.prim, *this->prim);
+    }
 
-    if (ftz && src.GetDataType() == mkldnn::memory::data_type::f32 && prim->get_desc().data.format_kind == dnnl_format_kind_wino &&
+    if (ftz && src.GetDataType() == mkldnn::memory::data_type::f32 &&
+        prim->get_desc().data.format_kind != dnnl_format_kind_wino &&
         GetDataType() != mkldnn::memory::data_type::bf16) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
@@ -497,9 +508,7 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::aBCde2c4b2c,
         mkldnn::memory::format_tag::aBCde4b8c2b,
         mkldnn::memory::format_tag::aBCde4c8b2c,
-     }}, {6, {
-
-     }},
+     }}
 };
 
 mkldnn::memory::format_tag MKLDNNMemoryDesc::getFormat() const {
@@ -507,6 +516,11 @@ mkldnn::memory::format_tag MKLDNNMemoryDesc::getFormat() const {
     //               force search here. Please avoid of using this method.
     const auto dims = desc.dims();
     const auto type = desc.data_type();
+    const auto ndims = dims.size();
+
+    // There are no suitable format_tag for this
+    if (ndims == 0 || ndims > 5)
+        return mkldnn::memory::format_tag::undef;
 
     for (const auto &fmt : form_tags_by_ndims.at(dims.size())) {
         // Try to create with format and compare result with existing desc
@@ -630,7 +644,6 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     // TODO: BLOCKED is the most common layout which covers all other permuted layout like NHWC.
     //       But for some cases we have to specify it more correctly.. may be.. or just keep
     //       auto detected layout in constructor of TensorDesc.
-
     return res;
 }
 
@@ -709,7 +722,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
     if (!outer_is_correct_permutation_of_n)
         THROW_IE_EXCEPTION << "Unsupported case for conversion";
 
-    bool inner_block_are_dense = (ie_strides.back() == 1);
+    bool inner_block_are_dense = one_of(ie_strides.back(), 0, 1);  // stride 1 - is dense case, 0 - broad casted
     for (int i = outer_ndims; i < ie_strides.size() - 1; i++) {
         inner_block_are_dense &= (ie_strides[i] == ie_strides[i+1] * ie_blkdDims[i+1]);
     }

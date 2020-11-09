@@ -708,13 +708,12 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
         void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto l = in->getTensorDesc().getLayout();
-            if (l == CHW && input->second->getChildEdgeAt(0)->getDims().ndims() == 4)
-                l = NCHW;
+            auto ext_tdesc = MKLDNNMemoryDesc {in->getTensorDesc()};
 
-            input->second->getChildEdgeAt(0)->getMemory().SetData(
-                    MKLDNNExtensionUtils::IEPrecisionToDataType(in->getTensorDesc().getPrecision()),
-                    MKLDNNMemory::Convert(l), ext_data_ptr, in->byteSize(), false);
+            auto ext_mem = MKLDNNMemory(eng);
+            ext_mem.Create(ext_tdesc, ext_data_ptr, false);
+
+            input->second->getChildEdgeAt(0)->getMemory().SetData(ext_mem, false);
         }
 
         // todo: make sure 'name' exists in this map...
