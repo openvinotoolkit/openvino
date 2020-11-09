@@ -223,8 +223,15 @@ namespace gather
         return rc;
     }
 
-    bool cf_gather_with_subgraph(OutputVector& output_values, const OutputVector& input_values)
+    bool cf_gather_with_subgraph(OutputVector& output_values,
+                                 const OutputVector& input_values,
+                                 const PartialShape& gather_ps)
     {
+        if (gather_ps.is_dynamic() || input_values.size() != 3)
+        {
+            return false;
+        }
+
         const auto concat =
             std::dynamic_pointer_cast<op::Concat>(input_values[0].get_node_shared_ptr());
         const auto indices =
@@ -320,13 +327,7 @@ bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVect
     }
     else
     {
-        if (get_output_partial_shape(0).is_dynamic() || input_values.size() != 3)
-        {
-            return false;
-        }
-        else
-        {
-            return gather::cf_gather_with_subgraph(output_values, input_values);
-        }
+        return gather::cf_gather_with_subgraph(
+            output_values, input_values, get_output_partial_shape(0));
     }
 }
