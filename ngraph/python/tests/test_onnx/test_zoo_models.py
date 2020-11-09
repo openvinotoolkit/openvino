@@ -122,7 +122,6 @@ if len(zoo_models) > 0:
             (xfail_issue_41813, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
             (xfail_issue_41814, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
             (xfail_issue_37957, "test_MSFT_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
-            (xfail_issue_36465, "test_MSFT_opset9_LSTM_Seq_lens_unpacked_model_cpu"),
         ]
         for test_case in import_xfail_list:
             xfail, test_name = test_case
