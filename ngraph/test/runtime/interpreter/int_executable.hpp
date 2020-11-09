@@ -178,6 +178,25 @@ protected:
                                 const std::vector<std::shared_ptr<HostTensor>>& outputs,
                                 const std::vector<std::shared_ptr<HostTensor>>& inputs);
 
+    struct InfoForNMS5
+    {
+        int64_t max_output_boxes_per_class;
+        float iou_threshold;
+        float score_threshold;
+        float soft_nms_sigma;
+        Shape out_shape;
+        Shape boxes_shape;
+        Shape scores_shape;
+        std::vector<float> boxes_data;
+        std::vector<float> scores_data;
+        size_t out_shape_size;
+        bool sort_result_descending;
+        ngraph::element::Type output_type;
+    };
+
+    InfoForNMS5 get_info_for_nms5_eval(const op::v5::NonMaxSuppression* nms5,
+                                       const std::vector<std::shared_ptr<HostTensor>>& inputs);
+
     template <typename T>
     void op_engine(const Node& node,
                    const std::vector<std::shared_ptr<HostTensor>>& out,
@@ -1309,7 +1328,7 @@ protected:
             const op::v5::NonMaxSuppression* nms =
                 static_cast<const op::v5::NonMaxSuppression*>(&node);
 
-            auto info = reference::get_info_for_nms5_evaluation(nms, args);
+            auto info = get_info_for_nms5_eval(nms, args);
 
             std::vector<int64_t> selected_indices(info.out_shape_size);
             std::vector<float> selected_scores(info.out_shape_size);
