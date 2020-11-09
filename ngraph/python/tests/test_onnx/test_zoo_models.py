@@ -179,9 +179,9 @@ if len(zoo_models) > 0:
             (xfail_issue_34323, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
 
             (xfail_issue_41815, "test_MSFT_opset11_tinyyolov3_yolov3_tiny_cpu"),
-            (xfail_issue_41815, "test_MSFT_opset10_yolov3_yolov3_cpu")
+            (xfail_issue_41815, "test_MSFT_opset10_yolov3_yolov3_cpu"),
 
-            (xfail_issue_42818, "test_MSFT_opset9_LSTM_Seq_lens_unpacked_model_cpu"), 
+            (xfail_issue_42818, "test_MSFT_opset9_LSTM_Seq_lens_unpacked_model_cpu"),
         ]
         for test_case in import_xfail_list + execution_xfail_list:
             xfail, test_name = test_case
