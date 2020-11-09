@@ -558,12 +558,12 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
 
             bool isSuitableDesc = true;
             for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-                if (inputMemoryFormatsFilter[i] != MKLDNNMemoryDesc(config.inConfs[i].desc).getFormat())
-                    isSuitableDesc = false;
+                const bool matched = MKLDNNMemoryDesc(config.inConfs[i].desc).isCompatibleWithFormat(inputMemoryFormatsFilter[i]);
+                isSuitableDesc &= matched;
             }
             for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-                if (outputMemoryFormatsFilter[i] != MKLDNNMemoryDesc(config.outConfs[i].desc).getFormat())
-                    isSuitableDesc = false;
+                const bool matched = MKLDNNMemoryDesc(config.outConfs[i].desc).isCompatibleWithFormat(outputMemoryFormatsFilter[i]);
+                isSuitableDesc &= matched;
             }
             if (!isSuitableDesc) {
                 itpd = supportedPrimitiveDescriptors.erase(itpd);
