@@ -15,12 +15,11 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
 
-ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
-    auto tensor_iterator = ngraph::pattern::wrap_type<ngraph::opset4::TensorIterator>();
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(m.get_match_root());
-        if (!ti) {
-            return false;
+bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    for (const auto& op : f->get_ops()) {
+        auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(op);
+        if (!ti || m_transformation_callback(ti)) {
+            continue;
         }
 
         const auto function = ti->get_body();
@@ -28,13 +27,13 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
 
         // negative value means inconsistent TI
         if (num_iter <= -1) {
-            return false;
+            continue;
         }
 
         // Create copies of the TensorIterator body, the number of copies is equal to the number of iterations.
         // Assign names to the created layers.
         std::vector<std::shared_ptr<ngraph::Function>> body_functions(num_iter);
-        for (uint64_t idx = 0; idx < num_iter; ++idx) {
+        for (int64_t idx = 0; idx < num_iter; ++idx) {
             body_functions[idx] = clone_function(*function);
             for (auto &node : body_functions[idx]->get_ops()) {
                 node->set_friendly_name(ti->get_friendly_name() + "/" + std::to_string(idx + 1) + "/" + node->get_friendly_name());
@@ -64,7 +63,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
                     copy_runtime_info(ti, split);
                     auto stride = input_desc->m_stride;
                     // connect to the body
-                    for (uint64_t j = 0; j < num_iter; j++) {
+                    for (int64_t j = 0; j < num_iter; j++) {
                         auto idx = stride > 0 ? j : num_iter - j - 1;
                         auto param = body_functions[j]->get_parameters()[input_desc->m_body_parameter_index];
                         for (auto &output : param->outputs()) {
@@ -92,7 +91,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
                 }
 
                 // Back-edge processing. Connect the copies of the body to each other.
-                for (uint64_t j = 1; j < num_iter; j++) {
+                for (int64_t j = 1; j < num_iter; j++) {
                     auto cur_param = body_functions[j]->get_parameters()[input_desc->m_body_parameter_index];
                     auto prev_val = body_functions[j - 1]->get_results()[input_desc->m_body_value_index];
                     for (auto &output : cur_param->outputs()) {
@@ -108,7 +107,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
 
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = ti->input_values()[input_desc->m_input_index].get_node_shared_ptr();
-                for (uint64_t j = 0; j < num_iter; j++) {
+                for (int64_t j = 0; j < num_iter; j++) {
                     auto param = body_functions[j]->get_parameters()[input_desc->m_body_parameter_index];
                     for (auto &output : param->outputs()) {
                         output.replace(in_data);
@@ -138,7 +137,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
                     auto stride = output_desc->m_stride;
 
                     // Connect outputs of the bodies to the Concat layer
-                    for (uint64_t j = 0; j < num_iter; j++) {
+                    for (int64_t j = 0; j < num_iter; j++) {
                         auto idx = stride > 0 ? j : num_iter - j - 1;
                         std::shared_ptr<opset4::Result> result = body_functions[idx]->get_results()[output_desc->m_body_value_index];
                         auto input_to_res = result->get_input_source_output(0);
@@ -183,9 +182,9 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
             }
         }
 
-        return true;
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "UnrollTensorIterator");
-    register_matcher(m, callback);
+        for (const auto& body_func : body_functions) {
+            f->add_sinks(body_func->get_sinks());
+        }
+    }
+    return true;
 }

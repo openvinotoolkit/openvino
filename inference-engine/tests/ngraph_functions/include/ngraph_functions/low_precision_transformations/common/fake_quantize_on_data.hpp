@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 #include <ngraph/ngraph.hpp>
-#include "transformations/low_precision/layer_transformation.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -55,6 +55,25 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& data) {
     return out <<  "_" << data.quantizationLevel << data.constantShape << "_" << data.inputLowValues << "_" << data.inputHighValues <<
         "_" << data.outputLowValues << "_" << data.outputHighValues << "_" <<
+        (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
+}
+
+class FakeQuantizeOnDataWithConstant {
+public:
+    size_t quantizationLevel;
+    std::vector<ngraph::Shape> constantShapes;
+    std::vector<float> inputLowValues;
+    std::vector<float> inputHighValues;
+    std::vector<float> outputLowValues;
+    std::vector<float> outputHighValues;
+    ngraph::element::Type outputPrecision;
+};
+
+inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithConstant& data) {
+    return out <<  "_" << data.quantizationLevel <<
+        (data.constantShapes.empty() ? ngraph::Shape{} : data.constantShapes[0]) << "_" <<
+        data.inputLowValues << "_" << data.inputHighValues << "_" <<
+        data.outputLowValues << "_" << data.outputHighValues << "_" <<
         (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
 }
 

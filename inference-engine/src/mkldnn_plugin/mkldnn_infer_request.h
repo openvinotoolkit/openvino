@@ -44,7 +44,9 @@ public:
     void SetBatch(int batch = -1) override;
 
 private:
-    template <typename T> void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob);
+    void PushInputData();
+
+    void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 
     void changeDefaultPtr();
     std::shared_ptr<MKLDNNExecNetwork>  execNetwork;

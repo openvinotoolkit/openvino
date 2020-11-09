@@ -18,15 +18,14 @@
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
 TEST(type_prop, reshape_deduce_s2v)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
-    auto r = make_shared<op::Reshape>(param, AxisVector{}, Shape{1});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {1}, Shape{1}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{1}));
 }
@@ -34,7 +33,8 @@ TEST(type_prop, reshape_deduce_s2v)
 TEST(type_prop, reshape_deduce_s2m)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
-    auto r = make_shared<op::Reshape>(param, AxisVector{}, Shape{1, 1});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {2}, Shape{1, 1}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{1, 1}));
 }
@@ -42,39 +42,17 @@ TEST(type_prop, reshape_deduce_s2m)
 TEST(type_prop, reshape_deduce_s2t)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
-    auto r = make_shared<op::Reshape>(param, AxisVector{}, Shape{1, 1, 1});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {3}, Shape{1, 1, 1}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{1, 1, 1}));
-}
-
-TEST(type_prop, reshape_deduce_v2s)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{1});
-    auto r = make_shared<op::Reshape>(param, AxisVector{0}, Shape{});
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{}));
-}
-
-TEST(type_prop, reshape_deduce_m2s)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 1});
-    auto r = make_shared<op::Reshape>(param, AxisVector{0, 1}, Shape{});
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{}));
-}
-
-TEST(type_prop, reshape_deduce_t2s)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
-    auto r = make_shared<op::Reshape>(param, AxisVector{0, 1, 2}, Shape{});
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{}));
 }
 
 TEST(type_prop, reshape_deduce_m2v_01)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4});
-    auto r = make_shared<op::Reshape>(param, AxisVector{0, 1}, Shape{12});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {1}, Shape{12}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{12}));
 }
@@ -82,7 +60,8 @@ TEST(type_prop, reshape_deduce_m2v_01)
 TEST(type_prop, reshape_deduce_m2v_10)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4});
-    auto r = make_shared<op::Reshape>(param, AxisVector{1, 0}, Shape{12});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {1}, Shape{12}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{12}));
 }
@@ -90,7 +69,8 @@ TEST(type_prop, reshape_deduce_m2v_10)
 TEST(type_prop, reshape_deduce_t2v_012)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
-    auto r = make_shared<op::Reshape>(param, AxisVector{0, 1, 2}, Shape{60});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {1}, Shape{60}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{60}));
 }
@@ -98,72 +78,19 @@ TEST(type_prop, reshape_deduce_t2v_012)
 TEST(type_prop, reshape_deduce_t2v_120)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
-    auto r = make_shared<op::Reshape>(param, AxisVector{1, 2, 0}, Shape{60});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {1}, Shape{60}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{60}));
 }
 
-TEST(type_prop, reshape_deduce_not_enough_axes)
+TEST(type_prop, reshape_deduce_zero_special)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
-    try
-    {
-        auto r = make_shared<op::Reshape>(param, AxisVector{1, 0}, Shape{60});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Not enough axes not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Input axis order is not a permutation of argument's axis indices"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, reshape_deduce_too_many_axes)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
-    try
-    {
-        auto r = make_shared<op::Reshape>(param, AxisVector{1, 2, 0, 3}, Shape{60});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Too many axes not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Input axis order is not a permutation of argument's axis indices"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, reshape_deduce_duplicate_axes)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
-    try
-    {
-        auto r = make_shared<op::Reshape>(param, AxisVector{1, 1, 0}, Shape{60});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Too many axes not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Input axis order is not a permutation of argument's axis indices"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {3}, Shape{6, 2, 0}), true);
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_shape(), (Shape{6, 2, 5}));
 }
 
 TEST(type_prop, reshape_deduce_wrong_output_shape)
@@ -171,49 +98,16 @@ TEST(type_prop, reshape_deduce_wrong_output_shape)
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
     try
     {
-        auto r = make_shared<op::Reshape>(param, AxisVector{1, 2, 0}, Shape{3, 3, 3});
+        auto r = make_shared<op::v1::Reshape>(
+            param, op::Constant::create(element::u64, {3}, Shape{3, 3, 3}), false);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Too many axes not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Product of output shape dimensions does not match "
-                                         "product of argument shape dimensions"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-//
-// Input shape rank dynamic, so we should set the desired output shape if the axis vector is not
-// known invalid (invalid means it's not a permutation of {0,...,n-1} for any n).
-//
-TEST(type_prop, reshape_partial_rank_dynamic_axisvector_ok)
-{
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto r = make_shared<op::Reshape>(param, AxisVector{2, 1, 0, 3}, Shape{3, 1, 8, 2});
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_TRUE(r->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(r->get_shape(), (Shape{3, 1, 8, 2}));
-}
-
-TEST(type_prop, reshape_partial_rank_dynamic_axisvector_not_ok)
-{
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    try
-    {
-        auto r = make_shared<op::Reshape>(param, AxisVector{2, 1, 0, 4}, Shape{3, 1, 8, 2});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Did not detect malformed AxisVector (input shape rank dynamic)";
+        FAIL() << "No exception was thrown";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
             error.what(),
-            std::string("Input axis order is not a permutation of argument's axis indices"));
+            std::string("Check 'shape_size(get_input_shape(0)) == shape_size(output_shape)'"));
     }
     catch (...)
     {
@@ -222,41 +116,31 @@ TEST(type_prop, reshape_partial_rank_dynamic_axisvector_not_ok)
 }
 
 //
-// Input shape rank static but input shape is dynamic, so should set desired output shape if the
-// axis vector is consistent with the static rank.
+// Input shape rank dynamic, so we should set the desired output shape
 //
-TEST(type_prop, reshape_partial_rank_static_dynamic_axisvector_ok)
+TEST(type_prop, reshape_partial_rank_dynamic)
 {
-    auto param_shape =
-        PartialShape{Dimension::dynamic(), 6, Dimension::dynamic(), Dimension::dynamic()};
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
-    auto r = make_shared<op::Reshape>(param, AxisVector{2, 1, 0, 3}, Shape{3, 1, 8, 2});
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {4}, Shape{3, 1, 8, 2}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_TRUE(r->get_output_partial_shape(0).is_static());
     ASSERT_EQ(r->get_shape(), (Shape{3, 1, 8, 2}));
 }
 
-TEST(type_prop, reshape_partial_rank_static_dynamic_axisvector_not_ok)
+//
+// Input shape rank static but input shape is dynamic, so should set desired output shape
+//
+TEST(type_prop, reshape_partial_rank_static)
 {
     auto param_shape =
         PartialShape{Dimension::dynamic(), 6, Dimension::dynamic(), Dimension::dynamic()};
     auto param = make_shared<op::Parameter>(element::f32, param_shape);
-    try
-    {
-        auto r = make_shared<op::Reshape>(param, AxisVector{2, 1, 0}, Shape{3, 1, 8, 2});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Did not detect AxisVector inconsistent with rank (rank-static dynamic shape)";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Input axis order is not a permutation of argument's axis indices"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {4}, Shape{3, 1, 8, 2}), false);
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_TRUE(r->get_output_partial_shape(0).is_static());
+    ASSERT_EQ(r->get_shape(), (Shape{3, 1, 8, 2}));
 }
 
 //
@@ -268,32 +152,9 @@ TEST(type_prop, reshape_partial_rank_static_dynamic_but_zero_ok)
     auto param_shape =
         PartialShape{Dimension::dynamic(), 0, Dimension::dynamic(), Dimension::dynamic()};
     auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto r = make_shared<op::Reshape>(param, AxisVector{2, 1, 0, 3}, Shape{3, 1, 0, 2});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::u64, {4}, Shape{3, 1, 0, 2}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_TRUE(r->get_output_partial_shape(0).is_static());
     ASSERT_EQ(r->get_shape(), (Shape{3, 1, 0, 2}));
-}
-
-TEST(type_prop, reshape_partial_rank_static_dynamic_but_zero_not_ok)
-{
-    auto param_shape =
-        PartialShape{Dimension::dynamic(), 0, Dimension::dynamic(), Dimension::dynamic()};
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
-    try
-    {
-        auto r = make_shared<op::Reshape>(param, AxisVector{2, 1, 0}, Shape{3, 1, 8, 2});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Did not detect inconsistent output shape with static-zero-element rank-dynamic"
-                  " static input shape";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Input axis order is not a permutation of argument's axis indices"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
 }

@@ -12,7 +12,7 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/low_precision/relu.hpp>
+#include <low_precision/relu.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
@@ -166,7 +166,7 @@ const std::vector<ReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, { {128}, ngraph::element::f32 }, {}},
+            {{}, { {128}, ngraph::element::f32, {}, false }, {}},
             ngraph::element::f32,
             {{}, {}, {0.1f}}
         }
@@ -181,7 +181,7 @@ const std::vector<ReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
-            {{}, { {127}, ngraph::element::f32 }, {}},
+            {{}, { {127}, ngraph::element::f32, {}, false }, {}},
             ngraph::element::f32,
             {{}, {}, {0.1f}}
         }

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <memory>
 #include <ngraph/ngraph.hpp>
-#include "transformations/low_precision/layer_transformation.hpp"
+#include "low_precision/layer_transformation.hpp"
 #include "common/fake_quantize_on_data.hpp"
 #include "common/dequantization_operations.hpp"
 
@@ -22,6 +22,12 @@ public:
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantize1,
         const FakeQuantizeOnData& fakeQuantize2);
+
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize1,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize2);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithNeighbors(
         const ngraph::element::Type precision,
@@ -68,6 +74,13 @@ public:
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantize1,
         const FakeQuantizeOnData& fakeQuantize2,
+        const DequantizationOperations& dequantizationOperations);
+
+    static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize1,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize2,
         const DequantizationOperations& dequantizationOperations);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(

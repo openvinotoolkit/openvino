@@ -69,6 +69,7 @@
 #include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
@@ -79,7 +80,6 @@
 #include "ngraph/runtime/reference/region_yolo.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
-#include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
 #include "ngraph/runtime/reference/result.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
@@ -656,32 +656,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::GatherND:
-        {
-            if (node.get_input_element_type(1) == element::i64)
-            {
-                reference::gather_nd<T, int64_t>(args[0]->get_data_ptr<T>(),
-                                                 args[1]->get_data_ptr<int64_t>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 node.get_input_shape(0),
-                                                 node.get_input_shape(1),
-                                                 node.get_output_shape(0));
-            }
-            else if (node.get_input_element_type(1) == element::i32)
-            {
-                reference::gather_nd<T, int32_t>(args[0]->get_data_ptr<T>(),
-                                                 args[1]->get_data_ptr<int32_t>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 node.get_input_shape(0),
-                                                 node.get_input_shape(1),
-                                                 node.get_output_shape(0));
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
-            break;
-        }
         case OP_TYPEID::GatherND_v5:
         {
             const op::v5::GatherND* gatherNDNode = static_cast<const op::v5::GatherND*>(&node);
@@ -888,21 +862,103 @@ protected:
             break;
         }
         case OP_TYPEID::LogicalNot_v1:
-        case OP_TYPEID::Not:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::logical_not(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::OneHot:
+        case OP_TYPEID::OneHot_v1:
         {
-            const op::OneHot* oh = static_cast<const op::OneHot*>(&node);
-            reference::one_hot<T>(args[0]->get_data_ptr<const T>(),
-                                  out[0]->get_data_ptr<T>(),
-                                  node.get_input_shape(0),
-                                  node.get_output_shape(0),
-                                  oh->get_one_hot_axis());
+            const op::v1::OneHot* oh = static_cast<const op::v1::OneHot*>(&node);
+            T on_value = args[2]->get_data_ptr<T>()[0];
+            T off_value = args[3]->get_data_ptr<T>()[0];
+
+            switch (args[0]->get_element_type())
+            {
+            case element::Type_t::i8:
+                reference::one_hot(args[0]->get_data_ptr<const int8_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::i16:
+                reference::one_hot(args[0]->get_data_ptr<const int16_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::i32:
+                reference::one_hot(args[0]->get_data_ptr<const int32_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::i64:
+                reference::one_hot(args[0]->get_data_ptr<const int64_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::u8:
+                reference::one_hot(args[0]->get_data_ptr<const uint8_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::u16:
+                reference::one_hot(args[0]->get_data_ptr<const uint16_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::u32:
+                reference::one_hot(args[0]->get_data_ptr<const uint32_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::u64:
+                reference::one_hot(args[0]->get_data_ptr<const uint64_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::undefined:
+            case element::Type_t::dynamic:
+            case element::Type_t::u1:
+            case element::Type_t::boolean:
+            case element::Type_t::bf16:
+            case element::Type_t::f16:
+            case element::Type_t::f32:
+            case element::Type_t::f64:
+            default: NGRAPH_CHECK(false, "Indices input element type must be integer");
+            }
+
             break;
         }
         case OP_TYPEID::Parameter: break;
@@ -973,114 +1029,6 @@ protected:
 
             break;
         }
-
-        case OP_TYPEID::QuantizedConvolution:
-        {
-            const op::QuantizedConvolution* qc =
-                static_cast<const op::QuantizedConvolution*>(&node);
-
-            auto input_element_type = qc->get_input_element_type(0);
-            auto filter_element_type = qc->get_input_element_type(1);
-            auto output_element_type = qc->get_output_element_type(0);
-
-            if (input_element_type == element::u8 && filter_element_type == element::i8 &&
-                output_element_type == element::i8)
-            {
-                reference::convolution<uint8_t, int8_t, int8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int8_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::u8 &&
-                     output_element_type == element::u8)
-            {
-                reference::convolution<uint8_t, uint8_t, uint8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<uint8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const uint8_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::i8 &&
-                     output_element_type == element::i32)
-            {
-                reference::convolution<uint8_t, int8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::u8 &&
-                     output_element_type == element::i32)
-            {
-                reference::convolution<uint8_t, uint8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else
-            {
-                std::stringstream ss;
-                ss << "unsupported element type";
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        }
-
         case OP_TYPEID::QuantizedDot:
         {
             const op::QuantizedDot* qd = static_cast<const op::QuantizedDot*>(&node);
@@ -1190,30 +1138,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::ReplaceSlice:
-        {
-            const op::ReplaceSlice* slice = static_cast<const op::ReplaceSlice*>(&node);
-            reference::replace_slice<T>(args[0]->get_data_ptr<const T>(),
-                                        args[1]->get_data_ptr<const T>(),
-                                        out[0]->get_data_ptr<T>(),
-                                        node.get_input_shape(1),
-                                        slice->get_lower_bounds(),
-                                        slice->get_upper_bounds(),
-                                        slice->get_strides(),
-                                        node.get_output_shape(0));
-            break;
-        }
-        case OP_TYPEID::Reverse:
-        {
-            const op::Reverse* reverse = static_cast<const op::Reverse*>(&node);
-            reference::reverse(args[0]->get_data_ptr<const char>(),
-                               out[0]->get_data_ptr<char>(),
-                               node.get_input_shape(0),
-                               node.get_output_shape(0),
-                               reverse->get_reversed_axes(),
-                               args[0]->get_element_type().size());
-            break;
-        }
         case OP_TYPEID::ReverseSequence:
         {
             const op::ReverseSequence* reverse = static_cast<const op::ReverseSequence*>(&node);
@@ -1231,15 +1155,6 @@ protected:
             {
                 throw ngraph_error("only int32 indices are supported");
             }
-            break;
-        }
-        case OP_TYPEID::Round:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            reference::round<T>(args[0]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                element_count,
-                                op::v5::Round::RoundMode::HALF_TO_EVEN);
             break;
         }
         case OP_TYPEID::Select:
@@ -1299,39 +1214,6 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::tanh<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
-            break;
-        }
-        case OP_TYPEID::TopK:
-        {
-            const op::TopK* topk = static_cast<const op::TopK*>(&node);
-            if (node.get_output_element_type(0) == element::i64)
-            {
-                reference::topk<T, int64_t>(args[0]->get_data_ptr<const T>(),
-                                            out[0]->get_data_ptr<int64_t>(),
-                                            out[1]->get_data_ptr<T>(),
-                                            node.get_input_shape(0),
-                                            node.get_output_shape(0),
-                                            topk->get_top_k_axis(),
-                                            topk->get_k(),
-                                            topk->get_compute_max(),
-                                            topk->get_sort());
-            }
-            else if (node.get_output_element_type(0) == element::i32)
-            {
-                reference::topk<T, int32_t>(args[0]->get_data_ptr<const T>(),
-                                            out[0]->get_data_ptr<int32_t>(),
-                                            out[1]->get_data_ptr<T>(),
-                                            node.get_input_shape(0),
-                                            node.get_output_shape(0),
-                                            topk->get_top_k_axis(),
-                                            topk->get_k(),
-                                            topk->get_compute_max(),
-                                            topk->get_sort());
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
             break;
         }
         case OP_TYPEID::DetectionOutput_v0:
@@ -1422,6 +1304,43 @@ protected:
                                        norm->get_eps_mode());
             break;
         }
+        case OP_TYPEID::NonMaxSuppression_v5:
+        {
+            const op::v5::NonMaxSuppression* nms =
+                static_cast<const op::v5::NonMaxSuppression*>(&node);
+
+            auto info = reference::get_info_for_nms5_evaluation(nms, args);
+
+            std::vector<int64_t> selected_indices(info.out_shape_size);
+            std::vector<float> selected_scores(info.out_shape_size);
+            int64_t valid_outputs = 0;
+
+            reference::non_max_suppression(info.boxes_data.data(),
+                                           info.boxes_shape,
+                                           info.scores_data.data(),
+                                           info.scores_shape,
+                                           info.max_output_boxes_per_class,
+                                           info.iou_threshold,
+                                           info.score_threshold,
+                                           info.soft_nms_sigma,
+                                           selected_indices.data(),
+                                           info.out_shape,
+                                           selected_scores.data(),
+                                           info.out_shape,
+                                           &valid_outputs,
+                                           info.sort_result_descending);
+
+            auto selected_scores_type =
+                (args.size() < 4) ? element::f32 : args[3]->get_element_type();
+
+            reference::nms5_postprocessing(out,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
+            break;
+        }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::DepthToSpace:
@@ -1439,9 +1358,7 @@ protected:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SpaceToDepth:
-        case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
-        case OP_TYPEID::StopGradient:
         case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:
         case OP_TYPEID::UnknownOp:
@@ -1462,29 +1379,25 @@ protected:
         case OP_TYPEID::LogicalOr_v1:
         case OP_TYPEID::LogicalXor_v1:
         case OP_TYPEID::MatMul:
-        case OP_TYPEID::Max:
         case OP_TYPEID::Maximum:
-        case OP_TYPEID::Min:
         case OP_TYPEID::Minimum:
         case OP_TYPEID::Multiply:
         case OP_TYPEID::NonZero_v3:
         case OP_TYPEID::NotEqual:
-        case OP_TYPEID::Or:
         case OP_TYPEID::Power:
-        case OP_TYPEID::Product:
         case OP_TYPEID::Range:
-        case OP_TYPEID::Reshape:
+        case OP_TYPEID::Reshape_v1:
         case OP_TYPEID::Result:
+        case OP_TYPEID::Reverse_v1:
         case OP_TYPEID::Round_v5:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
-        case OP_TYPEID::Softmax:
+        case OP_TYPEID::Softmax_v1:
+        case OP_TYPEID::Split_v1:
         case OP_TYPEID::Squeeze:
-        case OP_TYPEID::Sum:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
-        case OP_TYPEID::Slice:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

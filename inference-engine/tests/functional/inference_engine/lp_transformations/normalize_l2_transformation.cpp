@@ -12,7 +12,7 @@
 
 #include <transformations/utils/utils.hpp>
 #include "simple_low_precision_transformer.hpp"
-#include <transformations/low_precision/normalize_l2.hpp>
+#include <low_precision/normalize_l2.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/normalize_l2_function.hpp"
@@ -48,7 +48,6 @@ public:
             shape,
             epsMode,
             params.actual);
-
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::NormalizeL2Transformation, ngraph::opset1::NormalizeL2>(
             low_precision::LayerTransformation::Params(params.transformationParams));

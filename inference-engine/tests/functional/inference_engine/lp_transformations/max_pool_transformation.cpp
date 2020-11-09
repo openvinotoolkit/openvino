@@ -11,8 +11,8 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/low_precision/max_pool.hpp>
-#include <transformations/low_precision/transformer.hpp>
+#include <low_precision/max_pool.hpp>
+#include <low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -78,10 +78,8 @@ public:
 };
 
 TEST_P(MaxPoolTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

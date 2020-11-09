@@ -230,6 +230,7 @@ extensions/front/mxnet/where_ext.py
 extensions/front/mxnet/yolo_v3_mobilenet1_voc.json
 extensions/front/mxnet/zeros_ext.py
 extensions/front/no_op_eraser.py
+extensions/front/non_max_suppression_normalize.py
 extensions/front/OneHotDepthNormalizer.py
 extensions/front/onnx/__init__.py
 extensions/front/onnx/activation_ext.py
@@ -266,6 +267,8 @@ extensions/front/onnx/hard_sigmoid_ext.py
 extensions/front/onnx/image_scaler_ext.py
 extensions/front/onnx/instance_normalization_ext.py
 extensions/front/onnx/logsoftmaxONNX_to_logsoftmax.py
+extensions/front/onnx/loop_ext.py
+extensions/front/onnx/LoopNormalize.py
 extensions/front/onnx/lp_normalization_ext.py
 extensions/front/onnx/lrn_ext.py
 extensions/front/onnx/lstm_ext.py
@@ -274,7 +277,6 @@ extensions/front/onnx/mask_rcnn_conversion.py
 extensions/front/onnx/matmul_ext.py
 extensions/front/onnx/mean_variance_normalization_ext.py
 extensions/front/onnx/non_max_suppression_ext.py
-extensions/front/onnx/non_max_suppression_normalize.py
 extensions/front/onnx/non_zero_ext.py
 extensions/front/onnx/normalize_ext.py
 extensions/front/onnx/normalize_l2_normalize.py
@@ -341,6 +343,8 @@ extensions/front/tf/__init__.py
 extensions/front/tf/activation_ext.py
 extensions/front/tf/argmax_ext.py
 extensions/front/tf/assign_elimination.py
+extensions/front/tf/automl_efficientdet.json
+extensions/front/tf/AutomlEfficientDet.py
 extensions/front/tf/basic_lstm_cell.py
 extensions/front/tf/batch_to_space_ext.py
 extensions/front/tf/BatchMatMul_ext.py
@@ -476,6 +480,7 @@ extensions/front/tf/yolo_v2_voc.json
 extensions/front/tf/yolo_v3.json
 extensions/front/tf/yolo_v3_tiny.json
 extensions/front/tf/yolo_v3_voc.json
+extensions/front/ThresholdedReluDecomposition.py
 extensions/front/TopKNormalize.py
 extensions/front/transformations_config.py
 extensions/front/TransposeOrderNormalizer.py
@@ -633,6 +638,7 @@ extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
 extensions/ops/LookupTableInsert.py
+extensions/ops/loop.py
 extensions/ops/LSTM.py
 extensions/ops/lstm_cell.py
 extensions/ops/lstm_sequence.py
@@ -961,6 +967,7 @@ mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
+mo/utils/ir_reader/extenders/loop_extender.py
 mo/utils/ir_reader/extenders/LSTMCell_extender.py
 mo/utils/ir_reader/extenders/non_max_suppression_extender.py
 mo/utils/ir_reader/extenders/non_zero_extender.py
