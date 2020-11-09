@@ -26,12 +26,12 @@ message(STATUS "Building for Windows OneCore compliants (using OneCoreUap.lib, $
 # OneCore flags
 #
 
-set(_onecoreuap_arch "X86_64")
+set(_onecoreuap_arch "x64")
 if(CMAKE_GENERATOR_PLATFORM)
-	set(_onecoreuap_arch ${CMAKE_GENERATOR_PLATFORM})
+    set(_onecoreuap_arch ${CMAKE_GENERATOR_PLATFORM})
 endif()
 
-if(_onecoreuap_arch STREQUAL "X86_64")
+if(_onecoreuap_arch STREQUAL "x64")
     # Forcefull make VS search for C++ libreries in these folders prior to other c++ standard libraries localizations.
     add_link_options("/LIBPATH:\"\$\(VC_LibraryPath_VC_x64_OneCore\)\"")
 
