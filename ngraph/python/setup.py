@@ -257,14 +257,6 @@ data_files = [
             if os.path.isfile(os.path.join(NGRAPH_CPP_LIBRARY_DIR, library))
         ],
     ),
-    (
-        "licenses",
-        [
-            os.path.join(NGRAPH_CPP_DIST_DIR, "licenses", license)
-            for license in os.listdir(os.path.join(NGRAPH_CPP_DIST_DIR, "licenses"))
-        ],
-    ),
-    ("", [os.path.join(NGRAPH_CPP_DIST_DIR, "LICENSE")],),
 ]
 
 ext_modules = [
