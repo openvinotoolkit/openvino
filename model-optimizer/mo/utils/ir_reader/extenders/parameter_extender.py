@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils.graph import Node
 from mo.utils.ir_reader.extender import Extender
@@ -26,4 +26,7 @@ class Parameter_extender(Extender):
     def extend(op: Node):
         assert op.has_valid('element_type'), 'Parameter node {} has missed element_type attr!'.format(op.name)
         op['data_type'] = destination_type_to_np_data_type(op.element_type)
-        Extender.attr_to_list(op, 'shape')
+        if op.shape == '':
+            op.shape = int64_array([])
+        else:
+            Extender.attr_to_list(op, 'shape')
