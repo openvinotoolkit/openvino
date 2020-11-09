@@ -208,8 +208,8 @@ runtime::interpreter::INTExecutable::InfoForNMS5
     result.boxes_shape = inputs[boxes_port]->get_shape();
     result.scores_shape = inputs[scores_port]->get_shape();
 
-    result.boxes_data = prepare_boxes_data(
-        inputs[boxes_port], result.boxes_shape, nms5->get_box_encoding());
+    result.boxes_data =
+        prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms5->get_box_encoding());
     result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
 
     result.out_shape_size = shape_size(result.out_shape);
