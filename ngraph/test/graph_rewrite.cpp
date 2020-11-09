@@ -298,13 +298,13 @@ TEST(PassConfigTest, Test1)
     {
         auto f = get_function();
 
-        pass::Manager manager;
+        auto pass_config = std::make_shared<ngraph::pass::PassConfig>();
+        pass::Manager manager(pass_config);
+
         manager.register_pass<TestPass>();
 
-        auto pass_config = std::make_shared<ngraph::pass::PassConfig>();
         pass_config->set_callback<TestPass>(get_callback());
 
-        manager.set_pass_config(pass_config);
         manager.run_passes(f);
 
         ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
@@ -343,11 +343,9 @@ TEST(PassConfigTest, Test1)
     {
         auto pass_config = std::make_shared<pass::PassConfig>();
 
-        pass::Manager manager1;
-        pass::Manager manager2;
-        manager1.set_pass_config(pass_config);
-        manager2.set_pass_config(pass_config);
-        ASSERT_EQ(pass_config.use_count(), 1);
+        pass::Manager manager1(pass_config);
+        pass::Manager manager2(pass_config);
+        ASSERT_EQ(pass_config.use_count(), 3);
     }
 
     {

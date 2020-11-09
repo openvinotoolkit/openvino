@@ -4,10 +4,27 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+# Detect target
+include(target_flags)
+
+string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
+if(X86_64)
+    set(ARCH_FOLDER intel64)
+elseif(X86)
+    set(ARCH_FOLDER ia32)
+elseif(MSVC AND ARM)
+    set(ARCH_FOLDER arm)
+elseif(MSVC AND AARCH64)
+    set(ARCH_FOLDER arm64)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download"
-        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile"
-        )
+        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile")
+
+#
+# CPack
+#
 
 include(CPackComponent)
 unset(IE_CPACK_COMPONENTS_ALL CACHE)
@@ -33,21 +50,14 @@ endif()
 # Set library directory for cpack
 #
 function(ie_cpack_set_library_dir)
-    string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
-    if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
-        set(ARCH intel64)
-    elseif(ARCH STREQUAL "i386")
-        set(ARCH ia32)
-    endif()
-
     if(WIN32)
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/bin/${ARCH}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/bin/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
     else()
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -109,27 +119,18 @@ function(set_temp_directory temp_variable source_tree_dir)
     endif()
 endfunction()
 
+#
+# Common scripts
+#
+
 include(coverage/coverage)
 include(shellcheck/shellcheck)
 
 # External dependencies
 find_package(Threads)
 
-# Detect target
-include(target_flags)
-
 # printing debug messages
 include(debug)
-
-# linking libraries without discarding symbols
-include(whole_archive)
-
-string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
-if(X86_64)
-    set(ARCH_FOLDER intel64)
-elseif(X86)
-    set(ARCH_FOLDER ia32)
-endif()
 
 if(OS_FOLDER)
     message ("**** OS FOLDER IS: [${OS_FOLDER}]")
@@ -237,6 +238,7 @@ include(os_flags)
 include(sanitizer)
 include(cross_compiled_func)
 include(faster_build)
+include(whole_archive)
 include(api_validator/api_validator)
 
 function(set_ci_build_number)
