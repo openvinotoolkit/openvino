@@ -43,14 +43,15 @@ class MultiDeviceInferRequest : public InferenceEngine::InferRequestInternal {
 public:
     using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
     explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
-                                     const InferenceEngine::OutputsDataMap& networkOutputs);
+                                     const InferenceEngine::OutputsDataMap& networkOutputs,
+                                     InferenceEngine::InferRequest request_to_share_blobs_with);
     void GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>&) const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
     void InferImpl() override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
-    // Multi-Device impl specific: sets the data (blobs from the device-less requets to the specific device request)
+    // Multi-Device impl specific: sets the data (blobs from the device-less request to the specific device request)
     void SetBlobsToAnotherRequest(InferenceEngine::InferRequest& req);
 };
 
@@ -111,20 +112,26 @@ public:
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::RemoteContext::Ptr GetContext() const override;
     ~MultiDeviceExecutableNetwork() override;
 
     void ScheduleToWorkerInferRequest();
 
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
+    static thread_local std::string                             _thisPreferredDeviceName;
     std::atomic_bool                                            _terminate = {false};
-    std::mutex                                                  _mutex;
+    mutable std::mutex                                          _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
+    const std::vector<DeviceInformation>                        _devicePrioritiesInitial;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
     ThreadSafeQueue<Task>                                       _inferPipelineTasks;
+    DeviceMap<ThreadSafeQueue<Task>>                            _inferPipelineTasksDeviceSpecific;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
+
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
+    std::atomic_size_t                                          _numRequestsCreated = {0};
 };
 
 class MultiDeviceAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
