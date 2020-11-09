@@ -2137,7 +2137,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     auto prevMemoryLayer =
             std::find_if(begin(memory_connection), end(memory_connection), [&](MemoryConnection::value_type &comp) {
-                return comp.second.getInput()->name == prevLayer->name;
+                return comp.second.getInput()->params.at("id") == prevLayer->params.at("id");
             });
     if (prevMemoryLayer != memory_connection.end()) {
         // dnnLayer that is input for memory output layer

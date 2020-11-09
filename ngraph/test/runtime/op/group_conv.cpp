@@ -23,7 +23,6 @@
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/convolution.hpp"
-#include "ngraph/op/slice.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -199,9 +198,9 @@ OutputVector op::v0::GroupConvolution::decompose_op() const
     NodeVector convolution_nodes;
 
     // slice data
-    auto sliced_data = builder::split(data, get_groups(), 1);
+    auto sliced_data = builder::opset1::split(data, get_groups(), 1);
     // slice filters
-    auto sliced_filters = builder::split(filters, get_groups(), 0);
+    auto sliced_filters = builder::opset1::split(filters, get_groups(), 0);
     auto shape = Shape(std::next(std::begin(filters_shape), 1), std::end(filters_shape));
     for (std::size_t group{0}; group < get_groups(); ++group)
     {
@@ -306,9 +305,9 @@ OutputVector op::v0::GroupConvolutionBackpropData::decompose_op() const
     // slice data shape
     data_shape[1] /= groups;
     // slice delta
-    auto sliced_delta = builder::split(output_delta, groups, 1);
+    auto sliced_delta = builder::opset1::split(output_delta, groups, 1);
     // slice filters
-    auto sliced_filters = builder::split(filters, groups, 0);
+    auto sliced_filters = builder::opset1::split(filters, groups, 0);
 
     auto num_spatials = get_window_movement_strides().size();
 
