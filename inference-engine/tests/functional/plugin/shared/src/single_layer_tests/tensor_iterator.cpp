@@ -221,14 +221,6 @@ namespace LayerTestsDefinitions {
                 function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
             }
-            case TensorIteratorBody::CNN: {
-                inputShapes = {{batch,       input_size},
-                               {batch,       hidden_size},
-                               {hidden_size, input_size},
-                               {hidden_size, hidden_size},
-                               {hidden_size}};
-                break;
-            }
         }
         if (should_decompose) {
             ngraph::pass::Manager m;

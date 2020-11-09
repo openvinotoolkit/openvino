@@ -19,7 +19,7 @@ enum class TensorIteratorBody {
     RNN,
     GRU,
     LSTM,
-    CNN
+    CNN // todo: implement
 };
 
 using TensorIteratorParams = typename std::tuple<
