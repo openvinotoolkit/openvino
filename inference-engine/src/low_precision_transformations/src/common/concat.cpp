@@ -261,18 +261,15 @@ void ConcatTransformation::addDequantizationLayers(
 
                         if (layerDequantizations.size() > 1ul) {
                             auto broadcastElementWiseConst = [](
+                                // FakeQuantize constant shape must be broadcastable to the shape on data.
                                 std::shared_ptr<ngraph::opset1::Constant> operation,
                                 const ngraph::Shape targetShape) -> std::shared_ptr<Node> {
-                                auto unsqueeze = ngraph::pass::low_precision::fold<ngraph::opset1::Unsqueeze>(
-                                    operation->shared_from_this(),
-                                    std::make_shared<ngraph::opset1::Constant>(element::i64, ngraph::Shape{ 4 }, std::vector<size_t>{ 0, 1, 2, 3 }));
-
                                 auto targetShapeConst = std::make_shared<ngraph::opset1::Constant>(
                                     element::i64, ngraph::Shape{ targetShape.size() },
                                     targetShape);
 
                                 auto broadcast = ngraph::pass::low_precision::fold<ngraph::opset1::Broadcast>(
-                                    unsqueeze,
+                                    operation,
                                     targetShapeConst,
                                     ngraph::op::AutoBroadcastType::NUMPY);
 
@@ -342,6 +339,7 @@ void ConcatTransformation::addDequantizationLayers(
                             std::shared_ptr<ngraph::Node> convert =
                                 convertNodes[0]->clone_with_new_inputs({ destination->get_input_source_output(sourceOutputIdx) });
                             insert_new_node_between(source, destination, convert);
+                            ngraph::copy_runtime_info({ layer, convert }, convert);
                             source = convert;
                         }
 
@@ -354,6 +352,7 @@ void ConcatTransformation::addDequantizationLayers(
                                     subtractNodes[0] :
                                     ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)));
                             insert_new_node_between(source, destination, subtract);
+                            ngraph::copy_runtime_info({ layer, subtract }, subtract);
                             source = subtract;
                         }
 
@@ -365,6 +364,7 @@ void ConcatTransformation::addDequantizationLayers(
                                     multiplyNodes[0] :
                                     ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(multiplyNodes, 1)));
                             insert_new_node_between(source, destination, multiply);
+                            ngraph::copy_runtime_info({ layer, multiply }, multiply);
                             source = multiply;
                         }
                     }
