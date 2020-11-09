@@ -38,6 +38,18 @@
 #include "gna_model_serial.hpp"
 #include "runtime/gna_float_runtime.hpp"
 
+#include <generic_ie.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <legacy/convert_function_to_cnn_network.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
 
@@ -342,7 +354,29 @@ void GNAPlugin::InitGNADevice() {
 void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
-        convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(_network);
+        std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(_network);
+        const auto& graph = clonedNetwork->getFunction();
+        // Disable shape inference (WA for generic operations)
+        ngraph::op::GenericIE::DisableReshape noReshape(graph);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+        manager.register_pass<ngraph::pass::ConvertPriorBox>();
+        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        // UnrollTI should be the last transformation in the transformation pipeline
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+
+        const auto& pass_config = manager.get_pass_config();
+        pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
+                [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+                    // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
+                    return node->get_rt_info().count("UNROLL_TI") == 0;
+            });
+        manager.run_passes(graph);
+        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *clonedNetwork);
     }
     InferenceEngine::ICNNNetwork &network = convertedNetwork ? *convertedNetwork : _network;
 

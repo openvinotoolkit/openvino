@@ -308,6 +308,7 @@ set(MULTI_TEST_SRC
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
+    backend/non_max_suppression.in.cpp
     backend/non_zero.in.cpp
     backend/numeric.in.cpp
     backend/one_hot.in.cpp

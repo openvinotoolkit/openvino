@@ -48,7 +48,6 @@ public:
             shape,
             epsMode,
             params.actual);
-
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::NormalizeL2Transformation, ngraph::opset1::NormalizeL2>(
             low_precision::LayerTransformation::Params(params.transformationParams));
