@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.front.common.layout import get_features_dim, shape_for_layout
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -72,7 +74,7 @@ class EltwiseInputReshape(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         # Generate a map for producers of eltwise nodes with non-normalized shapes
         # and in this map every producer has another map that reflects normalized shape
-        # to a list of eltwise-consumers
+        # to a list of eltwise consumers
         mapping = {}
         for eltwise_node in graph.get_op_nodes(is_eltwise=True):
             eltwise_shape = eltwise_node.out_port(0).data.get_shape()
@@ -80,35 +82,26 @@ class EltwiseInputReshape(MiddleReplacementPattern):
                 consumer_port = eltwise_node.in_port(in_port_idx)
                 producer_port = consumer_port.get_source()
                 producer_shape = producer_port.data.get_shape()
-                if len(producer_shape) == len(eltwise_shape):
-                    continue
-                unsqueeze_dims = []
                 if len(producer_shape) != len(eltwise_shape):
-                    for x in range(len(eltwise_shape) - len(producer_shape)):
-                        unsqueeze_dims.append(x)
-                unsqueeze_dims = tuple([x for x in unsqueeze_dims])
-                if not producer_port in mapping:
-                    mapping.update({producer_port: {unsqueeze_dims: [consumer_port]}})
-                else:
-                    int_mapping = mapping[producer_port].copy()
-                    if not unsqueeze_dims in int_mapping:
-                        int_mapping.update({unsqueeze_dims: [consumer_port]})
+                    unsqueeze_dims = tuple(np.arange(len(eltwise_shape) - len(producer_shape), dtype=np.int64))
+                    if not producer_port in mapping:
+                        mapping.update({producer_port: {unsqueeze_dims: [consumer_port]}})
+                    elif not unsqueeze_dims in mapping[producer_port]:
+                        mapping[producer_port].update({unsqueeze_dims: [consumer_port]})
                     else:
-                        int_mapping[unsqueeze_dims].append(consumer_port)
-                    mapping[producer_port] = int_mapping
+                        mapping[producer_port][unsqueeze_dims].append(consumer_port)
 
-        # Walkthough each produced in the map and insert Reshape nodes between a producer and eltwise nodes
+        # Walk through each produced in the map and insert Reshape nodes between a producer and eltwise nodes
         for producer_port in mapping.keys():
-            int_mapping = mapping[producer_port].copy()
             producer_node = producer_port.node
-            for unsqueeze_dims in int_mapping.keys():
-                reshape_name = producer_node.soft_get('name', producer_node.id) + '/EltwiseReshape'
+            for unsqueeze_dims in mapping[producer_port].keys():
+                unsqueeze_name = producer_node.soft_get('name', producer_node.id) + '/EltwiseReshape'
                 unsqueeze_node = create_op_with_const_inputs(graph, Unsqueeze, {1: int64_array(list(unsqueeze_dims))},
-                                                             {'name': reshape_name,
+                                                             {'name': unsqueeze_name,
                                                               'override_output_shape': True})
 
                 unsqueeze_node.in_port(0).connect(producer_port)
 
                 # Insert Reshape with determined output shape between the current producer and eltwise node
-                for consumer_port in int_mapping[unsqueeze_dims]:
+                for consumer_port in mapping[producer_port][unsqueeze_dims]:
                     consumer_port.connect(unsqueeze_node.out_port(0))

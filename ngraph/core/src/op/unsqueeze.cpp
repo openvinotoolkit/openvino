@@ -31,13 +31,13 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
 
-op::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
+op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
     : Op({data, axes})
 {
     constructor_validate_and_infer_types();
 }
 
-void op::Unsqueeze::validate_and_infer_types()
+void op::v0::Unsqueeze::validate_and_infer_types()
 {
     const auto data = input_value(0);
     auto data_partial_shape = data.get_partial_shape();
@@ -77,12 +77,12 @@ void op::Unsqueeze::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
 }
 
-bool ngraph::op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
 {
     return true;
 }
 
-shared_ptr<Node> op::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
 {
     if (new_args.size() != 2)
     {
