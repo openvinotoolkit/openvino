@@ -97,9 +97,8 @@ namespace ngraph
                 return true;
             }
 
-            std::vector<std::vector<std::uint8_t>>
-                function(const std::shared_ptr<ngraph::Function>& function,
-                         const std::vector<std::vector<std::uint8_t>>& inputs)
+            HostTensorVector function(const std::shared_ptr<ngraph::Function>& function,
+                                      const HostTensorVector& inputs)
             {
                 const auto& parameters = function->get_parameters();
                 const auto& parametersNumber = parameters.size();
@@ -113,7 +112,6 @@ namespace ngraph
                              inputsNumber,
                              " input blobs");
 
-                HostTensorVector inputTensors;
                 for (const auto& parameter : parameters)
                 {
                     const auto& parameterIndex = function->get_parameter_index(parameter);
@@ -122,7 +120,7 @@ namespace ngraph
                     const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
 
                     const auto& input = inputs[parameterIndex];
-                    const auto& inputSize = input.size();
+                    const auto& inputSize = input->get_size_in_bytes();
                     NGRAPH_CHECK(parameterSize == inputSize,
                                  "Got parameter (",
                                  parameter->get_friendly_name(),
@@ -133,30 +131,16 @@ namespace ngraph
                                  " has ",
                                  inputSize,
                                  " bytes");
-
-                    auto tensor =
-                        std::make_shared<HostTensor>(parameterType, parameterShape);
-                    tensor->write(input.data(), parameterSize);
-                    inputTensors.push_back(tensor);
                 }
 
                 const auto& results = function->get_results();
-                HostTensorVector outputTensors;
-                outputTensors.reserve(results.size());
+                HostTensorVector outputs;
+                outputs.reserve(results.size());
                 for (size_t i = 0; i < results.size(); ++i)
                 {
-                    outputTensors.push_back(std::make_shared<HostTensor>());
+                    outputs.push_back(std::make_shared<HostTensor>());
                 }
-                call(outputTensors, inputTensors, function);
-                std::vector<std::vector<std::uint8_t>> outputs(results.size());
-                for (const auto& result : results)
-                {
-                    const auto& resultIndex = function->get_result_index(result);
-                    auto& output = outputs[resultIndex];
-                    output.resize(shape_size(result->get_shape()) *
-                                  result->get_element_type().size());
-                    outputTensors[resultIndex]->read(output.data(), output.size());
-                }
+                call(outputs, inputs, function);
                 return outputs;
             }
         }

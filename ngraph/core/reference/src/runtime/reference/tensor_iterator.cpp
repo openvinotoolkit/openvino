@@ -30,9 +30,14 @@ namespace ngraph
                                  const op::util::OutputDescriptionVector& out_descs,
                                  const op::util::InputDescriptionVector& input_descs,
                                  const HostTensorVector& out,
-                                 const HostTensorVector& args)
+                                 const HostTensorVector& args,
+                                 const custom_evaluate_function& evaluate)
             {
-                std::vector<std::vector<std::uint8_t>> inputs_to_body(input_descs.size());
+                HostTensorVector inputs_to_body;
+                for (int64_t i = 0; i < input_descs.size(); ++i)
+                    inputs_to_body.push_back(
+                        std::make_shared<HostTensor>(element::dynamic, PartialShape::dynamic()));
+
                 // Port map processing: inputs and back edges
                 struct BackEdge
                 {
@@ -42,19 +47,9 @@ namespace ngraph
                 std::vector<BackEdge> back_edges;
                 for (const auto& desc : input_descs)
                 {
-                    auto* data_ptr = args[desc->m_input_index]->get_data_ptr<uint8_t>();
-                    auto size_bytes = args[desc->m_input_index]->get_size_in_bytes();
-                    // Values will be provided for each iteration in main loop
-                    if (const auto& sliced_desc = std::dynamic_pointer_cast<
-                            opset5::TensorIterator::SliceInputDescription>(desc)) {
-                        inputs_to_body[desc->m_body_parameter_index].resize(size_bytes/num_iterations);
-                        continue;
-                    }
-                    inputs_to_body[desc->m_body_parameter_index].resize(size_bytes);
-                    std::memcpy(
-                            inputs_to_body[desc->m_body_parameter_index].data(), data_ptr, size_bytes);
-                    if (const auto& merged_desc = std::dynamic_pointer_cast<
-                            opset5::TensorIterator::MergedInputDescription>(desc))
+                    inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
+                    if (const auto& merged_desc =
+                            std::dynamic_pointer_cast<opset5::Loop::MergedInputDescription>(desc))
                     {
                         back_edges.push_back(
                             {merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
@@ -75,7 +70,7 @@ namespace ngraph
                 // Slicing
                 std::vector<std::shared_ptr<opset5::TensorIterator::SliceInputDescription>>
                     slice_inputs;
-                std::vector<std::vector<char>> sliced_values;
+                std::vector<HostTensorVector> sliced_values;
                 int slice_in_idx = 0;
                 for (const auto& desc : input_descs)
                 {
@@ -86,13 +81,18 @@ namespace ngraph
                             args[slice_desc->m_input_index]->get_element_type().size();
                         slice_inputs.push_back(slice_desc);
                         auto shape = args[slice_desc->m_input_index]->get_shape();
-                        sliced_values.emplace_back(shape_size(shape) * el_size);
                         shape.at(slice_desc->m_axis) = 1;
+                        sliced_values.emplace_back(HostTensorVector());
+                        for (int i = 0; i < num_iterations; ++i)
+                        {
+                            sliced_values.back().emplace_back(std::make_shared<HostTensor>(
+                                args[slice_desc->m_input_index]->get_element_type(), shape));
+                        }
                         std::vector<char*> pointers_to_data(num_iterations);
                         for (size_t j = 0; j < pointers_to_data.size(); ++j)
                         {
-                            pointers_to_data[j] = sliced_values[slice_in_idx].data() +
-                                                  shape_size(shape) * el_size * j;
+                            pointers_to_data[j] =
+                                sliced_values[slice_in_idx][j]->get_data_ptr<char>();
                         }
                         reference::split(args[slice_desc->m_input_index]->get_data_ptr<char>(),
                                          args[slice_desc->m_input_index]->get_shape(),
@@ -105,23 +105,27 @@ namespace ngraph
                 }
 
                 // Allocate vectors for store output values
-                std::vector<std::vector<std::vector<uint8_t>>> values_to_concat(
-                    concat_outputs.size());
-                std::vector<std::vector<std::uint8_t>> body_outputs;
+                std::vector<HostTensorVector> values_to_concat(concat_outputs.size());
+                HostTensorVector body_outputs;
 
                 for (int64_t cur_iter = 0; cur_iter < num_iterations; ++cur_iter)
                 {
                     // Copy new values for sliced inputs
                     for (size_t i = 0; i < slice_inputs.size(); ++i)
                     {
-                        std::memcpy(
-                            inputs_to_body[slice_inputs[i]->m_body_parameter_index].data(),
-                            &sliced_values[i][cur_iter],
-                            sizeof(sliced_values[i][cur_iter]));
+                        inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
+                            sliced_values[i][cur_iter];
                     }
 
                     // Evaluate body
-                    body_outputs = reference::function(func, inputs_to_body);
+                    if (!evaluate)
+                    {
+                        body_outputs = reference::function(func, inputs_to_body);
+                    }
+                    else
+                    {
+                        body_outputs = evaluate(func, inputs_to_body);
+                    }
 
                     // Store values for later concatenation
                     for (size_t i = 0; i < values_to_concat.size(); ++i)
@@ -143,9 +147,9 @@ namespace ngraph
                             opset5::TensorIterator::BodyOutputDescription>(desc))
                     {
                         // Copy output values from the last iteration
-                        std::memcpy(out[body_desc->m_output_index]->get_data_ptr(),
-                                    body_outputs[body_desc->m_body_value_index].data(),
-                                    body_outputs[body_desc->m_body_value_index].size());
+                        out[body_desc->m_output_index]->write(
+                            body_outputs[body_desc->m_body_value_index]->get_data_ptr(),
+                            body_outputs[body_desc->m_body_value_index]->get_size_in_bytes());
                     }
                 }
 
@@ -162,7 +166,7 @@ namespace ngraph
                     pointers_on_values.reserve(values_to_concat[i].size());
                     for (const auto& vec : values_to_concat[i])
                     {
-                        pointers_on_values.push_back(reinterpret_cast<const char*>(vec.data()));
+                        pointers_on_values.push_back(vec->get_data_ptr<char>());
                     }
                     reference::concat(pointers_on_values,
                                       out[concat_desc->m_output_index]->get_data_ptr<char>(),
