@@ -58,7 +58,9 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        dataConfig.desc = MKLDNNMemoryDesc(getCnnLayer()->outData[0]->getTensorDesc());
+        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->outData[0]->getTensorDesc());
+        outFormat = MKLDNNMemoryDesc(mem_tdesc).getFormat();
+        dataConfig.desc = MKLDNNMemoryDesc(mem_tdesc);
         config.outConfs.push_back(dataConfig);
     } else if (getType() == Output) {
         precision = getCnnLayer()->insData[0].lock()->getPrecision();
@@ -68,7 +70,9 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        dataConfig.desc = MKLDNNMemoryDesc(getCnnLayer()->insData[0].lock()->getTensorDesc());
+        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->insData[0].lock()->getTensorDesc());
+        outFormat = mem_tdesc.getFormat();
+        dataConfig.desc = mem_tdesc;
         config.inConfs.push_back(dataConfig);
     }
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
