@@ -110,7 +110,7 @@ namespace ngraph
             }
         }
 
-        const OpsetImportType& Model::get_opset_import() const
+        const OpsetImports& Model::get_opset_imports() const
         {
             return m_model_proto->opset_import();
         }

@@ -44,7 +44,7 @@ namespace ngraph
             *(model_proto.mutable_graph()) = graph;
 
             // set opset version and domain from the parent graph
-            *model_proto.mutable_opset_import() = parent_graph.get_opset_import();
+            *model_proto.mutable_opset_import() = parent_graph.get_opset_imports();
 
             Model model{model_proto};
             return Subgraph{graph, model, parent_graph};

@@ -46,7 +46,7 @@ namespace ngraph
             const std::string& get_name() const { return m_graph_proto->name(); }
             OutputVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
-            const OpsetImportType& get_opset_import() const;
+            const OpsetImports& get_opset_imports() const;
 
         protected:
             Graph(const ONNX_NAMESPACE::GraphProto& proto,
