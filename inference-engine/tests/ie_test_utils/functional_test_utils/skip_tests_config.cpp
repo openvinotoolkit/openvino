@@ -9,7 +9,7 @@ namespace SkipTestsConfig {
 
 bool disable_tests_skipping = false;
 
-inline bool currentTestIsDisabled() {
+bool currentTestIsDisabled() {
     bool skip_test = false;
     const auto fullName = ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()
                           + std::string(".") + ::testing::UnitTest::GetInstance()->current_test_info()->name();
