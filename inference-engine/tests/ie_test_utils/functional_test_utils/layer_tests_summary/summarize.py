@@ -68,7 +68,7 @@ file_loader = FileSystemLoader('template')
 env = Environment(loader=file_loader)
 template = env.get_template('report_template.html')
 
-res = template.render(ops=ops, ordered_ops=ordered_ops, devices=devices, results=results, timestamp=timestamp)
+res = template.render(ordered_ops=ordered_ops, devices=devices, results=results, timestamp=timestamp)
 
 with open(os.path.join(args.out, "report.html"), "w") as f:
     f.write(res)

@@ -31,18 +31,34 @@ Summary &Summary::getInstance() {
     return *p_instance;
 }
 
-void Summary::updateOPsStats(ngraph::NodeTypeInfo op, bool passed) {
+void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status) {
     // TODO: Do we need to count skips?
     auto it = opsStats.find(op);
     if (it != opsStats.end()) {
         auto &passrate = it->second;
-        if (passed) {
-            passrate.passed += 1;
-        } else {
-            passrate.failed += 1;
+        switch (status) {
+            case PassRate::PASSED:
+                passrate.passed += 1;
+                break;
+            case PassRate::FAILED:
+                passrate.failed += 1;
+                break;
+            case PassRate::SKIPPED:
+                passrate.skipped += 1;
+                break;
         }
     } else {
-        opsStats[op] = passed ? PassRate(1, 0) : PassRate(0, 1);
+        switch (status) {
+            case PassRate::PASSED:
+                opsStats[op] = PassRate(1, 0, 0);
+                break;
+            case PassRate::FAILED:
+                opsStats[op] = PassRate(0, 1, 0);
+                break;
+            case PassRate::SKIPPED:
+                opsStats[op] = PassRate(0, 0, 1);
+                break;
+        }
     }
 }
 
@@ -107,6 +123,7 @@ void TestEnvironment::TearDown() {
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("passed").set_value(std::to_string(it.second.passed).c_str());
         entry.append_attribute("failed").set_value(std::to_string(it.second.failed).c_str());
+        entry.append_attribute("skipped").set_value(std::to_string(it.second.skipped).c_str());
         entry.append_attribute("passrate").set_value(std::to_string(it.second.getPassrate()).c_str());
     }
     bool result = doc.save_file(reportFileName.c_str());
@@ -120,12 +137,9 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
 }
 
 void LayerTestsCommon::Run() {
-    if (!ignore_skips) {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    }
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
-    auto reportStatus = [this, &s](bool passed) {
+    auto reportStatus = [this, &s](PassRate::Statuses status) {
         for (const auto &op : function->get_ordered_ops()) {
             if (ngraph::is_type<ngraph::op::Parameter>(op) ||
                 ngraph::is_type<ngraph::op::Constant>(op) ||
@@ -135,27 +149,33 @@ void LayerTestsCommon::Run() {
                 auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
                 auto ti_body = ti->get_body();
                 for (const auto &ti_op : ti_body->get_ordered_ops()) {
-                    s.updateOPsStats(ti_op->get_type_info(), passed);
+                    s.updateOPsStats(ti_op->get_type_info(), status);
                 }
             } else {
-                s.updateOPsStats(op->get_type_info(), passed);
+                s.updateOPsStats(op->get_type_info(), status);
             }
         }
     };
+
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        reportStatus(PassRate::Statuses::SKIPPED);
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    }
+
     try {
         LoadNetwork();
         Infer();
         Validate();
-        reportStatus(true);
+        reportStatus(PassRate::Statuses::PASSED);
     }
     catch(const std::runtime_error& re) {
-        reportStatus(false);
+        reportStatus(PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(re.what());
     } catch(const std::exception& ex) {
-        reportStatus(false);
+        reportStatus(PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(ex.what());
     } catch (...) {
-        reportStatus(false);
+        reportStatus(PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }

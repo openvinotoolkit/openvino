@@ -26,18 +26,8 @@
         integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
         crossorigin="anonymous"></script>
 -->
-<h2>Operations coverage summary</h2>
 <hr class="my-4">
-<table class="table-bordered">
-    <tr>
-        <th scope="row">timestamp</th>
-        <td>{{ timestamp }}</td>
-    </tr>
-    <tr>
-        <th scope="row">opset</th>
-        <td>{{ opset }}</td>
-    </tr>
-</table>
+<h2>Operations coverage summary {{ timestamp }}</h2>
 <hr class="my-4">
 <table class="table table-hover" id="report">
     <thead>
@@ -56,11 +46,7 @@
         {% if op in results[d] -%}
         <td>
             {{ results[d][op].passrate }}% (<span style="color: green">p:{{ results[d][op].passed }}</span>,
-            <span style="color: red">f:{{ results[d][op].failed }}</span>)
-            {% if results[d][op].wrong_version -%}
-            <br>
-            <span style="color: red">Wrong opset version {{ results[d][op].version }}, expected {{ ops[op] }}</span>
-            {% endif -%}
+            <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }})
         </td>
         {% else -%}
         <td class="table-warning">No tests</td>
@@ -69,6 +55,13 @@
         {% endfor %}
     </tr>
     {% endfor -%}
+    <tr>
+        <th scope="row">Total: {{ordered_ops|length}}</th>
+        {% for d in devices -%}
+        <td>{{results[d]|length}}</td>
+        {% endfor %}
+
+    </tr>
     </tbody>
 </table>
 </body>

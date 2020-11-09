@@ -5,12 +5,11 @@
 #include "gtest/gtest.h"
 #include "functional_test_utils/layer_test_utils.hpp"
 
-bool ignore_skips;
 int main(int argc, char* argv[]) {
-    ignore_skips = false;
+    FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--disable_test_skips") {
-            ignore_skips = true;
+            FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
         }
     }
     ::testing::InitGoogleTest(&argc, argv);
