@@ -23,6 +23,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "subgraph_tests/basic_lstm.hpp"
 
 namespace BehaviorTestsDefinitions {
 using InferRequestTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -625,61 +626,14 @@ TEST_P(InferRequestTests, returnDeviceBusyOnGetPerformanceCountAfterAsyncInfer) 
 }
 
 class InferRequestTestsResultNotReady : public InferRequestTests {
-protected:
-    // return function which computes around 20ms on GNA SW
-    static std::shared_ptr<ngraph::Function> GetModelOf20ms() {
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP32);
-
-        auto params = ngraph::builder::makeParams(ngPrc, { {1, 30000} });
-
-        const size_t hidden_size = 380;
-        const size_t batch_size = 1;
-        const size_t iterations = 10;
-
-        //Reshape_1 [1,490] -> [1, 10, 49]
-        std::vector<uint64_t> outFormShapes1 = { batch_size, iterations, 3000 };
-        auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 3 }, outFormShapes1);
-        auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
-
-        std::vector<uint64_t> axis_shape = { 1 };
-        auto axis = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ }, axis_shape);
-        auto split1 = std::make_shared<ngraph::opset1::Split>(reshape1, axis, iterations);
-
-        ngraph::Output<ngraph::Node> H[iterations + 1];
-        ngraph::Output<ngraph::Node> C[iterations + 1];
-        std::shared_ptr<ngraph::opset4::LSTMCell> lstm[iterations];
-        H[0] = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
-        C[0] = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
-        auto reshape1_shape = reshape1->output(0).get_shape();
-        auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hidden_size, reshape1_shape[2] }, {}, true);
-        auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hidden_size, hidden_size }, {}, true);
-
-        outFormShapes1 = { batch_size, reshape1_shape[2] };
-        auto constantX = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, outFormShapes1);
-
-        for (size_t i = 0; i < iterations; ++i) {
-            auto X = split1->output(i);
-            lstm[i] = std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
-                H[i], C[i],
-                weightsNode, reccurrenceWeightsNode, hidden_size);
-
-            H[i + 1] = lstm[i]->output(0);
-            C[i + 1] = lstm[i]->output(1);
-        }
-
-        const size_t output_size = 12;
-        auto fc1 = ngraph::builder::makeFullyConnected(H[iterations], ngPrc, output_size, true, { hidden_size, output_size }, { 1 }, { 1 });
-
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fc1) };
-        return std::make_shared<ngraph::Function>(results, params, "Basic_LSTM_S_Ref");
-    }
 };
 
 TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
-    function = GetModelOf20ms();
+    // return function which computes around 20ms on GNA SW
+    function = LayerTestsDefinitions::Basic_LSTM_S::GetNetwork(3000, 380);
     InferenceEngine::CNNNetwork cnnNet(function);
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
