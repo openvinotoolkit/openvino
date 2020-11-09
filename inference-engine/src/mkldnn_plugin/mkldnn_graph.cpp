@@ -748,7 +748,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             ext_blob->allocate();
         }
 
-        auto srcPrec = MKLDNNMemory::convertToIePrec(intr_blob.GetDataType());
+        auto srcPrec = MKLDNNExtensionUtils::DataTypeToIEPrecision(intr_blob.GetDataType());
         auto dstPrec = ext_blob->getTensorDesc().getPrecision();
         if (srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
                 THROW_IE_EXCEPTION << "Output blob byte size is not equal network output byte size ("
