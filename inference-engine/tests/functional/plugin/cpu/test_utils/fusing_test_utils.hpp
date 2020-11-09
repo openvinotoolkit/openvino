@@ -108,10 +108,14 @@ const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{nullptr, {
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Relu);
             }, "Relu"}}, {"FakeQuantize", "Relu"}};
-// TODO: failed test
-// const auto fusingFakeQuantizePerTensorRelu = fusingSpecificParams{nullptr,
-//         {{ngraph::builder::makeFakeQuantize(fakeConstNode, ngraph::element::f32, 256, fakeShape), {{"Granularity", "PerTensor"}}},
-//          {ngraph::builder::makeActivation(fakeConstNode, ngraph::element::f32, ngraph::helpers::Relu)}}, {"FakeQuantize", "Relu"}};
+const auto fusingFakeQuantizePerTensorRelu = fusingSpecificParams{nullptr, {
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                auto newShape = ngraph::Shape(inpNode->get_shape().size(), 1);
+                return ngraph::builder::makeFakeQuantize(inpNode, ngPrc, 256, newShape);
+            }, "FakeQuantize(PerTensor)"},
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Relu);
+            }, "Relu"}}, {"FakeQuantize", "Relu"}};
 const auto fusingSum = fusingSpecificParams{nullptr, {
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto shape = inpNode->get_shape();

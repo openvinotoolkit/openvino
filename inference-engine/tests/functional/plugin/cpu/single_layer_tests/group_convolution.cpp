@@ -139,6 +139,7 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingSwish,
         // other patterns
         fusingReluScaleShift,
+        fusingFakeQuantizePerTensorRelu,
         fusingFakeQuantizePerChannelRelu,
         fusingSum,
 };
