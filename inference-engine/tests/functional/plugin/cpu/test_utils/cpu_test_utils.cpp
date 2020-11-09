@@ -26,6 +26,16 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
             || !strcmp("mkldnn_" #_fmt, str)) \
         return _fmt; \
 } while (0)
+    CASE(undef);
+    CASE(a);
+    CASE(abcd);
+    CASE(acdb);
+    CASE(aBcd8b);
+    CASE(aBcd16b);
+    CASE(abcde);
+    CASE(acdeb);
+    CASE(aBcde8b);
+    CASE(aBcde16b);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
@@ -91,8 +101,11 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
                 const auto port = node->inputs()[i];
                 if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
                     auto parentNode = parentPort.get_node_shared_ptr();
+                    auto shape = parentNode->get_output_tensor(0).get_shape();
                     auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
-                    ASSERT_EQ(inputMemoryFormats[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
+                    const bool is_unsquized_1d = std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
+                    if (!is_unsquized_1d)
+                        ASSERT_EQ(inputMemoryFormats[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
                 }
             }
             for (int i = 0; i < outputMemoryFormats.size(); i++) {
