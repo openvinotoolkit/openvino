@@ -62,6 +62,13 @@ function(build_docs)
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
     set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
 
+    # assets dir
+    set(ASSETS_DIR "${DOXYGEN_DIR}/assets")
+    
+    # header and footer
+    set(HEADER "${DOXYGEN_DIR}/header.html")
+    set(FOOTER "${DOXYGEN_DIR}/footer.html")
+
     file(GLOB_RECURSE doc_source_files
         LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
         "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md" 
