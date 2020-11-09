@@ -29,14 +29,12 @@ namespace ngraph
     }
 }
 
-class NGRAPH_API ngraph::pass::ConstantFolding : public ngraph::pass::GraphRewrite
+class NGRAPH_API ngraph::pass::ConstantFolding : public ngraph::pass::FunctionPass
 {
 public:
-    ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap());
+    virtual bool run_on_function(std::shared_ptr<ngraph::Function> graph) override;
 
 private:
     void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
                                             const Output<Node>& replacement);
-
-    ngraph::BuildNodeExecutorMap m_cfmap;
 };

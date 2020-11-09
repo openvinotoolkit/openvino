@@ -20,63 +20,61 @@
 using namespace std;
 using namespace ngraph;
 
-ngraph::pass::ConstantFolding::ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap)
-    : GraphRewrite()
-    , m_cfmap{cfmap}
-{
-    m_enable_shape_inference = true;
-
-    m_matchers.push_back(std::make_shared<MatcherPass>(
-        "Constant folding defaults",
-        nullptr,
-        [=](const std::shared_ptr<Node>& node) -> bool {
-            OutputVector replacements(node->get_output_size());
-            if (!node->constant_fold(replacements, node->input_values()))
-            {
-                return false;
-            }
-            NGRAPH_CHECK(replacements.size() == node->get_output_size(),
-                         "constant_fold_default returned incorrect number of replacements for ",
-                         node);
-            bool result{false};
-            for (size_t i = 0; i < replacements.size(); ++i)
-            {
-                auto node_output = node->output(i);
-                auto replacement = replacements.at(i);
-                if (replacement.get_node_shared_ptr() && (node_output != replacement))
-                {
-                    if (replacements.size() == 1)
-                    {
-                        replacement.get_node_shared_ptr()->set_friendly_name(
-                            node->get_friendly_name());
-                    }
-                    else
-                    {
-                        replacement.get_node_shared_ptr()->set_friendly_name(
-                            node->get_friendly_name() + "." + std::to_string(i));
-                    }
-                    node_output.replace(replacement);
-                    // Propagate runtime info attributes to replacement consumer nodes
-                    copy_runtime_info_to_target_inputs(node, replacement);
-                    result = true;
-                }
-            }
-            return result;
-        },
-        PassProperty::CHANGE_DYNAMIC_STATE));
-}
+// {
+//     m_matchers.push_back(std::make_shared<MatcherPass>(
+//         "Constant folding defaults",
+//         nullptr,
+//         [=](const std::shared_ptr<Node>& node) -> bool {
+//             OutputVector replacements(node->get_output_size());
+//             if (!node->constant_fold(replacements, node->input_values()))
+//             {
+//                 return false;
+//             }
+//             NGRAPH_CHECK(replacements.size() == node->get_output_size(),
+//                          "constant_fold_default returned incorrect number of replacements for ",
+//                          node);
+//             bool result{false};
+//             for (size_t i = 0; i < replacements.size(); ++i)
+//             {
+//                 auto node_output = node->output(i);
+//                 auto replacement = replacements.at(i);
+//                 if (replacement.get_node_shared_ptr() && (node_output != replacement))
+//                 {
+//                     if (replacements.size() == 1)
+//                     {
+//                         replacement.get_node_shared_ptr()->set_friendly_name(
+//                             node->get_friendly_name());
+//                     }
+//                     else
+//                     {
+//                         replacement.get_node_shared_ptr()->set_friendly_name(
+//                             node->get_friendly_name() + "." + std::to_string(i));
+//                     }
+//                     node_output.replace(replacement);
+//                     // Propagate runtime info attributes to replacement consumer nodes
+//                     copy_runtime_info_to_target_inputs(node, replacement);
+//                     result = true;
+//                 }
+//             }
+//             return result;
+//         },
+//         PassProperty::CHANGE_DYNAMIC_STATE));
+// }
 
 bool ngraph::pass::revalidate_and_ensure_static(shared_ptr<Node> n)
 {
     n->revalidate_and_infer_types();
-    for (auto& o : n->outputs())
-    {
-        if (o.get_partial_shape().is_dynamic() || o.get_element_type().is_dynamic())
-        {
-            return false;
-        }
-    }
-    return true;
+
+    const auto is_any_output_dynamic =
+        std::any_of(n->outputs().begin(), n->outputs().end(), [](const Output<Node>& o) {
+            return o.get_partial_shape().is_dynamic() || o.get_element_type().is_dynamic();
+        });
+
+    return !is_any_output_dynamic;
+}
+
+bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> graph) {
+    return false;
 }
 
 void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
