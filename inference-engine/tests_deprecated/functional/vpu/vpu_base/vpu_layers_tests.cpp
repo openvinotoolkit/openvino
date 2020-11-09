@@ -252,7 +252,7 @@ bool vpuLayersTests::Infer() {
         return false;
     const auto st = _inferRequest->Infer(&_resp);
     EXPECT_EQ(InferenceEngine::StatusCode::OK, st) << _resp.msg;
-   dumpPerformance();
+//    dumpPerformance();
     if (!_config[InferenceEngine::MYRIAD_CUSTOM_LAYERS].empty()) {
         EXPECT_TRUE(wasCustomLayerInferred())
             << "CustomBindings.xml has been provided but Custom layer was not inferred";

@@ -35,7 +35,6 @@
 #include <precision_utils.h>
 #include <common.hpp>
 #include <vpu/vpu_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 
 static char* m_exename = nullptr;
 
@@ -157,7 +156,6 @@ static void setConfig(std::map<std::string, std::string>& config,
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
     config[InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME] = CONFIG_VALUE(YES);
     config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = file_config_cl;
-    config[InferenceEngine::MYRIAD_PERF_REPORT_MODE] = InferenceEngine::MYRIAD_PER_STAGE; // MYRIAD_PER_LAYER good param
 }
 
 static void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) {
@@ -290,7 +288,7 @@ static void getBINFiles(std::vector<std::string> &out, const std::string &direct
 
 int num_requests = 4;
 
-#define MIN_ITER 1
+#define MIN_ITER 1000
 
 #define USE_CALLBACK
 
@@ -304,7 +302,7 @@ std::vector<time_point> iter_start;
 std::vector<time_point> iter_end;
 std::vector<double> iter_time;
 
-const int profile = 1;
+const int profile = 0;
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
 
 int process(const std::string& modelFileName, const std::string& inputsDir,
