@@ -29,26 +29,10 @@ namespace ngraph
     {
         namespace reference
         {
-            bool call(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
-                      const std::vector<std::shared_ptr<runtime::Tensor>>& inputs,
+            bool call(const HostTensorVector& func_outputs,
+                      const HostTensorVector& func_inputs,
                       const std::shared_ptr<ngraph::Function>& function)
             {
-                // convert inputs to HostTensor
-                std::vector<std::shared_ptr<HostTensor>> func_inputs;
-                for (const auto& tensor : inputs)
-                {
-                    auto host_tensor = std::static_pointer_cast<runtime::HostTensor>(tensor);
-                    func_inputs.push_back(host_tensor);
-                }
-
-                // convert outputs to HostTensor
-                std::vector<std::shared_ptr<HostTensor>> func_outputs;
-                for (const auto& tensor : outputs)
-                {
-                    auto host_tensor = std::static_pointer_cast<runtime::HostTensor>(tensor);
-                    func_outputs.push_back(host_tensor);
-                }
-
                 // map function params -> HostTensor
                 std::unordered_map<descriptor::Tensor*, std::shared_ptr<HostTensor>> tensor_map;
                 size_t input_count = 0;
@@ -129,7 +113,7 @@ namespace ngraph
                              inputsNumber,
                              " input blobs");
 
-                auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+                HostTensorVector inputTensors;
                 for (const auto& parameter : parameters)
                 {
                     const auto& parameterIndex = function->get_parameter_index(parameter);
@@ -151,13 +135,13 @@ namespace ngraph
                                  " bytes");
 
                     auto tensor =
-                        std::make_shared<runtime::HostTensor>(parameterType, parameterShape);
+                        std::make_shared<HostTensor>(parameterType, parameterShape);
                     tensor->write(input.data(), parameterSize);
                     inputTensors.push_back(tensor);
                 }
 
                 const auto& results = function->get_results();
-                std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
+                HostTensorVector outputTensors;
                 outputTensors.reserve(results.size());
                 for (size_t i = 0; i < results.size(); ++i)
                 {

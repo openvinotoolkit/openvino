@@ -44,9 +44,15 @@ namespace ngraph
                 {
                     auto* data_ptr = args[desc->m_input_index]->get_data_ptr<uint8_t>();
                     auto size_bytes = args[desc->m_input_index]->get_size_in_bytes();
+                    // Values will be provided for each iteration in main loop
+                    if (const auto& sliced_desc = std::dynamic_pointer_cast<
+                            opset5::TensorIterator::SliceInputDescription>(desc)) {
+                        inputs_to_body[desc->m_body_parameter_index].resize(size_bytes/num_iterations);
+                        continue;
+                    }
                     inputs_to_body[desc->m_body_parameter_index].resize(size_bytes);
                     std::memcpy(
-                        inputs_to_body[desc->m_body_parameter_index].data(), data_ptr, size_bytes);
+                            inputs_to_body[desc->m_body_parameter_index].data(), data_ptr, size_bytes);
                     if (const auto& merged_desc = std::dynamic_pointer_cast<
                             opset5::TensorIterator::MergedInputDescription>(desc))
                     {
@@ -80,8 +86,8 @@ namespace ngraph
                             args[slice_desc->m_input_index]->get_element_type().size();
                         slice_inputs.push_back(slice_desc);
                         auto shape = args[slice_desc->m_input_index]->get_shape();
+                        sliced_values.emplace_back(shape_size(shape) * el_size);
                         shape.at(slice_desc->m_axis) = 1;
-                        sliced_values.emplace_back(num_iterations, shape_size(shape) * el_size);
                         std::vector<char*> pointers_to_data(num_iterations);
                         for (size_t j = 0; j < pointers_to_data.size(); ++j)
                         {
@@ -109,9 +115,9 @@ namespace ngraph
                     for (size_t i = 0; i < slice_inputs.size(); ++i)
                     {
                         std::memcpy(
-                            inputs_to_body[slice_inputs[cur_iter]->m_body_parameter_index].data(),
-                            sliced_values[i].data(),
-                            sliced_values[i].size());
+                            inputs_to_body[slice_inputs[i]->m_body_parameter_index].data(),
+                            &sliced_values[i][cur_iter],
+                            sizeof(sliced_values[i][cur_iter]));
                     }
 
                     // Evaluate body
