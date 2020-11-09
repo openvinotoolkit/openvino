@@ -93,7 +93,7 @@ class ConvertSlice(MiddleReplacementPattern):
                                           shrink_axis_mask=np.zeros(len(input_shape), dtype=np.int64),
                                           ellipsis_mask=np.zeros(len(input_shape), dtype=np.int64),
                                           begin_mask=ss_begin_mask,
-                                          end_mask=ss_end_mask)).create_node()
+                                          end_mask=ss_end_mask, override_output_shape=True)).create_node()
 
             node.in_port(0).get_connection().set_destination(ss.in_port(0))
             ss.in_port(1).connect(ss_begin.out_port(0))
