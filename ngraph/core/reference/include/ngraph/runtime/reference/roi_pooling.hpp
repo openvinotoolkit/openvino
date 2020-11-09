@@ -44,10 +44,7 @@ namespace ngraph
 
                 const int num_rois = rois_shape[0];
 
-                for (unsigned int i = 0; i < shape_size(output_shape); i++)
-                {
-                    output[i] = std::numeric_limits<T>::lowest();
-                }
+                std::fill_n(output, shape_size(output_shape), std::numeric_limits<T>::lowest());
 
                 for (unsigned int roi_num = 0; roi_num < num_rois; roi_num++)
                 {
@@ -59,8 +56,6 @@ namespace ngraph
 
                     if (pooling_method == ROIPoolingMethod::Max)
                     {
-                        T* output_ptr = output;
-
                         // ROI coordinates scaled to input feature maps
                         int roi_w_start = std::round(rois[roi_idx + 1] * spatial_scale);
                         int roi_h_start = std::round(rois[roi_idx + 2] * spatial_scale);
@@ -68,8 +63,8 @@ namespace ngraph
                         int roi_h_end = std::round(rois[roi_idx + 4] * spatial_scale);
 
                         // Force malformed ROIs to be 1x1
-                        int roi_height = std::max(roi_h_end - roi_h_start, 1);
-                        int roi_width = std::max(roi_w_end - roi_w_start, 1);
+                        int roi_height = std::max(roi_h_end - roi_h_start + 1, 1);
+                        int roi_width = std::max(roi_w_end - roi_w_start + 1, 1);
 
                         // Divide ROIs into sub-regions for max pooling
                         T bin_size_h = static_cast<T>(roi_height) / pooled_h;
@@ -110,7 +105,7 @@ namespace ngraph
                                     bool is_empty = (h_end <= h_start) || (w_end <= w_start);
                                     if (is_empty)
                                     {
-                                        output_ptr[pool_index] = 0;
+                                        output[pool_index] = 0;
                                     }
 
                                     for (unsigned int h = h_start; h < h_end; h++)
@@ -118,15 +113,14 @@ namespace ngraph
                                         for (unsigned int w = w_start; w < w_end; w++)
                                         {
                                             const int index = h * width + w;
-                                            output_ptr[pool_index] =
-                                                std::max(batch_data[index], output_ptr[pool_index]);
+                                            output[pool_index] =
+                                                std::max(batch_data[index], output[pool_index]);
                                         }
                                     }
                                 }
                             }
-                            // Increment all data pointers by one channel
+                            // Increment data pointer by one channel
                             batch_data += height * width;
-                            output_ptr += pooled_w * pooled_h;
                         }
                     }
                     else if (pooling_method == ROIPoolingMethod::Bilinear)
