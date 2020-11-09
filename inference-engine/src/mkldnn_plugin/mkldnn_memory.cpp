@@ -266,6 +266,7 @@ memory::data_type MKLDNNMemory::convertToDataType(const InferenceEngine::Precisi
         case Precision::I32:
             return memory::data_type::s32;
         case Precision::U8:
+        case Precision::BOOL:
             return memory::data_type::u8;
         case Precision::I8:
             return memory::data_type::s8;
@@ -385,10 +386,14 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::BAc16a16b,
         mkldnn::memory::format_tag::BAc16b16a,
 
-     }}, {4, {
-        mkldnn::memory::format_tag::abcd,
+     }}, {4, {                                 // Popular
+        mkldnn::memory::format_tag::abcd,      // plain
+        mkldnn::memory::format_tag::acdb,      // tail_c
+        mkldnn::memory::format_tag::aBcd8b,    // blocked 8c
+        mkldnn::memory::format_tag::aBcd16b,   // blocked 16c
+
         mkldnn::memory::format_tag::abdc,
-        mkldnn::memory::format_tag::acdb,
+
         mkldnn::memory::format_tag::bacd,
         mkldnn::memory::format_tag::bcda,
         mkldnn::memory::format_tag::cdba,
@@ -398,7 +403,6 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::Abcd16a,
         mkldnn::memory::format_tag::Abcd32a,
         mkldnn::memory::format_tag::ABcd16a16b,
-        mkldnn::memory::format_tag::aBcd16b,
         mkldnn::memory::format_tag::aBcd32b,
         mkldnn::memory::format_tag::ABcd16b16a,
         mkldnn::memory::format_tag::aBCd16b16c,
@@ -421,7 +425,6 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::ABcd8a8b,
         mkldnn::memory::format_tag::ABcd8a4b,
 
-        mkldnn::memory::format_tag::aBcd8b,
         mkldnn::memory::format_tag::ABcd8b16a2b,
         mkldnn::memory::format_tag::aBCd8b16c2b,
         mkldnn::memory::format_tag::ABcd8b8a,
@@ -450,11 +453,14 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::aBCd4b8c2b,
         mkldnn::memory::format_tag::aBCd4c8b2c,
 
-    }}, {5, {
-        mkldnn::memory::format_tag::abcde,
+    }}, {5, {                                   // Popular
+        mkldnn::memory::format_tag::abcde,      // plain
+        mkldnn::memory::format_tag::acdeb,      // tail_c
+        mkldnn::memory::format_tag::aBcde8b,    // blocked 8c
+        mkldnn::memory::format_tag::aBcde16b,   // blocked 16c
+
         mkldnn::memory::format_tag::abdec,
         mkldnn::memory::format_tag::acbde,
-        mkldnn::memory::format_tag::acdeb,
         mkldnn::memory::format_tag::bacde,
         mkldnn::memory::format_tag::bcdea,
         mkldnn::memory::format_tag::cdeba,
@@ -463,7 +469,6 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::Abcde16a,
         mkldnn::memory::format_tag::Abcde32a,
         mkldnn::memory::format_tag::ABcde16a16b,
-        mkldnn::memory::format_tag::aBcde16b,
         mkldnn::memory::format_tag::aBcde32b,
         mkldnn::memory::format_tag::ABcde16b16a,
         mkldnn::memory::format_tag::aBCde16b16c,
@@ -481,7 +486,6 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::Abcde8a,
         mkldnn::memory::format_tag::ABcde8a8b,
         mkldnn::memory::format_tag::ABcde8a4b,
-        mkldnn::memory::format_tag::aBcde8b,
         mkldnn::memory::format_tag::ABcde8b16a2b,
         mkldnn::memory::format_tag::ABcde4b16a4b,
         mkldnn::memory::format_tag::ABcde2b8a4b,
@@ -525,6 +529,10 @@ mkldnn::memory::format_tag MKLDNNMemoryDesc::getFormat() const {
     for (const auto &fmt : form_tags_by_ndims.at(dims.size())) {
         // Try to create with format and compare result with existing desc
         memory::desc tmp_desc(dims, type, fmt);
+
+        // Format doesn't depend on offset exclude it from check
+        tmp_desc.data.offset0 = desc.data.offset0;
+
         if (tmp_desc == desc)
             return fmt;
     }
@@ -546,6 +554,17 @@ bool MKLDNNMemoryDesc::isPlainFormat() const {
     }
 
     return is_plain_strides;
+}
+
+bool MKLDNNMemoryDesc::isCompatibleWithFormat(mkldnn::memory::format_tag fmt_tag) const {
+    const auto dims = desc.dims();
+    const auto type = desc.data_type();
+
+    // Try to create with format and compare result with existing desc
+    memory::desc tmp_desc(dims, type, fmt_tag);
+    tmp_desc.data.offset0 = desc.data.offset0;
+
+    return tmp_desc == desc;
 }
 
 /**

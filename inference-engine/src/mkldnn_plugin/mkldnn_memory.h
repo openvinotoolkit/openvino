@@ -71,6 +71,14 @@ public:
 
     bool isPlainFormat() const;
 
+    /**
+     * Check if layout is same as for provided format_tag
+     * Note: it will skip check of tensor offset. Do it manually if you are interested in.
+     *
+     * @return true if tensor desc is same.
+     */
+    bool isCompatibleWithFormat(mkldnn::memory::format_tag fmt_tag) const;
+
 private:
     mkldnn::memory::desc desc;
 };
