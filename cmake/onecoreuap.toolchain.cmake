@@ -49,11 +49,20 @@ endif()
 
 unset(_onecoreuap_arch)
 
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:kernel32.lib /NODEFAULTLIB:user32.lib /NODEFAULTLIB:advapi32.lib /NODEFAULTLIB:ole32.lib /NODEFAULTLIB:mscoree.lib /NODEFAULTLIB:combase.lib")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:kernel32.lib /NODEFAULTLIB:user32.lib /NODEFAULTLIB:advapi32.lib /NODEFAULTLIB:ole32.lib /NODEFAULTLIB:mscoree.lib /NODEFAULTLIB:combase.lib")
+# compile flags
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /I\$\(UniversalCRT_IncludePath\)")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /I\$\(UniversalCRT_IncludePath\)")
+
+# linker flags
+
+foreach(lib kernel32 user32 advapi32 ole32 mscoree combase)
+    set(linker_flags "/NODEFAULTLIB:${lib}.lib ${linker_flags}")
+endforeach()
+
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${linker_flags}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${linker_flags}")
+unset(linker_flags)
 
 #
 # Flags for 3rd party projects
@@ -70,11 +79,17 @@ if(use_static_runtime)
     endforeach()
 endif()
 
+function(onecoreuap_set_runtime var)
+    set(${var} ${use_static_runtime} CACHE BOOL "" FORCE)
+endfunction()
+
 # ONNX
-set(ONNX_USE_MSVC_STATIC_RUNTIME ${use_static_runtime} CACHE BOOL "" FORCE)
+onecoreuap_set_runtime(ONNX_USE_MSVC_STATIC_RUNTIME)
 # pugixml
-set(STATIC_CRT ${use_static_runtime} CACHE BOOL "" FORCE)
+onecoreuap_set_runtime(STATIC_CRT)
 # protobuf
-set(protobuf_MSVC_STATIC_RUNTIME ${use_static_runtime} CACHE BOOL "" FORCE)
+onecoreuap_set_runtime(protobuf_MSVC_STATIC_RUNTIME)
+# clDNN
+onecoreuap_set_runtime(CLDNN__COMPILE_LINK_USE_STATIC_RUNTIME)
 
 unset(use_static_runtime)
