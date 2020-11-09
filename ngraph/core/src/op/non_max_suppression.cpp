@@ -705,7 +705,7 @@ namespace
 
         Shape shape = p.to_shape();
 
-        return is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
+        return ngraph::is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
     }
 }
 

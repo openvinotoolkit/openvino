@@ -15,10 +15,10 @@ file(GLOB_RECURSE SRC *.cpp)
 add_library(${TARGET_NAME} SHARED ${SRC})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
-set(LIBRARIES IE::inference_engine_legacy IE::inference_engine ${NGRAPH_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine ${NGRAPH_LIBRARIES})
+
 if (ngraph_onnx_importer_FOUND)
-    list(APPEND LIBRARIES ${ONNX_IMPORTER_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${ONNX_IMPORTER_LIBRARIES})
     target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_ONNX_IMPORT_ENABLED)
 endif()
-target_link_libraries(${TARGET_NAME} PRIVATE ${LIBRARIES})
 # [cmake:extension]
