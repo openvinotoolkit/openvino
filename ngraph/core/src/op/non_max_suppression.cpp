@@ -19,8 +19,11 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/runtime/reference/non_max_suppression.hpp"
+#include "ngraph/type/bfloat16.hpp"
+#include "ngraph/type/float16.hpp"
+#include "ngraph/util.hpp"
 
-using namespace std;
 using namespace ngraph;
 
 // ------------------------------ V1 ------------------------------
@@ -58,7 +61,7 @@ op::v1::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node>
+std::shared_ptr<Node>
     op::v1::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
@@ -256,7 +259,7 @@ op::v3::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node>
+std::shared_ptr<Node>
     op::v3::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
@@ -475,7 +478,7 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node>
+std::shared_ptr<Node>
     op::v4::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
@@ -542,12 +545,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes,
-          scores,
-          op::Constant::create(element::i64, Shape{}, {0}),
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+    : Op({boxes, scores})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -562,12 +560,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes,
-          scores,
-          max_output_boxes_per_class,
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+    : Op({boxes, scores, max_output_boxes_per_class})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -583,12 +576,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes,
-          scores,
-          max_output_boxes_per_class,
-          iou_threshold,
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+    : Op({boxes, scores, max_output_boxes_per_class, iou_threshold})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -605,12 +593,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes,
-          scores,
-          max_output_boxes_per_class,
-          iou_threshold,
-          score_threshold,
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+    : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -641,7 +624,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node>
+std::shared_ptr<Node>
     op::v5::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
@@ -649,28 +632,81 @@ shared_ptr<Node>
                           new_args.size() >= 2 && new_args.size() <= 6,
                           "Number of inputs must be 2, 3, 4, 5 or 6");
 
-    const auto& arg2 = new_args.size() > 2
-                           ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::i64, Shape{}, {0});
-    const auto& arg3 = new_args.size() > 3
-                           ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-    const auto& arg4 = new_args.size() > 4
-                           ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-    const auto& arg5 = new_args.size() > 5
-                           ? new_args.at(5)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    switch (new_args.size())
+    {
+    case 2:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
+    case 3:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
+    case 4:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           new_args.at(3),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
+    case 5:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           new_args.at(3),
+                                                           new_args.at(4),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
+    default:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           new_args.at(3),
+                                                           new_args.at(4),
+                                                           new_args.at(5),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
+    }
+}
 
-    return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
-                                                       new_args.at(1),
-                                                       arg2,
-                                                       arg3,
-                                                       arg4,
-                                                       arg5,
-                                                       m_box_encoding,
-                                                       m_sort_result_descending,
-                                                       m_output_type);
+namespace
+{
+    constexpr size_t boxes_port = 0;
+    constexpr size_t scores_port = 1;
+    constexpr size_t max_output_boxes_port = 2;
+    constexpr size_t iou_threshold_port = 3;
+    constexpr size_t score_threshold_port = 4;
+    constexpr size_t soft_nms_sigma_port = 5;
+
+    inline bool is_float_type_admissible(const element::Type& t)
+    {
+        return t == element::f32 || t == element::f16 || t == element::bf16;
+    }
+
+    inline bool is_scalar_or_1d_tensor_with_1_element(const PartialShape& p)
+    {
+        if (p.is_dynamic())
+        {
+            return false;
+        }
+
+        Shape shape = p.to_shape();
+
+        return is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
+    }
 }
 
 void op::v5::NonMaxSuppression::validate()
@@ -688,6 +724,14 @@ void op::v5::NonMaxSuppression::validate()
     }
 
     NODE_VALIDATION_CHECK(this,
+                          is_float_type_admissible(get_input_element_type(0)),
+                          "Expected bf16, fp16 or fp32 as element type for the 'boxes' input.");
+
+    NODE_VALIDATION_CHECK(this,
+                          is_float_type_admissible(get_input_element_type(1)),
+                          "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
+
+    NODE_VALIDATION_CHECK(this,
                           boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
                           "Expected a 3D tensor for the 'boxes' input. Got: ",
                           boxes_ps);
@@ -700,19 +744,25 @@ void op::v5::NonMaxSuppression::validate()
     if (inputs().size() >= 3)
     {
         const auto max_boxes_ps = get_input_partial_shape(2);
-        NODE_VALIDATION_CHECK(this,
-                              max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
-                              "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
-                              max_boxes_ps);
+        NODE_VALIDATION_CHECK(
+            this,
+            max_boxes_ps.is_dynamic() || is_scalar_or_1d_tensor_with_1_element(max_boxes_ps),
+            "Expected 0D or 1D tensor for the 'max_output_boxes_per_class' input. "
+            "Got: ",
+            max_boxes_ps);
     }
 
     if (inputs().size() >= 4)
     {
         const auto iou_threshold_ps = get_input_partial_shape(3);
         NODE_VALIDATION_CHECK(this,
+                              is_float_type_admissible(get_input_element_type(3)),
+                              "Expected bf16, fp16 or fp32 as element type for the "
+                              "'iou_threshold' input.");
+        NODE_VALIDATION_CHECK(this,
                               iou_threshold_ps.is_dynamic() ||
-                                  is_scalar(iou_threshold_ps.to_shape()),
-                              "Expected a scalar for the 'iou_threshold' input. Got: ",
+                                  is_scalar_or_1d_tensor_with_1_element(iou_threshold_ps),
+                              "Expected 0D or 1D tensor for the 'iou_threshold' input. Got: ",
                               iou_threshold_ps);
     }
 
@@ -720,9 +770,13 @@ void op::v5::NonMaxSuppression::validate()
     {
         const auto score_threshold_ps = get_input_partial_shape(4);
         NODE_VALIDATION_CHECK(this,
+                              is_float_type_admissible(get_input_element_type(4)),
+                              "Expected bf16, fp16 or fp32 as element type for the "
+                              "'score_threshold_ps' input.");
+        NODE_VALIDATION_CHECK(this,
                               score_threshold_ps.is_dynamic() ||
-                                  is_scalar(score_threshold_ps.to_shape()),
-                              "Expected a scalar for the 'score_threshold' input. Got: ",
+                                  is_scalar_or_1d_tensor_with_1_element(score_threshold_ps),
+                              "Expected 0D or 1D tensor for the 'score_threshold' input. Got: ",
                               score_threshold_ps);
     }
 
@@ -730,8 +784,13 @@ void op::v5::NonMaxSuppression::validate()
     {
         const auto soft_nms_sigma = get_input_partial_shape(5);
         NODE_VALIDATION_CHECK(this,
-                              soft_nms_sigma.is_dynamic() || is_scalar(soft_nms_sigma.to_shape()),
-                              "Expected a scalar for the 'soft_nms_sigma' input. Got: ",
+                              is_float_type_admissible(get_input_element_type(5)),
+                              "Expected bf16, fp16 or fp32 as element type for the "
+                              "'soft_nms_sigma' input.");
+        NODE_VALIDATION_CHECK(this,
+                              soft_nms_sigma.is_dynamic() ||
+                                  is_scalar_or_1d_tensor_with_1_element(soft_nms_sigma),
+                              "Expected 0D or 1D tensor for the 'soft_nms_sigma' input. Got: ",
                               soft_nms_sigma);
     }
 
@@ -764,22 +823,26 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
 {
     int64_t max_output_boxes{0};
 
+    if (inputs().size() < 3)
+    {
+        return 0;
+    }
+
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+        as_type_ptr<op::Constant>(input_value(max_output_boxes_port).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
 }
 
-static constexpr size_t boxes_port = 0;
-static constexpr size_t scores_port = 1;
-static constexpr size_t iou_threshold_port = 3;
-static constexpr size_t score_threshold_port = 4;
-static constexpr size_t soft_nms_sigma_port = 5;
-
 float op::v5::NonMaxSuppression::iou_threshold_from_input() const
 {
     float iou_threshold = 0.0f;
+
+    if (inputs().size() < 4)
+    {
+        return iou_threshold;
+    }
 
     const auto iou_threshold_input =
         as_type_ptr<op::Constant>(input_value(iou_threshold_port).get_node_shared_ptr());
@@ -792,6 +855,11 @@ float op::v5::NonMaxSuppression::score_threshold_from_input() const
 {
     float score_threshold = 0.0f;
 
+    if (inputs().size() < 5)
+    {
+        return score_threshold;
+    }
+
     const auto score_threshold_input =
         as_type_ptr<op::Constant>(input_value(score_threshold_port).get_node_shared_ptr());
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
@@ -802,6 +870,11 @@ float op::v5::NonMaxSuppression::score_threshold_from_input() const
 float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
 {
     float soft_nms_sigma = 0.0f;
+
+    if (inputs().size() < 6)
+    {
+        return soft_nms_sigma;
+    }
 
     const auto soft_nms_sigma_input =
         as_type_ptr<op::Constant>(input_value(soft_nms_sigma_port).get_node_shared_ptr());
