@@ -41,7 +41,7 @@ static void getOutBlock_WH(size_t output_size,
     if (output_size % max_posible_tile_size == 0) {
         output_block_w = max_posible_tile_size;
     } else {
-        size_t min_horisontal_block_size = 2;  // 4;
+        size_t min_horisontal_block_size = 2; // 4;
 
         size_t block_size = 0;
 
@@ -201,13 +201,11 @@ bool ConvolutionKernel_imad::Validate(const Params& params, const optional_param
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
             (conv_params.compensation.empty()))
             return false;
-    }
-    else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         if ((conv_params.activations_zero_points.empty()) &&
             (conv_params.compensation.empty()))
             return false;
-    }
-    else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         if (conv_params.weights_zero_points.empty())
             return false;
     } else {

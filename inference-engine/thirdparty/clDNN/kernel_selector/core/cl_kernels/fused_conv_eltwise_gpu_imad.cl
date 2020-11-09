@@ -209,10 +209,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
         #ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
             ACCUMULATOR_TYPE dotProdAZPxWZP;
             dotProdAZPxWZP = 0;
-            dotProdAZPxWZP = TO_ACCUMULATOR_TYPE(
-            IMAD(dotProdAZPxWZP,
-            AS_INPUT0_TYPE_4(data_zp_val),
-            AS_FILTER_TYPE_4(weights_zp_val)));
+            dotProdAZPxWZP = TO_ACCUMULATOR_TYPE(IMAD(dotProdAZPxWZP, AS_INPUT0_TYPE_4(data_zp_val), AS_FILTER_TYPE_4(weights_zp_val)));
         #endif
 
         for(uint reg = 0; reg < IN_BLOCK_HEIGHT; reg++) {
@@ -234,7 +231,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &in[reg];
                     in_addr = in_start_addr + reg * INPUT0_Y_PITCH * FSV;
                     for (uint v = 0; v < PACK; v++) {
-                        int f_addr = ((feature_location + v) / FSV + INPUT0_PAD_BEFORE_FEATURE_NUM / FSV) * INPUT0_FEATURE_PITCH * FSV  + (feature_location + v) % FSV;
+                        int f_addr = ((feature_location + v) / FSV + INPUT0_PAD_BEFORE_FEATURE_NUM / FSV) * \
+                                      INPUT0_FEATURE_PITCH * FSV  + (feature_location + v) % FSV;
                         input_int8_arr[v] = conv_input[in_addr + f_addr];
                     }
                     #ifdef SHOULD_USE_DATA_ZP
@@ -246,8 +244,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                             in[reg] = data_zp_val;
                         else
                     #endif
-                            in[reg] = *(__global PACKED_TYPE*)(conv_input + in_addr);
-                    in_addr += (INPUT0_SIZE_X + IWPAD) * 16;
+                        in[reg] = *(__global PACKED_TYPE*)(conv_input + in_addr);
+                        in_addr += (INPUT0_SIZE_X + IWPAD) * 16;
                  #endif
             #else
                 #ifdef BLOCK_LOAD_INPUTS
@@ -262,18 +260,18 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                             in[reg] = data_zp_val;
                         else
                     #endif
-                            in[reg] = AS_PACKED_TYPE(conv_input[in_addr]);// read SIMD_SIZE elements wide
+                            in[reg] = AS_PACKED_TYPE(conv_input[in_addr]); // read SIMD_SIZE elements wide
                 #endif
-                in_addr += (INPUT0_SIZE_X + IWPAD);  // move to next row down
+                in_addr += (INPUT0_SIZE_X + IWPAD); // move to next row down
             #endif
         }
 
         #ifdef BLOCK_LOAD_WEIGHTS
             *((int8*)&w[0]) = as_int8(intel_sub_group_block_read8((const __global uint*) &weights[weight_addr]));
-            w[8]= as_int(intel_sub_group_block_read((const __global uint*) &weights[weight_addr + (SIMD_SIZE<<3)]));
+            w[8] = as_int(intel_sub_group_block_read((const __global uint*) &weights[weight_addr + (SIMD_SIZE<<3)]));
             weight_addr += SIMD_SIZE*NUM_FILTERS;
         #else
-            for(int pf=0; pf < NUM_FILTERS; pf++) {
+            for(int pf = 0; pf < NUM_FILTERS; pf++) {
                 w[pf] = weights[weight_addr];
                 weight_addr += SIMD_SIZE;
             }
@@ -289,10 +287,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             {
                 #ifdef SHOULD_USE_DATA_ZP
                     ACCUMULATOR_TYPE dotProdAZPxW = 0;
-                    dotProdAZPxW = TO_ACCUMULATOR_TYPE(
-                    IMAD(dotProdAZPxW,
-                    AS_INPUT0_TYPE_4(data_zp_val),
-                    AS_FILTER_TYPE_4(w[wi])));
+                    dotProdAZPxW = TO_ACCUMULATOR_TYPE(IMAD(dotProdAZPxW, AS_INPUT0_TYPE_4(data_zp_val), AS_FILTER_TYPE_4(w[wi])));
                 #endif
 
                 __attribute__((opencl_unroll_hint))
@@ -306,10 +301,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 
                         #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
                             ACCUMULATOR_TYPE dotProdAxWZP = 0;
-                            dotProdAxWZP = TO_ACCUMULATOR_TYPE(
-                            IMAD(dotProdAxWZP,
-                            inputs,
-                            AS_FILTER_TYPE_4(weights_zp_val)));
+                            dotProdAxWZP = TO_ACCUMULATOR_TYPE(IMAD(dotProdAxWZP, inputs, AS_FILTER_TYPE_4(weights_zp_val)));
                             out[br * OUT_BLOCK_WIDTH + bc] -= dotProdAxWZP;
                         #endif
 
@@ -396,9 +388,9 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                 if (fmg % CEIL_DIV(FILTER_OFM_NUM, SIMD_SIZE) != CEIL_DIV(FILTER_OFM_NUM, SIMD_SIZE) - 1 || sglid < FILTER_OFM_NUM % SIMD_SIZE)
 #endif
                     output[out_idx] = final_result;
-            }// if(!zero_c)
+            } // if(!zero_c)
         } // for (int c = 0; c < OUT_BLOCK_WIDTH; c++)
-        }// if(!zero_r)
+        } // if(!zero_r)
     } // for (int r = 0; r < OUT_BLOCK_HEIGHT; r++)
 }
 
@@ -416,27 +408,11 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 #undef AS_TYPE_N
 #undef INPUT0_TYPE_4
 #undef AS_INPUT0_TYPE_4
-
-#ifdef NON_ZERO_INPUT0_PAD_BEFORE
-    #undef NON_ZERO_INPUT0_PAD_BEFORE
-#endif
-
-#ifdef SHOULD_BALANCE_COMPENSATION
-    #undef SHOULD_BALANCE_COMPENSATION
-#endif
-
-#ifdef SHOULD_USE_DATA_ZP
-    #undef SHOULD_USE_DATA_ZP
-#endif
-
-#ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
-    #undef SHOULD_USE_DATA_AND_WEIGHTS_ZP
-#endif
-
-#ifdef FILTER_TYPE_4
-    #undef FILTER_TYPE_4
-#endif
-
+#undef NON_ZERO_INPUT0_PAD_BEFORE
+#undef SHOULD_BALANCE_COMPENSATION
+#undef SHOULD_USE_DATA_ZP
+#undef SHOULD_USE_DATA_AND_WEIGHTS_ZP
+#undef FILTER_TYPE_4
 #undef AS_FILTER_TYPE_4
 #undef NUM_FILTERS
 #undef CEIL_DIV
