@@ -8,6 +8,7 @@
 #include <caseless.hpp>
 #include <string>
 #include <set>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 namespace MKLDNNPlugin {
 
@@ -66,6 +67,16 @@ public:
     * converts all fp32 edges excepting inputs and outputs to bf16 and call restoreFloatPrecision
     */
     void convertToBFloat16(InferenceEngine::CNNNetwork &network);
+
+    /**
+     * inserts given layer after current tensor
+     */
+    static void addLayerToCNNNetworkAfterData(
+            InferenceEngine::DataPtr parentOutData,
+            InferenceEngine::CNNLayerPtr layer,
+            const std::string& nextLayerName,
+            InferenceEngine::ICNNNetwork& net,
+            const int childInsDataIndex = -1);
 
     InferenceEngine::MemoryBlob::Ptr convertBF16ToFloat(InferenceEngine::MemoryBlob::Ptr);
 };
