@@ -733,8 +733,8 @@ MKLDNNEltwiseNode::initializers = {
             algorithm = mkldnn::algorithm::eltwise_bounded_relu;
         }},
         {"clamp", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = activationLayer->GetParamAsFloat("max", 1.0f);
-            beta = activationLayer->GetParamAsFloat("min", 0.0f);
+            alpha = activationLayer->GetParamAsFloat("min", 1.0f);
+            beta = activationLayer->GetParamAsFloat("max", 0.0f);
             opType = Clamp;
             algorithm = mkldnn::algorithm::eltwise_clip;
         }},
@@ -771,7 +771,7 @@ MKLDNNEltwiseNode::initializers = {
             alpha = 0.0f;
             beta = 0.0f;
             opType = Hsigmoid;
-            THROW_IE_EXCEPTION << "Unported yet";
+            THROW_IE_EXCEPTION << "Unsupported yet";
 //            algorithm = mkldnn::algorithm::eltwise_hsigmoid;
         }},
 };
@@ -990,13 +990,19 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     auto initDesc = [&] (LayoutType lt) -> PrimitiveDescInfo {
         auto createMemoryDesc = [lt](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> TensorDesc {
             if (lt == ChannelsFirst) {
-                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
-                std::vector<size_t> order;
-                order.push_back(0);
-                for (size_t j = 2; j < blocks.size(); j++)
-                    order.push_back(j);
-                if (blocks.size() > 1)
+                auto dims = edge->getDims().ToSizeVector();
+                auto ndims = dims.size();
+                std::vector<size_t> order(ndims);
+                std::iota(order.begin(), order.end(), 0);
+                if (ndims > 1) {
+                    order.erase(order.begin() + 1);
                     order.push_back(1);
+                }
+
+                std::vector<size_t> blocks(ndims);
+                for (size_t i = 0; i < order.size(); i++) {
+                    blocks[i] = dims[order[i]];
+                }
 
                 return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
             } else if (lt == Blocked && edge->getDims()[1] != 1) {
@@ -1004,8 +1010,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
                 std::vector<size_t> blocks = edge->getDims().ToSizeVector();
                 std::vector<size_t> order(blocks.size());
-                for (size_t j = 0; j < order.size(); j++)
-                    order[j] = j;
+                std::iota(order.begin(), order.end(), 0);
 
                 blocks[1] = div_up(blocks[1], blockSize);
                 blocks.push_back(blockSize);
@@ -1015,8 +1020,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             } else {
                 std::vector<size_t> blocks = edge->getDims().ToSizeVector();
                 std::vector<size_t> order(blocks.size());
-                for (size_t j = 0; j < order.size(); j++)
-                    order[j] = j;
+                std::iota(order.begin(), order.end(), 0);
 
                 return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
             }
