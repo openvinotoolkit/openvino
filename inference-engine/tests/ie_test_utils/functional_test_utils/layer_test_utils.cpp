@@ -145,8 +145,7 @@ void LayerTestsCommon::Run() {
                 ngraph::is_type<ngraph::op::Constant>(op) ||
                 ngraph::is_type<ngraph::op::Result>(op)) {
                 continue;
-            } else if (ngraph::is_type<ngraph::op::TensorIterator>(op) ||
-                       ngraph::is_type<ngraph::op::v5::Loop>(op)) {
+            } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
                 auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
                 auto ti_body = ti->get_body();
                 for (const auto &ti_op : ti_body->get_ordered_ops()) {
