@@ -84,7 +84,7 @@ const auto fusingReluScaleShift = fusingSpecificParams{nullptr, {
                      THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
                  ngraph::Shape newShape(shape.size(), 1);
                  newShape[1] = shape[1];
-                 auto constNode = ngraph::builder::makeConstant<float>(ngPrc, newShape, {}, true);
+                 auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, newShape, {}, true);
                  return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
             }, "Multiply(PerChannel)"},
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
@@ -93,25 +93,33 @@ const auto fusingReluScaleShift = fusingSpecificParams{nullptr, {
                  THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
                 newShape[1] = shape[1];
-                auto constNode = ngraph::builder::makeConstant<float>(ngPrc, newShape, {}, true);
+                auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, newShape, {}, true);
                 return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
             }, "Add(PerChannel)"}}, {"Relu", "Add"}};
 const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{nullptr, {
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+                auto localPrc = ngPrc;
+                if (ngraph::element::bf16 == localPrc) {
+                    localPrc = ngraph::element::f32;
+                }
                 auto shape = inpNode->get_shape();
                 if (shape.size() == 1)
                  THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
                 newShape[1] = shape[1];
-                return ngraph::builder::makeFakeQuantize(inpNode, ngPrc, 256, newShape);
+                return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
             }, "FakeQuantize(PerChannel)"},
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Relu);
             }, "Relu"}}, {"FakeQuantize", "Relu"}};
 const auto fusingFakeQuantizePerTensorRelu = fusingSpecificParams{nullptr, {
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                auto localPrc = ngPrc;
+                if (ngraph::element::bf16 == localPrc) {
+                    localPrc = ngraph::element::f32;
+                }
                 auto newShape = ngraph::Shape(inpNode->get_shape().size(), 1);
-                return ngraph::builder::makeFakeQuantize(inpNode, ngPrc, 256, newShape);
+                return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
             }, "FakeQuantize(PerTensor)"},
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Relu);
