@@ -37,7 +37,6 @@
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
 #include "onnx_import/op/lstm.hpp"
-#include "onnx_import/utils/recurrent.hpp"
 
 namespace ngraph
 {
@@ -179,8 +178,12 @@ namespace ngraph
                         {
                             NGRAPH_CHECK(m_dim_map.count(LSTMInputDimension::NUM_DIRECTIONS) &&
                                              m_dim_map.count(LSTMInputDimension::HIDDEN_SIZE),
-                                         "ONNX LSTM: Can't create default `B` input because of "
-                                         "dynamic shape.");
+                                         "ONNX LSTM: Can't create default `B` input, "
+                                         "because at least one of required dimensions "
+                                         "(num_directions, hidden_size) is dynamic. "
+                                         "\n`R` input onnx shape {num_directions, "
+                                         "gates_count*hidden_size, hidden_size}: ",
+                                         ng_inputs.at(2).get_partial_shape());
 
                             m_input_map[LSTMInput::LSTM_INPUT_B] = default_opset::Constant::create(
                                 m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
@@ -199,9 +202,14 @@ namespace ngraph
                         }
                         else
                         {
-                            NGRAPH_CHECK(m_dim_map.count(LSTMInputDimension::BATCH_SIZE),
-                                         "ONNX LSTM: Can't create default `sequence_lens` input "
-                                         "because of dynamic batch size.");
+                            NGRAPH_CHECK(
+                                m_dim_map.count(LSTMInputDimension::BATCH_SIZE) &&
+                                    m_dim_map.count(LSTMInputDimension::SEQ_LENGTH),
+                                "ONNX LSTM: Can't create default `sequence_lens` input, ",
+                                "because at least one of required dimensions "
+                                "(batch_size, seq_length) is dynamic. "
+                                "\n`X` input onnx shape {seq_length, batch_size, input_size} is ",
+                                ng_inputs.at(0).get_partial_shape());
 
                             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
                                 default_opset::Constant::create(
@@ -221,11 +229,18 @@ namespace ngraph
                         }
                         else
                         {
-                            NGRAPH_CHECK(m_dim_map.count(LSTMInputDimension::NUM_DIRECTIONS) &&
-                                             m_dim_map.count(LSTMInputDimension::BATCH_SIZE) &&
-                                             m_dim_map.count(LSTMInputDimension::HIDDEN_SIZE),
-                                         "ONNX LSTM: Can't create default `initial_h` input "
-                                         "because of dynamic shape.");
+                            NGRAPH_CHECK(
+                                m_dim_map.count(LSTMInputDimension::BATCH_SIZE) &&
+                                    m_dim_map.count(LSTMInputDimension::NUM_DIRECTIONS) &&
+                                    m_dim_map.count(LSTMInputDimension::HIDDEN_SIZE),
+                                "ONNX LSTM: Can't create default `initial_h` input, "
+                                "because at least one of required dimensions "
+                                "(batch_size, num_directions, hidden_size) is dynamic. "
+                                "\n`X` input onnx shape {seq_length, batch_size, input_size} is ",
+                                ng_inputs.at(0).get_partial_shape(),
+                                "\n`R` input onnx shape {num_directions, 4*hidden_size, "
+                                "hidden_size} is ",
+                                ng_inputs.at(2).get_partial_shape());
 
                             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
                                 default_opset::Constant::create(
@@ -249,11 +264,18 @@ namespace ngraph
                         }
                         else
                         {
-                            NGRAPH_CHECK(m_dim_map.count(LSTMInputDimension::NUM_DIRECTIONS) &&
-                                             m_dim_map.count(LSTMInputDimension::BATCH_SIZE) &&
-                                             m_dim_map.count(LSTMInputDimension::HIDDEN_SIZE),
-                                         "ONNX LSTM: Can't create default `initial_c` input "
-                                         "because of dynamic shape.");
+                            NGRAPH_CHECK(
+                                m_dim_map.count(LSTMInputDimension::BATCH_SIZE) &&
+                                    m_dim_map.count(LSTMInputDimension::NUM_DIRECTIONS) &&
+                                    m_dim_map.count(LSTMInputDimension::HIDDEN_SIZE),
+                                "ONNX LSTM: Can't create default `initial_c` input, "
+                                "because at least one of required dimensions "
+                                "(batch_size, num_directions, hidden_size) is dynamic. "
+                                "\n`X` input onnx shape {seq_length, batch_size, input_size} is ",
+                                ng_inputs.at(0).get_partial_shape(),
+                                "\n`R` input onnx shape {num_directions, 4*hidden_size, "
+                                "hidden_size} is ",
+                                ng_inputs.at(2).get_partial_shape());
 
                             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
                                 default_opset::Constant::create(
