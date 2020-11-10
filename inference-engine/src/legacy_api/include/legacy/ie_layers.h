@@ -2065,6 +2065,10 @@ public:
      */
     bool sort_result_descending = true;
     /**
+     * @brief Output type for first and third inputs
+     */
+    std::string output_type = "I64";
+    /**
      * @brief Creates a new NonMaxSuppressionLayer instance.
      */
     using CNNLayer::CNNLayer;

@@ -69,6 +69,7 @@
 #include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
@@ -176,6 +177,25 @@ protected:
                                 const Node& op,
                                 const std::vector<std::shared_ptr<HostTensor>>& outputs,
                                 const std::vector<std::shared_ptr<HostTensor>>& inputs);
+
+    struct InfoForNMS5
+    {
+        int64_t max_output_boxes_per_class;
+        float iou_threshold;
+        float score_threshold;
+        float soft_nms_sigma;
+        Shape out_shape;
+        Shape boxes_shape;
+        Shape scores_shape;
+        std::vector<float> boxes_data;
+        std::vector<float> scores_data;
+        size_t out_shape_size;
+        bool sort_result_descending;
+        ngraph::element::Type output_type;
+    };
+
+    InfoForNMS5 get_info_for_nms5_eval(const op::v5::NonMaxSuppression* nms5,
+                                       const std::vector<std::shared_ptr<HostTensor>>& inputs);
 
     template <typename T>
     void op_engine(const Node& node,
@@ -1028,114 +1048,6 @@ protected:
 
             break;
         }
-
-        case OP_TYPEID::QuantizedConvolution:
-        {
-            const op::QuantizedConvolution* qc =
-                static_cast<const op::QuantizedConvolution*>(&node);
-
-            auto input_element_type = qc->get_input_element_type(0);
-            auto filter_element_type = qc->get_input_element_type(1);
-            auto output_element_type = qc->get_output_element_type(0);
-
-            if (input_element_type == element::u8 && filter_element_type == element::i8 &&
-                output_element_type == element::i8)
-            {
-                reference::convolution<uint8_t, int8_t, int8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int8_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::u8 &&
-                     output_element_type == element::u8)
-            {
-                reference::convolution<uint8_t, uint8_t, uint8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<uint8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const uint8_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::i8 &&
-                     output_element_type == element::i32)
-            {
-                reference::convolution<uint8_t, int8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::u8 &&
-                     output_element_type == element::i32)
-            {
-                reference::convolution<uint8_t, uint8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else
-            {
-                std::stringstream ss;
-                ss << "unsupported element type";
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        }
-
         case OP_TYPEID::QuantizedDot:
         {
             const op::QuantizedDot* qd = static_cast<const op::QuantizedDot*>(&node);
@@ -1323,39 +1235,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::TopK:
-        {
-            const op::TopK* topk = static_cast<const op::TopK*>(&node);
-            if (node.get_output_element_type(0) == element::i64)
-            {
-                reference::topk<T, int64_t>(args[0]->get_data_ptr<const T>(),
-                                            out[0]->get_data_ptr<int64_t>(),
-                                            out[1]->get_data_ptr<T>(),
-                                            node.get_input_shape(0),
-                                            node.get_output_shape(0),
-                                            topk->get_top_k_axis(),
-                                            topk->get_k(),
-                                            topk->get_compute_max(),
-                                            topk->get_sort());
-            }
-            else if (node.get_output_element_type(0) == element::i32)
-            {
-                reference::topk<T, int32_t>(args[0]->get_data_ptr<const T>(),
-                                            out[0]->get_data_ptr<int32_t>(),
-                                            out[1]->get_data_ptr<T>(),
-                                            node.get_input_shape(0),
-                                            node.get_output_shape(0),
-                                            topk->get_top_k_axis(),
-                                            topk->get_k(),
-                                            topk->get_compute_max(),
-                                            topk->get_sort());
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
-            break;
-        }
         case OP_TYPEID::DetectionOutput_v0:
         {
             const op::DetectionOutput* detOut = static_cast<const op::DetectionOutput*>(&node);
@@ -1444,6 +1323,43 @@ protected:
                                        norm->get_eps_mode());
             break;
         }
+        case OP_TYPEID::NonMaxSuppression_v5:
+        {
+            const op::v5::NonMaxSuppression* nms =
+                static_cast<const op::v5::NonMaxSuppression*>(&node);
+
+            auto info = get_info_for_nms5_eval(nms, args);
+
+            std::vector<int64_t> selected_indices(info.out_shape_size);
+            std::vector<float> selected_scores(info.out_shape_size);
+            int64_t valid_outputs = 0;
+
+            reference::non_max_suppression(info.boxes_data.data(),
+                                           info.boxes_shape,
+                                           info.scores_data.data(),
+                                           info.scores_shape,
+                                           info.max_output_boxes_per_class,
+                                           info.iou_threshold,
+                                           info.score_threshold,
+                                           info.soft_nms_sigma,
+                                           selected_indices.data(),
+                                           info.out_shape,
+                                           selected_scores.data(),
+                                           info.out_shape,
+                                           &valid_outputs,
+                                           info.sort_result_descending);
+
+            auto selected_scores_type =
+                (args.size() < 4) ? element::f32 : args[3]->get_element_type();
+
+            reference::nms5_postprocessing(out,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
+            break;
+        }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::DepthToSpace:
@@ -1461,7 +1377,6 @@ protected:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SpaceToDepth:
-        case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
         case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:
@@ -1490,19 +1405,18 @@ protected:
         case OP_TYPEID::NotEqual:
         case OP_TYPEID::Power:
         case OP_TYPEID::Range:
-        case OP_TYPEID::Reshape:
+        case OP_TYPEID::Reshape_v1:
         case OP_TYPEID::Result:
         case OP_TYPEID::Reverse_v1:
         case OP_TYPEID::Round_v5:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
-        case OP_TYPEID::Softmax:
+        case OP_TYPEID::Softmax_v1:
+        case OP_TYPEID::Split_v1:
         case OP_TYPEID::Squeeze:
-        case OP_TYPEID::Sum:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
-        case OP_TYPEID::Slice:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
