@@ -1392,7 +1392,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
 
     if (notDefault) {
         for (size_t i = 0; i < strides.size() && i < desc.data.ndims; i++) {
-            desc.data.layout_desc.blocking.strides[0][i] = static_cast<ptrdiff_t>(strides[order[i]]);
+            desc.data.layout_desc.blocking.strides[0][order[i]] = static_cast<ptrdiff_t>(strides[i]);
         }
     }
 }
