@@ -47,6 +47,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 
 add_library(${TARGET_NAME} SHARED $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Legacy library")
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
@@ -62,7 +65,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # export targets
 

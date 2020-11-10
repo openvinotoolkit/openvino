@@ -127,6 +127,9 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 add_library(${TARGET_NAME} SHARED
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Preprocessing plugin")
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt
@@ -169,7 +172,7 @@ target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # developer package
 
