@@ -188,7 +188,7 @@ std::shared_ptr<ngraph::Node> makeBinaryConvolution(const ngraph::Output<Node> &
 std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         const element::Type &type,
                                         size_t numSplits,
-                                        size_t axis);
+                                        int64_t axis);
 
 std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
                                                 const std::vector<size_t> numSplits,
@@ -210,15 +210,15 @@ std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
 
 std::shared_ptr<ngraph::Node> makeBatchToSpace(const ngraph::Output<Node> &in,
                                                const element::Type &type,
-                                               const std::vector<size_t> &blockShape,
-                                               const std::vector<size_t> &cropsBegin,
-                                               const std::vector<size_t> &cropsEnd);
+                                               const std::vector<int64_t> &blockShape,
+                                               const std::vector<int64_t> &cropsBegin,
+                                               const std::vector<int64_t> &cropsEnd);
 
 std::shared_ptr<ngraph::Node> makeSpaceToBatch(const ngraph::Output<Node> &in,
                                                const element::Type &type,
-                                               const std::vector<size_t> &blockShape,
-                                               const std::vector<size_t> &padsBegin,
-                                               const std::vector<size_t> &padsEnd);
+                                               const std::vector<int64_t> &blockShape,
+                                               const std::vector<int64_t> &padsBegin,
+                                               const std::vector<int64_t> &padsEnd);
 
 std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &begin,
@@ -438,7 +438,7 @@ std::shared_ptr<ngraph::Node> makeGatherND(
                                       const std::size_t batchDims);
 
 std::shared_ptr<ngraph::Node> makeTile(const ngraph::Output<Node>& in,
-                                       const std::vector<size_t>& repeats);
+                                       const std::vector<int64_t>& repeats);
 
 std::shared_ptr<ngraph::Node> makeNormalizeL2(const ngraph::Output<Node>& data,
                                               const std::vector<int64_t>& axes,
