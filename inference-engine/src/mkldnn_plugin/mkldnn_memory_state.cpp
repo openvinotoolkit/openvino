@@ -30,11 +30,11 @@ void  MKLDNNVariableState::SetState(Blob::Ptr newState) {
 
 InferenceEngine::Blob::CPtr MKLDNNVariableState::GetState() const {
     auto state_precision = MKLDNNMemory::convertToIePrec(storage->GetDataType());
-    auto shape = SizeVector({ storage->GetElementsCount() });
+    auto shape = SizeVector({ 1, storage->GetElementsCount() });
     auto data_layout = MKLDNNMemory::GetPlainLayout(storage->GetDims());
     auto result_blob = make_blob_with_precision(InferenceEngine::TensorDesc(state_precision, shape, data_layout));
     result_blob->allocate();
-    std::memcpy(storage->GetData(), result_blob->buffer(), storage->GetSize());
+    std::memcpy(result_blob->buffer(), storage->GetData(), storage->GetSize());
     return result_blob;
 }
 

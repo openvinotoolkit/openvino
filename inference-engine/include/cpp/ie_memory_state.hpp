@@ -21,14 +21,14 @@ namespace InferenceEngine {
  */
 class VariableState {
     IVariableState::Ptr actual = nullptr;
-    details::SharedObjectLoader::Ptr plugin = nullptr;
+    details::SharedObjectLoader::Ptr plugin = {};
 
 public:
     /**
      * constructs VariableState from the initialized shared_pointer
      * @param pState Initialized shared pointer
      */
-    explicit VariableState(IVariableState::Ptr pState, details::SharedObjectLoader::Ptr plg = nullptr) : actual(pState), plugin(plg) {
+    explicit VariableState(IVariableState::Ptr pState, details::SharedObjectLoader::Ptr plg = {}) : actual(pState), plugin(plg) {
         if (actual == nullptr) {
             THROW_IE_EXCEPTION << "VariableState wrapper was not initialized.";
         }

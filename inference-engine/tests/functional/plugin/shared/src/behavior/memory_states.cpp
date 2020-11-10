@@ -49,11 +49,12 @@ TEST_P(VariableStateTest, smoke_VariableState_SetState) {
     const float new_state_val = 13.0f;
     for (auto&& state : executableNet.QueryState()) {
         state.Reset();
-        auto element_count = state.GetState()->size();
+        auto state_val = state.GetState();
+        auto element_count = state_val->size();
 
         std::vector<float> new_state_data(element_count, new_state_val);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
-            { InferenceEngine::Precision::FP32, {element_count}, InferenceEngine::C },
+            { state_val->getTensorDesc().getPrecision(), {1, element_count}, state_val->getTensorDesc().getLayout() },
             new_state_data.data(), new_state_data.size());
 
         state.SetState(stateBlob);
@@ -78,11 +79,12 @@ TEST_P(VariableStateTest, smoke_VariableState_Reset) {
     const float new_state_val = 13.0f;
     for (auto&& state : executableNet.QueryState()) {
         state.Reset();
-        auto element_count = state.GetState()->size();
+        auto state_val = state.GetState();
+        auto element_count = state_val->size();
 
         std::vector<float> new_state_data(element_count, new_state_val);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
-            { InferenceEngine::Precision::FP32, {element_count}, InferenceEngine::C },
+            { state_val->getTensorDesc().getPrecision(), {1, element_count}, state_val->getTensorDesc().getLayout() },
             new_state_data.data(), new_state_data.size());
 
         state.SetState(stateBlob);
@@ -132,11 +134,12 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_SetState) {
     const float new_state_val = 13.0f;
     for (auto&& state : inferReq.QueryState()) {
         state.Reset();
-        auto element_count = state.GetState()->size();
+        auto state_val = state.GetState();
+        auto element_count = state_val->size();
 
         std::vector<float> new_state_data(element_count, new_state_val);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
-            { InferenceEngine::Precision::FP32, {element_count}, InferenceEngine::C },
+            { state_val->getTensorDesc().getPrecision(), {1, element_count}, state_val->getTensorDesc().getLayout() },
             new_state_data.data(), new_state_data.size());
 
         state.SetState(stateBlob);
@@ -161,11 +164,12 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
     const float new_state_val = 13.0f;
     for (auto&& state : inferReq.QueryState()) {
         state.Reset();
-        auto element_count = state.GetState()->size();
+        auto state_val = state.GetState();
+        auto element_count = state_val->size();
 
         std::vector<float> new_state_data(element_count, new_state_val);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
-            { InferenceEngine::Precision::FP32, {element_count}, InferenceEngine::C },
+            { state_val->getTensorDesc().getPrecision(), {1, element_count}, state_val->getTensorDesc().getLayout() },
             new_state_data.data(), new_state_data.size());
 
         state.SetState(stateBlob);

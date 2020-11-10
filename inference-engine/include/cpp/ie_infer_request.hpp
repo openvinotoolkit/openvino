@@ -269,7 +269,7 @@ public:
                 THROW_IE_EXCEPTION << resp.msg;
             }
             if (res != OUT_OF_BOUNDS) {
-                controller.push_back(VariableState(pState));
+                controller.push_back(VariableState(pState, plg));
             }
         }
 
