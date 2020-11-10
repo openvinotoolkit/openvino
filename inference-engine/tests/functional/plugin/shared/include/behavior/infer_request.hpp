@@ -631,7 +631,7 @@ class InferRequestTestsResultNotReady : public InferRequestTests {
 TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
+    // Create CNNNetwork from ngraph::Function
     // return function which computes around 20ms on GNA SW
     function = LayerTestsDefinitions::Basic_LSTM_S::GetNetwork(3000, 380);
     InferenceEngine::CNNNetwork cnnNet(function);
