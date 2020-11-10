@@ -1239,9 +1239,11 @@ protected:
         case OP_TYPEID::TensorIterator:
         {
             auto ti = dynamic_cast<const op::v0::TensorIterator&>(node);
+
             reference::custom_evaluate_function evaluate =
                 [](const std::shared_ptr<ngraph::Function>& function,
-                   const HostTensorVector& inputs) -> HostTensorVector {
+                   const HostTensorVector& inputs,
+                   HostTensorVector& outputs) -> void {
                 const auto& parameters = function->get_parameters();
                 const auto& parametersNumber = parameters.size();
                 const auto& inputsNumber = inputs.size();
@@ -1292,14 +1294,13 @@ protected:
                 auto backend = runtime::Backend::create("INTERPRETER");
                 auto handle = backend->compile(function);
                 handle->call_with_validate(outputTensors, inputTensors);
-                vector<shared_ptr<HostTensor>> func_outputs;
-                func_outputs.reserve(outputTensors.size());
+
+                outputs.reserve(outputTensors.size());
                 for (const auto& tensor : outputTensors)
                 {
                     auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
-                    func_outputs.push_back(host_tensor);
+                    outputs.push_back(host_tensor);
                 }
-                return func_outputs;
             };
             reference::tensor_iterator(ti.get_num_iterations(),
                                        ti.get_function(),

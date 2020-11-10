@@ -17,7 +17,9 @@ namespace {
     std::vector<size_t> batch{1, 10};
     std::vector<size_t> hidden_size{1, 10};
     std::vector<size_t> input_size{10};
-    std::vector<TensorIteratorBody> body_type = {TensorIteratorBody::LSTM, TensorIteratorBody::RNN, TensorIteratorBody::GRU};
+    std::vector<ngraph::helpers::TensorIteratorBody> body_type
+        = {ngraph::helpers::TensorIteratorBody::LSTM, ngraph::helpers::TensorIteratorBody::RNN,
+           ngraph::helpers::TensorIteratorBody::GRU};
     std::vector<float> clip{0.f};
     std::vector<float> clip_non_zeros{0.7f};
     std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,

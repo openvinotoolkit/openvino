@@ -29,9 +29,9 @@ namespace ngraph
     {
         namespace reference
         {
-            bool call(const HostTensorVector& func_outputs,
-                      const HostTensorVector& func_inputs,
-                      const std::shared_ptr<ngraph::Function>& function)
+            static bool call(const HostTensorVector& func_outputs,
+                             const HostTensorVector& func_inputs,
+                             const std::shared_ptr<ngraph::Function>& function)
             {
                 // map function params -> HostTensor
                 std::unordered_map<descriptor::Tensor*, std::shared_ptr<HostTensor>> tensor_map;
@@ -97,8 +97,9 @@ namespace ngraph
                 return true;
             }
 
-            HostTensorVector function(const std::shared_ptr<ngraph::Function>& function,
-                                      const HostTensorVector& inputs)
+            void function(const std::shared_ptr<ngraph::Function>& function,
+                          const HostTensorVector& inputs,
+                          HostTensorVector& outputs)
             {
                 const auto& parameters = function->get_parameters();
                 const auto& parametersNumber = parameters.size();
@@ -134,14 +135,12 @@ namespace ngraph
                 }
 
                 const auto& results = function->get_results();
-                HostTensorVector outputs;
                 outputs.reserve(results.size());
                 for (size_t i = 0; i < results.size(); ++i)
                 {
                     outputs.push_back(std::make_shared<HostTensor>());
                 }
                 call(outputs, inputs, function);
-                return outputs;
             }
         }
     }

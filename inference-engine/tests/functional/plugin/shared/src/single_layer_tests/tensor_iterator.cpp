@@ -27,7 +27,7 @@ namespace LayerTestsDefinitions {
         size_t batch;
         size_t hidden_size;
         size_t input_size;
-        TensorIteratorBody ti_body;
+        ngraph::helpers::TensorIteratorBody ti_body;
         float clip;
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
@@ -36,24 +36,20 @@ namespace LayerTestsDefinitions {
                  targetDevice) = obj.param;
         std::vector<std::vector<size_t>> inputShapes = {};
 
-        std::string type;
         switch (ti_body) {
-            case TensorIteratorBody::LSTM:
-                type = "LSTM";
+            case ngraph::helpers::TensorIteratorBody::LSTM:
                 inputShapes = {
                         {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                                 {4 * hidden_size, hidden_size}, {4 * hidden_size}},
                 };
                 break;
-            case TensorIteratorBody::GRU:
-                type = "GRU";
+            case ngraph::helpers::TensorIteratorBody::GRU:
                 inputShapes = {
                         {{batch, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                                 {3 * hidden_size, hidden_size}, {3 * hidden_size}},
                 };
                 break;
-            case TensorIteratorBody::RNN:
-                type = "RNN";
+            case ngraph::helpers::TensorIteratorBody::RNN:
                 inputShapes = {{batch, input_size}, {batch, hidden_size},
                                {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
                 break;
@@ -66,7 +62,7 @@ namespace LayerTestsDefinitions {
         result << "hidden_size=" << hidden_size << "_";
         result << "input_size=" << input_size << "_";
         result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-        result << "TensorIteratorBody=" << type << "_";
+        result << "TensorIteratorBody=" << ti_body << "_";
         result << "direction=" << direction << "_";
         result << "clip=" << clip << "_";
         result << "netPRC=" << netPrecision.name() << "_";
@@ -80,7 +76,7 @@ namespace LayerTestsDefinitions {
         size_t batch;
         size_t hidden_size;
         size_t input_size;
-        TensorIteratorBody ti_body;
+        ngraph::helpers::TensorIteratorBody ti_body;
         float clip;
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
@@ -96,7 +92,7 @@ namespace LayerTestsDefinitions {
         // 3. Create outer function
         auto axis = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{1});
         switch (ti_body) {
-            case TensorIteratorBody::LSTM: {
+            case ngraph::helpers::TensorIteratorBody::LSTM: {
                 inputShapes = {
                         {{batch, seq_lenghts, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                                 {4 * hidden_size, hidden_size}, {4 * hidden_size}},
@@ -138,7 +134,7 @@ namespace LayerTestsDefinitions {
                                                                                    tensor_iterator->output(2)}, outer_params);
                 break;
             }
-            case TensorIteratorBody::GRU: {
+            case ngraph::helpers::TensorIteratorBody::GRU: {
                 inputShapes = {
                         {{batch, seq_lenghts, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                                 {3 * hidden_size, hidden_size}, {3 * hidden_size}},
@@ -177,7 +173,7 @@ namespace LayerTestsDefinitions {
                 function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
             }
-            case TensorIteratorBody::RNN: {
+            case ngraph::helpers::TensorIteratorBody::RNN: {
                 inputShapes = {{batch, seq_lenghts, input_size},
                                {batch,       hidden_size},
                                {hidden_size, input_size},

@@ -53,7 +53,6 @@ namespace LayerTestsDefinitions {
 
     void LoopTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        SetRefMode(LayerTestsUtils::INTERPRETER);
         bool execute_first_iteration;
         bool is_body_condition_const;
         bool body_condition; // works only if is_body_condition_const ==
@@ -161,8 +160,6 @@ namespace LayerTestsDefinitions {
 
     void StaticShapeLoopTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        SetRefMode(LayerTestsUtils::INTERPRETER);
-
         auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
         std::tie(
             static_continue_cond,
