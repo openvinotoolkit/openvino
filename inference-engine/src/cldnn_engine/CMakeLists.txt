@@ -40,6 +40,9 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+# Failed because of OpenCL
+# ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # install
 
 install(FILES "${clDNN_SOURCE_DIR}/kernel_selector/core/cache/cache.json"

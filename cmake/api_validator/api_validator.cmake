@@ -107,6 +107,7 @@ function(_ie_add_api_validator_post_build_step)
                 -D UWP_API_VALIDATOR_APIS=${UWP_API_VALIDATOR_APIS}
                 -D UWP_API_VALIDATOR_EXCLUSION=${UWP_API_VALIDATOR_EXCLUSION}
                 -D UWP_API_VALIDATOR_OUTPUT=${output_file}
+                -D CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
                 -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/api_validator/api_validator_run.cmake"
             BYPRODUCTS ${output_file}
             COMMENT "[apiValidator] Check ${target_name} for OneCore compliance"

@@ -10,7 +10,7 @@
 namespace InferenceEngine {
 namespace details {
 
-class INFERENCE_ENGINE_API_CLASS(BlobStream): public std::istream {
+class BlobStream: public std::istream {
 private:
     class BlobBuffer: public std::streambuf {
     public:

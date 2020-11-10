@@ -107,20 +107,20 @@ else()
         # Use the interface of FindProtobuf.cmake
         # -----------------------------------------------------------------------------
         if (NOT TARGET protobuf::libprotobuf)
-        add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
-        set_target_properties(protobuf::libprotobuf PROPERTIES
-            INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}"
-            IMPORTED_LOCATION "${Protobuf_LIBRARY}")
-        add_dependencies(protobuf::libprotobuf ext_protobuf)
+            add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
+            set_target_properties(protobuf::libprotobuf PROPERTIES
+                INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}"
+                IMPORTED_LOCATION "${Protobuf_LIBRARY}")
+            add_dependencies(protobuf::libprotobuf ext_protobuf)
         endif()
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
 
         if (NOT TARGET protobuf::protoc)
-        add_executable(protobuf::protoc IMPORTED)
-        set_target_properties(protobuf::protoc PROPERTIES
-            INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_PROTOC_EXECUTABLE}"
-            IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}")
-        add_dependencies(protobuf::protoc ext_protobuf)
+            add_executable(protobuf::protoc IMPORTED)
+            set_target_properties(protobuf::protoc PROPERTIES
+                INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_PROTOC_EXECUTABLE}"
+                IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}")
+            add_dependencies(protobuf::protoc ext_protobuf)
         endif()
 
         set(Protobuf_FOUND TRUE)
