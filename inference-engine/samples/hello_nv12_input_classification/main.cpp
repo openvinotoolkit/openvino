@@ -134,21 +134,6 @@ std::vector<UString> readImagesDataFromFiles(const std::vector<std::string>& fil
     return result;
 }
 
-/**
- * \brief Sets batch size of the network to the specified value
- */
-void setBatchSize(CNNNetwork& network, size_t batch) {
-    ICNNNetwork::InputShapes inputShapes = network.getInputShapes();
-    for (auto& shape : inputShapes) {
-        auto& dims = shape.second;
-        if (dims.empty()) {
-            throw std::runtime_error("Network's input shapes have empty dimensions");
-        }
-        dims[0] = batch;
-    }
-    network.reshape(inputShapes);
-}
-
 std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, size_t height) {
     // read image with size converted to NV12 data size: height(NV12) = 3 / 2 * logical height
 
@@ -227,10 +212,18 @@ int main(int argc, char *argv[]) {
         CNNNetwork network = ie.ReadNetwork(input_model);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 2. Set model batch size -------------------------------------------------
+        // --------------------------- 2. Reshape model -------------------------------------------------
         size_t batch_size = isBatchedBlobSupported(ie, device_name) ? image_names.size() : 1;
         std::cout << "Setting network batch size to " << batch_size << std::endl;
-        setBatchSize(network, batch_size);
+        ICNNNetwork::InputShapes inputShapes = network.getInputShapes();
+        for (auto& shape : inputShapes) {
+            auto& dims = shape.second;
+            if (dims.empty()) {
+                throw std::runtime_error("Network's input shapes have empty dimensions");
+            }
+            dims[0] = batch_size;
+        }
+        network.reshape(inputShapes);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input and output -------------------------------------------
