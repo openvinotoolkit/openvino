@@ -15,22 +15,22 @@
 
 namespace LayerTestsDefinitions {
 
-using LSTMSequenceParams = typename std::tuple<
-        // bool,                                  // using decompose to sub-ops transformation
+using TensorIteratorParams = typename std::tuple<
+        bool,                                     // using unroll tensor iterator transformation
         size_t,                                   // seq_lengths
         size_t,                                   // batch
         size_t,                                   // hidden size
         size_t,                                   // input size
-        std::vector<std::string>,                 // activations
         float,                                    // clip
+        ngraph::helpers::TensorIteratorBody,      // body type
         ngraph::op::RecurrentSequenceDirection,   // direction
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name
 
-class LSTMSequenceTest : public testing::WithParamInterface<LSTMSequenceParams>,
+class TensorIteratorTest : public testing::WithParamInterface<TensorIteratorParams>,
                      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<TensorIteratorParams> &obj);
 
 protected:
     void SetUp() override;

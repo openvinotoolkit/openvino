@@ -98,8 +98,6 @@ xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input ima
                                "not supported yet...")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
-xfail_issue_36483 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
-                               "Ceiling name: <value>")
 xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
                                "/openvino/ngraph/core/src/op/shuffle_channels.cpp:77:")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
