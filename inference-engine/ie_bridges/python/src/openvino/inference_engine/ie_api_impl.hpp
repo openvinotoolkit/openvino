@@ -70,10 +70,6 @@ struct IENetwork {
 
     void load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size);
 
-    IENetwork(const std::string& model, const std::string& weights);
-
-    IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network);
-
     IENetwork(PyObject* network);
 
     IENetwork() = default;

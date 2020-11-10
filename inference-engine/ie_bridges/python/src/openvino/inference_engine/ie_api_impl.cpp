@@ -177,6 +177,7 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
     }
 }
 
+
 /* FrameworkNodeExtension is a temporary extension that is needed to enable FrameworkNode usage
  * in IRReader for all unknown opsets and operations. To have a connection between Extension and
  * IRReader we register extensions with specific version equal to "framework_node_ext" which
@@ -200,13 +201,6 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-InferenceEnginePython::IENetwork::IENetwork(const std::string& model, const std::string& weights) {
-    InferenceEngine::Core reader;
-    auto net = reader.ReadNetwork(model, weights);
-    actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
-    name = actual->getName();
-    batch_size = actual->getBatchSize();
-}
 
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network): actual(cnn_network) {
     if (actual == nullptr)
@@ -275,14 +269,6 @@ const std::map<std::string, InferenceEngine::InputInfo::Ptr> InferenceEnginePyth
     return inputs;
 }
 
-const std::map<std::string, InferenceEngine::DataPtr> InferenceEnginePython::IENetwork::getInputs() {
-    std::map<std::string, InferenceEngine::DataPtr> inputs;
-    const InferenceEngine::InputsDataMap& inputsInfo = actual->getInputsInfo();
-    for (auto& in : inputsInfo) {
-        inputs[in.first] = in.second->getInputData();
-    }
-    return inputs;
-}
 
 const std::map<std::string, InferenceEngine::DataPtr> InferenceEnginePython::IENetwork::getOutputs() {
     std::map<std::string, InferenceEngine::DataPtr> outputs;
@@ -336,15 +322,6 @@ PyObject* InferenceEnginePython::IEExecNetwork::getConfig(const std::string& nam
 
 void InferenceEnginePython::IEExecNetwork::exportNetwork(const std::string& model_file) {
     actual->Export(model_file);
-}
-
-std::map<std::string, InferenceEngine::DataPtr> InferenceEnginePython::IEExecNetwork::getInputs() {
-    InferenceEngine::ConstInputsDataMap inputsDataMap = actual->GetInputsInfo();
-    std::map<std::string, InferenceEngine::DataPtr> pyInputs;
-    for (const auto& item : inputsDataMap) {
-        pyInputs[item.first] = item.second->getInputData();
-    }
-    return pyInputs;
 }
 
 std::map<std::string, InferenceEngine::InputInfo::CPtr> InferenceEnginePython::IEExecNetwork::getInputsInfo() {
