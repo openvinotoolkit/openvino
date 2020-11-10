@@ -31,6 +31,11 @@ RUN powershell.exe -Command `
 
 RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
 ~~~
+In case of proxy issues, please add `ARG HTTPS_PROXY` and `-Proxy %HTTPS_PROXY%` settings to powershell.exe to a Dockerfile. Then build a docker image:
+~~~
+docker build . -t <image_name> `
+--build-arg HTTPS_PROXY=<https://your_proxy_server:port>
+~~~
 
 ### Install Microsoft Visual Studio* Build Tools
 You can add Microsoft Visual Studio Build Tools* to Windows* OS Docker image. Available options are to use offline installer for Build Tools 
@@ -53,6 +58,7 @@ RUN %TMP%\\vs_buildtools.exe --quiet --norestart --wait --nocache `
      --remove Microsoft.VisualStudio.Component.Windows10SDK.14393 `
      --remove Microsoft.VisualStudio.Component.Windows81SDK || IF "%ERRORLEVEL%"=="3010" EXIT 0 && powershell set-executionpolicy remotesigned
 ~~~
+In case of proxy issues, please use an offline installer for Build Tools (follow [Instruction for the offline installer](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
 
 ## Run the Docker* Image for CPU
 
