@@ -70,7 +70,8 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
         } else {
             weights = std::make_shared<ngraph::opset1::Reshape>(gconv->input_value(1),
                                                                 op::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape), true);
-            ngraph::copy_runtime_info(gconv, weights.get_node_shared_ptr());
+            // FIXME: 42956
+            // ngraph::copy_runtime_info(gconv, weights.get_node_shared_ptr());
         }
         auto conv_ie = std::make_shared<ngraph::op::ConvolutionIE>(gconv->input_value(0),
                                                                    weights,

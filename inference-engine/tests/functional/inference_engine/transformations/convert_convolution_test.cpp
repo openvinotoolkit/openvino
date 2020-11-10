@@ -175,7 +175,8 @@ TEST(ConvertConvolutionTest, GroupConvolutionWithReshapeNeg) {
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertConvolutions>();
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    // FIXME: 42956
+    // ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
