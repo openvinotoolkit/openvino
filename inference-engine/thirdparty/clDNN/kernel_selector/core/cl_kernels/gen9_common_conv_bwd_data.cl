@@ -31,11 +31,11 @@ __attribute__((reqd_work_group_size(LWS_0, LWS_1, LWS_2))) // attr:no-format
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE))) // attr:no-format
 #endif
 KERNEL(gen9_common_conv_bwd_data_kernel)(
-        const  __global DATA_T *diff_dst,
-        __global DATA_T * restrict diff_src,
-        const __global DATA_T *wei,
+        const  __global INPUT0_TYPE *diff_dst,
+        __global OUTPUT_TYPE * restrict diff_src,
+        const __global FILTER_TYPE *wei,
 #if WITH_BIAS
-        const __global DATA_T *bias,
+        const __global BIAS_TYPE *bias,
 #endif
 #if HAS_FUSED_OPS_DECLS
         FUSED_OPS_DECLS,
@@ -76,11 +76,11 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
     diff_dst += input_offset + mb * OC_FULL * G * OD_FULL * OH_FULL * OW_FULL + g * OC * OD_FULL * OH_FULL * OW_FULL * MB_BLOCK;
 
 #if WITH_BIAS
-    DATA8_T blockC00 = (DATA8_T)bias[g * IC + gic * IC_BLOCK + local_id];
-    DATA8_T blockC01 = (DATA8_T)bias[g * IC + gic * IC_BLOCK + local_id];
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockC00 = (MAKE_VECTOR_TYPE(INPUT0_TYPE, 8))bias[g * IC + gic * IC_BLOCK + local_id];
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockC01 = (MAKE_VECTOR_TYPE(INPUT0_TYPE, 8))bias[g * IC + gic * IC_BLOCK + local_id];
 #else
-    DATA8_T blockC00 = 0.0f;
-    DATA8_T blockC01 = 0.0f;
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockC00 = INPUT0_VAL_ZERO;
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockC01 = INPUT0_VAL_ZERO;
 #endif
 
     wei += gic * KD * KH * KW * OC_BLOCK * IC_BLOCK
@@ -111,13 +111,13 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
 #endif
                     if (oh >= OH || ow >= OW) continue;
 
-                    const __global DATA_T *diff_dst1 = diff_dst
+                    const __global INPUT0_TYPE *diff_dst1 = diff_dst
                             + ow * OC_BLOCK * MB_BLOCK
                             + oh * OW_FULL * OC_BLOCK * MB_BLOCK;
 #if CASE_3D
                     diff_dst1 += od * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK;
 #endif
-                    const __global DATA_T *wei1 = wei
+                    const __global FILTER_TYPE *wei1 = wei
 #if CASE_3D
                             + kd * KH * KW * OC_BLOCK * IC_BLOCK
 #endif
@@ -148,12 +148,12 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
 #if SW != 1 || SH != 1 || SD != 1 || PH != 0 || PW != 0 || PD != 0
         if (do_ker) {
 #endif
-            const __global DATA_T *diff_dst1 = diff_dst
+            const __global INPUT0_TYPE *diff_dst1 = diff_dst
                     + ow * OC_BLOCK * MB_BLOCK + oh * OW_FULL * OC_BLOCK * MB_BLOCK;
 #if CASE_3D
             diff_dst1 += od * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK;
 #endif
-            const __global DATA_T *wei1 = wei;
+            const __global FILTER_TYPE *wei1 = wei;
 #endif
 
 #define LOAD_DIFF_DST(_block, _diff_dst, mb_chunk) \
@@ -232,7 +232,7 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
         ocb += OC_BLOCK;
     } while (ocb < OC);
 
-    __global DATA_T *src_write0 = diff_src + OUTPUT_OFFSET + mb * IC_FULL * G * ID_FULL * IH_FULL * IW_FULL
+    __global OUTPUT_TYPE *src_write0 = diff_src + OUTPUT_OFFSET + mb * IC_FULL * G * ID_FULL * IH_FULL * IW_FULL
             + gic * ID_FULL * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK
             + g * IC * ID_FULL * IH_FULL * IW_FULL * MB_BLOCK
             + id * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK + ih * IW_FULL * IC_BLOCK * MB_BLOCK
@@ -278,7 +278,7 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
     const int iw = (ihw % IWB) * IW_BLOCK;
 
     diff_dst += input_offset + mb * OC_FULL * G * OD_FULL * OH_FULL * OW_FULL + g * OC * OD_FULL * OH_FULL * OW_FULL * MB_BLOCK;
-    DATA_T blockC00[IW_BLOCK] = {0.0f};
+    ACCUMULATOR_TYPE blockC00[IW_BLOCK] = {0.0f};
 
 #if WITH_BIAS
     for (int i = 0; i < IW_BLOCK; i++)
@@ -307,12 +307,12 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
                 oh /= SH;
                 if (oh >= OH) continue;
 
-                const __global DATA_T *diff_dst1
+                const __global INPUT0_TYPE *diff_dst1
                         = diff_dst + oh * OW_FULL * OC_BLOCK * MB_BLOCK;
 #if CASE_3D
                 diff_dst1 += od * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK;
 #endif
-                const __global DATA_T *wei1 = wei
+                const __global FILTER_TYPE *wei1 = wei
 #if CASE_3D
                         + kd * KH * KW * OC_BLOCK * IC_BLOCK
 #endif
@@ -341,12 +341,12 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
 #if SW != 1 || SH != 1 || SD != 1 || PH != 0 || PW != 0 || PD != 0
     if (do_ker) {
 #endif
-        const __global DATA_T *diff_dst1
+        const __global INPUT0_TYPE *diff_dst1
                 = diff_dst + oh * OW_FULL * OC_BLOCK * MB_BLOCK;
 #if CASE_3D
         diff_dst1 += od * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK;
 #endif
-        const __global DATA_T *wei1 = wei;
+        const __global FILTER_TYPE *wei1 = wei;
 #endif
 
                 int ocb = 0;
@@ -377,12 +377,9 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
         _result = FMA1(_blockB1.s7, TRANSPOSE_1(_blockA, 15), _result); \
     }
 
-                    DATA8_T blockB00 = AS_DATA8_T(
-                            BLOCK_READ8((const __global BLOCK_DATA_T *)wei1));
-                    DATA8_T blockB01 = AS_DATA8_T(
-                            BLOCK_READ8((const __global BLOCK_DATA_T *)(wei1
-                                    + 8 * IC_BLOCK)));
-                    DATA_T blockA[IW_BLOCK];
+                    MAKE_VECTOR_TYPE(FILTER_TYPE, 8) blockB00 = DT_FILTER_BLOCK_READ8(wei1, 0);
+                    MAKE_VECTOR_TYPE(FILTER_TYPE, 8) blockB01 = DT_FILTER_BLOCK_READ8(wei1, 8 * IC_BLOCK);
+                    INPUT0_TYPE blockA[IW_BLOCK];
 
                     __attribute__((
                             opencl_unroll_hint(IW_BLOCK))) // attr:no-format
@@ -407,9 +404,7 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
                             blockA[i] = 0.0;
                             continue;
                         }
-                        blockA[i] = AS_DATA_T(
-                                BLOCK_READ((const __global BLOCK_DATA_T *)(&(
-                                        diff_dst1)[ow * OC_BLOCK])));
+                        blockA[i] = DT_INPUT_BLOCK_READ(diff_dst1, ow * OC_BLOCK);
                     }
 
                     __attribute__((
@@ -434,7 +429,7 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
 #endif
 #endif
 
-    __global DATA_T *src_write0 = diff_src + output_offset + mb * IC_FULL * G * ID_FULL * IH_FULL * IW_FULL
+    __global OUTPUT_TYPE *src_write0 = diff_src + output_offset + mb * IC_FULL * G * ID_FULL * IH_FULL * IW_FULL
             + gic * ID_FULL * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK
             + g * IC * ID_FULL * IH_FULL * IW_FULL * MB_BLOCK
             + id * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK + ih * IW_FULL * IC_BLOCK * MB_BLOCK
@@ -443,12 +438,12 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
     for (int i = 0; i < IW_BLOCK; i++) {
         blockC00[i] = ACTIVATION(blockC00[i], ACTIVATION_PARAMS);
         if (iw + i >= IW) continue;
+        OUTPUT_TYPE resultC00 = blockC00[i];
 #if HAS_FUSED_OPS
         FUSED_OPS_BLOCK_CI;
-        blockC00[i] = FUSED_OPS_RESULT_BLOCK_CI;
+        resultC00 = FUSED_OPS_RESULT_BLOCK_CI;
 #endif
-        BLOCK_WRITE((__global BLOCK_DATA_T *)(&(src_write0)[i * IC_BLOCK]),
-                AS_BLOCK_DATA_T(blockC00[i]));
+        DT_OUTPUT_BLOCK_WRITE(src_write0, i * IC_BLOCK, resultC00);
     }
 #endif
 }
