@@ -132,6 +132,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"Activation",                                         LAYER_PARSER(parseActivation)},
         {"GatherND",                                           LAYER_PARSER(parseGatherND)},
         {"HSwish",                                             LAYER_PARSER(parseHSwish)},
+        {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
