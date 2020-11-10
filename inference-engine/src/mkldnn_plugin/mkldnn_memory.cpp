@@ -513,7 +513,37 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::aBCde2c4b2c,
         mkldnn::memory::format_tag::aBCde4b8c2b,
         mkldnn::memory::format_tag::aBCde4c8b2c,
-     }}
+    }}, {6, {                                    // Popular
+        mkldnn::memory::format_tag::abcdef,      // plain
+        mkldnn::memory::format_tag::acbdef,      // permuted
+        mkldnn::memory::format_tag::defcab,      // permuted
+        mkldnn::memory::format_tag::aBcdef16b,   // blocked 16c
+
+        mkldnn::memory::format_tag::aBCdef16b16c,
+        mkldnn::memory::format_tag::aBCdef16c16b,
+        mkldnn::memory::format_tag::aBcdef4b,
+        mkldnn::memory::format_tag::aBCdef2c8b4c,
+        mkldnn::memory::format_tag::aBCdef4c4b,
+        mkldnn::memory::format_tag::aBCdef4b4c,
+        mkldnn::memory::format_tag::aBCdef8b8c,
+        mkldnn::memory::format_tag::aBCdef8b4c,
+        mkldnn::memory::format_tag::aBCdef8c16b2c,
+        mkldnn::memory::format_tag::aBCdef4c16b4c,
+        mkldnn::memory::format_tag::aBCdef8c8b,
+
+        mkldnn::memory::format_tag::aBdefc16b,
+        mkldnn::memory::format_tag::aCBdef16c16b,
+        mkldnn::memory::format_tag::aCBdef16b16c,
+        mkldnn::memory::format_tag::aBdefc4b,
+        mkldnn::memory::format_tag::aBdefc8b,
+
+        mkldnn::memory::format_tag::Abcdef16a,
+        mkldnn::memory::format_tag::Abcdef32a,
+        mkldnn::memory::format_tag::aBCdef2b4c2b,
+        mkldnn::memory::format_tag::aBCdef2c4b2c,
+        mkldnn::memory::format_tag::aBCdef4b8c2b,
+        mkldnn::memory::format_tag::aBCdef4c8b2c,
+        }}
 };
 
 mkldnn::memory::format_tag MKLDNNMemoryDesc::getFormat() const {
@@ -780,7 +810,11 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
 }
 
 bool MKLDNNMemoryDesc::blocksExtended() const {
-    return desc.data.format_desc.blocking.inner_nblks != 0;
+    for (int i = 0; i < desc.data.ndims; i++) {
+        if (desc.data.dims[i] != desc.data.padded_dims[i])
+            return true;
+    }
+    return false;
 }
 
 }  // namespace MKLDNNPlugin
