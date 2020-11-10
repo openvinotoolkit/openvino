@@ -34,6 +34,8 @@ namespace ngraph
                 /// \brief Constructs a shape-of operation.
                 ShapeOf(const Output<Node>& arg, const element::Type output_type = element::i64);
 
+                ShapeOf(const Output<Node>& arg, const std::string& output_type = "i64");
+
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
