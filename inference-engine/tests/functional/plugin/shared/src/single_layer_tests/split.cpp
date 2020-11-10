@@ -22,7 +22,8 @@
 namespace LayerTestsDefinitions {
 
 std::string SplitLayerTest::getTestCaseName(testing::TestParamInfo<splitParams> obj) {
-    size_t numSplits, axis;
+    size_t numSplits;
+    int64_t axis;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
