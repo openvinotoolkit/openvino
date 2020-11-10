@@ -421,6 +421,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<InsertCopyLayerPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
+#if GNA_LIB_VER == 2
+        passes->registerPass<ForbidActivationFusingPass>();
+#endif
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
         passes->registerPass<BroadcastConstPass>();

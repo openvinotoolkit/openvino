@@ -132,7 +132,8 @@ namespace ngraph
                     for (int64_t cur_iter = 0; cur_iter < trip_count; ++cur_iter)
                     {
                         // Evaluate body
-                        body_outputs = reference::function(func, inputs_to_body);
+                        body_outputs.clear();
+                        reference::function(func, inputs_to_body, body_outputs);
 
                         // Store values for later concatenation
                         for (size_t i = 0; i < values_to_concat.size(); ++i)

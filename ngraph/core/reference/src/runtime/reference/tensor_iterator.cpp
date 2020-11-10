@@ -120,11 +120,11 @@ namespace ngraph
                     // Evaluate body
                     if (!evaluate)
                     {
-                        body_outputs = reference::function(func, inputs_to_body);
+                        reference::function(func, inputs_to_body, body_outputs);
                     }
                     else
                     {
-                        body_outputs = evaluate(func, inputs_to_body);
+                        evaluate(func, inputs_to_body, body_outputs);
                     }
 
                     // Store values for later concatenation

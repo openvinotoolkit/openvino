@@ -15,13 +15,6 @@
 
 namespace LayerTestsDefinitions {
 
-enum class TensorIteratorBody {
-    RNN,
-    GRU,
-    LSTM,
-    // CNN todo: implement
-};
-
 using TensorIteratorParams = typename std::tuple<
         bool,                                     // using unroll tensor iterator transformation
         size_t,                                   // seq_lengths
@@ -29,7 +22,7 @@ using TensorIteratorParams = typename std::tuple<
         size_t,                                   // hidden size
         size_t,                                   // input size
         float,                                    // clip
-        TensorIteratorBody,                       // body type
+        ngraph::helpers::TensorIteratorBody,      // body type
         ngraph::op::RecurrentSequenceDirection,   // direction
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name

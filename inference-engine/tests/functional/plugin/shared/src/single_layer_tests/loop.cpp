@@ -53,7 +53,6 @@ namespace LayerTestsDefinitions {
 
     void LoopTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        SetRefMode(LayerTestsUtils::INTERPRETER);
         bool execute_first_iteration;
         bool is_body_condition_const;
         bool body_condition; // works only if is_body_condition_const ==
@@ -161,8 +160,6 @@ namespace LayerTestsDefinitions {
 
     void StaticShapeLoopTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        SetRefMode(LayerTestsUtils::INTERPRETER);
-
         auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
         std::tie(
             static_continue_cond,
@@ -260,8 +257,54 @@ namespace LayerTestsDefinitions {
                         max_iter_num == -1 ? INF_N_ITER : max_iter_num);
     }
 
+    // Predefined ref output
+    std::vector<std::vector<std::uint8_t>> StaticShapeLoopTest::PredefinedRefs() {
+        bool auto_concat_out = (axis != -1);
+        const auto n_iter = actual_n_iter();
+
+        auto ref_shape = data_shape;
+        if (auto_concat_out)
+            ref_shape[axis] *= n_iter;
+
+        using namespace CommonTestUtils;
+        InferenceEngine::TensorDesc tdesc {data_prc, ref_shape, InferenceEngine::TensorDesc::getLayoutByDims(ref_shape)};
+        std::vector<uint8_t> res(byte_size(tdesc));
+        auto out = make_blob_with_precision(tdesc, res.data());
+
+        std::vector<float> vals(n_iter);
+        float val = start_value;
+        for (int i = 0; i < n_iter; i++) {
+            val += i;
+            vals[i] = val;
+        }
+
+        if (auto_concat_out)
+            fill_data_with_broadcast(out, axis, vals);
+        else
+            fill_data_with_broadcast(out, 0, {val});  // broadcast scalar data
+
+        return {res};
+    }
+
     TEST_P(StaticShapeLoopTest, CompareWithRefs) {
         Run();
+    }
+
+    TEST_P(StaticShapeLoopTest, CompareWithPredefinedRefs) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        LoadNetwork();
+        Infer();
+        auto expectedOutputs = PredefinedRefs(); // use predefined refs instead of CalculateRefs function
+        const auto& actualOutputs = GetOutputs();
+
+        if (expectedOutputs.empty()) {
+            return;
+        }
+
+        IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
+        << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+
+        Compare(expectedOutputs, actualOutputs);
     }
 
     TEST_P(TrivialLoopTest, PassThroughBody) {
