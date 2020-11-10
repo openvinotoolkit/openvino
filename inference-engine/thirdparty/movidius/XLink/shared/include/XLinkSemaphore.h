@@ -14,6 +14,7 @@
 # if (defined(_WIN32) || defined(_WIN64))
 #  include "win_pthread.h"
 #  include "win_semaphore.h"
+#  include "win_synchapi.h"
 # else
 #  include <pthread.h>
 #  ifdef __APPLE__
