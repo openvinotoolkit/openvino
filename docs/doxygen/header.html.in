@@ -11,7 +11,7 @@
 <!--BEGIN !PROJECT_NAME--><title>$title</title><!--END !PROJECT_NAME-->
 <!-- <script type="text/javascript" src="$relpath^jquery.js"></script> -->
 <!-- JQuery 2.2.4 -->
-<script src="jquery-2.2.4.min.js"></script>
+<script src="assets/jquery-2.2.4.min.js"></script>
 <script type="text/javascript" src="$relpath^dynsections.js"></script>
 <!-- Bootstrap 4.4.1 -->
 <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet"
@@ -22,8 +22,9 @@
 $search
 $mathjax
 <link href="$relpath^$stylesheet" rel="stylesheet" type="text/css" />
+<link href="assets/customdoxygen.css" rel="stylesheet" type="text/css" />
 $extrastylesheet
-<script type="text/javascript" src="$relpath^openvino-layout.js"></script>
+<script type="text/javascript" src="assets/openvino-layout.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.6.2/viewer.css" integrity="sha512-Fd7AWkSYX3RBadbJlBrETnOyX5tkcQu2oN+nO11c+kewdhPlNWQ1Hj83W3hN1odgyh+k7rpvvv7IxZq9bRomCg==" crossorigin="anonymous" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.6.2/viewer.min.js" integrity="sha512-VzJLwaOOYyQemqxRypvwosaCDSQzOGqmBFRrKuoOv7rF2DZPlTaamK1zadh7i2FRmmpdUPAE/VBkCwq2HKPSEQ==" crossorigin="anonymous"></script>
 </head>
@@ -34,8 +35,8 @@ $extrastylesheet
   <!--BEGIN PROJECT_NAME-->
   <div id="projectalign">
    <div id="projectname">
-     <a href="<domain_placeholder>" class="homelink-id">
-       <img src="images/int-openvino-wht.svg" alt="OpenVINO™ Toolkit">
+     <a href="@IE_OUTPUT@/index.html" class="homelink-id">
+       <img src="assets/images/int-openvino-wht.svg" alt="OpenVINO™ Toolkit">
        <p>Documentation</p>
       </a>
     </div>

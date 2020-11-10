@@ -66,8 +66,13 @@ function(build_docs)
     set(ASSETS_DIR "${DOXYGEN_DIR}/assets")
     
     # header and footer
-    set(HEADER "${DOXYGEN_DIR}/header.html")
-    set(FOOTER "${DOXYGEN_DIR}/footer.html")
+    set(HEADER_SOURCE "${DOXYGEN_DIR}/header.html.in")
+    set(FOOTER_SOURCE "${DOXYGEN_DIR}/footer.html.in")
+    set(HEADER_BUILD "${DOCS_BINARY_DIR}/header.html")
+    set(FOOTER_BUILD "${DOCS_BINARY_DIR}/footer.html")
+
+    configure_file(${HEADER_SOURCE} ${HEADER_BUILD} @ONLY)
+    configure_file(${FOOTER_SOURCE} ${FOOTER_BUILD} @ONLY)
 
     file(GLOB_RECURSE doc_source_files
         LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
@@ -102,6 +107,13 @@ function(build_docs)
     set(PY_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_py_api.xml")
     set(PLUGIN_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_plugin_api.xml")
 
+    # out dirs
+    set(OUTPUT_DIRECTORY "${DOCS_BINARY_DIR}/html")
+    set(IE_OUTPUT "${OUTPUT_DIRECTORY}")
+    set(C_OUTPUT "${OUTPUT_DIRECTORY}/ie_c_api")
+    set(PY_OUTPUT "${OUTPUT_DIRECTORY}/ie_python_api")
+    set(PLUGIN_OUTPUT "${OUTPUT_DIRECTORY}/ie_plugin_api")
+
     # Tables of contents
     configure_file(${IE_LAYOUT_SOURCE} ${IE_LAYOUT_BINARY} @ONLY)
     configure_file(${C_LAYOUT_SOURCE} ${C_LAYOUT_BINARY} @ONLY)
@@ -121,6 +133,7 @@ function(build_docs)
     # C API
 
     add_custom_target(c_api
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${C_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${C_CONFIG_BINARY}
                       WORKING_DIRECTORY ${DOCS_BINARY_DIR}
                       COMMENT "Generating C API Reference"
@@ -129,6 +142,7 @@ function(build_docs)
     # Python API
 
     add_custom_target(py_api
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${PY_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${PY_CONFIG_BINARY}
                       WORKING_DIRECTORY ${DOCS_BINARY_DIR}
                       COMMENT "Generating Python API Reference"
@@ -142,6 +156,7 @@ function(build_docs)
     # Plugin API
 
     add_custom_target(plugin_api
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${PLUGIN_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BINARY}
                       WORKING_DIRECTORY ${DOCS_BINARY_DIR}
                       COMMENT "Generating Plugin API Reference"
@@ -168,6 +183,7 @@ function(build_docs)
 
     add_custom_target(ie_docs
                       DEPENDS preprocess_docs
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${IE_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BINARY}
                       WORKING_DIRECTORY ${DOCS_BINARY_DIR}
                       VERBATIM)
