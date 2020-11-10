@@ -1213,13 +1213,17 @@ void MKLDNNEltwiseNode::createPrimitive() {
         fullWorkAmount *= dims_out[i];
     }
 
+    isDynBatchEnabled = config.dynBatchSupport;
+
     size_t minimalConcurrency = parallel_get_max_threads();
     size_t minimalJitWorkAmount = 256;
     size_t currentJitWorkAmount = dims_out[dims_out.size() - 1];
     int collapsedDims = 0;
     if (canUseOptimizedImpl) {
         bool hasDifferentDims = false;
-        while (currentJitWorkAmount < minimalJitWorkAmount) {
+        while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
+               // we shouldn't collapse batch dimension in case dynamic batch is enabled
+               (!isDynBatchEnabled || (config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() - collapsedDims > 2))) {
             if (dims_out.size() - collapsedDims - 2 < 0)
                 break;
 
@@ -1271,7 +1275,6 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     }
 
-    isDynBatchEnabled = config.dynBatchSupport;
     batchDimIdx = tensorRank - config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
     schedulerWorkAmount = fullWorkAmount / dims_out[dims_out.size() - 1];
 
