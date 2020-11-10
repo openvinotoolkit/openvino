@@ -61,7 +61,7 @@ class StaticShapeLoopTest : public testing::WithParamInterface<StaticShapeLoopPa
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StaticShapeLoopParams> &obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
+    std::vector<std::vector<std::uint8_t>> PredefinedRefs();
 
 private:
     bool static_iter_num;       // trip count provided by constant node
@@ -100,7 +100,7 @@ protected:
         return LayerTestsCommon::GenerateInput(info);
     }
 
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override {
+    std::vector<std::vector<std::uint8_t>> PredefinedRefs() {
         if (outputGens.empty())
             return LayerTestsCommon::CalculateRefs();
 

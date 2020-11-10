@@ -15,10 +15,13 @@
 //*****************************************************************************
 
 #include "ngraph/op/loop.hpp"
+#include "itt.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/specialize_function.hpp"
+
+#include "ngraph/runtime/reference/loop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -379,4 +382,12 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
                  "Supported values for start {0}, for stride and part_size {1}, for end "
                  "{-1}");
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
+}
+
+bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v5::Loop::evaluate");
+    runtime::reference::loop(
+        m_body, m_output_descriptions, m_input_descriptions, m_special_body_ports, outputs, inputs);
+    return true;
 }

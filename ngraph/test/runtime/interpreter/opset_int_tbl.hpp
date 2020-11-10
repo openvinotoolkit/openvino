@@ -59,11 +59,12 @@ NGRAPH_OP(LSTMCell, op::v4)
 
 #define ID_SUFFIX(NAME) NAME##_v5
 NGRAPH_OP(GatherND, op::v5)
-NGRAPH_OP(LSTMSequence, op::v5)
 NGRAPH_OP(GRUSequence, op::v5)
-NGRAPH_OP(RNNSequence, op::v5)
 NGRAPH_OP(BatchNormInference, op::v5)
-NGRAPH_OP(Round, op::v5)
 NGRAPH_OP(LogSoftmax, op::v5)
+NGRAPH_OP(Loop, op::v5)
+NGRAPH_OP(LSTMSequence, op::v5)
 NGRAPH_OP(NonMaxSuppression, op::v5)
+NGRAPH_OP(RNNSequence, op::v5)
+NGRAPH_OP(Round, op::v5)
 #undef ID_SUFFIX

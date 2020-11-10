@@ -729,5 +729,21 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCa
     return os;
 }
 
+std::ostream& operator<<(std::ostream & os, TensorIteratorBody type) {
+    switch (type) {
+        case TensorIteratorBody::LSTM:
+            os << "LSTM";
+            break;
+        case TensorIteratorBody::RNN:
+            os << "RNN";
+            break;
+        case TensorIteratorBody::GRU:
+            os << "GRU";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
 }  // namespace helpers
 }  // namespace ngraph

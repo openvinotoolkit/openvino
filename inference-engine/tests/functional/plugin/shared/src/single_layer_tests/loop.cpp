@@ -53,7 +53,6 @@ namespace LayerTestsDefinitions {
 
     void LoopTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        SetRefMode(LayerTestsUtils::IE);
         bool execute_first_iteration;
         bool is_body_condition_const;
         bool body_condition; // works only if is_body_condition_const ==
@@ -161,8 +160,6 @@ namespace LayerTestsDefinitions {
 
     void StaticShapeLoopTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        SetRefMode(LayerTestsUtils::IE);
-
         auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
         std::tie(
             static_continue_cond,
@@ -261,7 +258,7 @@ namespace LayerTestsDefinitions {
     }
 
     // Predefined ref output
-    std::vector<std::vector<std::uint8_t>> StaticShapeLoopTest::CalculateRefs() {
+    std::vector<std::vector<std::uint8_t>> StaticShapeLoopTest::PredefinedRefs() {
         bool auto_concat_out = (axis != -1);
         const auto n_iter = actual_n_iter();
 
@@ -291,6 +288,23 @@ namespace LayerTestsDefinitions {
 
     TEST_P(StaticShapeLoopTest, CompareWithRefs) {
         Run();
+    }
+
+    TEST_P(StaticShapeLoopTest, CompareWithPredefinedRefs) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        LoadNetwork();
+        Infer();
+        auto expectedOutputs = PredefinedRefs(); // use predefined refs instead of CalculateRefs function
+        const auto& actualOutputs = GetOutputs();
+
+        if (expectedOutputs.empty()) {
+            return;
+        }
+
+        IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
+        << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+
+        Compare(expectedOutputs, actualOutputs);
     }
 
     TEST_P(TrivialLoopTest, PassThroughBody) {
