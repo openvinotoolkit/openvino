@@ -256,7 +256,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
         OV_ITT_TASK_SKIP(taskChain);
-	Transformation(clonedNetwork, conf);
+        Transformation(clonedNetwork, conf);
         is_transformed = true;
     }
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);

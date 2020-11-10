@@ -47,6 +47,7 @@ public:
 
 class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertReduceMeanToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(
                 ngraph::pattern::wrap_type<opset1::ReduceMean>({pattern::any_input(pattern::has_static_shape()),
@@ -58,6 +59,7 @@ public:
 
 class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertReduceMaxToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(
                 ngraph::pattern::wrap_type<opset1::ReduceMax>({pattern::any_input(pattern::has_static_shape()),
@@ -69,6 +71,7 @@ public:
 
 class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertReduceSumToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(
                 ngraph::pattern::wrap_type<opset1::ReduceSum>({pattern::any_input(pattern::has_static_shape()),
