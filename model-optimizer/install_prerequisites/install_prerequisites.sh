@@ -72,7 +72,7 @@ if [[ $DISTRO == "centos" ]]; then
     fi
 elif [[ $DISTRO == "ubuntu" ]]; then
     sudo -E apt update
-    sudo -E apt -y install python3-pip python3-venv libgfortran5
+    sudo -E apt -y --no-install-recommends install python3-pip python3-venv
     python_binary=python3
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     python_binary=python3
@@ -80,11 +80,11 @@ fi
 
 
 if [[ $V_ENV -eq 1 ]]; then
-    "$python_binary" -m venv "$SCRIPTDIR/../venv"
-    source "$SCRIPTDIR/../venv/bin/activate"
-    "$SCRIPTDIR/../venv/bin/$python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
+    "$python_binary" -m venv "$SCRIPTDIR/../venv${postfix}"
+    source "$SCRIPTDIR/../venv${postfix}/bin/activate"
+    "$SCRIPTDIR/../venv${postfix}/bin/$python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     echo
-    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv/bin/activate\""
+    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv${postfix}/bin/activate\""
 else
     if [[ "$OSTYPE" == "darwin"* ]]; then
         python3 -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
@@ -93,5 +93,5 @@ else
     fi
     echo "[WARNING] All Model Optimizer dependencies are installed globally."
     echo "[WARNING] If you want to keep Model Optimizer in separate sandbox"
-    echo "[WARNING] run install_prerequisites.sh venv \"{caffe|tf|tf2|mxnet|kaldi|onnx}\""
+    echo "[WARNING] run install_prerequisites.sh \"{caffe|tf|tf2|mxnet|kaldi|onnx}\" venv"
 fi

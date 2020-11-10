@@ -350,27 +350,6 @@ void MKLDNNMemory::CreateBlockingDesc(memory::desc &desc) {
     }
 }
 
-Precision MKLDNNMemory::convertToIePrec(memory::data_type dataType) {
-    switch (dataType) {
-        case memory::f32:
-            return Precision::FP32;
-        case memory::u8:
-            return Precision::U8;
-        case memory::s8:
-            return Precision::I8;
-        case memory::s16:
-            return Precision::I16;
-        case memory::s32:
-            return Precision::I32;
-        case memory::bin:
-            return Precision::BIN;
-        case memory::bf16:
-            return Precision::BF16;
-        default:
-           THROW_IE_EXCEPTION << "Unknown mkldnn data type";
-    }
-}
-
 memory::format MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
     switch (layout) {
         case NCHW:
@@ -1413,7 +1392,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
 
     if (notDefault) {
         for (size_t i = 0; i < strides.size() && i < desc.data.ndims; i++) {
-            desc.data.layout_desc.blocking.strides[0][i] = static_cast<ptrdiff_t>(strides[order[i]]);
+            desc.data.layout_desc.blocking.strides[0][order[i]] = static_cast<ptrdiff_t>(strides[i]);
         }
     }
 }
