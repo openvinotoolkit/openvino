@@ -353,7 +353,8 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
 
 bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)
 {
-    if (!pass::revalidate_and_ensure_static(shared_from_this())) {
+    if (get_output_partial_shape(0).is_dynamic())
+    {
         return false;
     }
 
