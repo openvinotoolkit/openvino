@@ -14,9 +14,9 @@
 namespace LayerTestsDefinitions {
 
 using batchToSpaceParamsTuple = typename std::tuple<
-        std::vector<size_t>,               // block shape
-        std::vector<size_t>,               // crops begin
-        std::vector<size_t>,               // crops end
+        std::vector<int64_t>,              // block shape
+        std::vector<int64_t>,              // crops begin
+        std::vector<int64_t>,              // crops end
         std::vector<size_t>,               // Input shapes
         InferenceEngine::Precision,        // Network precision
         InferenceEngine::Precision,        // Input precision

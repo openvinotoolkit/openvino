@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-typedef std::vector<size_t> TileSpecificParams;
+typedef std::vector<int64_t> TileSpecificParams;
 typedef std::tuple<
         TileSpecificParams,
         InferenceEngine::Precision,    // Net precision
