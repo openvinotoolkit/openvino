@@ -25,13 +25,45 @@
 #include "inference_engine/ie_version.hpp"
 #include "inference_engine/ie_parameter.hpp"
 #include "inference_engine/ie_input_info.hpp"
+#include "inference_engine/ie_const_input_info.hpp"
 #include "inference_engine/ie_data.hpp"
+
+#include <string>
+#include <ie_common.h>
+#include <ie_version.hpp>
+
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(pyopenvino, m)
-{
+std::string get_version() {
+    auto version = InferenceEngine::GetInferenceEngineVersion();
+    std::string version_str = std::to_string(version->apiVersion.major) + ".";
+    version_str += std::to_string(version->apiVersion.minor) + ".";
+    version_str += version->buildNumber;
+    return version_str;
+}
+
+PYBIND11_MODULE(pyopenvino, m) {
+
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
+    m.def("get_version", &get_version);
+    py::enum_<InferenceEngine::StatusCode>(m, "StatusCode")
+    .value("OK", InferenceEngine::StatusCode::OK)
+    .value("GENERAL_ERROR", InferenceEngine::StatusCode::GENERAL_ERROR)
+    .value("NOT_IMPLEMENTED", InferenceEngine::StatusCode::NOT_IMPLEMENTED)
+    .value("NETWORK_NOT_LOADED", InferenceEngine::StatusCode::NETWORK_NOT_LOADED)
+    .value("PARAMETER_MISMATCH", InferenceEngine::StatusCode::PARAMETER_MISMATCH)
+    .value("NOT_FOUND", InferenceEngine::StatusCode::NOT_FOUND)
+    .value("OUT_OF_BOUNDS", InferenceEngine::StatusCode::OUT_OF_BOUNDS)
+    .value("UNEXPECTED", InferenceEngine::StatusCode::UNEXPECTED)
+    .value("REQUEST_BUSY", InferenceEngine::StatusCode::REQUEST_BUSY)
+    .value("RESULT_NOT_READY", InferenceEngine::StatusCode::RESULT_NOT_READY)
+    .value("NOT_ALLOCATED", InferenceEngine::StatusCode::NOT_ALLOCATED)
+    .value("INFER_NOT_STARTED", InferenceEngine::StatusCode::INFER_NOT_STARTED)
+    .value("NETWORK_NOT_READ", InferenceEngine::StatusCode::NETWORK_NOT_READ)
+    .export_values();
+
+
     regclass_IECore(m);
 
     regclass_Blob<float>(m);
@@ -56,4 +88,5 @@ PYBIND11_MODULE(pyopenvino, m)
     regclass_Parameter(m);
     regclass_Data(m);
     regclass_InputInfo(m);
+    regclass_ConstInputInfo(m);
 }

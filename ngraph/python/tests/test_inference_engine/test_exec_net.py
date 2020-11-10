@@ -54,8 +54,9 @@ def read_image():
 def test_input_info(device):
     ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie_core.load_network(net, device)
-    assert isinstance(exec_net.input_info['data'], InputInfoCPtr)
+    exec_net = ie_core.load_network(network=net, device_name=device, config={})
+    print("val")
+    #assert isinstance(exec_net.input_info['data'], InputInfoPtr)
     assert exec_net.input_info['data'].name == "data"
     assert exec_net.input_info['data'].precision == "FP32"
     assert isinstance(exec_net.input_info['data'].input_data, DataPtr)

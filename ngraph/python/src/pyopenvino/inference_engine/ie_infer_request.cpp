@@ -52,7 +52,8 @@ void regclass_InferRequest(py::module m)
             self.SetBlob(name, blob);
         }
     });
-
+//    cls.def("wait");
+//    cls.def("set_completion_callback")
 //    async_infer()
 //    latency
 //            input_blobs

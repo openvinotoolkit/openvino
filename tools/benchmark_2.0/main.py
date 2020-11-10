@@ -2,18 +2,18 @@ import os
 import sys
 from datetime import datetime
 
-from openvino.tools.benchmark.benchmark import Benchmark
-from openvino.tools.benchmark.parameters import parse_args
-from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
+from benchmark import Benchmark
+from parameters import parse_args
+from utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
     GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BLOB_EXTENSION
-from openvino.tools.benchmark.utils.inputs_filling import set_inputs
-from openvino.tools.benchmark.utils.logging import logger
-from openvino.tools.benchmark.utils.progress_bar import ProgressBar
-from openvino.tools.benchmark.utils.utils import next_step, config_network_inputs, get_number_iterations, \
+from utils.inputs_filling import set_inputs
+from utils.logging import logger
+from utils.progress_bar import ProgressBar
+from utils.utils import next_step, config_network_inputs, get_number_iterations, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, update_shapes, \
     adjust_shapes_batch, load_config, dump_config
-from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
+from utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
 def main():
@@ -32,8 +32,8 @@ def run(args):
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
-          statistics = StatisticsReport(StatisticsReport.Config(args.report_type, args.report_folder))
-          statistics.add_parameters(StatisticsReport.Category.COMMAND_LINE_PARAMETERS, command_line_arguments)
+            statistics = StatisticsReport(StatisticsReport.Config(args.report_type, args.report_folder))
+            statistics.add_parameters(StatisticsReport.Category.COMMAND_LINE_PARAMETERS, command_line_arguments)
 
         def is_flag_set_in_command_line(flag):
             return any(x.strip('-') == flag for x, y in command_line_arguments)
@@ -263,7 +263,11 @@ def run(args):
             device_number_streams[device] = benchmark.ie.get_config(device, key)
 
         # Number of requests
-        infer_requests = exe_network.requests
+        #infer_requests = exe_network.requests
+        infer_requests = []
+
+        for i in range(benchmark.nireq):
+            infer_requests.append(exe_network.create_infer_request())
 
         # Iteration limit
         benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, args.api_type)
@@ -275,7 +279,8 @@ def run(args):
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
-        set_inputs(paths_to_input, batch_size, exe_network.input_info, infer_requests)
+        l = exe_network.input_info
+        set_inputs(paths_to_input, batch_size, l, infer_requests)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
@@ -307,14 +312,15 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
+        #duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
+        duration_ms =  "{:.2f}".format(benchmark.first_infer(infer_requests))
         logger.info("First inference took {} ms".format(duration_ms))
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
+        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(infer_requests, batch_size, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
@@ -375,5 +381,6 @@ def run(args):
             statistics.dump()
         sys.exit(1)
 
+
 if __name__ == "__main__":
-   main()
+    sys.exit(main() or 0)
