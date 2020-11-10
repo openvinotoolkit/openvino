@@ -501,11 +501,22 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto input = layer->insData[0].lock();
 
     auto outputs = *layer->outData.begin();
-
-    uint32_t num_rows_in = FROM_IR_DIM(input, 1);
-    uint32_t num_columns_in = FROM_IR_DIM(input, 2);
+    uint32_t num_rows_in = InferenceEngine::details::product(begin(input->getDims()), end(input->getDims()));
+    uint32_t num_columns_in = 1;
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
+
+    if (input->getDims().size() > 2 || input->getDims()[0] >= 8) {
+        for (size_t index_divide = 8; index_divide > 0; index_divide--) {
+            if (num_rows_in % index_divide == 0) {
+                num_rows_in /= index_divide;
+                num_columns_in = index_divide;
+                break;
+            }
+        }
+        num_rows_out = num_rows_in;
+        num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
+    }
 
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
