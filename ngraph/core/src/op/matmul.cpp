@@ -118,63 +118,62 @@ namespace matmul
         // 3. If ranks of input arguments are different after steps 1 and 2,
         // the smaller tensor is unsqueezed from the left side of the shape
         // by necessary number of axes to make both shapes of the same rank.
-        std::vector<Dimension> small_batch_matrix =
-            arg0_rank > arg1_rank ? arg1_shape_tmp : arg0_shape_tmp;
-        std::vector<Dimension> big_batch_matrix =
-            arg0_rank > arg1_rank ? arg0_shape_tmp : arg1_shape_tmp;
-        std::vector<Dimension> output_shape(big_batch_matrix);
-
         if (arg0_rank != arg1_rank)
         {
             // Expand small_batch_matrix (with 1) to have the same rank as big_batch_matrix
-            size_t delta_rank = big_batch_matrix.size() - small_batch_matrix.size();
-            small_batch_matrix.insert(small_batch_matrix.begin(), delta_rank, 1);
+            // size_t delta_rank = big_batch_matrix.size() - small_batch_matrix.size();
+            // small_batch_matrix.insert(small_batch_matrix.begin(), delta_rank, 1);
+            int64_t delta_rank = arg0_rank - arg1_rank;
+            delta_rank < 0 ? arg0_shape_tmp.insert(arg0_shape_tmp.begin(), std::abs(delta_rank), 1)
+                           : arg1_shape_tmp.insert(arg1_shape_tmp.begin(), std::abs(delta_rank), 1);
+            arg0_rank = arg0_shape_tmp.size();
+            arg1_rank = arg1_shape_tmp.size();
         }
+        std::vector<Dimension> output_shape(arg0_rank);
 
         // 4. Usual rules of the broadcasting are applied for batch dimensions.
         // Broadcast all batches (last two dimensions represent matrix),
         // expand dim with value 1 to bigger dim if dimensions are not equal.
-        for (auto i = 0; i < big_batch_matrix.size() - 2; i++)
+        for (auto i = 0; i < arg0_rank - 2; i++)
         {
             // Dimension with value 1 can be expanded to any bigger
-            auto min_dim_val = std::min(small_batch_matrix[i].get_min_length(),
-                                        big_batch_matrix[i].get_min_length());
+            auto min_dim_val =
+                std::min(arg0_shape_tmp[i].get_min_length(), arg1_shape_tmp[i].get_min_length());
             if (min_dim_val > 1)
             {
                 auto merged_dimension = Dimension::dynamic();
-                NGRAPH_CHECK(Dimension::merge(
-                                 merged_dimension, small_batch_matrix[i], big_batch_matrix[i]) ||
-                                 small_batch_matrix[i].is_dynamic() ||
-                                 big_batch_matrix[i].is_dynamic(),
-                             "Incompatible MatMul batch dimension. ",
-                             "Can't merge dimension=",
-                             small_batch_matrix[i],
-                             " with dimension=",
-                             big_batch_matrix[i],
-                             " at index=",
-                             i);
+                NGRAPH_CHECK(
+                    Dimension::merge(merged_dimension, arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
+                        arg0_shape_tmp[i].is_dynamic() || arg1_shape_tmp[i].is_dynamic(),
+                    "Incompatible MatMul batch dimension. ",
+                    "Can't merge first input dimension=",
+                    arg0_shape_tmp[i],
+                    " with second input dimension=",
+                    arg1_shape_tmp[i],
+                    " at index=",
+                    i);
 
                 output_shape[i] = merged_dimension;
             }
             else
             {
                 Dimension::value_type upper_bound, lower_bound;
-                lower_bound = std::max(small_batch_matrix[i].get_min_length(),
-                                       big_batch_matrix[i].get_min_length());
+                lower_bound = std::max(arg0_shape_tmp[i].get_min_length(),
+                                       arg1_shape_tmp[i].get_min_length());
 
                 if (lower_bound <= 1)
                 {
                     // Both of the dimensions have 1 in range,
                     // upper_bound is the maximum of the each range highest possible value.
-                    upper_bound = std::max(small_batch_matrix[i].get_interval().get_max_val(),
-                                           big_batch_matrix[i].get_interval().get_max_val());
+                    upper_bound = std::max(arg0_shape_tmp[i].get_interval().get_max_val(),
+                                           arg1_shape_tmp[i].get_interval().get_max_val());
                 }
                 else
                 {
                     // Set upper_bound same as upper bound the dimension without 1 in range.
-                    upper_bound = small_batch_matrix[i].get_min_length() <= 1
-                                      ? big_batch_matrix[i].get_max_length()
-                                      : small_batch_matrix[i].get_max_length();
+                    upper_bound = arg0_shape_tmp[i].get_min_length() <= 1
+                                      ? arg1_shape_tmp[i].get_max_length()
+                                      : arg0_shape_tmp[i].get_max_length();
                 }
                 output_shape[i] = Dimension(lower_bound, upper_bound);
             }
