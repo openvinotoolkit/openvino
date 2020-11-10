@@ -84,13 +84,16 @@ public:
      * @param num_data_bytes_in - size
      * @param offset - num bytes to advance in buffer
      * @param idx - index of input port that we are connecting
+     * @param connectTo - connectTo is true is alternative to positive or equal to zero offset
+     * in case when we would like to use zero offset and connect from  pointer set this to negative
      * @return layer used as input
      */
     GNAPluginNS::ConnectionDetails connectInput(InferenceEngine::CNNLayerPtr layer,
                                                 void *pVoid,
                                                 size_t num_data_bytes_in,
                                                 int32_t offset = 0,
-                                                int idx = 0);
+                                                int idx = 0,
+                                                bool connectTo = true);
 
     /**
      * Fill in the Affine layer weights
