@@ -857,7 +857,10 @@ int main(int argc, char *argv[]) {
 
                 uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0),
                         numBytesReferenceScoreThisUtterance(0);
-                const uint32_t numScoresPerFrame = ptrOutputBlob.size() / batchSize;
+                auto dims = outputs.empty() ? cOutputInfo.rbegin()->second->getDims() : cOutputInfo[outputs[next_output]]->getDims();
+                const auto numScoresPerFrame = std::accumulate(std::begin(dims), std::end(dims), size_t{1}, std::multiplies<size_t>());
+
+                slog::info << "Number scores per frame : " << numScoresPerFrame << slog::endl;
 
                 numFrameElementsInput.resize(numInputArkFiles);
                 for (size_t i = 0; i < inputArkFiles.size(); i++) {
