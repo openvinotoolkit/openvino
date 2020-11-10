@@ -5,6 +5,7 @@
 #include "mkldnn_extension_utils.h"
 #include <limits>
 #include <vector>
+#include <numeric>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -138,4 +139,49 @@ bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc
     }
     return !(in1Block.getOffsetPadding() != in2Block.getOffsetPadding() &&
         in1Block.getOffsetPadding() != uninitNum && in2Block.getOffsetPadding() != uninitNum);
+}
+
+PartialBlkDesc PartialBlkDesc::makePlain(const InferenceEngine::SizeVector &dims) {
+    PartialBlkDesc res;
+    res.outer_order.resize(dims.size());
+    std::iota(res.outer_order.begin(), res.outer_order.end(), 0);
+    return res;
+}
+
+PartialBlkDesc PartialBlkDesc::extractFrom(const InferenceEngine::TensorDesc &desc) {
+    const auto &dims = desc.getDims();
+    const auto &blk = desc.getBlockingDesc();
+    const auto &blk_dims = blk.getBlockDims();
+    const auto &blk_order = blk.getOrder();
+
+    PartialBlkDesc res;
+    res.outer_order = {blk_order.begin(), blk_order.begin() + dims.size()};
+    res.inner_blk_idxes = {blk_order.begin() + dims.size(), blk_order.end()};
+    res.inner_blk_size = {blk_dims.begin() + dims.size(), blk_dims.end()};
+
+    return res;
+}
+
+bool PartialBlkDesc::isAutoExtendedWith(const InferenceEngine::SizeVector &dims) const {
+    auto tmp_dims = dims;
+    for (int i = 0; i < inner_blk_size.size(); i++) {
+        auto idx = inner_blk_idxes[i];
+        auto blk = inner_blk_size[i];
+        if (tmp_dims[idx] % blk == 0)
+            tmp_dims[idx] /= blk;
+        else
+            return true;
+    }
+    return false;
+}
+
+bool PartialBlkDesc::operator == (const PartialBlkDesc& it) const {
+    return std::tie(inner_blk_idxes, inner_blk_size, outer_order) ==
+           std::tie(inner_blk_idxes, inner_blk_size, outer_order);
+}
+
+// Lexicographical compare of content
+bool PartialBlkDesc::operator < (const PartialBlkDesc& it) const {
+    return std::tie(inner_blk_idxes, inner_blk_size, outer_order) <
+           std::tie(inner_blk_idxes, inner_blk_size, outer_order);
 }
