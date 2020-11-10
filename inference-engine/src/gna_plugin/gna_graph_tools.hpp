@@ -220,9 +220,14 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
             separate_layers(getInputTo(layer->outData[i]));
         }
 
+        std::set< CNNLayerPtr > visited;
         while (!currentSet.empty()) {
             auto currentLayer = currentSet.front();
             currentSet.pop_front();
+            if (visited.count(currentLayer)) {
+                continue;
+            }
+            visited.insert(currentLayer);
             for (auto && oData : currentLayer->outData) {
                 separate_layers(getInputTo(oData));
             }

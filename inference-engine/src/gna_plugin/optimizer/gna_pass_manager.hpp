@@ -124,6 +124,14 @@ DECL_PASS(ReorderMaxPool);
 DECL_PASS(HandleMultipleActivationsForTheLayer);
 
 /**
+ * @brief GNA doesn't provide intermediate results (sums) when the layer is fused with activation.
+ * When more layers use the sums as inputs (beside the activation) then the diagonal layer
+ * is inserted before the activation to forbid the fusing and make the sums exposed.
+ * This is observed in the multiple_activations_onGNA_INT16 test.
+ */
+DECL_PASS(ForbidActivationFusing);
+
+/**
  * @brief copy layer insertion required in cases where input layer does not have output memory
  */
 DECL_PASS(InsertCopyLayer);
