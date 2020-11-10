@@ -1351,7 +1351,7 @@ TEST(attributes, roi_pooling_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset3::ROIPooling>();
     const auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
-    const auto coords = make_shared<op::Parameter>(element::i32, Shape{2, 3});
+    const auto coords = make_shared<op::Parameter>(element::f32, Shape{2, 5});
 
     const auto op = make_shared<opset3::ROIPooling>(data, coords, Shape{5, 5}, 0.123, "Bilinear");
     NodeBuilder builder(op);
