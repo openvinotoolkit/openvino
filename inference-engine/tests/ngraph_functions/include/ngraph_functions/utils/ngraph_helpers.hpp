@@ -188,6 +188,13 @@ enum class PadMode {
     SYMMETRIC,
 };
 
+enum class TensorIteratorBody {
+    RNN,
+    GRU,
+    LSTM,
+    // CNN todo: implement
+};
+
 std::ostream &operator<<(std::ostream &os, const ReductionType &m);
 std::ostream &operator<<(std::ostream &os, const PadMode &m);
 
@@ -263,6 +270,8 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Coordin
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type);
 
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCalcMode type);
+
+std::ostream& operator<<(std::ostream & os, TensorIteratorBody type);
 
 }  // namespace helpers
 }  // namespace ngraph
