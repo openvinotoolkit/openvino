@@ -36,25 +36,6 @@ namespace ngraph
     {
         namespace reference
         {
-            struct InfoForNMS5
-            {
-                int64_t max_output_boxes_per_class;
-                float iou_threshold;
-                float score_threshold;
-                float soft_nms_sigma;
-                Shape out_shape;
-                Shape boxes_shape;
-                Shape scores_shape;
-                std::vector<float> boxes_data;
-                std::vector<float> scores_data;
-                size_t out_shape_size;
-                bool sort_result_descending;
-                ngraph::element::Type output_type;
-            };
-
-            InfoForNMS5 get_info_for_nms5_evaluation(const op::v5::NonMaxSuppression* nms5,
-                                                     const HostTensorVector& inputs);
-
             void non_max_suppression(const float* boxes_data,
                                      const Shape& boxes_data_shape,
                                      const float* scores_data,
