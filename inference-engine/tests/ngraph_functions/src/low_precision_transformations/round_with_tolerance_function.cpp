@@ -45,7 +45,7 @@ namespace subgraph {
 
         const auto result = std::make_shared<ngraph::opset1::Result>(deq);
         result->set_friendly_name("result");
-        
+
         return std::make_shared<ngraph::Function>(
             ngraph::ResultVector{ result },
             ngraph::ParameterVector{ input },
