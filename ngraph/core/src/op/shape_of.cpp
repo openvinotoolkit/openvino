@@ -39,6 +39,13 @@ op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type)
     constructor_validate_and_infer_types();
 }
 
+op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, const std::string& output_type)
+    : Op{{arg}}
+    , m_output_type(EnumNames<element::Type>::as_enum(output_type))
+{
+    constructor_validate_and_infer_types();
+}
+
 void op::v3::ShapeOf::validate_and_infer_types()
 {
     NODE_VALIDATION_CHECK(this,
