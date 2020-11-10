@@ -296,6 +296,11 @@ namespace ngraph
                 as_node_vector(ng_inputs));
         }
 
+        const OpsetImports& Graph::get_opset_imports() const
+        {
+            return m_model->get_opset_imports();
+        }
+
         Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto,
                            Model& model,
                            const Graph& parent_graph)

@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
+#include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/onnx.hpp"
@@ -217,6 +218,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_
     test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
     test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_mul_opset1.prototxt"));
+
+    const auto parent_ops = function->get_ops();
+    const auto loop_node_it =
+        std::find_if(parent_ops.begin(), parent_ops.end(), [](const std::shared_ptr<Node>& op) {
+            return std::string{op->get_type_name()} == "Loop";
+        });
+    const auto body_ops =
+        ngraph::as_type_ptr<ngraph::opset5::Loop>(*loop_node_it)->get_function()->get_ops();
+    const auto body_mul_node_it =
+        std::find_if(body_ops.begin(), body_ops.end(), [](const std::shared_ptr<Node>& op) {
+            return std::string{op->get_type_name()} == "Multiply";
+        });
+    const auto body_mul_node = ngraph::as_type_ptr<ngraph::opset5::Multiply>(*body_mul_node_it);
+    EXPECT_TRUE(body_mul_node);
+    EXPECT_EQ(
+        body_mul_node->get_autob().m_type,
+        ngraph::op::AutoBroadcastType::NONE); // legacy Mul from ONNX opset1 has NONE broadcasting
 }
 
 // ~~~~~~~~STATIC/DYNAMIC/CONSTANT INPUTS TESTS:~~~~~~~~

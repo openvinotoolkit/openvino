@@ -137,10 +137,10 @@ xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "While validating node 'v1::<name> (sizes[0]:i64{4},"
                                       "Convert_29306[0]:f32{4}) -> (dynamic?)' with friendly_name '<name>':"
                                       "Argument element types are inconsistent.")
-xfail_issue_41813 = xfail_test(reason="RuntimeError: While validating ONNX node"
-                                      " '<Node(Loop): generic_loop_Loop__69>'"
-                                      "While validating ONNX node '<Node(Resize): Resize__143>':"
-                                      "vector::_M_range_check: __n (which is 2) >= this->size() (which is 2")
+xfail_issue_42297 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Conv): Conv__7398>':"
+                                      "Check 'data.get_partial_shape().rank().is_static()'"
+                                      " failed at ngraph/frontend/onnx_import/src/op/conv.cpp:102:"
+                                      "The input data tensor's rank has to be known (static)")
 xfail_issue_41814 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop):"
                                       " generic_loop_Loop__121>':"
                                       "While validating ONNX node '<Node(TopK):"

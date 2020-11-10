@@ -110,6 +110,11 @@ namespace ngraph
             }
         }
 
+        const OpsetImports& Model::get_opset_imports() const
+        {
+            return m_model_proto->opset_import();
+        }
+
     } // namespace onnx_import
 
 } // namespace ngraph
