@@ -70,6 +70,11 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
 std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
                                              const std::vector<size_t>& shape);
 
+std::shared_ptr<ngraph::Node> makeBroadcast(const ngraph::Output<Node> &in,
+                                            const ngraph::Output<Node> &target_shape,
+                                            const ngraph::op::BroadcastType& mode,
+                                            const ngraph::AxisSet& axis_set = {});
+
 std::shared_ptr<ngraph::Node> makeConvolution(const ngraph::Output<Node> &in,
                                               const element::Type &type,
                                               const std::vector<size_t> &filterSize,
