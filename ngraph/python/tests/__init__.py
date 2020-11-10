@@ -176,13 +176,32 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "NegativeLogLikelihoodLoss")
 
+xfail_issue_42779 = xfail_test(reason="Unsupported dynamic ops:"
+                                      "v1::TopKIE TopK_6774 (Gather_706[0]:f32{16000}, Unsqueeze_7522[0]:"
+                                      "i32{1}) -> (f32{?}, i32{?})"
+                                      "v0::Convert TopK_718.1 (TopK_6774[1]:i32{?}) -> (i32{?})"
+                                      "v0::GatherIE Gather_733 (Gather_706[0]:f32{16000}, TopK_718.1[0]:"
+                                      "i32{?}) -> (f32{?})"
+                                      "v1::Reshape scores (Gather_733[0]:f32{?}, Constant_6852[0]:i32{2})"
+                                      " -> (f32{1,?})"
+                                      "v0::Result scores (scores[0]:f32{1,?}) -> (f32{1,?})"
+                                      "v0::GatherIE Gather_729 (Gather_690[0]:i32{16000}, TopK_718.1[0]:"
+                                      "i32{?}) -> (i32{?})"
+                                      "v1::Reshape Unsqueeze_730 (Gather_729[0]:i32{?}, Constant_6854[0]:"
+                                      "i32{2}) -> (i32{1,?})"
+                                      "v1::Eltwise labels (Unsqueeze_730[0]:i32{1,?}, Constant_6855[0]:"
+                                      "i32{}) -> (i32{1,?})"
+                                      "v0::Result labels (labels[0]:i32{1,?}) -> (i32{1,?})"
+                                      "v0::GatherIE Gather_720 (Gather_697[0]:i32{16000}, TopK_718.1[0]:"
+                                      "i32{?}) -> (i32{?})"
+                                      "v0::GatherIE Gather_727 (Squeeze_719[0]:f32{15130,4}, Gather_720[0]:"
+                                      "i32{?}) -> (f32{?,4})"
+                                      "v1::Reshape bboxes (Gather_727[0]:f32{?,4}, Constant_6859[0]:i32{3})"
+                                      " -> (f32{1,?,4})"
+                                      "v0::Result bboxes (bboxes[0]:f32{1,?,4}) -> (f32{1,?,4}))")
+
 # Model ONNX Zoo issues:
 xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismatch")
-xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape:"
-                                      "%s does not match the expected: %s."
-                                      "<PartialShape: <value>>, <PartialShape: <value>>)")
-xfail_issue_39682 = xfail_test(reason="model with IR version >= 3 must specify opset_import for ONNX")
-xfail_issue_39683 = xfail_test(reason="convolution.W in initializer but not in graph input")
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
                                       "('Expected %s parameters, received %s.', 1, 3)")
 xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::Transpose 315,"
@@ -201,8 +220,6 @@ xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of 
 xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
                                       "with dynamic shape")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
-xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape: "
-                                      "<value> does not match the expected: <value>")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")

@@ -182,6 +182,7 @@ namespace ngraph
         topological_sort_t m_topological_sorter;
 
         ResultVector m_results;
+
         // List of the nodes with side effect in graph.
         // These nodes are not outputs of graph but should not be removed even if have no children.
         SinkVector m_sinks;
