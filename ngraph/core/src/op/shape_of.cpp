@@ -39,7 +39,7 @@ op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type)
     constructor_validate_and_infer_types();
 }
 
-op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, const std::string& output_type)
+op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, const string& output_type)
     : Op{{arg}}
     , m_output_type(EnumNames<element::Type>::as_enum(output_type))
 {
@@ -69,6 +69,23 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
+namespace ngraph
+{
+    template<>
+    EnumNames<element::Type>& EnumNames<element::Type>::get()
+    {
+        static auto enum_names = 
+            EnumNames<element::Type>("element::Type",
+                                     {{"i32", element::i32},
+                                      {"i64", element::i64}});
+        return enum_names;
+    }
+
+    std::ostream& operator<<(std::ostream& s, const element::Type& type)
+    {
+        return s << as_string(type);
+    }
+} // namespace ngraph
 namespace shape_of
 {
     template <element::Type_t ET>
@@ -161,7 +178,7 @@ namespace shape_of
         }
         return false;
     }
-}
+} // namespace ngraph
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
