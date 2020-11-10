@@ -78,15 +78,15 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, InterpolateC
         {
             for (int ox = 0; ox < OW; ox++)
             {
-                float ix = ox*fx + fx / 2.0f - 0.5f; // half pixel
-                float iy = oy*fy + fy / 2.0f - 0.5f;
+                float ix = ox * fx + fx / 2.0f - 0.5f; // half pixel
+                float iy = oy * fy + fy / 2.0f - 0.5f;
 
                 int ix_r = (int)(round(ix)); // round prefer ceil
                 int iy_r = (int)(round(iy));
 
                 if (coordTransMode == InterpolateCoordTransMode::asymmetric) { // asymmetric
-                    ix = ox*fx;
-                    iy = oy*fy;
+                    ix = ox * fx + fx / 2 - .5f / ax;
+                    iy = oy * fy + fy / 2 - .5f / ay;
                 }
                 if (nearestMode == InterpolateNearestMode::floor) { // floor
                     ix_r = (int)(floor(ix));
