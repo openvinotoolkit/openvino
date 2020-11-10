@@ -37,7 +37,8 @@ from tests import (
     xfail_issue_38084,
     xfail_issue_39669,
     xfail_issue_38726,
-    xfail_issue_40686)
+    xfail_issue_40686,
+    xfail_issue_42779)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -155,6 +156,7 @@ if len(zoo_models) > 0:
             (xfail_issue_36533, "test_onnx_model_zoo_vision_classification_resnet_model_resnet18_v2_7_resnet18v2_resnet18_v2_7_cpu"),
             (xfail_issue_36533, "test_onnx_model_zoo_vision_classification_resnet_model_resnet101_v1_7_resnet101v1_resnet101_v1_7_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
+            (xfail_issue_42779, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_model_ssd_10_model_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_41815, "test_onnx_model_zoo_vision_object_detection_segmentation_yolov3_model_yolov3_10_yolov3_yolov3_cpu"),
             (xfail_issue_41815, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov3_model_tiny_yolov3_11_yolov3_tiny_cpu"),
