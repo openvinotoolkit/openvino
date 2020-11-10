@@ -43,7 +43,7 @@ Extensions](https://software.intel.com/en-us/sgx).
 Use `InferenceEngine::Core::ReadNetwork()` to set model representations and
 weights respectively.
 
-There are no possibility now to read external weights from memory for ONNX models.
+Currently there are no possibility to read external weights from memory for ONNX models.
 Function `ReadNetwork(const std::string& model, const Blob::CPtr& weights)`
 should be called with `weights` equal `nullptr` in such a case.
 
