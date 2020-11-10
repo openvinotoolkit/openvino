@@ -272,18 +272,18 @@ VPU_DECLARE_ENUM(BroadcastMode,
 //
 
 VPU_DECLARE_ENUM(InterpolateCoordTransMode,
-    half_pixel = 0,
-    pytorch_half_pixel = 1,
-    asymmetric = 2,
-    tf_half_pixel_for_nn = 3,
-    align_corners = 4
+    HalfPixel = 0,
+    PytorchHalfPixel = 1,
+    Asymmetric = 2,
+    TfHalfPixelForNn = 3,
+    AlignCorners = 4
 )
 VPU_DECLARE_ENUM(InterpolateNearestMode,
-    round_prefer_floor = 0,
-    round_prefer_ceil = 1,
-    floor = 2,
-    ceil = 3,
-    simple = 4
+    RoundPreferFloor = 0,
+    RoundPreferCeil = 1,
+    Floor = 2,
+    Ceil = 3,
+    Simple = 4
 )
 
 template <typename Val>

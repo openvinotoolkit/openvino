@@ -108,14 +108,14 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
     const auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
     const auto coord = layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
     const auto nearest = layer->GetParamAsString("nearest_mode", "round_prefer_ceil");
-    InterpolateCoordTransMode coordinate_transformation_mode = InterpolateCoordTransMode::half_pixel;
-    InterpolateNearestMode nearest_mode = InterpolateNearestMode::round_prefer_ceil;
+    InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
+    InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
 
     if (cmp(coord, "asymmetric")) {
-        coordinate_transformation_mode = InterpolateCoordTransMode::asymmetric;
+        coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
     }
     if (cmp(nearest, "floor")) {
-        nearest_mode = InterpolateNearestMode::floor;
+        nearestMode = InterpolateNearestMode::Floor;
     }
 
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
@@ -123,7 +123,7 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
                                                layer->name,
                                                layer,
                                                layer->GetParamAsInt("antialias", 0),
-                                               coordinate_transformation_mode, nearest_mode,
+                                               coordinateTransformationMode, nearestMode,
                                                layer->GetParamAsFloat("factor", -1),
                                                inputs[0],
                                                outputs[0]);
