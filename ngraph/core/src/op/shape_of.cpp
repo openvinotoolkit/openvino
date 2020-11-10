@@ -71,13 +71,11 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 
 namespace ngraph
 {
-    template<>
+    template <>
     EnumNames<element::Type>& EnumNames<element::Type>::get()
     {
-        static auto enum_names = 
-            EnumNames<element::Type>("element::Type",
-                                     {{"i32", element::i32},
-                                      {"i64", element::i64}});
+        static auto enum_names = EnumNames<element::Type>(
+            "element::Type", {{"i32", element::i32}, {"i64", element::i64}});
         return enum_names;
     }
 
