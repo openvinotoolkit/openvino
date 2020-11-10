@@ -35,24 +35,33 @@ namespace ngraph
                              const float spatial_scale,
                              const ROIPoolingMethod& pooling_method)
             {
+                // Feature maps input shape: {N, C, H, W}
+                const int batches = feature_maps_shape[0];
                 const int channels = feature_maps_shape[1];
                 const int height = feature_maps_shape[2];
                 const int width = feature_maps_shape[3];
 
+                // Output shape: {NUM_ROIS, C, pooled_h, pooled_w}
                 const int pooled_h = output_shape[2];
                 const int pooled_w = output_shape[3];
 
+                // ROIs shape: {NUM_ROIS, 5}
                 const int num_rois = rois_shape[0];
 
                 std::fill_n(output, shape_size(output_shape), std::numeric_limits<T>::lowest());
 
                 for (unsigned int roi_num = 0; roi_num < num_rois; roi_num++)
                 {
+                    // ROI tuple: [roi_batch_id, roi_w_start, roi_h_start, roi_w_end, roi_h_end]
                     // ROI index
                     int roi_idx = rois_shape[1] * roi_num;
 
                     // ROI batch id
                     int roi_batch_id = rois[roi_idx + 0];
+
+                    // ROI batch id must be in the range of [0, N-1]
+                    NGRAPH_CHECK(0 <= roi_batch_id && roi_batch_id < batches,
+                                 "ROI batch id must be in the range of [0, N-1]");
 
                     if (pooling_method == ROIPoolingMethod::Max)
                     {
@@ -91,7 +100,7 @@ namespace ngraph
                                     int w_end = static_cast<int>(
                                         std::ceil(static_cast<T>(pw + 1) * bin_size_w));
 
-                                    // Add roi offsets and clip to input boundaries
+                                    // Add ROI offsets and clip to input boundaries
                                     h_start = std::min(std::max(h_start + roi_h_start, 0), height);
                                     w_start = std::min(std::max(w_start + roi_w_start, 0), width);
                                     h_end = std::min(std::max(h_end + roi_h_start, 0), height);
@@ -119,7 +128,7 @@ namespace ngraph
                                     }
                                 }
                             }
-                            // Increment data pointer by one channel
+                            // Increment batch data pointer by one channel
                             batch_data += height * width;
                         }
                     }
