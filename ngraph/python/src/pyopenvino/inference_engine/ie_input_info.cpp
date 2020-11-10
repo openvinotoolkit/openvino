@@ -19,6 +19,7 @@
 
 #include "pyopenvino/inference_engine/ie_input_info.hpp"
 #include "../../../pybind11/include/pybind11/pybind11.h"
+#include <pybind11/stl.h>
 #include "common.hpp"
 
 namespace py = pybind11;
