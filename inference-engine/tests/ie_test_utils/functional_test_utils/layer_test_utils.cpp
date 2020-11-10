@@ -140,19 +140,21 @@ void LayerTestsCommon::Run() {
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
     auto reportStatus = [this, &s](PassRate::Statuses status) {
-        for (const auto &op : function->get_ordered_ops()) {
-            if (ngraph::is_type<ngraph::op::Parameter>(op) ||
-                ngraph::is_type<ngraph::op::Constant>(op) ||
-                ngraph::is_type<ngraph::op::Result>(op)) {
-                continue;
-            } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
-                auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
-                auto ti_body = ti->get_body();
-                for (const auto &ti_op : ti_body->get_ordered_ops()) {
-                    s.updateOPsStats(ti_op->get_type_info(), status);
+        if (function){
+            for (const auto &op : function->get_ordered_ops()) {
+                if (ngraph::is_type<ngraph::op::Parameter>(op) ||
+                    ngraph::is_type<ngraph::op::Constant>(op) ||
+                    ngraph::is_type<ngraph::op::Result>(op)) {
+                    continue;
+                } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
+                    auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+                    auto ti_body = ti->get_body();
+                    for (const auto &ti_op : ti_body->get_ordered_ops()) {
+                        s.updateOPsStats(ti_op->get_type_info(), status);
+                    }
+                } else {
+                    s.updateOPsStats(op->get_type_info(), status);
                 }
-            } else {
-                s.updateOPsStats(op->get_type_info(), status);
             }
         }
     };
