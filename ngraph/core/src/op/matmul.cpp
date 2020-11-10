@@ -100,6 +100,8 @@ namespace matmul
 
         // Check matrices dimensions compatibility,
         // COL_INDEX_DIM of the first matrix has to match ROW_INDEX_DIM of the second matrix.
+        // Error is not thrown for dynamic dimensions bounds without intersection
+        // to ensure MatMul backward compatibility.
         auto merged_dimension = Dimension::dynamic();
         auto arg0_col_dim = arg0_shape_tmp[arg0_rank - 1];
         auto arg1_row_dim = arg1_shape_tmp[arg1_rank - 2];
@@ -136,11 +138,15 @@ namespace matmul
         // expand dim with value 1 to bigger dim if dimensions are not equal.
         for (auto i = 0; i < arg0_rank - 2; i++)
         {
-            // Dimension with value 1 can be expanded to any bigger
             auto min_dim_val =
                 std::min(arg0_shape_tmp[i].get_min_length(), arg1_shape_tmp[i].get_min_length());
+
+            // If both dimensions don't have 1 in range, usual merge is enough.
             if (min_dim_val > 1)
             {
+                // Error is not thrown for dynamic dimensions bounds without intersection
+                // to ensure MatMul backward compatibility.
+                // Instead fully dynamic dimension is set as default for such a case.
                 auto merged_dimension = Dimension::dynamic();
                 NGRAPH_CHECK(
                     Dimension::merge(merged_dimension, arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
@@ -157,6 +163,7 @@ namespace matmul
             }
             else
             {
+                // Dimension with value 1 can be expanded to any bigger.
                 Dimension::value_type upper_bound, lower_bound;
                 lower_bound = std::max(arg0_shape_tmp[i].get_min_length(),
                                        arg1_shape_tmp[i].get_min_length());
