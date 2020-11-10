@@ -16,25 +16,21 @@
 
 #pragma once
 
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/util.hpp"
+#include "ngraph/pass/pass.hpp"
 
 namespace ngraph
 {
     namespace pass
     {
-        class ConstantFolding;
-        bool revalidate_and_ensure_static(std::shared_ptr<ngraph::Node> n);
-    }
-}
+        class NGRAPH_API ConstantFolding : public FunctionPass
+        {
+        public:
+            virtual bool run_on_function(std::shared_ptr<ngraph::Function> graph) override;
 
-class NGRAPH_API ngraph::pass::ConstantFolding : public ngraph::pass::FunctionPass
-{
-public:
-    virtual bool run_on_function(std::shared_ptr<ngraph::Function> graph) override;
+        private:
+            void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
+                                                    const Output<Node>& replacement);
+        };
 
-private:
-    void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
-                                            const Output<Node>& replacement);
-};
+    } // namespace pass
+} // namespace ngraph

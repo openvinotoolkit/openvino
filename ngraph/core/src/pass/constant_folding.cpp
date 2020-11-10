@@ -20,20 +20,6 @@
 using namespace std;
 using namespace ngraph;
 
-bool ngraph::pass::revalidate_and_ensure_static(shared_ptr<Node> n)
-{
-    n->revalidate_and_infer_types();
-
-    const auto outputs = n->outputs();
-
-    const auto is_any_output_dynamic =
-        std::any_of(outputs.begin(), outputs.end(), [](const Output<Node>& o) {
-            return o.get_partial_shape().is_dynamic() || o.get_element_type().is_dynamic();
-        });
-
-    return !is_any_output_dynamic;
-}
-
 bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> graph)
 {
     int modified_nodes = 0;
