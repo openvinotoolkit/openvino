@@ -92,7 +92,7 @@ void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& ar
         return;
     }
     const auto arg_rank_length = arg_shape.rank().get_length();
-    auto start_axis = target_shape.size() - arg_rank_length;
+    const int64_t start_axis = target_shape.size() - arg_rank_length;
     NODE_VALIDATION_CHECK(this,
                           start_axis >= 0,
                           "Broadcast target_shape has smaller rank ",
@@ -357,18 +357,17 @@ std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes() const
     return std::make_pair(axes_known, broadcast_axes);
 }
 
-template <element::Type_t ET>
 bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
                                        const AxisSet& broadcast_axes) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate<ET>");
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::broadcast<T>((arg0->get_data_ptr<ET>()),
-                                     (out->get_data_ptr<ET>()),
-                                     arg0->get_shape(),
-                                     out->get_shape(),
-                                     broadcast_axes);
+    runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
+                                  out->get_data_ptr<char>(),
+                                  arg0->get_shape(),
+                                  out->get_shape(),
+                                  broadcast_axes,
+                                  arg0->get_element_type().size());
     return true;
 }
 
@@ -475,37 +474,11 @@ bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
         // broadcast_axes not known deterministically
         return false;
     }
-    bool rc = true;
     Shape in_shape = arg0->get_shape();
     out->set_shape(output_shape);
     out->set_element_type(arg0->get_element_type());
-    switch (arg0->get_element_type())
-    {
-        TYPE_CASE(boolean)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i8)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i16)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i32)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i64)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u8)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u16)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u32)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u64)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(f16)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(f32)(arg0, out, pair_broadcast_axes.second);
-        break;
-    default: rc = false; break;
-    }
-    return rc;
+
+    return evaluate(arg0, out, pair_broadcast_axes.second);
 }
 
 Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const
