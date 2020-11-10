@@ -32,7 +32,6 @@ Summary &Summary::getInstance() {
 }
 
 void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status) {
-    // TODO: Do we need to count skips?
     auto it = opsStats.find(op);
     if (it != opsStats.end()) {
         auto &passrate = it->second;
@@ -77,7 +76,6 @@ void TestEnvironment::TearDown() {
 
     auto &s = Summary::getInstance();
     auto stats = s.getOPsStats();
-
 
     pugi::xml_document doc;
 
