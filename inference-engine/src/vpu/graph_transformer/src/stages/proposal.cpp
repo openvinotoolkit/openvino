@@ -135,7 +135,7 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     DataVector tempOutputs(2);
     tempOutputs[0] = outputs[0];
 
-    if (outputs.size() < 2)
+    if ((outputs.size() < 2) || !(outputs[1]))
         tempOutputs[1] = model->addFakeData();
     else
         tempOutputs[1] = outputs[1];
