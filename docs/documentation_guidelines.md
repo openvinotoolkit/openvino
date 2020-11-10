@@ -1,57 +1,19 @@
 # Documentation Guidelines
 
-## Authoring Guidelines
-
-We want our documentation to be easy to read and understand. This section describes guidelines for writing documentation that is clear, concise, confident, and courteous.
-
-For details on organizing content and how we use Markdown, refer to [Structure and Formatting](#structure-and-formatting-guidelines).
-
-###	Use Simple English
-
-* **Be brief.** Use short sentences and paragraphs. Stick to the principle of one main idea per sentence, plus one additional point if needed. Each paragraph should address one main idea. Remember the basic structure of a paragraph: Introduction, body, and conclusion.
-* **Use simple words.** Use simple words to increase reader comprehension and reduce ambiguity. Follow our tips for making good word choices:
-   * **Avoid jargon:** Write for your audience, using everyday language where possible, and technical terms where appropriate. Avoid clichés, idioms, and metaphors.
-   * **Be consistent:** Use one term for each concept or action and use it consistently.
-   * **Avoid “fancy” words and phrases:** If there is a simpler word or phrase, use it.
-
-###	Make Content Scannable
-
-Organize your content to make it scannable for the reader, which helps them find what they need quickly, and to understand the information more efficiently.
-
-* **Put the most important content first.** Make sure your introduction clearly communicates what the reader can find on the page. Present the point of the document first, and organize supporting information towards the end of the page.
-* **Write scannable headings.** Expect readers of documentation to skim and scan the content, and to leave if they don’t find what they need quickly. Good headings add organization to your content and help the reader to find and understand content more effectively. Follow our guidelines for writing effective Headings.
-* **Write great link text.** Great link text tells the reader what they can expect when they click on a link. It also helps make the page more scannable. Follow our guidelines for writing Link text.
-
-###	Use Strong Verbs
-
-* **Passive verbs make writing stuffy and formal**. Use strong verbs to get to the point and avoid unnecessary words and phrases.
-* **Commands**, also called imperatives, are the fastest and most direct way of giving someone instructions.
-* **Use simple present tense** instead of future tense for most text. Search for the words “will” or “shall” to find future tense instances. Future tense is acceptable for conditional statements, such as in a caution or a warning.
-
-###	Parallelism
-
-Parallelism refers to the practice of using similar patterns of grammar, and sometimes length, to coordinate words, phrases, and clauses.  
-Use parallel construction in lists. The table below shows some unparallel structures and how they can be made parallel with a little rewording.
-
-| Parallel (do)           | Unparallel (don’t)        |
-|-------------------------|---------------------------|
-| 1. Mount the panel.     | 1. Mount the panel.       |
-| 2. Install the battery. | 2. Battery installation.  |
-| 3. Wire the keypad.     | 3. Wiring the keypad.     |
-
 ## Structure Guidelines
 
 Content should be organized to support scanning. Consistent organization, formatting, and writing style helps readers quickly find what they need and to understand the content more effectively. This section describes our organization.
 
-### Website Structure
-The documentation website is organized this way:
+### Documentation Layout
+To define the documentation structure and how it's displayed on the [documentation website](docs.openvinotoolkit.org), the [layout file](https://github.com/openvinotoolkit/openvino/blob/master/docs/doxygen/ie_docs.xml) is used. Since an HTML output is built and published on the documentation site, files added to the structure are shown in the chosen sections on the site. To add a new file to the structure, see [Add New Document to the Documentation](CONTRIBUTING_DOCS.md#add-new-document-to-the-documentation). To remove the file from the structure, refer to the section [Delete Document from the Documentation](CONTRIBUTING_DOCS.md#delete-document-from-the-documentation). 
 
-1. **Getting Started**: installation guides, prerequisites, how to set working environment
-2. **How To-s**: videos and guides, for some reason not included in **Guides** section
-3. **Guides**: developer guides for all OpenVINO Toolkit components
-4. **Resources**: samples, demos, pre-trained models and tools (Accuracy Checker, Post-Training Optimization etc)
-5. **Performance Information**: benchmark tests information, ways to improve Performance
-6. **API References**: in-built wiki with class structures
+### Website Structure
+The documentation website contains the following tabs:
+
+1. **GET STARTED**: OpenVINO™ Toolkit overview, installation guides, prerequisites, how to set working environment, get started guides.
+2. **DOCUMENTATION**: developer guides for OpenVINO™ Toolkit components, API References, documentation about tuning for performance and media processing.
+3. **RESOURCES**: samples, demos, pre-trained models, and add-ons.
+4. **中文文件**: Chinese version of the documentation.
 
 ### Page Structures
 Each page in the documentation should follow the basic format of:
@@ -162,7 +124,7 @@ Use a bulleted list when the order of the items is not important:
 * Avoid interrupting bulleted lists with other paragraph styles.
 * Second-level bullets are acceptable; avoid third-level bullets.
 
-For both list types, keep all items in the list parallel. See [Parallelism](#parallelism):
+For both list types, keep all items in the list parallel. See [Parallelism](#parallelism).
 
 ### Links
 All links in content should follow these guidelines:
@@ -172,19 +134,65 @@ All links in content should follow these guidelines:
 * **Use unique link text:** Each link text on a page should be unique. If users see the same link text twice on a page, they’ll assume it goes to the same place.
 * **Start link text with keywords:** Frontload the link text with the most important words to help users scan the text.
 
-Use following examples to write links in your documentation:
-* To add a cross-reference to another documentation page, use file path from [DoxygenLayout.xml](./openvino-documentation/blob/master/docs/doxygen/DoxygenLayout.xml) (don't use direct links to docs.openvinotoolkit.org):
+To create a link to a documentation page located in the **openvino repo**, use the relative path to the target document. For example, to refer to the Installation guide for Linux from this document, write the following:
 ```
 [OpenVINO Installation on Linux](./docs/install_guides/installing-openvino-linux.md)
 ```
-Currently links to headings in other markdown files are not supported. To refer to a specific section, you may use the following example:  
+To create a link to a documentation page located in **another repo**, use the document's unique identifier. The identifier is a text label in the braces located after the title. The identifier is starting with `#`. For example, the title line of the Installation Guide for Linux looks as follows:
+```md
+# Install Intel® Distribution of OpenVINO™ toolkit for Linux* {#openvino_docs_install_guides_installing_openvino_linux}
 ```
-"Use **Set Environment Variables** section in the [OpenVINO Installation on Linux](./docs/install_guides/installing-openvino-linux.md) document.
-```
-* To add URL link to any software, link to the latest version, for example:
+where the title is `Install Intel® Distribution of OpenVINO™ toolkit for Linux\*`, and the identifier is `#openvino_docs_install_guides_installing_openvino_linux`. 
+
+> **NOTE**: Currently links to headings in other markdown files are not supported. To refer to a specific section, you may use the following example:  
+>```md
+>"Use **Set Environment Variables** section in the [OpenVINO Installation on Linux](./docs/install_guides/installing-openvino-linux.md) document.
+>```
+
+To add URL link to any software, link to the latest version, for example:
 ```
 For more details, see [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1))
 ```
+
+## Authoring Guidelines
+
+We want our documentation to be easy to read and understand. This section describes guidelines for writing documentation that is clear, concise, confident, and courteous.
+
+For details on organizing content and how we use Markdown, refer to [Structure and Formatting](#structure-and-formatting-guidelines).
+
+###	Use Simple English
+
+* **Be brief.** Use short sentences and paragraphs. Stick to the principle of one main idea per sentence, plus one additional point if needed. Each paragraph should address one main idea. Remember the basic structure of a paragraph: Introduction, body, and conclusion.
+* **Use simple words.** Use simple words to increase reader comprehension and reduce ambiguity. Follow our tips for making good word choices:
+   * **Avoid jargon:** Write for your audience, using everyday language where possible, and technical terms where appropriate. Avoid clichés, idioms, and metaphors.
+   * **Be consistent:** Use one term for each concept or action and use it consistently.
+   * **Avoid “fancy” words and phrases:** If there is a simpler word or phrase, use it.
+
+###	Make Content Scannable
+
+Organize your content to make it scannable for the reader, which helps them find what they need quickly, and to understand the information more efficiently.
+
+* **Put the most important content first.** Make sure your introduction clearly communicates what the reader can find on the page. Present the point of the document first, and organize supporting information towards the end of the page.
+* **Write scannable headings.** Expect readers of documentation to skim and scan the content, and to leave if they don’t find what they need quickly. Good headings add organization to your content and help the reader to find and understand content more effectively. Follow our guidelines for writing effective Headings.
+* **Write great link text.** Great link text tells the reader what they can expect when they click on a link. It also helps make the page more scannable. Follow our guidelines for writing Link text.
+
+###	Use Strong Verbs
+
+* **Passive verbs make writing stuffy and formal**. Use strong verbs to get to the point and avoid unnecessary words and phrases.
+* **Commands**, also called imperatives, are the fastest and most direct way of giving someone instructions.
+* **Use simple present tense** instead of future tense for most text. Search for the words “will” or “shall” to find future tense instances. Future tense is acceptable for conditional statements, such as in a caution or a warning.
+
+###	Parallelism
+
+Parallelism refers to the practice of using similar patterns of grammar, and sometimes length, to coordinate words, phrases, and clauses.  
+Use parallel construction in lists. The table below shows some unparallel structures and how they can be made parallel with a little rewording.
+
+| Parallel (do)           | Unparallel (don’t)        |
+|-------------------------|---------------------------|
+| 1. Mount the panel.     | 1. Mount the panel.       |
+| 2. Install the battery. | 2. Battery installation.  |
+| 3. Wire the keypad.     | 3. Wiring the keypad.     |
+
 
 ## Graphics Guidelines
 Use images or figures to convey information that may be difficult to explain using words alone. Well-planned graphics reduce the amount of text required to explain a topic or example.
