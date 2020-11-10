@@ -16,10 +16,8 @@
 
 #pragma once
 
-#include <cmath>
-
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/shape_util.hpp"
+#include "ngraph/axis_set.hpp"
+#include "ngraph/shape.hpp"
 
 namespace ngraph
 {
@@ -27,42 +25,12 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T>
-            void broadcast(const T* arg,
-                           T* out,
+            void broadcast(const char* arg,
+                           char* out,
                            const Shape& in_shape,
                            const Shape& out_shape,
-                           const AxisSet& broadcast_axes)
-            {
-                // Remove all broadcast axes from in_shape
-                Shape adjusted_in_shape;
-                for (auto length : in_shape)
-                {
-                    if (length != 1)
-                    {
-                        adjusted_in_shape.push_back(length);
-                    }
-                }
-                // Remove 1s from out_shape
-                AxisSet adjusted_axes(broadcast_axes);
-                for (uint64_t axis = 0; axis < out_shape.size(); ++axis)
-                {
-                    auto length = out_shape.at(axis);
-                    if (length == 1)
-                    {
-                        adjusted_axes.insert(axis);
-                    }
-                }
-                CoordinateTransform input_transform(adjusted_in_shape);
-                CoordinateTransform output_transform(out_shape);
-
-                for (const Coordinate& output_coord : output_transform)
-                {
-                    Coordinate input_coord = reduce(output_coord, adjusted_axes, false);
-                    out[output_transform.index(output_coord)] =
-                        arg[input_transform.index(input_coord)];
-                }
-            }
+                           const AxisSet& broadcast_axes,
+                           size_t elem_size);
         }
     }
 }
