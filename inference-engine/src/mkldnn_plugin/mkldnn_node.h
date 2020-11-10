@@ -652,6 +652,7 @@ public:
                 [type](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
                     MKLDNNWeightsSharing::Ptr &w_cache) -> MKLDNNNode* {
                     MKLDNNNode *node = new To(layer, eng, w_cache);
+                    node->perfCounters().buildClassCounters<To>(NameFromType(type));
                     return node;
                 });
     }

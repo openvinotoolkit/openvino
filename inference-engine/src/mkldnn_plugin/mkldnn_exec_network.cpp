@@ -81,6 +81,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     OV_ITT_TASK_NEXT(taskChain, "UnrollPasses");
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 
+    OV_ITT_TASK_NEXT(taskChain, "createConstInputs");
     auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, std::string name) {
         LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
         auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
@@ -159,8 +160,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     }
 
     _graphs = decltype(_graphs){[&] {
-        OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "CreateGraph", "cloneNet");
-
         // TODO: Remove `cloneNet` to `localNetwork` when `MKLDNNGraph::CreateGraph`
         //       is fixed and does not change content of network passed (CVS-26420)
         auto localNetwork = cloneNet(static_cast<ICNNNetwork&>(*_clonedNetwork));
@@ -175,8 +174,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
         if (nullptr != streamExecutor) {
             numaNode = streamExecutor->GetNumaNodeId();
         }
-
-        OV_ITT_TASK_SKIP(taskChain);
 
         graph->CreateGraph(static_cast<ICNNNetwork&>(*localNetwork), extensionManager, numaNodesWeights[numaNode]);
         return graph;
