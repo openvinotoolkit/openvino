@@ -49,11 +49,23 @@ op::ROIPooling::ROIPooling(const Output<Node>& input,
 
 void op::ROIPooling::validate_and_infer_types()
 {
-    auto input_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          input_et.is_real(),
-                          "Type of input is expected to be a floating point type. Got: ",
-                          input_et);
+    auto feat_maps_et = get_input_element_type(0);
+    auto coords_et = get_input_element_type(1);
+    NODE_VALIDATION_CHECK(
+        this,
+        feat_maps_et.is_real() && coords_et.is_real(),
+        "The data type for input and ROIs is expected to be a floating point type. Got: ",
+        feat_maps_et,
+        " and: ",
+        coords_et);
+
+    NODE_VALIDATION_CHECK(
+        this,
+        feat_maps_et == coords_et,
+        "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
+        feat_maps_et,
+        " and: ",
+        coords_et);
 
     if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
     {
@@ -61,25 +73,36 @@ void op::ROIPooling::validate_and_infer_types()
         Shape coords_shape = get_input_partial_shape(1).to_shape();
         NODE_VALIDATION_CHECK(this,
                               input_shape.size() == 4,
-                              "ROIPooling expects 4 dimensions for input. Got ",
+                              "ROIPooling expects 4 dimensions for feature maps input. Got ",
                               input_shape.size());
+
         NODE_VALIDATION_CHECK(this,
                               coords_shape.size() == 2,
                               "ROIPooling expects 2 dimensions for box coordinates. Got ",
                               coords_shape.size());
+
+        const auto coords_second_dim = coords_shape[1];
+        NODE_VALIDATION_CHECK(
+            this,
+            coords_second_dim == 5,
+            "The second dimension of ROIs input should contain batch id and box coordinates. ",
+            "This dimension is expected to be equal to 5. Got: ",
+            coords_second_dim);
+
         NODE_VALIDATION_CHECK(this,
                               input_shape.size() - 2 == m_output_size.size(),
                               "Spatial dimensions on input: ",
                               input_shape.size() - 2,
                               " doesn't match dimensions on requested output_size: ",
                               m_output_size.size());
+
         Shape output_shape{coords_shape[0], input_shape[1]};
         output_shape.insert(output_shape.end(), m_output_size.begin(), m_output_size.end());
-        set_output_type(0, input_et, output_shape);
+        set_output_type(0, feat_maps_et, output_shape);
     }
     else
     {
-        set_output_type(0, input_et, PartialShape::dynamic());
+        set_output_type(0, feat_maps_et, PartialShape::dynamic());
     }
 }
 
