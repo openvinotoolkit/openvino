@@ -164,20 +164,24 @@ namespace matmul
             else
             {
                 // Dimension with value 1 can be expanded to any bigger.
-                Dimension::value_type upper_bound, lower_bound;
+                Dimension::value_type lower_bound; // The lowest possible value of output dimension
+                Dimension::value_type upper_bound; // The highest possible value of output dimension
+
+                // Output dimension lower_bound is a maximum of
+                // corresponding input dimensions lower bounds.
                 lower_bound = std::max(arg0_shape_tmp[i].get_min_length(),
                                        arg1_shape_tmp[i].get_min_length());
-
                 if (lower_bound <= 1)
                 {
-                    // Both of the dimensions have 1 in range,
-                    // upper_bound is the maximum of the each range highest possible value.
+                    // If both of the dimensions have 1 in range, output dimension upper_bound
+                    // is a maximum of corresponding input dimensions upper bounds.
                     upper_bound = std::max(arg0_shape_tmp[i].get_interval().get_max_val(),
                                            arg1_shape_tmp[i].get_interval().get_max_val());
                 }
                 else
                 {
-                    // Set upper_bound same as upper bound the dimension without 1 in range.
+                    // Otherwise output dimension upper_bound is same as upper bound of
+                    // the dimension without 1 in range.
                     upper_bound = arg0_shape_tmp[i].get_min_length() <= 1
                                       ? arg1_shape_tmp[i].get_max_length()
                                       : arg0_shape_tmp[i].get_max_length();
