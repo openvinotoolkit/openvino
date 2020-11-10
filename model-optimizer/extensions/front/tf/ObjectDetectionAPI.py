@@ -517,7 +517,7 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
         mul_node = None
         if sub_node.in_port(0).get_source().node.soft_get('op') == 'Mul':
             log.info('There is image scaling node in the Preprocessor block.')
-            mul_node = sub_node.in_node(0)
+            mul_node = sub_node.in_port(0).get_source().node
 
         initial_input_node_name = 'image_tensor'
         if initial_input_node_name not in graph.nodes():
@@ -537,7 +537,7 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
         graph.graph['preprocessed_image_height'] = placeholder_node.shape[get_height_dim(layout, 4)]
         graph.graph['preprocessed_image_width'] = placeholder_node.shape[get_width_dim(layout, 4)]
 
-        to_float_node = placeholder_node.out_node(0)
+        to_float_node = placeholder_node.out_port(0).get_destination().node
         if to_float_node.soft_get('op') != 'Cast':
             raise Error('The output of the node "{}" is not Cast operation. Cannot apply transformation.'.format(
                 initial_input_node_name))
