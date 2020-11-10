@@ -1118,6 +1118,18 @@ inline std::size_t getTensorBatch(const InferenceEngine::TensorDesc& desc) {
     return 0;
 }
 
+inline void setBatchSizeUsingReshape(InferenceEngine::CNNNetwork& network, size_t batch) {
+    InferenceEngine::ICNNNetwork::InputShapes inputShapes = network.getInputShapes();
+    for (auto& shape : inputShapes) {
+        auto& dims = shape.second;
+        if (dims.empty()) {
+            throw std::runtime_error("Network's input shapes have empty dimensions");
+        }
+        dims[0] = batch;
+    }
+    network.reshape(inputShapes);
+}
+
 inline void showAvailableDevices() {
     InferenceEngine::Core ie;
     std::vector<std::string> devices = ie.GetAvailableDevices();

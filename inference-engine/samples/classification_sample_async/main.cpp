@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
         if (imagesData.empty()) throw std::logic_error("Valid input images were not found!");
 
         /** Setting batch size using image count **/
-        network.setBatchSize(imagesData.size());
+        setBatchSizeUsingReshape(network, imagesData.size());
         size_t batchSize = network.getBatchSize();
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
 
