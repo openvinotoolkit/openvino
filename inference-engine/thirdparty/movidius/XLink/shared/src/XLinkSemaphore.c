@@ -61,10 +61,10 @@ int XLink_sem_set_refs(XLink_sem_t* sem, int refs)
 {
     XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
     sem->refs = refs;
-    pthread_cond_signal(&ref_cond);
+    int ret = pthread_cond_signal(&ref_cond);
     XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
 
-    return 0;
+    return ret;
 }
 
 int XLink_sem_get_refs(XLink_sem_t* sem, int *sval)
@@ -79,18 +79,18 @@ int XLink_sem_inc(XLink_sem_t* sem)
 {
     XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
     sem->refs++;
-    pthread_cond_signal(&ref_cond);
+    int ret = pthread_cond_signal(&ref_cond);
     XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
 
-    return 0;
+    return ret;
 }
 
 int XLink_sem_dec(XLink_sem_t* sem)
 {
     XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
     sem->refs--;
-    pthread_cond_signal(&ref_cond);
+    int ret = pthread_cond_signal(&ref_cond);
     XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
 
-    return 0;
+    return ret;
 }
