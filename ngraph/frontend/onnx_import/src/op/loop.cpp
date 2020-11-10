@@ -143,7 +143,8 @@ namespace ngraph
                     const auto concat_axis_const =
                         ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
                     // provide scalar handing for scan outputs
-                    for (int i = loop_carried_dependencies.size() + 1; i < body_outputs.size(); ++i)
+                    for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
+                         ++i)
                     {
                         auto body_output_shape = body_outputs[i].get_partial_shape();
                         if (body_output_shape.is_static() &&

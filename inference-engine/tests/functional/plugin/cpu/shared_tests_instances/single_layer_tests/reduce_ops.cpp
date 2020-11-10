@@ -27,6 +27,12 @@ const std::vector<std::vector<size_t>> inputShapes = {
         std::vector<size_t>{3, 5, 7, 9},
 };
 
+const std::vector<std::vector<size_t>> inputShapesOneAxis = {
+        std::vector<size_t>{10, 20, 30, 40},
+        std::vector<size_t>{3, 5, 7, 9},
+        std::vector<size_t>{10},
+};
+
 const std::vector<std::vector<int>> axes = {
         {0},
         {1},
@@ -71,7 +77,7 @@ const auto paramsOneAxis = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputShapes),
+        testing::ValuesIn(inputShapesOneAxis),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
