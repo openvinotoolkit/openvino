@@ -21,20 +21,23 @@ public:
 
         ngraph::element::Type outPrecision;
     private:
-        bool isEmpty;
+        bool _isEmpty;
     };
 
     class Subtract {
     public:
         Subtract();
-        Subtract(const float value, const bool addDeqAttr = true);
-        Subtract(const std::vector<float>& values, const bool addDeqAttr = true);
-        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision, const bool addDeqAttr = true);
+        Subtract(const float value, const bool addDequantizationAttribute = true);
+        Subtract(const std::vector<float>& values, const bool addDequantizationAttribute = true);
+        Subtract(const std::vector<float>& values,
+                 const ngraph::element::Type outPrecision,
+                 const bool addDequantizationAttribute = true);
         Subtract(
             const std::vector<float>& values,
             const ngraph::element::Type outPrecision,
             const ngraph::Shape& constantShape,
-            const bool addDequantizationAttribute = true);
+            const bool addDequantizationAttribute = true,
+            const size_t constantIndex = 1ul);
         bool empty() const noexcept;
         Subtract& setConstantPrecision(const ngraph::element::Type& precision);
 
@@ -42,18 +45,22 @@ public:
         ngraph::element::Type outPrecision;
         ngraph::Shape constantShape;
         bool constantShapeIsDefined;
-        bool addDequantizationAttribute;
+        bool addDequantizationAttribute = true;
+        size_t constantIndex = 1ul;
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
+
     private:
-        bool isEmpty;
+        bool _isEmpty;
     };
 
     class Multiply {
     public:
         Multiply();
-        Multiply(const float value);
-        Multiply(const std::vector<float>& values);
-        Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision);
+        Multiply(const float value, const bool addDequantizationAttribute = true);
+        Multiply(const std::vector<float>& values, const bool addDequantizationAttribute = true);
+        Multiply(const std::vector<float>& values,
+                 const ngraph::element::Type outPrecision,
+                 const bool addDequantizationAttribute = true);
         Multiply(
             const std::vector<float>& values,
             const ngraph::element::Type outPrecision,
@@ -67,11 +74,12 @@ public:
         ngraph::element::Type outPrecision;
         ngraph::Shape constantShape;
         bool constantShapeIsDefined;
-        bool addDequantizationAttribute;
+        bool addDequantizationAttribute = true;
         size_t constantIndex = 1ul;
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
+
     private:
-        bool isEmpty;
+        bool _isEmpty;
     };
 
     DequantizationOperations();
@@ -91,9 +99,11 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
         data.subtract.values << "_" <<
         data.subtract.constantShape << "_" <<
         data.subtract.outPrecision << "_" <<
+        data.subtract.constantIndex << "_" <<
         data.multiply.values << "_" <<
         data.multiply.constantShape << "_" <<
-        data.multiply.outPrecision;
+        data.multiply.outPrecision << "_" <<
+        data.multiply.constantIndex;
 }
 
 }  // namespace subgraph

@@ -10,66 +10,68 @@ namespace builder {
 namespace subgraph {
 
 DequantizationOperations::Convert::Convert() :
-    isEmpty(true),
+    _isEmpty(true),
     outPrecision(ngraph::element::undefined)
 {}
 
 DequantizationOperations::Convert::Convert(const ngraph::element::Type outPrecision) :
-    isEmpty(false),
+    _isEmpty(false),
     outPrecision(outPrecision)
 {}
 
 bool DequantizationOperations::Convert::empty() const noexcept {
-    return isEmpty;
+    return _isEmpty;
 }
 
 DequantizationOperations::Subtract::Subtract() :
-    isEmpty(true),
+    _isEmpty(true),
     outPrecision(ngraph::element::undefined),
     constantShapeIsDefined(false)
 {}
 
-DequantizationOperations::Subtract::Subtract(const float value, const bool addDeqAttr) :
-    isEmpty(false),
+DequantizationOperations::Subtract::Subtract(const float value, const bool addDequantizationAttribute) :
+    _isEmpty(false),
     values({ value }),
     outPrecision(ngraph::element::undefined),
     constantShapeIsDefined(false),
-    addDequantizationAttribute(addDeqAttr) {
+    addDequantizationAttribute(addDequantizationAttribute) {
 }
 
-DequantizationOperations::Subtract::Subtract(const std::vector<float>& values, const bool addDeqAttr) :
-    isEmpty(values.empty()),
+DequantizationOperations::Subtract::Subtract(const std::vector<float>& values, const bool addDequantizationAttribute) :
+    _isEmpty(values.empty()),
     values(values),
     outPrecision(ngraph::element::undefined),
     constantShapeIsDefined(false),
-    addDequantizationAttribute(addDeqAttr) {
+    addDequantizationAttribute(addDequantizationAttribute) {
 }
 
 DequantizationOperations::Subtract::Subtract(const std::vector<float>& values,
     const ngraph::element::Type outPrecision,
-    const bool addDeqAttr) :
-    isEmpty(false),
+    const bool addDequantizationAttribute) :
+    _isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShapeIsDefined(false),
-    addDequantizationAttribute(addDeqAttr) {
+    addDequantizationAttribute(addDequantizationAttribute) {
 }
 
 DequantizationOperations::Subtract::Subtract(
     const std::vector<float>& values,
     const ngraph::element::Type outPrecision,
     const ngraph::Shape& constantShape,
-    const bool addDequantizationAttribute) :
-    isEmpty(false),
+    const bool addDequantizationAttribute,
+    const size_t constantIndex) :
+    _isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
     constantShapeIsDefined(true),
-    addDequantizationAttribute(addDequantizationAttribute) {
+    addDequantizationAttribute(addDequantizationAttribute),
+    constantIndex(constantIndex) {
 }
 
 bool DequantizationOperations::Subtract::empty() const noexcept {
-    return isEmpty;
+    return _isEmpty;
 }
 
 DequantizationOperations::Subtract& DequantizationOperations::Subtract::setConstantPrecision(const ngraph::element::Type& precision) {
@@ -78,30 +80,35 @@ DequantizationOperations::Subtract& DequantizationOperations::Subtract::setConst
 }
 
 DequantizationOperations::Multiply::Multiply() :
-    isEmpty(true),
+    _isEmpty(true),
     outPrecision(ngraph::element::undefined),
     constantShapeIsDefined(false) {
 }
 
-DequantizationOperations::Multiply::Multiply(const float value) :
-    isEmpty(false),
+DequantizationOperations::Multiply::Multiply(const float value, const bool addDequantizationAttribute) :
+    _isEmpty(false),
     values({ value }),
     outPrecision(ngraph::element::undefined),
-    constantShapeIsDefined(false) {
+    constantShapeIsDefined(false),
+    addDequantizationAttribute(addDequantizationAttribute) {
 }
 
-DequantizationOperations::Multiply::Multiply(const std::vector<float>& values) :
-    isEmpty(values.empty()),
+DequantizationOperations::Multiply::Multiply(const std::vector<float>& values, const bool addDequantizationAttribute) :
+    _isEmpty(values.empty()),
     values(values),
     outPrecision(ngraph::element::undefined),
-    constantShapeIsDefined(false) {
+    constantShapeIsDefined(false),
+    addDequantizationAttribute(addDequantizationAttribute) {
 }
 
-DequantizationOperations::Multiply::Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision) :
-    isEmpty(false),
+DequantizationOperations::Multiply::Multiply(const std::vector<float>& values,
+                                             const ngraph::element::Type outPrecision,
+                                             const bool addDequantizationAttribute) :
+    _isEmpty(false),
     values(values),
     outPrecision(outPrecision),
-    constantShapeIsDefined(false) {
+    constantShapeIsDefined(false),
+    addDequantizationAttribute(addDequantizationAttribute) {
 }
 
 DequantizationOperations::Multiply::Multiply(
@@ -110,7 +117,7 @@ DequantizationOperations::Multiply::Multiply(
     const ngraph::Shape& constantShape,
     const bool addDequantizationAttribute,
     const size_t constantIndex) :
-    isEmpty(false),
+    _isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
@@ -120,7 +127,7 @@ DequantizationOperations::Multiply::Multiply(
 }
 
 bool DequantizationOperations::Multiply::empty() const noexcept {
-    return isEmpty;
+    return _isEmpty;
 }
 
 DequantizationOperations::Multiply& DequantizationOperations::Multiply::setConstantPrecision(const ngraph::element::Type& precision) {
