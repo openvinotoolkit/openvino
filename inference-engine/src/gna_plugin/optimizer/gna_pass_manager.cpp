@@ -780,50 +780,52 @@ void InsertIdentityLayerPass::run() {
 
 void InsertCopyLayerPass::run() {
     for (auto & l : *pLayers) {
-        if (l->insData.empty()) continue;
-        auto prevLayers = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr origin){
-            return !LayerInfo(origin).isNonFunctional();
-        });
+        if (LayerInfo(l).isNonFunctional()) continue;
+        for (auto output: l->outData) {
+            std::vector<std::pair<CNNLayerPtr, size_t>> MemoryLayers;
+            std::vector<std::pair<CNNLayerPtr, size_t>> ConcatLayers;
+            auto& inputTo = getInputTo(output);
+            if (inputTo.size() < 2) continue;
+            for (auto& childLayer : inputTo) {
+                auto layer_to_insert = childLayer.second;
+                auto current_layer = childLayer.second;
+                auto previous_layer = l;
+                size_t input_idx = CNNLayerFindInsDataIdxes(output, current_layer)[0];
 
-        for (int i=0; i != prevLayers.size(); i++) {
-            auto & prevIndirectLayer = prevLayers[i].first;
-            bool bInsert = false;
-            /// Delayed copy layers need to be moved to the very end of processing
-            bool bInsertDelayed = false;
-
-            auto isInserted = [&bInsertDelayed, &bInsert]() {
-                return bInsert || bInsertDelayed;
-            };
-
-            if (LayerInfo(l).isMemory()) {
-                if (LayerInfo(prevIndirectLayer).isConcat() || LayerInfo(prevIndirectLayer).isCrop()
-                    || LayerInfo(prevIndirectLayer).isSplit()) { bInsertDelayed = true;}
-                // memory usualy preceded by either activation or split, or other layers in order to have 2b precision
-                for (auto && inputto : getInputTo(prevLayers[i].first->outData[prevLayers[i].second])) {
-                    auto current_layer = inputto.second;
-                    while (LayerInfo(current_layer).isNonFunctional() || LayerInfo(current_layer).isSplit()) {
-                        if (current_layer->outData.size() == 0) break;
-                        if (getInputTo(current_layer->outData[0]).size() == 0) break;
-                        auto new_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
-                        current_layer = new_layer;
+                while (LayerInfo(current_layer).isNonFunctional() || LayerInfo(current_layer).isSplit()) {
+                    if (current_layer->outData.size() == 0) break;
+                    if (getInputTo(current_layer->outData[0]).size() == 0) break;
+                    previous_layer = current_layer;
+                    current_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
+                }
+                if (LayerInfo(current_layer).isCrop() && !LayerInfo(current_layer).isCropAffined()) {
+                    auto next_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
+                    if (LayerInfo(next_layer).isConcat()) {
+                        auto idx = CNNLayerFindInsDataIdxes(current_layer->outData[0], next_layer)[0];
+                        InsertCopyLayer(current_layer, next_layer, idx, this->getPassManager(), CopyLayerName);
                     }
-                    // if preceding layer is common for memory and concat
-                    if (LayerInfo(current_layer).isConcat()) {
-                        bInsertDelayed = true;
-                        break;
-                    }
+                } else if (LayerInfo(current_layer).isConcat()) {
+                    ConcatLayers.push_back(make_pair(layer_to_insert, input_idx));
+                } else if (LayerInfo(current_layer).isMemory()) {
+                    MemoryLayers.push_back(make_pair(layer_to_insert, input_idx));
                 }
             }
-            if (!isInserted() && LayerInfo(l).isConcat() && LayerInfo(prevIndirectLayer).isCrop()) { bInsert = true; }
-
-            if (isInserted()) {
-                if (LayerInfo(prevIndirectLayer).isCropAffined()) {
-                    // The crop will be replaced by affine.
-                    // Copy layer insertion is not required
-                    continue;
+            if (MemoryLayers.size() == 0 && ConcatLayers.size() == 0) continue;
+            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - 1;
+            size_t currentCopyIdx = 0;
+            while (currentCopyIdx < toCopyCount) {
+                if (currentCopyIdx < MemoryLayers.size()) {
+                    size_t memoryIdx = currentCopyIdx;
+                    auto memoryLayer = MemoryLayers[memoryIdx].first;
+                    auto inputIdx = MemoryLayers[memoryIdx].second;
+                    InsertCopyLayer(l, memoryLayer, inputIdx, this->getPassManager(), DelayedCopyLayerName);
+                } else {
+                    size_t concatIdx = currentCopyIdx - MemoryLayers.size();
+                    auto concatLayer = ConcatLayers[concatIdx].first;
+                    auto inputIdx = ConcatLayers[concatIdx].second;
+                    InsertCopyLayer(l, concatLayer, inputIdx, this->getPassManager(), CopyLayerName);
                 }
-                auto prevLayer = CNNNetPrevLayer(l, i);
-                InsertCopyLayer(prevLayer, l, i, getPassManager(), bInsertDelayed ? DelayedCopyLayerName : CopyLayerName);
+                currentCopyIdx++;
             }
         }
     }
