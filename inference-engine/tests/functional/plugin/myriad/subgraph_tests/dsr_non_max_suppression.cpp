@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional_test_utils/layer_test_utils.hpp>
-#include <ngraph_functions/builders.hpp>
+#include "dsr_tests_common.hpp"
+
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <ngraph/op/non_max_suppression.hpp>
 
 namespace {
 
+using namespace LayerTestsUtils::vpu;
+
 using DataType = ngraph::element::Type_t;
 using DataDims = ngraph::Shape;
 
 struct NonMaxSuppressionTestCase {
-    int64_t num_batches, num_boxes, num_classes, max_output_boxes_per_class;
-    float iou_threshold, score_threshold;
+    size_t numBatches, numBoxes, upperBoundNumBoxes, numClasses, maxOutputBoxesPerClass;
+    float iouThreshold, scoreThreshold, softNmsSigma;
 };
 
 using Parameters = std::tuple<
@@ -25,36 +27,60 @@ using Parameters = std::tuple<
 >;
 
 class DSR_NonMaxSuppression : public testing::WithParamInterface<Parameters>,
-        virtual public LayerTestsUtils::LayerTestsCommon {
+                              public DSR_TestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<Parameters> &obj) {
+        DataType floatType, integerType;
+        NonMaxSuppressionTestCase nmsSetup;
+        LayerTestsUtils::TargetDevice targetDevice;
+        std::tie(floatType, integerType, nmsSetup, targetDevice) = obj.param;
+
+        std::ostringstream result;
+        result << "FT=" << floatType << "_";
+        result << "IT=" << integerType << "_";
+        result << "NBatches=" << nmsSetup.numBatches << "_";
+        result << "NBoxes=" << nmsSetup.numBoxes << "_";
+        result << "UBNBoxes=" << nmsSetup.upperBoundNumBoxes << "_";
+        result << "NC=" << nmsSetup.numClasses << "_";
+        result << "MaxB=" << nmsSetup.maxOutputBoxesPerClass << "_";
+        result << "IOU=" << nmsSetup.iouThreshold << "_";
+        result << "ScoreT=" << nmsSetup.scoreThreshold << "_";
+        result << "Sigma=" << nmsSetup.softNmsSigma << "_";
+
+        return result.str();
+    }
+
 protected:
-    void SetUp() override {
+    std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
-        const auto& float_type = std::get<0>(parameters);
-        const auto& integer_type = std::get<1>(parameters);
-        const auto& nms_setup = std::get<2>(parameters);
+        const auto& floatType = std::get<0>(parameters);
+        const auto& integerType = std::get<1>(parameters);
+        const auto& nmsSetup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
-        const auto boxes = std::make_shared<ngraph::opset3::Parameter>(
-                float_type, ngraph::PartialShape{nms_setup.num_batches, nms_setup.num_boxes, 4});
-        const auto scores = std::make_shared<ngraph::opset3::Parameter>(
-                float_type, ngraph::PartialShape{nms_setup.num_batches, nms_setup.num_classes, nms_setup.num_boxes});
-        const auto max_output_boxes_per_class = std::make_shared<ngraph::opset3::Constant>(
-                integer_type, ngraph::Shape{}, std::vector<int64_t>{nms_setup.max_output_boxes_per_class});
-        const auto iou_threshold = std::make_shared<ngraph::opset3::Constant>(
-                float_type, ngraph::Shape{}, std::vector<float>{nms_setup.iou_threshold});
-        const auto score_threshold = std::make_shared<ngraph::opset3::Constant>(
-                float_type, ngraph::Shape{}, std::vector<float>{nms_setup.score_threshold});
+        const auto boxes = createInputSubgraphWithDSR(floatType, DataShapeWithUpperBound{ {nmsSetup.numBatches, nmsSetup.numBoxes, 4},
+            {nmsSetup.numBatches, nmsSetup.upperBoundNumBoxes, 4}});
+        const auto scores = createInputSubgraphWithDSR(floatType, DataShapeWithUpperBound{ {nmsSetup.numBatches, nmsSetup.numClasses, nmsSetup.numBoxes},
+            {nmsSetup.numBatches, nmsSetup.numClasses, nmsSetup.upperBoundNumBoxes}});
 
+        const auto maxOutputBoxesPerClass = ngraph::opset5::Constant::create(integerType, ngraph::Shape{}, {nmsSetup.maxOutputBoxesPerClass});
+        const auto iouThreshold = ngraph::opset5::Constant::create(floatType, ngraph::Shape{}, {nmsSetup.iouThreshold});
+        const auto scoreThreshold = ngraph::opset5::Constant::create(floatType, ngraph::Shape{}, {nmsSetup.scoreThreshold});
+        const auto softNmsSigma = ngraph::opset5::Constant::create(floatType, ngraph::Shape{}, {nmsSetup.softNmsSigma});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
-        const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
+        return std::make_shared<ngraph::op::v5::NonMaxSuppression>(
+            boxes, scores, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNmsSigma,
+            ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER, false);
+    }
 
-        const auto node = std::make_shared<ngraph::op::v5::NonMaxSuppression>(
-                boxes, dsr, max_output_boxes_per_class, iou_threshold, score_threshold);
+    void SetUp() override {
+            SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
+            configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
+            const auto testedOp = createTestedOp();
 
-        const auto result = std::make_shared<ngraph::opset3::Result>(node);
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                ngraph::ParameterVector{boxes, scores, dims}, "DSR-dynamic::NMS");
+            function = std::make_shared<ngraph::Function>(
+                ngraph::OutputVector{testedOp->output(0), testedOp->output(2)},
+                m_parameterVector);
     }
 };
 
@@ -62,22 +88,21 @@ TEST_P(DSR_NonMaxSuppression, CompareWithReference) {
     Run();
 }
 
-// #-30919
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_DynamicNonMaxSupression, DSR_NonMaxSuppression,
+INSTANTIATE_TEST_CASE_P(smoke_DynamicNonMaxSupression, DSR_NonMaxSuppression,
     ::testing::Combine(
-         ::testing::Values(
-                    ngraph::element::f16,
-                    ngraph::element::f32),
-         ::testing::Values(
-                    ngraph::element::i32,
-                    ngraph::element::i64,
-                    ngraph::element::u8),
-         ::testing::Values(
-                    // num_batches, num_boxes, num_classes, max_output_boxes_per_class, iou_threshold, score_threshold
-                    NonMaxSuppressionTestCase{1, 10, 5, 10, 0., 0.},
-                    NonMaxSuppressionTestCase{2, 100, 5, 10, 0., 0.},
-                    NonMaxSuppressionTestCase{3, 10, 5, 2, 0.5, 0.},
-                    NonMaxSuppressionTestCase{1, 1000, 1, 2000, 0.5, 0.}),
-         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
+        ::testing::Values(
+            ngraph::element::f16,
+            ngraph::element::f32),
+        ::testing::Values(
+            ngraph::element::i32,
+            ngraph::element::i64),
+        ::testing::Values(
+            // numBatches, numBoxes, upperBoundNumBoxes, numClasses, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNmsSigma
+            NonMaxSuppressionTestCase{1, 5, 10, 5, 10, 0., 0.},
+            NonMaxSuppressionTestCase{2, 20, 100, 5, 10, 0., 0.},
+            NonMaxSuppressionTestCase{3, 3, 10, 5, 2, 0.5, 0.},
+            NonMaxSuppressionTestCase{1, 200, 1000, 1, 2000, 0.5, 0.}),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+    DSR_NonMaxSuppression::getTestCaseName);
 
 }  // namespace
