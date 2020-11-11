@@ -10,8 +10,6 @@ INSTANTIATE_TEST_CASE_P(
 		::testing::ValuesIn(s_ResampleInput),
 		::testing::Values<Factor>(2.0f, 0.5f),
 		::testing::Values<Antialias>(false),
-		::testing::Values<CoordinateTransformMode>(InterpolateCoordTransMode::half_pixel),
-		::testing::Values<NearestMode>(InterpolateNearestMode::round_prefer_ceil),
 		::testing::Values<HwOptimization>(false, true),
 		::testing::Values(""))
 );
@@ -24,8 +22,6 @@ INSTANTIATE_TEST_CASE_P(
 		::testing::ValuesIn(s_ResampleInput),
 		::testing::Values<Factor>(2.0f),
 		::testing::Values<Antialias>(false, true),
-		::testing::Values<CoordinateTransformMode>(InterpolateCoordTransMode::half_pixel),
-		::testing::Values<NearestMode>(InterpolateNearestMode::round_prefer_ceil),
 		::testing::Values<HwOptimization>(false, true),
 		::testing::Values(s_CustomConfig[1]))
 );

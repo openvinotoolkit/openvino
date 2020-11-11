@@ -5,33 +5,16 @@
 #include <cmath>
 #include "myriad_layers_tests.hpp"
 
-VPU_DECLARE_ENUM(InterpolateCoordTransMode,
-    half_pixel = 0,
-    pytorch_half_pixel = 1,
-    asymmetric = 2,
-    tf_half_pixel_for_nn = 3,
-    align_corners = 4
-)
-VPU_DECLARE_ENUM(InterpolateNearestMode,
-    round_prefer_floor = 0,
-    round_prefer_ceil = 1,
-    floor = 2,
-    ceil = 3,
-    simple = 4
-)
-
 using namespace InferenceEngine;
 
 #define ERROR_BOUND 1e-3
 
 PRETTY_PARAM(Factor, float)
 PRETTY_PARAM(Antialias, int)
-PRETTY_PARAM(CoordinateTransformMode, InterpolateCoordTransMode)
-PRETTY_PARAM(NearestMode, InterpolateNearestMode)
 PRETTY_PARAM(HwOptimization, bool);
 PRETTY_PARAM(CustomConfig, std::string);
 
-typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, Factor, Antialias, CoordinateTransformMode, NearestMode, HwOptimization, CustomConfig>>
+typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, Factor, Antialias, HwOptimization, CustomConfig>>
 	myriadResampleLayerTests_smoke;
 
 static inline float triangleCoeff(float x)
@@ -39,7 +22,7 @@ static inline float triangleCoeff(float x)
     return (1.0f - fabsf(x));
 }
 
-void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, InterpolateCoordTransMode coordTransMode, InterpolateNearestMode nearestMode) {
+void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias) {
     ie_fp16 *src_data = static_cast<ie_fp16*>(src->buffer());
     ie_fp16 *output_sequences = static_cast<ie_fp16*>(dst->buffer());
     ASSERT_NE(src_data, nullptr);
@@ -63,7 +46,7 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, InterpolateC
     const float fy = static_cast<float>(IH) / static_cast<float>(OH);
     const float fx = static_cast<float>(IW) / static_cast<float>(OW);
 
-    float ax = 1.0f / fx; // scale
+    float ax = 1.0f / fx;
     float ay = 1.0f / fy;
 
     int rx = (fx < 1.0f) ? 2 : ceil((1.0f)/ax);
@@ -78,20 +61,11 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, InterpolateC
         {
             for (int ox = 0; ox < OW; ox++)
             {
-                float ix = ox * fx + fx / 2.0f - 0.5f; // half pixel
-                float iy = oy * fy + fy / 2.0f - 0.5f;
+                float ix = ox*fx + fx / 2.0f - 0.5f;
+                float iy = oy*fy + fy / 2.0f - 0.5f;
 
-                int ix_r = (int)(round(ix)); // round prefer ceil
+                int ix_r = (int)(round(ix));
                 int iy_r = (int)(round(iy));
-
-                if (coordTransMode == InterpolateCoordTransMode::asymmetric) { // asymmetric
-                    ix = ox * fx + fx / 2 - .5f / ax;
-                    iy = oy * fy + fy / 2 - .5f / ay;
-                }
-                if (nearestMode == InterpolateNearestMode::floor) { // floor
-                    ix_r = (int)(floor(ix));
-                    iy_r = (int)(floor(iy));
-                }
 
                 float sum=0;
                 float wsum=0;
@@ -107,7 +81,7 @@ void refResample(const Blob::Ptr src, Blob::Ptr dst, int antialias, InterpolateC
                             float dx = ix - x;
                             float dy = iy - y;
 
-                            float w = ax*triangleCoeff(ax*dx) * ay * triangleCoeff(ay*dy);
+                            float w = ax*triangleCoeff(ax*dx) * ay*triangleCoeff(ay*dy);
 
                             sum += w * PrecisionUtils::f16tof32(in_ptr[y*IW + x]);
                             wsum += w;
@@ -127,10 +101,8 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
     const SizeVector inputDims = std::get<0>(GetParam());
     const float factor = std::get<1>(GetParam());
     const bool antialias = std::get<2>(GetParam());
-    const InterpolateCoordTransMode coordTransMode = std::get<3>(GetParam());
-    const InterpolateNearestMode nearestMode = std::get<4>(GetParam());
-    const bool hwOptimization = std::get<5>(GetParam());
-    const std::string customConfig = std::get<6>(GetParam());
+    const bool hwOptimization = std::get<3>(GetParam());
+    const std::string customConfig = std::get<4>(GetParam());
 
     ASSERT_GT(factor, 0);
 
@@ -154,12 +126,6 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
 
     std::map<std::string, std::string> params;
     params["antialias"] = std::to_string((int)antialias);
-    params["coordTransMode"] = "half_pixel";
-    if (coordTransMode == InterpolateCoordTransMode::asymmetric)
-        params["coordTransMode"] = "asymmetric";
-    params["nearestMode"] = "round_prefer_ceil";
-    if (nearestMode == InterpolateNearestMode::floor)
-        params["nearestMode"] = "floor";
     params["factor"] = std::to_string(factor);
 
     ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Resample").params(params),
@@ -169,7 +135,7 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
 
     ASSERT_TRUE(Infer());
 
-    ASSERT_NO_FATAL_FAILURE(refResample(_inputMap.begin()->second, _refBlob, antialias, coordTransMode, nearestMode));
+    ASSERT_NO_FATAL_FAILURE(refResample(_inputMap.begin()->second, _refBlob, antialias));
 
     CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, ERROR_BOUND);
 }
@@ -186,4 +152,3 @@ static std::vector<CustomConfig> s_CustomConfig = {
    getIELibraryPath() + "/vpu_custom_kernels/customLayerBindings.xml"
 #endif
 };
-
