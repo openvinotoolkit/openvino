@@ -96,6 +96,18 @@ TEST(type_prop, gather_nd_batch_dim2_with_dyn_dim3)
     ASSERT_TRUE(G5->get_output_partial_shape(0).same_scheme(out_shape));
 }
 
+TEST(type_prop, gather_nd_batch_dim0_with_dyn_ind_dim)
+{
+    PartialShape params_shape{
+        7, Dimension::dynamic(), Dimension::dynamic(), 12, Dimension::dynamic()};
+    PartialShape indices_shape{7, 5, 3, Dimension::dynamic()};
+    auto P = make_shared<op::Parameter>(element::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto G5 = make_shared<op::v5::GatherND>(P, I, 0);
+    ASSERT_EQ(G5->get_element_type(), element::f32);
+    ASSERT_TRUE(G5->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+}
+
 TEST(type_prop, gather_nd_fail_batch_dims_greater_indices_rank)
 {
     Shape params_shape{2, 3, 4, 5};
