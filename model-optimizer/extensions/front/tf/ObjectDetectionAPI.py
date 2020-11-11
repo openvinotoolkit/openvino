@@ -488,9 +488,9 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
 
     def is_preprocessing_applied_before_resize(self, to_float: Node, mul: Node, sub: Node):
         """
-        The function checks if the output of 'to_float' operation is consumed by 'mul' or 'sub'. If this is true that
-        means that the pre-processing (mean/scale) is applied before the image resize. The image resize was applied
-        first in the original version of the TF OD API models, but in the recent versions it is applied after.
+        The function checks if the output of 'to_float' operation is consumed by 'mul' or 'sub'. If this is true then
+        the pre-processing (mean/scale) is applied before the image resize. The image resize was applied first in the
+        original version of the TF OD API models, but in the recent versions it is applied after.
 
         :param to_float: the Cast node which converts the input tensor to Float
         :param mul: the Mul node (can be None)
