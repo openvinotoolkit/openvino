@@ -67,6 +67,8 @@ class ONNXResize11Op(Op):
             sizes = node.in_port(3).data.get_value()
             assert sizes is not None, \
                 "Node {} with op {} has no value in input port 3".format(node.name, node.op)
-            output_shape = int64_array(sizes)
+            output_shape = input_shape.copy()
+            spatial_dimension_indices = range(2, len(input_shape))
+            output_shape[spatial_dimension_indices] = int64_array(sizes)[2:]
 
         node.out_port(0).data.set_shape(output_shape.copy())
