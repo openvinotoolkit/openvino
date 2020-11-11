@@ -5,6 +5,17 @@
 
 set(TARGET_NAME multiFuncTests)
 
+set(DEPS "")
+if (ENABLE_MKL_DNN)
+    list(APPEND DEPS MKLDNNPlugin)
+endif()
+if (ENABLE_CLDNN)
+    list(APPEND DEPS clDNNPlugin)
+endif()
+if (ENABLE_MYRIAD)
+    list(APPEND DEPS myriadPlugin)
+endif()
+
 addIeTargetTest(
         NAME
             ${TARGET_NAME}
@@ -14,9 +25,7 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             MultiDevicePlugin
-            MKLDNNPlugin
-            clDNNPlugin
-            myriadPlugin
+            ${DEPS}
         LINK_LIBRARIES
             funcSharedTests
         ADD_CPPLINT
