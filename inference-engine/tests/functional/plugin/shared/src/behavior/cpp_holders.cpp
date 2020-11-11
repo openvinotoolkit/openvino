@@ -25,7 +25,13 @@ namespace BehaviorTestsDefinitions {
         if (deathTestStyle == "fast") {
             ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
         }
-        function = ngraph::builder::subgraph::makeReadConcatSplitAssign();
+        if (targetDevice == CommonTestUtils::DEVICE_CPU || targetDevice == CommonTestUtils::DEVICE_GNA) {
+            function = ngraph::builder::subgraph::makeReadConcatSplitAssign();
+        }
+        else {
+            function = ngraph::builder::subgraph::makeConvPoolRelu();
+        }
+        
     }
 
     void HoldersTest::TearDown() {
