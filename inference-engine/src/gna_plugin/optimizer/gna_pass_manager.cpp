@@ -26,6 +26,7 @@
 #include <layers/gna_copy_layer.hpp>
 
 #include "gna_plugin_log.hpp"
+#include "frontend/quantization.h"
 #include "frontend/quantized_layer_params.hpp"
 #include <layers/gna_copy_layer.hpp>
 #include "gna_graph_tools.hpp"
@@ -264,6 +265,36 @@ void HandleMultipleActivationsForTheLayerPass::run() {
         // insert diagonals one per each activation
         for (auto && activation : activations) {
             insertDiagonalLayerBetween(l, activation, getPassManager(), 0.0f);
+        }
+    }
+}
+
+void ForbidActivationFusingPass::run() {
+    for (auto& l : *pLayers) {
+        if (LayerInfo(l).isActivation()) {
+            auto prevLayer = CNNNetPrevLayer(l);
+            if (LayerInfo(prevLayer).has32BOutput()) {
+                // find all layers directly connected to the outputs of the previous layer
+                const auto allUsingPrev = CNNNetGetAllNextLayersSkipCertain(prevLayer, -1,
+                    [&](CNNLayerPtr nextLayer) -> bool {
+                        for (const auto& input : nextLayer->insData) {
+                            for (const auto& output : prevLayer->outData) {
+                                if (areEqualDatas(input.lock(), output) &&
+                                    areEqualDatas(l->insData[0].lock(), output) &&
+                                    (LayerInfo(nextLayer).isEltwiseSum() || nextLayer == l)) {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    });
+                if (allUsingPrev.size() > 1) {
+                    // the weights of MAX_VAL_2B_WEIGHT are used to enforce 1.0 scale factor
+                    // so the scores are more correct
+                    insertDiagonalLayerBetween(prevLayer, l, getPassManager(), MAX_VAL_2B_WEIGHT);
+                }
+                continue;
+            }
         }
     }
 }
