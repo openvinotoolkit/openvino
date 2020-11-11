@@ -51,8 +51,10 @@ std::shared_ptr<Node> makeDequantization(
             shape,
             dequantizationOperations.subtract.values);
 
-        if ((dequantizationOperations.subtract.outPrecision == element::undefined) ||
-            (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) {
+        if (((dequantizationOperations.subtract.outPrecision == element::undefined) ||
+            (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) &&
+            ((dequantizationOperations.subtract.constantPrecision == element::undefined) ||
+            (dequantizationOperations.subtract.constantPrecision == parent.get_element_type()))) {
             subtract = std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(parent, subtractConst);
         } else {
             subtract = std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationSubtract>>(
@@ -83,10 +85,14 @@ std::shared_ptr<Node> makeDequantization(
         }
 
         std::shared_ptr<ngraph::opset1::Multiply> multiply;
-        if ((dequantizationOperations.multiply.outPrecision == element::undefined) ||
-            (dequantizationOperations.multiply.outPrecision == parent.get_element_type())) {
+        if (((dequantizationOperations.multiply.outPrecision == element::undefined) ||
+            (dequantizationOperations.multiply.outPrecision == parent.get_element_type())) &&
+            ((dequantizationOperations.multiply.constantPrecision == element::undefined) ||
+            (dequantizationOperations.multiply.constantPrecision == parent.get_element_type()))) {
             const std::shared_ptr<ngraph::opset1::Constant> constant = std::make_shared<ngraph::opset1::Constant>(
-                parent.get_element_type(),
+                dequantizationOperations.multiply.constantPrecision != element::undefined ?
+                    dequantizationOperations.multiply.constantPrecision :
+                    parent.get_element_type(),
                 shape,
                 dequantizationOperations.multiply.values);
 
