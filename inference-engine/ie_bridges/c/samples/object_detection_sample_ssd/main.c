@@ -245,7 +245,7 @@ void config_free(ie_config_t *config) {
 
 /**
 * @brief Convert the numbers to char *;
-* @param str A pointer to the convered string .
+* @param str A pointer to the converted string.
 * @param num The number to convert.
 * @return none.
 */
