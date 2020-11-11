@@ -337,7 +337,7 @@ public class Main {
         fillBlobs(inferRequestsQueue.requests, inputsInfo);
 
         // ---------- 10. Measuring performance ----------------------------------------
-        String ss = "Start inference " + api + "ronously";
+        String ss = "Start inference " + api + "hronously";
         if (isAsync) {
             if (!ss.isEmpty()) {
                 ss += ", ";

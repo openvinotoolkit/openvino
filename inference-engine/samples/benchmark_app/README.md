@@ -157,7 +157,7 @@ Below are fragments of sample output for CPU and FPGA devices:
 
 * For CPU:
    ```
-   [Step 8/9] Measuring performance (Start inference asyncronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
+   [Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
    Progress: [....................] 100.00% done
 
    [Step 9/9] Dumping statistics report

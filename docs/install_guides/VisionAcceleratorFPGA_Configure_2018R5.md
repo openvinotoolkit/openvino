@@ -254,7 +254,7 @@ jtagconfig
 jtagconfig --setparam 1 JtagClock 6M
 ```
 
-4. Store the Intel® Vision Accelerator Design with Intel® Arria® 10 FPGA bistream on the board:
+4. Store the Intel® Vision Accelerator Design with Intel® Arria® 10 FPGA bitstream on the board:
 ```sh
 aocl flash acl0 /opt/intel/openvino/bitstreams/a10_vision_design_bitstreams/5-0_PL1_FP11_SqueezeNet.aocx
 ```

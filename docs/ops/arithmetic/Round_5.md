@@ -6,7 +6,7 @@
 
 **Short description**: *Round* performs element-wise round operation with given tensor.
 
-**Detailed description**: Operation takes one input tensor and rounds the values, element-wise, meaning it finds the nearest integer for each value. In case of halfs, the rule is to round them to the nearest even integer if `mode` attribute is `half_to_even` or rounding in such a way that the result heads away from zero if `mode` attribute is `half_away_from_zero`.
+**Detailed description**: Operation takes one input tensor and rounds the values, element-wise, meaning it finds the nearest integer for each value. In case of halves, the rule is to round them to the nearest even integer if `mode` attribute is `half_to_even` or rounding in such a way that the result heads away from zero if `mode` attribute is `half_away_from_zero`.
     
     Input = [-4.5, -1.9, -1.5, 0.5, 0.9, 1.5, 2.3, 2.5]
     
@@ -18,7 +18,7 @@
 
 * *mode*
 
-  * **Description**:  If set to `half_to_even` then the rule is to round halfs to the nearest even integer, if set to `half_away_from_zero` then rounding in such a way that the result heads away from zero.
+  * **Description**:  If set to `half_to_even` then the rule is to round halves to the nearest even integer, if set to `half_away_from_zero` then rounding in such a way that the result heads away from zero.
   * **Range of values**: `half_to_even` or `half_away_from_zero`
   * **Type**: string
   * **Default value**: `half_to_even`

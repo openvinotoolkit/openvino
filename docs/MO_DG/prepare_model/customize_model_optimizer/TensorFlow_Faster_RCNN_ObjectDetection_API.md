@@ -393,7 +393,7 @@ The replacement code is similar to the `SecondStagePostprocessor` replacement fo
 
 *   The priors tensor is not constant like in SSDs so the bounding boxes tensor must be scaled with variances [0.1, 0.1, 0.2, 0.2].
 
-The descibed above difference are resolved with the following code:
+The described above difference are resolved with the following code:
 
 ```python
         # TF produces locations tensor without boxes for background.

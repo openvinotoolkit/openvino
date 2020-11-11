@@ -80,4 +80,4 @@ There is no generalized scenario and recommendations are the same as for specifi
 
 ## Compilation tests
 
-The tests are in the `vpu_classification_regression.cpp` file and contains only one scenario ` VpuNoRegressionWithCompilation `. To add a new test just update parameters just as in generalized scenarion of Classification/Detection test groups.
+The tests are in the `vpu_classification_regression.cpp` file and contain only one scenario ` VpuNoRegressionWithCompilation `. To add a new test just update parameters just as in generalized scenario of Classification/Detection test groups.

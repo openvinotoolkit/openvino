@@ -49,7 +49,7 @@
 
     b. Add **Milestone** and **Labels** to the MR if it is possible.
 
-    c. If your work is finished, assign the MR to a reviewer. If it is in progress, assing the MR to yourself (`[WIP]` case).
+    c. If your work is finished, assign the MR to a reviewer. If it is in progress, assign the MR to yourself (`[WIP]` case).
 
     Example of an [MR](https://gitlab-icv.inn.intel.com/inference-engine/inference-engine/merge_requests/2512):
     <br/>
