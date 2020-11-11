@@ -60,14 +60,16 @@ DequantizationOperations::Subtract::Subtract(
     const ngraph::element::Type outPrecision,
     const ngraph::Shape& constantShape,
     const bool addDequantizationAttribute,
-    const size_t constantIndex) :
+    const size_t constantIndex,
+    const ngraph::element::Type constantPrecision) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
     constantShapeIsDefined(true),
     addDequantizationAttribute(addDequantizationAttribute),
-    constantIndex(constantIndex) {
+    constantIndex(constantIndex),
+    constantPrecision(constantPrecision) {
 }
 
 bool DequantizationOperations::Subtract::empty() const noexcept {
@@ -114,13 +116,15 @@ DequantizationOperations::Multiply::Multiply(
     const ngraph::element::Type outPrecision,
     const ngraph::Shape& constantShape,
     const bool addDequantizationAttribute,
-    const size_t constantIndex) :
+    const size_t constantIndex,
+    ngraph::element::Type constantPrecision) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
     addDequantizationAttribute(addDequantizationAttribute),
     constantIndex(constantIndex),
+    constantPrecision(constantPrecision),
     constantShapeIsDefined(true) {
 }
 

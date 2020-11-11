@@ -37,7 +37,8 @@ public:
             const ngraph::element::Type outPrecision,
             const ngraph::Shape& constantShape,
             const bool addDequantizationAttribute = true,
-            const size_t constantIndex = 1ul);
+            const size_t constantIndex = 1ul,
+            const ngraph::element::Type constantPrecision = ngraph::element::undefined);
         bool empty() const noexcept;
         Subtract& setConstantPrecision(const ngraph::element::Type& precision);
 
@@ -65,7 +66,8 @@ public:
             const ngraph::element::Type outPrecision,
             const ngraph::Shape& constantShape,
             const bool addDequantizationAttribute = true,
-            const size_t constantIndex = 1ul);
+            const size_t constantIndex = 1ul,
+            const ngraph::element::Type constantPrecision = ngraph::element::undefined);
         bool empty() const noexcept;
         Multiply& setConstantPrecision(const ngraph::element::Type& precision);
 
