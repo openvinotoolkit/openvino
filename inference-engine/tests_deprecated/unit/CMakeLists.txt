@@ -143,13 +143,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
     # dynamic libraries
     inference_engine_transformations
-    inference_engine_ir_v7_reader)
-
-if(USE_CNNNETWORK_LPT)
-    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
-else()
-    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations)
-endif()
+    inference_engine_ir_v7_reader
+    inference_engine_lp_transformations)
 
 if(TARGET libGNAStubs)
     target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)
