@@ -119,6 +119,58 @@ def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
 
 
 @nameable_op
+def non_max_suppression(
+    boxes: NodeInput,
+    scores: NodeInput,
+    max_output_boxes_per_class: Optional[NodeInput] = None,
+    iou_threshold: Optional[NodeInput] = None,
+    score_threshold: Optional[NodeInput] = None,
+    soft_nms_sigma: Optional[NodeInput] = None,
+    box_encoding: str = "corner",
+    sort_result_descending: bool = True,
+    output_type: str = "i64",
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs NonMaxSuppression.
+
+    :param boxes: Tensor with box coordinates.
+    :param scores: Tensor with box scores.
+    :param max_output_boxes_per_class: Tensor Specifying maximum number of boxes
+                                        to be selected per class.
+    :param iou_threshold: Tensor specifying intersection over union threshold
+    :param score_threshold: Tensor specifying minimum score to consider box for the processing.
+    :param soft_nms_sigma: Tensor specifying the sigma parameter for Soft-NMS.
+    :param box_encoding: Format of boxes data encoding.
+    :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
+                                   boxes across batches or not.
+    :param output_type: Output element type.
+    :return: The new node which performs NonMaxSuppression
+    """
+    if max_output_boxes_per_class is None:
+        max_output_boxes_per_class = make_constant_node(0, np.int64)
+    if iou_threshold is None:
+        iou_threshold = make_constant_node(0, np.float32)
+    if score_threshold is None:
+        score_threshold = make_constant_node(0, np.float32)
+    if soft_nms_sigma is None:
+        inputs = as_nodes(
+            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold
+        )
+    else:
+        inputs = as_nodes(
+            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma
+        )
+
+    attributes = {
+        "box_encoding": box_encoding,
+        "sort_result_descending": sort_result_descending,
+        "output_type": output_type,
+    }
+
+    return _get_node_factory_opset5().create("NonMaxSuppression", inputs, attributes)
+
+
+@nameable_op
 def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
     """Apply Round operation on each element of input tensor.
 
