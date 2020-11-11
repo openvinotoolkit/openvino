@@ -549,6 +549,18 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
+    // Compare by partial layout descriptor (without particular strides values)
+    auto areCompatible = [](const TensorDesc& tdesc, mkldnn::memory::format_tag fmt) {
+        MKLDNNMemoryDesc fmt_tdesc = MKLDNNMemoryDesc{
+            MKLDNNDims(tdesc.getDims()),
+            MKLDNNExtensionUtils::IEPrecisionToDataType(tdesc.getPrecision()),
+            fmt};
+
+        auto tmp_partial_tdesc = PartialBlkDesc::extractFrom(fmt_tdesc);
+        auto actual_partial_tdesc = PartialBlkDesc::extractFrom(tdesc);
+        return tmp_partial_tdesc == actual_partial_tdesc;
+    };
+
     if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
         auto itpd = supportedPrimitiveDescriptors.begin();
         while (itpd != supportedPrimitiveDescriptors.end()) {
@@ -558,11 +570,11 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
 
             bool isSuitableDesc = true;
             for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-                const bool matched = MKLDNNMemoryDesc(config.inConfs[i].desc).isCompatibleWithFormat(inputMemoryFormatsFilter[i]);
+                const bool matched = areCompatible(config.inConfs[i].desc, inputMemoryFormatsFilter[i]);
                 isSuitableDesc &= matched;
             }
             for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-                const bool matched = MKLDNNMemoryDesc(config.outConfs[i].desc).isCompatibleWithFormat(outputMemoryFormatsFilter[i]);
+                const bool matched = areCompatible(config.outConfs[i].desc, outputMemoryFormatsFilter[i]);
                 isSuitableDesc &= matched;
             }
             if (!isSuitableDesc) {
