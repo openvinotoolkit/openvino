@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo_vpu.hpp>
+#include <vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
@@ -17,8 +17,8 @@ namespace {
 using EIPParams = std::tuple<
         ngraph::PartialShape, ngraph::Shape, ngraph::Strides, ngraph::Shape, ngraph::op::PadType>;
 
-class ConvertEIPToReorgYoloVPUTest : public CommonTestUtils::TestsCommon,
-                                     public testing::WithParamInterface<EIPParams> {
+class ConvertEIPToReorgYoloTest : public CommonTestUtils::TestsCommon,
+                                  public testing::WithParamInterface<EIPParams> {
 public:
     std::pair<bool, std::string> compare() {
         const auto& parameters = GetParam();
@@ -53,7 +53,7 @@ protected:
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<vpu::ConvertExtractImagePatchesToReorgYoloVPU>();
+        manager.register_pass<vpu::ConvertExtractImagePatchesToReorgYolo>();
         manager.run_passes(function);
 
         return function;
@@ -79,13 +79,13 @@ protected:
 // Positive tests
 //
 
-class ConvertEIPToReorgYoloVPUPositiveTest : public ConvertEIPToReorgYoloVPUTest {};
-TEST_P(ConvertEIPToReorgYoloVPUPositiveTest, CompareFunctions) {
+class ConvertEIPToReorgYoloPositiveTest : public ConvertEIPToReorgYoloTest {};
+TEST_P(ConvertEIPToReorgYoloPositiveTest, CompareFunctions) {
     const auto res = compare();
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, ConvertEIPToReorgYoloVPUPositiveTest, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, ConvertEIPToReorgYoloPositiveTest, testing::Combine(
         testing::Values(ngraph::Shape{1, 64, 500, 500}),
         testing::Values(ngraph::Shape{5, 5}),
         testing::Values(ngraph::Strides{5, 5}),
@@ -100,13 +100,13 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, ConvertEIPToReorgYoloVPUPositiveTest, test
 // Negative tests
 //
 
-class DoNotConvertEIPToReorgYoloVPUOnDiffSizeAndStride : public ConvertEIPToReorgYoloVPUTest {};
-TEST_P(DoNotConvertEIPToReorgYoloVPUOnDiffSizeAndStride, CompareFunctions) {
+class DoNotConvertEIPToReorgYoloOnDiffSizeAndStride : public ConvertEIPToReorgYoloTest {};
+TEST_P(DoNotConvertEIPToReorgYoloOnDiffSizeAndStride, CompareFunctions) {
     const auto res = compare();
     ASSERT_FALSE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloVPUOnDiffSizeAndStride, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnDiffSizeAndStride, testing::Combine(
         testing::Values(ngraph::PartialShape{1, 64, 500, 500}),
         testing::Values(ngraph::Shape{5, 5}),
         testing::Values(ngraph::Strides{4, 4}),
@@ -114,8 +114,8 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloVPUOnDiffSizeAnd
         testing::Values(ngraph::op::PadType::VALID)
 ));
 
-class DoNotConvertEIPToReorgYoloVPUOnNot4DInput : public ConvertEIPToReorgYoloVPUTest {};
-TEST_P(DoNotConvertEIPToReorgYoloVPUOnNot4DInput, CompareFunctions) {
+class DoNotConvertEIPToReorgYoloOnNot4DInput : public ConvertEIPToReorgYoloTest {};
+TEST_P(DoNotConvertEIPToReorgYoloOnNot4DInput, CompareFunctions) {
     const auto& parameters = GetParam();
     const auto& dataShape  = std::get<0>(parameters);
     const auto& sizes = std::get<1>(parameters);
@@ -126,7 +126,7 @@ TEST_P(DoNotConvertEIPToReorgYoloVPUOnNot4DInput, CompareFunctions) {
     EXPECT_ANY_THROW(transform(dataShape, sizes, strides, rates, padMode));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloVPUOnNot4DInput, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNot4DInput, testing::Combine(
         testing::Values(ngraph::PartialShape{1, 1, 64, 500, 500},
                         ngraph::PartialShape{64, 500, 500},
                         ngraph::PartialShape{500, 500},
@@ -138,8 +138,8 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloVPUOnNot4DInput,
         testing::Values(ngraph::op::PadType::VALID)
 ));
 
-class DoNotConvertEIPToReorgYoloVPUOnNotStaticInput : public ConvertEIPToReorgYoloVPUTest {};
-TEST_P(DoNotConvertEIPToReorgYoloVPUOnNotStaticInput, CompareFunctions) {
+class DoNotConvertEIPToReorgYoloOnNotStaticInput : public ConvertEIPToReorgYoloTest {};
+TEST_P(DoNotConvertEIPToReorgYoloOnNotStaticInput, CompareFunctions) {
     const auto& parameters = GetParam();
     const auto& dataShape  = std::get<0>(parameters);
     const auto& sizes = std::get<1>(parameters);
@@ -154,7 +154,7 @@ TEST_P(DoNotConvertEIPToReorgYoloVPUOnNotStaticInput, CompareFunctions) {
     ASSERT_TRUE(reorgIt == ops.end());
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloVPUOnNotStaticInput, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNotStaticInput, testing::Combine(
         testing::Values(ngraph::PartialShape{1, 64, ngraph::Dimension::dynamic(), 500},
                         ngraph::PartialShape{1, 64, 500, ngraph::Dimension::dynamic()}),
         testing::Values(ngraph::Shape{5, 5}),
@@ -163,13 +163,13 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloVPUOnNotStaticIn
         testing::Values(ngraph::op::PadType::VALID)
 ));
 
-class DoNotConvertEIPToReorgYoloVPUOnNonSingleRates : public ConvertEIPToReorgYoloVPUTest {};
-TEST_P(DoNotConvertEIPToReorgYoloVPUOnNonSingleRates, CompareFunctions) {
+class DoNotConvertEIPToReorgYoloOnNonSingleRates : public ConvertEIPToReorgYoloTest {};
+TEST_P(DoNotConvertEIPToReorgYoloOnNonSingleRates, CompareFunctions) {
     const auto res = compare();
     ASSERT_FALSE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloVPUOnNonSingleRates, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNonSingleRates, testing::Combine(
         testing::Values(ngraph::Shape{1, 64, 500, 500}),
         testing::Values(ngraph::Shape{5, 5}),
         testing::Values(ngraph::Strides{5, 5}),

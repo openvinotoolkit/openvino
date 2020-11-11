@@ -8,9 +8,9 @@
 
 namespace vpu {
 
-class ConvertExtractImagePatchesToReorgYoloVPU : public ngraph::pass::MatcherPass {
+class ConvertExtractImagePatchesToReorgYolo : public ngraph::pass::MatcherPass {
 public:
-    ConvertExtractImagePatchesToReorgYoloVPU();
+    ConvertExtractImagePatchesToReorgYolo();
 };
 
 }  // namespace vpu

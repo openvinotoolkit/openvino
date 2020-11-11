@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo_vpu.hpp"
+#include "vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
@@ -12,7 +12,7 @@
 
 namespace vpu {
 
-ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloVPU() {
+ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesToReorgYolo() {
     const auto image = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1});
     const auto eip = std::make_shared<ngraph::opset5::ExtractImagePatches>(
             image, ngraph::Shape{1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1}, ngraph::op::PadType::VALID);
@@ -27,7 +27,6 @@ ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloV
          * EIP.sizes = EIP.strides
          * EIP.rates = {1, 1}
          * Spatial dimensions of input tensor must be divisible by EIP.strides
-         *
          */
 
         if (!extractImagePatches || m_transformation_callback(extractImagePatches)) {
@@ -44,27 +43,22 @@ ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloV
         const auto& strides = extractImagePatches->get_strides();
         const auto& rates = extractImagePatches->get_rates();
 
-        // Check that ExtractImagePatches input have static shape and rank == 4
         if (!inputPartialShape.rank().is_static() || inputPartialShape.rank().get_length() != 4) {
             return false;
         }
 
-        // Check that ExtractImagePatches input spatial dimensions are not dynamic
         if (inputPartialShape[2].is_dynamic() || inputPartialShape[3].is_dynamic()) {
             return false;
         }
 
-        // Check that ExtractImagePatches input spatial dimensions are divisible by EIP.strides
         if (inputPartialShape[2].get_length() % strides[0] != 0 || inputPartialShape[3].get_length() % strides[1] != 0) {
             return false;
         }
 
-        // Check that EIP.sizes = EIP.strides
         if (sizes[0] != strides[0] || sizes[1] != strides[1]) {
             return false;
         }
 
-        // Check that EIP.rates = {1, 1}
         if (rates[0] != 1 || rates[1] != 1) {
             return false;
         }
