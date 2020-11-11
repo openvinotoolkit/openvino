@@ -483,6 +483,7 @@ static XLink_sem_t* createSem(xLinkSchedulerState_t* curr)
             if (refs < 0 || curr->semaphores == MAXIMUM_SEMAPHORES) {
                 if (curr->semaphores == MAXIMUM_SEMAPHORES && refs == 0) {
                     XLINK_RET_ERR_IF(XLink_sem_destroy(&temp->sem), NULL);
+                    XLINK_RET_ERR_IF(XLink_sem_get_refs(&temp->sem, &refs), NULL);
                     curr->semaphores --;
 #if (defined(_WIN32) || defined(_WIN64))
                     memset(&temp->threadId, 0, sizeof(temp->threadId));
