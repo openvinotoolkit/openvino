@@ -88,12 +88,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("initial");
 
     //
-    // Decompose swish layer to Sigmoid + Multiply
-    //
-    ADD_PASS(decomposeSwish);
-    ADD_DUMP_PASS("decomposeSwish");
-
-    //
     // Convert shape notation
     //
     ADD_PASS(convertShapeNotation);
