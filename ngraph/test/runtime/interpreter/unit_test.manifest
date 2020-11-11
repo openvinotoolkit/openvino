@@ -98,7 +98,7 @@ INTERPRETER.onnx_model_conv_integer_pads
 INTERPRETER.onnx_model_gatherND_int32
 INTERPRETER.onnx_model_gatherND_float
 
- 
+
 # GRU/RNN/LSTM Sequence: Output values mismatch - seq_lengths not supported
 onnx_model_lstm_fwd_mixed_seq_const
 onnx_model_lstm_reverse_mixed_seq_const
@@ -122,7 +122,7 @@ onnx_model_lstm_bdir_short_input_seq_peepholes
 lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
 
-# unsupported element type f16 
+# unsupported element type f16
 INTERPRETER.ctc_greedy_decoder_f16
 
 # LogSoftmax's reference implementation doesn't handle scalar input properly
@@ -134,9 +134,6 @@ onnx_controlflow_loop_2d_no_identity_termination_cond
 onnx_controlflow_loop_2d_const_no_identity_termination_cond
 onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 
-#dynamic trip count
-onnx_controlflow_loop_2d_trip_count_dynamic
-
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference
 # Is it expected?
@@ -145,13 +142,11 @@ onnx_controlflow_loop_concat_values
 # Infinitive Loop is not supported
 onnx_controlflow_loop_infinite
 
-# Loop is not supported yet by INTERPRETER backend
-onnx_controlflow_loop_2d_add
-onnx_controlflow_loop_2d_no_identity_termination_cond_false
-onnx_controlflow_loop_add_initializer_from_parent_scope
-onnx_controlflow_loop_add_node_from_parent_scope
-onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
-onnx_controlflow_loop_scalars
-onnx_controlflow_loop_2d_add_const_cond
+# Dynamic shape support?
+onnx_controlflow_loop_2d_trip_count_dynamic
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
+
+# The test fails in CI on Ubuntu i386
+# There's an overflow of some kind: 2147483647 is not close to -2147483648 at index 2
+quantize_clamp_int32

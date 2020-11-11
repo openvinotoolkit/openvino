@@ -173,6 +173,7 @@ VPU_DECLARE_ENUM(StageType,
     Swish = 135,
     GatherND = 136,
     HSwish = 137,
+    Ceiling = 138,
 )
 
 //
