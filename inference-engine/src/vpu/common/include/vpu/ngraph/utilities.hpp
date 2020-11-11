@@ -5,11 +5,20 @@
 #pragma once
 
 #include "ngraph/node.hpp"
-
-std::vector<std::int64_t> evaluateTargetShape(const ngraph::Output<ngraph::Node>& value);
+#include "ngraph/type/element_type.hpp"
 
 namespace vpu {
 
-void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object);
+namespace utilities {
+
+std::vector<std::int64_t> evaluateTargetShape(const ngraph::Output<ngraph::Node>& value);
+
+std::shared_ptr<ngraph::Node> shapeToConstant(const ngraph::element::Type& type, const ngraph::Shape& shape);
+
+std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::Node>&, int startIndex, size_t elemCount);
+
+} // namespace utilities
+
+void printTo(std::ostream &stream, const ngraph::NodeTypeInfo &object);
 
 }  // namespace vpu

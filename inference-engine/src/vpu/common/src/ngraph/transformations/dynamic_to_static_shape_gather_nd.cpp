@@ -20,14 +20,6 @@ void dynamicToStaticShapeGatherND(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(gatherND, "dynamicToStaticShapeGatherND transformation is not applicable for {}, it should be {} instead",
                      target, ngraph::opset5::GatherND::type_info);
 
-    auto shapeToConstant = [&gatherND](const ngraph::Output<ngraph::Node>& output,
-                                       const ngraph::element::Type& elemType) -> std::shared_ptr<ngraph::opset5::Constant> {
-        VPU_THROW_UNLESS(output.get_partial_shape().is_static(),
-                         "dynamicToStaticShapeGatherND transformation for {} of type {} expects static shape on inputs without DSR",
-                         gatherND->get_friendly_name(), gatherND->get_type_info());
-        return ngraph::opset5::Constant::create(elemType, {output.get_shape().size()}, output.get_shape());
-    };
-
     const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gatherND->input_value(0).get_node_shared_ptr());
     const auto indicesDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gatherND->input_value(1).get_node_shared_ptr());
 
@@ -41,57 +33,41 @@ void dynamicToStaticShapeGatherND(std::shared_ptr<ngraph::Node> target) {
     }
     const auto shapeElementType = indicesDSR ? indicesDSR->get_input_element_type(1) : dataDSR->get_input_element_type(1);
 
-    const auto dataShape = dataDSR ? dataDSR->input_value(1) : shapeToConstant(gatherND->input_value(0), shapeElementType);
-    const auto indicesShape = indicesDSR ? indicesDSR->input_value(1) : shapeToConstant(gatherND->input_value(1), shapeElementType);
+    const auto dataShape = dataDSR ? dataDSR->input_value(1) : utilities::shapeToConstant(shapeElementType, gatherND->get_input_shape(0));
+    const auto indicesShape = indicesDSR ? indicesDSR->input_value(1) : utilities::shapeToConstant(shapeElementType, gatherND->get_input_shape(1));
 
-    const auto dataShapeRank = static_cast<size_t>(dataShape.get_shape()[0]);
-    const auto indicesShapeRank = static_cast<size_t>(indicesShape.get_shape()[0]);
+    const auto dataShapeRank = ngraph::shape_size(dataShape.get_shape());
+    const auto indicesShapeRank = ngraph::shape_size(indicesShape.get_shape());
 
-    int64_t batchDims = gatherND->get_batch_dims();
+    const auto batchDims = static_cast<int64_t>(gatherND->get_batch_dims());
     VPU_THROW_UNLESS(batchDims >= 0 && batchDims < std::min(dataShapeRank, indicesShapeRank),
                      "dynamicToStaticShapeGatherND: node {} has unsupported batch_dims which is expected to be"
                      " in [0; min({}, {})), but {} was provided", gatherND->get_friendly_name(), dataShapeRank, indicesShapeRank, batchDims);
 
-    VPU_THROW_UNLESS(indicesShapeRank - batchDims >= 2,
-                     "dynamicToStaticShapeGatherND: node {} should have at least two non-batch dimension, {} provided",
-                     gatherND->get_friendly_name(), indicesShapeRank - batchDims);
-
-    std::vector<int64_t> indicesShapePart(indicesShapeRank - batchDims - 1);
-    std::iota(indicesShapePart.begin(), indicesShapePart.end(), batchDims);
-
-    std::shared_ptr<ngraph::Node> outputShape = std::make_shared<ngraph::opset5::Gather>(
-        indicesShape,
-        ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{indicesShapePart.size()}, indicesShapePart),
-        ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {0}));
-
-    const auto lastIndicesDim = gatherND->get_input_partial_shape(1)[indicesShapeRank - 1].get_length();
-    if (lastIndicesDim + batchDims < dataShapeRank) {
-        std::vector<int64_t> dataShapePart(dataShapeRank - batchDims - lastIndicesDim);
-        std::iota(dataShapePart.begin(), dataShapePart.end(), lastIndicesDim + batchDims);
-        const auto dataShapePartNode = std::make_shared<ngraph::opset5::Gather>(
-                dataShape,
-                ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{dataShapePart.size()}, dataShapePart),
-                ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {0}));
-        outputShape = std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{outputShape, dataShapePartNode}, 0);
-    }
+    std::shared_ptr<ngraph::Node> outputShape;
 
     if (batchDims > 0) {
-        std::shared_ptr<ngraph::Node> batchDimsPart = std::make_shared<ngraph::opset5::Gather>(
-            indicesShape,
-            ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {0}),
-            ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {0}));
-
-        for (size_t i = 1; i < batchDims; i++) {
-            const auto batchDimI = std::make_shared<ngraph::opset5::Gather>(
-                indicesShape,
-                ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {i}),
-                ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {0}));
-
-            batchDimsPart = std::make_shared<ngraph::opset5::Multiply>(batchDimsPart, batchDimI);
-        }
-
-        outputShape = std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{batchDimsPart, outputShape}, 0);
+        outputShape = std::make_shared<ngraph::opset5::ReduceProd>(
+            utilities::gatherShapeElements(indicesShape, 0, batchDims),
+            ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}),
+            true);
     }
+
+    if (indicesShapeRank - batchDims - 1 > 0) {
+        const auto indicesShapePart = utilities::gatherShapeElements(indicesShape, batchDims, indicesShapeRank - batchDims - 1);
+        outputShape = outputShape ? std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{outputShape, indicesShapePart}, 0) : indicesShapePart;
+    }
+
+    const auto lastIndicesDim = gatherND->get_input_partial_shape(1)[indicesShapeRank - 1].get_length();
+    if (batchDims + lastIndicesDim < dataShapeRank) {
+        const auto dataShapePart = utilities::gatherShapeElements(
+            dataShape,
+            lastIndicesDim + batchDims,
+            dataShapeRank - batchDims - lastIndicesDim);
+        outputShape = outputShape ? std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{outputShape, dataShapePart}, 0) : dataShapePart;
+    }
+
+    VPU_THROW_UNLESS(outputShape, "dynamicToStaticShapeGatherND: node {} has empty output shape", gatherND->get_friendly_name());
 
     const auto copied = target->clone_with_new_inputs(target->input_values());
 

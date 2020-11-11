@@ -7,6 +7,7 @@
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape_gather_nd.hpp>
+#include <vpu/ngraph/utilities.hpp>
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 
@@ -45,12 +46,10 @@ const auto combinations = testing::Combine(
                 ngraph::element::f16,
                 ngraph::element::f32,
                 ngraph::element::i32,
-                ngraph::element::i64,
-                ngraph::element::u8),
+                ngraph::element::i64),
         testing::Values(
                 ngraph::element::i32,
-                ngraph::element::i64,
-                ngraph::element::u8),
+                ngraph::element::i64),
         testing::Values(
                 GatherNDTestCase{0, {1000, 256, 10, 15}, {25, 125, 3}},
                 GatherNDTestCase{2, {30, 2, 100, 35}, {30, 2, 3, 1}},
@@ -150,41 +149,30 @@ protected:
         const auto dataShapeRank = gatherNDSetup.dataShape.size();
         const auto indicesShapeRank = gatherNDSetup.indicesShape.size();
 
-        std::vector<int64_t> indicesShapePart(indicesShapeRank - gatherNDSetup.batchDims - 1);
-        std::iota(indicesShapePart.begin(), indicesShapePart.end(), gatherNDSetup.batchDims);
-
-        std::shared_ptr<ngraph::Node> outputShape = std::make_shared<ngraph::opset5::Gather>(
-                indicesShape,
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{indicesShapePart.size()}, indicesShapePart),
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
-
-        const auto lastIndicesDim = gatherNDSetup.indicesShape[indicesShapeRank - 1];
-        if (lastIndicesDim + gatherNDSetup.batchDims < dataShapeRank) {
-            std::vector<int64_t> dataShapePart(dataShapeRank - gatherNDSetup.batchDims - lastIndicesDim);
-            std::iota(dataShapePart.begin(), dataShapePart.end(), lastIndicesDim + gatherNDSetup.batchDims);
-            const auto dataShapePartNode = std::make_shared<ngraph::opset5::Gather>(
-                    dataShape,
-                    ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{dataShapePart.size()}, dataShapePart),
-                    ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
-            outputShape = std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{outputShape, dataShapePartNode}, 0);
-        }
+        std::shared_ptr<ngraph::Node> outputShape;
 
         if (gatherNDSetup.batchDims > 0) {
-            std::shared_ptr<ngraph::Node> batchDimsPart = std::make_shared<ngraph::opset5::Gather>(
-                    indicesShape,
-                    ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}),
-                    ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+            outputShape = std::make_shared<ngraph::opset5::ReduceProd>(
+                vpu::utilities::gatherShapeElements(indicesShape, 0, gatherNDSetup.batchDims),
+                ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}),
+                true);
+        }
 
-            for (size_t i = 1; i < gatherNDSetup.batchDims; i++) {
-                const auto batchDimI = std::make_shared<ngraph::opset5::Gather>(
-                        indicesShape,
-                        ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {i}),
-                        ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+        if (indicesShapeRank - gatherNDSetup.batchDims - 1 > 0) {
+            const auto indicesShapePart = vpu::utilities::gatherShapeElements(
+                indicesShape,
+                gatherNDSetup.batchDims,
+                indicesShapeRank - gatherNDSetup.batchDims - 1);
+            outputShape = outputShape ? std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{outputShape, indicesShapePart}, 0) : indicesShapePart;
+        }
 
-                batchDimsPart = std::make_shared<ngraph::opset5::Multiply>(batchDimsPart, batchDimI);
-            }
-
-            outputShape = std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{batchDimsPart, outputShape}, 0);
+        const auto lastIndicesDim = node->get_input_partial_shape(1)[indicesShapeRank - 1].get_length();
+        if (gatherNDSetup.batchDims + lastIndicesDim < dataShapeRank) {
+            const auto dataShapePart = vpu::utilities::gatherShapeElements(
+                dataShape,
+                lastIndicesDim + gatherNDSetup.batchDims,
+                dataShapeRank - gatherNDSetup.batchDims - lastIndicesDim);
+            outputShape = outputShape ? std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{outputShape, dataShapePart}, 0) : dataShapePart;
         }
 
         const auto outputDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, outputShape);
