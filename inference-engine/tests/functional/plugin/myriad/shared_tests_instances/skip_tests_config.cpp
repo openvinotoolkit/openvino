@@ -27,5 +27,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*TopKLayerTest.*mode=min.*sort=index.*)",
         // TODO: Issue: 40961
         R"(.*(ConstantResultSubgraphTest).*)",
+        // TODO: Issue: 42828
+        R"(.*DSR_NonMaxSuppression.*NBoxes=(5|20|200).*)",
     };
 }
