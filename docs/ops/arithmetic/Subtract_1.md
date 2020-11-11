@@ -45,7 +45,7 @@ o_{i} = a_{i} - b_{i}
 *Example 1*
 
 ```xml
-<layer ... type="Substract">
+<layer ... type="Subtract">
     <input>
         <port id="0">
             <dim>256</dim>
