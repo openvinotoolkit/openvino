@@ -23,7 +23,8 @@ private:
 };
 
 void PassImpl::run(const Model& model) {
-    VPU_PROFILE(hwConvTiling);
+    VPU_PROFILE(reshapeBeforeConvTiling);
+
     for (const auto& stage : model->getStages()) {
         if (stage->type() != StageType::StubConv) {
             continue;
@@ -54,8 +55,10 @@ void PassImpl::run(const Model& model) {
         int outputC = outputDesc.dim(Dim::C);
         int dimH = inputDesc.dim(Dim::H);
         int dimW = inputDesc.dim(Dim::W);
-        int resultW = 0, resultH = 0;
-        resultH = ChoiceDimH(name, inputC, outputC, dimH, dimW);
+        int resultH = 0;
+        int resultW = 0;
+
+        resultH = choiceDimH(name, inputC, outputC, dimH, dimW);
 
         if (stage->origLayer()->params.count("ConvReshape")) {
             std::string rtParam = stage->origLayer()->params.at("ConvReshape");
@@ -70,21 +73,22 @@ void PassImpl::run(const Model& model) {
         if (resultH == 0) {
             continue;
         }
+
         resultW = dimH * dimW / resultH;
 
-        auto newDesc_input = inputDesc;
-        newDesc_input.setDim(Dim::W, resultW);
-        newDesc_input.setDim(Dim::H, resultH);
+        auto inputNewDesc = inputDesc;
+        inputNewDesc.setDim(Dim::W, resultW);
+        inputNewDesc.setDim(Dim::H, resultH);
 
-        auto newDesc_output = outputDesc;
-        newDesc_output.setDim(Dim::W, resultW);
-        newDesc_output.setDim(Dim::H, resultH);
+        auto outputNewDesc = outputDesc;
+        outputNewDesc.setDim(Dim::W, resultW);
+        outputNewDesc.setDim(Dim::H, resultH);
 
         auto newInput = model->duplicateData(input, "@input-data-after-reshape",
-                newDesc_input);
+                inputNewDesc);
 
         auto newOutput = model->duplicateData(output, "@output-data-before-reshape",
-                newDesc_output);
+                outputNewDesc);
 
         model->replaceStageInput(stage->inputEdge(0), newInput);
         model->replaceStageOutput(stage->outputEdge(0), newOutput);
