@@ -20,6 +20,9 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine IR reader plugin")
+
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
                                                   IR_READER_V10)
 
@@ -35,7 +38,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # code style
 

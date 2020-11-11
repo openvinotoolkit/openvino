@@ -12,7 +12,7 @@ file (GLOB LIBRARY_SRC
 
 # TODO: WA for OneHot pass usage in reshape
 set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src/")
-list(APPEND LIBRARY_SRC
+set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
@@ -55,11 +55,6 @@ if(ENABLE_SSE42)
     ie_sse42_optimization_flags(sse4_2_flags)
     set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
-endif()
-
-if(ENABLE_V7_SERIALIZE)
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp"
-        PROPERTIES COMPILE_DEFINITIONS ENABLE_V7_SERIALIZE)
 endif()
 
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
@@ -115,8 +110,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
                                                       "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader" # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_reader_api,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api)
 
 if(ENABLE_MKL_DNN)
     target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak")
@@ -130,7 +126,12 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 add_library(${TARGET_NAME} SHARED
             ${IE_STATIC_DEPENDENT_FILES}
+            ${LEGACY_LIBRARY_SHARED_SRCS}
+            ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Core Runtime library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
@@ -138,7 +139,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LI
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR}
-    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
@@ -177,7 +179,7 @@ target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # export targets
 

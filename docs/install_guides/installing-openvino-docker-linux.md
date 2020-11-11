@@ -292,11 +292,9 @@ Intel® Distribution of OpenVINO™ toolkit 2020.3.X LTS release will continue t
 
 For instructions for previous releases with FPGA Support, see documentation for the [2020.4 version](https://docs.openvinotoolkit.org/2020.4/openvino_docs_install_guides_installing_openvino_docker_linux.html#use_a_docker_image_for_fpga) or lower.
 
-## Examples
-* [ubuntu18_runtime dockerfile](https://docs.openvinotoolkit.org/downloads/ubuntu18_runtime.dockerfile) - Can be used to build OpenVINO™ runtime image containing minimal dependencies needed to use OpenVINO™ in production environment.
-* [ubuntu18_dev dockerfile](https://docs.openvinotoolkit.org/downloads/ubuntu18_dev.dockerfile) - Can be used to build OpenVINO™ developer image containing full OpenVINO™ package to use in development environment.
-
 ## Additional Resources
+
+* [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 
 * Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)  
 

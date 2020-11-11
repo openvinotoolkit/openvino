@@ -141,16 +141,15 @@ as `<models_dir>` below) with the Model Downloader:
    When the model files are successfully downloaded, output similar to the 
    following is printed:
    ```sh
-   ###############|| Downloading topologies ||###############
+   ################|| Downloading squeezenet1.1 ||################
 
-   ========= Downloading /home/username/public_models/classification/squeezenet/1.1/caffe/squeezenet1.1.prototxt
-   
-   ========= Downloading /home/username/public_models/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel
-   ... 100%, 4834 KB, 3157 KB/s, 1 seconds passed
+   ========== Downloading /home/user/public_models/public/squeezenet1.1/squeezenet1.1.prototxt
+   ... 100%, 9 KB, 19621 KB/s, 0 seconds passed
 
-   ###############|| Post processing ||###############
+   ========== Downloading /home/user/public_models/public/squeezenet1.1/squeezenet1.1.caffemodel
+   ... 100%, 4834 KB, 5159 KB/s, 0 seconds passed
 
-   ========= Changing input dimensions in squeezenet1.1.prototxt =========
+   ========== Replacing text in /home/user/public_models/public/squeezenet1.1/squeezenet1.1.prototxt
    ```
 
 ### Convert the model to an Intermediate Representation with the Model Optimizer
@@ -167,12 +166,12 @@ as `<models_dir>` below) with the Model Downloader:
 
    **For CPU (FP32):**
    ```sh  
-   python3 <OPENVINO_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   python3 <OPENVINO_DIR>/model_optimizer/mo.py --input_model <models_dir>/public_models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
 
    **For GPU and MYRIAD (FP16):**
    ```sh  
-   python3 <OPENVINO_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir <ir_dir>
+   python3 <OPENVINO_DIR>/model_optimizer/mo.py --input_model <models_dir>/public_models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir <ir_dir>
    ``` 
    After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `<ir_dir>` directory.
 
@@ -189,14 +188,14 @@ Now you are ready to run the Image Classification Sample Application.
 
 The Inference Engine sample applications are automatically compiled when you 
 built the Inference Engine using the [build instructions](build-instruction.md). 
-The binary files are located in the `<OPENVINO_DIR>/inference-engine/bin/intel64/Release` 
+The binary files are located in the `<OPENVINO_DIR>/bin/intel64/Release` 
 directory.
 
 To run the Image Classification sample application with an input image on the prepared IR: 
 
 1. Go to the samples build directory:
    ```sh
-   cd <OPENVINO_DIR>/inference-engine/bin/intel64/Release
+   cd <OPENVINO_DIR>/bin/intel64/Release
    
 2. Run the sample executable with specifying the `car.png` file from the 
    `<OPENVINO_DIR>/scripts/demo/` directory as an input 
@@ -205,34 +204,34 @@ To run the Image Classification sample application with an input image on the pr
 
    **For CPU:**
    ```sh
-   ./classification_sample -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d CPU
+   ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d CPU
    ```
 
    **For GPU:**
    ```sh
-   ./classification_sample -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d GPU
+   ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d GPU
    ```
    
    **For MYRIAD:** 
 
    >**NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute 
    Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
-   performing [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2).
-   ```sh   
-   ./classification_sample -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
+   performing [additional hardware configuration steps](build-instruction.md#optional-additional-installation-steps-for-the-intel-neural-compute-stick-2).
+   ```sh
+   ./classification_sample_async -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
    ```
 
 When the Sample Application completes, you will have the label and confidence for the top-10 categories printed on the screen. Below is a sample output with inference results on CPU:    
 ```sh
 Top 10 results:
 
-Image /home/user/openvino/scripts/demo/car.png
+Image ../../../scripts/demo/car.png
 
 classid probability label
 ------- ----------- -----
-817     0.8363345   sports car, sport car
-511     0.0946488   convertible
-479     0.0419131   car wheel
+817     0.8363342   sports car, sport car
+511     0.0946487   convertible
+479     0.0419130   car wheel
 751     0.0091071   racer, race car, racing car
 436     0.0068161   beach wagon, station wagon, wagon, estate car, beach waggon, station waggon, waggon
 656     0.0037564   minivan
@@ -241,13 +240,9 @@ classid probability label
 864     0.0012027   tow truck, tow car, wrecker
 581     0.0005882   grille, radiator grille
 
-
-total inference time: 2.6642941
-Average running time of one iteration: 2.6642941 ms
-
-Throughput: 375.3339402 FPS
-
 [ INFO ] Execution successful
+
+[ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
 
 ## Additional Resources

@@ -60,10 +60,10 @@ public:
     void * alloc(size_t size) noexcept override {
         return ptr;
     }
-    virtual bool   free(void* handle) noexcept {
+    bool   free(void* handle) noexcept override {
         return true;
     }
-    virtual void Release() noexcept {
+    void Release() noexcept override {
         delete this;
     }
 };
