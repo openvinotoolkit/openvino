@@ -761,6 +761,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Pooling" , Pooling },
         { "FullyConnected" , FullyConnected },
         { "SoftMax" , SoftMax },
+        { "LogSoftmax", LogSoftmax },
         { "Power" , Power },
         { "Split" , Split },
         { "VariadicSplit", VariadicSplit },
@@ -1441,6 +1442,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case FullyConnected: CreateFullyConnectedPrimitive(topology, layer);
             break;
         case SoftMax: CreateSoftMaxPrimitive(topology, layer);
+            break;
+        case LogSoftmax: CreateLogSoftmaxPrimitive(topology, layer);
             break;
         case Power: CreatePowerPrimitive(topology, layer);
             break;
@@ -2920,6 +2923,36 @@ void Program::CreateSoftMaxPrimitive(cldnn::topology& topology, InferenceEngine:
                                       SoftmaxDimensionFromIEAxis(softmaxLayer));
     topology.add(softmaxPrim);
     AddPrimitiveToProfiler(softmaxLayerName, layer);
+}
+
+void Program::CreateLogSoftmaxPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 1);
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto logSoftmaxLayer = as<InferenceEngine::GenericLayer*>(layer);
+    auto sz = logSoftmaxLayer->input().get()->getTensorDesc().getDims().size();
+
+    auto axis = logSoftmaxLayer->GetParamAsInt("axis", 1);
+    if (axis < 0) axis += sz;
+    cldnn::softmax::dimension_t softmax_axis;
+
+    switch (axis) {
+        case 0: softmax_axis = cldnn::softmax::normalize_all; break;
+        case 1: softmax_axis = cldnn::softmax::normalize_f; break;
+        case 2: softmax_axis = sz > 4 ? cldnn::softmax::normalize_z : cldnn::softmax::normalize_y; break;
+        case 3: softmax_axis = sz > 4 ? cldnn::softmax::normalize_y : cldnn::softmax::normalize_x; break;
+        case 4: softmax_axis = cldnn::softmax::normalize_x; break;
+        default: THROW_CLDNN_EXCEPTION("Unsupported logsoftmax axis " << axis);
+    }
+
+    std::string softmaxLayerName = "softMax";
+    auto softmaxPrim = cldnn::softmax(softmaxLayerName, inputPrimitives[0], softmax_axis);
+    topology.add(softmaxPrim);
+    AddPrimitiveToProfiler(softmaxLayerName, layer);
+
+    std::string logSoftmaxLayerName = layer_type_name_ID(layer);
+    auto logPrim = cldnn::activation(logSoftmaxLayerName, softmaxLayerName, cldnn::activation_func::log);
+    topology.add(logPrim);
+    AddPrimitiveToProfiler(logSoftmaxLayerName, layer);
 }
 
 void Program::CreateFullyConnectedPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
