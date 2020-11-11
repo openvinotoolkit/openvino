@@ -130,6 +130,8 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
         FusedBatchNormTraining().find_and_replace_pattern(graph)
         shape_inference(graph)
 
+        graph_ref.nodes['batchnorm']['op'] = op
+
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
