@@ -30,14 +30,23 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_forward::desc> desc);
     operator std::shared_ptr<mkldnn::pooling_forward::desc>();
 
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::vanilla_rnn_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::vanilla_rnn_forward::desc>();
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::lstm_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::lstm_forward::desc>();
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::gru_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::gru_forward::desc>();
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::lbr_gru_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::lbr_gru_forward::desc>();
+
 #ifdef USE_DNNL
 
 #else
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::roi_pooling_forward::desc> desc);
     operator std::shared_ptr<mkldnn::roi_pooling_forward::desc>();
-
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::rnn_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::rnn_forward::desc>();
 
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::quantization_forward::desc> desc);
     operator std::shared_ptr<mkldnn::quantization_forward::desc>();
