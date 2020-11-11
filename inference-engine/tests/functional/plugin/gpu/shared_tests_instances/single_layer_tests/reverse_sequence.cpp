@@ -24,9 +24,9 @@ const std::vector<int64_t> batchAxisIndices = { 0L };
 
 const std::vector<int64_t> seqAxisIndices = { 1L };
 
-const std::vector<std::vector<size_t>> inputShapes = { {3, 10} }; //, 10, 20
+const std::vector<std::vector<size_t>> inputShapes = { {10, 20} }; //, 10, 20
 
-const std::vector<std::vector<size_t>> reversSeqLengthsVecShapes = { {3} };
+const std::vector<std::vector<size_t>> reversSeqLengthsVecShapes = { {10} };
 
 const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::CONSTANT,
@@ -41,7 +41,7 @@ INSTANTIATE_TEST_CASE_P(Basic_smoke, ReverseSequenceLayerTest,
                             ::testing::ValuesIn(reversSeqLengthsVecShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ReverseSequenceLayerTest::getTestCaseName);
 
 }  // namespace

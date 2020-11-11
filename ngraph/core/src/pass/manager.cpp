@@ -127,7 +127,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
         }
         NGRAPH_SUPPRESS_DEPRECATED_END
 
-        if (m_visualize && (pass->get_name() == "ConvertRNNSequenceToTensorIterator" || pass->get_name() == "UnrollTensorIterator"))
+        if (false && (pass->get_name() == "ConvertRNNSequenceToTensorIterator" || pass->get_name() == "UnrollTensorIterator"))
         {
             // visualizations and serializations will be named after the outermost function
             const size_t num_digits_in_pass_index = 3;

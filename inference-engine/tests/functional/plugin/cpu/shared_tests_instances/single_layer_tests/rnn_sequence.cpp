@@ -21,10 +21,8 @@ namespace {
     std::vector<float> clip_non_zeros{0.7f};
     std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,
                                                            ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                           ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL
     };
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                             InferenceEngine::Precision::FP16};
+    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
     INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCommonZeroClip, RNNSequenceTest,
                             ::testing::Combine(
