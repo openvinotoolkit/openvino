@@ -22,6 +22,7 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/not.hpp"
 #include "ngraph/op/select.hpp"
+#include "ngraph/runtime/reference/select.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -95,6 +96,80 @@ bool op::v1::Select::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
+}
+
+namespace detail
+{
+    template <element::Type_t ET>
+    bool evaluate(const HostTensorVector& output_values,
+                  const HostTensorVector& input_values,
+                  const op::AutoBroadcastSpec& autob)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+
+        const auto& in_cond = input_values[0];
+        const auto& in_then = input_values[1];
+        const auto& in_else = input_values[2];
+
+        const auto& out = output_values[0];
+
+        runtime::reference::select<T>(in_cond->get_data_ptr<char>(),
+                                      in_then->get_data_ptr<T>(),
+                                      in_else->get_data_ptr<T>(),
+                                      out->get_data_ptr<T>(),
+                                      in_cond->get_shape(),
+                                      in_then->get_shape(),
+                                      in_else->get_shape(),
+                                      autob);
+        return true;
+    }
+
+    bool evaluate_select(const HostTensorVector& output_values,
+                         const HostTensorVector& input_values,
+                         const op::AutoBroadcastSpec& autob,
+                         const element::Type_t& et)
+    {
+        bool rc = false;
+
+        switch (et)
+        {
+            TYPE_CASE(i8)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(i16)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(i32)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(i64)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(u8)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(u16)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(u32)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(u64)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(bf16)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(f32)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(f64)(output_values, input_values, autob);
+            break;
+            TYPE_CASE(boolean)(output_values, input_values, autob);
+            break;
+        default: rc = false; break;
+        }
+
+        return rc;
+    }
+} // namespace detail
+
+bool op::v1::Select::evaluate(const HostTensorVector& output_values,
+                              const HostTensorVector& input_values) const
+{
+    const auto autob = get_auto_broadcast();
+
+    return detail::evaluate_select(output_values, input_values, autob, get_output_element_type(0));
 }
 
 constexpr NodeTypeInfo op::v0::Select::type_info;

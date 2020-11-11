@@ -32,18 +32,18 @@ namespace minop
     bool evaluate(const HostTensorPtr& arg,
                   const HostTensorPtr& out,
                   const AxisSet& axes,
-                  bool keep_dims)
+                  const bool keep_dims)
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::min(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
         return true;
     }
 
     bool evaluate_min(const HostTensorPtr& arg,
                       const HostTensorPtr& out,
                       const AxisSet& axes,
-                      bool keep_dims)
+                      const bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())
@@ -64,7 +64,7 @@ namespace minop
         }
         return rc;
     }
-}
+} // namespace minop
 
 constexpr NodeTypeInfo op::v1::ReduceMin::type_info;
 

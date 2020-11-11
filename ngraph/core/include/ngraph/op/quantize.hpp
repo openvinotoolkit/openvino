@@ -112,9 +112,9 @@ namespace ngraph
                 RoundMode m_round_mode;
                 NGRAPH_SUPPRESS_DEPRECATED_END
             };
-        }
+        } // namespace v0
         NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Quantize;
         NGRAPH_SUPPRESS_DEPRECATED_END
-    }
-}
+    } // namespace op
+} // namespace ngraph

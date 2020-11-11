@@ -20,37 +20,12 @@
 using namespace std;
 using namespace ngraph;
 
-bool ngraph::pass::revalidate_and_ensure_static(shared_ptr<Node> n)
+ngraph::pass::ConstantFolding::ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap)
+    : GraphRewrite()
+    , m_cfmap{cfmap}
 {
-    n->revalidate_and_infer_types();
-    for (auto& o : n->outputs())
-    {
-        if (o.get_partial_shape().is_dynamic() || o.get_element_type().is_dynamic())
-        {
-            return false;
-        }
-    }
-    return true;
-}
+    m_enable_shape_inference = true;
 
-bool ngraph::pass::ConstantFolding::cf_is_disabled(const std::shared_ptr<Node>& node)
-{
-    auto& rt_info = node->get_rt_info();
-    return rt_info.count("DISABLED_CONSTANT_FOLDING") != 0;
-}
-
-void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
-    const std::shared_ptr<Node>& node, const Output<Node>& replacement)
-{
-    for (auto& input : replacement.get_target_inputs())
-    {
-        auto consumer = input.get_node()->shared_from_this();
-        copy_runtime_info({node, consumer}, consumer);
-    }
-}
-
-void ngraph::pass::ConstantFolding::construct_constant_default()
-{
     m_matchers.push_back(std::make_shared<MatcherPass>(
         "Constant folding defaults",
         nullptr,
@@ -89,4 +64,27 @@ void ngraph::pass::ConstantFolding::construct_constant_default()
             return result;
         },
         PassProperty::CHANGE_DYNAMIC_STATE));
+}
+
+bool ngraph::pass::revalidate_and_ensure_static(shared_ptr<Node> n)
+{
+    n->revalidate_and_infer_types();
+    for (auto& o : n->outputs())
+    {
+        if (o.get_partial_shape().is_dynamic() || o.get_element_type().is_dynamic())
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
+    const std::shared_ptr<Node>& node, const Output<Node>& replacement)
+{
+    for (auto& input : replacement.get_target_inputs())
+    {
+        auto consumer = input.get_node()->shared_from_this();
+        copy_runtime_info({node, consumer}, consumer);
+    }
 }
