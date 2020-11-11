@@ -19,3 +19,5 @@ endif()
 if (ENABLE_MYRIAD)
     add_subdirectory(myriad)
 endif()
+
+add_subdirectory(multi)
