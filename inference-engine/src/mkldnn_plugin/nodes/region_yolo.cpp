@@ -5,6 +5,7 @@
 #include "base.hpp"
 #include "common/defs.h"
 #include "common/softmax.h"
+#include "common/cpu_convert.h"
 #include <vector>
 #include <algorithm>
 #include <memory>
@@ -314,34 +315,25 @@ public:
         const auto *src_data = inputs[0]->cbuffer().as<const uint8_t *>();
         auto *dst_data = outputs[0]->buffer().as<uint8_t *>();
 
-        if (input_prec == output_prec) {
-            cpu_memcpy(dst_data, src_data, B * IC * IH * IW * input_prec.size());
-        } else if (Precision::FP32 == input_prec && Precision::BF16 == output_prec) {
-            auto float_src_data = reinterpret_cast<const float*>(src_data);
-            auto bf16_dst_data = reinterpret_cast<bfloat16*>(dst_data);
-            parallel_for(B * IC * IH * IW, [&](int i) {
-                bf16_dst_data[i] = float_src_data[i];
-            });
-        } else if (Precision::BF16 == input_prec && Precision::FP32 == output_prec) {
-            auto bf16_src_data = reinterpret_cast<const bfloat16*>(src_data);
-            auto float_dst_data = reinterpret_cast<float*>(dst_data);
-            parallel_for(B * IC * IH * IW, [&](int i) {
-                float_dst_data[i] = bf16_src_data[i];
-            });
-        } else {
-            if (resp != nullptr) {
-                snprintf(resp->msg, sizeof(resp->msg), "Unsupported precision configuration inPrc=%s outPrc=%s", input_prec.name(), output_prec.name());
-            }
+        try {
+            cpu_convert(src_data, dst_data, inputs[0]->getTensorDesc().getPrecision(), outputs[0]->getTensorDesc().getPrecision(), B * IC * IH * IW);
+        }
+        catch (const std::exception& excp) {
+            snprintf(resp->msg, sizeof(resp->msg), "%s", excp.what());
             return GENERAL_ERROR;
         }
 
         for (int b = 0; b < B; b++) {
             for (int n = 0; n < num_; n++) {
                 size_t index = b * inputs_size + n * IW * IH * (classes + coords + 1);
-                retCode = calculate_logistic(index, total_size, dst_data, resp);
+                if (OK != (retCode = calculate_logistic(index, total_size, dst_data, resp))) {
+                    break;
+                }
 
                 index = b * inputs_size + IW * IH * (n * (classes + coords + 1) + coords);
-                retCode = calculate_logistic(index, end_index, dst_data, resp);
+                if (OK != (retCode = calculate_logistic(index, end_index, dst_data, resp))) {
+                    break;
+                }
             }
         }
 
@@ -350,8 +342,8 @@ public:
                 int index = IW * IH * (coords + 1);
                 int batch_offset = inputs_size / num;
                 for (int b = 0; b < B * num; b++) {
-                    softmax_kernel->execute(reinterpret_cast<const uint8_t*>(src_data + input_prec.size() * (index + b * batch_offset)),
-                                            reinterpret_cast<uint8_t*>(dst_data + output_prec.size() * (index + b * batch_offset)), 1, classes, IH, IW);
+                    softmax_kernel->execute(src_data + input_prec.size() * (index + b * batch_offset),
+                                            dst_data + output_prec.size() * (index + b * batch_offset), 1, classes, IH, IW);
                 }
             }
             catch (const std::exception& excp) {
