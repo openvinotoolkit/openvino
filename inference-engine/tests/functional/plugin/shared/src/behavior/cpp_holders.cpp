@@ -27,11 +27,9 @@ namespace BehaviorTestsDefinitions {
         }
         if (targetDevice == CommonTestUtils::DEVICE_CPU || targetDevice == CommonTestUtils::DEVICE_GNA) {
             function = ngraph::builder::subgraph::makeReadConcatSplitAssign();
-        }
-        else {
+        } else {
             function = ngraph::builder::subgraph::makeConvPoolRelu();
         }
-        
     }
 
     void HoldersTest::TearDown() {
