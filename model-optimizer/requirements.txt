@@ -2,7 +2,7 @@ tensorflow>=1.15.2,<2.0; python_version < "3.8"
 tensorflow>=2.0; python_version >= "3.8"
 mxnet>=1.0.0,<=1.5.1
 networkx>=1.11
-numpy>=1.13.0,<1.19.0
+numpy>=1.14.0,<1.19.0
 protobuf>=3.6.1
 onnx>=1.1.2
 test-generator==0.1.1
