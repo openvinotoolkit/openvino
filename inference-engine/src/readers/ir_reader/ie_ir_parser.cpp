@@ -499,6 +499,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         }
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
+        ngraphNode->set_friendly_name(params.name);
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node);
         if (ngraphNode->visit_attributes(visitor))

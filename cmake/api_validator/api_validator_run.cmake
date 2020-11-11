@@ -6,7 +6,7 @@ cmake_policy(SET CMP0012 NEW)
 
 foreach(var UWP_API_VALIDATOR UWP_API_VALIDATOR_TARGET
             UWP_API_VALIDATOR_APIS UWP_API_VALIDATOR_EXCLUSION
-            UWP_API_VALIDATOR_OUTPUT)
+            UWP_API_VALIDATOR_OUTPUT CMAKE_TOOLCHAIN_FILE)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "Variable ${var} is not defined")
     endif()
@@ -43,7 +43,11 @@ file(WRITE "${UWP_API_VALIDATOR_OUTPUT}" "${output_message}\n\n\n${error_message
 get_filename_component(name "${UWP_API_VALIDATOR_TARGET}" NAME)
 
 if(NOT UWP_HAS_BINARY_EXCLUSION)
-    set(exclusion_dlls "msvcp140.dll" "vcruntime140.dll")
+    if(CMAKE_TOOLCHAIN_FILE MATCHES "onecoreuap.toolchain.cmake$")
+        # empty since we compile with static MSVC runtime
+    else()
+        set(exclusion_dlls "msvcp140.dll" "vcruntime140.dll")
+    endif()
 
     # remove exclusions from error_message
 
