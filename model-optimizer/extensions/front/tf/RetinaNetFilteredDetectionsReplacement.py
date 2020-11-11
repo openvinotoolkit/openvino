@@ -79,7 +79,7 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         end.out_port(0).connect(shape_part_for_tiling.in_port(2))
         stride.out_port(0).connect(shape_part_for_tiling.in_port(3))
 
-        concat_value = Const(graph, {'value': np.array([4])}).create_node()
+        concat_value = Const(graph, {'value': int64_array([4])}).create_node()
         shape_concat = Concat(graph, {'name': name + '/shape_for_tiling', 'in_ports_count': 2,
                                       'axis': np.array(0)}).create_node()
         shape_part_for_tiling.out_port(0).connect(shape_concat.in_port(0))
@@ -246,9 +246,17 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
                                                                    applied_width_height_regressions_node)
 
         detection_output_op = DetectionOutput(graph, match.custom_replacement_desc.custom_attributes)
+        # get nms from original network
+        for node_name in match.matched_nodes_names():
+            if Node(graph, node_name)['op'] == 'NonMaxSuppression':
+                iou_threshold = Node(graph, node_name).in_node(3).value
+                break
+        if not iou_threshold:
+            raise Error('During {} `iou_threshold` was not retrieved from RetinaNet subgraph'.format(self.replacement_id))
+
         detection_output_node = detection_output_op.create_node(
             [reshape_regression_node, reshape_classes_node, priors],
-            dict(name=detection_output_op.attrs['type'], clip_after_nms=1, normalized=1, variance_encoded_in_target=0,
-                 background_label_id=1000))
+            dict(name=detection_output_op.attrs['type'], nms_threshold=iou_threshold, clip_after_nms=1, normalized=1,
+                 variance_encoded_in_target=0, background_label_id=1000))
 
         return {'detection_output_node': detection_output_node}
