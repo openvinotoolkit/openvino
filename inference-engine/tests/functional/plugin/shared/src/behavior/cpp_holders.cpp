@@ -43,12 +43,11 @@ EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
         auto exe_net = core.LoadNetwork(cnnNet, deviceName);
         auto request = exe_net.CreateInferRequest();
         std::vector<InferenceEngine::VariableState> states = {};
-        try{
+        try {
             states = exe_net.QueryState();
-        } catch(...){
+        } catch(...) {
             // do nothing
         }
-            
 
         auto release = [&](int i) {
             switch (i) {
