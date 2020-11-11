@@ -152,3 +152,4 @@ static std::vector<CustomConfig> s_CustomConfig = {
    getIELibraryPath() + "/vpu_custom_kernels/customLayerBindings.xml"
 #endif
 };
+
