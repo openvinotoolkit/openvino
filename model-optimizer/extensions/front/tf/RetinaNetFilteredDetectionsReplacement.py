@@ -246,12 +246,13 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
                                                                    applied_width_height_regressions_node)
 
         detection_output_op = DetectionOutput(graph, match.custom_replacement_desc.custom_attributes)
-        # get nms from original network
+        # get nms from the original network
+        iou_threshold = None
         for node_name in match.matched_nodes_names():
             if Node(graph, node_name)['op'] == 'NonMaxSuppression':
                 iou_threshold = Node(graph, node_name).in_node(3).value
                 break
-        if not iou_threshold:
+        if iou_threshold is not None:
             raise Error('During {} `iou_threshold` was not retrieved from RetinaNet subgraph'.format(self.replacement_id))
 
         detection_output_node = detection_output_op.create_node(
