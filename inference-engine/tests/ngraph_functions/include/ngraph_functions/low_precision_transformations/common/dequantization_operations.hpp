@@ -21,7 +21,7 @@ public:
 
         ngraph::element::Type outPrecision;
     private:
-        bool _isEmpty;
+        bool isEmpty;
     };
 
     class Subtract {
@@ -50,7 +50,7 @@ public:
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
 
     private:
-        bool _isEmpty;
+        bool isEmpty;
     };
 
     class Multiply {
@@ -59,8 +59,7 @@ public:
         Multiply(const float value, const bool addDequantizationAttribute = true);
         Multiply(const std::vector<float>& values, const bool addDequantizationAttribute = true);
         Multiply(const std::vector<float>& values,
-                 const ngraph::element::Type outPrecision,
-                 const bool addDequantizationAttribute = true);
+                 const ngraph::element::Type outPrecision);
         Multiply(
             const std::vector<float>& values,
             const ngraph::element::Type outPrecision,
@@ -79,7 +78,7 @@ public:
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
 
     private:
-        bool _isEmpty;
+        bool isEmpty;
     };
 
     DequantizationOperations();

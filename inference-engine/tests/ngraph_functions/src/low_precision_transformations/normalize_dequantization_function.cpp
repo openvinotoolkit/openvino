@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/low_precision_transformations/standardize_dequantization_function.hpp"
+#include "ngraph_functions/low_precision_transformations/normalize_dequantization_function.hpp"
 
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
@@ -12,7 +12,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-    std::shared_ptr<ngraph::Function> StandardizeDequantizationFunction::getOriginal(
+    std::shared_ptr<ngraph::Function> NormalizeDequantizationFunction::getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations dequantization) {
@@ -37,7 +37,7 @@ namespace subgraph {
         return std::make_shared<ngraph::Function>(
             ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(targetOp) },
             ngraph::ParameterVector{ input },
-            "StandardizeDequantizationFunction");
+            "NormalizeDequantizationFunction");
     }
 
 }  // namespace subgraph

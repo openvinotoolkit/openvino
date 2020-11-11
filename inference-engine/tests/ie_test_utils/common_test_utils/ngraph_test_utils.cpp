@@ -153,6 +153,10 @@ std::pair<bool, std::string> compare_functions(
                             << node1->description() << " Input(" << i << ") and "
                             << node2->description() << " Input(" << i << ")" << std::endl;
                     }
+                } else if ((const1 == nullptr) ^ (const2 == nullptr)) {
+                    err_log << "Different Constant types detected" << std::endl
+                                << node1->get_friendly_name() << "and "
+                                << node2->get_friendly_name() << " Input(" << i << ")" << std::endl;
                 }
             }
 

@@ -53,13 +53,20 @@ std::shared_ptr<Node> makeDequantization(
 
         if ((dequantizationOperations.subtract.outPrecision == element::undefined) ||
             (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) {
-            subtract = std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(parent, subtractConst);
+            subtract = dequantizationOperations.subtract.constantIndex == 1ul ?
+                std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(parent, subtractConst) :
+                std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(subtractConst, parent);
         } else {
+            std::shared_ptr<Node> leftParent = parent.get_node_shared_ptr();
+            std::shared_ptr<Node> rightParent = subtractConst;
+            if (dequantizationOperations.subtract.constantIndex != 1ul) {
+                std::swap(leftParent, rightParent);
+            }
             subtract = std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationSubtract>>(
                     std::vector<element::Type>{element::f32, element::f32},
                     std::vector<element::Type>{ element::f32 },
-                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(subtractConst, element::f32).get());
+                    ngraph::op::TemporaryReplaceOutputType(leftParent, element::f32).get(),
+                    ngraph::op::TemporaryReplaceOutputType(rightParent, element::f32).get());
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
         }
         if (!dequantizationOperations.subtract.addDequantizationAttribute) {
@@ -100,18 +107,16 @@ std::shared_ptr<Node> makeDequantization(
                     parent.get_element_type(),
                 shape,
                 dequantizationOperations.multiply.values);
-
-            multiply = dequantizationOperations.multiply.constantIndex == 1ul ?
-                std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
+            std::shared_ptr<Node> leftParent = parent.get_node_shared_ptr();
+            std::shared_ptr<Node> rightParent = constant;
+            if (dequantizationOperations.multiply.constantIndex != 1ul) {
+                std::swap(leftParent, rightParent);
+            }
+            multiply = std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
                     std::vector<element::Type>{element::f32, element::f32},
                     std::vector<element::Type>{ element::f32 },
-                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(constant, element::f32).get()) :
-                std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
-                    std::vector<element::Type>{element::f32, element::f32},
-                    std::vector<element::Type>{ element::f32 },
-                    ngraph::op::TemporaryReplaceOutputType(constant, element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get());
+                    ngraph::op::TemporaryReplaceOutputType(leftParent, element::f32).get(),
+                    ngraph::op::TemporaryReplaceOutputType(rightParent, element::f32).get());
         }
         ngraph::copy_runtime_info({ data.get_node_shared_ptr(), multiply }, multiply);
         parent = multiply;

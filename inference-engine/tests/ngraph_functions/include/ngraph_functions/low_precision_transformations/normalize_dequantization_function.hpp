@@ -12,7 +12,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-class StandardizeDequantizationFunction {
+class NormalizeDequantizationFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
