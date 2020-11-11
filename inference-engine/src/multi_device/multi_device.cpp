@@ -217,7 +217,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto& workerRequests = _workerRequests[device];
         auto& idleWorkerRequests = _idleWorkerRequests[device];
         workerRequests.resize(numRequests);
-        _inferPipelineTasksDeviceSpecific.insert({device, ThreadSafeQueue<Task>()});
+        _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
         auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
         for (auto&& workerRequest : workerRequests) {
             workerRequest._inferRequest = network.CreateInferRequest();
@@ -231,7 +231,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                         auto capturedTask = std::move(workerRequestPtr->_task);
                         capturedTask();
                     }
-                    if (!_terminate && (!_inferPipelineTasksDeviceSpecific[device].empty() || !_inferPipelineTasks.empty())) {
+                    if (!_terminate && (!_inferPipelineTasksDeviceSpecific[device]->empty() || !_inferPipelineTasks.empty())) {
                         idleGuard.Release()->push(workerRequestPtr);
                         ScheduleToWorkerInferRequest();
                     }
@@ -271,7 +271,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
             IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
             Task inferPipelineTask;
             // let's check the queue of the device-specific tasks first, then let's try to take device-agnostic task
-            if (_inferPipelineTasksDeviceSpecific[device.deviceName].try_pop(inferPipelineTask)
+            if (_inferPipelineTasksDeviceSpecific[device.deviceName]->try_pop(inferPipelineTask)
                 || _inferPipelineTasks.try_pop(inferPipelineTask)) {
                 _thisWorkerInferRequest = workerRequestPtr;
                 inferPipelineTask();
@@ -285,7 +285,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
 void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
     if (!_terminate) {
         if (!_thisPreferredDeviceName.empty())
-            _inferPipelineTasksDeviceSpecific[_thisPreferredDeviceName].push(std::move(inferPipelineTask));
+            _inferPipelineTasksDeviceSpecific[_thisPreferredDeviceName]->push(std::move(inferPipelineTask));
         else
             _inferPipelineTasks.push(std::move(inferPipelineTask));
         ScheduleToWorkerInferRequest();
