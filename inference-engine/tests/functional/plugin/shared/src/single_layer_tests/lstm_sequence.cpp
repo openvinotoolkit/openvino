@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ namespace LayerTestsDefinitions {
                         {4 * hidden_size, hidden_size}, {4 * hidden_size}},
         };
         std::ostringstream result;
-        result << "seq_lenghts" << seq_lenghts << "_";
+        result << "seq_lenghts=" << seq_lenghts << "_";
         result << "batch=" << batch << "_";
         result << "hidden_size=" << hidden_size << "_";
         result << "input_size=" << input_size << "_";

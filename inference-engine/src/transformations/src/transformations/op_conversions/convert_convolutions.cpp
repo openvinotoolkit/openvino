@@ -59,17 +59,19 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
 
         // Merge weights layout GOIYX to (G*O)IYX
         auto shape = gconv->input_value(1).get_shape();
-        std::vector<int64_t> reshape_shape{static_cast<int64_t>(shape[0] * shape[1])};
+        Shape reshape_shape{static_cast<size_t>(shape[0] * shape[1])};
         for (size_t i = 2; i < shape.size(); ++i) {
             reshape_shape.push_back(shape[i]);
         }
         Output<Node> weights;
         auto w_input = gconv->input_value(1).get_node_shared_ptr();
-        if (std::dynamic_pointer_cast<opset1::Reshape>(w_input) && w_input->input_value(0).get_shape().size() == w_input->get_output_shape(0).size() - 1) {
+        if (std::dynamic_pointer_cast<opset1::Reshape>(w_input) && w_input->input_value(0).get_shape() == reshape_shape) {
             weights = w_input->input_value(0);
         } else {
             weights = std::make_shared<ngraph::opset1::Reshape>(gconv->input_value(1),
                                                                 op::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape), true);
+            // FIXME: 42956
+            // ngraph::copy_runtime_info(gconv, weights.get_node_shared_ptr());
         }
         auto conv_ie = std::make_shared<ngraph::op::ConvolutionIE>(gconv->input_value(0),
                                                                    weights,
