@@ -19,7 +19,7 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35929, xfail_issue_36483
+from tests import xfail_issue_35929
 
 
 @xfail_issue_35929
@@ -67,8 +67,8 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
         pytest.param(ng.acos, np.arccos, np.float32(-0.5)),
         pytest.param(ng.asin, np.arcsin, np.float32(-0.5)),
         pytest.param(ng.atan, np.arctan, np.float32(-0.5)),
-        pytest.param(ng.ceiling, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
-        pytest.param(ng.ceil, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
+        pytest.param(ng.ceiling, np.ceil, np.float32(1.5)),
+        pytest.param(ng.ceil, np.ceil, np.float32(1.5)),
         pytest.param(ng.cos, np.cos, np.float32(np.pi / 4.0)),
         pytest.param(ng.cosh, np.cosh, np.float32(np.pi / 4.0)),
         pytest.param(ng.exp, np.exp, np.float32(1.5)),

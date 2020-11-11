@@ -284,7 +284,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
 
     // convert inputs to HostTensor
     vector<shared_ptr<HostTensor>> func_inputs;
-    for (auto tensor : inputs)
+    for (const auto& tensor : inputs)
     {
         auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
         func_inputs.push_back(host_tensor);
@@ -296,7 +296,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
 
     // convert outputs to HostTensor
     vector<shared_ptr<HostTensor>> func_outputs;
-    for (auto tensor : outputs)
+    for (const auto& tensor : outputs)
     {
         auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
         func_outputs.push_back(host_tensor);
@@ -305,7 +305,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     // map function params -> HostTensor
     unordered_map<descriptor::Tensor*, shared_ptr<HostTensor>> tensor_map;
     size_t input_count = 0;
-    for (auto param : get_parameters())
+    for (const auto& param : get_parameters())
     {
         for (size_t i = 0; i < param->get_output_size(); ++i)
         {
@@ -327,7 +327,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     }
 
     // for each ordered op in the graph
-    for (auto op : m_nodes)
+    for (const auto& op : m_nodes)
     {
         event::Duration d2(op->description(), "Interpreter");
         if (op::is_parameter(op))
@@ -387,7 +387,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         }
         if (!op->evaluate(op_outputs, op_inputs))
         {
-            generate_calls(type, *op.get(), op_outputs, op_inputs);
+            generate_calls(type, *op, op_outputs, op_inputs);
         }
         if (m_performance_counters_enabled)
         {
