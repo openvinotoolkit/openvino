@@ -219,9 +219,6 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(itpd, i));
                 config.outConfs.push_back(dataConfig);
 
-                handle<mkldnn_primitive_desc_t> primDesc;
-//                itpd.getPrimitiveDescriptor(primDesc);
-//                auto dstPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(dst_pd), 0);
                 auto dstPrimDesc = itpd.dst_desc(0);
                 if (dstPrimDesc) {
                     outFormats.emplace_back(MKLDNNMemoryDesc(dstPrimDesc).getFormat());
