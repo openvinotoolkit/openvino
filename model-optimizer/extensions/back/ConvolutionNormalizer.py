@@ -247,9 +247,6 @@ class DeconvolutionNormalizer(BackReplacementPattern):
             shape_src.connect(ss_0.in_port(0))
             ss_0.out_port(0).connect(node.in_port(2))
 
-            # Specification: *padding amount* is deduced from relation of input and output spatial shapes
-            del node['pad']
-
         elif node.has_valid('original_output_spatial_shape'):
             # node had fixed output spatial shape set in original framework, so we restore it here
             const = Const(graph, {'value': int64_array(node.original_output_spatial_shape),
