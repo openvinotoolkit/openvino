@@ -86,32 +86,23 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
     _inferRequest{inferRequest},
     _needPerfCounters{needPerfCounters} {
     _pipeline.clear();
-    struct CheckRemoteBlobs : public ITaskExecutor {
-        explicit CheckRemoteBlobs(MultiDeviceInferRequest* _request_,
-                                  MultiDeviceExecutableNetwork* network)
-                : _request{_request_}, _network(network) {}
-        void run(Task task) override {
-            // by default, no preferred device:
-            _network->_thisPreferredDeviceName = "";
-            // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
-            for (const auto &it : _network->GetInputsInfo()) {
-                Blob::Ptr b;
-                _request->GetBlob(it.first.c_str(), b);
-                auto r = b->as<RemoteBlob>();
-                if (r) {
-                    _network->_thisPreferredDeviceName = r->getDeviceName();
-                    break;
-                }
-            }
-            task();
-        };
-        MultiDeviceInferRequest* _request;
-        MultiDeviceExecutableNetwork* _network;
-    };
     // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
     _pipeline.push_back(
-            { /*TaskExecutor*/ std::make_shared<CheckRemoteBlobs>(_inferRequest.get(), _multiDeviceExecutableNetwork.get()),
-                    /*task*/ [] {}});
+            { /*TaskExecutor*/ std::make_shared<ImmediateExecutor>(),
+                    /*task*/ [this] {
+                // by default, no preferred device:
+                _multiDeviceExecutableNetwork->_thisPreferredDeviceName = "";
+                // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
+                for (const auto &it : _multiDeviceExecutableNetwork->GetInputsInfo()) {
+                    Blob::Ptr b;
+                    _inferRequest->GetBlob(it.first.c_str(), b);
+                    auto r = b->as<RemoteBlob>();
+                    if (r) {
+                        _multiDeviceExecutableNetwork->_thisPreferredDeviceName = r->getDeviceName();
+                        break;
+                    }
+                }
+             }});
 
     // as generally the scheduling algo may select any device, so we shall:
     //  1. accept the scheduling decision (actual workerRequest)
@@ -224,7 +215,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
             auto* workerRequestPtr = &workerRequest;
             idleWorkerRequests.push(workerRequestPtr);
             workerRequest._inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
-                [workerRequestPtr, this, idleWorkerRequestsPtr, device](const InferRequest&, StatusCode status) mutable {
+                [workerRequestPtr, this, device, idleWorkerRequestsPtr] (InferRequest , StatusCode status) mutable {
                     IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                     workerRequestPtr->_status = status;
                     {
