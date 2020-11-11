@@ -207,9 +207,6 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
                                               PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
-target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-        $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_COMPILE_DEFINITIONS>)
-
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj

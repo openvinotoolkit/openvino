@@ -133,9 +133,6 @@ onnx_controlflow_loop_2d_no_identity_termination_cond
 onnx_controlflow_loop_2d_const_no_identity_termination_cond
 onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 
-#dynamic trip count
-onnx_controlflow_loop_2d_trip_count_dynamic
-
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference
 # Is it expected?
@@ -144,13 +141,7 @@ onnx_controlflow_loop_concat_values
 # Infinitive Loop is not supported
 onnx_controlflow_loop_infinite
 
-# Loop is not supported yet by INTERPRETER backend
-onnx_controlflow_loop_2d_add
-onnx_controlflow_loop_2d_no_identity_termination_cond_false
-onnx_controlflow_loop_add_initializer_from_parent_scope
-onnx_controlflow_loop_add_node_from_parent_scope
-onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
-onnx_controlflow_loop_scalars
-onnx_controlflow_loop_2d_add_const_cond
+# Dynamic shape support?
+onnx_controlflow_loop_2d_trip_count_dynamic
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power

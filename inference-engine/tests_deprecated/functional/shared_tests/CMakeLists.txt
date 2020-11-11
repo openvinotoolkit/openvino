@@ -41,7 +41,6 @@ else()
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/network_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/io_blob_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/input_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/inference_engine_regression_tests
@@ -49,7 +48,6 @@ target_include_directories(${TARGET_NAME} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/common_single_layer_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/graph_tools
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
