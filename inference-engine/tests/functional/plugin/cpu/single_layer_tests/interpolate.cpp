@@ -213,8 +213,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({1, 18, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 18, 50, 60})),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
@@ -228,8 +228,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLaye
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({1, 18, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 18, 50, 60})),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
@@ -243,8 +243,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerCPUT
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({1, 18, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 18, 50, 60})),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);

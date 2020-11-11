@@ -10,6 +10,8 @@
 #include <memory>
 #include <vector>
 
+#define MAX_INPUT_INTERPOLATE 4
+
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
@@ -54,14 +56,8 @@ struct jit_interpolate_config_params {
 };
 
 struct jit_interpolate_call_args {
-    const void *src;
-    const void *srcTR;
-    const void *srcBL;
-    const void *srcBR;
-    const float *weight;
-    const float *weightR;
-    const float *weightT;
-    const float *weightB;
+    const void *src_ptr[MAX_INPUT_INTERPOLATE];
+    const void *weight_ptr[MAX_INPUT_INTERPOLATE];
     const int *index;
     void *dst;
     size_t work_amount;
@@ -122,8 +118,8 @@ private:
 
     void buildTblNN(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, InterpolateLayoutType layout);
     void buildTblLinearOnnx(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, InterpolateLayoutType layout);
-    void buidTblLinear(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, int kernel_width, bool antialias);
-    void buidTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, float cubicCoeff, InterpolateLayoutType layout);
+    void buildTblLinear(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, int kernel_width, bool antialias);
+    void buildTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, float cubicCoeff, InterpolateLayoutType layout);
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 

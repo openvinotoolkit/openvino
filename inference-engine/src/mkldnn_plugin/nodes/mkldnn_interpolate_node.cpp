@@ -69,7 +69,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         switch (jcp_.mode) {
             case InterpolateMode::nearest: {
                 mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
-                mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+                mov(reg_src, ptr[reg_params + GET_OFF(src_ptr[0])]);
                 mov(reg_index, ptr[reg_params + GET_OFF(index)]);
                 mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
@@ -443,18 +443,20 @@ private:
 
     void linear_onnx_c_gathered() {
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
-        mov(reg_src, ptr[reg_params + GET_OFF(weight)]);
-        mov(reg_src_aux, ptr[reg_params + GET_OFF(weightR)]);
-        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weightT)]);
-        mov(reg_src_aux2, ptr[reg_params + GET_OFF(weightB)]);
+
+        mov(reg_src, ptr[reg_params + GET_OFF(weight_ptr[0])]);
+        mov(reg_src_aux, ptr[reg_params + GET_OFF(weight_ptr[0]) + sizeof(size_t)]);
+        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weight_ptr[0]) + 2 * sizeof(size_t)]);
+        mov(reg_src_aux2, ptr[reg_params + GET_OFF(weight_ptr[0]) + 3 * sizeof(size_t)]);
         uni_vbroadcastss(vmm_weightL, ptr[reg_src]);
         uni_vbroadcastss(vmm_weightR, ptr[reg_src_aux]);
         uni_vbroadcastss(vmm_weightT, ptr[reg_src_aux1]);
         uni_vbroadcastss(vmm_weightB, ptr[reg_src_aux2]);
-        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
-        mov(reg_src_aux, ptr[reg_params + GET_OFF(srcTR)]);
-        mov(reg_src_aux1, ptr[reg_params + GET_OFF(srcBL)]);
-        mov(reg_src_aux2, ptr[reg_params + GET_OFF(srcBR)]);
+
+        mov(reg_src, ptr[reg_params + GET_OFF(src_ptr[0])]);
+        mov(reg_src_aux, ptr[reg_params + GET_OFF(src_ptr[0]) + sizeof(size_t)]);
+        mov(reg_src_aux1, ptr[reg_params + GET_OFF(src_ptr[0]) + 2 * sizeof(size_t)]);
+        mov(reg_src_aux2, ptr[reg_params + GET_OFF(src_ptr[0]) + 3 * sizeof(size_t)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
         int step = vlen / sizeof(float);
@@ -462,6 +464,8 @@ private:
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
+        Xbyak::Label blk_tail_loop_label;
+        Xbyak::Label blk_tail_loop_end_label;
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
         L(main_loop_label);
@@ -479,14 +483,7 @@ private:
             load_vector(vmm_valBL, ptr[reg_src_aux1], jcp_.src_dt);
             load_vector(vmm_valBR, ptr[reg_src_aux2], jcp_.src_dt);
 
-            // weightT * (srcTL * weightL + srcTR * weightR) +
-            // weightB * (srcBL * weightL + srcBR * weightR);
-            uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightR);
-            uni_vmulps(vmm_valBR, vmm_valBR, vmm_weightR);
-            uni_vfmadd231ps(vmm_valTR, vmm_valTL, vmm_weightL);
-            uni_vfmadd231ps(vmm_valBR, vmm_valBL, vmm_weightL);
-            uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightT);
-            uni_vfmadd231ps(vmm_valTR, vmm_valBR, vmm_weightB);
+            linear_onnx_worker();
 
             if (attr_.post_ops_.len_ != 0) {
                 apply_post_ops(jcp_.dst_dt, false);  // vmm_val is vmm_valTR
@@ -501,12 +498,7 @@ private:
                 load_vector(vmm_valBL, ptr[reg_src_aux1 + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
                 load_vector(vmm_valBR, ptr[reg_src_aux2 + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
 
-                uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightR);
-                uni_vmulps(vmm_valBR, vmm_valBR, vmm_weightR);
-                uni_vfmadd231ps(vmm_valTR, vmm_valTL, vmm_weightL);
-                uni_vfmadd231ps(vmm_valBR, vmm_valBL, vmm_weightL);
-                uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightT);
-                uni_vfmadd231ps(vmm_valTR, vmm_valBR, vmm_weightB);
+                linear_onnx_worker();
 
                 if (attr_.post_ops_.len_ != 0) {
                     apply_post_ops(jcp_.dst_dt, false);
@@ -538,6 +530,37 @@ private:
         }
         L(main_loop_end_label);
 
+        step = 4;
+        L(blk_tail_loop_label);
+        {
+            cmp(reg_work_amount, step);
+            jl(blk_tail_loop_end_label, T_NEAR);
+
+            // use xmm for 4s in tails
+            load_xmm(xmm_valTL, ptr[reg_src], jcp_.src_dt);
+            load_xmm(xmm_valTR, ptr[reg_src_aux], jcp_.src_dt);
+            load_xmm(xmm_valBL, ptr[reg_src_aux1], jcp_.src_dt);
+            load_xmm(xmm_valBR, ptr[reg_src_aux2], jcp_.src_dt);
+
+            linear_onnx_worker();
+
+            if (attr_.post_ops_.len_ != 0) {
+                apply_post_ops(jcp_.dst_dt, false);  // vmm_val is vmm_valTR
+                add(reg_oc_off, step * sizeof(float));
+            }
+            store_xmm(ptr[reg_dst], xmm_valTR, jcp_.dst_dt);
+
+            add(reg_dst, step * jcp_.dst_data_size);
+            add(reg_src, step * jcp_.src_data_size);
+            add(reg_src_aux, step * jcp_.src_data_size);
+            add(reg_src_aux1, step * jcp_.src_data_size);
+            add(reg_src_aux2, step * jcp_.src_data_size);
+            sub(reg_work_amount, step);
+
+            jmp(blk_tail_loop_label, T_NEAR);
+        }
+        L(blk_tail_loop_end_label);
+
         step = 1;
         L(tail_loop_label);
         {
@@ -550,12 +573,7 @@ private:
             load_scalar(xmm_valBL, ptr[reg_src_aux1], jcp_.src_dt);
             load_scalar(xmm_valBR, ptr[reg_src_aux2], jcp_.src_dt);
 
-            uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightR);
-            uni_vmulps(vmm_valBR, vmm_valBR, vmm_weightR);
-            uni_vfmadd231ps(vmm_valTR, vmm_valTL, vmm_weightL);
-            uni_vfmadd231ps(vmm_valBR, vmm_valBL, vmm_weightL);
-            uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightT);
-            uni_vfmadd231ps(vmm_valTR, vmm_valBR, vmm_weightB);
+            linear_onnx_worker();
 
             if (attr_.post_ops_.len_ != 0) {
                 apply_post_ops(jcp_.dst_dt, false);  // vmm_val is vmm_valTR
@@ -577,9 +595,9 @@ private:
 
     void linear_onnx_planar() {
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
-        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        mov(reg_src, ptr[reg_params + GET_OFF(src_ptr[0])]);
         mov(reg_index, ptr[reg_params + GET_OFF(index)]);
-        mov(reg_src_aux, ptr[reg_params + GET_OFF(weight)]);
+        mov(reg_src_aux, ptr[reg_params + GET_OFF(weight_ptr[0])]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
         int step = vlen / sizeof(float);
@@ -617,14 +635,7 @@ private:
             load_vector(vmm_weightT, ptr[reg_src_aux + 2 * weight_stride], memory::f32);
             load_vector(vmm_weightB, ptr[reg_src_aux + 3 * weight_stride], memory::f32);
 
-            // weightT * (srcTL * weightL + srcTR * weightR) +
-            // weightB * (srcBL * weightL + srcBR * weightR);
-            uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightR);
-            uni_vmulps(vmm_valBR, vmm_valBR, vmm_weightR);
-            uni_vfmadd231ps(vmm_valTR, vmm_valTL, vmm_weightL);
-            uni_vfmadd231ps(vmm_valBR, vmm_valBL, vmm_weightL);
-            uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightT);
-            uni_vfmadd231ps(vmm_valTR, vmm_valBR, vmm_weightB);
+            linear_onnx_worker();
 
             if (attr_.post_ops_.len_ != 0) {
                 apply_post_ops(jcp_.dst_dt, true);  // vmm_val is vmm_valTR, broadcase is true
@@ -672,12 +683,7 @@ private:
             load_scalar(xmm_weightT, ptr[reg_src_aux + 2 * weight_stride], memory::f32);
             load_scalar(xmm_weightB, ptr[reg_src_aux + 3 * weight_stride], memory::f32);
 
-            uni_vmulps(xmm_valTR, xmm_valTR, xmm_weightR);
-            uni_vmulps(xmm_valBR, xmm_valBR, xmm_weightR);
-            uni_vfmadd231ps(xmm_valTR, xmm_valTL, xmm_weightL);
-            uni_vfmadd231ps(xmm_valBR, xmm_valBL, xmm_weightL);
-            uni_vmulps(xmm_valTR, xmm_valTR, xmm_weightT);
-            uni_vfmadd231ps(xmm_valTR, xmm_valBR, xmm_weightB);
+            linear_onnx_worker();
 
             if (attr_.post_ops_.len_ != 0) {
                 apply_post_ops(jcp_.dst_dt, true);  // process on vmm_val, vmm_val is vmm_valTR, and bc
@@ -694,21 +700,32 @@ private:
         L(tail_loop_end_label);
     }
 
+    // weightT * (srcTL * weightL + srcTR * weightR) +
+    // weightB * (srcBL * weightL + srcBR * weightR)
+    inline void linear_onnx_worker() {
+        uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightR);
+        uni_vmulps(vmm_valBR, vmm_valBR, vmm_weightR);
+        uni_vfmadd231ps(vmm_valTR, vmm_valTL, vmm_weightL);
+        uni_vfmadd231ps(vmm_valBR, vmm_valBL, vmm_weightL);
+        uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightT);
+        uni_vfmadd231ps(vmm_valTR, vmm_valBR, vmm_weightB);
+    }
+
     void cubic_c_gathered() {
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
-        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        mov(reg_src, ptr[reg_params + GET_OFF(src_ptr[0])]);
         mov(reg_index, ptr[reg_params + GET_OFF(index)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        // weight point to weightX
-        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weight)]);
+        // weight_ptr[0] point to weightX
+        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weight_ptr[0])]);
         uni_vbroadcastss(vmm_weightX0, ptr[reg_src_aux1]);
         uni_vbroadcastss(vmm_weightX1, ptr[reg_src_aux1 + 1 * sizeof(float)]);
         uni_vbroadcastss(vmm_weightX2, ptr[reg_src_aux1 + 2 * sizeof(float)]);
         uni_vbroadcastss(vmm_weightX3, ptr[reg_src_aux1 + 3 * sizeof(float)]);
 
-        // weightT point to weightY
-        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weightT)]);
+        // weight_ptr[1] point to weightY
+        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weight_ptr[0]) + sizeof(size_t)]);
         uni_vbroadcastss(vmm_weightY0, ptr[reg_src_aux1]);
         uni_vbroadcastss(vmm_weightY1, ptr[reg_src_aux1 + 1 * sizeof(float)]);
         uni_vbroadcastss(vmm_weightY2, ptr[reg_src_aux1 + 2 * sizeof(float)]);
@@ -732,37 +749,8 @@ private:
             }
 
             uni_vpxor(vmm_val, vmm_val, vmm_val);
-            // y0:  (x0 * weightX0 + x1 * weightX1 + x2 * weightX2 + x3 * weightX3) * weightY0
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_c_gathered_cell(0, vmm_weightX0, false);
-            cubic_c_gathered_cell(1, vmm_weightX1, false);
-            cubic_c_gathered_cell(2, vmm_weightX2, false);
-            cubic_c_gathered_cell(3, vmm_weightX3, false);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY0);
 
-            // y1
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_c_gathered_cell(4, vmm_weightX0, false);
-            cubic_c_gathered_cell(5, vmm_weightX1, false);
-            cubic_c_gathered_cell(6, vmm_weightX2, false);
-            cubic_c_gathered_cell(7, vmm_weightX3, false);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY1);
-
-            // y2
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_c_gathered_cell(8, vmm_weightX0, false);
-            cubic_c_gathered_cell(9, vmm_weightX1, false);
-            cubic_c_gathered_cell(10, vmm_weightX2, false);
-            cubic_c_gathered_cell(11, vmm_weightX3, false);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY2);
-
-            // y3
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_c_gathered_cell(12, vmm_weightX0, false);
-            cubic_c_gathered_cell(13, vmm_weightX1, false);
-            cubic_c_gathered_cell(14, vmm_weightX2, false);
-            cubic_c_gathered_cell(15, vmm_weightX3, false);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY3);
+            cubic_c_gathered_matrix(false);
 
             if (attr_.post_ops_.len_ != 0) {
                 apply_post_ops(jcp_.dst_dt, false);     // vmm_val is default dst value to post_ops and store
@@ -776,37 +764,8 @@ private:
                 add(reg_dst, sse42_offset * jcp_.dst_data_size);
 
                 uni_vpxor(vmm_val, vmm_val, vmm_val);
-                // y0:  (x0 * weightX0 + x1 * weightX1 + x2 * weightX2 + x3 * weightX3) * weightY0
-                uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-                cubic_c_gathered_cell(0, vmm_weightX0, false);
-                cubic_c_gathered_cell(1, vmm_weightX1, false);
-                cubic_c_gathered_cell(2, vmm_weightX2, false);
-                cubic_c_gathered_cell(3, vmm_weightX3, false);
-                uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY0);
 
-                // y1
-                uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-                cubic_c_gathered_cell(4, vmm_weightX0, false);
-                cubic_c_gathered_cell(5, vmm_weightX1, false);
-                cubic_c_gathered_cell(6, vmm_weightX2, false);
-                cubic_c_gathered_cell(7, vmm_weightX3, false);
-                uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY1);
-
-                // y2
-                uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-                cubic_c_gathered_cell(8, vmm_weightX0, false);
-                cubic_c_gathered_cell(9, vmm_weightX1, false);
-                cubic_c_gathered_cell(10, vmm_weightX2, false);
-                cubic_c_gathered_cell(11, vmm_weightX3, false);
-                uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY2);
-
-                // y3
-                uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-                cubic_c_gathered_cell(12, vmm_weightX0, false);
-                cubic_c_gathered_cell(13, vmm_weightX1, false);
-                cubic_c_gathered_cell(14, vmm_weightX2, false);
-                cubic_c_gathered_cell(15, vmm_weightX3, false);
-                uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY3);
+                cubic_c_gathered_matrix(false);
 
                 if (attr_.post_ops_.len_ != 0) {
                     apply_post_ops(jcp_.dst_dt, false);
@@ -845,37 +804,7 @@ private:
             // store final computed value
             uni_vpxor(vmm_val, vmm_val, vmm_val);
 
-            // y0:  (x0 * weightX0 + x1 * weightX1 + x2 * weightX2 + x3 * weightX3) * weightY0
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_c_gathered_cell(0, vmm_weightX0, true);
-            cubic_c_gathered_cell(1, vmm_weightX1, true);
-            cubic_c_gathered_cell(2, vmm_weightX2, true);
-            cubic_c_gathered_cell(3, vmm_weightX3, true);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY0);
-
-            // y1
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_c_gathered_cell(4, vmm_weightX0, true);
-            cubic_c_gathered_cell(5, vmm_weightX1, true);
-            cubic_c_gathered_cell(6, vmm_weightX2, true);
-            cubic_c_gathered_cell(7, vmm_weightX3, true);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY1);
-
-            // y2
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_c_gathered_cell(8, vmm_weightX0, true);
-            cubic_c_gathered_cell(9, vmm_weightX1, true);
-            cubic_c_gathered_cell(10, vmm_weightX2, true);
-            cubic_c_gathered_cell(11, vmm_weightX3, true);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY2);
-
-            // y3
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_c_gathered_cell(12, vmm_weightX0, true);
-            cubic_c_gathered_cell(13, vmm_weightX1, true);
-            cubic_c_gathered_cell(14, vmm_weightX2, true);
-            cubic_c_gathered_cell(15, vmm_weightX3, true);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY3);
+            cubic_c_gathered_matrix(true);
 
             if (attr_.post_ops_.len_ != 0) {
                 apply_post_ops(jcp_.dst_dt, false);     // vmm_val is default dst value
@@ -894,7 +823,27 @@ private:
         L(tail_loop_end_label);
     }
 
-    inline void cubic_c_gathered_cell(int i, Vmm vmm_weight, bool is_scalar) {
+    inline void cubic_c_gathered_matrix(bool is_scalar) {
+        // y0:  (x0 * weightX0 + x1 * weightX1 + x2 * weightX2 + x3 * weightX3) * weightY0
+        cubic_c_gathered_line(0, vmm_weightY0, is_scalar);
+        // y1
+        cubic_c_gathered_line(4, vmm_weightY1, is_scalar);
+        // y2
+        cubic_c_gathered_line(8, vmm_weightY2, is_scalar);
+        // y3
+        cubic_c_gathered_line(12, vmm_weightY3, is_scalar);
+    }
+
+    inline void cubic_c_gathered_line(int index_start, Vmm vmm_weight, bool is_scalar) {
+        uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+        cubic_c_gathered_pixel(index_start, vmm_weightX0, is_scalar);
+        cubic_c_gathered_pixel(index_start + 1, vmm_weightX1, is_scalar);
+        cubic_c_gathered_pixel(index_start + 2, vmm_weightX2, is_scalar);
+        cubic_c_gathered_pixel(index_start + 3, vmm_weightX3, is_scalar);
+        uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weight);
+    }
+
+    inline void cubic_c_gathered_pixel(int i, Vmm vmm_weight, bool is_scalar) {
         mov(reg_src_aux, reg_src);
         mov(reg_index_offset, dword[reg_index + i * jcp_.indices_size]);
         add(reg_src_aux, reg_index_offset);
@@ -908,25 +857,25 @@ private:
 
     void cubic_planar() {
         mov(reg_table, l_table_constant);
-        // srcBL for oh sequence, srcBR for ow sequence
-        mov(reg_tbl_y, ptr[reg_params + GET_OFF(srcBL)]);
-        mov(reg_tbl_x, ptr[reg_params + GET_OFF(srcBR)]);
+        // src_ptr[2] for oh sequence, src_ptr[3] for ow sequence
+        mov(reg_tbl_y, ptr[reg_params + GET_OFF(src_ptr[0]) + 2 * sizeof(size_t)]);
+        mov(reg_tbl_x, ptr[reg_params + GET_OFF(src_ptr[0]) + 3 * sizeof(size_t)]);
         uni_vmovdqu(vmm_one, cubic_planar_table_val(0));
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
-        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        mov(reg_src, ptr[reg_params + GET_OFF(src_ptr[0])]);
         // index_OW
         mov(reg_index, ptr[reg_params + GET_OFF(index)]);
-        // index_OH
+        // index_OH from src_ptr[1]
         Xbyak::Reg64 reg_index_y = reg_src_aux;
-        mov(reg_index_y, ptr[reg_params + GET_OFF(srcTR)]);
+        mov(reg_index_y, ptr[reg_params + GET_OFF(src_ptr[0]) + sizeof(size_t)]);
         // weight_OW
         Xbyak::Reg64 reg_weight_x = reg_src_aux1;
-        mov(reg_weight_x, ptr[reg_params + GET_OFF(weight)]);
+        mov(reg_weight_x, ptr[reg_params + GET_OFF(weight_ptr[0])]);
         // weight_OH
         Xbyak::Reg64 reg_weight_y = reg_src_aux2;
-        mov(reg_weight_y, ptr[reg_params + GET_OFF(weightT)]);
+        mov(reg_weight_y, ptr[reg_params + GET_OFF(weight_ptr[0]) + sizeof(size_t)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
         int step = vlen / sizeof(float);
@@ -985,13 +934,7 @@ private:
             // weight y0
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
             vgatherdps(vmm_weightY, ptr[reg_weight_y + (vmm_tbl_y * grid_len)], vmm_mask);
-
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_planar_cell(0, false);
-            cubic_planar_cell(1, false);
-            cubic_planar_cell(2, false);
-            cubic_planar_cell(3, false);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+            cubic_planar_line(false);
 
             // y1
             // crop to [0, IH - 1]
@@ -1000,13 +943,7 @@ private:
             // weight y1: shift weight_size
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
             vgatherdps(vmm_weightY, ptr[reg_weight_y + sizeof(float) + (vmm_tbl_y * grid_len)], vmm_mask);
-
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_planar_cell(0, false);
-            cubic_planar_cell(1, false);
-            cubic_planar_cell(2, false);
-            cubic_planar_cell(3, false);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+            cubic_planar_line(false);
 
             // y2
             vpaddd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
@@ -1016,13 +953,7 @@ private:
             // weight y2
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
             vgatherdps(vmm_weightY, ptr[reg_weight_y + 2 * sizeof(float) + (vmm_tbl_y * grid_len)], vmm_mask);
-
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_planar_cell(0, false);
-            cubic_planar_cell(1, false);
-            cubic_planar_cell(2, false);
-            cubic_planar_cell(3, false);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+            cubic_planar_line(false);
 
             // y3
             vpaddd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
@@ -1033,13 +964,7 @@ private:
             // weight y3
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
             vgatherdps(vmm_weightY, ptr[reg_weight_y + 3 * sizeof(float) + (vmm_tbl_y * grid_len)], vmm_mask);
-
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_planar_cell(0, false);
-            cubic_planar_cell(1, false);
-            cubic_planar_cell(2, false);
-            cubic_planar_cell(3, false);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+            cubic_planar_line(false);
 
             if (attr_.post_ops_.len_ != 0) {
                 apply_post_ops(jcp_.dst_dt, true);  // oc_off is broadcast and always the same value for this channel
@@ -1083,12 +1008,7 @@ private:
             vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
 
             gather_i32_indices(vmm_weightY, reg_weight_y, 0, vmm_tbl_y, grid_len, memory::f32, true);
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_planar_cell(0, true);
-            cubic_planar_cell(1, true);
-            cubic_planar_cell(2, true);
-            cubic_planar_cell(3, true);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+            cubic_planar_line(true);
 
             // y1
             // crop to [0, IH - 1]
@@ -1096,13 +1016,7 @@ private:
             vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
             // weight y1: shift weight_size
             gather_i32_indices(vmm_weightY, reg_weight_y, sizeof(float), vmm_tbl_y, grid_len, memory::f32, true);
-
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_planar_cell(0, true);
-            cubic_planar_cell(1, true);
-            cubic_planar_cell(2, true);
-            cubic_planar_cell(3, true);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+            cubic_planar_line(true);
 
             // y2
             vpaddd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
@@ -1111,13 +1025,7 @@ private:
             vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
             // weight y2
             gather_i32_indices(vmm_weightY, reg_weight_y, 2 * sizeof(float), vmm_tbl_y, grid_len, memory::f32, true);
-
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_planar_cell(0, true);
-            cubic_planar_cell(1, true);
-            cubic_planar_cell(2, true);
-            cubic_planar_cell(3, true);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+            cubic_planar_line(true);
 
             // y3
             vpaddd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
@@ -1127,13 +1035,7 @@ private:
             vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
             // weight y3
             gather_i32_indices(vmm_weightY, reg_weight_y, 3 * sizeof(float), vmm_tbl_y, grid_len, memory::f32, true);
-
-            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
-            cubic_planar_cell(0, true);
-            cubic_planar_cell(1, true);
-            cubic_planar_cell(2, true);
-            cubic_planar_cell(3, true);
-            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+            cubic_planar_line(true);
 
             if (attr_.post_ops_.len_ != 0) {
                 apply_post_ops(jcp_.dst_dt, true);  // oc_off is broadcast and always the same value for this channel
@@ -1151,7 +1053,16 @@ private:
         L(tail_loop_end_label);
     }
 
-    inline void cubic_planar_cell(int itr, bool is_scalar) {
+    inline void cubic_planar_line(bool is_scalar) {
+        uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+        cubic_planar_pixel(0, is_scalar);
+        cubic_planar_pixel(1, is_scalar);
+        cubic_planar_pixel(2, is_scalar);
+        cubic_planar_pixel(3, is_scalar);
+        uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+    }
+
+    inline void cubic_planar_pixel(int itr, bool is_scalar) {
         // vmm_index_in_x have index for src
         if (itr == 0) {
             vpsubd(vmm_index_x_itr, vmm_index_in_x, vmm_one);
@@ -1269,9 +1180,7 @@ private:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
             case memory::bf16:
-                if (isa != cpu::sse42) {
-                    vpmovzxwd(vmm_src, op);
-                }
+                uni_vpmovzxwd(vmm_src, op);
                 uni_vpslld(vmm_src, vmm_src, 16);
                 break;
             default:
@@ -1280,6 +1189,30 @@ private:
 
         if (src_dt != memory::f32 && src_dt != data_type::bf16)
             uni_vcvtdq2ps(vmm_src, vmm_src);
+    }
+
+    inline void load_xmm(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+        switch (src_dt) {
+            case memory::f32:
+            case memory::s32:
+                uni_vmovups(xmm_src, op);
+                break;
+            case memory::s8:
+                uni_vpmovsxbd(xmm_src, op);
+                break;
+            case memory::u8:
+                uni_vpmovzxbd(xmm_src, op);
+                break;
+            case memory::bf16:
+                uni_vpmovzxwd(xmm_src, op);
+                uni_vpslld(xmm_src, xmm_src, 16);
+                break;
+            default:
+                assert(!"unknown dst_dt");
+        }
+
+        if (src_dt != memory::f32 && src_dt != data_type::bf16)
+            uni_vcvtdq2ps(xmm_src, xmm_src);
     }
 
     inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
@@ -1351,6 +1284,37 @@ private:
             } else {
                 assert(!"data type of bf16 is only supported for ISA:avx512_core_bf16");
             }
+        }
+    }
+
+    inline void store_xmm(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+        if (dst_dt != memory::f32 && dst_dt != memory::bf16) {
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+        }
+
+        switch (dst_dt) {
+            case memory::f32:
+            case memory::s32:
+                uni_vmovups(op, xmm_dst);
+                break;
+            case memory::s8:
+                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+                movd(op, xmm_dst);
+                break;
+            case memory::u8:
+                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+                movd(op, xmm_dst);
+                break;
+            case memory::bf16:
+                pshuflw(xmm_dst, xmm_dst, 0x0d);  // 01 01 01 01 --> 01 01 11 00  imm=0b00001101
+                pshufhw(xmm_dst, xmm_dst, 0x0d);  // 01 01 11 00 --> 11 00 11 00
+                pshufd(xmm_dst, xmm_dst, 0x08);   // 11 00 11 00 --> 11 11 00 00  imm=0b00001000
+                vmovq(op, xmm_dst);
+                break;
+            default:
+                assert(!"unknown dst_dt");
         }
     }
 
@@ -1794,11 +1758,11 @@ void MKLDNNInterpolateNode::createPrimitive() {
             break;
         }
         case InterpolateMode::linear: {
-            buidTblLinear(srcDimPad5d, dstDim5d, dataScales, LINEAR_KERNEL, antialias);
+            buildTblLinear(srcDimPad5d, dstDim5d, dataScales, LINEAR_KERNEL, antialias);
             break;
         }
         case InterpolateMode::cubic: {
-            buidTblCubic(srcDimPad5d, dstDim5d, dataScales, cubeCoeff, jcp.layout);
+            buildTblCubic(srcDimPad5d, dstDim5d, dataScales, cubeCoeff, jcp.layout);
             break;
         }
         default: {
@@ -1957,7 +1921,7 @@ static inline float triangleCoeff(float x) {
 // wd .........wd, wh............wh, ww.............ww, id...........id, ih............ih, iw..............iw
 //                        |                                                      |
 //                   wh0.....wh_diameter                                    ih0.....ih_diameter
-void MKLDNNInterpolateNode::buidTblLinear(SizeVector& srcDimPad5d, SizeVector& dstDim5d,
+void MKLDNNInterpolateNode::buildTblLinear(SizeVector& srcDimPad5d, SizeVector& dstDim5d,
                                             std::vector<float>& dataScales, int kernel_width, bool antialias) {
     int dimSize = srcDim.size();
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -2048,7 +2012,7 @@ std::vector<float> MKLDNNInterpolateNode::getCubicCoeffs(float mantissa, float a
 // table layout:
 // OW      OW         OW         OW         OW          OH       OH           OH           OH           OH
 // x_idx   x_weight0  x_weight1  x_weight2  x_weight3   y_idx    y_weight0    y_weight1    y_weight2    y_weight3
-void MKLDNNInterpolateNode::buidTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales,
+void MKLDNNInterpolateNode::buildTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales,
                                         float cubicCoeff, InterpolateLayoutType layout) {
     int dimSize = srcDim.size();
     float fy = dataScales[dimSize - 2];
@@ -2332,7 +2296,7 @@ void MKLDNNInterpolateNode::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr
                 const uint8_t *in_ptr_dh = in_ptr + (C * IW * IH * index_d[d] + C * IW * index_h[h]) * srcDataSize;
                 auto arg = jit_interpolate_call_args();
                 arg.dst = out_ptr_dh;
-                arg.src = in_ptr_dh;
+                arg.src_ptr[0] = in_ptr_dh;
                 arg.index = static_cast<int*>(&(index_w_kernel[0]));
                 arg.work_amount = C;
                 arg.oc_off = 0;
@@ -2353,7 +2317,7 @@ void MKLDNNInterpolateNode::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr
                 auto arg = jit_interpolate_call_args();
                 for (int h = 0; h < OH; h++) {  // kernel for blk_size * OW
                     arg.dst = out_ptr_cbd + blk_size * OW * h * dstDataSize;
-                    arg.src = in_ptr_cbd + blk_size * IW * index_h[h] * srcDataSize;
+                    arg.src_ptr[0] = in_ptr_cbd + blk_size * IW * index_h[h] * srcDataSize;
                     arg.index = static_cast<int*>(&(index_w_kernel[0]));
                     arg.work_amount = static_cast<size_t>(OW);
                     arg.oc_off = cb * blk_size;
@@ -2384,7 +2348,7 @@ void MKLDNNInterpolateNode::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, 
         uint8_t *out_ptr = out_ptr_ + (OW * OH * OD * C * b + OW * OH * OD * c + OW * OH * od) * dstDataSize;
 
         auto arg = jit_interpolate_call_args();
-        arg.src = in_ptr;
+        arg.src_ptr[0] = in_ptr;
         arg.dst = out_ptr;
         arg.index = static_cast<int*>(&index_kernel[0]);  // need index_h and index_w in kernel, it's in continous memory so one param
         arg.oc_off = static_cast<size_t>(c);
@@ -2422,9 +2386,9 @@ void MKLDNNInterpolateNode::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *ou
         uint8_t *out_ptr_nc = out_ptr_ + (OH * OW * C * b + OH * OW * c) * dstDataSize;
         const uint8_t *in_ptr_nc = in_ptr_ + (IH * IW * C * b + IH * IW * c) * srcDataSize;
         auto arg = jit_interpolate_call_args();
-        arg.src = in_ptr_nc;
+        arg.src_ptr[0] = in_ptr_nc;
         arg.index = static_cast<int*>(&index[0]);
-        arg.weight = static_cast<float*>(&weight[0]);
+        arg.weight_ptr[0] = static_cast<float*>(&weight[0]);
         arg.dst = out_ptr_nc;
         arg.work_amount = OW * OH;
         arg.oc_off = c;
@@ -2448,45 +2412,33 @@ void MKLDNNInterpolateNode::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t 
     Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
     bool isByChannel = (layout == NHWC) ? true : false;
 
-    if (isByChannel) {
-        parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
-            uint8_t *out_ptr_nhw = out_ptr_ + (OH * OW * C * b + OW * C * h + C * w) * dstDataSize;
-            const uint8_t *in_ptr_n = in_ptr_ + (IH * IW * C * b) * srcDataSize;
-            auto arg = jit_interpolate_call_args();
-            arg.src = in_ptr_n + (indexTop[h] * IW * C + indexLeft[w] * C) * srcDataSize;
-            arg.srcTR = in_ptr_n + (indexTop[h] * IW * C + indexRight[w] * C) * srcDataSize;
-            arg.srcBL = in_ptr_n + (indexBottom[h] * IW * C + indexLeft[w] * C) * srcDataSize;
-            arg.srcBR = in_ptr_n + (indexBottom[h] * IW * C + indexRight[w] * C) * srcDataSize;
-            arg.weight = static_cast<float*>(&weightLeft[w]);
-            arg.weightR = static_cast<float*>(&weightRight[w]);
-            arg.weightT = static_cast<float*>(&weightTop[h]);
-            arg.weightB = static_cast<float*>(&weightBottom[h]);
+    int blkSize = mayiuse(cpu::avx512_common) ? 16 : 8;
+    int CB = div_up(C, blkSize);
+    int CSize = isByChannel ? C : blkSize * CB;
+    int CGatherLen = isByChannel ? C : blkSize;
+    int workAmount = isByChannel ? C : CB;
+    parallel_for2d(B, OH, [&](size_t b, size_t h) {
+        uint8_t *out_ptr_nh = out_ptr_ + (OH * OW * CSize * b + OW * CGatherLen * h) * dstDataSize;
+        const uint8_t *in_ptr_n = in_ptr_ + (IH * IW * CSize * b) * srcDataSize;
+        const uint8_t *in_ptr_nh_t = in_ptr_n + (indexTop[h] * IW * CGatherLen) * srcDataSize;
+        const uint8_t *in_ptr_nh_b = in_ptr_n + (indexBottom[h] * IW * CGatherLen) * srcDataSize;
+        auto arg = jit_interpolate_call_args();
+        for (int w = 0; w < OW; ++w) {
+            uint8_t *out_ptr_nhw = out_ptr_nh + CGatherLen * w * dstDataSize;
+            arg.src_ptr[0] = in_ptr_nh_t + (indexLeft[w] * CGatherLen) * srcDataSize;
+            arg.src_ptr[1] = in_ptr_nh_t + (indexRight[w] * CGatherLen) * srcDataSize;
+            arg.src_ptr[2] = in_ptr_nh_b + (indexLeft[w] * CGatherLen) * srcDataSize;
+            arg.src_ptr[3] = in_ptr_nh_b + (indexRight[w] * CGatherLen) * srcDataSize;
+            arg.weight_ptr[0] = static_cast<float*>(&weightLeft[w]);
+            arg.weight_ptr[1] = static_cast<float*>(&weightRight[w]);
+            arg.weight_ptr[2] = static_cast<float*>(&weightTop[h]);
+            arg.weight_ptr[3] = static_cast<float*>(&weightBottom[h]);
             arg.dst = out_ptr_nhw;
-            arg.work_amount = C;
+            arg.work_amount = workAmount;
             arg.oc_off = 0;
             (*interpolateKernel)(&arg);
-        });
-    } else {
-        size_t blkSize = mayiuse(cpu::avx512_common) ? 16 : 8;
-        size_t CB = div_up(C, blkSize);
-        parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
-            uint8_t *out_ptr_nhw = out_ptr_ + (CB * OH * OW * blkSize * b + OW * blkSize * h + blkSize * w) * dstDataSize;
-            const uint8_t *in_ptr_n = in_ptr_ + (CB * IH * IW * blkSize * b) * srcDataSize;
-            auto arg = jit_interpolate_call_args();
-            arg.src = in_ptr_n + (indexTop[h] * IW * blkSize + indexLeft[w] * blkSize) * srcDataSize;
-            arg.srcTR = in_ptr_n + (indexTop[h] * IW * blkSize + indexRight[w] * blkSize) * srcDataSize;
-            arg.srcBL = in_ptr_n + (indexBottom[h] * IW * blkSize + indexLeft[w] * blkSize) * srcDataSize;
-            arg.srcBR = in_ptr_n + (indexBottom[h] * IW * blkSize + indexRight[w] * blkSize) * srcDataSize;
-            arg.weight = static_cast<float*>(&weightLeft[w]);
-            arg.weightR = static_cast<float*>(&weightRight[w]);
-            arg.weightT = static_cast<float*>(&weightTop[h]);
-            arg.weightB = static_cast<float*>(&weightBottom[h]);
-            arg.dst = out_ptr_nhw;
-            arg.work_amount = CB;
-            arg.oc_off = 0;
-            (*interpolateKernel)(&arg);
-        });
-    }
+        }
+    });
 }
 
 void MKLDNNInterpolateNode::linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
@@ -2646,70 +2598,42 @@ void MKLDNNInterpolateNode::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_
     Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
     bool isByChannel = (layout == NHWC) ? true : false;
 
-    if (isByChannel) {
-        parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
-            uint8_t *out_ptr_nhw = out_ptr_ + (OH * OW * C * b + OW * C * h + C * w) * dstDataSize;
-            const uint8_t *in_ptr_n = in_ptr_ + (IH * IW * C * b) * srcDataSize;
+    int blkSize = mayiuse(cpu::avx512_common) ? 16 : 8;
+    int CB = div_up(C, blkSize);
+    int CSize = isByChannel ? C : blkSize * CB;
+    int CGatherLen = isByChannel ? C : blkSize;
+    int workAmount = isByChannel ? C : CB;
 
-            std::vector<int> kernelIndex(CUBIC_GRID_LEN * CUBIC_GRID_LEN);  // 16 address offset to src(batch)
-            int iy = yOrigin[h];
-            int ix = xOrigin[w];
-            for (int y = iy - 1, i = 0; y <= iy + 2; y++, i++) {
-                int yInRange = std::max(0, std::min(y, IH - 1));
-                yInRange = yInRange * C * IW * srcDataSize;
-                for (int x = ix - 1, j = 0; x <= ix + 2; x++, j++) {
-                    int xInRange = std::max(0, std::min(x, IW - 1));
-                    xInRange = yInRange + xInRange * C * srcDataSize;
-                    kernelIndex[i * CUBIC_GRID_LEN + j] = xInRange;
-                }
+    parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
+        uint8_t *out_ptr_nhw = out_ptr_ + (OH * OW * CSize * b + OW * CGatherLen * h + CGatherLen * w) * dstDataSize;
+        const uint8_t *in_ptr_n = in_ptr_ + (IH * IW * CSize * b) * srcDataSize;
+
+        std::vector<int> kernelIndex(CUBIC_GRID_LEN * CUBIC_GRID_LEN);  // 16 address offset to src(batch) or src(CB)
+        int iy = yOrigin[h];
+        int ix = xOrigin[w];
+        for (int y = iy - 1, i = 0; y <= iy + 2; y++, i++) {
+            int yInRange = std::max(0, std::min(y, IH - 1));
+            yInRange = yInRange * CGatherLen * IW * srcDataSize;
+            for (int x = ix - 1, j = 0; x <= ix + 2; x++, j++) {
+                int xInRange = std::max(0, std::min(x, IW - 1));
+                xInRange = yInRange + xInRange * CGatherLen * srcDataSize;
+                kernelIndex[i * CUBIC_GRID_LEN + j] = xInRange;
             }
-
-            auto arg = jit_interpolate_call_args();
+        }
+        auto arg = jit_interpolate_call_args();
             arg.dst = out_ptr_nhw;
-            // src + index to get input address
-            arg.src = in_ptr_n;
+            arg.src_ptr[0] = in_ptr_n;
             arg.index = static_cast<int*>(&kernelIndex[0]);
-            // weight for X, weightT for Y
-            arg.weight = static_cast<float*>(&xFactor[w * CUBIC_GRID_LEN]);
-            arg.weightT = static_cast<float*>(&yFactor[h * CUBIC_GRID_LEN]);
-            // src + step, dst + step, process next step on continuous memory
-            arg.work_amount = C;
+            // 0 for weight_W, 1 for weight_H
+            arg.weight_ptr[0] = static_cast<float*>(&xFactor[w * CUBIC_GRID_LEN]);
+            arg.weight_ptr[1] = static_cast<float*>(&yFactor[h * CUBIC_GRID_LEN]);
+
+            // for by channel, src + step, dst + step, process next step on continuous memory
+            // for blk, src + IW*IH*blkSize, dst + OW*OH*blkSize, process the blkSize on next CB
+            arg.work_amount = workAmount;
             arg.oc_off = 0;
             (*interpolateKernel)(&arg);
-        });
-    } else {
-        size_t blkSize = mayiuse(cpu::avx512_common) ? 16 : 8;
-        size_t CB = div_up(C, blkSize);
-        parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
-            uint8_t *out_ptr_nhw = out_ptr_ + (CB * OH * OW * blkSize * b + OW * blkSize * h + blkSize * w) * dstDataSize;
-            const uint8_t *in_ptr_n = in_ptr_ + (CB * IH * IW * blkSize * b) * srcDataSize;
-
-            std::vector<int> kernelIndex(CUBIC_GRID_LEN * CUBIC_GRID_LEN);  // 16 address offset to src(CB)
-            int iy = yOrigin[h];
-            int ix = xOrigin[w];
-            for (int y = iy - 1, i = 0; y <= iy + 2; y++, i++) {
-                int yInRange = std::max(0, std::min(y, IH - 1));
-                yInRange = yInRange * blkSize * IW * srcDataSize;
-                for (int x = ix - 1, j = 0; x <= ix + 2; x++, j++) {
-                    int xInRange = std::max(0, std::min(x, IW - 1));
-                    xInRange = yInRange + xInRange * blkSize * srcDataSize;
-                    kernelIndex[i * CUBIC_GRID_LEN + j] = xInRange;
-                }
-            }
-
-            auto arg = jit_interpolate_call_args();
-            arg.dst = out_ptr_nhw;
-            arg.src = in_ptr_n;
-            // index is offset to current CB
-            arg.index = static_cast<int*>(&kernelIndex[0]);
-            arg.weight = static_cast<float*>(&xFactor[w * CUBIC_GRID_LEN]);
-            arg.weightT = static_cast<float*>(&yFactor[h * CUBIC_GRID_LEN]);
-            // src + IW*IH*blkSize, dst + OW*OH*blkSize, process the blkSize on next CB
-            arg.work_amount = CB;
-            arg.oc_off = 0;
-            (*interpolateKernel)(&arg);
-        });
-    }
+    });
 }
 
 void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
@@ -2734,13 +2658,13 @@ void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr
 
         auto arg = jit_interpolate_call_args();
         arg.dst = out_ptr_nc;
-        arg.src = in_ptr_nc;
+        arg.src_ptr[0] = in_ptr_nc;
         arg.index = xOrigin;
-        arg.srcTR = yOrigin;
-        arg.weight = xFactor;
-        arg.weightT = yFactor;
-        arg.srcBL = static_cast<int*>(&sequenceOH[0]);
-        arg.srcBR = static_cast<int*>(&sequenceOW[0]);
+        arg.src_ptr[1] = yOrigin;
+        arg.src_ptr[2] = static_cast<int*>(&sequenceOH[0]);
+        arg.src_ptr[3] = static_cast<int*>(&sequenceOW[0]);
+        arg.weight_ptr[0] = xFactor;
+        arg.weight_ptr[1] = yFactor;
         arg.work_amount = static_cast<size_t>(OW * OH);
         arg.oc_off = static_cast<size_t>(C);
         (*interpolateKernel)(&arg);
