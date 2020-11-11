@@ -1202,6 +1202,7 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         {"sigmoid", kActSigmoid},
         {"divbyn", kActDivByN},
         {"log", kActLog},
+        {"neghalflog", kActNegHalfLog},
         {"exp", kActExp},
         {"tanh", kActTanh},
         {"relu", kActRelu},
@@ -1392,7 +1393,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Split"}, SKIP},  // skip information about which part of prev layer need to consume handle during layer creation
         {{"Slice"}, SKIP},
         {{"link"}, SKIP},
-        {{"clamp", "sigmoid", "relu", "tanh", "log", "divbyn", "exp", "identity"}, CREATE(PWLPrimitive)},
+        {{"clamp", "sigmoid", "relu", "tanh", "log", "neghalflog", "divbyn", "exp", "identity"}, CREATE(PWLPrimitive)},
         {{"Convolution"}, CREATE(ConvolutionPrimitive)},
         {{"Permute"}, CREATE(PermutePrimitive)},  // permute of certain form (2D transpose) can be assimilated in followed FC layer
         {{"Pooling"}, CREATE(PoolingPrimitive)},

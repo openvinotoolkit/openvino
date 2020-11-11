@@ -2135,7 +2135,23 @@ public:
      */
     float negative_slope;
 };
+class IdentityLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    // explicit LogLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
 
+    using CNNLayer::CNNLayer;
+
+    virtual ~IdentityLayer();
+
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+};
 class ExpLayer : public CNNLayer {
 public:
     /**
@@ -2147,6 +2163,24 @@ public:
     using CNNLayer::CNNLayer;
 
     virtual ~ExpLayer();
+
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+};
+
+class NegHalfLogLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    // explicit LogLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
+
+    using CNNLayer::CNNLayer;
+
+    virtual ~NegHalfLogLayer();
 
     /**
      * @brief Negative slope is used to takle negative inputs instead of setting them to 0

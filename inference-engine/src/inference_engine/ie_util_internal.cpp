@@ -137,8 +137,10 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 #if defined(__ANDROID__)
 			           &layerCloneImpl<TanHLayer              >,
                                    &layerCloneImpl<LogLayer               >,
+                                   &layerCloneImpl<NegHalfLogLayer               >,
                                    &layerCloneImpl<DivByNLayer               >,
     			           &layerCloneImpl<SigmoidLayer           >,
+    			           &layerCloneImpl<IdentityLayer           >,
 #endif
                                    &layerCloneImpl<OneHotLayer>,
                                    &layerCloneImpl<CNNLayer>,

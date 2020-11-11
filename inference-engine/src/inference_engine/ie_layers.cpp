@@ -94,6 +94,14 @@ DivByNLayer::~DivByNLayer() {
 
 }
 
+IdentityLayer::~IdentityLayer() {
+
+}
+
+NegHalfLogLayer::~NegHalfLogLayer() {
+
+}
+
 LogLayer::~LogLayer() {
 
 }

@@ -167,6 +167,44 @@ void make_gna_pwl(const DnnActivation  fun,
             }
             break;
         }
+        case kActNegHalfLog: {
+            auto n_segments = static_cast<int32_t> (pwl_size);
+            gna_pwl.resize(n_segments);
+            // insert extra segment for x values < l_bound
+            gna_pwl[0].xBase = static_cast<int32_t> (INT32_MIN & XBASEMASK);  // zero out the 2 lsb
+            gnalog() << "=========================== NegHalfLog Segments ===========================\n";
+            gna_pwl[0].yBase = gna_pwl[1].yBase = INT16_MAX;
+            gna_pwl[1].xBase = (static_cast<int32_t> (1 + ~XBASEMASK));  // smallest representable value
+            gna_pwl[0].slope = 0;
+
+            gnalog() << gna_pwl[0].xBase / in_scale
+                << " " << (gna_pwl[0].yBase) / out_scale
+                << " " << 0.0
+                << "\n";
+
+            s = gna_slope(pwl[0].m, in_scale, out_scale);
+            gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
+            gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
+
+            gnalog() << ((gna_pwl[1].xBase & XBASEMASK) / in_scale)
+                << " " << (gna_pwl[1].yBase) / out_scale
+                << " " << pwl[0].m
+                << "\n";
+
+            for (uint32_t i = 1; i < pwl_size - 1; ++i) {
+                s = gna_slope(pwl[i].m, in_scale, out_scale);
+                gna_pwl[i + 1].xBase = (static_cast<int32_t> (in_scale * pwl[i].alpha)) & XBASEMASK;
+                gna_pwl[i + 1].yBase = FLOAT_TO_INT16(pwl[i].beta * out_scale);
+                gna_pwl[i + 1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
+                gna_pwl[i + 1].xBase = gna_pwl[i + 1].xBase | s.slope_scale_index;
+
+                gnalog() << (pwl[i].alpha)
+                    << " " << pwl[i].beta
+                    << " " << pwl[i].m
+                    << "\n";
+            }
+            break;
+        }
         case kActRelu:
         case kActLeakyRelu: {
             auto n_segments = 2;

@@ -33,7 +33,8 @@
 double first_deriv_tanh(const double x) { return(1.0 - tanh(x) * tanh(x)); }
 double first_deriv_exp(const double x) { return(exp(x)); }
 double first_deriv_log(const double x) { return(1.0 / x); }
-
+double neghalflog(const double x) { return(-0.5*log(x)); }
+double first_deriv_neghalflog(const double x) { return(-0.5 / x); }
 
 std::map<std::string, std::vector<pwl_t>> pwl_search_map {
     {"log", {{1.0769533473860933e-05 , 8.4918474385631271e-06 , -11.662751279293021 , 92854.532875275778 , -12.451257806448908},
@@ -269,6 +270,9 @@ double calculate_error_pct(const DnnActivationType fun,
         case kActLog:
             min_val = max_val = log(l_bound);
             break;
+        case kActNegHalfLog:
+			min_val = max_val = neghalflog(l_bound);
+			break;
         default:
             break;
     }
@@ -289,6 +293,9 @@ double calculate_error_pct(const DnnActivationType fun,
             case kActLog:
                 val = log(arg);
                 break;
+            case kActNegHalfLog:
+	            val = neghalflog(arg);
+	            break;
             default:
                 break;
         }
@@ -407,6 +414,10 @@ std::vector<pwl_t> pwl_search(const DnnActivationType fun,
                 case kActLog:
                     err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound, threshold, negative);
                     break;
+                case kActNegHalfLog:
+                    negative = true;  // make function convex
+                    err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound, threshold, negative);
+                    break;
                 default:
                     break;
             }
@@ -426,6 +437,9 @@ std::vector<pwl_t> pwl_search(const DnnActivationType fun,
                         break;
                     case kActLog:
                         err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound, threshold, negative);
+                        break;
+                    case kActNegHalfLog:
+                        err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound, threshold, negative);
                         break;
                     default:
                         break;
@@ -504,6 +518,14 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment, n);
             break;
         }
+        case kActNegHalfLog: {
+            double x_min = (1 + ~XBASEMASK) / scale_in;
+            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
+            pwl = pwl_search(kActNegHalfLog, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = negative_pwl(pwl);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment, n);
+            break;
+       }
         default:
             break;
     }
