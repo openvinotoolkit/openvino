@@ -587,17 +587,6 @@ bool MKLDNNMemoryDesc::isPlainFormat() const {
     return is_plain_strides;
 }
 
-bool MKLDNNMemoryDesc::isCompatibleWithFormat(mkldnn::memory::format_tag fmt_tag) const {
-    const auto dims = desc.dims();
-    const auto type = desc.data_type();
-
-    // Try to create with format and compare result with existing desc
-    memory::desc tmp_desc(dims, type, fmt_tag);
-    tmp_desc.data.offset0 = desc.data.offset0;
-
-    return tmp_desc == desc;
-}
-
 /**
  * Convert to  IE::TensorDesc
  *
