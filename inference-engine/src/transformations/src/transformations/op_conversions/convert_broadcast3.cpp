@@ -41,7 +41,11 @@ void ngraph::pass::ConvertBroadcast3::convert_broadcast3() {
         } else if (broadcast_type == op::BroadcastType::BIDIRECTIONAL) {
             auto constant_one = std::make_shared<ngraph::opset1::Constant>(input.get_element_type(), Shape({1}), std::vector<int>{1});
             auto broadcast_ones = std::make_shared<ngraph::opset1::Broadcast>(constant_one, target_shape, op::AutoBroadcastType::NUMPY);
-            last_node = std::make_shared<ngraph::opset1::Multiply>(input, broadcast_ones);
+            if (input.get_element_type() == element::boolean) {
+                last_node = std::make_shared<ngraph::opset1::LogicalOr>(input, broadcast_ones);
+            } else {
+                last_node = std::make_shared<ngraph::opset1::Multiply>(input, broadcast_ones);
+            }
             ngraph::copy_runtime_info(broadcast, {last_node, broadcast_ones, constant_one});
         }
 
