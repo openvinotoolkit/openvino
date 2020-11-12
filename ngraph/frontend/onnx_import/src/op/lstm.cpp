@@ -70,7 +70,7 @@ namespace ngraph
 
                 struct LSTMNgInputMap
                 {
-                    // Check if dimensions required to create default inputs are static
+                    // Check if input shape dimension at dimension_index is static
                     bool check_static_input_dim(LSTMInput input, const size_t dimension_index)
                     {
                         return m_input_map[input].get_partial_shape().rank().is_static() &&
@@ -153,8 +153,9 @@ namespace ngraph
                         init_dim_map();
 
                         // ------ Optional inputs ------
-                        // `B` - The bias tensor for input gate. Shape [num_directions,
-                        // 8*hidden_size]
+                        // `B` - The bias tensor for input gate.
+                        // ONNX Shape: [num_directions, 8*hidden_size]
+                        // OpenVino Shape: [num_directions, 4*hidden_size]
                         if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
                         {
                             auto bias = ng_inputs.at(3);
@@ -190,8 +191,8 @@ namespace ngraph
                                                        m_dim_map[LSTMInputDimension::HIDDEN_SIZE],
                                                    0.f));
                         }
-                        // `sequence_lens`- The lengths of the sequences in a batch. Shape
-                        // [batch_size]
+                        // `sequence_lens`- The lengths of the sequences in a batch.
+                        // Shape: [batch_size]
                         if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4)))
                         {
                             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = ng_inputs.at(4);
@@ -216,8 +217,8 @@ namespace ngraph
                                         m_dim_map[LSTMInputDimension::SEQ_LENGTH]));
                         }
                         // `initial_h` - The initial value of the hidden.
-                        // ONNX Shape [num_directions, batch_size, hidden_size]
-                        // OpenVino Shape [batch_size, num_directions, hidden_size]
+                        // ONNX Shape: [num_directions, batch_size, hidden_size]
+                        // OpenVino Shape: [batch_size, num_directions, hidden_size]
                         if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))
                         {
                             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
@@ -251,8 +252,8 @@ namespace ngraph
                                         0.f));
                         }
                         // `initial_c` - The initial value of the cell.
-                        // ONNX Shape [num_directions, batch_size, hidden_size]
-                        // OpenVino Shape [batch_size, num_directions, hidden_size]
+                        // ONNX Shape: [num_directions, batch_size, hidden_size]
+                        // OpenVino Shape: [batch_size, num_directions, hidden_size]
                         if (ng_inputs.size() > 6 && !ngraph::op::is_null(ng_inputs.at(6)))
                         {
                             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
