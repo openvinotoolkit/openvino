@@ -54,3 +54,6 @@ ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to 
 # Type of build, we add this as an explicit option to default it to ON
 # FIXME: Ah this moment setting this to OFF will only build ngraph a static library
 ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
+
+ie_option_enum(ENABLE_SUBSET "Enable the IE subset analysis or usage" OFF
+               ALLOWED_VALUES ON OFF ANALYZE)
