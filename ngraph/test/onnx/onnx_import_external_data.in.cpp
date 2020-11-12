@@ -146,8 +146,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_sanitize_path)
 {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data.prototxt"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/external_data/external_data_sanitize_test.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
