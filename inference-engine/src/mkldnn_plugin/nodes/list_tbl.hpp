@@ -68,7 +68,6 @@ MKLDNN_EXTENSION_NODE(InterpImpl, Interp);
 MKLDNN_EXTENSION_NODE(BatchToSpaceImpl, BatchToSpace);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronPriorGridGeneratorImpl, ExperimentalDetectronPriorGridGenerator);
 MKLDNN_EXTENSION_NODE(SimplerNMSImpl, SimplerNMS);
-MKLDNN_EXTENSION_NODE(PadImpl, Pad);
 MKLDNN_EXTENSION_NODE(GRNImpl, GRN);
 MKLDNN_EXTENSION_NODE(SparseFillEmptyRowsImpl, SparseFillEmptyRows);
 MKLDNN_EXTENSION_NODE(BucketizeImpl, Bucketize);
