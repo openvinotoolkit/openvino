@@ -28,7 +28,8 @@ namespace pass {
 namespace itt {
 namespace domains {
     OV_ITT_DOMAIN(IETransform);
-}
-}
-}
-}
+    OV_ITT_DOMAIN(nGraphPass_LT);
+}   // namespace domains
+}   // namespace itt
+}   // namespace pass
+}   // namespace ngraph
