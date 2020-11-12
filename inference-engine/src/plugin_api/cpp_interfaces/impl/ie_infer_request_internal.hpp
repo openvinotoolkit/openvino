@@ -223,6 +223,12 @@ public:
         }
     }
 
+    std::vector<IVariableStateInternal::Ptr> QueryState() override {
+        // meaning base plugin reports as no state available - plugin owners need to create proper override of this
+        THROW_IE_EXCEPTION << "Plugin doesn't override QueryState";
+        return {};
+    }
+
 protected:
     InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data

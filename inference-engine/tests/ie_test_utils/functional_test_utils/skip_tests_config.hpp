@@ -14,16 +14,9 @@ std::vector<std::string> disabledTestPatterns();
 namespace FuncTestUtils {
 namespace SkipTestsConfig {
 
-inline bool currentTestIsDisabled() {
-    const auto fullName = ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()
-                          + std::string(".") + ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    for (const auto &pattern : disabledTestPatterns()) {
-        std::regex re(pattern);
-        if (std::regex_match(fullName, re))
-            return true;
-    }
-    return false;
-}
+extern bool disable_tests_skipping;
+
+bool currentTestIsDisabled();
 
 }  // namespace SkipTestsConfig
 }  // namespace FuncTestUtils
