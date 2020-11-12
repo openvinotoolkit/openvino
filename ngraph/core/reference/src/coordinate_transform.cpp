@@ -16,9 +16,7 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <iostream>
 #include <numeric>
-#include <sstream>
 #include <vector>
 
 #include "ngraph/axis_vector.hpp"
@@ -33,6 +31,19 @@ using namespace ngraph;
 
 namespace
 {
+    template <size_t Val>
+    struct Default
+    {
+        constexpr size_t operator[](size_t) const noexcept { return Val; }
+    };
+    using DefaultStrides = Default<1>;
+    using DefaultPading = Default<0>;
+
+    struct DefaultAxisOrder
+    {
+        constexpr size_t operator[](size_t i) const noexcept { return i; }
+    };
+
     Strides default_strides(size_t n_axes) { return Strides(n_axes, 1); }
     CoordinateDiff default_padding(size_t n_axes) { return CoordinateDiff(n_axes, 0); }
     AxisVector default_axis_order(size_t n_axes)
@@ -44,7 +55,7 @@ namespace
 
     Coordinate default_source_start_corner(size_t n_axes) { return Coordinate(n_axes, 0); }
     Coordinate default_source_end_corner(const Shape& source_shape) { return source_shape; }
-}
+} // namespace
 
 CoordinateTransformBasic::CoordinateTransformBasic(const Shape& source_shape)
     : m_source_shape(source_shape)
@@ -139,10 +150,7 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
     }
 
     AxisVector all_axes(m_n_axes);
-    for (size_t i = 0; i < all_axes.size(); i++)
-    {
-        all_axes[i] = i;
-    }
+    std::iota(all_axes.begin(), all_axes.end(), 0);
 
     if (!std::is_permutation(all_axes.begin(), all_axes.end(), source_axis_order.begin()))
     {
@@ -155,10 +163,7 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
     {
         if (target_dilation_strides[i] == 0)
         {
-            std::stringstream ss;
-
-            ss << "The target dilation stride is 0 at axis " << i;
-            throw std::domain_error(ss.str());
+            throw std::domain_error("The target dilation stride is 0 at axis " + std::to_string(i));
         }
     }
 
@@ -172,10 +177,7 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
 
         if (padded_upper_bound < 0)
         {
-            std::stringstream ss;
-
-            ss << "The end corner is out of bounds at axis " << i;
-            throw std::domain_error(ss.str());
+            throw std::domain_error("The end corner is out of bounds at axis " + std::to_string(i));
         }
 
         padded_upper_bounds.push_back(padded_upper_bound);
@@ -186,18 +188,13 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
         if (static_cast<int64_t>(source_start_corner[i]) >= padded_upper_bounds[i] &&
             source_start_corner[i] != source_shape[i])
         {
-            std::stringstream ss;
-
-            ss << "The start corner is out of bounds at axis " << i;
-            throw std::domain_error(ss.str());
+            throw std::domain_error("The start corner is out of bounds at axis " +
+                                    std::to_string(i));
         }
 
         if (static_cast<int64_t>(source_end_corner[i]) > padded_upper_bounds[i])
         {
-            std::stringstream ss;
-
-            ss << "The end corner is out of bounds at axis " << i;
-            throw std::domain_error(ss.str());
+            throw std::domain_error("The end corner is out of bounds at axis " + std::to_string(i));
         }
     }
 
@@ -205,10 +202,7 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
     {
         if (source_strides[i] == 0)
         {
-            std::stringstream ss;
-
-            ss << "The source stride is 0 at axis " << i;
-            throw std::domain_error(ss.str());
+            throw std::domain_error("The source stride is 0 at axis " + std::to_string(i));
         }
     }
 
@@ -314,13 +308,13 @@ Coordinate CoordinateTransform::to_source_coordinate(const Coordinate& c_target)
 
     for (size_t target_axis = 0; target_axis < m_n_axes; target_axis++)
     {
-        size_t source_axis = m_source_axis_order[target_axis];
+        const size_t source_axis = m_source_axis_order[target_axis];
 
-        size_t target_pos = c_target[target_axis];
-        size_t pos_destrided = target_pos * m_source_strides[source_axis];
-        size_t pos_deshifted = pos_destrided + m_source_start_corner[source_axis];
-        size_t pos_depadded = pos_deshifted - m_target_padding_below[target_axis];
-        size_t pos_dedilated = pos_depadded / m_target_dilation_strides[target_axis];
+        const size_t target_pos = c_target[target_axis];
+        const size_t pos_destrided = target_pos * m_source_strides[source_axis];
+        const size_t pos_deshifted = pos_destrided + m_source_start_corner[source_axis];
+        const size_t pos_depadded = pos_deshifted - m_target_padding_below[target_axis];
+        const size_t pos_dedilated = pos_depadded / m_target_dilation_strides[target_axis];
         c_source[source_axis] = pos_dedilated;
     }
 
@@ -347,18 +341,18 @@ bool CoordinateTransform::has_source_coordinate(const Coordinate& c_target) cons
 
         // The rest of this is a replay of the corresponding logic in `to_source_coordinate`, with
         // bounds and divisibility checking.
-        std::ptrdiff_t source_axis = m_source_axis_order[target_axis];
+        const std::ptrdiff_t source_axis = m_source_axis_order[target_axis];
 
-        std::ptrdiff_t target_pos = c_target[target_axis];
-        std::ptrdiff_t pos_destrided = target_pos * m_source_strides[source_axis];
-        std::ptrdiff_t pos_deshifted = pos_destrided + m_source_start_corner[source_axis];
+        const std::ptrdiff_t target_pos = c_target[target_axis];
+        const std::ptrdiff_t pos_destrided = target_pos * m_source_strides[source_axis];
+        const std::ptrdiff_t pos_deshifted = pos_destrided + m_source_start_corner[source_axis];
 
         // If we are in the below-padding or the above-padding.
         if (pos_deshifted < m_target_padding_below[target_axis])
         {
             return false;
         }
-        std::ptrdiff_t pos_depadded = pos_deshifted - m_target_padding_below[target_axis];
+        const std::ptrdiff_t pos_depadded = pos_deshifted - m_target_padding_below[target_axis];
 
         // If we are in the above-padding, we have no source coordinate.
         if (m_source_shape[source_axis] == 0 ||
@@ -387,31 +381,6 @@ const Shape& CoordinateTransform::get_source_shape() const noexcept
 const Shape& CoordinateTransform::get_target_shape() const noexcept
 {
     return m_target_shape;
-}
-
-const Coordinate& CoordinateTransform::get_source_start_corner() const noexcept
-{
-    return m_source_start_corner;
-}
-
-const Coordinate& CoordinateTransform::get_source_end_corner() const noexcept
-{
-    return m_source_end_corner;
-}
-
-const Strides& CoordinateTransform::get_source_strides() const noexcept
-{
-    return m_source_strides;
-}
-
-const AxisVector& CoordinateTransform::get_source_axis_order() const noexcept
-{
-    return m_source_axis_order;
-}
-
-const Strides& CoordinateTransform::get_target_dilation_strides() const noexcept
-{
-    return m_target_dilation_strides;
 }
 
 CoordinateIterator CoordinateTransform::begin() const noexcept

@@ -152,11 +152,6 @@ namespace ngraph
 
         const Shape& get_source_shape() const noexcept;
         const Shape& get_target_shape() const noexcept;
-        const Coordinate& get_source_start_corner() const noexcept;
-        const Coordinate& get_source_end_corner() const noexcept;
-        const Strides& get_source_strides() const noexcept;
-        const AxisVector& get_source_axis_order() const noexcept;
-        const Strides& get_target_dilation_strides() const noexcept;
 
         /// \brief Returns an iterator to the first coordinate of the tensor.
         CoordinateIterator begin() const noexcept;
