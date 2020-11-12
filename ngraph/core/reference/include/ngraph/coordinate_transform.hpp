@@ -94,6 +94,7 @@ namespace ngraph
 
     protected:
         Shape m_source_shape;
+        size_t m_n_axes;
     };
 
     /// \brief Class which allows to calculate item index with given coordinates in tensor
@@ -160,6 +161,14 @@ namespace ngraph
         const CoordinateIterator& end() const noexcept;
 
     private:
+        struct Transform
+        {
+            virtual ~Transform() = default;
+            virtual Coordinate to_source_coordinate(const Coordinate& c) const = 0;
+            virtual bool has_source_coordinate(const Coordinate& c) const = 0;
+        };
+        std::unique_ptr<Transform> impl;
+
         Coordinate m_source_start_corner;
         Coordinate m_source_end_corner;
         Strides m_source_strides;
@@ -169,6 +178,5 @@ namespace ngraph
         Strides m_target_dilation_strides;
 
         Shape m_target_shape;
-        size_t m_n_axes;
     };
-}
+} // namespace ngraph

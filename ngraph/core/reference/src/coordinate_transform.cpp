@@ -59,6 +59,7 @@ namespace
 
 CoordinateTransformBasic::CoordinateTransformBasic(const Shape& source_shape)
     : m_source_shape(source_shape)
+    , m_n_axes(m_source_shape.size())
 {
 }
 
@@ -108,8 +109,6 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
     , m_target_padding_above(target_padding_above)
     , m_target_dilation_strides(target_dilation_strides)
 {
-    m_n_axes = source_shape.size();
-
     if (m_n_axes != source_start_corner.size())
     {
         throw std::domain_error(
