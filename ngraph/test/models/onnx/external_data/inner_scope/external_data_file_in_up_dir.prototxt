@@ -4,15 +4,8 @@ graph {
   node {
     input: "A"
     input: "B"
-    output: "X"
-    name: "add_node1"
-    op_type: "Add"
-  }
-  node {
-    input: "X"
-    input: "C"
     output: "Y"
-    name: "add_node2"
+    name: "add"
     op_type: "Add"
   }
   name: "test_graph"
@@ -23,7 +16,15 @@ graph {
     name: "A"
     external_data {
         key: "location",
-        value: "../data/tensor.data"
+        value: "../tensors_data/tensor.data"
+    }
+    external_data {
+        key: "offset",
+        value: "4096"
+    }
+    external_data {
+        key: "length",
+        value: "16"
     }
     data_location: 1
   }
@@ -45,22 +46,6 @@ graph {
   }
   input {
     name: "B"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "C"
     type {
       tensor_type {
         elem_type: 1
