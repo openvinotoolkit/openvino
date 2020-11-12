@@ -52,7 +52,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
         R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
 
-        // TODO[oneDNN]: Tmp transition issues
+        // TODO [oneDNN]: Tmp transition issues
         // impl type mismatch, and  "Cannot get the original layer configuration!"
         R"(.*ConvConcatSubgraphTest.*)",
 

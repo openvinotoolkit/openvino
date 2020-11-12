@@ -37,7 +37,7 @@ TEST(MemDescTest, Conversion) {
 }
 
 TEST(MemDescTest, ConversionKeepAny) {
-    dnnl::memory::desc tdesc {{1,2,3,4}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::any};
+    dnnl::memory::desc tdesc {{1, 2, 3, 4}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::any};
     MKLDNNMemoryDesc plg_tdesc {tdesc};
     TensorDesc ie_tdesc {plg_tdesc};
     MKLDNNMemoryDesc plg_tdesc_2 {ie_tdesc};
