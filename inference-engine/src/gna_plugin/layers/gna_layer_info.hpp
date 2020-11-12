@@ -135,6 +135,39 @@ class LayerInfo {
     bool isPower() const noexcept {
         return isOfType("power");
     }
+    bool isTanh() const noexcept {
+        return isOfType("tanh");
+    }
+    bool isExp() const noexcept {
+        return isOfType("exp");
+    }
+    bool isLog() const noexcept {
+        return isOfType("log");
+    }
+    bool isSigmoid() const noexcept {
+        return isOfType("sigmoid");
+    }
+    bool isNegLog() const noexcept {
+        return isOfType("neglog");
+    }
+    bool isNegHalfLog() const noexcept {
+        return isOfType("neghalflog");
+    }
+    bool isClamp() const noexcept {
+        return isOfType("clamp");
+    }
+    bool isAbs() const noexcept {
+        return isOfType("abs");
+    }
+    bool isSign() const noexcept {
+        return isOfType("sign");
+    }
+    bool isSoftSign() const noexcept {
+        return isOfType("softsign");
+    }
+    bool isLeakyRelu() const noexcept {
+        return isOfType("leakyrelu");
+    }
     bool has32BInput() const noexcept {
         IS_VALID();
         return isActivation() || isPooling();
@@ -186,9 +219,6 @@ class LayerInfo {
         // coverity[var_deref_op]
         return dynamic_cast<const InferenceEngine::EltwiseLayer*>(layer)->_operation ==
             InferenceEngine::EltwiseLayer::Prod;
-    }
-    bool isAbs() const noexcept {
-        return isOfType("abs");
     }
     bool isIdentity() const noexcept {
         return isOfType("identity");

@@ -46,9 +46,12 @@ typedef struct {
 } pwl_t;
 
 double first_deriv_tanh(const double x);
+double neglog(const double x);
+double neghalflog(const double x);
 double sigmoid(const double x);
 double first_deriv_sigmoid(const double x);
 double softsign(const double x);
+double sign(const double x);
 double first_deriv_softsign(const double x);
 double relu(const double x);
 double leaky_relu(const double x);

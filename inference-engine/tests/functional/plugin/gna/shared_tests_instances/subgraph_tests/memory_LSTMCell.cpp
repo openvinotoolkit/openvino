@@ -23,7 +23,6 @@ namespace SubgraphTestsDefinitions {
     std::map<std::string, std::string> additional_config = {
         {"GNA_COMPACT_MODE", "NO"},
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_SCALE_FACTOR_0", "1638.4"},
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
