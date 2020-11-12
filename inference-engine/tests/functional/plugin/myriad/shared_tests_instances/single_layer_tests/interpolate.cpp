@@ -18,10 +18,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<std::vector<size_t>> inShapes = {
         {1, 8, 38, 38},
+        {1, 8, 36, 36},
+        {1, 8, 35, 35},
 };
 
 const std::vector<std::vector<size_t>> targetShapes = {
         {1, 8, 38 * 2, 38 * 2},
+        {1, 8, 70, 70},  // * 1.94
+        {1, 8, 46, 46},  // * 1.3
 };
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
@@ -34,6 +38,10 @@ const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesNearest = {
         ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesNearestMore = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesWithoutNearest = {
@@ -51,6 +59,10 @@ const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode = {
         ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestModeMore = {
+        ngraph::op::v4::Interpolate::NearestMode::floor,
 };
 
 const std::vector<std::vector<size_t>> pads = {
@@ -90,6 +102,18 @@ const auto interpolateCasesNearestMode = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
+const auto interpolateCasesNearestModeMore = ::testing::Combine(
+        ::testing::ValuesIn(nearestMode),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModesNearestMore),
+        ::testing::ValuesIn(defaultNearestModeMore),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
+
 const auto interpolateCasesWithoutNearestMode = ::testing::Combine(
         ::testing::ValuesIn(modesWithoutNearest),
         ::testing::ValuesIn(shapeCalculationMode),
@@ -104,6 +128,18 @@ const auto interpolateCasesWithoutNearestMode = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesNearestMode,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+    InterpolateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_more, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesNearestModeMore,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

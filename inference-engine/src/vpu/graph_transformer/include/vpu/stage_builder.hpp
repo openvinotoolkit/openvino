@@ -335,6 +335,8 @@ public:
             const std::string& name,
             const ie::CNNLayerPtr& layer,
             bool antialias,
+            InterpolateCoordTransMode coordinateTransformationMode,
+            InterpolateNearestMode nearestMode,
             float factor,
             const Data& input,
             const Data& output);

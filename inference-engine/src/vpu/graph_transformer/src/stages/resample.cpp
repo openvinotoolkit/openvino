@@ -54,10 +54,14 @@ private:
         auto antialias = attrs().get<bool>("antialias");
         auto factor = attrs().get<float>("factor");
         auto sampleType = attrs().get<ResampleType>("type");
+        auto coordinateTransformationMode = attrs().get<InterpolateCoordTransMode>("coordinate_transformation_mode");
+        auto nearestMode = attrs().get<InterpolateNearestMode>("nearest_mode");
 
         serializer.append(static_cast<int32_t>(antialias));
         serializer.append(static_cast<float>(factor));
         serializer.append(static_cast<uint32_t>(sampleType));
+        serializer.append(static_cast<uint32_t>(coordinateTransformationMode));
+        serializer.append(static_cast<uint32_t>(nearestMode));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -76,12 +80,16 @@ Stage StageBuilder::addResampleNearestStage(
             const std::string& name,
             const ie::CNNLayerPtr& layer,
             bool antialias,
+            InterpolateCoordTransMode coordinateTransformationMode,
+            InterpolateNearestMode nearestMode,
             float factor,
             const Data& input,
             const Data& output) {
     auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, {input}, {output});
 
     stage->attrs().set<bool>("antialias", antialias);
+    stage->attrs().set<InterpolateCoordTransMode>("coordinate_transformation_mode", coordinateTransformationMode);
+    stage->attrs().set<InterpolateNearestMode>("nearest_mode", nearestMode);
     stage->attrs().set<float>("factor", factor);
     stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
 
@@ -98,11 +106,24 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
 
     ie::details::CaselessEq<std::string> cmp;
     const auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
+    const auto coord = layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+    const auto nearest = layer->GetParamAsString("nearest_mode", "round_prefer_ceil");
+    InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
+    InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
+
+    if (cmp(coord, "asymmetric")) {
+        coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
+    }
+    if (cmp(nearest, "floor")) {
+        nearestMode = InterpolateNearestMode::Floor;
+    }
+
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
         _stageBuilder->addResampleNearestStage(model,
                                                layer->name,
                                                layer,
                                                layer->GetParamAsInt("antialias", 0),
+                                               coordinateTransformationMode, nearestMode,
                                                layer->GetParamAsFloat("factor", -1),
                                                inputs[0],
                                                outputs[0]);
