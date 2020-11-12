@@ -15,21 +15,22 @@ This plugin adds the following command-line options:
 * `--niter` - Number of times to run executable.
 """
 
+import hashlib
+import logging
 # pylint:disable=import-error
 import os
-import sys
-import pytest
-from pathlib import Path
-import yaml
-import hashlib
 import shutil
-import logging
+import sys
 import tempfile
+from pathlib import Path
+
+import pytest
+import yaml
 from jsonschema import validate, ValidationError
 
+from scripts.run_timetest import check_positive_int
 from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
-from scripts.run_timetest import check_positive_int
 
 
 # -------------------- CLI options --------------------
@@ -105,6 +106,7 @@ def executable(request):
 def niter(request):
     """Fixture function for command-line option."""
     return request.config.getoption('niter')
+
 
 # -------------------- CLI options --------------------
 
