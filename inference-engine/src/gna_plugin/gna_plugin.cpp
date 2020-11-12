@@ -421,6 +421,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<InsertCopyLayerPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
+#if GNA_LIB_VER == 2
+        passes->registerPass<ForbidActivationFusingPass>();
+#endif
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
         passes->registerPass<BroadcastConstPass>();
@@ -1183,11 +1186,11 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
     return inputBlob;
 }
 
-std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() {
+std::vector<InferenceEngine::VariableStateInternal::Ptr>  GNAPlugin::QueryState() {
     if (memoryStates.size() != graphCompiler.memory_connection.size()) {
         memoryStates.clear();
         for (auto& connection : graphCompiler.memory_connection) {
-            auto state = std::make_shared<memory::GNAMemoryState>(connection.first, std::make_shared <GNAMemoryLayer>(connection.second));
+            auto state = std::make_shared<memory::GNAVariableState>(connection.first, std::make_shared <GNAMemoryLayer>(connection.second));
             memoryStates.emplace_back(state);
         }
     }
