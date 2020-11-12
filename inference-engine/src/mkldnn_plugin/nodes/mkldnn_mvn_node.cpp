@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_mvn_node.h"
-#include "desc_iterator.hpp"
+
 #include "mkldnn_quantize_node.h"
 #include <legacy/ie_layers.h>
 #include "mkldnn_eltwise_node.h"
@@ -22,7 +22,7 @@
 #include "jit_uni_quantization_injector.hpp"
 #include "jit_uni_eltwise_injector.hpp"
 
-#include "ie_mkldnn_internal.h"
+
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -59,7 +59,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
         mov(reg_stride, ptr[reg_params + GET_OFF(src_stride)]);
 
-        int repeats = (!jcp_.planar_layout && !jcp_.across_channels && isa == cpu::sse42) ? 2 : 1;  // block size is also 8 on cpu::sse42
+        int repeats = (!jcp_.planar_layout && !jcp_.across_channels && isa == cpu::x64::sse41) ? 2 : 1;  // block size is also 8 on cpu::x64::sse41
         for (int i = 0; i < repeats; i++) {
             int offset_sse42 = i * 4;
             if (i > 0) {
@@ -120,9 +120,9 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
             if (jcp_.planar_layout) {
                 Vmm vmm_dst = jcp_.normalize_variance ? vmm_variance : vmm_sum;
                 // hsum+store
-                if (isa == cpu::sse42) {
+                if (isa == cpu::x64::sse41) {
                     hsum_store(vmm_dst);
-                } else if (isa == cpu::avx2) {
+                } else if (isa == cpu::x64::avx2) {
                     Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_dst.getIdx());
                     vextractf128(xmm_aux1, ymm_sum, 0);
                     vextractf128(xmm_aux2, ymm_sum, 1);
@@ -165,7 +165,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     Xbyak::Reg64 reg_src = r8;
@@ -257,7 +257,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         if (isa == avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        int repeats = (!jcp_.planar_layout && !jcp_.across_channels && isa == cpu::sse42) ? 2 : 1;  // block size is also 8 on cpu::sse42
+        int repeats = (!jcp_.planar_layout && !jcp_.across_channels && isa == cpu::x64::sse41) ? 2 : 1;  // block size is also 8 on cpu::x64::sse41
         for (int i = 0; i < repeats; i++) {
             int offset_sse42 = i * 4;
             if (i > 0) {
@@ -318,7 +318,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
@@ -378,29 +378,29 @@ private:
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::avx512_common) {
+            if (isa == cpu::x64::avx512_common) {
                 vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vmovq(op, xmm_dst);
                 else
                     movd(op, xmm_dst);
             }
         } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::avx512_common) {
+            if (isa == cpu::x64::avx512_common) {
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vmovq(op, xmm_dst);
                 else
                     movd(op, xmm_dst);
@@ -528,15 +528,15 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     if (inputPrecision == Precision::FP32 && outputPrecision == Precision::FP32) {
         if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-            if (mayiuse(cpu::avx512_common)) {
+            if (mayiuse(cpu::x64::avx512_common)) {
                 pushDesc(memory::format_tag::nChw16c);
-            } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
+            } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
                 pushDesc(memory::format_tag::nChw8c);
             }
         } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-            if (mayiuse(cpu::avx512_common)) {
+            if (mayiuse(cpu::x64::avx512_common)) {
                 pushDesc(memory::format_tag::nCdhw16c);
-            } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
+            } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
                 pushDesc(memory::format_tag::nCdhw8c);
             }
         }
@@ -569,32 +569,32 @@ void MKLDNNMVNNode::createPrimitive() {
     jcp.normalize_variance = normalize_variance;
     jcp.across_channels = across_channels;
 
-    if (mayiuse(cpu::avx512_common)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::avx512_common>(jcp, *attr.get()));
+    if (mayiuse(cpu::x64::avx512_common)) {
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
 
         jcp.normalize_variance = false;
-        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::avx512_common>(jcp));
+        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
         if (normalize_variance) {
             jcp.normalize_variance = true;
-            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::avx512_common>(jcp));
+            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
         }
-    } else if (mayiuse(cpu::avx2)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::avx2>(jcp, *attr.get()));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
 
         jcp.normalize_variance = false;
-        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::avx2>(jcp));
+        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
         if (normalize_variance) {
             jcp.normalize_variance = true;
-            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::avx2>(jcp));
+            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
         }
-    } else if (mayiuse(cpu::sse42)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::sse42>(jcp, *attr.get()));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
 
         jcp.normalize_variance = false;
-        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::sse42>(jcp));
+        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
         if (normalize_variance) {
             jcp.normalize_variance = true;
-            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::sse42>(jcp));
+            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
         }
     }
     if (mvn_kernel)
@@ -698,11 +698,11 @@ std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(co
 
 void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVector& dims) {
     size_t blk_size = 1;  // blk size in vmm
-    if (mayiuse(cpu::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
-    } else if (mayiuse(cpu::avx2)) {
+    } else if (mayiuse(cpu::x64::avx2)) {
         blk_size = 8;
-    } else if (mayiuse(cpu::sse42)) {
+    } else if (mayiuse(cpu::x64::sse41)) {
         blk_size = 4;
     }
 
@@ -921,10 +921,10 @@ template <typename in_data_t, typename out_data_t>
 void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
     size_t blk_size = 1;  // channel blk for memory layout
     size_t ele_in_vmm = 4;
-    if (mayiuse(cpu::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
         ele_in_vmm = 16;
-    } else if (mayiuse(cpu::avx2)) {
+    } else if (mayiuse(cpu::x64::avx2)) {
         blk_size = 8;
         ele_in_vmm = 8;
     } else {

@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_softmax_node.h"
-#include "desc_iterator.hpp"
+
 #include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>

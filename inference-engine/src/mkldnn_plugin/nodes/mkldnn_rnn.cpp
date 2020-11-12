@@ -4,7 +4,7 @@
 
 #include "mkldnn_rnn.h"
 #include "mkldnn_extension_utils.h"
-#include "desc_iterator.hpp"
+
 #include "utils/general_utils.h"
 
 #include <string>

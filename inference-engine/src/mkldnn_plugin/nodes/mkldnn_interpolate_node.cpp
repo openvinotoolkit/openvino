@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_interpolate_node.h"
-#include "desc_iterator.hpp"
+
 #include "mkldnn_quantize_node.h"
 #include <legacy/ie_layers.h>
 #include "mkldnn_eltwise_node.h"
@@ -24,7 +24,7 @@
 #include "common/cpu_memcpy.h"
 #include "ngraph/type/bfloat16.hpp"
 
-#include "ie_mkldnn_internal.h"
+
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -77,7 +77,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         if (attr_.post_ops_.len() != 0)
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
-        if (isa == cpu::avx512_common)
+        if (isa == cpu::x64::avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         switch (jcp_.mode) {
@@ -153,7 +153,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
@@ -297,7 +297,7 @@ private:
 
     void nn_blk() {
         int step = vlen / sizeof(float);
-        if (isa == cpu::sse42)
+        if (isa == cpu::x64::sse41)
             step *= 2;
 
         Xbyak::Label nn_loop_label;
@@ -316,7 +316,7 @@ private:
                 apply_post_ops(jcp_.dst_dt, 0);
             store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
 
-            if (isa == cpu::sse42) {
+            if (isa == cpu::x64::sse41) {
                 int sse42_offset = 4;
                 add(reg_src_aux, sse42_offset * jcp_.src_data_size);
                 load_vector(vmm_val, ptr[reg_src_aux], jcp_.src_dt);
@@ -420,7 +420,7 @@ private:
 
     void linear_onnx_c_gathered() {
         int step = vlen / sizeof(float);
-        int blk = (isa == cpu::sse42) ? (2 * step) : step;
+        int blk = (isa == cpu::x64::sse41) ? (2 * step) : step;
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
@@ -456,7 +456,7 @@ private:
             }
             store_vector(ptr[reg_dst], vmm_valTR, jcp_.dst_dt);
 
-            if ((isa == cpu::sse42) && (jcp_.layout == InterpolateLayoutType::block)) {
+            if ((isa == cpu::x64::sse41) && (jcp_.layout == InterpolateLayoutType::block)) {
                 int sse42_offset = 4;  // vmm is xmm here
                 load_vector(vmm_valTL, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
                 load_vector(vmm_valTR, ptr[reg_src_aux + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
@@ -663,7 +663,7 @@ private:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
             case memory::data_type::bf16:
-                if (isa != cpu::sse42) {
+                if (isa != cpu::x64::sse41) {
                     vpmovzxwd(vmm_src, op);
                 }
                 uni_vpslld(vmm_src, vmm_src, 16);
@@ -709,29 +709,29 @@ private:
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::avx512_common) {
+            if (isa == cpu::x64::avx512_common) {
                 vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vmovq(op, xmm_dst);
                 else
                     movd(op, xmm_dst);
             }
         } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::avx512_common) {
+            if (isa == cpu::x64::avx512_common) {
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vmovq(op, xmm_dst);
                 else
                     movd(op, xmm_dst);
@@ -1068,12 +1068,12 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
 
     if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx) {
         // blk and by_channel JIT kernel on sse42 or above machine
-        if (mayiuse(cpu::sse42)) {
+        if (mayiuse(cpu::x64::sse41)) {
             if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 4) {
-                if (mayiuse(cpu::avx512_common)) {
+                if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(memory::format_tag::nhwc, jit_avx512);
                     pushDesc(memory::format_tag::nChw16c, jit_avx512);
-                } else if (mayiuse(cpu::avx2)) {
+                } else if (mayiuse(cpu::x64::avx2)) {
                     pushDesc(memory::format_tag::nhwc, jit_avx2);
                     pushDesc(memory::format_tag::nChw8c, jit_avx2);
                 } else {
@@ -1081,10 +1081,10 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
                     pushDesc(memory::format_tag::nChw8c, jit_sse42);
                 }
             } else if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 5 && mode == InterpolateMode::nearest) {
-                if (mayiuse(cpu::avx512_common)) {
+                if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(memory::format_tag::ndhwc, jit_avx512);
                     pushDesc(memory::format_tag::nCdhw16c, jit_avx512);
-                } else if (mayiuse(cpu::avx2)) {
+                } else if (mayiuse(cpu::x64::avx2)) {
                     pushDesc(memory::format_tag::ndhwc, jit_avx2);
                     pushDesc(memory::format_tag::nCdhw8c, jit_avx2);
                 } else {
@@ -1095,10 +1095,10 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
         }
 
         // planar for 1.ref on machine without sse42(if no sse42, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
-        if (!mayiuse(cpu::sse42))
+        if (!mayiuse(cpu::x64::sse41))
             pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), ref);
 
-        if (mayiuse(cpu::avx2) && inputPrec == Precision::FP32) {
+        if (mayiuse(cpu::x64::avx2) && inputPrec == Precision::FP32) {
             pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), jit_avx2);
         }
     } else if (mode == InterpolateMode::linear || mode == InterpolateMode::cubic) {
@@ -1144,7 +1144,7 @@ void MKLDNNInterpolateNode::createPrimitive() {
 
     if (getChildEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
         jcp.layout = InterpolateLayoutType::planar;
-    } else if (one_of(getChildEdgeAt(0)->getMemory().GetDesc(), format_tag::nChw8c, format_tag::nChw16c)) {
+    } else if (one_of(getChildEdgeAt(0)->getMemory().GetDesc().getFormat(), format_tag::nChw8c, format_tag::nChw16c)) {
         jcp.layout = InterpolateLayoutType::block;
     } else {
         jcp.layout = InterpolateLayoutType::by_channel;
@@ -1154,17 +1154,17 @@ void MKLDNNInterpolateNode::createPrimitive() {
 
     if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx) {
         if (jcp.layout != InterpolateLayoutType::planar) {
-            if (mayiuse(cpu::avx512_common)) {
-                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::avx512_common>(jcp, *attr.get()));
-            } else if (mayiuse(cpu::avx2)) {
-                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::avx2>(jcp, *attr.get()));
-            } else if (mayiuse(cpu::sse42)) {
-                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::sse42>(jcp, *attr.get()));
+            if (mayiuse(cpu::x64::avx512_common)) {
+                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+            } else if (mayiuse(cpu::x64::avx2)) {
+                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+            } else if (mayiuse(cpu::x64::sse41)) {
+                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
             }
         } else {
             // gather ISA(for planar JIT kernel) for avx2 and fp32
-            if (mayiuse(cpu::avx2) && inputPrec == Precision::FP32) {
-                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::avx2>(jcp, *attr.get()));
+            if (mayiuse(cpu::x64::avx2) && inputPrec == Precision::FP32) {
+                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
             }
         }
         if (interpolateKernel)
@@ -1651,7 +1651,7 @@ void MKLDNNInterpolateNode::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr
                 (*interpolateKernel)(&arg);
             });
         } else {  // for blk
-            int blk_size = mayiuse(cpu::avx512_common) ? 16 : 8;
+            int blk_size = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
             int CB = div_up(C, blk_size);
             const uint8_t *in_ptr = in_ptr_ + (IW * IH * ID * CB * blk_size * b) * srcDataSize;
             uint8_t *out_ptr = out_ptr_ + (OW * OH * OD * CB * blk_size * b) * dstDataSize;
@@ -1779,7 +1779,7 @@ void MKLDNNInterpolateNode::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t 
             (*interpolateKernel)(&arg);
         });
     } else {
-        size_t blkSize = mayiuse(cpu::avx512_common) ? 16 : 8;
+        size_t blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
         size_t CB = div_up(C, blkSize);
         parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
             uint8_t *out_ptr_nhw = out_ptr_ + (CB * OH * OW * blkSize * b + OW * blkSize * h + blkSize * w) * dstDataSize;
@@ -2118,7 +2118,7 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
     };
 
-    if (!mayiuse(cpu::sse42))
+    if (!mayiuse(cpu::x64::sse41))
         return false;
     if (mode == InterpolateMode::linear || mode == InterpolateMode::cubic)
         return false;

@@ -14,7 +14,7 @@
 #include "common/cpu_memcpy.h"
 #include "mkldnn_normalize_node.h"
 
-#include "ie_mkldnn_internal.h"
+
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -55,7 +55,7 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
 
             load_vector(vmm_val, ptr[reg_src], jcp_.src_dt);
             uni_vfmadd231ps(vmm_sqr_sum, vmm_val, vmm_val);
-            if (isa == cpu::sse42 && jcp_.is_blk) {
+            if (isa == cpu::x64::sse41 && jcp_.is_blk) {
                 int sse42_offset = 4;
                 load_vector(vmm_val, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
                 uni_vfmadd231ps(vmm_sqr_sum, vmm_val, vmm_val);
@@ -72,9 +72,9 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
             uni_vmovups(ptr[reg_modulo], vmm_sqr_sum);
         } else {
             // hsum+store
-            if (isa == cpu::sse42) {
+            if (isa == cpu::x64::sse41) {
                 hsum_store(vmm_sqr_sum);
-            } else if (isa == cpu::avx2) {
+            } else if (isa == cpu::x64::avx2) {
                 Xbyak::Ymm ymm_sqr_sum = Xbyak::Ymm(vmm_sqr_sum.getIdx());
                 vextractf128(xmm_aux1, ymm_sqr_sum, 0);
                 vextractf128(xmm_aux2, ymm_sqr_sum, 1);
@@ -97,7 +97,7 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
@@ -199,7 +199,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
@@ -410,15 +410,15 @@ private:
     inline void normalize_blk() {
         size_t blk_size = 0;
         size_t simd_w = 0;
-        if (isa == cpu::avx512_common) {
+        if (isa == cpu::x64::avx512_common) {
             blk_size = simd_w = 16;
-        } else if (isa == cpu::avx2) {
+        } else if (isa == cpu::x64::avx2) {
             blk_size = simd_w = 8;
         } else {
             blk_size = 8;
             simd_w = 4;
         }
-        bool is_sse42 = (isa == cpu::sse42);
+        bool is_sse42 = (isa == cpu::x64::sse41);
 
         if (jcp_.across_spatial) {
             if (jcp_.channel_shared) {
@@ -578,29 +578,29 @@ private:
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::avx512_common) {
+            if (isa == cpu::x64::avx512_common) {
                 vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vmovq(op, xmm_dst);
                 else
                     movd(op, xmm_dst);
             }
         } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::avx512_common) {
+            if (isa == cpu::x64::avx512_common) {
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vmovq(op, xmm_dst);
                 else
                     movd(op, xmm_dst);
@@ -795,9 +795,9 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
 
     // only plain layout support when w/o sse42
     if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-        if (mayiuse(cpu::sse42)) {
+        if (mayiuse(cpu::x64::sse41)) {
             pushDesc(memory::format_tag::nhwc);
-            if (mayiuse(cpu::avx512_common)) {
+            if (mayiuse(cpu::x64::avx512_common)) {
                 pushDesc(memory::format_tag::nChw16c);
             } else {
                 pushDesc(memory::format_tag::nChw8c);
@@ -861,15 +861,15 @@ void MKLDNNNormalizeNode::createPrimitive() {
     jcp.h = (dims_size > 2) ? dims[2] : 1lu;
     jcp.w = (dims_size > 3) ? dims[3] : 1lu;
 
-    if (mayiuse(cpu::avx512_common)) {
-        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::avx512_common>(jcp));
-        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::avx512_common>(jcp, *attr.get()));
-    } else if (mayiuse(cpu::avx2)) {
-        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::avx2>(jcp));
-        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::avx2>(jcp, *attr.get()));
-    } else if (mayiuse(cpu::sse42)) {
-        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::sse42>(jcp));
-        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::sse42>(jcp, *attr.get()));
+    if (mayiuse(cpu::x64::avx512_common)) {
+        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
+        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
+        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
+        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
     }
     if (normalize_kernel)
         normalize_kernel->create_ker();
@@ -940,11 +940,11 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
 template <typename in_data_t, typename out_data_t>
 void MKLDNNNormalizeNode::normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
     size_t blk_size = 1;  // elt in vmm
-    if (mayiuse(cpu::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
-    } else if (mayiuse(cpu::avx2)) {
+    } else if (mayiuse(cpu::x64::avx2)) {
         blk_size = 8;
-    } else if (mayiuse(cpu::sse42)) {
+    } else if (mayiuse(cpu::x64::sse41)) {
         blk_size = 4;
     }
 
@@ -1136,11 +1136,11 @@ void MKLDNNNormalizeNode::normalize_nchw_ref(const in_data_t* src_data, out_data
 template <typename in_data_t, typename out_data_t>
 void MKLDNNNormalizeNode::normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
     size_t blk_size = 1;  // elt in vmm
-    if (mayiuse(cpu::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
-    } else if (mayiuse(cpu::avx2)) {
+    } else if (mayiuse(cpu::x64::avx2)) {
         blk_size = 8;
-    } else if (mayiuse(cpu::sse42)) {
+    } else if (mayiuse(cpu::x64::sse41)) {
         blk_size = 4;
     }
 
@@ -1257,11 +1257,11 @@ void MKLDNNNormalizeNode::normalize_nhwc(const in_data_t* src_data, out_data_t* 
 template <typename in_data_t, typename out_data_t>
 void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
     size_t blk_size = 1;  // channel blk for memory layout
-    if (mayiuse(cpu::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
-    } else if (mayiuse(cpu::avx2)) {
+    } else if (mayiuse(cpu::x64::avx2)) {
         blk_size = 8;
-    } else if (mayiuse(cpu::sse42)) {
+    } else if (mayiuse(cpu::x64::sse41)) {
         blk_size = 8;
     }
 
@@ -1391,7 +1391,7 @@ template <typename in_data_t, typename out_data_t>
 void MKLDNNNormalizeNode::normalize_function(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     Layout selected_layout = selectedPD->getConfig().inConfs[0].desc.getLayout();
-    if (mayiuse(cpu::sse42) && normalize_modulo_kernel && normalize_kernel) {
+    if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
         if (selected_layout == MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims())) {
             normalize_nchw(src_data, dst_data, dims);
         } else if (selected_layout == Layout::NHWC) {

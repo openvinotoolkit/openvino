@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_pooling_node.h"
-#include "desc_iterator.hpp"
+
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_conv_node.h"
 #include "mkldnn_concat_node.h"

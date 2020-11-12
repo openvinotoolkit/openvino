@@ -3,7 +3,6 @@
 //
 
 #include "mkldnn_deconv_node.h"
-#include "desc_iterator.hpp"
 #include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>

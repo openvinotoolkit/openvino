@@ -9,7 +9,7 @@
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "jit_generator.hpp"
-#include "ie_mkldnn_internal.h"
+
 #include <algorithm>
 
 using namespace mkldnn;
@@ -121,7 +121,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse42, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -361,8 +361,8 @@ void MKLDNNPermuteNode::createPrimitive() {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_common>(jpp));
     } else if (mayiuse(cpu::x64::avx2)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx2>(jpp));
-    } else if (mayiuse(cpu::x64::sse42)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse42>(jpp));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jpp));
     }
     if (permute_kernel)
         permute_kernel->create_ker();

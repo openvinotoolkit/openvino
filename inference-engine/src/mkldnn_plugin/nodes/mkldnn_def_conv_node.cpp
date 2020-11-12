@@ -5,7 +5,7 @@
 #include "mkldnn_def_conv_node.h"
 #include "mkldnn_reorder_node.h"
 #include "mkldnn_input_node.h"
-#include "desc_iterator.hpp"
+
 #include "mkldnn_eltwise_node.h"
 #include <legacy/ie_layers.h>
 #include <string>

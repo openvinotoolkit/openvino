@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_resample_node.h"
-#include "desc_iterator.hpp"
+
 #include "mkldnn_quantize_node.h"
 #include <legacy/ie_layers.h>
 #include "mkldnn_eltwise_node.h"
@@ -23,7 +23,7 @@
 #include "jit_uni_eltwise_injector.hpp"
 #include "common/cpu_memcpy.h"
 
-#include "ie_mkldnn_internal.h"
+
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -85,7 +85,7 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         int blk_size = vlen / sizeof(float);
-        if (isa == cpu::x64::sse42)
+        if (isa == cpu::x64::sse41)
             blk_size *= 2;
 
         Xbyak::Label resample_nearest_loop_label;
@@ -110,7 +110,7 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
                     apply_post_ops(jcp_.dst_dt);
                 store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
 
-                if (isa == cpu::sse42) {
+                if (isa == cpu::x64::sse41) {
                     int sse42_offset = 4;
                     load_vector(vmm_val, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
                     if (attr_.post_ops_.len() != 0) {
@@ -135,7 +135,7 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
                     apply_post_ops(jcp_.dst_dt);
                 store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
 
-                if (isa == cpu::sse42) {
+                if (isa == cpu::x64::sse41) {
                     int sse42_offset = 4;
                     add(reg_src_aux, sse42_offset * jcp_.src_data_size);
                     load_vector(vmm_val, ptr[reg_src_aux], jcp_.src_dt);
@@ -163,7 +163,7 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
@@ -222,29 +222,29 @@ private:
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::avx512_common) {
+            if (isa == cpu::x64::avx512_common) {
                 vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vmovq(op, xmm_dst);
                 else
                     movd(op, xmm_dst);
             }
         } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::avx512_common) {
+            if (isa == cpu::x64::avx512_common) {
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::sse42)
+                if (isa != cpu::x64::sse41)
                     vmovq(op, xmm_dst);
                 else
                     movd(op, xmm_dst);
@@ -369,15 +369,15 @@ void MKLDNNResampleNode::initSupportedPrimitiveDescriptors() {
 
         if (inputPrecision == Precision::FP32 && outputPrecision == Precision::FP32) {
             if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-                if (mayiuse(cpu::avx512_common)) {
+                if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(memory::format_tag::nChw16c);
-                } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
+                } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
                     pushDesc(memory::format_tag::nChw8c);
                 }
             } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-                if (mayiuse(cpu::avx512_common)) {
+                if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(memory::format_tag::nCdhw16c);
-                } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
+                } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
                     pushDesc(memory::format_tag::nCdhw8c);
                 }
             }
@@ -417,19 +417,19 @@ void MKLDNNResampleNode::createPrimitive() {
     jcp.nhwc_format = (selected_layout == NHWC) || (selected_layout == NDHWC);
 
     if (type == "caffe.ResampleParameter.NEAREST") {
-        if (mayiuse(cpu::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_common)) {
             if (jcp.planar_layout) {
-                resample_nearest_kernel.reset(new jit_uni_resample_nearest_kernel_f32<cpu::avx2>(jcp, *attr.get()));
+                resample_nearest_kernel.reset(new jit_uni_resample_nearest_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
                 blk_size = 8;
             } else {
-                resample_nearest_kernel.reset(new jit_uni_resample_nearest_kernel_f32<cpu::avx512_common>(jcp, *attr.get()));
+                resample_nearest_kernel.reset(new jit_uni_resample_nearest_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
                 blk_size = 16;
             }
-        } else if (mayiuse(cpu::avx2)) {
-            resample_nearest_kernel.reset(new jit_uni_resample_nearest_kernel_f32<cpu::avx2>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::avx2)) {
+            resample_nearest_kernel.reset(new jit_uni_resample_nearest_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
             blk_size = 8;
-        } else if (mayiuse(cpu::sse42) && !jcp.planar_layout) {
-            resample_nearest_kernel.reset(new jit_uni_resample_nearest_kernel_f32<cpu::sse42>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::sse41) && !jcp.planar_layout) {
+            resample_nearest_kernel.reset(new jit_uni_resample_nearest_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
             blk_size = 8;
         }
         if (resample_nearest_kernel)

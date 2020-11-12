@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_scatter_update_node.h"
-#include "desc_iterator.hpp"
+
 #include "mkldnn_quantize_node.h"
 #include <legacy/ie_layers.h>
 #include <mkldnn.hpp>

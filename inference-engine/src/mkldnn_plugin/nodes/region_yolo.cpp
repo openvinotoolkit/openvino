@@ -11,7 +11,7 @@
 #include <ie_parallel.hpp>
 
 #include "mkldnn.hpp"
-#include "ie_mkldnn_internal.h"
+
 
 #include "jit_generator.hpp"
 #include "jit_uni_eltwise_injector.hpp"
@@ -110,7 +110,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     }
 
 private:
-    using Vmm = typename conditional3<isa == sse42, Xbyak::Xmm, isa == avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == sse41, Xbyak::Xmm, isa == avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
@@ -147,7 +147,7 @@ private:
         uni_vmovups(vmm_aux2, table_val(1));
         uni_vsubps(vmm_aux2, vmm_aux2, vmm_src);
 
-        if (isa == sse42) {
+        if (isa == sse41) {
             uni_vblendvps(vmm_aux2, vmm_aux2, vmm_src, vmm_aux0);
             uni_vmovups(vmm_src, vmm_aux2);
         } else if (isa == avx2) {
@@ -198,8 +198,8 @@ public:
             } else if (mayiuse(avx2)) {
                 logistic_kernel.reset(new jit_uni_logistic_kernel_f32<avx2>());
                 block_size = 8;
-            } else if (mayiuse(sse42)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<sse42>());
+            } else if (mayiuse(sse41)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<sse41>());
                 block_size = 4;
             }
 

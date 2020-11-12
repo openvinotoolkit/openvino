@@ -8,7 +8,7 @@
 #include "jit_generator.hpp"
 #include "mkldnn_node.h"
 #include "jit_uni_eltwise_injector.hpp"
-#include "ie_mkldnn_internal.h"
+
 
 namespace MKLDNNPlugin {
 
@@ -25,7 +25,7 @@ public:
     void emit_table() override;
 
 private:
-    std::shared_ptr<mkldnn::impl::cpu::x64::jit_uni_eltwise_injector_f32<mkldnn::impl::cpu::x64::sse42>> eltwise_injector_sse42;
+    std::shared_ptr<mkldnn::impl::cpu::x64::jit_uni_eltwise_injector_f32<mkldnn::impl::cpu::x64::sse41>> eltwise_injector_sse42;
     std::shared_ptr<mkldnn::impl::cpu::x64::jit_uni_eltwise_injector_f32<mkldnn::impl::cpu::x64::avx2>> eltwise_injector_avx2;
     std::shared_ptr<mkldnn::impl::cpu::x64::jit_uni_eltwise_injector_f32<mkldnn::impl::cpu::x64::avx512_common>> eltwise_injector_avx512_common;
 };

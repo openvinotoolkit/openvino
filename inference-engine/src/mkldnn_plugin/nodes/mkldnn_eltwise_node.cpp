@@ -22,7 +22,7 @@
 #include "ref_eltwise.hpp"
 #include "mkldnn_pooling_node.h"
 
-#include "ie_mkldnn_internal.h"
+
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -264,7 +264,7 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
     }
 
 private:
-    using Vmm = typename conditional3<isa == x64::sse42, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
 
     Reg64 get_src_reg(int idx) {
         return Reg64(r8.getIdx() + idx);
@@ -571,10 +571,10 @@ private:
                     vpmovsdb(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse42)
+                    if (isa != x64::sse41)
                         vpermq(ymm_dst, ymm_dst, 0x08);
                     uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse42)
+                    if (isa != x64::sse41)
                         vmovq(op, xmm_dst);
                     else
                         movd(op, xmm_dst);
@@ -585,10 +585,10 @@ private:
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse42)
+                    if (isa != x64::sse41)
                         vpermq(ymm_dst, ymm_dst, 0x08);
                     uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse42)
+                    if (isa != x64::sse41)
                         vmovq(op, xmm_dst);
                     else
                         movd(op, xmm_dst);
@@ -902,7 +902,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    canUseOptimizedImpl = mayiuse(x64::sse42);
+    canUseOptimizedImpl = mayiuse(x64::sse41);
 
     size_t expectedInputsNum = getOpInputsNum();
     for (auto& postOp : fusedWith) {
@@ -1054,7 +1054,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             impl_type = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;
-        } else if (mayiuse(x64::sse42)) {
+        } else if (mayiuse(x64::sse41)) {
             impl_type = impl_desc_type::jit_sse42;
         } else {
             impl_type = impl_desc_type::ref;
@@ -1296,8 +1296,8 @@ void MKLDNNEltwiseNode::createPrimitive() {
         eltwise_kernel.reset(new jit_uni_eltwise_generic<x64::avx512_common>(jep, *this));
     } else if (mayiuse(x64::avx2)) {
         eltwise_kernel.reset(new jit_uni_eltwise_generic<x64::avx2>(jep, *this));
-    } else if (mayiuse(x64::sse42)) {
-        eltwise_kernel.reset(new jit_uni_eltwise_generic<x64::sse42>(jep, *this));
+    } else if (mayiuse(x64::sse41)) {
+        eltwise_kernel.reset(new jit_uni_eltwise_generic<x64::sse41>(jep, *this));
     }
 
     if (eltwise_kernel)
@@ -1630,7 +1630,7 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
     };
 
-    if (!mayiuse(x64::sse42))
+    if (!mayiuse(x64::sse41))
         return false;
 
     // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number

@@ -20,8 +20,8 @@ jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa, 
 
     auto alg = static_cast<mkldnn_alg_kind_t>(eltwiseNode.getAlgorithm());
 
-    if (host_isa_ == cpu::x64::sse42) {
-        eltwise_injector_sse42 = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::sse42>>(
+    if (host_isa_ == cpu::x64::sse41) {
+        eltwise_injector_sse42 = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::sse41>>(
                 host, alg, eltwiseNode.getAlpha(), eltwiseNode.getBeta(), 1);
     } else if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2 = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::avx2>>(
@@ -38,7 +38,7 @@ size_t jit_mkldnn_emitter::get_inputs_num() { return 1; }
 
 void jit_mkldnn_emitter::emit(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
                               const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
-    if (host_isa_ == cpu::x64::sse42) {
+    if (host_isa_ == cpu::x64::sse41) {
         if (out_vec_idxs[0] != in_vec_idxs[0])
             h->uni_vmovups(Xmm(out_vec_idxs[0]), Xmm(in_vec_idxs[0]));
         eltwise_injector_sse42->compute_vector(out_vec_idxs[0]);
@@ -56,7 +56,7 @@ void jit_mkldnn_emitter::emit(const std::vector<size_t> &in_vec_idxs, const std:
 }
 
 void jit_mkldnn_emitter::emit_table() {
-    if (host_isa_ == cpu::x64::sse42) {
+    if (host_isa_ == cpu::x64::sse41) {
         eltwise_injector_sse42->prepare_table();
     } else if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2->prepare_table();

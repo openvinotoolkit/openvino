@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_reduce_node.h"
-#include "desc_iterator.hpp"
+
 #include "mkldnn_quantize_node.h"
 #include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
@@ -20,8 +20,6 @@
 #include "jit_uni_depthwise_injector.hpp"
 #include "jit_uni_quantization_injector.hpp"
 #include "jit_uni_eltwise_injector.hpp"
-
-#include <ie_mkldnn_internal.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -95,10 +93,10 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
             mov(reg_table, l_table);
         }
 
-        if (isa == cpu::avx512_common || jcp_.reduce_mode == Reduce::And || jcp_.reduce_mode == Reduce::Or)
+        if (isa == cpu::x64::avx512_common || jcp_.reduce_mode == Reduce::And || jcp_.reduce_mode == Reduce::Or)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        if ((isa == cpu::avx512_common && jcp_.reduce_mode == Reduce::And) || jcp_.reduce_mode == Reduce::Or) {
+        if ((isa == cpu::x64::avx512_common && jcp_.reduce_mode == Reduce::And) || jcp_.reduce_mode == Reduce::Or) {
             uni_vmovups(vmm_aux, table_val(0));
         }
 
@@ -116,7 +114,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
@@ -244,7 +242,7 @@ private:
                 load_vector(vmm_src, ptr[reg_src], jcp_.src_dt);
                 reduce_kernel(vmm_src, vmm_dst);
 
-                if (isa == cpu::sse42) {
+                if (isa == cpu::x64::sse41) {
                     load_vector(vmm_src, ptr[reg_src + 4 * jcp_.src_data_size], jcp_.src_dt);
                     reduce_kernel(vmm_src, vmm_dst_aux);
                 }
@@ -418,7 +416,7 @@ private:
             load_vector(vmm_src, ptr[reg_src], jcp_.src_dt);
             reduce_kernel(vmm_src, vmm_dst);
 
-            if (isa == cpu::sse42) {
+            if (isa == cpu::x64::sse41) {
                 load_vector(vmm_src, ptr[reg_src + 4 * jcp_.src_data_size], jcp_.src_dt);
                 reduce_kernel(vmm_src, vmm_dst);
             }
@@ -524,7 +522,7 @@ private:
 
     inline void load_dst_vector() {
         load_vector(vmm_dst, ptr[reg_dst], jcp_.dst_dt);
-        if (isa == cpu::sse42)
+        if (isa == cpu::x64::sse41)
             load_vector(vmm_dst_aux, ptr[reg_dst + 4 * jcp_.dst_data_size], jcp_.dst_dt);
     }
 
@@ -532,13 +530,13 @@ private:
         if (jcp_.reduce_mode == Reduce::Or && isa != avx512_common) {
             vcmpneqps(vmm_dst, vmm_dst, vmm_zero);
             uni_vandps(vmm_dst, vmm_dst, vmm_aux);
-            if (isa == cpu::sse42) {
+            if (isa == cpu::x64::sse41) {
                 vcmpneqps(vmm_dst_aux, vmm_dst_aux, vmm_zero);
                 uni_vandps(vmm_dst_aux, vmm_dst_aux, vmm_aux);
             }
         }
         store_vector(ptr[reg_dst], vmm_dst, jcp_.dst_dt);
-        if (isa == cpu::sse42)
+        if (isa == cpu::x64::sse41)
             store_vector(ptr[reg_dst + 4 * jcp_.dst_data_size], vmm_dst_aux, jcp_.dst_dt);
     }
 
@@ -604,10 +602,10 @@ private:
                     vpmovsdb(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42)
+                    if (isa != cpu::x64::sse41)
                         vpermq(ymm_dst, ymm_dst, 0x08);
                     uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42)
+                    if (isa != cpu::x64::sse41)
                         vmovq(op, xmm_dst);
                     else
                         movd(op, xmm_dst);
@@ -618,10 +616,10 @@ private:
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42)
+                    if (isa != cpu::x64::sse41)
                         vpermq(ymm_dst, ymm_dst, 0x08);
                     uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42)
+                    if (isa != cpu::x64::sse41)
                         vmovq(op, xmm_dst);
                     else
                         movd(op, xmm_dst);
@@ -660,9 +658,9 @@ private:
     }
 
     inline void load_embedded_horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt) {
-        if (isa == cpu::sse42) {
+        if (isa == cpu::x64::sse41) {
             load_embedded_horiz_store(vmm_dst, dst_dt);
-        } else if (isa == cpu::avx2) {
+        } else if (isa == cpu::x64::avx2) {
             Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_aux1, ymm_dst, 0);
             vextractf128(xmm_aux2, ymm_dst, 1);
@@ -806,7 +804,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         if (!jcp_.planar_layout)
             mov(reg_reduce_c, ptr[reg_params + GET_OFF(reduce_c)]);
 
-        if (isa == cpu::avx512_common)
+        if (isa == cpu::x64::avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         reduce_post_main();
@@ -821,7 +819,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
@@ -873,12 +871,12 @@ private:
 
                 // load
                 load_vector(vmm_dst, ptr[reg_dst], jcp_.dst_dt);
-                if (isa == cpu::sse42)
+                if (isa == cpu::x64::sse41)
                     load_vector(vmm_dst_aux, ptr[reg_dst + 4 * jcp_.dst_data_size], jcp_.dst_dt);
 
                 // reduce and store
                 horiz_reduce_store(vmm_dst, jcp_.dst_dt);
-                if (isa == cpu::sse42)
+                if (isa == cpu::x64::sse41)
                     load_embedded_horiz_reduce_store(vmm_dst_aux, jcp_.dst_dt);
 
                 add(reg_dst, step * jcp_.dst_data_size);
@@ -912,17 +910,17 @@ private:
 
                     // load
                     load_vector(vmm_dst, ptr[reg_dst], jcp_.dst_dt);
-                    if (isa == cpu::sse42)
+                    if (isa == cpu::x64::sse41)
                         load_vector(vmm_dst_aux, ptr[reg_dst + 4 * jcp_.dst_data_size], jcp_.dst_dt);
 
                     // reduce
                     reduce_map_kernel(vmm_dst);
-                    if (isa == cpu::sse42)
+                    if (isa == cpu::x64::sse41)
                         reduce_map_kernel(vmm_dst_aux);
 
                     // store
                     store_vector(ptr[reg_dst], vmm_dst, jcp_.dst_dt);
-                    if (isa == cpu::sse42)
+                    if (isa == cpu::x64::sse41)
                         store_vector(ptr[reg_dst + 4 * jcp_.dst_data_size], vmm_dst_aux, jcp_.dst_dt);
 
                     add(reg_dst, step * jcp_.dst_data_size);
@@ -1050,10 +1048,10 @@ private:
                     vpmovsdb(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42)
+                    if (isa != cpu::x64::sse41)
                         vpermq(ymm_dst, ymm_dst, 0x08);
                     uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42)
+                    if (isa != cpu::x64::sse41)
                         vmovq(op, xmm_dst);
                     else
                         movd(op, xmm_dst);
@@ -1064,10 +1062,10 @@ private:
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42)
+                    if (isa != cpu::x64::sse41)
                         vpermq(ymm_dst, ymm_dst, 0x08);
                     uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42)
+                    if (isa != cpu::x64::sse41)
                         vmovq(op, xmm_dst);
                     else
                         movd(op, xmm_dst);
@@ -1106,9 +1104,9 @@ private:
     }
 
     inline void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt) {
-        if (isa == cpu::sse42) {
+        if (isa == cpu::x64::sse41) {
             horize_store(vmm_dst, dst_dt);
-        } else if (isa == cpu::avx2) {
+        } else if (isa == cpu::x64::avx2) {
             Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_aux1, ymm_dst, 0);
             vextractf128(xmm_aux2, ymm_dst, 1);
@@ -1158,9 +1156,9 @@ private:
     }
 
     inline void load_embedded_horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt) {
-        if (isa == cpu::sse42) {
+        if (isa == cpu::x64::sse41) {
             load_embedded_horiz_store(vmm_dst, dst_dt);
-        } else if (isa == cpu::avx2) {
+        } else if (isa == cpu::x64::avx2) {
             Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_aux1, ymm_dst, 0);
             vextractf128(xmm_aux2, ymm_dst, 1);
@@ -1334,7 +1332,7 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, outFormat});
     };
 
-    jit_mode = (mayiuse(cpu::sse42)) && getParentEdgeAt(REDUCE_DATA)->getDims().ndims() <= 5 &&
+    jit_mode = (mayiuse(cpu::x64::sse41)) && getParentEdgeAt(REDUCE_DATA)->getDims().ndims() <= 5 &&
             (inputPrecision == Precision::FP32 || inputPrecision == Precision::I32 || inputPrecision == Precision::U8 || inputPrecision == Precision::I8) &&
             (outputPrecision == Precision::FP32 || outputPrecision == Precision::I32 || outputPrecision == Precision::U8 || outputPrecision == Precision::I8);
     if (jit_mode) {
@@ -1342,15 +1340,15 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
              MKLDNNMemory::GetPlainFormat(memory::dims(getChildEdgeAt(0)->getDims().ndims())), inputDataType, outputDataType);
         if (keep_dims) {
             if (getParentEdgeAt(REDUCE_DATA)->getDims().ndims() == 4 && getParentEdgeAt(REDUCE_DATA)->getDims().ToSizeVector()[1] > 1) {
-                if (mayiuse(cpu::avx512_common)) {
+                if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(memory::format_tag::nChw16c, memory::format_tag::nChw16c, inputDataType, outputDataType);
-                } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
+                } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
                     pushDesc(memory::format_tag::nChw8c, memory::format_tag::nChw8c, inputDataType, outputDataType);
                 }
             } else if (getParentEdgeAt(REDUCE_DATA)->getDims().ndims() == 5 && getParentEdgeAt(REDUCE_DATA)->getDims().ToSizeVector()[1] > 1) {
-                if (mayiuse(cpu::avx512_common)) {
+                if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(memory::format_tag::nCdhw16c, memory::format_tag::nCdhw16c, inputDataType, outputDataType);
-                } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
+                } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
                     pushDesc(memory::format_tag::nCdhw8c, memory::format_tag::nCdhw8c, inputDataType, outputDataType);
                 }
             }
@@ -1384,17 +1382,17 @@ void MKLDNNReduceNode::createPrimitive() {
     jcp.planar_layout = planar_layout;
     jcp.reduce_mode = reduceMode;
 
-    if (mayiuse(cpu::avx512_common)) {
-        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::avx512_common>(jcp));
-        reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::avx512_common>(jcp));
+    if (mayiuse(cpu::x64::avx512_common)) {
+        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_common>(jcp));
+        reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(jcp));
         blk_size = 16;
-    } else if (mayiuse(cpu::avx2)) {
-        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::avx2>(jcp));
-        reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::avx2>(jcp));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
+        reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(jcp));
         blk_size = 8;
-    } else if (mayiuse(cpu::sse42)) {
-        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::sse42>(jcp));
-        reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::sse42>(jcp));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
+        reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(jcp));
         blk_size = 8;
     }
 

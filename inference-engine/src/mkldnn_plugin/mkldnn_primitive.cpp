@@ -5,12 +5,6 @@
 #include <mkldnn_types.h>
 #include "mkldnn_primitive.h"
 
-#ifndef USE_DNNL
-#include "primitive_desc.hpp"
-#include "memory_pd.hpp"
-#include "cpu_concat.hpp"
-#endif
-
 using namespace MKLDNNPlugin;
 
 MKLDNNPrimitive::MKLDNNPrimitive() {}

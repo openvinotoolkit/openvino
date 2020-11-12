@@ -8,7 +8,7 @@
 #include <limits>
 #include <memory>
 #include "mkldnn.hpp"
-#include "ie_mkldnn_internal.h"
+
 #include "ie_parallel.hpp"
 #include "jit_generator.hpp"
 
@@ -79,7 +79,7 @@ struct jit_uni_interp_kernel_f32 : public jit_uni_interp_kernel, public jit_gene
         uni_vbroadcastss(vmm_w_lambda0, ptr[reg_w_lambda0]);
         uni_vbroadcastss(vmm_w_lambda1, ptr[reg_w_lambda1]);
 
-        if (isa != sse42) {
+        if (isa != sse41) {
             uni_vmulps(vmm_src01, vmm_src01, vmm_w_lambda0);
             uni_vmulps(vmm_src11, vmm_src11, vmm_w_lambda0);
             uni_vfmadd231ps(vmm_src01, vmm_w_lambda1, vmm_src00);
@@ -129,7 +129,7 @@ struct jit_uni_interp_kernel_f32 : public jit_uni_interp_kernel, public jit_gene
     }
 
 private:
-    using Vmm = typename conditional3<isa == sse42, Xbyak::Xmm, isa == avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == sse41, Xbyak::Xmm, isa == avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_src00 = r8;
@@ -215,7 +215,7 @@ public:
                     addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
                 } else {
                     blk_layout = ConfLayout::BLK8;
-                    interp_kernel.reset(new jit_uni_interp_kernel_f32<sse42>());
+                    interp_kernel.reset(new jit_uni_interp_kernel_f32<sse41>());
                     addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
                 }
             }

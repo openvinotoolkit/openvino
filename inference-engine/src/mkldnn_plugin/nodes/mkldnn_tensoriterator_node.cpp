@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_tensoriterator_node.h"
-#include "desc_iterator.hpp"
+
 #include <legacy/ie_layers.h>
 #include <legacy/ie_layers_internal.hpp>
 #include <string>

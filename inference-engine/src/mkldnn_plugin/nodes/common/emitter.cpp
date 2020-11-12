@@ -3,7 +3,7 @@
 //
 
 #include "emitter.h"
-#include "ie_mkldnn_internal.h"
+
 #include "utils/general_utils.h"
 
 #include <vector>
@@ -24,7 +24,7 @@ size_t jit_emitter::get_vec_length() const {
 }
 
 void jit_emitter::push_vec(const Xbyak::Address &addr, size_t vec_idx) const {
-    if (host_isa_ == cpu::x64::sse42) {
+    if (host_isa_ == cpu::x64::sse41) {
         h->uni_vmovups(addr, Xmm(vec_idx));
     } else if (host_isa_ == cpu::x64::avx2) {
         h->uni_vmovups(addr, Ymm(vec_idx));
@@ -34,7 +34,7 @@ void jit_emitter::push_vec(const Xbyak::Address &addr, size_t vec_idx) const {
 }
 
 void jit_emitter::pop_vec(size_t vec_idx, const Xbyak::Address &addr) const {
-    if (host_isa_ == cpu::x64::sse42) {
+    if (host_isa_ == cpu::x64::sse41) {
         h->uni_vmovups(Xmm(vec_idx), addr);
     } else if (host_isa_ == cpu::x64::avx2) {
         h->uni_vmovups(Ymm(vec_idx), addr);
@@ -64,7 +64,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_vec_idxs, const
         aux_vec_idxs.push_back(idx);
 
     // For sse42 mask register has to be Xmm(0)
-    if (host_isa_ == cpu::x64::sse42 && aux_vecs_count() > 0) {
+    if (host_isa_ == cpu::x64::sse41 && aux_vecs_count() > 0) {
         size_t idx = 0;
         assert(std::find(in_vec_idxs.begin(), in_vec_idxs.end(), idx) == in_vec_idxs.end());
         if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) == aux_vec_idxs.end()) {

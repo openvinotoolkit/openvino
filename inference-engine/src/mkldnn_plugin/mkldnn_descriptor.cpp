@@ -15,19 +15,6 @@ MKLDNNDescriptor::operator bool() {
 }
 
 size_t MKLDNNDescriptor::inputNumbers() const {
-#ifdef USE_DNNL
-#else
-    DescFwdImpl<mkldnn::roi_pooling_forward::desc> *roiPooling =
-            dynamic_cast<DescFwdImpl<mkldnn::roi_pooling_forward::desc> *>(desc.get());
-    if (roiPooling != nullptr) {
-        return roiPooling->getPtr()->c_api_inputs.size();
-    }
-    DescFwdImpl<mkldnn::deformable_convolution_forward::desc> *defConv =
-            dynamic_cast<DescFwdImpl<mkldnn::deformable_convolution_forward::desc> *>(desc.get());
-    if (defConv != nullptr) {
-        return defConv->getPtr()->c_api_inputs.size();
-    }
-#endif
     return 1;
 }
 
