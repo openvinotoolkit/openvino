@@ -245,8 +245,9 @@ void op::v1::TopK::validate_and_infer_types()
                 const auto in_min = output_shape[m_normalized_axis].get_min_length();
                 const auto in_max = output_shape[m_normalized_axis].get_max_length();
                 const auto lower = std::min<Dimension::value_type>(in_min, max_k.second);
-                const auto upper =
-                    in_max < 0 ? -1 : std::max<Dimension::value_type>(in_max, max_k.second);
+                const auto upper = in_max < 0
+                                       ? Dimension::dynamic().get_max_length()
+                                       : std::max<Dimension::value_type>(in_max, max_k.second);
                 output_shape[m_normalized_axis] = Dimension(lower, upper);
             }
             else

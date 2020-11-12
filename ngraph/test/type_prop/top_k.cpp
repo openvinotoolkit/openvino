@@ -92,7 +92,7 @@ TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown)
         const auto k = make_shared<op::Parameter>(element::i32, PartialShape({}));
         const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
 
-        const PartialShape fully_dynamic_axis_shape{1, Dimension{-1}, 100};
+        const PartialShape fully_dynamic_axis_shape{1, Dimension::dynamic(), 100};
         EXPECT_EQ(topk->get_output_partial_shape(0), fully_dynamic_axis_shape);
     }
     {
