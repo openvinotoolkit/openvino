@@ -51,24 +51,43 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
             if (cmp(interpolateMode, "nearest")) {
                 // current "Resample" supports the following "Interpolate" modes only:
                 // coordinate_transformation_mode = half_pixel; nearest_mode = round_prefer_ceil;
+                // coordinate_transformation_mode = asymmetric; nearest_mode = floor;
                 // other "Interpolate" modes are translated to the default ones
                 const auto antialias = _layer->GetParamAsBool("antialias", false);
+                const auto coordinateTransformation = _layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+                const auto nearest = _layer->GetParamAsString("nearest_mode", "round_prefer_floor");
+                InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
+                InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
+
+                if (cmp(coordinateTransformation, "asymmetric")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
+                }
+
+                if (cmp(nearest, "round_prefer_floor")) {
+                    nearestMode = InterpolateNearestMode::RoundPreferFloor;
+                } else if (cmp(nearest, "round_prefer_ceil")) {
+                    nearestMode = InterpolateNearestMode::RoundPreferCeil;
+                } else if (cmp(nearest, "floor")) {
+                    nearestMode = InterpolateNearestMode::Floor;
+                }
                 _stageBuilder->addResampleNearestStage(model,
                                                        _layer->name,
                                                        _layer,
                                                        antialias,
+                                                       coordinateTransformationMode,
+                                                       nearestMode,
                                                        -1.0f,
                                                        input,
                                                        output);
             } else if (cmp(interpolateMode, "linear")) {
                 // current "Interp" supports modes "align_corners" and "asymmetric" only
                 // other "Interpolate" modes are translated to the default ones
-                const auto coordinate_transformation_mode = _layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+                const auto coordinateTransformationMode = _layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
 
                 _stageBuilder->addInterpStage(model,
                                               _layer->name,
                                               _layer,
-                                              cmp(coordinate_transformation_mode, "align_corners"),
+                                              cmp(coordinateTransformationMode, "align_corners"),
                                               input,
                                               output);
             } else {
