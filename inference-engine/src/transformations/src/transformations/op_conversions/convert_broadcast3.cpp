@@ -96,11 +96,13 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
                 }
                 copy_runtime_info(broadcast, broadcast_ones);
             }
+        } else {
+            return false;
         }
 
         input.get_node_shared_ptr()->set_friendly_name(broadcast->get_friendly_name());
         copy_runtime_info(broadcast, input.get_node_shared_ptr());
-        replace_node(broadcast, input.get_node_shared_ptr());
+        replace_node(broadcast, {input});
         return true;
     };
 
