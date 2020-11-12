@@ -136,7 +136,7 @@ TEST(ie_core_create, coreCreateNoConfig) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_get_available_devices, getAvailableDevices) {
+TEST(ie_core_get_available_devices, DISABLED_getAvailableDevices) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
 
