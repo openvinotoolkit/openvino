@@ -94,7 +94,7 @@ namespace ngraph
                         if (check_static_input_dim(LSTMInput::LSTM_INPUT_X, 1))
                         {
                             m_dim_map[LSTMInputDimension::SEQ_LENGTH] =
-                                m_input_map[LSTMInput::LSTM_INPUT_R]
+                                m_input_map[LSTMInput::LSTM_INPUT_X]
                                     .get_partial_shape()[1]
                                     .get_length();
                         }
@@ -149,12 +149,8 @@ namespace ngraph
                                 ngraph::op::util::LSTMWeightsFormat::FICO,
                                 1);
 
-                        // Check if creation of default inputs is needed
-                        auto ov_lstm_seqence_required_inputs_count = 7;
-                        if (ng_inputs.size() < ov_lstm_seqence_required_inputs_count)
-                        {
-                            init_dim_map();
-                        }
+                        // Get dimensions needed for default inputs creation
+                        init_dim_map();
 
                         // ------ Optional inputs ------
                         // `B` - The bias tensor for input gate. Shape [num_directions,
