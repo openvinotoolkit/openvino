@@ -66,19 +66,22 @@ public:
         TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
     }
 
-    StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
         try {
             auto v = _impl->QueryState();
             if (idx >= v.size()) {
                 return OUT_OF_BOUNDS;
             }
-            pState = std::make_shared<MemoryStateBase<IMemoryStateInternal>>(v[idx]);
+            pState = std::make_shared<VariableStateBase<IVariableStateInternal>>(v[idx]);
             return OK;
         } catch (const std::exception& ex) {
             return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
         } catch (...) {
             return InferenceEngine::DescriptionBuffer(UNEXPECTED);
         }
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     void Release() noexcept override {

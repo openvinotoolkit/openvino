@@ -111,5 +111,13 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         }
         return InferenceEngine::OK;
     }
+
+    IE_SUPPRESS_DEPRECATED_START
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
+        auto pluginStates = plg->QueryState();
+        std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
+        return plg->QueryState();
+    }
+    IE_SUPPRESS_DEPRECATED_END
 };
 }  // namespace GNAPluginNS

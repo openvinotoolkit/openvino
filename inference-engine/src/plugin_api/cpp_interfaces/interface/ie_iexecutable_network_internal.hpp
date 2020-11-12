@@ -79,7 +79,7 @@ public:
      * @brief Queries memory states.
      * @return Returns memory states
      */
-    virtual std::vector<IMemoryStateInternal::Ptr> QueryState() = 0;
+    virtual std::vector<IVariableStateInternal::Ptr> QueryState() = 0;
 
     /**
      * @brief Sets configuration for current executable network

@@ -14,6 +14,8 @@
 #include "mkldnn_exec_network.h"
 #include "mkldnn_itt.h"
 #include "nodes/common/cpu_convert.h"
+#include "mkldnn_memory_state.h"
+#include "nodes/mkldnn_memory_node.hpp"
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
                                                      InferenceEngine::OutputsDataMap    networkOutputs,
@@ -35,6 +37,30 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
         InferenceEngine::Blob::Ptr blob;
         MKLDNNInferRequest::GetBlob(it.first.c_str(), blob);
     }
+
+    // Save all MemoryLayer data tensors. Will use insight about mechanics
+    // of MemoryLayer implementation. It uses output edge of MemoryLayer
+    // producer as storage for tensor to keep it between infer calls.
+    IE_SUPPRESS_DEPRECATED_START
+    if (execNetwork->QueryState().size() == 0) {
+        for (auto &node : graph->GetNodes()) {
+            if (node->getType() == MemoryInput) {
+                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+                auto state_store = memoryNode->getStore();
+                auto state_name = memoryNode->getId();
+
+                // Remove suffix with pair ID. Internal information.
+                auto suffix_idx = state_name.find("/id=");
+                if (suffix_idx != std::string::npos)
+                    state_name = state_name.substr(0, suffix_idx);
+
+                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
+           }
+        }
+    } else {
+        memoryStates = execNetwork->QueryState();
+    }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 MKLDNNPlugin::MKLDNNInferRequest::~MKLDNNInferRequest() {
@@ -389,4 +415,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBatch(int new_batch) {
     }
 
     m_curBatch = new_batch;
+}
+
+std::vector<InferenceEngine::IVariableStateInternal::Ptr> MKLDNNPlugin::MKLDNNInferRequest::QueryState() {
+    return memoryStates;
 }

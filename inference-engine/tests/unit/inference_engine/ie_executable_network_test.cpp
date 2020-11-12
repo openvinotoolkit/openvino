@@ -127,6 +127,7 @@ TEST_F(ExecutableNetworkTests, OperatorAmpersand) {
     ASSERT_EQ(exeNet_p, mockIExeNet_p);
 }
 
+IE_SUPPRESS_DEPRECATED_START
 TEST_F(ExecutableNetworkTests, QueryStateThrowsIfReturnErr) {
     EXPECT_CALL(*mockIExeNet_p.get(), QueryState(_, _, _))
             .Times(1)
@@ -138,21 +139,22 @@ TEST_F(ExecutableNetworkTests, QueryStateIfReturnOutOfBounds) {
     EXPECT_CALL(*mockIExeNet_p.get(), QueryState(_, _, _))
             .Times(1)
             .WillOnce(Return(InferenceEngine::OUT_OF_BOUNDS));
-    std::vector<InferenceEngine::MemoryState> MemState_;
+    std::vector<InferenceEngine::VariableState> MemState_;
     EXPECT_NO_THROW(MemState_ = exeNetwork->QueryState());
     EXPECT_EQ(MemState_.size(), 0);
 }
 
 TEST_F(ExecutableNetworkTests, QueryState) {
-    std::shared_ptr<MockIMemoryState> mockIMemState_p = std::make_shared<MockIMemoryState>();
+    std::shared_ptr<MockIVariableState> mockIMemState_p = std::make_shared<MockIVariableState>();
     EXPECT_CALL(*mockIExeNet_p.get(), QueryState(_, _, _))
             .Times(2)
             .WillOnce(DoAll(SetArgReferee<0>(mockIMemState_p), Return(InferenceEngine::OK)))
             .WillOnce(Return(InferenceEngine::OUT_OF_BOUNDS));
-    std::vector<InferenceEngine::MemoryState> MemState_v;
+    std::vector<InferenceEngine::VariableState> MemState_v;
     EXPECT_NO_THROW(MemState_v = exeNetwork->QueryState());
     EXPECT_EQ(MemState_v.size(), 1);
 }
+IE_SUPPRESS_DEPRECATED_END
 
 class ExecutableNetworkWithIInferReqTests : public ExecutableNetworkTests {
 protected:

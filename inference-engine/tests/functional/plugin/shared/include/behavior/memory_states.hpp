@@ -14,7 +14,7 @@ typedef std::tuple<
         std::string>                 // Target device name
         memoryStateParams;
 
-class MemoryStateTest : public CommonTestUtils::TestsCommon,
+class VariableStateTest : public CommonTestUtils::TestsCommon,
                         public testing::WithParamInterface<memoryStateParams> {
 protected:
     InferenceEngine::CNNNetwork net;

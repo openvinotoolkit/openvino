@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <cpp_interfaces/interface/ie_iinfer_async_request_internal.hpp>
+#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
 
 class MockIAsyncInferRequestInternal : public InferenceEngine::IAsyncInferRequestInternal {
 public:
@@ -26,4 +27,5 @@ public:
     MOCK_CONST_METHOD2(GetPreProcess, void(const char* name, const InferenceEngine::PreProcessInfo**));
     MOCK_METHOD1(SetCompletionCallback, void(InferenceEngine::IInferRequest::CompletionCallback));
     MOCK_METHOD1(SetBatch, void(int));
+    MOCK_METHOD0(QueryState, std::vector<IVariableStateInternal::Ptr>());
 };

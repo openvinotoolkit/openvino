@@ -808,6 +808,7 @@ void GNAQueryStateMatcher :: match() {
 
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigAssignToRequestConfig(_,_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
 #endif
+    IE_SUPPRESS_DEPRECATED_START
     try {
         loadNetwork();
         if (GnaPluginTestEnvironment::kAnyNotNull == _env.numberOfStates) {
@@ -830,6 +831,7 @@ void GNAQueryStateMatcher :: match() {
     catch(...) {
         FAIL() << "unknown exception thrown";
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 
