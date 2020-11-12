@@ -174,6 +174,9 @@ namespace ngraph
                 auto params_coord_iter = params_outer_transform.begin();
                 for (const Coordinate& indices_coord : indices_outer_transform)
                 {
+                    if (params_coord_iter == params_outer_transform.end() ||
+                        out_coord_iter == out_transform.end())
+                        break;
                     auto indices_index = indices_outer_transform.index(indices_coord);
                     auto params_index = params_outer_transform.index(*params_coord_iter);
                     auto output_index = out_transform.index(*out_coord_iter);
