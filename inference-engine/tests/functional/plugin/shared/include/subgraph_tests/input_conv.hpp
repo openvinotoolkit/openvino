@@ -18,8 +18,7 @@ typedef std::tuple<
     std::string,                         // Target Device
     std::map<std::string, std::string>,  // Configuration
     std::vector<size_t>,                 // Input Shapes
-    size_t,                              // Output Channels
-    bool                                 // With bias
+    size_t                               // Output Channels
 > inputConvParams;
 
 namespace LayerTestsDefinitions {

@@ -1537,11 +1537,12 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     } else {
         num_columns = FROM_IR_DIM(inputs, 2);
         num_rows = FROM_IR_DIM(inputs, 1);
+    }
 
-        if (dnn->new_num_conv_columns) {
-            num_rows = dnn->new_num_conv_columns;
-            dnn->new_num_conv_columns = 0;
-        }
+    if (dnn->new_num_conv_columns) {
+        num_rows = dnn->new_num_conv_columns;
+        if (inputs->getDims().size() == 4) num_rows /= num_columns;
+        dnn->new_num_conv_columns = 0;
     }
 
     // TODO: solve this by layer level transformations

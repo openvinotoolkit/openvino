@@ -17,14 +17,12 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<std::map<std::string, std::string>> configs = {
     {
-        {"GNA_DEVICE_MODE", "GNA_SW_FP32"}//,
-        //{"GNA_SCALE_FACTOR_0", "163.835"}
+        {"GNA_DEVICE_MODE", "GNA_SW_FP32"}
+    },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"GNA_SCALE_FACTOR_0", "163.835"}
     }
-};
-
-const std::vector<bool> with_bias = {
-    true,
-    false
 };
 
 std::vector<std::vector<size_t>> input_shapes = {
@@ -44,7 +42,6 @@ INSTANTIATE_TEST_CASE_P(InputConv, InputConvTest,
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(configs),
                             ::testing::ValuesIn(input_shapes),
-                            ::testing::ValuesIn(output_channels),
-                            ::testing::ValuesIn(with_bias)),
+                            ::testing::ValuesIn(output_channels)),
                         InputConvTest::getTestCaseName);
 }  // namespace

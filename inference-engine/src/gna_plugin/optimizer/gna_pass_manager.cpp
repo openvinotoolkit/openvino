@@ -684,10 +684,31 @@ void InsertPermuteConvolutionOutputNHWCToNCHWPass::run() {
                 continue;
             }
 
+            auto prevLayer = l;
+            if (quantized) {
+                //convolution output is i32, in order to use i16 scaling down using identity layer is required
+                auto identityName = std::string("permute_identity_") + std::to_string(numOfadditionalPermuteLayers);
+                CNNLayerPtr identityLayer =
+                    std::make_shared<GenericLayer>(LayerParams({ identityName, "identity", Precision::FP32 }));
+                auto identityLayerWithQuant = quantized ?
+                    InferenceEngine::injectData<QuantizedLayerParams>(identityLayer) :
+                    identityLayer;
+                auto dataPtr = std::make_shared<Data>("permute_identity_data_" + std::to_string(numOfadditionalPermuteLayers),
+                                                      l->outData[0]->getTensorDesc());
+
+                getCreatorLayer(dataPtr) = identityLayerWithQuant;
+                identityLayerWithQuant->outData.push_back(dataPtr);
+                CNNNetworkInsertLayer(prevLayer, layerAfterConv, identityLayerWithQuant);
+                prevLayer = identityLayerWithQuant;
+
+                prevLayer->outData[0]->setDims({ convolutionOutputDims[0], convolutionOutputDims[2], convolutionOutputDims[3], convolutionOutputDims[1] });
+                prevLayer->outData[0]->setLayout(Layout::NHWC);
+            }
+
             // GNA convolution output is transposed to NHWC so permute is needed to return to NCHW
             auto permuteNextName = std::string("permute_next_layer_") + std::to_string(numOfadditionalPermuteLayers);
             auto layerAfterConvName = layerAfterConv == nullptr ? "nullptr" : layerAfterConv->name;
-            gnalog() << "Inserted " << permuteNextName << " between: " << l->name << " and "
+            gnalog() << "Inserted " << permuteNextName << " between: " << prevLayer->name << " and "
                 << layerAfterConvName << "\n" << std::flush;
             CNNLayerPtr permuteNextLayer = std::make_shared<GenericLayer>(LayerParams({ permuteNextName, "permute",
                 inputs->getTensorDesc().getPrecision() }));
@@ -702,7 +723,7 @@ void InsertPermuteConvolutionOutputNHWCToNCHWPass::run() {
                                                                  Layout::NCHW));
             getCreatorLayer(outDataNext) = permuteNextLayerWithQuant;
             permuteNextLayerWithQuant->outData.push_back(outDataNext);
-            CNNNetworkInsertLayer(l, layerAfterConv, permuteNextLayerWithQuant);
+            CNNNetworkInsertLayer(prevLayer, layerAfterConv, permuteNextLayerWithQuant);
 
             l->outData[0]->setDims({ convolutionOutputDims[0], convolutionOutputDims[2], convolutionOutputDims[3], convolutionOutputDims[1] });
             l->outData[0]->setLayout(Layout::NHWC);

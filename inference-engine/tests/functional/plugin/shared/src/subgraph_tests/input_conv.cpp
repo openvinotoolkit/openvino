@@ -27,13 +27,11 @@ std::string InputConvTest::getTestCaseName(testing::TestParamInfo<inputConvParam
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     size_t output_channels;
-    bool with_bias;
-    std::tie(netPrecision, targetDevice, configuration, inputShape, output_channels, with_bias) = obj.param;
+    std::tie(netPrecision, targetDevice, configuration, inputShape, output_channels) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "OC=" << output_channels << "_";
-    result << "bias=" << with_bias << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : configuration) {
@@ -64,7 +62,7 @@ void InputConvTest::SetUp() {
         std::vector<float> res;
         for (int i = 0; i < out_channels; ++i) {
             for (int j = 0; j < kernel_size; ++j) {
-                res.emplace_back(1.0f);
+                j == 0 ? res.emplace_back(1.0f) : res.emplace_back(0.0f);
             }
         }
 
@@ -75,8 +73,7 @@ void InputConvTest::SetUp() {
     std::map<std::string, std::string> tempConfig;
     std::vector<size_t> inputShape;
     size_t output_channels;
-    bool with_bias;
-    std::tie(netPrecision, targetDevice, tempConfig, inputShape, output_channels, with_bias) = this->GetParam();
+    std::tie(netPrecision, targetDevice, tempConfig, inputShape, output_channels) = this->GetParam();
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -86,7 +83,7 @@ void InputConvTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
     auto conv_0 = ngraph::builder::makeConvolution(params[0], ngPrc, { kernel_y, kernel_x }, { stride, stride }, { 0, 0 },
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, output_channels, with_bias,
+        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, output_channels, false,
         generateWeights(output_channels, kernel_x));
 
     //permute accepts and return 2-byte values. If it's the last operation in the model, that's why the output is incorrect for int16 then
