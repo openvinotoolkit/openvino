@@ -31,6 +31,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -50,7 +51,6 @@
 
 #ifdef __linux__
 # include <dlfcn.h>
-#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 
 #endif
 
