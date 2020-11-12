@@ -247,7 +247,7 @@ std::shared_ptr<ngraph::Node> makeMinMax(const ngraph::Output<Node> &in1,
 
 std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_probs,
                                            const ngraph::Output<Node> &class_logits,
-                                           const ngraph::Output<Node> &image_shape,
+                                           const std::vector<float>& image_info,
                                            const element::Type &type,
                                            size_t base_size,
                                            size_t pre_nms_topn,

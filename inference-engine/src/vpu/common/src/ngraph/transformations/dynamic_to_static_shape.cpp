@@ -8,6 +8,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_broadcast.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_concat.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_gather.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_gather_nd.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_matmul.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_non_max_suppression.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_nonzero.hpp"
@@ -124,6 +125,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Broadcast::type_info,         dynamicToStaticShapeBroadcast},
         {ngraph::opset3::MatMul::type_info,            dynamicToStaticShapeMatMul},
         {ngraph::opset5::Split::type_info,             dynamicToStaticShapeSplit},
+        {ngraph::opset5::GatherND::type_info,          dynamicToStaticShapeGatherND},
 
         // reduction
         {ngraph::opset3::ReduceLogicalAnd::type_info, dynamicToStaticShapeReduce},
@@ -146,6 +148,8 @@ std::set<NodeTypeInfo> getSupportedTypes(const Transformations& transformations)
 }
 
 }  // namespace
+
+NGRAPH_RTTI_DEFINITION(DynamicToStaticShape, "DynamicToStaticShape", 0);
 
 DynamicToStaticShape::DynamicToStaticShape(const Transformations& specificTransformations)
     : transformations(specificTransformations.empty() ? getDefaultTransformations() : specificTransformations) {

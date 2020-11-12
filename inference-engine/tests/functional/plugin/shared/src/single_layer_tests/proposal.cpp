@@ -25,12 +25,7 @@ const feat_stride_type feat_stride = 1;
 const box_size_scale_type box_size_scale = 2.0f;
 const box_coordinate_scale_type box_coordinate_scale = 2.0f;
 
-std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLayerTestParamsSet> obj) {
-    proposalSpecificParams proposalParams;
-
-    std::string targetDevice;
-    std::tie(proposalParams, targetDevice) = obj.param;
-
+std::string ProposalLayerTest::SerializeProposalSpecificParams(proposalSpecificParams& params) {
     base_size_type base_size;
     pre_nms_topn_type pre_nms_topn;
     post_nms_topn_type post_nms_topn;
@@ -49,7 +44,7 @@ std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLa
              scale,
              clip_before_nms,
              clip_after_nms,
-             framework) = proposalParams;
+             framework) = params;
 
     std::ostringstream result;
     result << "base_size=" << base_size << "_";
@@ -66,13 +61,25 @@ std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLa
     result << "box_size_scale=" << box_size_scale << "_";
     result << "box_coordinate_scale=" << box_coordinate_scale << "_";
     result << "framework=" << framework << "_";
-    result << "targetDevice=" << targetDevice;
 
     return result.str();
 }
 
+std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLayerTestParamsSet> obj) {
+    proposalSpecificParams proposalParams;
+    std::string targetDevice;
+    std::tie(proposalParams, targetDevice) = obj.param;
+    auto proposalPramString = SerializeProposalSpecificParams(proposalParams);
+
+    std::ostringstream result;
+    result << "targetDevice=" << targetDevice;
+
+    return proposalPramString + result.str();
+}
+
 void ProposalLayerTest::SetUp() {
     proposalSpecificParams proposalParams;
+    std::vector<float> img_info = {225.0f, 225.0f, 1.0f};
 
     std::tie(proposalParams, targetDevice) = this->GetParam();
     base_size_type base_size;
@@ -105,11 +112,11 @@ void ProposalLayerTest::SetUp() {
     std::vector<size_t> imageInfoShape = {3};
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP16);
-    auto params = ngraph::builder::makeParams(ngPrc, {{"scores", scoresShape}, {"boxes", boxesShape}, {"image_info", imageInfoShape}});
+    auto params = ngraph::builder::makeParams(ngPrc, {{"scores", scoresShape}, {"boxes", boxesShape}});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(
-             ngraph::builder::makeProposal(paramOuts[0], paramOuts[1], paramOuts[2], ngPrc,
+             ngraph::builder::makeProposal(paramOuts[0], paramOuts[1], img_info, ngPrc,
                                            base_size,
                                            pre_nms_topn,
                                            post_nms_topn,
@@ -137,9 +144,6 @@ InferenceEngine::Blob::Ptr ProposalLayerTest::GenerateInput(const InferenceEngin
         blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
     } else if (name == "boxes") {
         blobPtr = FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
-    } else if (name == "image_info") {
-        const float image_info[] = {225.0f, 225.0f, 1.0f};
-        blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), image_info, 3);
     }
 
     return blobPtr;

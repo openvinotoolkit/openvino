@@ -143,7 +143,7 @@ namespace ngraph
                         }
 
                         // Check execution condition
-                        bool body_exec_condition;
+                        bool body_exec_condition(false);
                         body_outputs[special_ports.body_condition_output_idx]->read(
                             &body_exec_condition, sizeof(bool));
                         if (!body_exec_condition)
