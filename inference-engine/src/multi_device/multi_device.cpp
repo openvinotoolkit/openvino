@@ -237,7 +237,9 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
         return _devicePriorities;
     }();
 
+    std::string devices_names;
     for (auto&& device : devices) {
+        devices_names += device.deviceName + " ";
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
             return n.GetContext();
@@ -247,7 +249,9 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
         } catch (const NotImplemented& ex) {
         }
     }
-    THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED
+                       << NOT_IMPLEMENTED_str << "None of the devices in the MULTI has an associated remote context."
+                       << "Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
 void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
@@ -330,7 +334,7 @@ InferenceEngine::IInferRequest::Ptr MultiDeviceExecutableNetwork::CreateInferReq
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
     auto priorities = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities == config.end() || config.size() > 1) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str <<
+        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str <<
             "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
     } else {
         auto multiPlugin = std::dynamic_pointer_cast<MultiDeviceInferencePlugin>(this->_plugin);
@@ -340,7 +344,8 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
         if (std::any_of(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& kvp) {
                 return kvp.numRequestsPerDevices != -1;
             })) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << "You can only change device priorities but not number of requests"
+            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str
+                     << "You can only change device priorities but not number of requests"
                      <<" with the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES!";
         }
 
@@ -348,7 +353,8 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
             std::lock_guard<std::mutex> lock{_mutex};
             for (auto && device : metaDevices) {
                 if (_networksPerDevice.find(device.deviceName) == _networksPerDevice.end()) {
-                    THROW_IE_EXCEPTION << NOT_FOUND_str << "You can only change device priorities but not add new devices with"
+                    THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_FOUND
+                        << NOT_FOUND_str << "You can only change device priorities but not add new devices with"
                         << " the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES. "
                         << device.deviceName <<
                             " device was not in the original device list!";
