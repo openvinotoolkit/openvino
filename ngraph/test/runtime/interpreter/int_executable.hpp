@@ -822,15 +822,13 @@ protected:
         case OP_TYPEID::HardSigmoid:
         {
             size_t element_cout = shape_size(node.get_output_shape(0));
-            runtime::reference::hard_sigmoid<T>(
-                args[0]->get_data_ptr<const T>(),
-                args[1]->get_data_ptr<const T>(),
-                args[2]->get_data_ptr<const T>(),
-                out[0]->get_data_ptr<T>(),
-                element_cout);
+            runtime::reference::hard_sigmoid<T>(args[0]->get_data_ptr<const T>(),
+                                                args[1]->get_data_ptr<const T>(),
+                                                args[2]->get_data_ptr<const T>(),
+                                                out[0]->get_data_ptr<T>(),
+                                                element_cout);
             break;
         }
-        
 
         case OP_TYPEID::RNNSequence_v5:
         {

@@ -32,7 +32,8 @@ namespace ngraph
                 T beta_value = beta[0];
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = std::max<T>(0.0f, std::min<T>(1.0f, alpha_value * arg[i] + beta_value));
+                    out[i] =
+                        std::max<T>(0.0f, std::min<T>(1.0f, alpha_value * arg[i] + beta_value));
                 }
             }
         }
