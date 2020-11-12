@@ -321,7 +321,8 @@ private:
         auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
         switch (eltwiseNode.getOpType()) {
             case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
-            case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+            case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish:
+            case Mish: case Hsigmoid: case Round:
                 return jit_mkldnn_emitter::get_supported_precisions();
             case Add:               return jit_add_emitter::get_supported_precisions();
             case MulAdd:            return jit_mul_add_emitter::get_supported_precisions();
@@ -354,7 +355,8 @@ private:
         auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
         switch (eltwiseNode.getOpType()) {
             case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
-            case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+            case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish:
+            case Mish: case Hsigmoid: case Round:
                                     return std::make_shared<jit_mkldnn_emitter>(this, isa, eltwiseNode, exec_prec);
             case Add:               return std::make_shared<jit_add_emitter>(this, isa, eltwiseNode, exec_prec);
             case MulAdd:            return std::make_shared<jit_mul_add_emitter>(this, isa, eltwiseNode, exec_prec);
@@ -420,7 +422,7 @@ private:
             } else {
                 auto quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
 
-                bool do_dequantization = quantizeNode->getAlgorithm() == mkldnn::algorithm::quantization_quantize_dequantize;
+                bool do_dequantization = quantizeNode->getOpType() == QuantizeOpType::FakeQuantization;
                 bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != eltwiseNode.getFusedWith().size() - 1;
                 int s_idx = vmm_dst.getIdx();
 
@@ -774,6 +776,18 @@ MKLDNNEltwiseNode::initializers = {
             THROW_IE_EXCEPTION << "Unsupported yet";
 //            algorithm = mkldnn::algorithm::eltwise_hsigmoid;
         }},
+        {"round", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Round;
+            std::string mode = activationLayer->GetParamAsString("mode", "half_to_even");
+//            if (mode == "half_to_even")
+//                algorithm = mkldnn::eltwise_round_half_to_even;
+//            else if (mode == "half_away_from_zero")
+//                algorithm = mkldnn::eltwise_round_half_away_from_zero;
+//            else
+                THROW_IE_EXCEPTION << "Round layer with name " << activationLayer->name << " doesn't support mode " << mode;
+        }},
 };
 
 void MKLDNNEltwiseNode::init() {
@@ -843,7 +857,8 @@ void MKLDNNEltwiseNode::init() {
                comparator(layerType, "swish") ||
                comparator(layerType, "hswish") ||
                comparator(layerType, "mish") ||
-               comparator(layerType, "hsigmoid")) {
+               comparator(layerType, "hsigmoid") ||
+               comparator(layerType, "round")) {
         initializers[layerType](getCnnLayer().get(), eltwiseOp, eltwiseAlgorithm, alpha, beta);
     } else {
         THROW_IE_EXCEPTION << "Unsupported algorithm for Eltwise node with name `" << getName() << "`.";
@@ -853,7 +868,8 @@ void MKLDNNEltwiseNode::init() {
 size_t MKLDNNEltwiseNode::getOpInputsNum() const {
     switch (getOpType()) {
         case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt: case PowerStatic:
-        case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+        case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish:
+        case Mish: case Hsigmoid: case Round:
         case LogicalNot:
             return 1;
         case Add: case Subtract: case Multiply: case Divide: case FloorMod: case Mod: case Maximum: case Minimum: case SquaredDifference:
@@ -1211,13 +1227,17 @@ void MKLDNNEltwiseNode::createPrimitive() {
         fullWorkAmount *= dims_out[i];
     }
 
+    isDynBatchEnabled = config.dynBatchSupport;
+
     size_t minimalConcurrency = parallel_get_max_threads();
     size_t minimalJitWorkAmount = 256;
     size_t currentJitWorkAmount = dims_out[dims_out.size() - 1];
     int collapsedDims = 0;
     if (canUseOptimizedImpl) {
         bool hasDifferentDims = false;
-        while (currentJitWorkAmount < minimalJitWorkAmount) {
+        while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
+               // we shouldn't collapse batch dimension in case dynamic batch is enabled
+               (!isDynBatchEnabled || (config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() - collapsedDims > 2))) {
             if (dims_out.size() - collapsedDims - 2 < 0)
                 break;
 
@@ -1269,7 +1289,6 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     }
 
-    isDynBatchEnabled = config.dynBatchSupport;
     batchDimIdx = tensorRank - config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
     schedulerWorkAmount = fullWorkAmount / dims_out[dims_out.size() - 1];
 
@@ -1486,7 +1505,8 @@ void MKLDNNEltwiseNode::executeReference(const std::vector<const uint8_t *>& src
 
             switch (getOpType()) {
                 case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
-                case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+                case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish:
+                case Mish: case Hsigmoid: case Round:
                     *dst_ptr_f = ref_eltwise_injector->compute_scalar(src_f[0]); break;
                 case Add:               *dst_ptr_f = src_f[0] + src_f[1]; break;
                 case MulAdd:            *dst_ptr_f = src_f[0] * src_f[1] + src_f[2]; break;
@@ -1570,6 +1590,7 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
 
 void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
     switch (getAlgorithm()) {
+
         case mkldnn::algorithm::eltwise_relu:
         case mkldnn::algorithm::eltwise_tanh:
         case mkldnn::algorithm::eltwise_elu:
@@ -1587,6 +1608,8 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
         case mkldnn::algorithm::eltwise_hswish:
         case mkldnn::algorithm::eltwise_mish:
 //        case mkldnn::algorithm::eltwise_hsigmoid:
+//        case mkldnn::algorithm::eltwise_round_half_to_even:
+//        case mkldnn::algorithm::eltwise_round_half_away_from_zero:
             ops.append_eltwise(1.0, getAlgorithm(), getAlpha(), getBeta());
             break;
         case mkldnn::algorithm::depthwise_scale_shift:

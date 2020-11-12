@@ -42,23 +42,6 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::lbr_gru_forward::desc> desc);
     operator std::shared_ptr<mkldnn::lbr_gru_forward::desc>();
 
-#ifdef USE_DNNL
-
-#else
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::roi_pooling_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::roi_pooling_forward::desc>();
-
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::quantization_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::quantization_forward::desc>();
-
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::binary_convolution_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::binary_convolution_forward::desc>();
-
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::deformable_convolution_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::deformable_convolution_forward::desc>();
-
-#endif
-
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::softmax_forward::desc> desc);
     operator std::shared_ptr<mkldnn::softmax_forward::desc>();
 

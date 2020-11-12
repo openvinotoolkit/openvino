@@ -136,7 +136,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                    std::dynamic_pointer_cast<const ::ngraph::opset4::HSwish>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL1>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL2>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node);
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset5::LogSoftmax>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
@@ -312,6 +313,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.sources_dumps_dir == current_config.sources_dumps_dir &&
                context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
+               context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
                context_config.device_id == current_config.device_id;
     };
 

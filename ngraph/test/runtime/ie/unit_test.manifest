@@ -15,6 +15,7 @@ onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
 onnx_model_quantize_linear_axis_negative
+onnx_expand_function
 
 # DequantizeLinear:
 # C++ exception with description "Unsupported precisions!
@@ -74,6 +75,16 @@ onnx_model_split_equal_parts_2d
 onnx_model_split_variable_parts_2d
 onnx_top_k_opset_10_const_k
 onnx_top_k_opset_11_const_k_smallest
+split_1d
+split_2d_axis_0
+split_2d_axis_1
+split_3d_axis_0
+split_3d_axis_1
+split_3d_axis_2
+split_4d_axis_0
+split_4d_axis_1
+split_4d_axis_2
+split_4d_axis_3
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
@@ -914,6 +925,9 @@ broadcast_algo_matrix_stride_1
 broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
 
+# Cannot find blob with name: Parameter_1
+dynamic_transpose
+
 # Failing from new reason after unblocking more Blob types
 gather_2d_negative_and_positive_indices_axis_0_2d_input
 gather_axis_0_int8
@@ -1126,12 +1140,25 @@ IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
 
-# Wrong output when axis 0
-IE_CPU.log_softmax_1d_single_value
-IE_CPU.log_softmax_2d_axis0
-IE_CPU.log_softmax_2d_axis_neg2
-IE_CPU.log_softmax_3d_axis_0
-IE_CPU.log_softmax_3d_axis_neg3
+# Next nine tests fails in CPU for the following reason. The nGraph function
+# for NMS-5 are passed to the method compile() of the backend, but this
+# method doesn't apply any nGraph transformations to the passed function,
+# and the plugin backend gets CNNNetwork with NMS-5, NMS-5 has dynamic shapes
+# for two of three outputs, and results of these two outputs are interpreted
+# as scalars. If we apply all needed nGraph transformations to the nGraph
+# function with NMS-5 to get the nGraph function with NMSIE3 (internal
+# operation, similar with NMS-5, but with all static output shapes), before
+# the method compile() call, then tests for INTERPRETER backend for NMS-5 will
+# fail, because NMSIE3 has not the reference implementation, but NMS-5 has one.
+IE_CPU.nonmaxsuppression_center_point_box_format
+IE_CPU.nonmaxsuppression_flipped_coordinates
+IE_CPU.nonmaxsuppression_identical_boxes
+IE_CPU.nonmaxsuppression_limit_output_size
+IE_CPU.nonmaxsuppression_single_box
+IE_CPU.nonmaxsuppression_suppress_by_IOU
+IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores
+IE_CPU.nonmaxsuppression_two_batches
+IE_CPU.nonmaxsuppression_two_classes
 
 #-------------------------------------------------------------------------------
 #

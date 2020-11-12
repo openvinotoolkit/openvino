@@ -19,7 +19,7 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35929, xfail_issue_36483
+from tests import xfail_issue_35929
 
 
 @xfail_issue_35929
@@ -67,8 +67,8 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
         pytest.param(ng.acos, np.arccos, np.float32(-0.5)),
         pytest.param(ng.asin, np.arcsin, np.float32(-0.5)),
         pytest.param(ng.atan, np.arctan, np.float32(-0.5)),
-        pytest.param(ng.ceiling, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
-        pytest.param(ng.ceil, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
+        pytest.param(ng.ceiling, np.ceil, np.float32(1.5)),
+        pytest.param(ng.ceil, np.ceil, np.float32(1.5)),
         pytest.param(ng.cos, np.cos, np.float32(np.pi / 4.0)),
         pytest.param(ng.cosh, np.cosh, np.float32(np.pi / 4.0)),
         pytest.param(ng.exp, np.exp, np.float32(1.5)),
@@ -153,13 +153,11 @@ def test_round_even():
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32
 
-    # Excluded because this part needs mklddn implementation of Round operation
-    # Need to uncomment and check when 37651 will be done.
-    # input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
-    # expected = [-2.0, -2.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0, 4.0]
+    input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
+    expected = [-2.0, -2.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0, 4.0]
 
-    # result = run_op_node([input_tensor], ng.round, "HALF_TO_EVEN")
-    # assert np.allclose(result, expected)
+    result = run_op_node([input_tensor], ng.round, "HALF_TO_EVEN")
+    assert np.allclose(result, expected)
 
 
 def test_round_away():
@@ -172,13 +170,11 @@ def test_round_away():
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32
 
-    # Excluded because this part needs mklddn implementation of Round operation
-    # Need to uncomment and check when 37651 will be done.
-    # input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
-    # expected = [-3.0, -2.0, -1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 4.0]
+    input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
+    expected = [-3.0, -2.0, -1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 4.0]
 
-    # result = run_op_node([input_tensor], ng.round, "HALF_AWAY_FROM_ZERO")
-    # assert np.allclose(result, expected)
+    result = run_op_node([input_tensor], ng.round, "HALF_AWAY_FROM_ZERO")
+    assert np.allclose(result, expected)
 
 
 def test_hsigmoid():

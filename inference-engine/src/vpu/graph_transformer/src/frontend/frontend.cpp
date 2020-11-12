@@ -86,6 +86,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"ROIPooling",                                         LAYER_PARSER(parseROIPooling)},
         {"PSROIPooling",                                       LAYER_PARSER(parsePSROIPooling)},
         {"Interp",                                             LAYER_PARSER(parseInterp)},
+        {"Interpolate",                                        LAYER_PARSER(parseInterpolate)},
         {"Custom",                                             LAYER_PARSER(parseCustom)},
         {"MTCNN",                                              LAYER_PARSER(parseMTCNN)},
         {"LSTMCell",                                           LAYER_PARSER(parseLSTMCell)},
@@ -131,6 +132,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"Activation",                                         LAYER_PARSER(parseActivation)},
         {"GatherND",                                           LAYER_PARSER(parseGatherND)},
         {"HSwish",                                             LAYER_PARSER(parseHSwish)},
+        {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
