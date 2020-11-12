@@ -109,7 +109,7 @@ protected:
     }
 };
 
-TEST_F(ExecGraphSerializationTest, ExecutionGraph_CPU) {
+TEST_F(ExecGraphSerializationTest, DISABLED_ExecutionGraph_CPU) {
     const std::string source_model =
         IR_SERIALIZATION_MODELS_PATH "addmul_abc.xml";
     const std::string expected_model =
