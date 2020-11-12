@@ -89,6 +89,8 @@ template void MKLDNNGraph::ApplyUnrollPasses(ICNNNetwork&);
 template<typename NET>
 void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr& extMgr,
         MKLDNNWeightsSharing::Ptr &w_cache) {
+    OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "CreateGraph");
+
     if (IsReady())
         ForgetGraphData();
     // disable caching if graph was created only once
@@ -332,44 +334,25 @@ void MKLDNNGraph::InitGraph() {
 
     SortTopologically();
     InitNodes();
+
     optimizer.ApplyCommonGraphOptimizations(*this);
     SortTopologically();
 
     InitDescriptors();
 
-    for (auto &node : graphNodes) {
-        node->initOptimalPrimitiveDescriptor();
-    }
+    InitOptimalPrimitiveDescriptors();
+
     InitEdges();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
-
     SortTopologically();
 
     Allocate();
 
     CreatePrimitives();
 
-    // Do it before cleanup. Because it will lose original layers information
-    for (auto &graphNode : graphNodes) {
-        auto nodeType = graphNode->getType();
-        if (nodeType == Reorder || nodeType == Output) continue;
+    SetOriginalLayerNames();
 
-        if (graphNode->getOriginalLayers().empty()) {
-            graphNode->addOriginalLayer(graphNode->getCnnLayer());
-        }
-
-        if (graphNode->getFusedWith().size() || graphNode->getMergeWith().size()) {
-            // Original layer names
-            std::vector<MKLDNNNodePtr> internal = graphNode->getFusedWith();
-            auto &merged = graphNode->getMergeWith();
-            internal.insert(internal.end(), merged.begin(), merged.end());
-
-            for (auto &sub_node : internal) {
-                graphNode->addOriginalLayer(sub_node->getCnnLayer());
-            }
-        }
-    }
     if (!config.dumpToDot.empty())
         dumpToDotFile(config.dumpToDot + "_init.dot");
 
@@ -397,21 +380,44 @@ void MKLDNNGraph::InitGraph() {
     }
 #endif
 
-    mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
+    ExecuteConstantNodesOnly();
+}
+
+void MKLDNNGraph::SetOriginalLayerNames() {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::SetOriginalLayerNames");
+
+    // Do it before cleanup. Because it will lose original layers information
     for (auto &graphNode : graphNodes) {
-        if (!graphNode->isConstant())
-            continue;
-        graphNode->execute(stream);
+        auto nodeType = graphNode->getType();
+        if (nodeType == Reorder || nodeType == Output) continue;
+
+        if (graphNode->getOriginalLayers().empty()) {
+            graphNode->addOriginalLayer(graphNode->getCnnLayer());
+        }
+
+        if (graphNode->getFusedWith().size() || graphNode->getMergeWith().size()) {
+            // Original layer names
+            std::vector<MKLDNNNodePtr> internal = graphNode->getFusedWith();
+            auto &merged = graphNode->getMergeWith();
+            internal.insert(internal.end(), merged.begin(), merged.end());
+
+            for (auto &sub_node : internal) {
+                graphNode->addOriginalLayer(sub_node->getCnnLayer());
+            }
+        }
     }
 }
 
 void MKLDNNGraph::InitNodes() {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::InitNodes");
     for (auto &node : graphNodes) {
         node->init();
     }
 }
 
 void MKLDNNGraph::InitDescriptors() {
+    OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "InitDescriptors", "Prepare");
+
     for (auto &node : graphNodes) {
 #if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
         if (node->getType() == Input && _meanImages.find(node->getName()) != _meanImages.end()) {
@@ -420,18 +426,43 @@ void MKLDNNGraph::InitDescriptors() {
                 inputNode->withMeanImage();
         }
 #endif
+        OV_ITT_TASK_NEXT(taskChain, node->profiling.getSupportedDescriptors);
         node->getSupportedDescriptors();
 
+        OV_ITT_TASK_NEXT(taskChain, node->profiling.initSupportedPrimitiveDescriptors);
         node->initSupportedPrimitiveDescriptors();
+
+        OV_ITT_TASK_NEXT(taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
         node->filterSupportedPrimitiveDescriptors();
     }
 
     for (auto &node : graphNodes) {
+        OV_ITT_TASK_NEXT(taskChain, node->profiling.selectOptimalPrimitiveDescriptor);
         node->selectOptimalPrimitiveDescriptor();
     }
 }
 
+void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::InitOptimalPrimitiveDescriptors");
+    for (auto &node : graphNodes) {
+        OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, node->profiling.initOptimalPrimitiveDescriptor);
+        node->initOptimalPrimitiveDescriptor();
+    }
+}
+
+void MKLDNNGraph::ExecuteConstantNodesOnly() {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::ExecuteConstantNodesOnly");
+    mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
+    for (auto &graphNode : graphNodes) {
+        if (!graphNode->isConstant())
+            continue;
+        graphNode->execute(stream);
+    }
+}
+
 void MKLDNNGraph::InitEdges() {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::InitEdges");
+
     auto reorderArgs = [](const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc) {
         std::string inArgs, outArgs;
         if (parentDesc.getPrecision() != childDesc.getPrecision()) {
@@ -669,6 +700,8 @@ void MKLDNNGraph::AllocateWithReuse() {
 }
 
 void MKLDNNGraph::Allocate() {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::Allocate");
+
     // resolve edges. Define which will be a view on others
     //   NeedAllocation - real blob
     //   NotAllocated - view on other blob, peer or in-place
@@ -687,6 +720,7 @@ void MKLDNNGraph::Allocate() {
 void MKLDNNGraph::CreatePrimitives() {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::CreatePrimitives");
     for (auto& node : graphNodes) {
+        OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, node->profiling.createPrimitive);
         node->createPrimitive();
     }
 }
@@ -789,7 +823,7 @@ void MKLDNNGraph::Infer(int batch) {
         ENABLE_DUMP(do_before(DUMP_DIR, graphNodes[i]));
 
         if (!graphNodes[i]->isConstant()) {
-            OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profilingTask);
+            OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profiling.execute);
             graphNodes[i]->execute(stream);
         }
 
@@ -821,6 +855,8 @@ void MKLDNNGraph::VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sort
 }
 
 void MKLDNNGraph::SortTopologically() {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::SortTopologically");
+
     std::vector<MKLDNNNodePtr> unsorted;
     std::vector<MKLDNNNodePtr> sorted;
 

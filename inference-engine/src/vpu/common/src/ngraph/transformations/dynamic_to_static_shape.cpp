@@ -147,6 +147,8 @@ std::set<NodeTypeInfo> getSupportedTypes(const Transformations& transformations)
 
 }  // namespace
 
+NGRAPH_RTTI_DEFINITION(DynamicToStaticShape, "DynamicToStaticShape", 0);
+
 DynamicToStaticShape::DynamicToStaticShape(const Transformations& specificTransformations)
     : transformations(specificTransformations.empty() ? getDefaultTransformations() : specificTransformations) {
     transformations.emplace(ngraph::opset3::Result::type_info, [](const std::shared_ptr<ngraph::Node>&){});

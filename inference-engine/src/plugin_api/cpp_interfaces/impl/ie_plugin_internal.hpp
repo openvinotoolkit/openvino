@@ -19,6 +19,8 @@
 #include "cpp_interfaces/base/ie_executable_network_base.hpp"
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "cpp_interfaces/plugin_itt.hpp"
+
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;

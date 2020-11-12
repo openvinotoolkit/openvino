@@ -3,6 +3,7 @@
 //
 
 #include "ie_ir_parser.hpp"
+#include "ie_ir_itt.hpp"
 
 #include <typeinfo>
 #include <unordered_set>
@@ -83,6 +84,8 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
 }
 
 std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::istream& binStream) {
+    OV_ITT_TASK_CHAIN(taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
+
     using node_params = struct {
         pugi::xml_node xml;
         GenericLayerParams params;
@@ -129,6 +132,8 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::i
         order.push_back(id);
     };
     std::for_each(outputs.begin(), outputs.end(), dfs);
+
+    OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphNodes");
 
     ngraph::ParameterVector parameter_nodes;
     ngraph::ResultVector result_nodes;
@@ -186,6 +191,8 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::i
         allNodes.emplace_back(node);
     }
 
+    OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphFunction");
+
     ::ngraph::op::GenericIE::DisableReshape noReshape(allNodes);
     auto function = std::make_shared<ngraph::Function>(result_nodes, assign_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
     for (const auto& assign : assign_nodes) {
@@ -193,8 +200,12 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::i
             variable_id_to_read_value.at(std::dynamic_pointer_cast<ngraph::op::Assign>(assign)->get_variable_id()));
     }
 
+    OV_ITT_TASK_NEXT(taskChain, "ConstructCNNNetwork");
+
     CNNNetwork net(function, _exts);
+
     parsePreProcess(net, root, binStream);
+
     return net;
 }
 

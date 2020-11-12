@@ -174,3 +174,4 @@ ngraph::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DMaxPool");
     this->register_matcher(m, get_callback());
 }
+

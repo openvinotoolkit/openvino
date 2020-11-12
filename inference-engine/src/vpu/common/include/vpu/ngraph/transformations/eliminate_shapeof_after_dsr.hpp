@@ -10,6 +10,7 @@ namespace vpu {
 
 class EliminateShapeOfAfterDSR : public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     EliminateShapeOfAfterDSR();
 };
 

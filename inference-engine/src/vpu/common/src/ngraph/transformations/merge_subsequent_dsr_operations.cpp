@@ -5,6 +5,8 @@
 #include "vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp"
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
 
+NGRAPH_RTTI_DEFINITION(vpu::MergeSubsequentDSROperations, "MergeSubsequentDSROperations", 0);
+
 namespace vpu {
 
 MergeSubsequentDSROperations::MergeSubsequentDSROperations() : ngraph::pass::GraphRewrite() {

@@ -46,8 +46,6 @@
 #include <transformations/common_optimizations/conv_bias_fusion.hpp>
 #include <transformations/op_conversions/convert_convolutions.hpp>
 
-#include "ie_legacy_itt.hpp"
-
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 
@@ -59,7 +57,6 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::IELegacy, "ngraph::pass::ConvertOpSet1ToLegacy");
 
     ngraph::pass::Manager manager(get_pass_config());
 

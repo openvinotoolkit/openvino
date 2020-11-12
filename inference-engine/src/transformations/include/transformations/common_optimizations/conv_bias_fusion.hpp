@@ -36,6 +36,7 @@ class TRANSFORMATIONS_API DeconvAddFusion;
 
 class ngraph::pass::ConvFusion: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvFusion() : GraphRewrite() {
         add_matcher<ngraph::pass::ConvAddFusion>();
         add_matcher<ngraph::pass::ConvMultiplyFusion>();

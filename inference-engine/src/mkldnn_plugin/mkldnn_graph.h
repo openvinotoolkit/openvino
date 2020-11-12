@@ -140,10 +140,13 @@ protected:
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
+    void InitOptimalPrimitiveDescriptors();
     void InitEdges();
     void Allocate();
     void AllocateWithReuse();
     void CreatePrimitives();
+    void ExecuteConstantNodesOnly();
+    void SetOriginalLayerNames();
 
     void do_before(const std::string &dir, const MKLDNNNodePtr &node);
     void do_after(const std::string &dir, const MKLDNNNodePtr &node);

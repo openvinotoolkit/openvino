@@ -332,6 +332,8 @@ public:
      * @return Reference to a CPP plugin wrapper
      */
     InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
+        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
+
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
         auto it = pluginRegistry.find(deviceName);

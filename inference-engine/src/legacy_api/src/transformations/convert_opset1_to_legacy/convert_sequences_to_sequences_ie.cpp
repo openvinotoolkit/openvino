@@ -14,6 +14,10 @@
 #include <legacy/ngraph_ops/gru_sequence_ie.hpp>
 #include <legacy/ngraph_ops/rnn_sequence_ie.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLSTMSequenceMatcher, "ConvertLSTMSequenceMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGRUSequenceMatcher, "ConvertGRUSequenceMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertRNNSequenceMatcher, "ConvertRNNSequenceMatcher", 0);
+
 ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
     auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::LSTMSequence>();
 

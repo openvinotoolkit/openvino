@@ -32,6 +32,7 @@ namespace ngraph
 class NGRAPH_API ngraph::pass::ConstantFolding : public ngraph::pass::GraphRewrite
 {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap());
 
 private:

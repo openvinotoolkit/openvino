@@ -15,6 +15,7 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolutions, "ConvertConvolutions", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolution, "ConvertConvolution", 0);
 
 ngraph::pass::ConvertConvolution::ConvertConvolution() {

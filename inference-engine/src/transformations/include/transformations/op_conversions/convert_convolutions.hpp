@@ -26,6 +26,7 @@ class TRANSFORMATIONS_API ConvertGroupDeconvolution;
 
 class ngraph::pass::ConvertConvolutions: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertConvolutions() {
         add_matcher<ngraph::pass::ConvertConvolution>();
         add_matcher<ngraph::pass::ConvertGroupConvolution>();

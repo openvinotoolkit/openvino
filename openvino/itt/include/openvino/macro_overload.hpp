@@ -25,8 +25,8 @@
 
 #define OV_ITT_MACRO_NARG(...) OV_ITT_MACRO_EXPAND( OV_ITT_MACRO_NARG_(__VA_ARGS__, OV_ITT_MACRO_RSEQ_N()) )
 #define OV_ITT_MACRO_NARG_(...) OV_ITT_MACRO_EXPAND( OV_ITT_MACRO_ARG_N(__VA_ARGS__) )
-#define OV_ITT_MACRO_ARG_N(_1, _2, _3, N, ...) N
-#define OV_ITT_MACRO_RSEQ_N() 3, 2, 1, 0
+#define OV_ITT_MACRO_ARG_N(_1, _2, _3, _4, N, ...) N
+#define OV_ITT_MACRO_RSEQ_N() 4, 3, 2, 1, 0
 
 #define OV_ITT_MACRO_EVAL_(NAME, N) NAME ## _ ## N
 #define OV_ITT_MACRO_EVAL(NAME, N) OV_ITT_MACRO_EVAL_(NAME, N)
