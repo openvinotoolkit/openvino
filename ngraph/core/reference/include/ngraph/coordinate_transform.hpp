@@ -160,23 +160,15 @@ namespace ngraph
         /// \brief Returns an iterator to the coordinate following the last element of the tensor.
         const CoordinateIterator& end() const noexcept;
 
-    private:
         struct Transform
         {
             virtual ~Transform() = default;
             virtual Coordinate to_source_coordinate(const Coordinate& c) const = 0;
             virtual bool has_source_coordinate(const Coordinate& c) const = 0;
         };
-        std::unique_ptr<Transform> impl;
 
-        Coordinate m_source_start_corner;
-        Coordinate m_source_end_corner;
-        Strides m_source_strides;
-        AxisVector m_source_axis_order;
-        CoordinateDiff m_target_padding_below;
-        CoordinateDiff m_target_padding_above;
-        Strides m_target_dilation_strides;
-
+    private:
         Shape m_target_shape;
+        std::unique_ptr<Transform> impl;
     };
 } // namespace ngraph

@@ -44,6 +44,125 @@ namespace
         constexpr size_t operator[](size_t i) const noexcept { return i; }
     };
 
+    class FullTranform : public CoordinateTransform::Transform
+    {
+    public:
+        FullTranform(const Shape& source_shape,
+                     const Shape& target_shape,
+                     const size_t n_axes,
+                     const Coordinate& source_start_corner,
+                     const Coordinate& source_end_corner,
+                     const Strides& source_strides,
+                     const AxisVector& source_axis_order,
+                     const CoordinateDiff& target_padding_below,
+                     const CoordinateDiff& target_padding_above,
+                     const Strides& target_dilation_strides)
+            : m_source_shape(source_shape)
+            , m_target_shape(target_shape)
+            , m_n_axes(n_axes)
+            , m_source_start_corner(source_start_corner)
+            , m_source_end_corner(source_end_corner)
+            , m_source_strides(source_strides)
+            , m_source_axis_order(source_axis_order)
+            , m_target_padding_below(target_padding_below)
+            , m_target_padding_above(target_padding_above)
+            , m_target_dilation_strides(target_dilation_strides)
+        {
+        }
+
+        Coordinate to_source_coordinate(const Coordinate& c_target) const override
+        {
+            if (c_target.size() != m_n_axes)
+            {
+                throw std::domain_error(
+                    "Target coordinate rank does not match the coordinate transform rank");
+            }
+
+            Coordinate c_source(c_target.size());
+
+            for (size_t target_axis = 0; target_axis < m_n_axes; target_axis++)
+            {
+                const size_t source_axis = m_source_axis_order[target_axis];
+
+                const size_t target_pos = c_target[target_axis];
+                const size_t pos_destrided = target_pos * m_source_strides[source_axis];
+                const size_t pos_deshifted = pos_destrided + m_source_start_corner[source_axis];
+                const size_t pos_depadded = pos_deshifted - m_target_padding_below[target_axis];
+                const size_t pos_dedilated = pos_depadded / m_target_dilation_strides[target_axis];
+                c_source[source_axis] = pos_dedilated;
+            }
+
+            return c_source;
+        }
+
+        bool has_source_coordinate(const Coordinate& c_target) const override
+        {
+            if (c_target.size() != m_n_axes)
+            {
+                throw std::domain_error(
+                    "Target coordinate rank does not match the coordinate transform rank");
+            }
+
+            for (size_t target_axis = 0; target_axis < m_n_axes; target_axis++)
+            {
+                // Is this coordinate out of bounds of the target space?
+                if (c_target[target_axis] >= m_target_shape[target_axis])
+                {
+                    return false;
+                }
+
+                // The rest of this is a replay of the corresponding logic in
+                // `to_source_coordinate`, with bounds and divisibility checking.
+                const std::ptrdiff_t source_axis = m_source_axis_order[target_axis];
+
+                const std::ptrdiff_t target_pos = c_target[target_axis];
+                const std::ptrdiff_t pos_destrided = target_pos * m_source_strides[source_axis];
+                const std::ptrdiff_t pos_deshifted =
+                    pos_destrided + m_source_start_corner[source_axis];
+
+                // If we are in the below-padding or the above-padding.
+                if (pos_deshifted < m_target_padding_below[target_axis])
+                {
+                    return false;
+                }
+                const std::ptrdiff_t pos_depadded =
+                    pos_deshifted - m_target_padding_below[target_axis];
+
+                // If we are in the above-padding, we have no source coordinate.
+                if (m_source_shape[source_axis] == 0 ||
+                    (pos_depadded >=
+                     ((static_cast<int64_t>(m_source_shape[source_axis]) - 1) *
+                      static_cast<int64_t>(m_target_dilation_strides[target_axis])) +
+                         1))
+                {
+                    return false;
+                }
+
+                // If we are in a dilation gap, we have no source coordinate.
+                if (pos_depadded % m_target_dilation_strides[target_axis] != 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+    private:
+        // switch to ref:
+        const Shape& m_source_shape;
+        const Shape& m_target_shape;
+        size_t m_n_axes;
+
+        Coordinate m_source_start_corner;
+        Coordinate m_source_end_corner;
+        Strides m_source_strides;
+        AxisVector m_source_axis_order;
+        CoordinateDiff m_target_padding_below;
+        CoordinateDiff m_target_padding_above;
+        Strides m_target_dilation_strides;
+    };
+
     Strides default_strides(size_t n_axes) { return Strides(n_axes, 1); }
     CoordinateDiff default_padding(size_t n_axes) { return CoordinateDiff(n_axes, 0); }
     AxisVector default_axis_order(size_t n_axes)
@@ -101,13 +220,18 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
                                          const CoordinateDiff& target_padding_above,
                                          const Strides& target_dilation_strides)
     : CoordinateTransformBasic(source_shape)
-    , m_source_start_corner(source_start_corner)
-    , m_source_end_corner(source_end_corner)
-    , m_source_strides(source_strides)
-    , m_source_axis_order(source_axis_order)
-    , m_target_padding_below(target_padding_below)
-    , m_target_padding_above(target_padding_above)
-    , m_target_dilation_strides(target_dilation_strides)
+    , impl{new FullTranform{
+          CoordinateTransformBasic::m_source_shape,
+          m_target_shape,
+          CoordinateTransformBasic::m_n_axes,
+          source_start_corner,
+          source_end_corner,
+          source_strides,
+          source_axis_order,
+          target_padding_below,
+          target_padding_above,
+          target_dilation_strides,
+      }}
 {
     if (m_n_axes != source_start_corner.size())
     {
@@ -297,79 +421,14 @@ size_t CoordinateTransform::index(const Coordinate& c) const
 // Convert a target-space coordinate to a source-space coordinate.
 Coordinate CoordinateTransform::to_source_coordinate(const Coordinate& c_target) const
 {
-    if (c_target.size() != m_n_axes)
-    {
-        throw std::domain_error(
-            "Target coordinate rank does not match the coordinate transform rank");
-    }
-
-    Coordinate c_source(c_target.size());
-
-    for (size_t target_axis = 0; target_axis < m_n_axes; target_axis++)
-    {
-        const size_t source_axis = m_source_axis_order[target_axis];
-
-        const size_t target_pos = c_target[target_axis];
-        const size_t pos_destrided = target_pos * m_source_strides[source_axis];
-        const size_t pos_deshifted = pos_destrided + m_source_start_corner[source_axis];
-        const size_t pos_depadded = pos_deshifted - m_target_padding_below[target_axis];
-        const size_t pos_dedilated = pos_depadded / m_target_dilation_strides[target_axis];
-        c_source[source_axis] = pos_dedilated;
-    }
-
-    return c_source;
+    return impl->to_source_coordinate(c_target);
 }
 
 // A point in the target space is considered not to have a source coordinate if it was inserted due
 // to padding or dilation, or if it is out of the bounds of the target space.
 bool CoordinateTransform::has_source_coordinate(const Coordinate& c_target) const
 {
-    if (c_target.size() != m_n_axes)
-    {
-        throw std::domain_error(
-            "Target coordinate rank does not match the coordinate transform rank");
-    }
-
-    for (size_t target_axis = 0; target_axis < m_n_axes; target_axis++)
-    {
-        // Is this coordinate out of bounds of the target space?
-        if (c_target[target_axis] >= m_target_shape[target_axis])
-        {
-            return false;
-        }
-
-        // The rest of this is a replay of the corresponding logic in `to_source_coordinate`, with
-        // bounds and divisibility checking.
-        const std::ptrdiff_t source_axis = m_source_axis_order[target_axis];
-
-        const std::ptrdiff_t target_pos = c_target[target_axis];
-        const std::ptrdiff_t pos_destrided = target_pos * m_source_strides[source_axis];
-        const std::ptrdiff_t pos_deshifted = pos_destrided + m_source_start_corner[source_axis];
-
-        // If we are in the below-padding or the above-padding.
-        if (pos_deshifted < m_target_padding_below[target_axis])
-        {
-            return false;
-        }
-        const std::ptrdiff_t pos_depadded = pos_deshifted - m_target_padding_below[target_axis];
-
-        // If we are in the above-padding, we have no source coordinate.
-        if (m_source_shape[source_axis] == 0 ||
-            (pos_depadded >= ((static_cast<int64_t>(m_source_shape[source_axis]) - 1) *
-                              static_cast<int64_t>(m_target_dilation_strides[target_axis])) +
-                                 1))
-        {
-            return false;
-        }
-
-        // If we are in a dilation gap, we have no source coordinate.
-        if (pos_depadded % m_target_dilation_strides[target_axis] != 0)
-        {
-            return false;
-        }
-    }
-
-    return true;
+    return impl->has_source_coordinate(c_target);
 }
 
 const Shape& CoordinateTransform::get_source_shape() const noexcept
