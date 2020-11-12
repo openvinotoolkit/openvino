@@ -251,6 +251,8 @@ namespace scatter_element_update
 
         switch (out->get_element_type())
         {
+            TYPE_CASE(i16)(arg0, arg1, arg2, arg3, out, normalized_axis);
+            break;
             TYPE_CASE(i32)(arg0, arg1, arg2, arg3, out, normalized_axis);
             break;
             TYPE_CASE(i64)(arg0, arg1, arg2, arg3, out, normalized_axis);

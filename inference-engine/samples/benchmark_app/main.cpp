@@ -491,7 +491,7 @@ int main(int argc, char *argv[]) {
         size_t iteration = 0;
 
         std::stringstream ss;
-        ss << "Start inference " << FLAGS_api << "ronously";
+        ss << "Start inference " << FLAGS_api << "hronously";
         if (FLAGS_api == "async") {
             if (!ss.str().empty()) {
                 ss << ", ";
