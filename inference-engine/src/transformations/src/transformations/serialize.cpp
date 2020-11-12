@@ -344,6 +344,12 @@ void ngfunction_2_irv10(
         layer_type_attribute.set_value(
             translate_type_name(node_type_name).c_str());
 
+        const auto data_attr_size =
+            std::distance(data.attributes().begin(), data.attributes().end());
+        if (data_attr_size == 0) {
+            layer.remove_child(data);
+        }
+
         // <layers/data> constant atributes (special case)
         if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {
             ConstantAtributes attr = dump_constant_data(bin, *constant);
