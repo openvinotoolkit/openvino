@@ -2791,13 +2791,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_hard_sigmoid)
     
     const auto inf = std::numeric_limits<float>::infinity();
     const auto neg_inf = -std::numeric_limits<float>::infinity();
-    Inputs inputs;
-    inputs.emplace_back(std::vector<float>{inf, neg_inf, 0.0f, 1.0f});
-    inputs.emplace_back(0.2f);
-    inputs.emplace_back(0.5f);
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
+    
+    test_case.add_input<float>({inf, neg_inf, 0.0f, 1.0f});
     test_case.add_expected_output<float>(Shape{4}, {1.0f, 0.0f, 0.5f, 0.699999988079071f});
     test_case.run();
 }
