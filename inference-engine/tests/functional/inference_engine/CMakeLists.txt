@@ -20,6 +20,17 @@ set(DEPENDENCIES
     template_extension
 )
 
+# for the MULTI tests we need plugins
+if (ENABLE_MKL_DNN)
+    list(APPEND DEPENDENCIES MKLDNNPlugin)
+endif()
+if (ENABLE_CLDNN)
+    list(APPEND DEPENDENCIES clDNNPlugin)
+endif()
+if (ENABLE_MYRIAD)
+    list(APPEND DEPENDENCIES myriadPlugin)
+endif()
+
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     list(APPEND INCLUDES "${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op")
     list(APPEND LINK_LIBRARIES onnx_custom_op)
