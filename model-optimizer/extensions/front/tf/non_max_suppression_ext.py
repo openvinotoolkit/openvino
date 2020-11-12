@@ -27,7 +27,7 @@ class NonMaxSuppressionV2Extractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'sort_result_descending': 1, 'center_point_box': 0, 'output_type': np.int32}
+        attrs = {'sort_result_descending': 1, 'box_encoding': 'corner', 'output_type': np.int32}
         NonMaxSuppression.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -38,7 +38,7 @@ class NonMaxSuppressionV3Extractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'sort_result_descending': 1, 'center_point_box': 0, 'output_type': np.int32}
+        attrs = {'sort_result_descending': 1, 'box_encoding': 'corner', 'output_type': np.int32}
         NonMaxSuppression.update_node_stat(node, attrs)
         return cls.enabled
 
