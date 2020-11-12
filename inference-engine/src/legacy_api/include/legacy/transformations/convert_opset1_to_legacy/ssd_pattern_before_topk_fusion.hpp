@@ -33,6 +33,6 @@ class INFERENCE_ENGINE_API_CLASS(PatternBeforeTopKFusion);
 class ngraph::pass::PatternBeforeTopKFusion: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertNMS5ToLegacyMatcher();
+    PatternBeforeTopKFusion();
 };
 
