@@ -175,31 +175,32 @@ def validate_test_case(request, test_info):
     """Fixture for validating test case on correctness.
 
     Fixture checks current test case contains all fields required for
-    a correct work. To submit results to a database test case have
-    contain several additional properties.
+    a correct work.
     """
-    schema = {
+    schema = """
+    {
         "type": "object",
         "properties": {
             "device": {
                 "type": "object",
                 "properties": {
                     "name": {"type": "string"}
-                }},
+                },
+                "required": ["name"]
+            },
             "model": {
                 "type": "object",
                 "properties": {
                     "path": {"type": "string"}
-                }},
+                },
+                "required": ["path"]
+            }
         },
+        "required": ["device", "model"],
+        "additionalProperties": false
     }
-    if request.config.getoption("db_submit"):
-        # For submission data to a database some additional fields are required
-        schema["properties"]["model"]["properties"].update({
-            "name": {"type": "string"},
-            "precision": {"type": "string"},
-            "framework": {"type": "string"}
-        })
+    """
+    schema = json.loads(schema)
 
     try:
         validate(instance=request.node.funcargs["instance"], schema=schema)
