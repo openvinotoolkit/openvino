@@ -14,6 +14,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <legacy/ie_layers_internal.hpp>
+#include <utils/general_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -91,11 +92,13 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
         createDescriptor({ in_candidate }, { out_candidate });
-    } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)) {
-        MKLDNNMemoryDesc in_candidate{ parentDims, memory::data_type::bf16, parentDims.ndims() == 5 ? memory::format_tag::nCdhw16c : memory::format_tag::nChw16c};
-        MKLDNNMemoryDesc out_candidate{ childDims, memory::data_type::bf16, parentDims.ndims() == 5 ? memory::format_tag::nCdhw16c : memory::format_tag::nChw16c};
+    } else if (one_of(parentDims.ndims(), 4, 5) && (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)) {
+        MKLDNNMemoryDesc in_candidate{parentDims, memory::data_type::bf16,
+                parentDims.ndims() == 5 ? memory::format_tag::nCdhw16c : memory::format_tag::nChw16c};
+        MKLDNNMemoryDesc out_candidate{childDims, memory::data_type::bf16,
+                parentDims.ndims() == 5 ? memory::format_tag::nCdhw16c : memory::format_tag::nChw16c};
         createDescriptor({ in_candidate }, { out_candidate });
-    } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && parentDims[1] == 1) {
+    } else if (one_of(parentDims.ndims(), 4, 5) && parentDims[1] == 1) {
         inputDataType = memory::data_type::f32;
         outputDataType = memory::data_type::f32;
         // WA. We should force planar layout since it provides better performance

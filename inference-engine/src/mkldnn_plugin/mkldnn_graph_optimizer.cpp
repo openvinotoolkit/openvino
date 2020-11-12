@@ -27,6 +27,8 @@
 #include <set>
 #include <algorithm>
 
+
+
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
@@ -118,7 +120,7 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseConvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
-    // TODO[oneDNN]: eltwise injectors is not ported yet
+    // TODO [oneDNN]: eltwise injectors is not ported yet
 //    FuseFullyConnectedAndSimpleOperation(graph);
 //    graph.RemoveDroppedNodes();
 

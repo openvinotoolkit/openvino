@@ -22,7 +22,7 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
         return 1;
     case mkldnn::memory::data_type::u8:
         return 1;
-    // TODO[oneDNN] : while has no BIN type ported
+    // TODO [oneDNN] : while has no BIN type ported
 //    case mkldnn::memory::data_type::bin:
 //        return 1;
         case mkldnn::memory::data_type::undef:
@@ -45,7 +45,7 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
         case InferenceEngine::Precision::U8:
         case InferenceEngine::Precision::BOOL:
             return memory::data_type::u8;
-        // TODO[oneDNN] : while has no BIN type ported
+        // TODO [oneDNN]: while has no BIN type ported
 //        case InferenceEngine::Precision::BIN:
 //            return memory::bin;
         default: {
@@ -66,7 +66,7 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
             return InferenceEngine::Precision::I8;
         case memory::data_type::u8:
             return InferenceEngine::Precision::U8;
-        // TODO[oneDNN] : while has no BIN type ported
+        // TODO [oneDNN]: while has no BIN type ported
 //        case memory::data_type::bin:
 //            return InferenceEngine::Precision::BIN;
         default: {

@@ -94,7 +94,7 @@ void MKLDNNRNN::fillCellDesc() {
     cell_act = ie2mkl(cellLayer->activations[0]);  // Works only for RNN with one gate
 
     if (cellLayer->clip != 0.0f) {
-        // TODO[oneDNN]: No more supported
+        // TODO [oneDNN]: No more supported
         THROW_IE_EXCEPTION << "Clipping is not supported for RNN primitive";
 //        cell_desc.set_clipping(cellLayer->clip);
     }
@@ -124,7 +124,7 @@ void MKLDNNRNN::fillCellDesc() {
     Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
 
     // Expected shapes
-    MKLDNNDims D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC} ;
+    MKLDNNDims D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
 
     if (in_data_dims != D_shape
         || in_h_state_dims != S_shape
@@ -200,7 +200,7 @@ void MKLDNNRNN::fillSeqDesc() {
     if (!rnnLayer->activations.empty())
         cell_act = ie2mkl(rnnLayer->activations[0]);  // Works only for RNN with one gate
 
-    // TODO[oneDNN]: No more supported
+    // TODO [oneDNN]: No more supported
     if (rnnLayer->clip != 0.0f) {
         THROW_IE_EXCEPTION << "Clipping is not supported for RNN primitive";
 //        cell_desc.set_clipping(rnnLayer->clip);
@@ -513,14 +513,8 @@ void MKLDNNRNN::createPrimitive() {
 }
 
 void MKLDNNRNN::execute(mkldnn::stream strm) {
-
-    // Standalone cell
-    //   in : tensors matched as is. {in[0], in[1], in[2]}
-    //   out: use fake layer_data :  {null, out[1], out[2]}
-    //
-    // Sequence cell
-    //   in : tensors matched as is. {in[0], in[1], in[2]}
-    //   out: use fake layer_data :  {out[0], out[1], out[2]}
+    if (!prim)
+        THROW_IE_EXCEPTION << "No initialized primitive to execute";
 
     const auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
     const auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
@@ -553,11 +547,7 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         }
     }
 
-    if (prim)
-        (*prim).execute(strm, args);
-    else
-        THROW_IE_EXCEPTION << "No initialized primitive to execute";
-
+    (*prim).execute(strm, args);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);

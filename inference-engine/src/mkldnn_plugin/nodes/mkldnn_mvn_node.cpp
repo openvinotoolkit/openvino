@@ -605,7 +605,6 @@ void MKLDNNMVNNode::createPrimitive() {
 
     if (mvn_variance_kernel)
         mvn_variance_kernel->create_ker();
-
 }
 
 void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {

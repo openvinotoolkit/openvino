@@ -78,8 +78,9 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         }
         auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[1].lock()->getPrecision());
 
-        // TODO(amalyse) what are the cases when we have non i8 weights and have to overide the precisions?
-        if (((inputDataType != memory::data_type::u8 && inputDataType != memory::data_type::s8) || weightsDataType != memory::data_type::s8) && inputDataType != memory::data_type::bf16) {
+        // TODO (amalyse) what are the cases when we have non i8 weights and have to overide the precisions?
+        if ((one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8) &&
+                inputDataType != memory::data_type::bf16) {
             inputDataType = memory::data_type::f32;
             outputDataType = memory::data_type::f32;
         }
@@ -355,7 +356,7 @@ std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveA
            }
        }
 
-       // TODO[oneDNN] : where is set_int_output_round_mode??
+       // TODO [oneDNN] : where is set_int_output_round_mode??
 //       attr->set_int_output_round_mode(mkldnn::round_nearest);
        attr->set_output_scales(1 << 1 /*through C dim*/, oScaleDataVector);
     }

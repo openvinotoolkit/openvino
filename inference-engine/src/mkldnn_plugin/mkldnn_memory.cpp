@@ -194,7 +194,6 @@ InferenceEngine::Layout MKLDNNMemory::GetPlainLayout(memory::dims dims) {
 bool MKLDNNMemory::isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format_tag format) {
     memory::desc attempt(dims, memory::data_type::f32, format, true);
     return static_cast<bool>(attempt);
-
 }
 
 void MKLDNNMemory::CreateBlockingDesc(memory::desc &desc) {
@@ -386,7 +385,6 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::Acb8a,
         mkldnn::memory::format_tag::BAc16a16b,
         mkldnn::memory::format_tag::BAc16b16a,
-
      }}, {4, {                                 // Popular
         mkldnn::memory::format_tag::abcd,      // plain
         mkldnn::memory::format_tag::acdb,      // tail_c
@@ -453,7 +451,6 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::aBCd2c4b2c,
         mkldnn::memory::format_tag::aBCd4b8c2b,
         mkldnn::memory::format_tag::aBCd4c8b2c,
-
     }}, {5, {                                   // Popular
         mkldnn::memory::format_tag::abcde,      // plain
         mkldnn::memory::format_tag::acdeb,      // tail_c
@@ -547,8 +544,8 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
 };
 
 mkldnn::memory::format_tag MKLDNNMemoryDesc::getFormat() const {
-    // TODO[OneDNN]: Previously it was a field of tdesc, but now the brute
-    //               force search here. Please avoid of using this method.
+    // TODO [OneDNN]: Previously it was a field of tdesc, but now the brute
+    //                force search here. Please avoid of using this method.
     const auto dims = desc.dims();
     const auto type = desc.data_type();
     const auto ndims = dims.size();

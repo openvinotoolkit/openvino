@@ -551,7 +551,6 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                     dataConfig.desc.setPrecision(eltwisePrecision);
                     config.inConfs.push_back(dataConfig);
                 }
-
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type & jit)
@@ -667,7 +666,6 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
 }
 
 void MKLDNNConvolutionNode::addZeroPoints(mkldnn::primitive_attr& attr) const {
-
     if (!inputZeroPoints.empty())
         attr.set_zero_points(0,  1 << 1 /*through C dim*/, std::vector<int32_t>(inputZeroPoints.begin(), inputZeroPoints.end()));
 

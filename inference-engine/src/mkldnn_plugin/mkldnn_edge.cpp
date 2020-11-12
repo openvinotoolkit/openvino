@@ -389,7 +389,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<memory::f
     return MKLDNNMemoryDesc(getDims(), inDataType, desc);
 }
 
-InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::memory::format_tag, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
+InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<memory::format_tag, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
     InferenceEngine::TensorDesc outDesc;
 
     if (outputDesc.getLayout() != InferenceEngine::Layout::ANY) {

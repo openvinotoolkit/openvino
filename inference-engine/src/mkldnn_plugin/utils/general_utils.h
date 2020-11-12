@@ -27,5 +27,4 @@ constexpr bool one_of(T val, P item, Args... item_others) {
     return val == item || one_of(val, item_others...);
 }
 
-
-}
+}  // namespace MKLDNNPlugin

@@ -124,9 +124,12 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
 
     int m_block_size = 1;
     if (!parentMem.GetDesc().isPlainFormat()) {
-        // TODO[oneDNN]: unclear how...
-        THROW_IE_EXCEPTION << "Unimplemented";
-//        m_block_size = parentMem.GetDescriptor().data.layout_desc.blocking.block_dims[1];
+        const auto &desc = parentMem.GetDescriptor().data;
+        const auto &blk = desc.format_desc.blocking;
+        IE_ASSERT(desc.format_kind == dnnl_blocked &&
+                  blk.inner_nblks == 1 &&
+                  blk.inner_idxs[0] == 1);
+        m_block_size = blk.inner_blks[0];
     }
     int m_inner_dim = dims[dims.size() - 1] * m_block_size;
 

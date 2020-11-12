@@ -98,7 +98,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         mask = 1 << oc_dim_id;
 
         attr.set_output_scales(mask, scales);
-        // TODO[oneDNN]: Where is set_int_output_round_mode?
+        // TODO [oneDNN]: Where is set_int_output_round_mode?
 //        attr.set_int_output_round_mode(round_mode::round_nearest);
     }
 
@@ -130,8 +130,6 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         // as grouped weights planar formats (e.g. goihw) since they have same physical memory layout.
         if (src_blocked->GetDesc().isPlainFormat() &&
             src_blocked->GetDims().size() + 1 == dst_blocked->GetDims().size()) {
-
-            //
             const auto newDims = dst_blocked->GetDims();
             const auto newFormat = MKLDNNMemory::GetPlainFormat(newDims);
 
@@ -142,7 +140,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         }
     }
     if (!success) {
-        // TODO[oneDNN]: is it unreachable case? may we remove it?
+        // TODO [oneDNN]: is it unreachable case? may we remove it?
         THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
 
         // MKLDNN doesn't support direct reorders between planar data formats in case they have different rank but the same number of elements.

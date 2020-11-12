@@ -642,7 +642,6 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
             }
         });
     } else {
-
         std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
         for (int i = 0; i < num_src; i++)
             mem_ags[DNNL_ARG_MULTIPLE_SRC + i] = getParentEdgeAt(i)->getMemory().GetPrimitive();

@@ -155,4 +155,4 @@ int get_cache_size(int level, bool per_core) {
 }
 
 }  // namespace utils
-}  // namespace ie_mkldnn
+}  // namespace mkldnn

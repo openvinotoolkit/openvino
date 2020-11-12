@@ -1542,7 +1542,8 @@ void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
     }
 
     mkldnn::algorithm alg = quantizeOpType == QuantizeOpType::FakeQuantization ? mkldnn::algorithm::quantization_quantize_dequantize :
-                            quantizeOpType == QuantizeOpType::Quantization ? mkldnn::algorithm::quantization_quantize : mkldnn::algorithm::binarization_depthwise;
+                            quantizeOpType == QuantizeOpType::Quantization ? mkldnn::algorithm::quantization_quantize :
+                            mkldnn::algorithm::binarization_depthwise;
 
     ops.append_quantization(alg, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
 }

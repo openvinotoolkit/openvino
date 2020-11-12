@@ -1590,7 +1590,6 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
 
 void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
     switch (getAlgorithm()) {
-
         case mkldnn::algorithm::eltwise_relu:
         case mkldnn::algorithm::eltwise_tanh:
         case mkldnn::algorithm::eltwise_elu:
@@ -1607,6 +1606,7 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
         case mkldnn::algorithm::eltwise_swish:
         case mkldnn::algorithm::eltwise_hswish:
         case mkldnn::algorithm::eltwise_mish:
+        // TODO [oneDNN] : not ported
 //        case mkldnn::algorithm::eltwise_hsigmoid:
 //        case mkldnn::algorithm::eltwise_round_half_to_even:
 //        case mkldnn::algorithm::eltwise_round_half_away_from_zero:
