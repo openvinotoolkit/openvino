@@ -120,23 +120,18 @@ namespace matmul
         // 3. If ranks of input arguments are different after steps 1 and 2,
         // the smaller tensor is unsqueezed from the left side of the shape
         // by necessary number of axes to make both shapes of the same rank.
-        if (arg0_rank != arg1_rank)
-        {
-            // Expand small_batch_matrix (with 1) to have the same rank as big_batch_matrix
-            // size_t delta_rank = big_batch_matrix.size() - small_batch_matrix.size();
-            // small_batch_matrix.insert(small_batch_matrix.begin(), delta_rank, 1);
-            int64_t delta_rank = arg0_rank - arg1_rank;
-            delta_rank < 0 ? arg0_shape_tmp.insert(arg0_shape_tmp.begin(), std::abs(delta_rank), 1)
-                           : arg1_shape_tmp.insert(arg1_shape_tmp.begin(), std::abs(delta_rank), 1);
-            arg0_rank = arg0_shape_tmp.size();
-            arg1_rank = arg1_shape_tmp.size();
-        }
-        std::vector<Dimension> output_shape(arg0_rank);
+        if (arg0_rank < arg1_rank)
+            arg0_shape_tmp.insert(arg0_shape_tmp.begin(), arg1_rank - arg0_rank, 1);
+        else if (arg0_rank > arg1_rank)
+            arg1_shape_tmp.insert(arg1_shape_tmp.begin(), arg0_rank - arg1_rank, 1);
+        // Both arg0_shape_tmp and arg1_shape_tmp have identical size now
+        auto max_rank = arg0_shape_tmp.size();
+        std::vector<Dimension> output_shape(max_rank);
 
         // 4. Usual rules of the broadcasting are applied for batch dimensions.
         // Broadcast all batches (last two dimensions represent matrix),
         // expand dim with value 1 to bigger dim if dimensions are not equal.
-        for (auto i = 0; i < arg0_rank - 2; i++)
+        for (auto i = 0; i < max_rank - 2; i++)
         {
             auto min_dim_val =
                 std::min(arg0_shape_tmp[i].get_min_length(), arg1_shape_tmp[i].get_min_length());
