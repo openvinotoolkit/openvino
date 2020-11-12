@@ -57,7 +57,7 @@ int XLink_sem_init(XLink_sem_t* sem, int pshared, unsigned int value);
 int XLink_sem_destroy(XLink_sem_t* sem);
 int XLink_sem_post(XLink_sem_t* sem);
 int XLink_sem_wait(XLink_sem_t* sem);
-int XLink_sem_timedwait(XLink_sem_t* sem, const struct timespec *abstime);
+int XLink_sem_timedwait(XLink_sem_t* sem, const struct timespec* abstime);
 
 //
 // Helper functions for XLink semaphore wrappers.
