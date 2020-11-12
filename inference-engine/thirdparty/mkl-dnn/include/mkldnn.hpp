@@ -473,47 +473,12 @@ struct post_ops: public handle<mkldnn_post_ops_t> {
     }
 
     void append_quantization(algorithm alg,
-            const std::vector<float> &crop_low, const std::vector<float> &crop_high,
-            const std::vector<float> &input_scale, const std::vector<float> &input_shift,
-            const std::vector<float> &output_scale, const std::vector<float> &output_shift) {
-
-        error::wrap_c_api(mkldnn_post_ops_append_quantization(get(), convert_to_c(alg), crop_low.size(), &crop_low[0], crop_high.size(), &crop_high[0],
-                input_scale.size(), &input_scale[0], input_shift.size(), &input_shift[0], output_scale.size(), &output_scale[0], output_shift.size(), &output_shift[0]),
+            const void* crop_low, const void* crop_high,
+            const void* input_scale, const void* input_shift,
+            const void* output_scale, const void* output_shift) {
+        error::wrap_c_api(mkldnn_post_ops_append_quantization(get(), convert_to_c(alg), crop_low, crop_high,
+                input_scale, input_shift, output_scale, output_shift),
                           "could not append quantization");
-    }
-
-    void get_params_quantization(int index, algorithm &alg,
-            std::vector<float> &crop_low, std::vector<float> &crop_high,
-            std::vector<float> &input_scale, std::vector<float> &input_shift,
-            std::vector<float> &output_scale, std::vector<float> &output_shift) const {
-        mkldnn_alg_kind_t c_alg;
-        int crop_low_count, crop_high_count, input_scale_count, input_shift_count, output_scale_count, output_shift_count;
-        const float *crop_low_data, *crop_high_data, *input_scale_data, *input_shift_data, *output_scale_data, *output_shift_data;
-
-        error::wrap_c_api(mkldnn_post_ops_get_params_quantization(get(), index, &c_alg,
-                &crop_low_count, &crop_low_data, &crop_high_count, &crop_high_data,
-                &input_scale_count, &input_scale_data, &input_shift_count, &input_shift_data,
-                &output_scale_count, &output_scale_data, &output_shift_count, &output_shift_data),
-                          "could not get int weights zero_points");
-
-        crop_low.resize(crop_low_count);
-        for (int c = 0; c < crop_low_count; ++c)
-            crop_low[c] = crop_low_data[c];
-        crop_high.resize(crop_high_count);
-        for (int c = 0; c < crop_high_count; ++c)
-            crop_high[c] = crop_high_data[c];
-        input_scale.resize(input_scale_count);
-        for (int c = 0; c < input_scale_count; ++c)
-            input_scale[c] = input_scale_data[c];
-        input_shift.resize(input_shift_count);
-        for (int c = 0; c < input_shift_count; ++c)
-            input_shift[c] = input_shift_data[c];
-        output_scale.resize(output_scale_count);
-        for (int c = 0; c < output_scale_count; ++c)
-            output_scale[c] = output_scale_data[c];
-        output_shift.resize(output_shift_count);
-        for (int c = 0; c < output_shift_count; ++c)
-            output_shift[c] = output_shift_data[c];
     }
 };
 

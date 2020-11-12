@@ -2680,40 +2680,33 @@ void NormalizeValidator::checkParams(const CNNLayer* layer) {
 SelectValidator::SelectValidator(const std::string& _type): LayerValidator(_type) {}
 
 void SelectValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
-    enum { condition, then_, else_, numOfInputs };
-    auto casted = dynamic_cast<const SelectLayer*>(layer);
-    if (!casted) {
-        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of SelectLayer class";
-    }
+    enum { CONDITION, THEN, ELSE, numOfInputs };
 
     size_t numInputs = inShapes.size();
-    if (numOfInputs != numInputs) THROW_IE_EXCEPTION << " Select can take 3 inputs, but actually it has: " << numInputs;
+    if (numOfInputs != numInputs) THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' take 3 inputs, but actually it has: " << numInputs;
 
-    if (inShapes[then_] != inShapes[else_]) {
-        THROW_IE_EXCEPTION << " Positive input shape should be the same as negative input shape";
-    }
+    size_t new_rank = inShapes[ELSE].size();
+    new_rank = std::max(new_rank, inShapes[THEN].size());
 
-    if (inShapes[condition].size() > inShapes[then_].size()) {
-        THROW_IE_EXCEPTION << " Condition input dimensions count (" << inShapes[condition].size()
-                           << ") should be less or equel then"
-                           << " posititve input dimension count (" << inShapes[then_].size() << ")";
-    }
+    if (inShapes[CONDITION].size() > new_rank)
+        THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has 'Mask' input's rank more than broadcasted 'Then' and 'Else' inputs' ranks";
 
-    if (inShapes[condition].size() > inShapes[else_].size()) {
-        THROW_IE_EXCEPTION << " Condition input dimensions count (" << inShapes[condition].size()
-                           << ") should be less or equel then"
-                           << " negative input dimension count (" << inShapes[else_].size() << ")";
-    }
+    for (size_t i = 0; i < new_rank; i++) {
+        auto in1 = i < (new_rank - inShapes[THEN].size()) ? 1 : inShapes[THEN][i - (new_rank - inShapes[THEN].size())];
+        auto in2 = i < (new_rank - inShapes[ELSE].size()) ? 1 : inShapes[ELSE][i - (new_rank - inShapes[ELSE].size())];
 
-    for (std::size_t i = 0; i < inShapes[condition].size(); ++i) {
-        const auto& cond_dim = inShapes[condition][inShapes[condition].size() - 1 - i];
-        const auto& then_dim = inShapes[then_][inShapes[then_].size() - 1 - i];
+        size_t tmp = 0;
+        if (in1 == in2 || in1 == 1 || in2 == 1)
+            tmp = std::max(in1, in2);
+        else
+            THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has incompatible 'Then' and 'Else' inputs' shapes";
 
-        if (cond_dim != then_dim && cond_dim != 1) {
-            THROW_IE_EXCEPTION << " Condition input dimension " << (inShapes[condition].size() - 1 - i) << " ("
-                               << cond_dim << ") should be less or equel then posititve and negative"
-                               << " input dimension " << (inShapes[then_].size() - 1 - i) << " (" << then_dim << ")";
-        }
+        auto in0 = i < (new_rank - inShapes[CONDITION].size()) ? 1 : inShapes[CONDITION][i - (new_rank - inShapes[CONDITION].size())];
+        if (tmp == in0 || in0 == 1)
+            tmp = std::max(tmp, in0);
+        else
+            THROW_IE_EXCEPTION << "Select layer with name '" << layer->name
+                                                        << "' has incompatible 'Mask' input's shapes and broadcasted 'Then' and 'Else' inputs' shapes";
     }
 }
 

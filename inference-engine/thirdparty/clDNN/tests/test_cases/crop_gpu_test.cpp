@@ -20,6 +20,7 @@
 #include <api/input_layout.hpp>
 #include "api/crop.hpp"
 #include <api/eltwise.hpp>
+#include <api/reorder.hpp>
 #include <api/topology.hpp>
 #include <api/network.hpp>
 #include <api/engine.hpp>
@@ -585,6 +586,46 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
 
     for (size_t i = 0; i < out2.size();i++)
         EXPECT_EQ(output_ptr_2[i], out2[i]);
+}
+
+TEST(crop_gpu, basic_in1x4x1x1_crop_pad) {
+    const auto& engine = get_test_engine();
+
+    auto batch_num = 1;
+    auto feature_num = 4;
+    auto x_size = 1;
+    auto y_size = 1;
+
+    auto crop_batch_num = 1;
+    auto crop_feature_num_1 = 3;
+    auto crop_x_size = 1;
+    auto crop_y_size = 1;
+    auto feature_offset_1 = 0;
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+
+    padding in_pad({0, 0, 1, 1}, {0, 0, 1, 1});
+    auto padded_layout = input.get_layout().with_padding(in_pad);
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(reorder("input_reorder", "input", padded_layout));
+    topology.add(crop("crop1", "input_reorder", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
+    topology.add(reorder("out_reorder", "crop1", format::bfyx, data_types::f32));
+
+    std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
+    std::vector<float> out1 = { -1.f, 2.f,-3.f };
+    set_values(input, input_vec);
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("out_reorder").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    for (size_t i = 0; i < out1.size();i++)
+        EXPECT_EQ(output_ptr[i], out1[i]);
 }
 
 TEST(crop_gpu, basic_int_in1x4x1x1_split) {

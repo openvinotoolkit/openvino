@@ -78,7 +78,8 @@ class MyriadExecutor {
     unsigned int _numStages = 0;
 
 public:
-    MyriadExecutor(bool forceReset, const LogLevel& vpuLogLevel, const Logger::Ptr& log);
+    MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
+                        const LogLevel& vpuLogLevel, const Logger::Ptr& log);
     ~MyriadExecutor() = default;
 
     /**
@@ -87,7 +88,7 @@ public:
      */
     DevicePtr openDevice(std::vector<DevicePtr> &devicePool, const MyriadConfig& config);
 
-    static void closeDevices(std::vector<DevicePtr> &devicePool);
+    static void closeDevices(std::vector<DevicePtr> &devicePool, std::shared_ptr<IMvnc> mvnc);
 
     void allocateGraph(DevicePtr &device,
                        GraphDesc &graphDesc,

@@ -54,7 +54,7 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                 return false;
             }
 
-            auto input = reduce->input(0).get_source_output().get_node_shared_ptr();
+            auto input = reduce->input_value(0);
 
             auto axes_node = reduce->input(1).get_source_output().get_node_shared_ptr();
             if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(axes_node)) {
@@ -74,7 +74,7 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
 
             // If axes are empty we just remove Reduction operation
             if (axes_vector.empty()) {
-                replace_node(reduce, input);
+                replace_node(reduce, {input});
                 return true;
             }
 
@@ -166,9 +166,9 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
              *  Note: some of reshape nodes can be optimized if they do nothing.
              */
 
-            if (!shape_begin.empty() && shape_begin != input->output(0).get_shape()) {
+            if (!shape_begin.empty() && shape_begin != input.get_shape()) {
                 input = std::make_shared<ngraph::opset1::Reshape>(input, opset1::Constant::create(element::i64, Shape{shape_begin.size()}, shape_begin), true);
-                input->set_friendly_name(reduce->get_friendly_name() + "/reshape_begin");
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/reshape_begin");
             }
 
             if (std::is_same<T, ngraph::opset1::ReduceMean>()) {
@@ -180,7 +180,7 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                                                                   true,
                                                                   op::RoundingType::FLOOR);
 
-                input->set_friendly_name(reduce->get_friendly_name() + "/pool");
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             } else if (std::is_same<T, ngraph::opset1::ReduceMax>()) {
                 input = std::make_shared<ngraph::opset1::MaxPool>(input,
                                                                   strides,
@@ -189,7 +189,7 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                                                                   kernel,
                                                                   op::RoundingType::FLOOR);
 
-                input->set_friendly_name(reduce->get_friendly_name() + "/pool");
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             } else if (std::is_same<T, ngraph::opset1::ReduceSum>()) {
                 input = std::make_shared<ngraph::opset1::AvgPool>(input,
                                                                   strides,
@@ -199,21 +199,21 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                                                                   true,
                                                                   op::RoundingType::FLOOR);
 
-                input->set_friendly_name(reduce->get_friendly_name() + "/pool");
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
 
                 input = std::make_shared<ngraph::opset1::Multiply>(input,
                         opset1::Constant::create(reduce->input(0).get_element_type(), Shape{1}, {reduction_dims_count}));
-                input->set_friendly_name(reduce->get_friendly_name() + "/mul");
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/mul");
             } else {
                 return false;
             }
 
-            if (!shape_end.empty() && shape_end != input->output(0).get_shape()) {
+            if (!shape_end.empty() && shape_end != input.get_shape()) {
                 input = std::make_shared<ngraph::opset1::Reshape>(input, opset1::Constant::create(element::i64, Shape{shape_end.size()}, shape_end), true);
             }
-            input->set_friendly_name(reduce->get_friendly_name());
+            input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name());
 
-            replace_node(reduce, input);
+            replace_node(reduce, {input});
             return true;
         };
 

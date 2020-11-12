@@ -174,9 +174,9 @@ status_t post_ops_t::append_binarization(alg_kind_t alg, const float* thresholds
 }
 
 status_t post_ops_t::append_quantization(alg_kind_t alg,
-                                         int crop_low_count, const float* crop_low, int crop_high_count, const float* crop_high,
-                                         int input_scale_count, const float* input_scale, int input_shift_count, const float* input_shift,
-                                         int output_scale_count, const float* output_scale, int output_shift_count, const float* output_shift) {
+                                         const void* crop_low, const void* crop_high,
+                                         const void* input_scale, const void* input_shift,
+                                         const void* output_scale, const void* output_shift) {
     using namespace mkldnn::impl::alg_kind;
     bool known_alg = one_of(alg, quantization_quantize_dequantize, quantization_quantize);
     if (!known_alg)
@@ -185,24 +185,14 @@ status_t post_ops_t::append_quantization(alg_kind_t alg,
     if (len_ == capacity)
         return out_of_memory;
 
-    bool ok = crop_low_count > 0 && crop_high_count > 0 && input_scale_count > 0 && input_shift_count > 0 && output_scale_count > 0 && output_shift_count > 0;
-    if (!ok)
-        return invalid_arguments;
-
     entry_[len_].kind = primitive_kind::quantization;
     entry_[len_].quantization.alg = alg;
-    entry_[len_].quantization.crop_low_data = new shifts_t<float>();
-    entry_[len_].quantization.crop_low_data->set(crop_low_count, 1 << 1, crop_low);
-    entry_[len_].quantization.crop_high_data = new shifts_t<float>();
-    entry_[len_].quantization.crop_high_data->set(crop_high_count, 1 << 1, crop_high);
-    entry_[len_].quantization.input_scale_data = new scales_t();
-    entry_[len_].quantization.input_scale_data->set(input_scale_count, 1 << 1, input_scale);
-    entry_[len_].quantization.input_shift_data = new shifts_t<float>();
-    entry_[len_].quantization.input_shift_data->set(input_shift_count, 1 << 1, input_shift);
-    entry_[len_].quantization.output_scale_data = new scales_t();
-    entry_[len_].quantization.output_scale_data->set(output_scale_count, 1 << 1, output_scale);
-    entry_[len_].quantization.output_shift_data = new shifts_t<float>();
-    entry_[len_].quantization.output_shift_data->set(output_shift_count, 1 << 1, output_shift);
+    entry_[len_].quantization.crop_low_data = reinterpret_cast<const shifts_t<float>*>(crop_low);
+    entry_[len_].quantization.crop_high_data = reinterpret_cast<const shifts_t<float>*>(crop_high);
+    entry_[len_].quantization.input_scale_data = reinterpret_cast<const scales_t*>(input_scale);
+    entry_[len_].quantization.input_shift_data = reinterpret_cast<const shifts_t<float>*>(input_shift);
+    entry_[len_].quantization.output_scale_data = reinterpret_cast<const scales_t*>(output_scale);
+    entry_[len_].quantization.output_shift_data = reinterpret_cast<const shifts_t<float>*>(output_shift);
 
     len_++;
 
@@ -559,43 +549,13 @@ status_t mkldnn_post_ops_get_params_binarization(const post_ops_t *post_ops, int
 }
 
 status_t mkldnn_post_ops_append_quantization(post_ops_t *post_ops, alg_kind_t kind,
-                                             int crop_low_count, const float* crop_low, int crop_high_count, const float* crop_high,
-                                             int input_scale_count, const float* input_scale, int input_shift_count, const float* input_shift,
-                                             int output_scale_count, const float* output_scale, int output_shift_count, const float* output_shift) {
+                                             const void* crop_low, const void* crop_high,
+                                             const void* input_scale, const void* input_shift,
+                                             const void* output_scale, const void* output_shift) {
     if (post_ops == nullptr)
         return invalid_arguments;
 
-    return post_ops->append_quantization(kind, crop_low_count, crop_low, crop_high_count, crop_high,
-            input_scale_count, input_scale, input_shift_count, input_shift, output_scale_count, output_scale, output_shift_count, output_shift);
-}
-
-status_t mkldnn_post_ops_get_params_quantization(const post_ops_t *post_ops, int index, alg_kind_t* alg,
-                                                 int* crop_low_count, const float** crop_low, int* crop_high_count, const float** crop_high,
-                                                 int* input_scale_count, const float** input_scale, int* input_shift_count, const float** input_shift,
-                                                 int* output_scale_count, const float** output_scale, int* output_shift_count, const float** output_shift) {
-    bool ok = true
-              && simple_get_params_check(post_ops, index, primitive_kind::quantization)
-              && !any_null(alg, crop_low_count, crop_low, crop_high_count, crop_high,
-                      input_scale_count, input_scale, input_shift_count, input_shift, output_scale_count, output_scale, output_shift_count, output_shift);
-    if (!ok)
-        return invalid_arguments;
-
-    const auto &e = post_ops->entry_[index].quantization;
-    *alg = e.alg;
-    *crop_low_count = e.crop_low_data->count_;
-    *crop_high_count = e.crop_high_data->count_;
-    *input_scale_count = e.input_scale_data->count_;
-    *input_shift_count = e.input_shift_data->count_;
-    *output_scale_count = e.output_scale_data->count_;
-    *output_shift_count = e.output_shift_data->count_;
-    *crop_low = e.crop_low_data->shifts_;
-    *crop_high = e.crop_high_data->shifts_;
-    *input_scale = e.input_scale_data->scales_;
-    *input_shift = e.input_shift_data->shifts_;
-    *output_scale = e.output_scale_data->scales_;
-    *output_shift = e.output_shift_data->shifts_;
-
-    return success;
+    return post_ops->append_quantization(kind, crop_low, crop_high, input_scale, input_shift, output_scale, output_shift);
 }
 
 template struct mkldnn::impl::shifts_t<uint8_t>;
