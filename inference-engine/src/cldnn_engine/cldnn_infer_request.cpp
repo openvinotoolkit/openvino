@@ -250,6 +250,7 @@ void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
     case Precision::BOOL: {
         uint8_t* blob_ptr = const_cast<uint8_t*>(locked.as<const uint8_t*>()) + offset;
         network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
+        break;
     }
     default:
         THROW_IE_EXCEPTION << "The plugin does not support input " << inputBlob.getTensorDesc().getPrecision() << " precision";

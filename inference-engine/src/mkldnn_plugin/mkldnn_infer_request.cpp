@@ -120,6 +120,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                     }
                     break;
                 case InferenceEngine::Precision::U8:
+                case InferenceEngine::Precision::BOOL:
                     if (graph->hasMeanImageFor(input.first)) {
                         // If a mean image exists, we convert the blob and send FP32
                         iconv = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32,

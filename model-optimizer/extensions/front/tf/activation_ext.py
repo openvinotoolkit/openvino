@@ -14,7 +14,7 @@
  limitations under the License.
 """
 from extensions.ops.activation_ops import Abs, Elu, Erf, Exp, ReLU, LeakyReLU, LogicalNot, ReLU6, Sigmoid, \
-    Sin, Sinh, Cos, Cosh, Tan, Tanh
+    Sin, Sinh, Cos, Cosh, Tan, Tanh, Ceiling
 from mo.front.extractor import FrontExtractorOp
 
 

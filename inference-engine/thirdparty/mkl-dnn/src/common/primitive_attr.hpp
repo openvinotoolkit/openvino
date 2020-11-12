@@ -174,12 +174,12 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
             } binarization;
             struct {
                 mkldnn::impl::alg_kind_t alg;
-                mkldnn::impl::shifts_t<float>* crop_low_data;
-                mkldnn::impl::shifts_t<float>* crop_high_data;
-                mkldnn::impl::scales_t* input_scale_data;
-                mkldnn::impl::shifts_t<float>* input_shift_data;
-                mkldnn::impl::scales_t* output_scale_data;
-                mkldnn::impl::shifts_t<float>* output_shift_data;
+                const mkldnn::impl::shifts_t<float>* crop_low_data;
+                const mkldnn::impl::shifts_t<float>* crop_high_data;
+                const mkldnn::impl::scales_t* input_scale_data;
+                const mkldnn::impl::shifts_t<float>* input_shift_data;
+                const mkldnn::impl::scales_t* output_scale_data;
+                const mkldnn::impl::shifts_t<float>* output_shift_data;
             } quantization;
         };
 
@@ -224,20 +224,6 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
 
     mkldnn_post_ops(): len_(0) {}
 
-//    ~mkldnn_post_ops() {
-//        for (int i = 0; i < len_; i++) {
-//            auto &post_op = entry_[i];
-//            if (post_op.is_quantization()) {
-//                delete post_op.quantization.crop_low_data;
-//                delete post_op.quantization.crop_high_data;
-//                delete post_op.quantization.input_scale_data;
-//                delete post_op.quantization.input_shift_data;
-//                delete post_op.quantization.output_scale_data;
-//                delete post_op.quantization.output_shift_data;
-//            }
-//        }
-//    }
-
     mkldnn::impl::status_t append_sum(float scale, mkldnn::impl::data_type_t data_type);
     mkldnn::impl::status_t append_eltwise(float scale,
             mkldnn::impl::alg_kind_t alg, float alpha, float beta);
@@ -250,9 +236,9 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
     mkldnn::impl::status_t append_binarization(mkldnn::impl::alg_kind_t alg, const float* weights_data,
                                                const float* output_mask_data);
     mkldnn::impl::status_t append_quantization(mkldnn::impl::alg_kind_t alg,
-                                               int crop_low_count, const float* crop_low, int crop_high_count, const float* crop_high,
-                                               int input_scale_count, const float* input_scale, int input_shift_count, const float* input_shift,
-                                               int output_scale_count, const float* output_scale, int output_shift_count, const float* output_shif);
+                                               const void* crop_low, const void* crop_high,
+                                               const void* input_scale, const void* input_shift,
+                                               const void* output_scale, const void* output_shift);
 
     int find(mkldnn::impl::primitive_kind_t kind, int start = 0,
             int stop = -1) const {

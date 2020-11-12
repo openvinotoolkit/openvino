@@ -221,7 +221,8 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         // Layers with "Shape" and "Const" type are Const by definition
         if (layer->type == "Shape" || layer->type == "Const") {
             mapConstLayers[layer->name] = false;
-        } else if ((layer->type != "FakeQuantize") && (layer->type != "Quantize") && (!isForFakeQuantzie(*layer))) {
+        } else if ((layer->type != "FakeQuantize") && (layer->type != "Quantize") &&
+                   (layer->type != "Convolution") && (layer->type != "CumSum") && (!isForFakeQuantzie(*layer))) {
             bool isAllInputsConst = true;
             for (auto const& data : layer->insData) {
                 auto creator = data.lock()->getCreatorLayer().lock();

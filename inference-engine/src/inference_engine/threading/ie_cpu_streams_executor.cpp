@@ -119,7 +119,11 @@ CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) :
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             auto concurrency = (0 == config._threadsPerStream) ? tbb::task_arena::automatic : config._threadsPerStream;
             if (ThreadBindingType::NUMA == config._threadBindingType) {
+#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
                 stream._taskArena.reset(new tbb::task_arena(tbb::task_arena::constraints(stream._numaNodeId, concurrency)));
+#else
+                stream._taskArena.reset(new tbb::task_arena(concurrency));
+#endif
             } else if ((0 != config._threadsPerStream) || ThreadBindingType::CORES == config._threadBindingType) {
                 stream._taskArena.reset(new tbb::task_arena(concurrency));
                 if (ThreadBindingType::CORES == config._threadBindingType) {

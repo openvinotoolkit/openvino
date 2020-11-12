@@ -38,16 +38,31 @@ static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
 
 std::map<std::string, device_impl::ptr> ocl_builder::get_available_devices(void* user_context, void* user_device) const {
     bool host_out_of_order = true;  // Change to false, if debug requires in-order queue.
+    std::vector<device_impl::ptr> dev_orig, dev_sorted;
     if (user_context != nullptr) {
-        return build_device_list_from_user_context(host_out_of_order, user_context);
+        dev_orig = build_device_list_from_user_context(host_out_of_order, user_context);
     } else if (user_device != nullptr) {
-        return build_device_list_from_user_device(host_out_of_order, user_device);
+        dev_orig = build_device_list_from_user_device(host_out_of_order, user_device);
     } else {
-        return build_device_list(host_out_of_order);
+        dev_orig = build_device_list(host_out_of_order);
     }
+
+    std::map<std::string, device_impl::ptr> ret;
+    for (auto& dptr : dev_orig) {
+        auto flag = dptr->get_device().getInfo<CL_DEVICE_HOST_UNIFIED_MEMORY>();
+        if (flag != 0)
+            dev_sorted.insert(dev_sorted.begin(), dptr);
+        else
+            dev_sorted.push_back(dptr);
+    }
+    uint32_t idx = 0;
+    for (auto& dptr : dev_sorted) {
+        ret[std::to_string(idx++)] = dptr;
+    }
+    return ret;
 }
 
-std::map<std::string, device_impl::ptr> ocl_builder::build_device_list(bool out_out_order) const {
+std::vector<device_impl::ptr> ocl_builder::build_device_list(bool out_out_order) const {
     cl_uint n = 0;
     // Get number of platforms availible
     cl_int err = clGetPlatformIDs(0, NULL, &n);
@@ -62,8 +77,7 @@ std::map<std::string, device_impl::ptr> ocl_builder::build_device_list(bool out_
         throw std::runtime_error("[CLDNN ERROR]. clGetPlatformIDs error " + std::to_string(err));
     }
 
-    uint32_t idx = 0;
-    std::map<std::string, device_impl::ptr> ret;
+    std::vector<device_impl::ptr> ret;
     for (auto& id : platform_ids) {
         cl::Platform platform = cl::Platform(id);
 
@@ -74,7 +88,8 @@ std::map<std::string, device_impl::ptr> ocl_builder::build_device_list(bool out_
         platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
         for (auto& device : devices) {
             if (!does_device_match_config(out_out_order, device)) continue;
-            ret.insert(get_device(idx++, device, id));
+            ret.emplace_back(device_impl::ptr{ new device_impl(device, cl::Context(device),
+                                                            id, device_info_internal(device)), false});
         }
     }
     if (ret.empty()) {
@@ -83,15 +98,16 @@ std::map<std::string, device_impl::ptr> ocl_builder::build_device_list(bool out_
     return ret;
 }
 
-std::map<std::string, device_impl::ptr>  ocl_builder::build_device_list_from_user_context(bool out_out_order, void* user_context) const {
+std::vector<device_impl::ptr>  ocl_builder::build_device_list_from_user_context(bool out_out_order, void* user_context) const {
     cl::Context ctx = cl::Context(static_cast<cl_context>(user_context), true);
     auto all_devices = ctx.getInfo<CL_CONTEXT_DEVICES>();
 
-    std::map<std::string, device_impl::ptr> ret;
-    uint32_t idx = 0;
+    std::vector<device_impl::ptr> ret;
     for (auto& device : all_devices) {
         if (!does_device_match_config(out_out_order, device)) continue;
-        ret.insert(get_device(idx++, device, device.getInfo<CL_DEVICE_PLATFORM>()));
+        ret.emplace_back(device_impl::ptr{ new device_impl(device, cl::Context(device),
+                                                        device.getInfo<CL_DEVICE_PLATFORM>(),
+                                                        device_info_internal(device)), false});
     }
 
     if (ret.empty()) {
@@ -100,7 +116,7 @@ std::map<std::string, device_impl::ptr>  ocl_builder::build_device_list_from_use
     return ret;
 }
 
-std::map<std::string, device_impl::ptr>  ocl_builder::build_device_list_from_user_device(bool out_out_order, void* user_device) const {
+std::vector<device_impl::ptr>  ocl_builder::build_device_list_from_user_device(bool out_out_order, void* user_device) const {
     cl_uint n = 0;
     // Get number of platforms availible
     cl_int err = clGetPlatformIDs(0, NULL, &n);
@@ -115,8 +131,7 @@ std::map<std::string, device_impl::ptr>  ocl_builder::build_device_list_from_use
         throw std::runtime_error("[CLDNN ERROR]. clGetPlatformIDs error " + std::to_string(err));
     }
 
-    uint32_t idx = 0;
-    std::map<std::string, device_impl::ptr> ret;
+    std::vector<device_impl::ptr> ret;
     for (auto& id : platform_ids) {
         cl::PlatformVA platform = cl::PlatformVA(id);
 
@@ -137,45 +152,24 @@ std::map<std::string, device_impl::ptr>  ocl_builder::build_device_list_from_use
 
         for (auto& device : devices) {
             if (!does_device_match_config(out_out_order, device)) continue;
-            ret.insert(get_device_shared(idx++, device, id, user_device));
+            cl_context_properties props[] = {
+        #ifdef WIN32
+                CL_CONTEXT_D3D11_DEVICE_KHR,
+        #else
+                CL_CONTEXT_VA_API_DISPLAY_INTEL,
+        #endif
+                (intptr_t)user_device,
+                CL_CONTEXT_INTEROP_USER_SYNC, CL_FALSE,
+                CL_CONTEXT_PLATFORM, (cl_context_properties)id,
+                0 };
+            ret.emplace_back(device_impl::ptr{ new device_impl(device, cl::Context(device, props),
+                                                            id, device_info_internal(device)), false });
         }
     }
     if (ret.empty()) {
         throw std::runtime_error("[CLDNN ERROR]. No corresponding GPU device was found.");
     }
     return ret;
-}
-
-std::pair<std::string, device_impl::ptr> ocl_builder::get_device(const uint32_t index,
-                                                                 const cl::Device& dev_to_add,
-                                                                 const cl_platform_id platform) const {
-    return {
-        std::to_string(index),
-        device_impl::ptr{ new device_impl(dev_to_add, cl::Context(dev_to_add), platform, device_info_internal(dev_to_add)),
-        false}
-    };
-}
-
-std::pair<std::string, device_impl::ptr> ocl_builder::get_device_shared(const uint32_t index,
-                                                                        const cl::Device& dev_to_add,
-                                                                        const cl_platform_id platform,
-                                                                        void* user_device) const {
-    cl_context_properties props[] = {
-#ifdef WIN32
-        CL_CONTEXT_D3D11_DEVICE_KHR,
-#else
-        CL_CONTEXT_VA_API_DISPLAY_INTEL,
-#endif
-        (intptr_t)user_device,
-        CL_CONTEXT_INTEROP_USER_SYNC, CL_FALSE,
-        CL_CONTEXT_PLATFORM, (cl_context_properties)platform,
-        0 };
-
-    return {
-        std::to_string(index),
-        device_impl::ptr{ new device_impl(dev_to_add, cl::Context(dev_to_add, props), platform, device_info_internal(dev_to_add)),
-        false }
-    };
 }
 
 bool ocl_builder::does_device_match_config(bool out_of_order, const cl::Device& device) const {

@@ -2,6 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+    find_package(TBB COMPONENTS tbb tbbmalloc)
+    if (TBB_FOUND)
+        if (${TBB_VERSION} VERSION_LESS 2020)
+            ext_message(WARNING "TBB version is less than OpenVINO recommends to use.\
+                                 Some TBB related features like NUMA-aware tbb::task_arena\
+                                 execution will be disabled.")
+        endif()
+    else ()
+        ext_message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path. \
+                             SEQ method will be used.")
+    endif ()
+endif()
+
 function(set_ie_threading_interface_for TARGET_NAME)
     get_target_property(target_type ${TARGET_NAME} TYPE)
     if(target_type STREQUAL "INTERFACE_LIBRARY")
@@ -48,7 +62,6 @@ function(set_ie_threading_interface_for TARGET_NAME)
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-        find_package(TBB COMPONENTS tbb tbbmalloc)
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})

@@ -43,14 +43,10 @@ public:
     uint32_t get_device_type() const { return device_type; }
     uint32_t get_device_vendor() const { return device_vendor; }
 private:
-    std::pair<std::string, device_impl::ptr> get_device(const uint32_t index,
-        const cl::Device& dev_to_add, const cl_platform_id platform) const;
-    std::pair<std::string, device_impl::ptr> get_device_shared(const uint32_t index,
-        const cl::Device& dev_to_add, const cl_platform_id platform, void* user_device) const;
     bool does_device_match_config(bool out_of_order, const cl::Device& device) const;
-    std::map<std::string, device_impl::ptr> build_device_list(bool out_out_order) const;
-    std::map<std::string, device_impl::ptr> build_device_list_from_user_context(bool out_out_order, void* user_context) const;
-    std::map<std::string, device_impl::ptr> build_device_list_from_user_device(bool out_out_order, void* user_device) const;
+    std::vector<device_impl::ptr> build_device_list(bool out_out_order) const;
+    std::vector<device_impl::ptr> build_device_list_from_user_context(bool out_out_order, void* user_context) const;
+    std::vector<device_impl::ptr> build_device_list_from_user_device(bool out_out_order, void* user_device) const;
 };
 
 }  // namespace gpu
