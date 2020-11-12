@@ -51,7 +51,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 37862
         R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)",
         // TODO: Issue: 38841
-        R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
+        R"(.*TopKLayerTest.*k=5.*sort=none.*)",
     };
 }
