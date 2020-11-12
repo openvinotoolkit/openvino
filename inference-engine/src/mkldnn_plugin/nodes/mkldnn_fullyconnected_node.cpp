@@ -290,9 +290,9 @@ memory::format_tag MKLDNNFullyConnectedNode::weightsFormatForSrcFormat(memory::f
         case memory::format_tag::ncdhw:
             return memory::format_tag::oidhw;
         case memory::format_tag::nChw8c:
-            return memory::format_tag::aBcd8b;  // ex oIhw8i
+            return memory::format_tag::aBcd8b;   // ex oIhw8i
         case memory::format_tag::nCdhw8c:
-            return memory::format_tag::aBcde8b; //  ex oIdhw8i;
+            return memory::format_tag::aBcde8b;  //  ex oIdhw8i;
         case memory::format_tag::nChw16c:
             return memory::format_tag::aBcd16b;  // ex oIhw16i;
         case memory::format_tag::nCdhw16c:

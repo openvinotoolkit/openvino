@@ -111,7 +111,6 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
 
         auto info = pd.impl_info_str();
         supportedPrimitiveDescriptors[0].setImplementationType(parse_impl_name(info));
-        supportedPrimitiveDescriptors[0].setOutputLayouts(MKLDNNMemoryDesc(dstDesc).getFormat());
 
         prim.reset(new mkldnn::reorder(pd));
         return true;

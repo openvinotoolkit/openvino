@@ -545,7 +545,7 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
     // Compare by partial layout descriptor (without particular strides values)
     auto areCompatible = [](const TensorDesc& tdesc, mkldnn::memory::format_tag fmt) {
-        MKLDNNMemoryDesc fmt_tdesc = MKLDNNMemoryDesc{
+        TensorDesc fmt_tdesc = MKLDNNMemoryDesc{
             MKLDNNDims(tdesc.getDims()),
             MKLDNNExtensionUtils::IEPrecisionToDataType(tdesc.getPrecision()),
             fmt};

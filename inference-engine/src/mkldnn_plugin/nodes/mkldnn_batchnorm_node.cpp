@@ -206,19 +206,16 @@ void MKLDNNBatchNormalizationNode::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
-            std::vector<memory::format_tag> outFormats;
             for (size_t i = 0; i < desc.outputNumbers(); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
                 dataConfig.desc = getDstMemDesc(itpd, i);
                 config.outConfs.push_back(dataConfig);
-
-                outFormats.emplace_back(MKLDNNMemoryDesc(itpd.dst_desc()).getFormat());
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
             if (!itpd.next_impl())
                 break;
         }

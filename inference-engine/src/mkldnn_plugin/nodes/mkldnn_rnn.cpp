@@ -182,7 +182,7 @@ void MKLDNNRNN::fillCellDesc() {
         outputFormats.emplace_back(memory::format_tag::nc);
     }
 
-    createDescriptor(in_candidate, out_candidate, outputFormats);
+    createDescriptor(in_candidate, out_candidate);
 }
 
 void MKLDNNRNN::fillSeqDesc() {
@@ -296,26 +296,21 @@ void MKLDNNRNN::fillSeqDesc() {
         in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
 
     std::vector<TensorDesc> out_candidate;
-    std::vector<memory::format_tag> outputFormats;
     if (nativeOrder) {
         out_candidate.push_back(out_data_d);
-        outputFormats.push_back(out_data_d.getFormat());
     } else {
         out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, memory::data_type::f32, memory::format_tag::ntc});
-        outputFormats.push_back(memory::format_tag::ntc);
     }
 
     for (int i = 1; i < outs.size(); i++) {
         out_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, memory::data_type::f32, memory::format_tag::nc});
-        outputFormats.push_back(memory::format_tag::nc);
     }
 
-    createDescriptor(in_candidate, out_candidate, outputFormats);
+    createDescriptor(in_candidate, out_candidate);
 }
 
 void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
-                                 const std::vector<TensorDesc> &outputDesc,
-                                 const std::vector<memory::format_tag> &outputFormats) {
+                                 const std::vector<TensorDesc> &outputDesc) {
     switch (cell_type) {
         case mkldnn::algorithm::vanilla_rnn: {
             MKLDNNDescriptor desc(std::shared_ptr<vanilla_rnn_forward::desc>(
@@ -390,7 +385,7 @@ void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
         config.outConfs.push_back(dataConfig);
     }
 
-    supportedPrimitiveDescriptors.emplace_back(config, ref_any, outputFormats);
+    supportedPrimitiveDescriptors.emplace_back(config, ref_any);
 }
 
 void MKLDNNRNN::createPrimitive() {

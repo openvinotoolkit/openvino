@@ -535,7 +535,6 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
-            std::vector<memory::format_tag> outFormats;
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 if (withSum) {
@@ -554,13 +553,12 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                     config.inConfs.push_back(dataConfig);
                 }
 
-                outFormats.emplace_back(static_cast<memory::format_tag>(MKLDNNMemoryDesc(itpd.dst_desc()).getFormat()));
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type & jit)
                 containJitImpl = true;
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
             if (!itpd.next_impl())
                 break;
         }

@@ -211,28 +211,16 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
-            std::vector<mkldnn::memory::format_tag> outFormats;
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
                 dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(itpd, i));
                 config.outConfs.push_back(dataConfig);
-
-                auto dstPrimDesc = itpd.dst_desc(0);
-                if (dstPrimDesc) {
-                    outFormats.emplace_back(MKLDNNMemoryDesc(dstPrimDesc).getFormat());
-                } else {
-                    // This path is needed to correctly handle Deconvolution node
-                    auto diffSrcPrimDesc = itpd.diff_src_desc(0);
-                    if (diffSrcPrimDesc) {
-                        outFormats.emplace_back(MKLDNNMemoryDesc(diffSrcPrimDesc).getFormat());
-                    }
-                }
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
             if (!itpd.next_impl())
                 break;
         }

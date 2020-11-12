@@ -1060,7 +1060,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             impl_type = impl_desc_type::ref;
         }
 
-        return {config, impl_type, MKLDNNMemoryDesc(config.outConfs[0].desc).getFormat()};
+        return {config, impl_type};
     };
 
     bool isChannelsFirstApplicable = one_of(getChildEdgeAt(0)->getDims().ndims(), 1, 2, 4, 5);
