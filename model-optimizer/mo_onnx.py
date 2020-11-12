@@ -17,15 +17,30 @@
 """
 
 import sys
+import io
 
 from mo.utils.versions_checker import check_python_version
+from mo.main import main
+from mo.utils.cli_parser import get_onnx_cli_parser
+
+ret_code = check_python_version()
+if ret_code:
+    sys.exit(ret_code)
+
+parser = get_onnx_cli_parser()
 
 if __name__ == "__main__":
-    ret_code = check_python_version()
-    if ret_code:
-        sys.exit(ret_code)
+    sys.exit(main(parser, 'onnx'))
+else:
+    class mo_onnx:
+        def __init__(self):
+            f = io.StringIO()
+            parser.print_help(f)
+            mo_onnx.__doc__ = f.getvalue()
 
-    from mo.main import main
-    from mo.utils.cli_parser import get_onnx_cli_parser
+        def __call__(self, **args):
+            for arg, value in args.items():
+                parser.set_defaults(**{arg: str(value)})
+            main(parser, 'onnx', [])
 
-    sys.exit(main(get_onnx_cli_parser(), 'onnx'))
+    sys.modules[__name__] = mo_onnx()
