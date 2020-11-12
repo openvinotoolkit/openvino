@@ -261,6 +261,39 @@ public:
     template<typename To>
     class Registrar;
 
+    template<typename T, int N>
+    struct Tag {};
+
+    struct PerfCounters {
+        PerfCounters(std::string const& name)
+            : execute(openvino::itt::handle(name))
+            , getSupportedDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 0>>("MKLDNNNode::getSupportedDescriptors"))
+            , initSupportedPrimitiveDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 1>>("MKLDNNNode::initSupportedPrimitiveDescriptors"))
+            , filterSupportedPrimitiveDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 2>>("MKLDNNNode::filterSupportedPrimitiveDescriptors"))
+            , selectOptimalPrimitiveDescriptor(openvino::itt::handle<Tag<MKLDNNNode, 3>>("MKLDNNNode::selectOptimalPrimitiveDescriptor"))
+            , createPrimitive(openvino::itt::handle<Tag<MKLDNNNode, 4>>("MKLDNNNode::createPrimitive"))
+            , initOptimalPrimitiveDescriptor(openvino::itt::handle<Tag<MKLDNNNode, 5>>("MKLDNNNode::initOptimalPrimitiveDescriptor"))
+        {}
+
+        template<typename NodeType>
+        void buildClassCounters(const std::string& type_name) {
+            getSupportedDescriptors = openvino::itt::handle<Tag<NodeType, 0>>(type_name + "::getSupportedDescriptors");
+            initSupportedPrimitiveDescriptors = openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");
+            filterSupportedPrimitiveDescriptors = openvino::itt::handle<Tag<NodeType, 2>>(type_name + "::filterSupportedPrimitiveDescriptors");
+            selectOptimalPrimitiveDescriptor = openvino::itt::handle<Tag<NodeType, 3>>(type_name + "::selectOptimalPrimitiveDescriptor");
+            createPrimitive = openvino::itt::handle<Tag<NodeType, 4>>(type_name + "::createPrimitive");
+            initOptimalPrimitiveDescriptor = openvino::itt::handle<Tag<NodeType, 5>>(type_name + "::initOptimalPrimitiveDescriptor");
+        }
+
+        openvino::itt::handle_t execute;
+        openvino::itt::handle_t getSupportedDescriptors;
+        openvino::itt::handle_t initSupportedPrimitiveDescriptors;
+        openvino::itt::handle_t filterSupportedPrimitiveDescriptors;
+        openvino::itt::handle_t selectOptimalPrimitiveDescriptor;
+        openvino::itt::handle_t createPrimitive;
+        openvino::itt::handle_t initOptimalPrimitiveDescriptor;
+    };
+
     static Factory & factory();
 
     ~MKLDNNNode() override = default;
@@ -474,6 +507,14 @@ public:
         return desc.outputNumbers();
     }
 
+    const PerfCounters & perfCounters() const {
+        return profiling;
+    }
+
+    PerfCounters & perfCounters() {
+        return profiling;
+    }
+
 protected:
     // TODO: It is necessary only in order to avoid modifications of cnnLayers and original topology
     std::vector<MKLDNNDims> outDims;
@@ -563,7 +604,7 @@ private:
     std::string typeToStr(Type type);
 
     PerfCount perfCounter;
-    openvino::itt::handle_t profilingTask;
+    PerfCounters profiling;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
@@ -611,6 +652,7 @@ public:
                 [type](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
                     MKLDNNWeightsSharing::Ptr &w_cache) -> MKLDNNNode* {
                     MKLDNNNode *node = new To(layer, eng, w_cache);
+                    node->perfCounters().buildClassCounters<To>(NameFromType(type));
                     return node;
                 });
     }
