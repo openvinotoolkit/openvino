@@ -176,12 +176,20 @@ bool PartialBlkDesc::isAutoExtendedWith(const InferenceEngine::SizeVector &dims)
 }
 
 bool PartialBlkDesc::operator == (const PartialBlkDesc& it) const {
-    return std::tie(inner_blk_idxes, inner_blk_size, outer_order) ==
-           std::tie(inner_blk_idxes, inner_blk_size, outer_order);
+    return std::tie(this->inner_blk_idxes,
+                    this->inner_blk_size,
+                    this->outer_order) ==
+           std::tie(it.inner_blk_idxes,
+                    it.inner_blk_size,
+                    it.outer_order);
 }
 
 // Lexicographical compare of content
 bool PartialBlkDesc::operator < (const PartialBlkDesc& it) const {
-    return std::tie(inner_blk_idxes, inner_blk_size, outer_order) <
-           std::tie(inner_blk_idxes, inner_blk_size, outer_order);
+    return std::tie(this->inner_blk_idxes,
+                    this->inner_blk_size,
+                    this->outer_order) <
+           std::tie(it.inner_blk_idxes,
+                    it.inner_blk_size,
+                    it.outer_order);
 }
