@@ -1142,13 +1142,15 @@ void MKLDNNInterpolateNode::createPrimitive() {
     jcp.IW = srcDim[dimSize - 1];
     jcp.IH = srcDim[dimSize - 2];
 
-    if (MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims()) == selected_layout) {
+    if (getChildEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
         jcp.layout = InterpolateLayoutType::planar;
-    } else if ((selected_layout == NHWC) || (selected_layout == NDHWC)) {
-        jcp.layout = InterpolateLayoutType::by_channel;
-    } else {
+    } else if (one_of(getChildEdgeAt(0)->getMemory().GetDesc(), format_tag::nChw8c, format_tag::nChw16c)) {
         jcp.layout = InterpolateLayoutType::block;
+    } else {
+        jcp.layout = InterpolateLayoutType::by_channel;
     }
+
+    configured_for_layout = jcp.layout;
 
     if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx) {
         if (jcp.layout != InterpolateLayoutType::planar) {
@@ -1572,8 +1574,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
     if (dimSize > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
         THROW_IE_EXCEPTION << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
-    Layout layout = getParentEdgeAt(DATA_ID)->getDesc().getLayout();
-    bool isPlanar = (layout == NC || layout == NCHW || layout == NCDHW) ? true : false;
+    bool isPlanar = (configured_for_layout == planar);
 
     switch (mode) {
         case InterpolateMode::nearest: {
@@ -1627,8 +1628,7 @@ void MKLDNNInterpolateNode::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
 
-    Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
-    bool is_nhwc = (layout == NHWC || layout == NDHWC) ? true : false;
+    bool is_nhwc = (configured_for_layout == by_channel);
 
     for (int b = 0; b < B; b++) {
         if (is_nhwc) {
@@ -1758,7 +1758,7 @@ void MKLDNNInterpolateNode::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t 
     float *weightBottom = reinterpret_cast<float*>(&indexTable[scratchLen + 2 * OW + OH]);
 
     Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
-    bool isByChannel = (layout == NHWC) ? true : false;
+    bool isByChannel = (configured_for_layout == by_channel) ? true : false;
 
     if (isByChannel) {
         parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {

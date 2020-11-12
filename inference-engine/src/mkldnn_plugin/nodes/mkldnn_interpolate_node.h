@@ -167,6 +167,8 @@ private:
     InferenceEngine::Precision inputPrec, outputPrec;
     size_t srcDataSize, dstDataSize;
 
+    InterpolateLayoutType configured_for_layout;
+
     std::vector<int> indexTable;
 
     std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel;
