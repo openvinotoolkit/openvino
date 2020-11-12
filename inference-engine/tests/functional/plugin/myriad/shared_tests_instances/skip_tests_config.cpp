@@ -29,5 +29,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 42828
         R"(.*DSR_NonMaxSuppression.*NBoxes=(5|20|200).*)",
+        // TODO: Issue: 42721
+        R"(.*(DSR_GatherND).*)",
     };
 }

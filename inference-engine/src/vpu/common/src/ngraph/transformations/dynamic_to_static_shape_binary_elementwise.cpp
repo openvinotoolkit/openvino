@@ -21,14 +21,6 @@ void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
 
     const auto copied = eltwise->copy_with_new_inputs(eltwise->input_values());
 
-    auto shapeToConstant = [&eltwise](const ngraph::Output<ngraph::Node>& output,
-                                      const ngraph::element::Type& elemType) -> std::shared_ptr<ngraph::opset3::Constant> {
-        VPU_THROW_UNLESS(output.get_partial_shape().is_static(),
-            "DynamicToStaticShape transformation for {} of type {} expects static shape on inputs without DSR",
-            eltwise->get_friendly_name(), eltwise->get_type_info());
-        return ngraph::opset3::Constant::create(elemType, {output.get_shape().size()}, output.get_shape());
-    };
-
     const auto lhsDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(eltwise->input_value(0).get_node_shared_ptr());
     const auto rhsDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(eltwise->input_value(1).get_node_shared_ptr());
 
@@ -42,8 +34,8 @@ void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
     }
     const auto shapeElementType = lhsDSR ? lhsDSR->get_input_element_type(1) : rhsDSR->get_input_element_type(1);
 
-    auto lhsInput = lhsDSR ? lhsDSR->input_value(1) : shapeToConstant(eltwise->input_value(0), shapeElementType);
-    auto rhsInput = rhsDSR ? rhsDSR->input_value(1) : shapeToConstant(eltwise->input_value(1), shapeElementType);
+    auto lhsInput = lhsDSR ? lhsDSR->input_value(1) : shapeToConstant(shapeElementType, eltwise->get_input_shape(0));
+    auto rhsInput = rhsDSR ? rhsDSR->input_value(1) : shapeToConstant(shapeElementType, eltwise->get_input_shape(1));
 
     const auto diff = std::abs(lhsRank.get_length() - rhsRank.get_length());
     if (diff) {

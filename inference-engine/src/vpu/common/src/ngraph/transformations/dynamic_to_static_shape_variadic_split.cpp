@@ -44,22 +44,10 @@ void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
     const auto data_rank_value = data_rank.get_length();
     ngraph::OutputVector first_shape_part, second_shape_part;
     if (axis) {
-        std::vector<int64_t> first_data_shape_part_indices(axis);
-        std::iota(first_data_shape_part_indices.begin(), first_data_shape_part_indices.end(), 0);
-        const auto first_data_shape_part = std::make_shared<ngraph::opset3::Gather>(
-                data_shape,
-                ngraph::opset3::Constant::create(ngraph::element::i64, {first_data_shape_part_indices.size()}, first_data_shape_part_indices),
-                ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
-        first_shape_part.push_back(first_data_shape_part);
+        first_shape_part.push_back(gatherShapeElements(data_shape, 0, axis));
     }
     if (axis + 1 < data_rank_value) {
-        std::vector<int64_t> second_data_shape_part_indices(data_rank_value - axis - 1);
-        std::iota(second_data_shape_part_indices.begin(), second_data_shape_part_indices.end(), axis + 1);
-        const auto second_data_shape_part = std::make_shared<ngraph::opset3::Gather>(
-                data_shape,
-                ngraph::opset3::Constant::create(ngraph::element::i64, {second_data_shape_part_indices.size()}, second_data_shape_part_indices),
-                ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
-        second_shape_part.push_back(second_data_shape_part);
+        second_shape_part.push_back(gatherShapeElements(data_shape, axis + 1, data_rank_value - axis - 1));
     }
     for (auto i = 0; i < split_lengths.size(); ++i) {
         const auto dim = ngraph::opset3::Constant::create(data_shape->get_element_type(), {1}, {split_lengths[i]});

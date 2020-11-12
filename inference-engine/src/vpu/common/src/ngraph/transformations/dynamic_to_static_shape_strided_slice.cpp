@@ -109,14 +109,7 @@ std::shared_ptr<ngraph::Node> calculate_output_shape(
     }
 
     if (output_dimensions.size() < inputShapeRank) {
-        std::vector<std::int64_t> indices(inputShapeRank - output_dimensions.size());
-        std::iota(indices.begin(), indices.end(), static_cast<std::int64_t>(output_dimensions.size()));
-
-        const auto tail = std::make_shared<ngraph::opset3::Gather>(
-            input_shape,
-            ngraph::opset3::Constant::create(ngraph::element::i64, {indices.size()}, indices),
-            ngraph::opset3::Constant::create(shape_type, {}, {0}));
-        output_dimensions.push_back(tail);
+        output_dimensions.push_back(gatherShapeElements(input_shape, output_dimensions.size(), inputShapeRank - output_dimensions.size()));
     }
 
     VPU_THROW_UNLESS(output_dimensions.size() == inputShapeRank,
