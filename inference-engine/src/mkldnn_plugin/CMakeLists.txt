@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "MKLDNNPlugin")
 
-if(USE_DNNL)
-    add_definitions(-DUSE_DNNL)
-endif()
-
 if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()

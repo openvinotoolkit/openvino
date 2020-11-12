@@ -81,22 +81,16 @@ if (NOT USE_SYSTEM_PUGIXML)
 endif()
 
 if(ENABLE_MKL_DNN)
-    if (USE_DNNL)
-        set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
-        set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
-        set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)     ## TODO: try it later
-        set(DNNL_LIBRARY_TYPE STATIC CACHE BOOL "" FORCE)
-        set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(DNNL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-        set(DNNL_CPU_RUNTIME "TBB" CACHE BOOL "" FORCE)
-        set(DNNL_BLAS_VENDOR "NONE" CACHE BOOL "" FORCE)
-        set(SDL_cmake_included ON) ## to skip internal SDL flags
+    set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
+    set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
+    set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)     ## TODO: try it later
+    set(DNNL_LIBRARY_TYPE STATIC CACHE BOOL "" FORCE)
+    set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(DNNL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(DNNL_CPU_RUNTIME "TBB" CACHE BOOL "" FORCE)
+    set(DNNL_BLAS_VENDOR "NONE" CACHE BOOL "" FORCE)
+    set(SDL_cmake_included ON) ## to skip internal SDL flags
 
-        add_subdirectory(mkl-dnn)
-        add_library(mkldnn ALIAS dnnl)
-    else()
-        ## old version of MKLDNN integration
-        set(SDL_cmake_included ON)
-        include(mkldnn.cmake)
-    endif()
+    add_subdirectory(mkl-dnn)
+    add_library(mkldnn ALIAS dnnl)
 endif()
