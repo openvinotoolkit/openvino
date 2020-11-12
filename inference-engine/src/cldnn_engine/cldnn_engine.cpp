@@ -51,7 +51,6 @@
 
 #ifdef __linux__
 # include <dlfcn.h>
-
 #endif
 
 using InferenceEngine::DescriptionBuffer;

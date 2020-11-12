@@ -247,6 +247,7 @@ def lstm_sequence(
     }
     return _get_node_factory_opset5().create("LSTMSequence", node_inputs, attributes)
 
+
 def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs HSigmoid.
 
@@ -254,6 +255,7 @@ def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
     :return: The new node which performs HSigmoid
     """
     return _get_node_factory_opset5().create("HSigmoid", as_nodes(data), {})
+
 
 @nameable_op
 def gru_sequence(
@@ -365,14 +367,14 @@ def rnn_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    inputs = as_nodes(X, H_t, sequence_lengths, W, R, B)
+    inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B)
 
     attributes = {
         "hidden_size": hidden_size,
         "direction": direction.lower(),
         "activations": activations,
         "activations_alpha": activations_alpha,
-        "activations_beta": activations_alpha,
+        "activations_beta": activations_beta,
         "clip": clip,
     }
 
