@@ -6,6 +6,17 @@ graph {
     output: "y"
     name: "hard_sigmoid"
     op_type: "HardSigmoid"
+    attribute {
+      name: "alpha"
+      f: 0.2
+      type: FLOAT
+    }
+    attribute {
+      name: "beta"
+      f: 0.5
+      type: FLOAT
+    }
+
     
   }
   name: "test_hard_sigmoid"
@@ -18,26 +29,6 @@ graph {
           dim {
             dim_value: 4
           }
-        }
-      }
-    }
-  }
-  input {
-    name: "alpha"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-        }
-      }
-    }
-  }
-  input {
-    name: "beta"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
         }
       }
     }
