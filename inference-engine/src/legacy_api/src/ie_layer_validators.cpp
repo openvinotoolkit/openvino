@@ -151,7 +151,7 @@ void ConvolutionValidator::parseParams(CNNLayer* layer) {
             convLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
         }
 
-        vector<unsigned int> default_0 = vector<unsigned int>(convLayer->_kernel.size(), 0u);
+        vector<int> default_0 = vector<int>(convLayer->_kernel.size(), 0);
         vector<unsigned int> default_1 = vector<unsigned int>(convLayer->_kernel.size(), 1u);
 
         vector<unsigned int> strides = convLayer->GetParamAsUInts("strides", default_1);
@@ -162,12 +162,12 @@ void ConvolutionValidator::parseParams(CNNLayer* layer) {
             convLayer->_stride.insert(i - 1, strides[strides.size() - i]);
         }
 
-        vector<unsigned int> pads_begin = convLayer->GetParamAsUInts("pads_begin", default_0);
+        vector<int> pads_begin = convLayer->GetParamAsInts("pads_begin", default_0);
         for (int i = 1; i <= pads_begin.size(); i++) {
             convLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
         }
 
-        vector<unsigned int> pads_end = convLayer->GetParamAsUInts("pads_end", pads_begin);
+        vector<int> pads_end = convLayer->GetParamAsInts("pads_end", pads_begin);
         for (int i = 1; i <= pads_end.size(); i++) {
             convLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
         }
@@ -289,7 +289,7 @@ void PoolingValidator::parseParams(CNNLayer* layer) {
             poolLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
         }
 
-        vector<unsigned int> default_0 = vector<unsigned int>(poolLayer->_kernel.size(), 0u);
+        vector<int> default_0 = vector<int>(poolLayer->_kernel.size(), 0);
         vector<unsigned int> default_1 = vector<unsigned int>(poolLayer->_kernel.size(), 1u);
 
         vector<unsigned int> strides = poolLayer->GetParamAsUInts("strides", default_1);
@@ -300,12 +300,12 @@ void PoolingValidator::parseParams(CNNLayer* layer) {
             poolLayer->_stride.insert(i - 1, strides[strides.size() - i]);
         }
 
-        vector<unsigned int> pads_begin = poolLayer->GetParamAsUInts("pads_begin", default_0);
+        vector<int> pads_begin = poolLayer->GetParamAsInts("pads_begin", default_0);
         for (int i = 1; i <= pads_begin.size(); i++) {
             poolLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
         }
 
-        vector<unsigned int> pads_end = poolLayer->GetParamAsUInts("pads_end", pads_begin);
+        vector<int> pads_end = poolLayer->GetParamAsInts("pads_end", pads_begin);
         for (int i = 1; i <= pads_end.size(); i++) {
             poolLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
         }
@@ -1088,7 +1088,7 @@ void BinaryConvolutionValidator::parseParams(CNNLayer* layer) {
             binConvLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
         }
 
-        vector<unsigned int> default_0 = vector<unsigned int>(binConvLayer->_kernel.size(), 0u);
+        vector<int> default_0 = vector<int>(binConvLayer->_kernel.size(), 0);
         vector<unsigned int> default_1 = vector<unsigned int>(binConvLayer->_kernel.size(), 1u);
 
         vector<unsigned int> strides = binConvLayer->GetParamAsUInts("strides", default_1);
@@ -1099,12 +1099,12 @@ void BinaryConvolutionValidator::parseParams(CNNLayer* layer) {
             binConvLayer->_stride.insert(i - 1, strides[strides.size() - i]);
         }
 
-        vector<unsigned int> pads_begin = binConvLayer->GetParamAsUInts("pads_begin", default_0);
+        vector<int> pads_begin = binConvLayer->GetParamAsInts("pads_begin", default_0);
         for (int i = 1; i <= pads_begin.size(); i++) {
             binConvLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
         }
 
-        vector<unsigned int> pads_end = binConvLayer->GetParamAsUInts("pads_end", pads_begin);
+        vector<int> pads_end = binConvLayer->GetParamAsInts("pads_end", pads_begin);
         for (int i = 1; i <= pads_end.size(); i++) {
             binConvLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
         }
