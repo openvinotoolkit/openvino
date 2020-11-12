@@ -41,7 +41,7 @@ graph {
     name: "A"
     external_data {
         key: "location",
-        value: "../../files/onnx/external_data/tensor.data"
+        value: "external_data_tensors/tensor.data"
     }
     data_location: 1
   }

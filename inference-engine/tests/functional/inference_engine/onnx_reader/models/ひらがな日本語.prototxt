@@ -23,7 +23,7 @@ graph {
     name: "A"
     external_data {
         key: "location",
-        value: "../data/tensor.data"
+        value: "data/tensor.data"
     }
     data_location: 1
   }

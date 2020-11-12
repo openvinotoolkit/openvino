@@ -292,4 +292,13 @@ std::wstring file_util::multi_byte_char_to_wstring(const char* str)
 #endif
 }
 
+void file_util::sanitize_path(std::string& path, const std::string& to_erase)
+{
+    size_t pos = std::string::npos;
+    while ((pos = path.find(to_erase)) != std::string::npos)
+    {
+        path.erase(pos, to_erase.length());
+    }
+}
+
 #endif // ENABLE_UNICODE_PATH_SUPPORT

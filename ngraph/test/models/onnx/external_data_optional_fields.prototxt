@@ -41,7 +41,7 @@ graph {
     name: "A"
     external_data {
         key: "location",
-        value: "../../files/onnx/external_data/tensor_optional_fields.data"
+        value: "external_data_tensors/tensor_optional_fields.data"
     }
     external_data {
         key: "offset",

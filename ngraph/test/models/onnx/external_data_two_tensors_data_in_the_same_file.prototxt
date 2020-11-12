@@ -15,7 +15,7 @@ graph {
     name: "data_a"
     external_data {
         key: "location",
-        value: "../../files/onnx/external_data/multiple_tensors.data"
+        value: "external_data_tensors/multiple_tensors.data"
     }
     external_data {
         key: "offset",
@@ -33,7 +33,7 @@ graph {
     name: "data_b"
     external_data {
         key: "location",
-        value: "../../files/onnx/external_data/multiple_tensors.data"
+        value: "external_data_tensors/multiple_tensors.data"
     }
     external_data {
         key: "offset",
