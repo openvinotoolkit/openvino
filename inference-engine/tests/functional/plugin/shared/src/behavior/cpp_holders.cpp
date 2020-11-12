@@ -25,7 +25,7 @@ namespace BehaviorTestsDefinitions {
         if (deathTestStyle == "fast") {
             ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
         }
-        if (targetDevice == CommonTestUtils::DEVICE_CPU || targetDevice == CommonTestUtils::DEVICE_GNA) {
+        if (targetDevice == CommonTestUtils::DEVICE_CPU) {
             function = ngraph::builder::subgraph::makeReadConcatSplitAssign();
         } else {
             function = ngraph::builder::subgraph::makeConvPoolRelu();
@@ -48,7 +48,7 @@ EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
         auto request = exe_net.CreateInferRequest();
         std::vector<InferenceEngine::VariableState> states = {};
         try {
-            states = exe_net.QueryState();
+            states = request.QueryState();
         } catch(...) {
             // do nothing
         }
