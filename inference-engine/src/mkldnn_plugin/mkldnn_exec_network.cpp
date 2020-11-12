@@ -17,12 +17,6 @@
 #include <legacy/graph_tools.hpp>
 #include <threading/ie_executor_manager.hpp>
 
-#ifdef USE_CNNNETWORK_LPT
-#include "low_precision_transformations/convolution.hpp"
-#include "low_precision_transformations/scaleshift_to_convolution.hpp"
-#include "low_precision_transformations/transformer.hpp"
-#endif
-
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <ie_system_conf.h>
 #include <threading/ie_thread_affinity.hpp>
@@ -56,22 +50,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     _clonedNetwork = cloneNet(network);
 
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
-#ifdef USE_CNNNETWORK_LPT
-        auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                  true,  // quantizeOutputs
-                                                  true,  // weightsToConst
-                                                  LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                  LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                  true,  // roundQuantizedValues
-                                                  true,  // updateBiases
-                                                  true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
-            add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
-            remove("ScaleShift").
-            remove("Power"));
-        transformer.transform(*_clonedNetwork);
-#endif
-
         // Check if network is INT8 or Binary.
         // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
         // BF16 + INT8 or BF16 + BIN.
@@ -205,14 +183,14 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
                 auto state_store = memoryNode->getStore();
-                auto state_name = node->getName();
+                auto state_name = memoryNode->getId();
 
                 // Remove suffix with pair ID. Internal information.
                 auto suffix_idx = state_name.find("/id=");
                 if (suffix_idx != std::string::npos)
                     state_name = state_name.substr(0, suffix_idx);
 
-                memoryStates.emplace_back(new MKLDNNMemoryState(state_name, state_store));
+                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
             }
         }
     }
@@ -336,6 +314,8 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
     return check_result;
 }
 
-std::vector<IMemoryStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
+IE_SUPPRESS_DEPRECATED_START
+std::vector<IVariableStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
     return memoryStates;
 }
+IE_SUPPRESS_DEPRECATED_END
