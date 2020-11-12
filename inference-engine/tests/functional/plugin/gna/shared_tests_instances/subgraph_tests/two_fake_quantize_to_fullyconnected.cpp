@@ -20,13 +20,17 @@ const std::vector<InferenceEngine::Precision> netPrecisions_I8 = {
         InferenceEngine::Precision::I8,
 };
 
+const std::vector<InferenceEngine::Precision> netPrecisions_I16 = {
+        InferenceEngine::Precision::I16,
+};
+
 using ConfigType = std::map<std::string, std::string>;
 const ConfigType configFP32 = {
         {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
 };
 
 const ConfigType configSWExact = {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"GNA_DEVICE_MODE", "GNA_HW"},
         {"GNA_COMPACT_MODE", "NO"}
 };
 
@@ -35,8 +39,8 @@ const ConfigType configSWExact = {
  * @brief specific quantisation mode to be used internally
  */
 const std::vector<std::pair<std::string, ConfigType>> gnaQuantModes = {
-            {"sw_fp32", configFP32},
-    };
+        {"sw_fp32", configFP32},
+};
 
 const std::vector<std::pair<std::string, ConfigType>> gnaQuantModes_I8 = {
         {"gna_sw_exact", configSWExact},
@@ -45,31 +49,46 @@ const std::vector<std::pair<std::string, ConfigType>> gnaQuantModes_I8 = {
 const std::vector<std::vector<size_t>> inputShapes = {
         {1, 440}
 };
-const std::vector<std::vector<size_t>> constShapes = {{1}};
-const std::vector<size_t> levels = {255, 65535};
+const std::vector<std::vector<std::vector<size_t>>> constShapes = {
+        {{1}, {2048, 1}}
+};
+
+const std::vector<std::vector<std::vector<size_t>>> constShapes_int16 = {
+        {{1}, {1}}
+};
+
+const std::vector<size_t> levels_fp = {255, 65535};
+const std::vector<std::vector<size_t>> levels_i16 = {{2, 100}, {100, 255}, {2, 65534}};
+const std::vector<std::vector<size_t>> levels_i8 = {{2, 8}, {10, 50}, {50, 51}};
 
 const std::vector<std::vector<float>> fqArgs = {{0, 10, 2, 6}};
-const std::vector<std::vector<float>> inputParams = {{-1000, 1000, 10.0}, {-10, 10, 0.1}, {}};
-const std::vector<std::vector<float>> inputParams_I8 = {{-100, 100, 10}, {-10, 10, 1.0}, {}};
+const std::vector<std::vector<float>> inputParams = {{-64, 64, 1}, {-10, 10, 0.1}};
+const std::vector<std::vector<float>> inputParams_I8 = {{-10, 10, 1.0}, {-64, 64, 1.0}, {-1, 1, 0.1}};
 
-
-const std::vector<bool> biases = {true, false};
+const std::vector<bool> biases = {false, true};
 
 const auto fqParams = ::testing::Combine(
-        ::testing::Values(levels),
+        ::testing::Values(levels_fp),
         ::testing::ValuesIn(constShapes),
         ::testing::ValuesIn(fqArgs),
         ::testing::ValuesIn(inputParams)
 );
 
 const auto fqParams_I8 = ::testing::Combine(
-        ::testing::Values(levels),
+        ::testing::ValuesIn(levels_i8),
         ::testing::ValuesIn(constShapes),
         ::testing::ValuesIn(fqArgs),
         ::testing::ValuesIn(inputParams_I8)
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_FakeQuantize_subgraph, FakeQuantizeSubgraphTest,
+const auto fqParams_I16 = ::testing::Combine(
+        ::testing::ValuesIn(levels_i16),
+        ::testing::ValuesIn(constShapes_int16),
+        ::testing::ValuesIn(fqArgs),
+        ::testing::ValuesIn(inputParams_I8)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_subgraph, FakeQuantizeSubgraphTest,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -83,10 +102,24 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_FakeQuantize_subgraph, FakeQuantizeSubgra
                                 ::testing::ValuesIn(biases)),
                         FakeQuantizeSubgraphTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_FakeQuantize_subgraph_I8, FakeQuantizeSubgraphTest,
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_subgraph_I8, FakeQuantizeSubgraphTest,
                         ::testing::Combine(
                                 fqParams_I8,
                                 ::testing::ValuesIn(netPrecisions_I8),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputShapes),
+                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                ::testing::ValuesIn(gnaQuantModes_I8),
+                                ::testing::ValuesIn(biases)),
+                        FakeQuantizeSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_FakeQuantize_subgraph_I16, FakeQuantizeSubgraphTest,
+                        ::testing::Combine(
+                                fqParams_I16,
+                                ::testing::ValuesIn(netPrecisions_I16),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
