@@ -139,8 +139,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();
     anchor->set_name("ngraph::pass::LegacyConversions");
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-
     // List of final conversion transformations that must to be executed
     // after previous group of transformations
     manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
