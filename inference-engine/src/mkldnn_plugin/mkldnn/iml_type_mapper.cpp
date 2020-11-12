@@ -39,6 +39,7 @@ impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
     res = static_cast<impl_desc_type>(res | impl_desc_type::_key);
 
     SEARCH_WORD_2(nchw, ref);
+    SEARCH_WORD_2(sse41, sse42);
     SEARCH_WORD_2(ncdhw, ref);
     SEARCH_WORD_2(wino, winograd);
 #undef SEARCH_WORD_2
