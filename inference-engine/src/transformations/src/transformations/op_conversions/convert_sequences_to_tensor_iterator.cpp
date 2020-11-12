@@ -73,7 +73,6 @@ ngraph::NodeVector squeeze_nodes(const ngraph::OutputVector& nodes_to_squeeze, c
 bool should_enable_mask(const ngraph::Output<ngraph::Node>& seq_lengths, size_t max_seq_len) {
     bool enable_mask = true;
     // disable the mask if all values of seq_lengths input are equal to max_seq_len (X_shape[1])
-
     if (const auto &seq_len_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(
             seq_lengths.get_node_shared_ptr())) {
         const auto &seq_len_values = seq_len_const->cast_vector<int64_t>();
@@ -147,9 +146,9 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         auto unsqueeze_dum_dir = std::make_shared<opset5::Unsqueeze>(cell->output(0), axis_1);
         Output<Node> h_node_to_result = unsqueeze_dum_dir;
         if (enable_mask) {
-            auto current_iter = get_current_iter(body_params, body_results, seq_lengths);
+            auto current_iter = get_current_iter(body_params, body_results, seq_body_param);
             h_node_to_result = get_masked_value(tensor_iterator, body_params, body_results, current_iter,
-                                                unsqueeze_dum_dir, seq_lengths);
+                                                unsqueeze_dum_dir, seq_body_param);
         }
 
         auto H_res = std::make_shared<opset5::Result>(h_node_to_result);
@@ -165,7 +164,6 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         tensor_iterator->set_function(body);
         // TensorIterator Body: end
         if (is_reverse) {
-            tensor_iterator->set_sliced_input(X_body_param, X, -1, -1, 1, 0, 1);
             if (!enable_mask) {
                 tensor_iterator->set_sliced_input(X_body_param, X, -1, -1, 1, 0, 1);
                 tensor_iterator->get_concatenated_slices(concat_res, -1, -1, 1, 0, 2);
@@ -282,9 +280,9 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         auto unsqueeze_dum_dir = std::make_shared<opset5::Unsqueeze>(cell->output(0), axis_1);
         Output<Node> h_node_to_result = unsqueeze_dum_dir;
         if (enable_mask) {
-            auto current_iter = get_current_iter(body_params, body_results, seq_lengths);
+            auto current_iter = get_current_iter(body_params, body_results, seq_body_param);
             h_node_to_result = get_masked_value(tensor_iterator, body_params, body_results, current_iter,
-                                                unsqueeze_dum_dir, seq_lengths);
+                                                unsqueeze_dum_dir, seq_body_param);
         }
 
         auto H_res = std::make_shared<opset5::Result>(h_node_to_result);
@@ -300,7 +298,6 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         tensor_iterator->set_function(body);
         // TensorIterator Body: end
         if (is_reverse) {
-            tensor_iterator->set_sliced_input(X_body_param, X, -1, -1, 1, 0, 1);
             if (!enable_mask) {
                 tensor_iterator->set_sliced_input(X_body_param, X, -1, -1, 1, 0, 1);
                 tensor_iterator->get_concatenated_slices(concat_res, -1, -1, 1, 0, 2);
@@ -423,11 +420,11 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         Output<Node> h_node_to_result = unsqueeze_dum_dir_h;
         Output<Node> c_node_to_result = unsqueeze_dum_dir_c;
         if (enable_mask) {
-            auto current_iter = get_current_iter(body_params, body_results, seq_lengths);
+            auto current_iter = get_current_iter(body_params, body_results, seq_body_param);
             h_node_to_result = get_masked_value(tensor_iterator, body_params, body_results, current_iter,
-                                                unsqueeze_dum_dir_h, seq_lengths);
+                                                unsqueeze_dum_dir_h, seq_body_param);
             c_node_to_result = get_masked_value(tensor_iterator, body_params, body_results, current_iter,
-                                                unsqueeze_dum_dir_c, seq_lengths);
+                                                unsqueeze_dum_dir_c, seq_body_param);
         }
 
         auto H_res = std::make_shared<opset5::Result>(h_node_to_result);

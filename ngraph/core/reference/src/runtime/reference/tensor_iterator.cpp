@@ -118,6 +118,7 @@ namespace ngraph
                     }
 
                     // Evaluate body
+                    body_outputs.clear();
                     if (!evaluate)
                     {
                         reference::function(func, inputs_to_body, body_outputs);

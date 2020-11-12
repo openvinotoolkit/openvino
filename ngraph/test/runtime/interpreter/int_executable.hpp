@@ -1268,8 +1268,15 @@ protected:
                                                         reverse->get_sequence_axis(),
                                                         args[1]->get_data_ptr<const int32_t>());
             }
-            else
+            else if (node.get_input_element_type(1) == element::i64)
             {
+                reference::reverse_sequence<T, int64_t>(args[0]->get_data_ptr<const T>(),
+                                                        out[0]->get_data_ptr<T>(),
+                                                        node.get_input_shape(0),
+                                                        reverse->get_batch_axis(),
+                                                        reverse->get_sequence_axis(),
+                                                        args[1]->get_data_ptr<const int64_t>());
+            } else {
                 throw ngraph_error("only int32 indices are supported");
             }
             break;

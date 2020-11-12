@@ -52,6 +52,8 @@
 
 #ifdef __linux__
 # include <dlfcn.h>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+
 #endif
 
 using InferenceEngine::DescriptionBuffer;
@@ -153,6 +155,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
             manager.register_pass<ngraph::pass::ConvertPriorBox>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
+            manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+            manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+            manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
