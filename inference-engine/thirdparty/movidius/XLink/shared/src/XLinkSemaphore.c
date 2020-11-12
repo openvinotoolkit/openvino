@@ -9,8 +9,38 @@
 static pthread_mutex_t ref_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ref_cond = PTHREAD_COND_INITIALIZER;
 
+int XLink_sem_inc(XLink_sem_t* sem)
+{
+    XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
+    int ret = 0;
+    if (sem->refs < 0) {
+        // Semaphore has been already destroyed
+        ret = -1;
+    } else {
+        sem->refs++;
+        ret = 0;
+    }
+    XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
+
+    return ret;
+}
+
+int XLink_sem_dec(XLink_sem_t* sem)
+{
+    XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
+    sem->refs--;
+    int ret = pthread_cond_broadcast(&ref_cond);
+    XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
+
+    return ret;
+}
+
+
 int XLink_sem_init(XLink_sem_t* sem, int pshared, unsigned int value)
 {
+    XLINK_RET_ERR_IF(sem == NULL, -1);
+    XLINK_RET_ERR_IF(value < 0, -1);
+
     XLINK_RET_IF_FAIL(sem_init(&sem->psem, pshared, value));
     XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
     sem->refs = 0;
@@ -69,28 +99,6 @@ int XLink_sem_set_refs(XLink_sem_t* sem, int refs)
 
 int XLink_sem_get_refs(XLink_sem_t* sem, int *sval)
 {
-    XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
     *sval = sem->refs;
-    XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
     return 0;
-}
-
-int XLink_sem_inc(XLink_sem_t* sem)
-{
-    XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
-    sem->refs++;
-    int ret = pthread_cond_broadcast(&ref_cond);
-    XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
-
-    return ret;
-}
-
-int XLink_sem_dec(XLink_sem_t* sem)
-{
-    XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
-    sem->refs--;
-    int ret = pthread_cond_broadcast(&ref_cond);
-    XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
-
-    return ret;
 }

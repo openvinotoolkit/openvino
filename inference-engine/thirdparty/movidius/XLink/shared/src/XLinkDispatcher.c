@@ -18,16 +18,6 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#if (defined(_WIN32) || defined(_WIN64))
-# include "win_pthread.h"
-# include "win_semaphore.h"
-#else
-# include <pthread.h>
-# ifndef __APPLE__
-#  include <semaphore.h>
-# endif
-#endif
-
 #include "XLinkDispatcher.h"
 #include "XLinkMacros.h"
 #include "XLinkPrivateDefines.h"

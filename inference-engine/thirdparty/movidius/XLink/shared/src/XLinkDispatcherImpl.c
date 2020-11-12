@@ -340,7 +340,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
                         stream->name[0] = '\0';
                     }
 #ifndef __PC__
-                    if(sem_destroy(&stream->sem))
+                    if(XLink_sem_destroy(&stream->sem))
                         perror("Can't destroy semaphore");
 #endif
                 }

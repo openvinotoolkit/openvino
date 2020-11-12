@@ -67,9 +67,6 @@ int XLink_sem_timedwait(XLink_sem_t* sem, const struct timespec *abstime);
 int XLink_sem_set_refs(XLink_sem_t* sem, int refs);
 int XLink_sem_get_refs(XLink_sem_t* sem, int *sval);
 
-int XLink_sem_inc(XLink_sem_t* sem);
-int XLink_sem_dec(XLink_sem_t* sem);
-
 #ifdef __cplusplus
 }
 #endif
