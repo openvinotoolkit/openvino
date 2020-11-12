@@ -4,16 +4,19 @@
 
 #pragma once
 
-#include <memory>
-#include <utility>
 
-#include <transformations_visibility.hpp>
+#include <vector>
+#include <memory>
+#include <string>
+
+#include <ie_api.h>
+
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API PatternBeforeTopKFusion;
+class INFERENCE_ENGINE_API_CLASS(PatternBeforeTopKFusion);
 
 }  // namespace pass
 }  // namespace ngraph
