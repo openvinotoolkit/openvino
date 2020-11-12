@@ -23,6 +23,7 @@
 #include <functional_test_utils/skip_tests_config.hpp>
 #include <common_test_utils/common_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
+#include <cpp_interfaces/exception2status.hpp>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
@@ -60,16 +61,18 @@ namespace BehaviorTestsDefinitions {                                            
 {                                                                               \
     try {                                                                       \
         __VA_ARGS__;                                                            \
-    } catch(InferenceEngine::details::InferenceEngineException ieException) {   \
+    } catch(InferenceEngine::details::InferenceEngineException& ieException) {  \
         auto notImplementedExceptionIsThrown =                                  \
             std::string::npos != std::string {ieException.what()}               \
-            .find(std::string{"[NOT_IMPLEMENTED] "});                           \
+            .find(NOT_IMPLEMENTED_str);                                         \
         if (notImplementedExceptionIsThrown) {                                  \
             GTEST_SKIP();                                                       \
         } else {                                                                \
             FAIL() << "thrown from expression: " # __VA_ARGS__ << std::endl     \
             << "what: " << ieException.what();                                  \
         }                                                                       \
+    } catch (const InferenceEngine::NotImplemented& ex) {                       \
+        GTEST_SKIP();                                                           \
     }                                                                           \
 }
 

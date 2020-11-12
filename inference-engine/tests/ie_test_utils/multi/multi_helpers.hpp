@@ -24,7 +24,23 @@ static std::string getDeviceStringWithMulti(std::vector<std::string> names) {
 using DevicesNames = std::vector<std::string>;
 using DevicesNamesAndSupportPair = std::pair<DevicesNames, bool>;
 
-class MultiDevice_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNamesAndSupportPair> {
+class MultiDevice_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNames> {
+    void SetUp() override {
+        device_names = getDeviceStringWithMulti(this->GetParam());
+        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+    }
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNamesAndSupportPair> &obj) {
+        auto s = getDeviceStringWithMulti(obj.param.first);
+        std::replace(s.begin(), s.end(), ',', '_');
+        return "device_names_" + s;
+    }
+protected:
+    std::string device_names;
+    std::shared_ptr<ngraph::Function> fn_ptr;
+};
+
+class MultiDevice_SupportTest : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNamesAndSupportPair> {
     void SetUp() override {
         device_names = getDeviceStringWithMulti(this->GetParam().first);
         expected_status = this->GetParam().second;
@@ -41,7 +57,6 @@ protected:
     bool expected_status;
     std::shared_ptr<ngraph::Function> fn_ptr;
 };
-
 #define MULTI  CommonTestUtils::DEVICE_MULTI
 #define CPU    CommonTestUtils::DEVICE_CPU
 #define GPU    CommonTestUtils::DEVICE_GPU
