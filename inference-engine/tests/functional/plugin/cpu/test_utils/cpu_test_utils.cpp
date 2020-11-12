@@ -92,6 +92,12 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
             IE_ASSERT(nullptr != value);
             return value->get();
         };
+        // skip policy
+        auto should_be_skipped = [] (const ngraph::Shape &shape, cpu_memory_format_t fmt) {
+            bool skip_unsquized_1D =  std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
+            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc) && shape[1] == 1;
+            return skip_unsquized_1D || permule_of_1;
+        };
 
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
             ASSERT_LE(inputMemoryFormats.size(), node->get_input_size());
@@ -103,14 +109,17 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
                     auto parentNode = parentPort.get_node_shared_ptr();
                     auto shape = parentNode->get_output_tensor(0).get_shape();
                     auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
-                    const bool is_unsquized_1d = std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
-                    if (!is_unsquized_1d)
+
+                    if (!should_be_skipped(shape, inputMemoryFormats[i]))
                         ASSERT_EQ(inputMemoryFormats[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
                 }
             }
             for (int i = 0; i < outputMemoryFormats.size(); i++) {
-                auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
-                ASSERT_EQ(outputMemoryFormats[i], cpu_str2fmt(actualOutputMemoryFormat.c_str()));
+                const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
+                const auto shape = node->get_output_shape(i);
+
+                if (!should_be_skipped(shape, outputMemoryFormats[i]))
+                    ASSERT_EQ(outputMemoryFormats[i], cpu_str2fmt(actualOutputMemoryFormat.c_str()));
             }
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
             ASSERT_EQ(selectedType, primType);
