@@ -61,7 +61,8 @@ std::shared_ptr<ngraph::Function> ConvertMulOrAddWithDequantizationFunction::get
 
     const auto weights = std::make_shared<opset1::Constant>(element::f32, inputShape, multiplyConst);
     const auto bias = std::make_shared<opset1::Constant>(element::f32, inputShape, 0.0);
-    const auto scaleShift = std::make_shared<ngraph::op::ScaleShiftIE>(relu, weights, bias);
+    std::shared_ptr<Node> scaleShift = std::make_shared<ngraph::op::ScaleShiftIE>(relu, weights, bias);
+    addDequantizationAttribute(scaleShift);
 
     scaleShift->set_friendly_name("output");
 

@@ -36,6 +36,10 @@ bool isQuantizationPerChannel(const std::shared_ptr<ngraph::Node>& node) {
         const Shape& in = input.get_shape();
         const Shape& out = node->output(0).get_shape();
         for (size_t i = 0; i < 2; ++i) {
+            if ((i >= in.size()) || (i >= out.size())) {
+                // all previous dimensions are equal
+                return true;
+            }
             if (in[i] != out[i]) {
                 return false;
             }
@@ -84,6 +88,28 @@ bool Subgraph::fillSubgraphForQuantization(
     }
 
     return true;
+}
+
+bool Subgraph::atLeastOneIsIntermediate(const std::shared_ptr<ngraph::Node>& node) const {
+    for (size_t index = 0; index < node->get_output_size(); ++index) {
+        const auto childInputs = node->get_output_target_inputs(index);
+        for (const auto childInput : childInputs) {
+            auto child = childInput.get_node()->shared_from_this();
+            if (as_type_ptr<opset1::Concat>(child)) {
+                return true;
+            }
+
+            if (!layerTransformationsManager->isPrecisionPreserved(child) || !isQuantizationPerChannel(child)) {
+                // child branch is out of subgraph
+                continue;
+            }
+
+            if (atLeastOneIsIntermediate(child)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_set<std::string>& handledLayers) {
@@ -138,6 +164,11 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                     return false;
                 }
             } else {
+                // check if children branches between Concat operations
+                if (!atLeastOneIsIntermediate(child)) {
+                    continue;
+                }
+
                 const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeChild = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(child);
                 if (fakeQuantizeChild != nullptr) {
                     //
