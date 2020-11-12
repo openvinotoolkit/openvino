@@ -87,22 +87,22 @@ bool should_enable_mask(const ngraph::Output<ngraph::Node>& seq_lengths, size_t 
 ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::RNNSequence>();
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
-        auto rnn_seq = std::dynamic_pointer_cast<ngraph::opset5::RNNSequence>(m.get_match_root());
+        auto sequence = std::dynamic_pointer_cast<ngraph::opset5::RNNSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!rnn_seq && rnn_seq->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        if (!sequence && sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
         }
 
         NodeVector new_nodes;
-        const auto &X = rnn_seq->input_value(0); // split
-        const auto &H_t = rnn_seq->input_value(1); // merged (init value + back edge)
-        const auto &seq_lengths = rnn_seq->input_value(2); // invariant
-        const auto &W = rnn_seq->input_value(3); // const in the body
-        const auto &R = rnn_seq->input_value(4); // const in the body
-        const auto &B = rnn_seq->input_value(5); // const in the body
-        bool is_reverse = rnn_seq->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE;
+        const auto &X = sequence->input_value(0); // split
+        const auto &H_t = sequence->input_value(1); // merged (init value + back edge)
+        const auto &seq_lengths = sequence->input_value(2); // invariant
+        const auto &W = sequence->input_value(3); // const in the body
+        const auto &R = sequence->input_value(4); // const in the body
+        const auto &B = sequence->input_value(5); // const in the body
+        bool is_reverse = sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE;
 
         if (X.get_partial_shape().is_dynamic() || H_t.get_partial_shape().is_dynamic()
             || seq_lengths.get_partial_shape().is_dynamic()) {
@@ -113,10 +113,11 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         auto max_seq_len = X.get_shape().at(1);
         bool enable_mask = should_enable_mask(seq_lengths, max_seq_len);
 
-        std::shared_ptr<Node> reverse_seq;
+        std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
-            reverse_seq = std::make_shared<opset5::ReverseSequence>(X, seq_lengths, 0, 1);
+            reverse_seq_before = std::make_shared<opset5::ReverseSequence>(X, seq_lengths, 0, 1);
         }
+
         // TensorIterator Body: begin
         Shape X_param_shape = X.get_shape();
         X_param_shape.at(1) = 1; // split by seq_lengths dimension
@@ -126,8 +127,8 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         auto seq_body_param = std::make_shared<opset5::Parameter>(seq_lengths.get_element_type(),
                                                                   seq_lengths.get_partial_shape());
 
-        auto axis_0 = std::make_shared<op::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
-        auto axis_1 = std::make_shared<op::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        auto axis_0 = std::make_shared<opset5::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
+        auto axis_1 = std::make_shared<opset5::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
 
         const auto& ins = squeeze_nodes({X_body_param, H_body_param, W, R, B}, {axis_1, axis_1, axis_0, axis_0, axis_0});
         auto cell = std::make_shared<opset5::RNNCell>(ins[0],
@@ -135,11 +136,11 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
                                                       ins[2],
                                                       ins[3],
                                                       ins[4],
-                                                      rnn_seq->get_hidden_size(),
-                                                      rnn_seq->get_activations(),
-                                                      rnn_seq->get_activations_alpha(),
-                                                      rnn_seq->get_activations_beta(),
-                                                      rnn_seq->get_clip());
+                                                      sequence->get_hidden_size(),
+                                                      sequence->get_activations(),
+                                                      sequence->get_activations_alpha(),
+                                                      sequence->get_activations_beta(),
+                                                      sequence->get_clip());
 
         ParameterVector body_params;
         ResultVector body_results;
@@ -163,15 +164,19 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         auto body = std::make_shared<ngraph::Function>(body_results, body_params);
         tensor_iterator->set_function(body);
         // TensorIterator Body: end
+
         if (is_reverse) {
             if (!enable_mask) {
+                // Reversed order, stride -1
                 tensor_iterator->set_sliced_input(X_body_param, X, -1, -1, 1, 0, 1);
                 tensor_iterator->get_concatenated_slices(concat_res, -1, -1, 1, 0, 2);
             } else {
-                tensor_iterator->set_sliced_input(X_body_param, reverse_seq, 0, 1, 1, -1, 1);
+                // use ReverseSequence as initializer
+                tensor_iterator->set_sliced_input(X_body_param, reverse_seq_before, 0, 1, 1, -1, 1);
                 tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 2);
             }
         } else {
+            // forward order
             tensor_iterator->set_sliced_input(X_body_param, X, 0, 1, 1, -1, 1);
             tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 2);
         }
@@ -188,6 +193,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
             auto init_val_curr_iter = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(),
                                                                                  ngraph::Shape{1},
                                                                                  std::vector<int64_t>{1});
+            ngraph::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter});
 
             // set initial value and back edge for current iteration
             tensor_iterator->set_merged_input(body_params.at(0), init_val_curr_iter, body_results.at(0));
@@ -196,19 +202,37 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
             H_out = tensor_iterator->get_function()->get_results()[1];
         }
         tensor_iterator->get_iter_value(H_out);
-        tensor_iterator->set_friendly_name(rnn_seq->get_friendly_name());
+        tensor_iterator->set_friendly_name(sequence->get_friendly_name());
         if (enable_mask && is_reverse) {
-            auto reverse_seq = std::make_shared<opset5::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 2);
+            auto reverse_seq_after = std::make_shared<opset5::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 2);
+            // Resolve a collision of names data nodes in CNN Network in Reverse case with mask.
+            /*
+             *   Before transformation (no collisions)
+             *   RNN/LSTM/GRU Sequence [rnn_name] -- (data_node: rnn_name.0) - > Result1
+             *                                    -- (data_node: rnn_name.1) - > Result2
+             *
+             *
+             *   After transformation (without identity, there are collisions):
+             *   We need to set rnn_name.0 to RevSequence to store result name.
+             *   TI [rnn_name] -- (DATA_NODE: rnn_name.0) --> RevSequence [rnn_name.0] -- (DATA_NODE: rnn_name.0) -> Result1
+             *                 -- (data_node: rnn_name.1) --> Result2
+             *
+             *
+             *   After transformation (with identity, no collisions):
+             *   TI has other_name, but it doesn't affect result names due TI is not connected to Results directly.
+             *   TI [other_name] -- (data_node: other_name.0) --> RevSequence [rnn_name.0] -- (data_node: rnn_name.0) -> Result1
+             *                   -- (data_node: other_name.1) --> Identity(rnn_name.1) -- (data_node: rnn_name.1) -> Result2
+             */
             auto identity_1 = std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), axis_1);
             auto identity_2 = std::make_shared<opset5::Squeeze>(identity_1, axis_1);
-            ngraph::copy_runtime_info(rnn_seq, {reverse_seq, tensor_iterator});
-            ngraph::replace_node(rnn_seq, {reverse_seq, identity_2});
-            tensor_iterator->set_friendly_name(rnn_seq->get_friendly_name() + "/tensor_iterator");
-            reverse_seq->set_friendly_name(rnn_seq->get_friendly_name() + ".0");
-            identity_2->set_friendly_name(rnn_seq->get_friendly_name() + ".1");
+            ngraph::copy_runtime_info(sequence, {reverse_seq_after, tensor_iterator, identity_1, identity_2, reverse_seq_before});
+            ngraph::replace_node(sequence, {reverse_seq_after, identity_2});
+            tensor_iterator->set_friendly_name(sequence->get_friendly_name() + "/tensor_iterator");
+            reverse_seq_after->set_friendly_name(sequence->get_friendly_name() + ".0");
+            identity_2->set_friendly_name(sequence->get_friendly_name() + ".1");
         } else {
-            ngraph::copy_runtime_info(rnn_seq, tensor_iterator);
-            ngraph::replace_node(rnn_seq, tensor_iterator);
+            ngraph::copy_runtime_info(sequence, tensor_iterator);
+            ngraph::replace_node(sequence, tensor_iterator);
         }
         return true;
     };
@@ -220,22 +244,22 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
 ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::GRUSequence>();
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
-        auto rnn_seq = std::dynamic_pointer_cast<ngraph::opset5::GRUSequence>(m.get_match_root());
+        auto sequence = std::dynamic_pointer_cast<ngraph::opset5::GRUSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!rnn_seq && rnn_seq->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        if (!sequence && sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
         }
 
         NodeVector new_nodes;
-        const auto &X = rnn_seq->input_value(0); // split
-        const auto &H_t = rnn_seq->input_value(1); // merged (init value + back edge)
-        const auto &seq_lengths = rnn_seq->input_value(2); // invariant
-        const auto &W = rnn_seq->input_value(3); // const in the body
-        const auto &R = rnn_seq->input_value(4); // const in the body
-        const auto &B = rnn_seq->input_value(5); // const in the body
-        bool is_reverse = rnn_seq->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE;
+        const auto &X = sequence->input_value(0); // split
+        const auto &H_t = sequence->input_value(1); // merged (init value + back edge)
+        const auto &seq_lengths = sequence->input_value(2); // invariant
+        const auto &W = sequence->input_value(3); // const in the body
+        const auto &R = sequence->input_value(4); // const in the body
+        const auto &B = sequence->input_value(5); // const in the body
+        bool is_reverse = sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE;
 
         if (X.get_partial_shape().is_dynamic() || H_t.get_partial_shape().is_dynamic()
             || seq_lengths.get_partial_shape().is_dynamic()) {
@@ -246,9 +270,9 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         auto max_seq_len = X.get_shape().at(1);
         bool enable_mask = should_enable_mask(seq_lengths, max_seq_len);
 
-        std::shared_ptr<Node> reverse_seq;
+        std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
-            reverse_seq = std::make_shared<opset5::ReverseSequence>(X, seq_lengths, 0, 1);
+            reverse_seq_before = std::make_shared<opset5::ReverseSequence>(X, seq_lengths, 0, 1);
         }
         // TensorIterator Body: begin
         Shape X_param_shape = X.get_shape();
@@ -259,8 +283,8 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         auto seq_body_param = std::make_shared<opset5::Parameter>(seq_lengths.get_element_type(),
                                                                   seq_lengths.get_partial_shape());
 
-        auto axis_0 = std::make_shared<op::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
-        auto axis_1 = std::make_shared<op::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        auto axis_0 = std::make_shared<opset5::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
+        auto axis_1 = std::make_shared<opset5::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
 
         const auto& ins = squeeze_nodes({X_body_param, H_body_param, W, R, B}, {axis_1, axis_1, axis_0, axis_0, axis_0});
         auto cell = std::make_shared<opset5::GRUCell>(ins[0],
@@ -268,12 +292,12 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
                                                       ins[2],
                                                       ins[3],
                                                       ins[4],
-                                                      rnn_seq->get_hidden_size(),
-                                                      rnn_seq->get_activations(),
-                                                      rnn_seq->get_activations_alpha(),
-                                                      rnn_seq->get_activations_beta(),
-                                                      rnn_seq->get_clip(),
-                                                      rnn_seq->get_linear_before_reset());
+                                                      sequence->get_hidden_size(),
+                                                      sequence->get_activations(),
+                                                      sequence->get_activations_alpha(),
+                                                      sequence->get_activations_beta(),
+                                                      sequence->get_clip(),
+                                                      sequence->get_linear_before_reset());
 
         ParameterVector body_params;
         ResultVector body_results;
@@ -297,15 +321,19 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         auto body = std::make_shared<ngraph::Function>(body_results, body_params);
         tensor_iterator->set_function(body);
         // TensorIterator Body: end
+
         if (is_reverse) {
             if (!enable_mask) {
+                // Reversed order, stride -1
                 tensor_iterator->set_sliced_input(X_body_param, X, -1, -1, 1, 0, 1);
                 tensor_iterator->get_concatenated_slices(concat_res, -1, -1, 1, 0, 2);
             } else {
-                tensor_iterator->set_sliced_input(X_body_param, reverse_seq, 0, 1, 1, -1, 1);
+                // use ReverseSequence as initializer
+                tensor_iterator->set_sliced_input(X_body_param, reverse_seq_before, 0, 1, 1, -1, 1);
                 tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 2);
             }
         } else {
+            // forward order
             tensor_iterator->set_sliced_input(X_body_param, X, 0, 1, 1, -1, 1);
             tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 2);
         }
@@ -322,6 +350,7 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
             auto init_val_curr_iter = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(),
                                                                                  ngraph::Shape{1},
                                                                                  std::vector<int64_t>{1});
+            ngraph::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter});
 
             // set initial value and back edge for current iteration
             tensor_iterator->set_merged_input(body_params.at(0), init_val_curr_iter, body_results.at(0));
@@ -330,19 +359,37 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
             H_out = tensor_iterator->get_function()->get_results()[1];
         }
         tensor_iterator->get_iter_value(H_out);
-        tensor_iterator->set_friendly_name(rnn_seq->get_friendly_name());
+        tensor_iterator->set_friendly_name(sequence->get_friendly_name());
         if (enable_mask && is_reverse) {
-            auto reverse_seq = std::make_shared<opset5::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 2);
+            auto reverse_seq_after = std::make_shared<opset5::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 2);
+            // Resolve a collision of names data nodes in CNN Network in Reverse case with mask.
+            /*
+             *   Before transformation (no collisions)
+             *   RNN/LSTM/GRU Sequence [rnn_name] -- (data_node: rnn_name.0) - > Result1
+             *                                    -- (data_node: rnn_name.1) - > Result2
+             *
+             *
+             *   After transformation (without identity, there are collisions):
+             *   We need to set rnn_name.0 to RevSequence to store result name.
+             *   TI [rnn_name] -- (DATA_NODE: rnn_name.0) --> RevSequence [rnn_name.0] -- (DATA_NODE: rnn_name.0) -> Result1
+             *                 -- (data_node: rnn_name.1) --> Result2
+             *
+             *
+             *   After transformation (with identity, no collisions):
+             *   TI has other_name, but it doesn't affect result names due TI is not connected to Results directly.
+             *   TI [other_name] -- (data_node: other_name.0) --> RevSequence [rnn_name.0] -- (data_node: rnn_name.0) -> Result1
+             *                   -- (data_node: other_name.1) --> Identity(rnn_name.1) -- (data_node: rnn_name.1) -> Result2
+             */
             auto identity_1 = std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), axis_1);
             auto identity_2 = std::make_shared<opset5::Squeeze>(identity_1, axis_1);
-            ngraph::copy_runtime_info(rnn_seq, {reverse_seq, tensor_iterator});
-            ngraph::replace_node(rnn_seq, {reverse_seq, identity_2});
-            tensor_iterator->set_friendly_name(rnn_seq->get_friendly_name() + "/tensor_iterator");
-            reverse_seq->set_friendly_name(rnn_seq->get_friendly_name() + ".0");
-            identity_2->set_friendly_name(rnn_seq->get_friendly_name() + ".1");
+            ngraph::copy_runtime_info(sequence, {reverse_seq_after, tensor_iterator, reverse_seq_before, identity_2, identity_1});
+            ngraph::replace_node(sequence, {reverse_seq_after, identity_2});
+            tensor_iterator->set_friendly_name(sequence->get_friendly_name() + "/tensor_iterator");
+            reverse_seq_after->set_friendly_name(sequence->get_friendly_name() + ".0");
+            identity_2->set_friendly_name(sequence->get_friendly_name() + ".1");
         } else {
-            ngraph::copy_runtime_info(rnn_seq, tensor_iterator);
-            ngraph::replace_node(rnn_seq, tensor_iterator);
+            ngraph::copy_runtime_info(sequence, tensor_iterator);
+            ngraph::replace_node(sequence, tensor_iterator);
         }
         return true;
     };
@@ -354,23 +401,23 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
 ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::LSTMSequence>();
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
-        auto rnn_seq = std::dynamic_pointer_cast<ngraph::opset5::LSTMSequence>(m.get_match_root());
+        auto sequence = std::dynamic_pointer_cast<ngraph::opset5::LSTMSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!rnn_seq && rnn_seq->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        if (!sequence && sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
         }
 
         NodeVector new_nodes;
-        const auto &X = rnn_seq->input_value(0); // split
-        const auto &H_t = rnn_seq->input_value(1); // merged (init value + back edge)
-        const auto &C_t = rnn_seq->input_value(2); // merged (init value + back edge)
-        const auto &seq_lengths = rnn_seq->input_value(3); // invariant
-        const auto &W = rnn_seq->input_value(4); // const in the body
-        const auto &R = rnn_seq->input_value(5); // const in the body
-        const auto &B = rnn_seq->input_value(6); // const in the body
-        bool is_reverse = rnn_seq->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE;
+        const auto &X = sequence->input_value(0); // split
+        const auto &H_t = sequence->input_value(1); // merged (init value + back edge)
+        const auto &C_t = sequence->input_value(2); // merged (init value + back edge)
+        const auto &seq_lengths = sequence->input_value(3); // invariant
+        const auto &W = sequence->input_value(4); // const in the body
+        const auto &R = sequence->input_value(5); // const in the body
+        const auto &B = sequence->input_value(6); // const in the body
+        bool is_reverse = sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE;
 
         if (X.get_partial_shape().is_dynamic() || H_t.get_partial_shape().is_dynamic()
             || seq_lengths.get_partial_shape().is_dynamic()) {
@@ -381,10 +428,11 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         auto max_seq_len = X.get_shape().at(1);
         bool enable_mask = should_enable_mask(seq_lengths, max_seq_len);
 
-        std::shared_ptr<Node> reverse_seq;
+        std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
-            reverse_seq = std::make_shared<opset5::ReverseSequence>(X, seq_lengths, 0, 1);
+            reverse_seq_before = std::make_shared<opset5::ReverseSequence>(X, seq_lengths, 0, 1);
         }
+
         // TensorIterator Body: begin
         Shape X_param_shape = X.get_shape();
         X_param_shape.at(1) = 1; // split by seq_lengths dimension
@@ -396,22 +444,22 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         auto seq_body_param = std::make_shared<opset5::Parameter>(seq_lengths.get_element_type(),
                                                                   seq_lengths.get_partial_shape());
 
-        auto axis_0 = std::make_shared<op::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
-        auto axis_1 = std::make_shared<op::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        auto axis_0 = std::make_shared<opset5::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
+        auto axis_1 = std::make_shared<opset5::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
 
         const auto& ins = squeeze_nodes({X_body_param, H_body_param, C_body_param, W, R, B},
                                         {axis_1, axis_1, axis_1, axis_0, axis_0, axis_0});
         auto cell = std::make_shared<opset5::LSTMCell>(ins[0],
-                                                      ins[1],
-                                                      ins[2],
-                                                      ins[3],
-                                                      ins[4],
-                                                      ins[5],
-                                                      rnn_seq->get_hidden_size(),
-                                                      rnn_seq->get_activations(),
-                                                      rnn_seq->get_activations_alpha(),
-                                                      rnn_seq->get_activations_beta(),
-                                                      rnn_seq->get_clip());
+                                                       ins[1],
+                                                       ins[2],
+                                                       ins[3],
+                                                       ins[4],
+                                                       ins[5],
+                                                       sequence->get_hidden_size(),
+                                                       sequence->get_activations(),
+                                                       sequence->get_activations_alpha(),
+                                                       sequence->get_activations_beta(),
+                                                       sequence->get_clip());
 
         ParameterVector body_params;
         ResultVector body_results;
@@ -444,13 +492,16 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         // TensorIterator Body: end
         if (is_reverse) {
             if (!enable_mask) {
+                // Reversed order, stride -1
                 tensor_iterator->set_sliced_input(X_body_param, X, -1, -1, 1, 0, 1);
                 tensor_iterator->get_concatenated_slices(concat_res, -1, -1, 1, 0, 2);
             } else {
-                tensor_iterator->set_sliced_input(X_body_param, reverse_seq, 0, 1, 1, -1, 1);
+                // use ReverseSequence as initializer
+                tensor_iterator->set_sliced_input(X_body_param, reverse_seq_before, 0, 1, 1, -1, 1);
                 tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 2);
             }
         } else {
+            // forward order
             tensor_iterator->set_sliced_input(X_body_param, X, 0, 1, 1, -1, 1);
             tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 2);
         }
@@ -473,6 +524,7 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
             auto init_val_curr_iter = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(),
                                                                                  ngraph::Shape{1},
                                                                                  std::vector<int64_t>{1});
+            ngraph::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter, aggregated_Y_c});
 
             // set initial value and back edge for current iteration
             tensor_iterator->set_merged_input(body_params.at(0), init_val_curr_iter, body_results.at(0));
@@ -485,28 +537,47 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         }
         tensor_iterator->get_iter_value(H_out);
         tensor_iterator->get_iter_value(C_out);
-        tensor_iterator->set_friendly_name(rnn_seq->get_friendly_name());
+        tensor_iterator->set_friendly_name(sequence->get_friendly_name());
         if (enable_mask && is_reverse) {
-            auto reverse_seq = std::make_shared<opset5::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 2);
+            auto reverse_seq_after = std::make_shared<opset5::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 2);
+            // Resolve a collision of names data nodes in CNN Network in Reverse case with mask.
+            /*
+             *   Before transformation (no collisions)
+             *   RNN/LSTM/GRU Sequence [rnn_name] -- (data_node: rnn_name.0) - > Result1
+             *                                    -- (data_node: rnn_name.1) - > Result2
+             *
+             *
+             *   After transformation (without identity, there are collisions):
+             *   We need to set rnn_name.0 to RevSequence to store result name.
+             *   TI [rnn_name] -- (DATA_NODE: rnn_name.0) --> RevSequence [rnn_name.0] -- (DATA_NODE: rnn_name.0) -> Result1
+             *                 -- (data_node: rnn_name.1) --> Result2
+             *
+             *
+             *   After transformation (with identity, no collisions):
+             *   TI has other_name, but it doesn't affect result names due TI is not connected to Results directly.
+             *   TI [other_name] -- (data_node: other_name.0) --> RevSequence [rnn_name.0] -- (data_node: rnn_name.0) -> Result1
+             *                   -- (data_node: other_name.1) --> Identity(rnn_name.1) -- (data_node: rnn_name.1) -> Result2
+             */
             auto identity_1_h = std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), axis_1);
             auto identity_2_h = std::make_shared<opset5::Squeeze>(identity_1_h, axis_1);
 
             auto identity_1_c = std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(2), axis_1);
             auto identity_2_c = std::make_shared<opset5::Squeeze>(identity_1_c, axis_1);
 
-            ngraph::copy_runtime_info(rnn_seq, {reverse_seq, tensor_iterator});
-            ngraph::replace_node(rnn_seq, {reverse_seq, identity_2_h, identity_2_c});
-            tensor_iterator->set_friendly_name(rnn_seq->get_friendly_name() + "/tensor_iterator");
-            reverse_seq->set_friendly_name(rnn_seq->get_friendly_name() + ".0");
-            identity_2_h->set_friendly_name(rnn_seq->get_friendly_name() + ".1");
-            identity_2_c->set_friendly_name(rnn_seq->get_friendly_name() + ".2");
+            ngraph::copy_runtime_info(sequence, {reverse_seq_after, tensor_iterator, reverse_seq_before, identity_2_c, identity_1_c,
+                                                 identity_1_h, identity_2_h});
+            ngraph::replace_node(sequence, {reverse_seq_after, identity_2_h, identity_2_c});
+            tensor_iterator->set_friendly_name(sequence->get_friendly_name() + "/tensor_iterator");
+            reverse_seq_after->set_friendly_name(sequence->get_friendly_name() + ".0");
+            identity_2_h->set_friendly_name(sequence->get_friendly_name() + ".1");
+            identity_2_c->set_friendly_name(sequence->get_friendly_name() + ".2");
         } else {
-            ngraph::copy_runtime_info(rnn_seq, tensor_iterator);
-            ngraph::replace_node(rnn_seq, tensor_iterator);
+            ngraph::copy_runtime_info(sequence, tensor_iterator);
+            ngraph::replace_node(sequence, tensor_iterator);
         }
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, "ConvertGRUSequenceToTensorIterator");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, "ConvertLSTMSequenceToTensorIterator");
     register_matcher(m, callback);
 }
