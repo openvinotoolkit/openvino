@@ -103,12 +103,12 @@ protected:
         const auto indices_shape = ngraph::opset3::Constant::create(dims->get_element_type(), {gather_setup.index_shape.size()}, gather_setup.index_shape);
         ngraph::OutputVector output_dims;
         if (gather_setup.first_split_point) {
-            output_dims.push_back(vpu::utilities::gatherShapeElements(dims, 0, gather_setup.first_split_point));
+            output_dims.push_back(vpu::gatherShapeElements(dims, 0, gather_setup.first_split_point));
         }
         if (!gather_setup.index_shape.empty())
             output_dims.push_back(indices_shape);
         if (gather_setup.first_split_point + 1 < gather_setup.data_shape.size()) {
-            output_dims.push_back(vpu::utilities::gatherShapeElements(
+            output_dims.push_back(vpu::gatherShapeElements(
                 dims,
                 gather_setup.second_split_point,
                 gather_setup.data_shape.size() - gather_setup.second_split_point));
@@ -184,12 +184,12 @@ protected:
 
         ngraph::OutputVector output_dims;
         if (gather_setup.first_split_point) {
-            output_dims.push_back(vpu::utilities::gatherShapeElements(data_shape, 0, gather_setup.first_split_point));
+            output_dims.push_back(vpu::gatherShapeElements(data_shape, 0, gather_setup.first_split_point));
         }
         if (!gather_setup.index_shape.empty())
             output_dims.push_back(dims);
         if (gather_setup.first_split_point + 1 < gather_setup.data_shape.size()) {
-            output_dims.push_back(vpu::utilities::gatherShapeElements(
+            output_dims.push_back(vpu::gatherShapeElements(
                 data_shape,
                 gather_setup.second_split_point,
                 gather_setup.data_shape.size() - gather_setup.second_split_point));
@@ -267,12 +267,12 @@ protected:
 
         ngraph::OutputVector output_dims;
         if (gather_setup.first_split_point) {
-            output_dims.push_back(vpu::utilities::gatherShapeElements(data_dims, 0, gather_setup.first_split_point));
+            output_dims.push_back(vpu::gatherShapeElements(data_dims, 0, gather_setup.first_split_point));
         }
         if (!gather_setup.index_shape.empty())
             output_dims.push_back(indices_dims);
         if (gather_setup.first_split_point + 1 < gather_setup.data_shape.size()) {
-            output_dims.push_back(vpu::utilities::gatherShapeElements(
+            output_dims.push_back(vpu::gatherShapeElements(
                 data_dims,
                 gather_setup.second_split_point,
                 gather_setup.data_shape.size() - gather_setup.second_split_point));

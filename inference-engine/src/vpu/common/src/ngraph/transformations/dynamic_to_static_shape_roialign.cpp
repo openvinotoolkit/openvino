@@ -29,8 +29,8 @@ void dynamicToStaticShapeROIAlign(std::shared_ptr<ngraph::Node> target) {
 
     const auto shapeElementType = dataDSR ? dataDSR->get_input_element_type(1) : num_roisDSR->get_input_element_type(1);
 
-    auto input_0_shape = dataDSR ? dataDSR->input_value(1) : utilities::shapeToConstant(shapeElementType, roi_align->get_input_shape(0));
-    auto num_rois = num_roisDSR ? num_roisDSR->input_value(1) : utilities::shapeToConstant(shapeElementType, roi_align->get_input_shape(2));
+    auto input_0_shape = dataDSR ? dataDSR->input_value(1) : shapeToConstant(shapeElementType, roi_align->get_input_shape(0));
+    auto num_rois = num_roisDSR ? num_roisDSR->input_value(1) : shapeToConstant(shapeElementType, roi_align->get_input_shape(2));
 
     const auto c_index = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{1});
     const auto c_axis = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{0});

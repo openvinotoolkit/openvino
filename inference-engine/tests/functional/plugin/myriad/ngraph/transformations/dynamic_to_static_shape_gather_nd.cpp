@@ -153,13 +153,13 @@ protected:
 
         if (gatherNDSetup.batchDims > 0) {
             outputShape = std::make_shared<ngraph::opset5::ReduceProd>(
-                vpu::utilities::gatherShapeElements(indicesShape, 0, gatherNDSetup.batchDims),
+                vpu::gatherShapeElements(indicesShape, 0, gatherNDSetup.batchDims),
                 ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}),
                 true);
         }
 
         if (indicesShapeRank - gatherNDSetup.batchDims - 1 > 0) {
-            const auto indicesShapePart = vpu::utilities::gatherShapeElements(
+            const auto indicesShapePart = vpu::gatherShapeElements(
                 indicesShape,
                 gatherNDSetup.batchDims,
                 indicesShapeRank - gatherNDSetup.batchDims - 1);
@@ -168,7 +168,7 @@ protected:
 
         const auto lastIndicesDim = node->get_input_partial_shape(1)[indicesShapeRank - 1].get_length();
         if (gatherNDSetup.batchDims + lastIndicesDim < dataShapeRank) {
-            const auto dataShapePart = vpu::utilities::gatherShapeElements(
+            const auto dataShapePart = vpu::gatherShapeElements(
                 dataShape,
                 lastIndicesDim + gatherNDSetup.batchDims,
                 dataShapeRank - gatherNDSetup.batchDims - lastIndicesDim);

@@ -109,7 +109,7 @@ std::shared_ptr<ngraph::Node> calculate_output_shape(
     }
 
     if (output_dimensions.size() < inputShapeRank) {
-        output_dimensions.push_back(utilities::gatherShapeElements(input_shape, output_dimensions.size(), inputShapeRank - output_dimensions.size()));
+        output_dimensions.push_back(gatherShapeElements(input_shape, output_dimensions.size(), inputShapeRank - output_dimensions.size()));
     }
 
     VPU_THROW_UNLESS(output_dimensions.size() == inputShapeRank,

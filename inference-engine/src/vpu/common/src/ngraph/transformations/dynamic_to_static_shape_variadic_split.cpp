@@ -44,10 +44,10 @@ void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
     const auto data_rank_value = data_rank.get_length();
     ngraph::OutputVector first_shape_part, second_shape_part;
     if (axis) {
-        first_shape_part.push_back(utilities::gatherShapeElements(data_shape, 0, axis));
+        first_shape_part.push_back(gatherShapeElements(data_shape, 0, axis));
     }
     if (axis + 1 < data_rank_value) {
-        second_shape_part.push_back(utilities::gatherShapeElements(data_shape, axis + 1, data_rank_value - axis - 1));
+        second_shape_part.push_back(gatherShapeElements(data_shape, axis + 1, data_rank_value - axis - 1));
     }
     for (auto i = 0; i < split_lengths.size(); ++i) {
         const auto dim = ngraph::opset3::Constant::create(data_shape->get_element_type(), {1}, {split_lengths[i]});

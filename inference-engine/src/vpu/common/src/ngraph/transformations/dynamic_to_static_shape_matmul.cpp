@@ -53,9 +53,9 @@ void dynamicToStaticShapeMatMul(std::shared_ptr<ngraph::Node> target) {
     const auto shapeElementType = a_input_DSR ? a_input_DSR->get_input_element_type(1) : b_input_DSR->get_input_element_type(1);
 
     ngraph::Output<ngraph::Node> a_input_shape = a_input_DSR ? a_input_DSR->input_value(1) :
-            utilities::shapeToConstant(shapeElementType, target->get_input_shape(0));
+            shapeToConstant(shapeElementType, target->get_input_shape(0));
     ngraph::Output<ngraph::Node> b_input_shape = b_input_DSR ? b_input_DSR->input_value(1) :
-            utilities::shapeToConstant(shapeElementType, target->get_input_shape(1));
+            shapeToConstant(shapeElementType, target->get_input_shape(1));
 
     const auto& a_rank = a_input_shape.get_partial_shape();
     const auto& b_rank = b_input_shape.get_partial_shape();
@@ -71,7 +71,7 @@ void dynamicToStaticShapeMatMul(std::shared_ptr<ngraph::Node> target) {
     if (max_rank_value > 2) {
         // batch broadcasting
         const auto max_shape = std::make_shared<ngraph::opset3::Maximum>(a_input_shape, b_input_shape);
-        output_dims.push_back(utilities::gatherShapeElements(max_shape, 0, max_rank_value - 2));
+        output_dims.push_back(gatherShapeElements(max_shape, 0, max_rank_value - 2));
     }
     const auto input_channels = std::make_shared<ngraph::opset3::Gather>(
             a_input_shape,

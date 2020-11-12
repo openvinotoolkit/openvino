@@ -34,8 +34,8 @@ void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
     }
     const auto shapeElementType = lhsDSR ? lhsDSR->get_input_element_type(1) : rhsDSR->get_input_element_type(1);
 
-    auto lhsInput = lhsDSR ? lhsDSR->input_value(1) : utilities::shapeToConstant(shapeElementType, eltwise->get_input_shape(0));
-    auto rhsInput = rhsDSR ? rhsDSR->input_value(1) : utilities::shapeToConstant(shapeElementType, eltwise->get_input_shape(1));
+    auto lhsInput = lhsDSR ? lhsDSR->input_value(1) : shapeToConstant(shapeElementType, eltwise->get_input_shape(0));
+    auto rhsInput = rhsDSR ? rhsDSR->input_value(1) : shapeToConstant(shapeElementType, eltwise->get_input_shape(1));
 
     const auto diff = std::abs(lhsRank.get_length() - rhsRank.get_length());
     if (diff) {

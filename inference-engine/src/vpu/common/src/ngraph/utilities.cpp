@@ -11,7 +11,6 @@
 #include <numeric>
 
 namespace vpu {
-namespace utilities {
 namespace {
 
 ngraph::HostTensorVector evaluateShapeOf(ngraph::Node* node, const ngraph::HostTensorVector&) {
@@ -83,8 +82,6 @@ std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::N
         ngraph::opset5::Constant::create(ngraph::element::i64, {elemCount}, shapePart),
         ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
 }
-
-} // namespace utilities
 
 void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object) {
     stream << object.name << " ver. " << object.version;

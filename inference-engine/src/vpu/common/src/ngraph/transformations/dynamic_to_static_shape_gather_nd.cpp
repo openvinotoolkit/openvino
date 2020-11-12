@@ -33,8 +33,8 @@ void dynamicToStaticShapeGatherND(std::shared_ptr<ngraph::Node> target) {
     }
     const auto shapeElementType = indicesDSR ? indicesDSR->get_input_element_type(1) : dataDSR->get_input_element_type(1);
 
-    const auto dataShape = dataDSR ? dataDSR->input_value(1) : utilities::shapeToConstant(shapeElementType, gatherND->get_input_shape(0));
-    const auto indicesShape = indicesDSR ? indicesDSR->input_value(1) : utilities::shapeToConstant(shapeElementType, gatherND->get_input_shape(1));
+    const auto dataShape = dataDSR ? dataDSR->input_value(1) : shapeToConstant(shapeElementType, gatherND->get_input_shape(0));
+    const auto indicesShape = indicesDSR ? indicesDSR->input_value(1) : shapeToConstant(shapeElementType, gatherND->get_input_shape(1));
 
     const auto dataShapeRank = ngraph::shape_size(dataShape.get_shape());
     const auto indicesShapeRank = ngraph::shape_size(indicesShape.get_shape());
@@ -48,19 +48,19 @@ void dynamicToStaticShapeGatherND(std::shared_ptr<ngraph::Node> target) {
 
     if (batchDims > 0) {
         outputShape = std::make_shared<ngraph::opset5::ReduceProd>(
-            utilities::gatherShapeElements(indicesShape, 0, batchDims),
+            gatherShapeElements(indicesShape, 0, batchDims),
             ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}),
             true);
     }
 
     if (indicesShapeRank - batchDims - 1 > 0) {
-        const auto indicesShapePart = utilities::gatherShapeElements(indicesShape, batchDims, indicesShapeRank - batchDims - 1);
+        const auto indicesShapePart = gatherShapeElements(indicesShape, batchDims, indicesShapeRank - batchDims - 1);
         outputShape = outputShape ? std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{outputShape, indicesShapePart}, 0) : indicesShapePart;
     }
 
     const auto lastIndicesDim = gatherND->get_input_partial_shape(1)[indicesShapeRank - 1].get_length();
     if (batchDims + lastIndicesDim < dataShapeRank) {
-        const auto dataShapePart = utilities::gatherShapeElements(
+        const auto dataShapePart = gatherShapeElements(
             dataShape,
             lastIndicesDim + batchDims,
             dataShapeRank - batchDims - lastIndicesDim);

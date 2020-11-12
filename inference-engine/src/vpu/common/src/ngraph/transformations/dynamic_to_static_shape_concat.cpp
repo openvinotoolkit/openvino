@@ -67,7 +67,7 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
             const ngraph::Output<ngraph::Node>& shape) {
         ngraph::Shape dividerValues(dataRank, target->get_input_size());
         dividerValues[axis] = 1;
-        const auto divider = utilities::shapeToConstant(shapeDataType, dividerValues);
+        const auto divider = shapeToConstant(shapeDataType, dividerValues);
         const auto divide = std::make_shared<ngraph::opset3::Divide>(shape, divider);
         return divide->output(0);
     };
@@ -97,7 +97,7 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
     }
 
     if (!staticInputs.empty()) {
-        const auto accumulatedStaticShape = utilities::shapeToConstant(shapeDataType, getAdditionalShapeFromStatic(staticInputs));
+        const auto accumulatedStaticShape = shapeToConstant(shapeDataType, getAdditionalShapeFromStatic(staticInputs));
         accumulatedShape = sumOfShapes(accumulatedShape, accumulatedStaticShape);
     }
 

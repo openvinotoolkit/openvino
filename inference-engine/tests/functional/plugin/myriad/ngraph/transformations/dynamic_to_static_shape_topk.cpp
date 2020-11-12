@@ -99,10 +99,10 @@ protected:
 
         ngraph::OutputVector first_shape_part, second_shape_part;
         if (topk_setup.first_split_point) {
-            first_shape_part.push_back(vpu::utilities::gatherShapeElements(dims, 0, topk_setup.first_split_point));
+            first_shape_part.push_back(vpu::gatherShapeElements(dims, 0, topk_setup.first_split_point));
         }
         if (topk_setup.first_split_point + 1 < topk_setup.data_shape.size()) {
-            second_shape_part.push_back(vpu::utilities::gatherShapeElements(
+            second_shape_part.push_back(vpu::gatherShapeElements(
                 dims,
                 topk_setup.second_split_point,
                 topk_setup.data_shape.size() - topk_setup.second_split_point));
@@ -200,10 +200,10 @@ protected:
 
         ngraph::OutputVector first_shape_part, second_shape_part;
         if (topk_setup.first_split_point) {
-            first_shape_part.push_back(vpu::utilities::gatherShapeElements(dims, 0, topk_setup.first_split_point));
+            first_shape_part.push_back(vpu::gatherShapeElements(dims, 0, topk_setup.first_split_point));
         }
         if (topk_setup.first_split_point + 1 < topk_setup.data_shape.size()) {
-            second_shape_part.push_back(vpu::utilities::gatherShapeElements(
+            second_shape_part.push_back(vpu::gatherShapeElements(
                 dims,
                 topk_setup.second_split_point,
                 topk_setup.data_shape.size() - topk_setup.second_split_point));
