@@ -17,3 +17,5 @@ addIeTargetTest(
         LABELS
             CPU
 )
+
+target_compile_definitions(${TARGET_NAME} PRIVATE IR_SERIALIZATION_MODELS_PATH="${CMAKE_SOURCE_DIR}/inference-engine/tests/functional/inference_engine/ir_serialization/models/")

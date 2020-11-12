@@ -116,26 +116,20 @@ TEST_F(ExecGraphSerializationTest, ExecutionGraph_CPU) {
         IR_SERIALIZATION_MODELS_PATH "addmul_abc_execution.xml";
 
     InferenceEngine::Core ie;
-    auto devices = ie.GetAvailableDevices();
-    if (std::find(devices.begin(), devices.end(), "CPU") != devices.end()) {
-        auto cnnNet = ie.ReadNetwork(source_model);
-        auto execNet = ie.LoadNetwork(cnnNet, "CPU");
-        auto execGraph = execNet.GetExecGraphInfo();
-        InferenceEngine::InferRequest req = execNet.CreateInferRequest();
-        execGraph.serialize(m_out_xml_path, m_out_bin_path);
+    auto cnnNet = ie.ReadNetwork(source_model);
+    auto execNet = ie.LoadNetwork(cnnNet, "CPU");
+    auto execGraph = execNet.GetExecGraphInfo();
+    InferenceEngine::InferRequest req = execNet.CreateInferRequest();
+    execGraph.serialize(m_out_xml_path, m_out_bin_path);
 
-        pugi::xml_document expected;
-        pugi::xml_document result;
-        ASSERT_TRUE(expected.load_file(expected_model.c_str()));
-        ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
+    pugi::xml_document expected;
+    pugi::xml_document result;
+    ASSERT_TRUE(expected.load_file(expected_model.c_str()));
+    ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
-        bool success;
-        std::string message;
-        std::tie(success, message) = compare_docs(expected, result);
+    bool success;
+    std::string message;
+    std::tie(success, message) = compare_docs(expected, result);
 
-        ASSERT_TRUE(success) << message;
-    } else {
-        // no CPU device available so we are ignoring this test
-        GTEST_SKIP();
-    }
+    ASSERT_TRUE(success) << message;
 }
