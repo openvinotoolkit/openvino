@@ -14,10 +14,10 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 typedef std::tuple<
-        std::vector<size_t>, // levels
-        std::vector<size_t>, // const inputs shape
-        std::vector<float>,  // fake quantize inputLow, inputHigh, outputLow, outputHigh or empty for random
-        std::vector<float>   // input generator data: low, high, resolution
+        std::vector<size_t>,              // levels
+        std::vector<std::vector<size_t>>, // const inputs shape
+        std::vector<float>,               // fake quantize inputLow, inputHigh, outputLow, outputHigh or empty for random
+        std::vector<float>               // input generator data: low, high, resolution
 > fqSpecificParams;
 typedef std::tuple<
         fqSpecificParams,
@@ -33,15 +33,14 @@ typedef std::tuple<
 > fqSubgraphTestParamsSet;
 namespace LayerTestsDefinitions {
 
-
 class FakeQuantizeSubgraphTest : public testing::WithParamInterface<fqSubgraphTestParamsSet>,
-                              virtual public LayerTestsUtils::LayerTestsCommon {
+                                 virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<fqSubgraphTestParamsSet> obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+
 protected:
     void SetUp() override;
-    void UpdateSeed();
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     float inputDataMin        = 0.0;
