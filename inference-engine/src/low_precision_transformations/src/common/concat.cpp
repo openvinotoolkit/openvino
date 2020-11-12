@@ -138,7 +138,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             dequantizationSub,
             subgraph.quantizationLayers[0]->get_output_element_type(0),
             subgraph.quantizationLayers[0]->get_output_shape(0),
-            dataPrecision.precision,
+            updatePrecisions ? dataPrecision.precision : subgraph.quantizationLayers[0]->get_output_element_type(0),
             dataPrecision.min,
             dataPrecision.max);
 
