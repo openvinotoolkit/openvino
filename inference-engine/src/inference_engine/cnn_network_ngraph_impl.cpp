@@ -224,9 +224,8 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
     try {
         for (const auto & layer : _ngraph_function->get_ops()) {
             if (layer->get_friendly_name() == layerName) {
-                auto& results = const_cast<::ngraph::ResultVector&>(_ngraph_function->get_results());
                 auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
-                results.push_back(result);
+                _ngraph_function->add_results({result});
 
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
