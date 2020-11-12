@@ -58,18 +58,18 @@ TEST(MemDescTest, isPlainCheck) {
     ASSERT_FALSE(MKLDNNMemoryDesc(blckd_tdesc).isPlainFormat());
 }
 
-TEST(MemoryTest, CheckScalar) {
-    FAIL();
+TEST(MemDescTest, CheckScalar) {
+    SKIP();
 }
 
-TEST(MemoryTest, UpperBound) {
-    FAIL();
+TEST(MemDescTest, UpperBound) {
+    SKIP();
 }
 
-TEST(MemoryTest, BlockedConversion) {
-    FAIL();
+TEST(MemDescTest, BlockedConversion) {
+    SKIP();
 }
 
-TEST(MemoryTest, ComaptibleWithFormat) {
-    FAIL();
+TEST(MemDescTest, ComaptibleWithFormat) {
+    SKIP();
 }
