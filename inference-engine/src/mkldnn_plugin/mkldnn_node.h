@@ -53,6 +53,7 @@ enum Type {
     ROIPooling,
     BatchNormalization,
     Flatten,
+    Pad,
     Permute,
     Copy,
     MemoryOutput,
@@ -133,6 +134,8 @@ static std::string NameFromType(Type type) {
             return "BatchNormalization";
         case Flatten:
             return "Flatten";
+        case Pad:
+            return "Pad";
         case Permute:
             return "Permute";
         case Copy:

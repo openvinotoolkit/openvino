@@ -31,6 +31,7 @@
 #include <nodes/mkldnn_softmax_node.h>
 #include <nodes/mkldnn_tile_node.h>
 #include <nodes/mkldnn_split_node.h>
+#include <nodes/mkldnn_pad_node.h>
 #include <nodes/mkldnn_permute_node.h>
 #include <nodes/mkldnn_memory_node.hpp>
 #include <nodes/mkldnn_rnn.h>
@@ -103,6 +104,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ROIPooling", ROIPooling },
         { "BatchNormalization", BatchNormalization },
         { "Flatten", Flatten },
+        { "Pad", Pad },
         { "Permute", Permute },
         { "Copy", Copy },
         { "LSTMCell", RNNCell },
