@@ -67,10 +67,11 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
 
 
 class EltwiseInputReshape(MiddleReplacementPattern):
+    # TODO: implement the full normalization of eltwise input shapes executed within the single call
     # This pass should be called directly from pipeline before layout change and other permutations
     enabled = False
 
-    def find_and_replace_pattern(self, graph: Graph):
+    def find_and_replace_pattern(self, graph: Graph, is_first_pass=False):
         # Generate a map for producers of eltwise nodes with non-normalized shapes
         # and in this map every producer has another map that reflects normalized shape
         # to a list of eltwise consumers
@@ -81,14 +82,21 @@ class EltwiseInputReshape(MiddleReplacementPattern):
                 consumer_port = eltwise_node.in_port(in_port_idx)
                 producer_port = consumer_port.get_source()
                 producer_shape = producer_port.data.get_shape()
-                if len(producer_shape) != len(eltwise_shape):
+
+                producer_data_node = eltwise_node.in_node(in_port_idx)
+                edge_attrs = graph.get_edge_data(producer_data_node.id, eltwise_node.id)[0]
+                if is_first_pass and 'unsqueeze_dims' in edge_attrs and len(edge_attrs['unsqueeze_dims']) > 0:
+                    unsqueeze_dims = tuple([x for x in edge_attrs['unsqueeze_dims']])
+                elif not is_first_pass and len(producer_shape) != len(eltwise_shape):
                     unsqueeze_dims = tuple(np.arange(len(eltwise_shape) - len(producer_shape), dtype=np.int64))
-                    if not producer_port in mapping:
-                        mapping.update({producer_port: {unsqueeze_dims: [consumer_port]}})
-                    elif not unsqueeze_dims in mapping[producer_port]:
-                        mapping[producer_port].update({unsqueeze_dims: [consumer_port]})
-                    else:
-                        mapping[producer_port][unsqueeze_dims].append(consumer_port)
+                else:
+                    continue
+                if not producer_port in mapping:
+                    mapping.update({producer_port: {unsqueeze_dims: [consumer_port]}})
+                elif not unsqueeze_dims in mapping[producer_port]:
+                    mapping[producer_port].update({unsqueeze_dims: [consumer_port]})
+                else:
+                    mapping[producer_port][unsqueeze_dims].append(consumer_port)
 
         # Walk through each produced in the map and insert Reshape nodes between a producer and eltwise nodes
         for producer_port in mapping.keys():
@@ -109,8 +117,25 @@ class EltwiseInputReshape(MiddleReplacementPattern):
                 # automatic call of shape inference pass
                 producer_port_value = producer_port.data.get_value()
                 producer_port_shape = producer_port.data.get_shape()
-                new_shape = np.insert(producer_port_shape, np.zeros_like(unsqueeze_dims), 1)
+                new_shape = producer_port_shape
+                for unsqueeze_dim in unsqueeze_dims:
+                    new_shape = np.insert(new_shape, unsqueeze_dim, 1)
                 if producer_port_value is not None:
                     unsqueeze_node.out_port(0).data.set_value(np.reshape(producer_port_value, new_shape))
                 else:
                     unsqueeze_node.out_port(0).data.set_shape(new_shape)
+
+
+class EltwiseInputReshapeFirstPass(MiddleReplacementPattern):
+    # TODO: The full normalization must be performed within the single call of EltwiseInputReshape
+    #  and eltwise partial_infer must not sets edges with unsqueeze_dims attribute
+    # Now this pass executes a query from eltwise partial_infer for input shapes normalization
+    enabled = True
+    force_clean_up = True
+
+    def run_after(self):
+        from extensions.middle.pass_separator import MiddleStart
+        return [MiddleStart]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        EltwiseInputReshape().find_and_replace_pattern(graph, is_first_pass=True)
