@@ -89,3 +89,19 @@ TEST(file_util, path_join)
         EXPECT_STREQ("/test1/test2", file_util::path_join(s1, s2).c_str());
     }
 }
+
+TEST(file_util, santize_path)
+{
+    {
+        string path = "../../tensor.data";
+        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "/../tensor.data";
+        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "..";
+        EXPECT_STREQ("", file_util::sanitize_path(path).c_str());
+    }
+}

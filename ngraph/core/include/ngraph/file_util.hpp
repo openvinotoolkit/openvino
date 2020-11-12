@@ -81,7 +81,8 @@ namespace ngraph
         /// \brief Remove path components which would allow traversing up a directory tree
         ///        from a base path.
         /// \param path A path which will be santized
-        /// \return A path component to remove
-        NGRAPH_API void sanitize_path(std::string& path, const std::string& to_erase = "/.");
+        /// \return Path components to remove
+        NGRAPH_API std::string sanitize_path(const std::string& path,
+                                             const std::string& to_erase = "/.");
     }
 }

@@ -47,10 +47,8 @@ namespace ngraph
             {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                 std::wstring path = file_util::multi_byte_char_to_wstring(m_data_location.c_str());
-                file_util::sanitize_path(path, "\\.");
 #else
                 std::string path = m_data_location;
-                file_util::sanitize_path(path, "/.");
 #endif
                 std::ifstream external_data_stream(path,
                                                    std::ios::binary | std::ios::in | std::ios::ate);
