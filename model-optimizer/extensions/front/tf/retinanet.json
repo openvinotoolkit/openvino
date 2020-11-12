@@ -7,7 +7,6 @@
             "confidence_threshold": 0.05,
             "top_k": 6000,
             "keep_top_k": 300,
-            "nms_threshold": 0.5,
             "variance": [0.2, 0.2, 0.2, 0.2]
         },
         "include_inputs_to_sub_graph": true,
