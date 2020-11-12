@@ -146,7 +146,13 @@ bool Allocator::allocateData(const Data& data) {
         if (_allocatedData.count(data) == 0) {
             IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
-            auto finalByteSize = data->totalByteSize() * _modelBatchSize;
+            int finalByteSize = 0;
+            if (data->desc().numDims() != 4 && data->desc().numDims() != 5) {
+                finalByteSize = data->totalByteSize();
+            } else {
+                finalByteSize = data->totalByteSize() * _modelBatchSize;
+                data->attrs().set("batch", _modelBatchSize);
+            }
 
             data->setIOInfo(Location::Input, alignVal(_inputMemOffset, DATA_ALIGNMENT));
             _inputMemOffset = alignVal(_inputMemOffset, DATA_ALIGNMENT) + finalByteSize;
@@ -172,6 +178,7 @@ bool Allocator::allocateData(const Data& data) {
                 finalByteSize = data->totalByteSize();
             } else {
                 finalByteSize = data->totalByteSize() * _modelBatchSize;
+                data->attrs().set("batch", _modelBatchSize);
             }
 
             data->setIOInfo(Location::Output, alignVal(_outputMemOffset, DATA_ALIGNMENT));
