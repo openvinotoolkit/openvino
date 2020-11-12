@@ -27,8 +27,93 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-
 namespace LayerTestsUtils {
+
+class Summary;
+
+class SummaryDestroyer {
+private:
+    Summary *p_instance;
+public:
+    ~SummaryDestroyer();
+
+    void initialize(Summary *p);
+};
+
+class TestEnvironment;
+
+class LayerTestsCommon;
+
+struct PassRate {
+    enum Statuses {
+        PASSED,
+        FAILED,
+        SKIPPED
+    };
+    unsigned long passed = 0;
+    unsigned long failed = 0;
+    unsigned long skipped = 0;
+
+    PassRate() = default;
+
+    PassRate(unsigned long p, unsigned long f, unsigned long s) {
+        passed = p;
+        failed = f;
+        skipped = s;
+    }
+
+    float getPassrate() const {
+        if (passed == 0 && failed == 0) {
+            return 0.;
+        } else if (passed != 0 && failed == 0) {
+            return 100.;
+        } else {
+            return (passed / (passed + failed)) * 100.;
+        }
+    }
+};
+
+class Summary {
+private:
+    static Summary *p_instance;
+    static SummaryDestroyer destroyer;
+    std::map<ngraph::NodeTypeInfo, PassRate> opsStats = {};
+    std::string deviceName;
+
+protected:
+    Summary() = default;
+
+    Summary(const Summary &);
+
+    Summary &operator=(Summary &);
+
+    ~Summary() = default;
+
+    void updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status);
+
+    std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
+
+    std::string getDeviceName() const { return deviceName; }
+
+    void setDeviceName(std::string device) { deviceName = device; }
+
+    friend class SummaryDestroyer;
+
+    friend class TestEnvironment;
+
+    friend class LayerTestsCommon;
+
+public:
+    static Summary &getInstance();
+};
+
+class TestEnvironment : public ::testing::Environment {
+public:
+    void TearDown() override;
+
+private:
+    std::string reportFileName = "report.xml";
+};
 
 using TargetDevice = std::string;
 
@@ -128,6 +213,7 @@ protected:
     virtual void Validate();
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
+
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;
