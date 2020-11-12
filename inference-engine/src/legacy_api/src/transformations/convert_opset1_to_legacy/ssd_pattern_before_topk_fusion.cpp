@@ -21,20 +21,20 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::PatternBeforeTopKFusion, "PatternBeforeTopK
 
 ngraph::pass::PatternBeforeTopKFusion::PatternBeforeTopKFusion() {
     auto m_data = ngraph::pattern::any_input();
-    auto m_shape_of = ngraph::pattern::wrap_type<opset5::ShapeOf>({data}, pattern::consumers_count(1));
+    auto m_shape_of = ngraph::pattern::wrap_type<opset5::ShapeOf>({m_data}, pattern::consumers_count(1));
     auto m_indices = ngraph::pattern::wrap_type<opset5::Constant>();
     auto m_gather_axis = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto m_gather_ie = ngraph::pattern::wrap_type<op::GatherIE>({shape_of, indices, gather_axis}, pattern::consumers_count(1));
+    auto m_gather_ie = ngraph::pattern::wrap_type<op::GatherIE>({m_shape_of, m_indices, m_gather_axis}, pattern::consumers_count(1));
     auto m_fst_unsqueeze_axis = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto m_fst_unsqueeze = ngraph::pattern::wrap_type<opset5::Unsqueeze>({gather_ie, fst_unsqueeze_axis}, pattern::consumers_count(1));
+    auto m_fst_unsqueeze = ngraph::pattern::wrap_type<opset5::Unsqueeze>({m_gather_ie, m_fst_unsqueeze_axis}, pattern::consumers_count(1));
     auto m_concat_axis = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto m_concat = ngraph::pattern::wrap_type<opset5::Concat>({fst_unsqueeze, concat_axis}, pattern::consumers_count(1));
-    auto m_fst_convert = ngraph::pattern::wrap_type<opset5::Convert>({concat}, pattern::consumers_count(1));
+    auto m_concat = ngraph::pattern::wrap_type<opset5::Concat>({m_fst_unsqueeze, m_concat_axis}, pattern::consumers_count(1));
+    auto m_fst_convert = ngraph::pattern::wrap_type<opset5::Convert>({m_concat}, pattern::consumers_count(1));
     auto m_reduce_axes = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto m_reduce =  ngraph::pattern::wrap_type<opset5::ReduceMin>({fst_convert, reduce_axes}, pattern::consumers_count(1));
-    auto m_snd_convert = ngraph::pattern::wrap_type<opset5::Convert>({reduce}, pattern::consumers_count(1));
+    auto m_reduce =  ngraph::pattern::wrap_type<opset5::ReduceMin>({m_fst_convert, m_reduce_axes}, pattern::consumers_count(1));
+    auto m_snd_convert = ngraph::pattern::wrap_type<opset5::Convert>({m_reduce}, pattern::consumers_count(1));
     auto m_snd_unsqueeze_axis = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto m_snd_unsqueeze = ngraph::pattern::wrap_type<opset5::Unsqueeze>({snd_convert, snd_unsqueeze_axis});
+    auto m_snd_unsqueeze = ngraph::pattern::wrap_type<opset5::Unsqueeze>({m_snd_convert, snd_unsqueeze_axis});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         auto & label_to_output = m.get_pattern_value_map();
@@ -46,6 +46,8 @@ ngraph::pass::PatternBeforeTopKFusion::PatternBeforeTopKFusion() {
         if (data_shape.rank().is_dynamic() || data_shape.is_dynamic()) {
             return false;
         }
+
+        auto indices
 
         return true;
     };

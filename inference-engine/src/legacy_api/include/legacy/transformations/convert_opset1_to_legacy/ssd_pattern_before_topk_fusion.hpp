@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
+#include <utility>
 
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(PatternBeforeTopKFusion);
+class TRANSFORMATIONS_API PatternBeforeTopKFusion;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -35,4 +35,3 @@ public:
     NGRAPH_RTTI_DECLARATION;
     PatternBeforeTopKFusion();
 };
-
