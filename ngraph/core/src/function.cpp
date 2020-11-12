@@ -101,7 +101,8 @@ Function::Function(const OutputVector& results,
 
 void Function::validate_nodes_and_infer_types()
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
+                       "Function::validate_nodes_and_infer_types");
 
     for (auto& node : get_ordered_ops())
     {
