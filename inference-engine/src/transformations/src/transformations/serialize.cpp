@@ -220,7 +220,9 @@ std::string get_opset_name(
 // discrepancies discoverd, translations needs to be added here.
 std::string translate_type_name(std::string name) {
     const std::unordered_map<std::string, std::string> translator = {
-        {"Constant", "Const"}};
+        {"Constant", "Const"},
+        {"Relu", "ReLU"},
+        {"Softmax", "SoftMax"}};
     if (translator.count(name) > 0) {
         name = translator.at(name);
     }
