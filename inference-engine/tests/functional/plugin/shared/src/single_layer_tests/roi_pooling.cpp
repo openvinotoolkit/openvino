@@ -16,66 +16,51 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string ROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<roiPoolingLayerTestParamsSet> obj) {
-        roiPoolingSpecificParams roiPoolParams;
-        InferenceEngine::Precision netPrecision;
-        InferenceEngine::Precision inPrc, outPrc;
-        InferenceEngine::Layout inLayout, outLayout;
+    std::string ROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj) {
         std::vector<size_t> inputShape;
         std::vector<size_t> coordsShape;
-        std::string targetDevice;
-        std::tie(roiPoolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, coordsShape, targetDevice) = obj.param;
-        ngraph::helpers::ROIPoolingTypes poolType;
         std::vector<size_t> poolShape;
-        float scale;
-        std::tie(poolType, poolShape, scale) = roiPoolParams;
+        float spatialScale;
+        ngraph::op::ROIPooling::ROIPoolingMethod poolMethod;
+        InferenceEngine::Precision netPrecision;
+        std::string targetDevice;
+        std::tie(inputShape, coordsShape, poolShape, spatialScale, poolMethod, netPrecision, targetDevice) = obj.param;
 
         std::ostringstream result;
 
         result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
         result << "CS=" << CommonTestUtils::vec2str(coordsShape) << "_";
-        switch (poolType) {
-            case ngraph::helpers::ROIPoolingTypes::ROI_MAX:
+        result << "PS=" << CommonTestUtils::vec2str(poolShape) << "_";
+        result << "Scale=" << spatialScale << "_";
+        switch (poolMethod) {
+            case ngraph::op::ROIPooling::ROIPoolingMethod::Max:
                 result << "Max_";
                 break;
-            case ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR:
+            case ngraph::op::ROIPooling::ROIPoolingMethod::Bilinear:
                 result << "Bilinear_";
                 break;
         }
-        result << "PS" << CommonTestUtils::vec2str(poolShape) << "_";
-        result << "S" << scale << "_";
 
         result << "netPRC=" << netPrecision.name() << "_";
-        result << "inPRC=" << inPrc.name() << "_";
-        result << "outPRC=" << outPrc.name() << "_";
-        result << "inL=" << inLayout << "_";
-        result << "outL=" << outLayout << "_";
         result << "trgDev=" << targetDevice;
         return result.str();
     }
 
     void ROIPoolingLayerTest::SetUp() {
-        roiPoolingSpecificParams roiPoolParams;
-        InferenceEngine::Precision netPrecision;
         InferenceEngine::SizeVector inputShape;
         InferenceEngine::SizeVector coordsShape;
-        std::tie(roiPoolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, coordsShape, targetDevice) = this->GetParam();
-        ngraph::helpers::ROIPoolingTypes poolType;
         std::vector<size_t> poolShape;
-        float scale;
-        std::tie(poolType, poolShape, scale) = roiPoolParams;
+        float spatialScale;
+        ngraph::op::ROIPooling::ROIPoolingMethod poolMethod;
+        InferenceEngine::Precision netPrecision;
+
+        std::tie(inputShape, coordsShape, poolShape, spatialScale, poolMethod, netPrecision, targetDevice) = this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape, coordsShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-
-        std::shared_ptr<ngraph::Node> roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0],
-                                                                                    paramOuts[1],
-                                                                                    poolShape,
-                                                                                    scale,
-                                                                                    poolType);
-
+        auto roi_pooling = std::make_shared<ngraph::op::ROIPooling>(paramOuts[0], paramOuts[1], poolShape, spatialScale, poolMethod);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
         function = std::make_shared<ngraph::Function>(results, params, "roi_pooling");
     }

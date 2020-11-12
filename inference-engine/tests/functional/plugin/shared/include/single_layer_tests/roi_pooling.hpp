@@ -16,29 +16,20 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {
-typedef std::tuple<
-        ngraph::helpers::ROIPoolingTypes,  // ROIPooling type, max or bilinear
-        std::vector<size_t>,               // Shape
-        float                              // Scale
-> roiPoolingSpecificParams;
 
-typedef std::tuple<
-        roiPoolingSpecificParams,
-        InferenceEngine::Precision,     // Net precision
-        InferenceEngine::Precision,     // Input precision
-        InferenceEngine::Precision,     // Output precision
-        InferenceEngine::Layout,        // Input layout
-        InferenceEngine::Layout,        // Output layout
-        InferenceEngine::SizeVector,    // Input shape
-        InferenceEngine::SizeVector,    // Coords shape
-        LayerTestsUtils::TargetDevice   // Device name
-> roiPoolingLayerTestParamsSet;
+using roiPoolingParamsTuple = std::tuple<
+        InferenceEngine::SizeVector,                // Input shape
+        InferenceEngine::SizeVector,                // Coords shape
+        std::vector<size_t>,                        // Pooled shape {pooled_h, pooled_w}
+        float,                                      // Spatial scale
+        ngraph::op::ROIPooling::ROIPoolingMethod,   // ROIPooling method, max or bilinear
+        InferenceEngine::Precision,                 // Net precision
+        LayerTestsUtils::TargetDevice>;             // Device name
 
-
-class ROIPoolingLayerTest : public testing::WithParamInterface<roiPoolingLayerTestParamsSet>,
+class ROIPoolingLayerTest : public testing::WithParamInterface<roiPoolingParamsTuple>,
                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<roiPoolingLayerTestParamsSet> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj);
 
 protected:
     void SetUp() override;
