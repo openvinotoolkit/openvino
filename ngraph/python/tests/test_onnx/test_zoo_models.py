@@ -38,7 +38,8 @@ from tests import (
     xfail_issue_39669,
     xfail_issue_38726,
     xfail_issue_40686,
-    xfail_issue_42779)
+    xfail_issue_42779,
+    xfail_issue_42818)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
