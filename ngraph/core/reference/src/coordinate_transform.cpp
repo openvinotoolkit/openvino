@@ -32,17 +32,24 @@ using namespace ngraph;
 namespace
 {
     template <size_t Val>
-    struct Default
+    struct Const
     {
         constexpr size_t operator[](size_t) const noexcept { return Val; }
     };
-    using DefaultStrides = Default<1>;
-    using DefaultPading = Default<0>;
+    using DefaultStrides = Const<1>;
+    using DefaultPading = Const<0>;
+    using DefaultStartCorner = Const<0>;
 
     struct DefaultAxisOrder
     {
         constexpr size_t operator[](size_t i) const noexcept { return i; }
     };
+
+    template <typename CoordinateCorner,
+              typename SourceStrides,
+              typename SourceAxisOrder,
+              typename TargetPadding,
+              typename DilationStrides>
 
     class FullTranform : public CoordinateTransform::Transform
     {
@@ -50,13 +57,13 @@ namespace
         FullTranform(const Shape& source_shape,
                      const Shape& target_shape,
                      const size_t n_axes,
-                     const Coordinate& source_start_corner,
+                     const CoordinateCorner& source_start_corner,
                      const Coordinate& source_end_corner,
-                     const Strides& source_strides,
-                     const AxisVector& source_axis_order,
-                     const CoordinateDiff& target_padding_below,
-                     const CoordinateDiff& target_padding_above,
-                     const Strides& target_dilation_strides)
+                     const SourceStrides& source_strides,
+                     const SourceAxisOrder& source_axis_order,
+                     const TargetPadding& target_padding_below,
+                     const TargetPadding& target_padding_above,
+                     const DilationStrides& target_dilation_strides)
             : m_source_shape(source_shape)
             , m_target_shape(target_shape)
             , m_n_axes(n_axes)
@@ -154,14 +161,50 @@ namespace
         const Shape& m_target_shape;
         size_t m_n_axes;
 
-        Coordinate m_source_start_corner;
+        CoordinateCorner m_source_start_corner;
         Coordinate m_source_end_corner;
-        Strides m_source_strides;
-        AxisVector m_source_axis_order;
-        CoordinateDiff m_target_padding_below;
-        CoordinateDiff m_target_padding_above;
-        Strides m_target_dilation_strides;
+        SourceStrides m_source_strides;
+        SourceAxisOrder m_source_axis_order;
+        TargetPadding m_target_padding_below;
+        TargetPadding m_target_padding_above;
+        DilationStrides m_target_dilation_strides;
     };
+
+    Coordinate default_source_end_corner(const Shape& source_shape) { return source_shape; }
+
+    template <typename CoordinateCorner,
+              typename SourceStrides,
+              typename SourceAxisOrder,
+              typename TargetPadding,
+              typename DilationStrides>
+
+    std::unique_ptr<CoordinateTransform::Transform>
+        createFullTransform(const Shape& source_shape,
+                            const Shape& target_shape,
+                            const CoordinateCorner& source_start_corner,
+                            const Coordinate& source_end_corner,
+                            const SourceStrides& source_strides = DefaultStrides{},
+                            const SourceAxisOrder& source_axis_order = DefaultAxisOrder{},
+                            const TargetPadding& target_padding_below = DefaultPading{},
+                            const TargetPadding& target_padding_above = DefaultPading{},
+                            const DilationStrides& target_dilation_strides = DefaultStrides{})
+    {
+        return std::unique_ptr<CoordinateTransform::Transform>{
+            new FullTranform<CoordinateCorner,
+                             SourceStrides,
+                             SourceAxisOrder,
+                             TargetPadding,
+                             DilationStrides>{source_shape,
+                                              target_shape,
+                                              source_shape.size(),
+                                              source_start_corner,
+                                              source_end_corner,
+                                              source_strides,
+                                              source_axis_order,
+                                              target_padding_below,
+                                              target_padding_above,
+                                              target_dilation_strides}};
+    }
 
     Strides default_strides(size_t n_axes) { return Strides(n_axes, 1); }
     CoordinateDiff default_padding(size_t n_axes) { return CoordinateDiff(n_axes, 0); }
@@ -172,8 +215,7 @@ namespace
         return result;
     }
 
-    Coordinate default_source_start_corner(size_t n_axes) { return Coordinate(n_axes, 0); }
-    Coordinate default_source_end_corner(const Shape& source_shape) { return source_shape; }
+//    Coordinate default_source_start_corner(size_t n_axes) { return Coordinate(n_axes, 0); }
 } // namespace
 
 CoordinateTransformBasic::CoordinateTransformBasic(const Shape& source_shape)
@@ -211,28 +253,17 @@ const CoordinateIterator& CoordinateTransformBasic::end() const noexcept
     return CoordinateIterator::end();
 }
 
-CoordinateTransform::CoordinateTransform(const Shape& source_shape,
-                                         const Coordinate& source_start_corner,
-                                         const Coordinate& source_end_corner,
-                                         const Strides& source_strides,
-                                         const AxisVector& source_axis_order,
-                                         const CoordinateDiff& target_padding_below,
-                                         const CoordinateDiff& target_padding_above,
-                                         const Strides& target_dilation_strides)
-    : CoordinateTransformBasic(source_shape)
-    , impl{new FullTranform{
-          CoordinateTransformBasic::m_source_shape,
-          m_target_shape,
-          CoordinateTransformBasic::m_n_axes,
-          source_start_corner,
-          source_end_corner,
-          source_strides,
-          source_axis_order,
-          target_padding_below,
-          target_padding_above,
-          target_dilation_strides,
-      }}
+void check(const Shape& source_shape,
+           const Coordinate& source_start_corner,
+           const Coordinate& source_end_corner,
+           const Strides& source_strides,
+           const AxisVector& source_axis_order,
+           const CoordinateDiff& target_padding_below,
+           const CoordinateDiff& target_padding_above,
+           const Strides& target_dilation_strides)
 {
+    const auto m_n_axes = source_shape.size();
+
     if (m_n_axes != source_start_corner.size())
     {
         throw std::domain_error(
@@ -328,6 +359,35 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
             throw std::domain_error("The source stride is 0 at axis " + std::to_string(i));
         }
     }
+}
+
+CoordinateTransform::CoordinateTransform(const Shape& source_shape,
+                                         const Coordinate& source_start_corner,
+                                         const Coordinate& source_end_corner,
+                                         const Strides& source_strides,
+                                         const AxisVector& source_axis_order,
+                                         const CoordinateDiff& target_padding_below,
+                                         const CoordinateDiff& target_padding_above,
+                                         const Strides& target_dilation_strides)
+    : CoordinateTransformBasic(source_shape)
+    , impl{createFullTransform(CoordinateTransformBasic::m_source_shape,
+                               m_target_shape,
+                               source_start_corner,
+                               source_end_corner,
+                               source_strides,
+                               source_axis_order,
+                               target_padding_below,
+                               target_padding_above,
+                               target_dilation_strides)}
+{
+    check(source_shape,
+          source_start_corner,
+          source_end_corner,
+          source_strides,
+          source_axis_order,
+          target_padding_below,
+          target_padding_above,
+          target_dilation_strides);
 
     for (size_t axis = 0; axis < m_n_axes; axis++)
     {
@@ -375,15 +435,25 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
                                          const Coordinate& source_start_corner,
                                          const Coordinate& source_end_corner,
                                          const Strides& source_strides)
-    : CoordinateTransform(source_shape,
-                          source_start_corner,
-                          source_end_corner,
-                          source_strides,
-                          default_axis_order(source_shape.size()),
-                          default_padding(source_shape.size()),
-                          default_padding(source_shape.size()),
-                          default_strides(source_shape.size()))
+    : CoordinateTransformBasic(source_shape)
+    , impl{createFullTransform(CoordinateTransformBasic::m_source_shape,
+                               m_target_shape,
+                               source_start_corner,
+                               source_shape,
+                               source_strides,
+                               DefaultAxisOrder{},
+                               DefaultPading{},
+                               DefaultPading{},
+                               DefaultStrides{})}
 {
+    constexpr auto source_axis_order = DefaultAxisOrder{};
+
+    for (size_t axis = 0; axis < m_n_axes; axis++)
+    {
+        m_target_shape.push_back(ceil_div(source_end_corner[source_axis_order[axis]] -
+                                              source_start_corner[source_axis_order[axis]],
+                                          source_strides[source_axis_order[axis]]));
+    }
 }
 
 CoordinateTransform::CoordinateTransform(const Shape& source_shape,
@@ -401,15 +471,29 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
 }
 
 CoordinateTransform::CoordinateTransform(const Shape& source_shape)
-    : CoordinateTransform(source_shape,
-                          default_source_start_corner(source_shape.size()),
-                          default_source_end_corner(source_shape),
-                          default_strides(source_shape.size()),
-                          default_axis_order(source_shape.size()),
-                          default_padding(source_shape.size()),
-                          default_padding(source_shape.size()),
-                          default_strides(source_shape.size()))
+
+    : CoordinateTransformBasic(source_shape)
+    , impl{createFullTransform(CoordinateTransformBasic::m_source_shape,
+                               m_target_shape,
+                               DefaultStartCorner{},
+                               default_source_end_corner(source_shape),
+                               DefaultStrides{},
+                               DefaultAxisOrder{},
+                               DefaultPading{},
+                               DefaultPading{},
+                               DefaultStrides{})}
 {
+    const auto source_end_corner = default_source_end_corner(source_shape);
+    constexpr auto source_axis_order = DefaultAxisOrder{};
+    constexpr auto source_start_corner = DefaultStartCorner{};
+    constexpr auto source_strides = DefaultStrides{};
+
+    for (size_t axis = 0; axis < m_n_axes; axis++)
+    {
+        m_target_shape.push_back(ceil_div(source_end_corner[source_axis_order[axis]] -
+                                              source_start_corner[source_axis_order[axis]],
+                                          source_strides[source_axis_order[axis]]));
+    }
 }
 
 // Compute the index of a target-space coordinate in thebuffer.
