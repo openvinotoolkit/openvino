@@ -30,10 +30,10 @@
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
-#include "util/engine/test_engines.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -1334,8 +1334,7 @@ TYPED_TEST_P(topk_backend, topk_mode_sort_order)
     }
 }
 
-REGISTER_TYPED_TEST_CASE_P(topk_backend,
-                           topk_mode_sort_order);
+REGISTER_TYPED_TEST_CASE_P(topk_backend, topk_mode_sort_order);
 
 typedef ::testing::Types<op::v1::TopK, op::v3::TopK> TopKTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(${BACKEND_NAME}, topk_backend, TopKTypes);
