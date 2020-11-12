@@ -19,7 +19,7 @@ using concat4DParamsTuple = typename std::tuple<
     InferenceEngine::Precision,        // Network precision
     std::string,                       // Device name
     std::map<std::string, std::string> // Configuration
->;                      
+>;
 
 class Concat4DLayerTest : public testing::WithParamInterface<concat4DParamsTuple>,
     virtual public LayerTestsUtils::LayerTestsCommon {
