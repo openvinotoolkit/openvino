@@ -15,8 +15,30 @@
 
 namespace {
 
-class DynamicToStaticTopKPropagationConcatBased : public CommonTestUtils::TestsCommon,
-                                                  public testing::WithParamInterface<int64_t> {
+class DynamicToStaticTopKPropagationBase : public CommonTestUtils::TestsCommon,
+                                           public testing::WithParamInterface<int64_t> {
+protected:
+    void validate(const ngraph::Function& function) const {
+        const auto& k = GetParam();
+
+        ngraph::ResultVector processedResults;
+        ASSERT_NO_THROW(processedResults = function.get_results());
+        EXPECT_EQ(processedResults.size(), 2);
+
+        const auto topKOutPartialShape = processedResults[0]->get_input_partial_shape(0);
+        EXPECT_TRUE(topKOutPartialShape.is_static());
+
+        const auto topKOutShape = topKOutPartialShape.get_shape();
+        EXPECT_EQ(topKOutShape.size(), 1);
+        EXPECT_EQ(topKOutShape[0], k);
+    }
+
+    virtual std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const {
+        return node;
+    }
+};
+
+class DynamicToStaticTopKPropagationConcatBased : public DynamicToStaticTopKPropagationBase {
 public:
     void SetUp() override {
         const auto& k = GetParam();
@@ -44,25 +66,6 @@ public:
     }
 
 protected:
-    void validate(const ngraph::Function& function) const {
-        const auto& k = GetParam();
-
-        ngraph::ResultVector processedResults;
-        ASSERT_NO_THROW(processedResults = function.get_results());
-        EXPECT_EQ(processedResults.size(), 2);
-
-        const auto topKOutPartialShape = processedResults[0]->get_input_partial_shape(0);
-        EXPECT_TRUE(topKOutPartialShape.is_static());
-
-        const auto topKOutShape = topKOutPartialShape.get_shape();
-        EXPECT_EQ(topKOutShape.size(), 1);
-        EXPECT_EQ(topKOutShape[0], k);
-    }
-
-    virtual std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const {
-        return node;
-    }
-
     static constexpr int64_t upperBoundK = 1000;
 };
 
@@ -73,32 +76,34 @@ TEST_P(DynamicToStaticTopKPropagationConcatBased, KPropagation) {
 
 INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationConcatBased, ::testing::ValuesIn(kVec));
 
-class DynamicToStaticTopKPropagationReshape : public DynamicToStaticTopKPropagationConcatBased {
+class DynamicToStaticTopKPropagationConcatReshape : public DynamicToStaticTopKPropagationConcatBased {
 protected:
     std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const override {
         return std::make_shared<ngraph::opset5::Reshape>(node, ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}), false);
     }
 };
 
-TEST_P(DynamicToStaticTopKPropagationReshape, KPropagation) {
+TEST_P(DynamicToStaticTopKPropagationConcatReshape, KPropagation) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationReshape, ::testing::ValuesIn(kVec));
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationConcatReshape, ::testing::ValuesIn(kVec));
 
-class DynamicToStaticTopKPropagationSqueezeUnsqueeze : public DynamicToStaticTopKPropagationConcatBased {
+class DynamicToStaticTopKPropagationConcatSqueezeUnsqueeze : public DynamicToStaticTopKPropagationConcatBased {
 protected:
     std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const override {
-        const auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(node, ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+        const auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(
+            node,
+            ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
         return std::make_shared<ngraph::opset5::Squeeze>(unsqueeze, ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
     }
 };
 
-TEST_P(DynamicToStaticTopKPropagationSqueezeUnsqueeze, KPropagation) {
+TEST_P(DynamicToStaticTopKPropagationConcatSqueezeUnsqueeze, KPropagation) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationSqueezeUnsqueeze, ::testing::ValuesIn(kVec));
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationConcatSqueezeUnsqueeze, ::testing::ValuesIn(kVec));
 
-class DynamicToStaticTopKPropagationConvert : public DynamicToStaticTopKPropagationConcatBased {
+class DynamicToStaticTopKPropagationConcatConvert : public DynamicToStaticTopKPropagationConcatBased {
 protected:
     std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const override {
         const auto convert = std::make_shared<ngraph::opset5::Convert>(node, ngraph::element::i32);
@@ -106,12 +111,12 @@ protected:
     }
 };
 
-TEST_P(DynamicToStaticTopKPropagationConvert, KPropagation) {
+TEST_P(DynamicToStaticTopKPropagationConcatConvert, KPropagation) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationConvert, ::testing::ValuesIn(kVec));
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationConcatConvert, ::testing::ValuesIn(kVec));
 
-class DynamicToStaticTopKPropagationShapeOfBased : public DynamicToStaticTopKPropagationConcatBased {
+class DynamicToStaticTopKPropagationShapeOfBased : public DynamicToStaticTopKPropagationBase {
 public:
     void SetUp() override {
         const auto& k = GetParam();
@@ -139,6 +144,11 @@ public:
     }
 
 protected:
+    static constexpr int64_t upperBoundK = 1000;
+};
+
+class DynamicToStaticTopKPropagationShapeOfGather : public DynamicToStaticTopKPropagationShapeOfBased {
+protected:
     std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const override {
         return std::make_shared<ngraph::opset5::Gather>(
             node,
@@ -147,9 +157,9 @@ protected:
     }
 };
 
-TEST_P(DynamicToStaticTopKPropagationShapeOfBased, KPropagation) {
+TEST_P(DynamicToStaticTopKPropagationShapeOfGather, KPropagation) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationShapeOfBased, ::testing::ValuesIn(kVec));
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationShapeOfGather, ::testing::ValuesIn(kVec));
 
 }  // namespace
