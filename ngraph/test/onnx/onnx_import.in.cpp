@@ -1205,10 +1205,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_nearest)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_down_linear_asymmetric)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_scales_linear_asymmetric)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/resize11_scales_down_linear_asymmetric.prototxt"));
+        SERIALIZED_ZOO, "onnx/resize11_down_scales_linear_asymmetric.prototxt"));
 
     const Shape expected_output_shape{1, 1, 1, 2};
     auto test_case = test::TestCase<TestEngine>(function);
@@ -1239,10 +1239,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor_dynam
     test_case.run_with_tolerance_as_fp();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_up_linear_asymmetric)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_linear_asymmetric)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_scales_up_linear_asymmetric.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_scales_linear_asymmetric.prototxt"));
 
     const Shape expected_output_shape{2, 1, 4, 8};
     auto test_case = test::TestCase<TestEngine>(function);
@@ -1390,10 +1390,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_nearest_asymmetric_floor)
     test_case.run_with_tolerance_as_fp();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_linear)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_linear_asymmetric)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_sizes_linear.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_linear_asymmetric.prototxt"));
 
     const Shape expected_output_shape{2, 1, 4, 8};
     auto test_case = test::TestCase<TestEngine>(function);
