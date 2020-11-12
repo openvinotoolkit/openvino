@@ -949,7 +949,8 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
 
     if ((!moveSubtract) && (dequantization.convert != nullptr) && (dequantization.subtract != nullptr)) {
         NetworkHelper::cleanRunTimeInfo(dequantization.subtract);
-        optimizeSubtract(dequantization.subtract);
+        // issue #43088
+        // NetworkHelper::optimizeElementwise(dequantization.subtract);
     }
 
     return InsertDequantizationResult(newOperation, parent);

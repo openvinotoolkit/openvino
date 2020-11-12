@@ -137,7 +137,7 @@ const std::vector<PReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, { {128}, ngraph::element::f32 }, {}},
+            {{ngraph::element::f32}, { {128}, ngraph::element::f32 }, {}},
             ngraph::element::f32,
             {{}, {}, {0.1f}}
         }
@@ -152,7 +152,7 @@ const std::vector<PReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
-            {{}, { {127}, ngraph::element::f32 }, {}},
+            {{ngraph::element::f32}, { {127}, ngraph::element::f32 }, {}},
             ngraph::element::f32,
             {{}, {}, {0.1f}}
         }
