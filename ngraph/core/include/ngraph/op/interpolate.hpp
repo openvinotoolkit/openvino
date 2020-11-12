@@ -174,6 +174,8 @@ namespace ngraph
                     InterpolateAttrs()
                         : coordinate_transformation_mode(CoordinateTransformMode::half_pixel)
                         , nearest_mode(NearestMode::round_prefer_floor)
+                        , mode(InterpolateMode::nearest)
+                        , shape_calculation_mode(ShapeCalcMode::sizes)
                         , antialias(false)
                         , cube_coeff(-0.75f)
                     {
