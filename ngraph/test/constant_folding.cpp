@@ -429,43 +429,6 @@ TEST(constant_folding, constant_unary_binary)
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
-TEST(constant_folding, const_quantize)
-{
-    Shape input_shape{12};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto quant_type = element::u8;
-    auto output_type = element::u8;
-    typedef uint8_t output_c_type;
-
-    vector<float> values_in{1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 7.0};
-    auto constant = op::Constant::create(element::f32, input_shape, values_in);
-    auto scale = op::Constant::create(element::f32, scale_offset_shape, {2});
-    auto offset = op::Constant::create(quant_type, scale_offset_shape, {1});
-    auto mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY;
-    auto quantize =
-        make_shared<op::Quantize>(constant, scale, offset, output_type, quantization_axes, mode);
-    quantize->set_friendly_name("test");
-    auto f = make_shared<Function>(quantize, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Quantize>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<output_c_type>();
-
-    vector<output_c_type> values_quantize{2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5};
-    ASSERT_EQ(values_quantize, values_out);
-}
-
 TEST(constant_folding, const_convert)
 {
     Shape input_shape{3, 4};
@@ -2126,37 +2089,6 @@ TEST(constant_folding, constant_range)
     range_test<float>(12, 4, -2, {12, 10, 8, 6});
 }
 
-TEST(constant_folding, constant_select)
-{
-    Shape shape{2, 4};
-    vector<char> values_selection{0, 1, 1, 0, 1, 0, 0, 1};
-    vector<int64_t> values_t{2, 4, 6, 8, 10, 12, 14, 16};
-    vector<int64_t> values_f{1, 3, 5, 7, 9, 11, 13, 15};
-
-    auto constant_selection = make_shared<op::Constant>(element::boolean, shape, values_selection);
-    auto constant_t = make_shared<op::Constant>(element::i64, shape, values_t);
-    auto constant_f = make_shared<op::Constant>(element::i64, shape, values_f);
-    auto select = make_shared<op::Select>(constant_selection, constant_t, constant_f);
-    select->set_friendly_name("test");
-    auto f = make_shared<Function>(select, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Select>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<int64_t>();
-
-    vector<int64_t> values_expected{1, 4, 6, 7, 10, 11, 13, 16};
-    ASSERT_EQ(values_expected, values_out);
-}
-
 TEST(constant_folding, constant_v1_select)
 {
     Shape shape{2, 4};
@@ -2451,14 +2383,14 @@ TEST(constant_folding, constant_v1_variadic_split_axis_1_3_splits_neg_length)
 
 TEST(constant_folding, constant_v1_one_hot)
 {
-    vector<int64_t> indices{0, 1, 2};
-    float16 on_value = 1.123f;
-    float16 off_value = 0.321f;
+    const vector<int64_t> indices{0, 1, 2};
+    const float on_value = 1.123f;
+    const float off_value = 0.321f;
 
     const auto indices_const = op::Constant::create(element::i64, Shape{3}, indices);
     const auto depth_const = op::Constant::create(element::i64, Shape{}, {3});
-    const auto on_const = op::Constant::create(element::f16, Shape{}, {on_value});
-    const auto off_const = op::Constant::create(element::f16, Shape{}, {off_value});
+    const auto on_const = op::Constant::create(element::f32, Shape{}, {on_value});
+    const auto off_const = op::Constant::create(element::f32, Shape{}, {off_value});
     int64_t axis = 1;
 
     auto one_hot_v1 =
@@ -2477,28 +2409,28 @@ TEST(constant_folding, constant_v1_one_hot)
     ASSERT_TRUE(res);
 
     ASSERT_EQ((Shape{3, 3}), res->get_output_shape(0));
-    ASSERT_EQ(vector<float16>({on_value,
-                               off_value,
-                               off_value,
-                               off_value,
-                               on_value,
-                               off_value,
-                               off_value,
-                               off_value,
-                               on_value}),
-              res->get_vector<float16>());
+    ASSERT_EQ(vector<float>({on_value,
+                             off_value,
+                             off_value,
+                             off_value,
+                             on_value,
+                             off_value,
+                             off_value,
+                             off_value,
+                             on_value}),
+              res->get_vector<float>());
 }
 
 TEST(constant_folding, constant_v1_one_hot_negative_axes)
 {
-    vector<int64_t> indices{0, 2, -1, 1};
-    int16_t on_value = 4;
-    int16_t off_value = 1;
+    const vector<int64_t> indices{0, 2, -1, 1};
+    const int32_t on_value = 4;
+    const int32_t off_value = 1;
 
     const auto indices_const = op::Constant::create(element::i64, Shape{4}, indices);
     const auto depth_const = op::Constant::create(element::i64, Shape{}, {3});
-    const auto on_const = op::Constant::create(element::i16, Shape{}, {on_value});
-    const auto off_const = op::Constant::create(element::i16, Shape{}, {off_value});
+    const auto on_const = op::Constant::create(element::i32, Shape{}, {on_value});
+    const auto off_const = op::Constant::create(element::i32, Shape{}, {off_value});
     int64_t axis = -1;
 
     auto one_hot_v1 =
@@ -2517,7 +2449,7 @@ TEST(constant_folding, constant_v1_one_hot_negative_axes)
     ASSERT_TRUE(res);
 
     ASSERT_EQ((Shape{4, 3}), res->get_output_shape(0));
-    ASSERT_EQ(vector<int16_t>({on_value,
+    ASSERT_EQ(vector<int32_t>({on_value,
                                off_value,
                                off_value,
                                off_value,
@@ -2529,7 +2461,7 @@ TEST(constant_folding, constant_v1_one_hot_negative_axes)
                                off_value,
                                on_value,
                                off_value}),
-              res->get_vector<int16_t>());
+              res->get_vector<int32_t>());
 }
 
 TEST(constant_folding, constant_v1_one_hot_negative_axes_2)
