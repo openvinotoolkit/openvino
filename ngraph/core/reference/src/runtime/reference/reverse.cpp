@@ -34,7 +34,7 @@ void runtime::reference::reverse(const char* arg,
     CoordinateTransform arg_transform(arg_shape);
     CoordinateTransform output_transform(out_shape);
 
-    for (Coordinate out_coord : output_transform)
+    for (const Coordinate& out_coord : output_transform)
     {
         Coordinate arg_coord = out_coord;
 
