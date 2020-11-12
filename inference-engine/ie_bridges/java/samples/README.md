@@ -42,7 +42,7 @@ The application outputs the number of executed iterations, total duration of exe
 Below is fragment of application output for CPU device: 
 
 ```
-[Step 10/11] Measuring performance (Start inference asyncronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
 [Step 11/11] Dumping statistics report
 Count:      8904 iterations
 Duration:   60045.87 ms

@@ -49,10 +49,8 @@
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
 
-#ifndef USE_CNNNETWORK_LPT
-# include <low_precision/transformer.hpp>
-# include <low_precision/mat_mul.hpp>
-#endif
+#include <low_precision/transformer.hpp>
+#include <low_precision/mat_mul.hpp>
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -174,16 +172,14 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                    std::dynamic_pointer_cast<const ::ngraph::opset4::HSwish>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL1>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL2>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node);
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset5::LogSoftmax>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-#ifndef USE_CNNNETWORK_LPT
         bool enableInt8;
-#endif
-
         {
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
             ngraph::pass::Manager manager;
@@ -203,7 +199,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             manager.set_callback(transformations_callback);
             manager.run_passes(nGraphFunc);
 
-#ifndef USE_CNNNETWORK_LPT
             enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 const auto fp16_callback = [&baselineIsFP16](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
@@ -220,10 +215,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                 conversion_manager.set_callback(fp16_callback);
                 conversion_manager.run_passes(nGraphFunc);
             }
-#endif
         }
 
-#ifndef USE_CNNNETWORK_LPT
         using namespace ngraph::pass::low_precision;
         if (enableInt8) {
             auto params = LayerTransformation::Params(
@@ -236,7 +229,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
 
             transformer.transform(nGraphFunc);
         }
-#endif
 
         {
             ngraph::pass::Manager manager = ngraph::pass::Manager();
@@ -357,6 +349,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.sources_dumps_dir == current_config.sources_dumps_dir &&
                context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
+               context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
                context_config.device_id == current_config.device_id;
     };
 

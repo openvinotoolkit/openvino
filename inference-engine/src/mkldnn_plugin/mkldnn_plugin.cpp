@@ -32,6 +32,7 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -48,6 +49,7 @@
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
+#include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -60,12 +62,10 @@
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
-#ifndef USE_CNNNETWORK_LPT
 # include <low_precision/transformer.hpp>
 # include <low_precision/convolution.hpp>
 # include <low_precision/group_convolution.hpp>
 # include <low_precision/multiply_to_group_convolution.hpp>
-#endif
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -220,12 +220,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
     pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMod>();
+    pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
 
     pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
 
     manager.run_passes(nGraphFunc);
 
-#ifndef USE_CNNNETWORK_LPT
     using namespace ngraph::pass::low_precision;
     if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(
@@ -243,13 +243,14 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
         transformer.transform(nGraphFunc);
     }
-#endif
 
     ngraph::pass::Manager legacyManager;
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     legacyManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+    // not legacy actually, but it should be the last transformation in the transformation pipeline
+    legacyManager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
-    auto legacyPassConfig = manager.get_pass_config();
+    auto legacyPassConfig = legacyManager.get_pass_config();
     legacyPassConfig->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
         if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
             auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
@@ -264,6 +265,10 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         return false;
     });
 
+    legacyManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
+        // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
+        return node->get_rt_info().count("UNROLL_TI") == 0;
+    });
     legacyManager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
