@@ -115,6 +115,6 @@ protected:
 
     std::shared_ptr<PassConfig> m_pass_config;
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
-    bool m_visualize = true;
+    bool m_visualize = false;
     bool m_per_pass_validation = true;
 };

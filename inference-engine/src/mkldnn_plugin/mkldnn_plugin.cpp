@@ -59,6 +59,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+
 # include <low_precision/transformer.hpp>
 # include <low_precision/convolution.hpp>
 # include <low_precision/group_convolution.hpp>
@@ -154,8 +155,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
 
     pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
-    //manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+
     manager.run_passes(nGraphFunc);
+
     using namespace ngraph::pass::low_precision;
     if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(
@@ -197,12 +199,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     legacyManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-        return true;
+        return node->get_rt_info().count("UNROLL_TI") == 0;
     });
     legacyManager.run_passes(nGraphFunc);
+
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-/*    ngraph::pass::VisualizeTree vt("unrolled_ti.svg");
-    vt.run_on_function(nGraphFunc);*/
+
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
     for (auto & precision : convert_precision_list) {

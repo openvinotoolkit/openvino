@@ -1276,7 +1276,9 @@ protected:
                                                         reverse->get_batch_axis(),
                                                         reverse->get_sequence_axis(),
                                                         args[1]->get_data_ptr<const int64_t>());
-            } else {
+            }
+            else
+            {
                 throw ngraph_error("only int32 indices are supported");
             }
             break;
