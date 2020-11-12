@@ -17,6 +17,7 @@
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 from extensions.middle.FusedBatchNormTraining import FusedBatchNormTraining
 from mo.front.common.partial_infer.utils import int64_array
@@ -74,8 +75,12 @@ nodes_attributes = {
 }
 
 
+@generator
 class FusedBatchNormTrainingTest(unittest.TestCase):
-    def test_transformation(self):
+    @generate(*[
+        'FusedBatchNorm', 'FusedBatchNormV2', 'FusedBatchNormV3',
+    ])
+    def test_transformation(self, op: str):
         graph = build_graph(nodes_attributes,
                             [('placeholder', 'placeholder_data', {}),
                              ('scale', 'scale_data'),
@@ -91,7 +96,7 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
                              ('batchnorm_data', 'result'),
                              ],
                             {}, nodes_with_edges_only=True)
-
+        graph.nodes['batchnorm']['op'] = op
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder', 'placeholder_data', {}),
                                  ('scale', 'scale_data'),
@@ -124,6 +129,8 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
                                  }, nodes_with_edges_only=True)
         FusedBatchNormTraining().find_and_replace_pattern(graph)
         shape_inference(graph)
+
+        graph_ref.nodes['batchnorm']['op'] = op
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
