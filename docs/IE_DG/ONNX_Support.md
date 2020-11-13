@@ -26,9 +26,9 @@ Paths to external weight files are saved in an ONNX model, relative to the model
 It means that if a model is located at:
 `home/user/workspace/models/model.onnx`
 and a file which contains external weights:
-`home/user/workspace/weights.data`
+`home/user/workspace/models/data/weights.bin`
 the path saved in model should be:
-`../../weights.data`.
+`data/weights.bin`.
 
 **NOTE**
 
