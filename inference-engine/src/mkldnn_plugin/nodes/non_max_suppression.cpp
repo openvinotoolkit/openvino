@@ -250,7 +250,9 @@ public:
             }
             numFiltBox[batch_idx][class_idx] = fb.size();
             size_t offset = batch_idx*num_classes*max_output_boxes_per_class + class_idx*max_output_boxes_per_class;
-            cpu_memcpy(filtBoxes.data() + offset, fb.data(), fb.size() * sizeof(filteredBoxes));
+            for (size_t i = 0; i < fb.size(); i++) {
+                filtBoxes[offset + i] = fb[i];
+            }
         });
     }
 
@@ -273,14 +275,13 @@ public:
                               [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
                                     return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
                                 });
-                size_t offset = batch_idx*num_classes*max_output_boxes_per_class + class_idx*max_output_boxes_per_class;
-                filteredBoxes *fb = filtBoxes.data() + offset;
-                fb[0] = filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
+                int offset = batch_idx*num_classes*max_output_boxes_per_class + class_idx*max_output_boxes_per_class;
+                filtBoxes[offset + 0] = filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
                 io_selection_size++;
                 for (size_t box_idx = 1; (box_idx < sorted_boxes.size()) && (io_selection_size < max_out_box); box_idx++) {
                     bool box_is_selected = true;
                     for (int idx = io_selection_size - 1; idx >= 0; idx--) {
-                        float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[box_idx].second * 4], &boxesPtr[fb[idx].box_index * 4]);
+                        float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[box_idx].second * 4], &boxesPtr[filtBoxes[offset + idx].box_index * 4]);
                         if (iou >= iou_threshold) {
                             box_is_selected = false;
                             break;
@@ -288,7 +289,7 @@ public:
                     }
 
                     if (box_is_selected) {
-                        fb[io_selection_size] = filteredBoxes(sorted_boxes[box_idx].first, batch_idx, class_idx, sorted_boxes[box_idx].second);
+                        filtBoxes[offset + io_selection_size] = filteredBoxes(sorted_boxes[box_idx].first, batch_idx, class_idx, sorted_boxes[box_idx].second);
                         io_selection_size++;
                     }
                 }
@@ -358,8 +359,9 @@ public:
             size_t batchOffset = b*num_classes*max_output_boxes_per_class;
             for (size_t c = (b == 0 ? 1 : 0); c < numFiltBox[b].size(); c++) {
                 size_t offset = batchOffset + c*max_output_boxes_per_class;
-                cpu_memcpy(filtBoxes.data() + startOffset, filtBoxes.data() + offset,
-                           numFiltBox[b][c] * sizeof(filteredBoxes));
+                for (size_t i = 0; i < numFiltBox[b][c]; i++) {
+                    filtBoxes[startOffset + i] = filtBoxes[offset + i];
+                }
                 startOffset += numFiltBox[b][c];
             }
         }
