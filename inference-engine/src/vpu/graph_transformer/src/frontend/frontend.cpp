@@ -27,11 +27,6 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
-#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
-#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
-#include <transformations/op_conversions/rnn_cell_decomposition.hpp>
-#include <transformations/op_conversions/gru_cell_decomposition.hpp>
-#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -171,8 +166,7 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
              std::dynamic_pointer_cast<const ngraph::opset3::StridedSlice>(node)) &&
             std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
 
-        const bool enableTiToSequences = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node) != nullptr;
-        return casesWithDynamicOrStaticUsage || casesWithOnlyDynamicUsage || enableTiToSequences;
+        return casesWithDynamicOrStaticUsage || casesWithOnlyDynamicUsage;
     };
 
     auto nGraphFunc = network.getFunction();
@@ -189,20 +183,9 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<vpu::ConvertExtractImagePatchesToReorgYolo>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-    const auto& env = CompileEnv::get();
-/*    if (!env.config.forcePureTensorIterator) {
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
-}*/
-
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
 
     manager.set_callback(transformationsPredicate);
-    if (env.config.enableTensorIteratorUnrolling && !env.config.forcePureTensorIterator) {
-        // Unroll will be called after all conversions
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-    }
     manager.run_passes(nGraphFunc);
 
     vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
