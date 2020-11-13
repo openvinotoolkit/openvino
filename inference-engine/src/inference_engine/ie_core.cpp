@@ -627,11 +627,8 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
         THROW_IE_EXCEPTION << "MULTI device does not support remote context";
     }
 
-    auto parsed = parseDeviceNameIntoConfig(deviceName);
-
-    // TODO ilavreno: should GetDefaultContext support device ID?
-    // currently it's ignored and supposed to be device-ID independent
-    return _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext();
+    auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
+    return _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {

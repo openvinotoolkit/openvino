@@ -118,8 +118,8 @@ public:
         CALL_STATEMENT(return actual->CreateContext(params));
     }
 
-    RemoteContext::Ptr GetDefaultContext() {
-        CALL_STATEMENT(return actual->GetDefaultContext());
+    RemoteContext::Ptr GetDefaultContext(const ParamMap& params) {
+        CALL_STATEMENT(return actual->GetDefaultContext(params));
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
