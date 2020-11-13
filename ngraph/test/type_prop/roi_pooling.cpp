@@ -73,3 +73,12 @@ TEST(type_prop, roi_pooling_incompatible_rois_element_type)
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "max"),
                  ngraph::NodeValidationFailure);
 }
+
+TEST(type_prop, roi_pooling_invalid_pooling_method)
+{
+    const auto feat_maps = make_shared<op::Parameter>(element::f32, Shape{3, 2, 6, 6});
+    const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
+    // ROIPooling method is invalid: not max nor bilinear
+    ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "invalid"),
+                 ngraph::CheckFailure);
+}
