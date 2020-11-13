@@ -23,6 +23,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_input_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_lrn_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_memory_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pad_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_permute_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pooling_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_quantize_node.cpp
@@ -64,7 +65,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/log_softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/math.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/one_hot.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/pad.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/powerfile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox_clustered.cpp
