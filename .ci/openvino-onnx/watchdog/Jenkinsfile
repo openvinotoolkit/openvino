@@ -14,7 +14,7 @@ timeout(30)
                     dir ("$BUILD_WORKSPACE") {
                         checkout([$class: 'GitSCM', branches: [[name: "*/$BRANCH"]],
                                 doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CloneOption', timeout: 30]],  submoduleCfg: [],
-                                userRemoteConfigs: [[credentialsId: "${GITHUB_KEY}", url: 'git@github.com:rblaczkowski/openvino.git']]])
+                                userRemoteConfigs: [[credentialsId: "${GITHUB_KEY}", url: "${OPEN_VINO_URL}"]]])
                     }
                 }
                 stage("Prepare environment") {
