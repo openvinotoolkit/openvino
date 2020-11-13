@@ -11,8 +11,9 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <legacy/ngraph_ops/gather_ie.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <ngraph/runtime/host_tensor.hpp>
 #include <transformations/utils/utils.hpp>
 
 using namespace ngraph;
@@ -40,40 +41,69 @@ ngraph::pass::PatternBeforeTopKFusion::PatternBeforeTopKFusion() {
         auto & label_to_output = m.get_pattern_value_map();
 
         auto shape_of = label_to_output[m_shape_of].get_node_shared_ptr();
-        auto data = label_to_output[m_data].get_node_shared_ptr();
         auto data_shape = shape_of->get_input_partial_shape(0);
 
         if (data_shape.rank().is_dynamic() || data_shape.is_dynamic()) {
             return false;
         }
 
-        auto indices = label_to_output[m_indices].get_node_shared_ptr();
-        auto indices_vector = indices->cast_vector<int64_t>();
+        auto indices_node = label_to_output[m_indices];
+        auto indices_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(indices_node.get_node_shared_ptr());
+        if (!indices_const) {
+            return false;
+        }
+        auto indices_vector = indices_const->cast_vector<int64_t>();
         if (indices_vector.size() != 1 || indices_vector[0] != 0) {
             return false;
         }
 
-        auto gather_axis = label_to_output[m_gather_axis].get_node_shared_ptr();
-        auto gather_axis_vector = gather_axis->cast_vector<int64_t>();
+        auto gather_axis_node = label_to_output[m_gather_axis];
+        auto gather_axis_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(gather_axis_node.get_node_shared_ptr());
+        if (!gather_axis_const) {
+            return false;
+        }
+        auto gather_axis_vector = gather_axis_const->cast_vector<int64_t>();
         if (gather_axis_vector.size() != 1 || gather_axis_vector[0] != 0) {
             return false;
         }
 
-        auto fst_unsqueeze_axis = label_to_output[m_fst_unsqueeze_axis].get_node_shared_ptr();
-        auto fst_unsqueeze_axis_vector = fst_unsqueeze_axis->cast_vector<int64_t>();
+        auto fst_unsqueeze_axis_node = label_to_output[m_fst_unsqueeze_axis];
+        auto fst_unsqueeze_axis_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(fst_unsqueeze_axis_node.get_node_shared_ptr());
+        if (!fst_unsqueeze_axis_const) {
+            return false;
+        }
+        auto fst_unsqueeze_axis_vector = fst_unsqueeze_axis_const->cast_vector<int64_t>();
         if (fst_unsqueeze_axis_vector.size() != 1 || fst_unsqueeze_axis_vector[0] != 0) {
             return false;
         }
 
-        auto snd_unsqueeze_axis = label_to_output[m_snd_unsqueeze_axis].get_node_shared_ptr();
-        auto snd_unsqueeze_axis_vector = snd_unsqueeze_axis->cast_vector<int64_t>();
+        auto snd_unsqueeze_axis_node = label_to_output[m_snd_unsqueeze_axis];
+        auto snd_unsqueeze_axis_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(snd_unsqueeze_axis_node.get_node_shared_ptr());
+        if (!snd_unsqueeze_axis_const) {
+            return false;
+        }
+        auto snd_unsqueeze_axis_vector = snd_unsqueeze_axis_const->cast_vector<int64_t>();
         if (snd_unsqueeze_axis_vector.size() != 1 || snd_unsqueeze_axis_vector[0] != 0) {
             return false;
         }
 
-        auto concat_const = label_to_output[m_concat_const].get_node_shared_ptr();
+        auto concat_const_node = label_to_output[m_concat_const];
+        auto concat_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(concat_const_node.get_node_shared_ptr());
+        if (!concat_const) {
+            return false;
+        }
         auto concat_const_vector = concat_const->cast_vector<int64_t>();
         if (concat_const_vector.size() != 1) {
+            return false;
+        }
+
+        auto concat_node = label_to_output[m_concat];
+        auto concat = std::dynamic_pointer_cast<ngraph::opset5::Concat>(concat_node.get_node_shared_ptr());
+        if (!concat) {
+            return false;
+        }
+        int64_t concat_axis = concat->get_axis();
+        if (concat_axis != 0) {
             return false;
         }
 
@@ -81,6 +111,39 @@ ngraph::pass::PatternBeforeTopKFusion::PatternBeforeTopKFusion() {
     };
 
     auto folding = [=](ngraph::pattern::Matcher & m) -> Output<Node> {
+        auto & label_to_output = m.get_pattern_value_map();
+
+        auto shape_of = label_to_output[m_shape_of].get_node_shared_ptr();
+        Shape data_shape = shape_of->get_input_shape(0);
+        Output<Node> gather_input = opset5::Constant::create(element::i64, shape_of->get_output_shape(0), data_shape);
+
+        auto indices = label_to_output[m_indices];
+        auto gather_axis = label_to_output[m_gather_axis];
+        auto gather = std::make_shared<opset5::Gather>(gather_input, indices, gather_axis);
+        OutputVector gather_output(gather->get_output_size());
+        if (!gather->constant_fold(gather_output, {gather_input, indices, gather_axis})) {
+            throw ngraph_error("Can not constant fold Gather node");
+        }
+
+        auto fst_unsqueeze_axis_node = label_to_output[m_fst_unsqueeze_axis];
+        auto fst_unsqueeze = std::make_shared<opset5::Unsqueeze>(gather_output[0], fst_unsqueeze_axis_node);
+        OutputVector fst_unsqueeze_output(fst_unsqueeze->get_output_size());
+        if (!fst_unsqueeze->constant_fold(fst_unsqueeze_output, {gather_output[0], fst_unsqueeze_axis_node})) {
+            throw ngraph_error("Can not constant the first Unsqueeze node");
+        }
+
+        auto concat_const_node = label_to_output[m_concat_const];
+        auto concat_node = label_to_output[m_concat];
+        auto concat = std::dynamic_pointer_cast<ngraph::opset5::Concat>(concat_node.get_node_shared_ptr());
+        if (!concat) {
+            throw ngraph_error("Expected Concat node");
+        }
+        int64_t concat_axis = concat->get_axis();
+        OutputVector new_concat_args = {concat_const_node, fst_unsqueeze_output[0]};
+        auto new_concat = std::make_shared<opset5::Concat>(new_concat_args, concat_axis);
+        auto concat_result = std::make_shared<HostTensor>();
+        HostTensorVector concat_eval_args = {std::make_shared<HostTensor>(concat_const_node), std::make_shared<HostTensor>(fst_unsqueeze_output[0])};
+        bool new_concat_eval_status = new_concat->evaluate({concat_result}, concat_eval_args);
         Output<Node> result;
         return result;
     };
@@ -95,6 +158,6 @@ ngraph::pass::PatternBeforeTopKFusion::PatternBeforeTopKFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul, "PatternBeforeTopKFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_snd_unsqueeze, "PatternBeforeTopKFusion");
     this->register_matcher(m, callback);
 }
