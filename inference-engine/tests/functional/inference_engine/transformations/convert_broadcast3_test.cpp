@@ -137,6 +137,72 @@ public:
     }
 };
 
+class ConvertBroadcast3BIDIRECTBroadcastMultiplyTest: public CommonTestUtils::TestsCommon,
+                                                      public testing::WithParamInterface<std::tuple<InputShape, TargetShape>> {
+public:
+    std::shared_ptr<Function> f, f_ref;
+
+    void SetUp() override {
+        const auto& input_shape = std::get<0>(GetParam());
+        const auto& target_shape = std::get<1>(GetParam());
+
+        f = get_initial_function(input_shape, target_shape);
+        f_ref = get_reference_broadcast(input_shape, target_shape);
+    }
+
+    std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
+                                                   const TargetShape & target_shape) {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto target_shape_node = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, target_shape);
+        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input, target_shape_node});
+    }
+
+    std::shared_ptr<Function> get_reference_broadcast(const InputShape & input_shape,
+                                                      const TargetShape & target_shape) {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto target_shape_node = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, target_shape);
+        auto constant_one = opset1::Constant::create(ngraph::element::f32, {1}, {1});
+        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
+        auto mul = std::make_shared<ngraph::opset1::Multiply>(input, broadcast);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input, target_shape_node});
+    }
+};
+
+class ConvertBroadcast3BIDIRECTBroadcastLogicalOrTest: public CommonTestUtils::TestsCommon,
+                                                       public testing::WithParamInterface<std::tuple<InputShape, TargetShape>> {
+public:
+    std::shared_ptr<Function> f, f_ref;
+
+    void SetUp() override {
+        const auto& input_shape = std::get<0>(GetParam());
+        const auto& target_shape = std::get<1>(GetParam());
+
+        f = get_initial_function(input_shape, target_shape);
+        f_ref = get_reference_broadcast(input_shape, target_shape);
+    }
+
+    std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
+                                                   const TargetShape & target_shape) {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::boolean, input_shape);
+        auto target_shape_node = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, target_shape);
+        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input, target_shape_node});
+    }
+
+    std::shared_ptr<Function> get_reference_broadcast(const InputShape & input_shape,
+                                                      const TargetShape & target_shape) {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::boolean, input_shape);
+        auto target_shape_node = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, target_shape);
+        auto constant_one = opset1::Constant::create(ngraph::element::boolean, {1}, {1});
+        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
+        auto mul = std::make_shared<ngraph::opset1::LogicalOr>(input, broadcast);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input, target_shape_node});
+    }
+};
+
 TEST_P(ConvertBroadcast3NUMPYTest, CompareFunctions) {
     convert_broadcast3_test(f, f_ref);
 }
@@ -146,6 +212,14 @@ TEST_P(ConvertBroadcast3BIDIRECTMulTest, CompareFunctions) {
 }
 
 TEST_P(ConvertBroadcast3BIDIRECTBroadcastTest, CompareFunctions) {
+    convert_broadcast3_test(f, f_ref);
+}
+
+TEST_P(ConvertBroadcast3BIDIRECTBroadcastMultiplyTest, CompareFunctions) {
+    convert_broadcast3_test(f, f_ref);
+}
+
+TEST_P(ConvertBroadcast3BIDIRECTBroadcastLogicalOrTest, CompareFunctions) {
     convert_broadcast3_test(f, f_ref);
 }
 
@@ -205,6 +279,38 @@ INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroa
                         std::make_tuple(InputShape{1, 3, DYN},          TargetShape{3, 3, 10},      TargetShape{3, 3, 10}),
                         std::make_tuple(InputShape{2, DYN, 9},          TargetShape{2, 2, 1},       TargetShape{2, 2, 9}),
                         std::make_tuple(InputShape{3, 3, DYN},          TargetShape{3},             TargetShape{3, 3, 3})));
+
+INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastMultiplyTest,
+        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, TargetShape{5}),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64},      TargetShape{4}),
+                        std::make_tuple(InputShape{2, DYN, 64, 64, 64},      TargetShape{3}),
+                        std::make_tuple(InputShape{3, 1, DYN, 64, 64},       TargetShape{2}),
+                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},       TargetShape{1}),
+                        std::make_tuple(InputShape{1, 3, 64, 64},       TargetShape{5}),
+                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, TargetShape{4}),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64},     TargetShape{3}),
+                        std::make_tuple(InputShape{2, DYN, 64, 64},     TargetShape{2}),
+                        std::make_tuple(InputShape{3, 3, DYN, 64},      TargetShape{1}),
+                        std::make_tuple(InputShape{DYN, DYN, DYN},      TargetShape{5}),
+                        std::make_tuple(InputShape{DYN, 3, 10},         TargetShape{4}),
+                        std::make_tuple(InputShape{2, DYN, 9},          TargetShape{3}),
+                        std::make_tuple(InputShape{3, 3, DYN},          TargetShape{2})));
+
+INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastLogicalOrTest,
+        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, TargetShape{5}),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64},      TargetShape{4}),
+                        std::make_tuple(InputShape{2, DYN, 64, 64, 64},      TargetShape{3}),
+                        std::make_tuple(InputShape{3, 1, DYN, 64, 64},       TargetShape{2}),
+                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},       TargetShape{1}),
+                        std::make_tuple(InputShape{1, 3, 64, 64},       TargetShape{5}),
+                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, TargetShape{4}),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64},     TargetShape{3}),
+                        std::make_tuple(InputShape{2, DYN, 64, 64},     TargetShape{2}),
+                        std::make_tuple(InputShape{3, 3, DYN, 64},      TargetShape{1}),
+                        std::make_tuple(InputShape{DYN, DYN, DYN},      TargetShape{5}),
+                        std::make_tuple(InputShape{DYN, 3, 10},         TargetShape{4}),
+                        std::make_tuple(InputShape{2, DYN, 9},          TargetShape{3}),
+                        std::make_tuple(InputShape{3, 3, DYN},          TargetShape{2})));
 
 
 // Broadcast-3 is converted directly to Broadcast-1 for modes NUMPY, NONE and PDPD
