@@ -37,7 +37,6 @@ nodes = {
     **regular_op_with_empty_data('equal', {'op': 'Equal', 'type': 'Equal'}),
     **regular_op_with_empty_data('select', {'op': 'Select', 'type': 'Select'}),
     **regular_op_with_empty_data('slice', {'op': 'Slice', 'type': None}),
-    **regular_op_with_empty_data('cast', {'op': 'Cast', 'type': 'Convert'}),
 }
 
 
@@ -69,8 +68,7 @@ class SliceReplacerTest(unittest.TestCase):
 
             *connect_front('equal:0', 'select:0'),
 
-            *connect_front('end_const:0', 'cast:0'),
-            *connect_front('cast:0', 'select:2'),
+            *connect_front('end_const:0', 'select:2'),
             *connect_front('select:0', 'slice:2'),
 
             *connect_front('slice:0', 'output'),
@@ -99,8 +97,7 @@ class SliceReplacerTest(unittest.TestCase):
             *connect_front('int32_max:0', '1:select'),
             *connect_front('minus_one:0', '1:equal'),
             *connect_front('equal:0', '0:select'),
-            *connect_front('end_const:0', '0:cast'),
-            *connect_front('cast:0', '2:select'),
+            *connect_front('end_const:0', '2:select'),
             *connect_front('select:0', '2:slice'),
             *connect_front('slice:0', 'output'),
         ], nodes_with_edges_only=True)
