@@ -27,8 +27,7 @@ std::string MvnLayerTest::getTestCaseName(testing::TestParamInfo<mvnParams> obj)
     bool acrossChannels, normalizeVariance;
     double eps;
     std::string targetDevice;
-    std::map<std::string, std::string> configuration;
-    std::tie(inputShapes, inputPrecision, acrossChannels, normalizeVariance, eps, targetDevice, configuration) = obj.param;
+    std::tie(inputShapes, inputPrecision, acrossChannels, normalizeVariance, eps, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "Precision=" << inputPrecision.name() << "_";
@@ -36,11 +35,6 @@ std::string MvnLayerTest::getTestCaseName(testing::TestParamInfo<mvnParams> obj)
     result << "NormalizeVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
     result << "Epsilon=" << eps << "_";
     result << "TargetDevice=" << targetDevice;
-    if (!configuration.empty()) {
-        for (auto& configItem : configuration) {
-            result << "configItem=" << configItem.first << "_" << configItem.second << "_";
-        }
-    }
     return result.str();
 }
 
@@ -49,7 +43,7 @@ void MvnLayerTest::SetUp() {
     InferenceEngine::Precision inputPrecision;
     bool acrossChanels, normalizeVariance;
     double eps;
-    std::tie(inputShapes, inputPrecision, acrossChanels, normalizeVariance, eps, targetDevice, configuration) = this->GetParam();
+    std::tie(inputShapes, inputPrecision, acrossChanels, normalizeVariance, eps, targetDevice) = this->GetParam();
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto param = ngraph::builder::makeParams(inType, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
@@ -60,5 +54,6 @@ void MvnLayerTest::SetUp() {
 
 TEST_P(MvnLayerTest, CompareWithRefs) {
     Run();
-}
+};
+
 }  // namespace LayerTestsDefinitions

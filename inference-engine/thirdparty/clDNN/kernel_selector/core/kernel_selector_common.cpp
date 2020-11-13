@@ -43,48 +43,51 @@ std::string GetStringEnv(const char* varName) {
 std::string toString(ActivationFunction activation) {
     std::string method("LINEAR");
     switch (activation) {
-        case ActivationFunction::LOGISTIC:                 method = "LOGISTIC"; break;
-        case ActivationFunction::HYPERBOLIC_TAN:           method = "HYPERBOLIC_TAN"; break;
-        case ActivationFunction::RELU:                     method = "RELU"; break;
-        case ActivationFunction::RELU_NEGATIVE_SLOPE:      method = "RELU_NEGATIVE_SLOPE"; break;
-        case ActivationFunction::CLAMP:                    method = "CLAMP"; break;
-        case ActivationFunction::SOFTRELU:                 method = "SOFTRELU"; break;
-        case ActivationFunction::ABS:                      method = "ABS"; break;
-        case ActivationFunction::SQUARE:                   method = "SQUARE"; break;
-        case ActivationFunction::SQRT:                     method = "SQRT"; break;
-        case ActivationFunction::LINEAR:                   method = "LINEAR"; break;
-        case ActivationFunction::ELU:                      method = "ELU"; break;
-        case ActivationFunction::SIN:                      method = "SIN"; break;
-        case ActivationFunction::ASIN:                     method = "ASIN"; break;
-        case ActivationFunction::SINH:                     method = "SINH"; break;
-        case ActivationFunction::ASINH:                    method = "ASINH"; break;
-        case ActivationFunction::COS:                      method = "COS"; break;
-        case ActivationFunction::ACOS:                     method = "ACOS"; break;
-        case ActivationFunction::COSH:                     method = "COSH"; break;
-        case ActivationFunction::ACOSH:                    method = "ACOSH"; break;
-        case ActivationFunction::LOG:                      method = "LOG"; break;
-        case ActivationFunction::LOG2:                     method = "LOG2"; break;
-        case ActivationFunction::EXP:                      method = "EXP"; break;
-        case ActivationFunction::NOT:                      method = "NOT"; break;
-        case ActivationFunction::POW:                      method = "POW"; break;
-        case ActivationFunction::NONE:                     method = "NONE"; break;
-        case ActivationFunction::TAN:                      method = "TAN"; break;
-        case ActivationFunction::ATAN:                     method = "ATAN"; break;
-        case ActivationFunction::ATANH:                    method = "ATANH"; break;
-        case ActivationFunction::FLOOR:                    method = "FLOOR"; break;
-        case ActivationFunction::CEIL:                     method = "CEIL"; break;
-        case ActivationFunction::NEGATIVE:                 method = "NEGATIVE"; break;
-        case ActivationFunction::ERF:                      method = "ERF"; break;
-        case ActivationFunction::HARD_SIGMOID:             method = "HARD_SIGMOID"; break;
-        case ActivationFunction::RECIPROCAL:               method = "RECIPROCAL"; break;
-        case ActivationFunction::SELU:                     method = "SELU"; break;
-        case ActivationFunction::SIGN:                     method = "SIGN"; break;
-        case ActivationFunction::SOFTPLUS:                 method = "SOFTPLUS"; break;
-        case ActivationFunction::SOFTSIGN:                 method = "SOFTSIGN"; break;
-        case ActivationFunction::SWISH:                    method = "SWISH"; break;
-        case ActivationFunction::HSWISH:                   method = "HSWISH"; break;
-        case ActivationFunction::MISH:                     method = "MISH"; break;
-        case ActivationFunction::GELU:                     method = "GELU"; break;
+        case ActivationFunction::LOGISTIC:                  method = "LOGISTIC"; break;
+        case ActivationFunction::HYPERBOLIC_TAN:            method = "HYPERBOLIC_TAN"; break;
+        case ActivationFunction::RELU:                      method = "RELU"; break;
+        case ActivationFunction::RELU_NEGATIVE_SLOPE:       method = "RELU_NEGATIVE_SLOPE"; break;
+        case ActivationFunction::CLAMP:                     method = "CLAMP"; break;
+        case ActivationFunction::SOFTRELU:                  method = "SOFTRELU"; break;
+        case ActivationFunction::ABS:                       method = "ABS"; break;
+        case ActivationFunction::SQUARE:                    method = "SQUARE"; break;
+        case ActivationFunction::SQRT:                      method = "SQRT"; break;
+        case ActivationFunction::LINEAR:                    method = "LINEAR"; break;
+        case ActivationFunction::ELU:                       method = "ELU"; break;
+        case ActivationFunction::SIN:                       method = "SIN"; break;
+        case ActivationFunction::ASIN:                      method = "ASIN"; break;
+        case ActivationFunction::SINH:                      method = "SINH"; break;
+        case ActivationFunction::ASINH:                     method = "ASINH"; break;
+        case ActivationFunction::COS:                       method = "COS"; break;
+        case ActivationFunction::ACOS:                      method = "ACOS"; break;
+        case ActivationFunction::COSH:                      method = "COSH"; break;
+        case ActivationFunction::ACOSH:                     method = "ACOSH"; break;
+        case ActivationFunction::LOG:                       method = "LOG"; break;
+        case ActivationFunction::LOG2:                      method = "LOG2"; break;
+        case ActivationFunction::EXP:                       method = "EXP"; break;
+        case ActivationFunction::NOT:                       method = "NOT"; break;
+        case ActivationFunction::POW:                       method = "POW"; break;
+        case ActivationFunction::NONE:                      method = "NONE"; break;
+        case ActivationFunction::TAN:                       method = "TAN"; break;
+        case ActivationFunction::ATAN:                      method = "ATAN"; break;
+        case ActivationFunction::ATANH:                     method = "ATANH"; break;
+        case ActivationFunction::FLOOR:                     method = "FLOOR"; break;
+        case ActivationFunction::CEIL:                      method = "CEIL"; break;
+        case ActivationFunction::NEGATIVE:                  method = "NEGATIVE"; break;
+        case ActivationFunction::ERF:                       method = "ERF"; break;
+        case ActivationFunction::HARD_SIGMOID:              method = "HARD_SIGMOID"; break;
+        case ActivationFunction::HSIGMOID:                  method = "HSIGMOID"; break;
+        case ActivationFunction::RECIPROCAL:                method = "RECIPROCAL"; break;
+        case ActivationFunction::SELU:                      method = "SELU"; break;
+        case ActivationFunction::SIGN:                      method = "SIGN"; break;
+        case ActivationFunction::SOFTPLUS:                  method = "SOFTPLUS"; break;
+        case ActivationFunction::SOFTSIGN:                  method = "SOFTSIGN"; break;
+        case ActivationFunction::SWISH:                     method = "SWISH"; break;
+        case ActivationFunction::HSWISH:                    method = "HSWISH"; break;
+        case ActivationFunction::MISH:                      method = "MISH"; break;
+        case ActivationFunction::GELU:                      method = "GELU"; break;
+        case ActivationFunction::ROUND_HALF_TO_EVEN:        method = "ROUND_HALF_TO_EVEN"; break;
+        case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO: method = "ROUND_HALF_AWAY_FROM_ZERO"; break;
         default: break;
     }
     return method;
@@ -392,16 +395,6 @@ std::string toString(ConcatAxis a) {
     }
 }
 
-std::string toString(TileAxis a) {
-    switch (a) {
-        case TileAxis::X:       return "X";
-        case TileAxis::Y:       return "Y";
-        case TileAxis::FEATURE: return "FEATURE";
-        case TileAxis::BATCH:   return "BATCH";
-        default: return "";
-    }
-}
-
 std::string toString(GatherAxis a) {
     switch (a) {
         case GatherAxis::X:       return "X";
@@ -429,6 +422,30 @@ std::string toString(ResampleType type) {
         case ResampleType::NEAREST_NEIGHBOR:  return "SAMPLE_TYPE_NEAREST";
         case ResampleType::BILINEAR_INTERP: return "SAMPLE_TYPE_INTERP";
         case ResampleType::CAFFE_BILINEAR_INTERP: return "SAMPLE_TYPE_CAFFE_INTERP";
+        case ResampleType::CUBIC: return "SAMPLE_TYPE_CUBIC";
+        case ResampleType::LINEAR_ONNX: return "SAMPLE_TYPE_LINEAR_ONNX";
+        default: return "";
+    }
+}
+
+std::string toString(CoordinateTransformationMode mode) {
+    switch (mode) {
+        case CoordinateTransformationMode::HALF_PIXEL:  return "COORD_TRANS_MODE_HALF_PIXEL";
+        case CoordinateTransformationMode::PYTORCH_HALF_PIXEL: return "COORD_TRANS_MODE_PYTORCH_HALF_PIXEL";
+        case CoordinateTransformationMode::ASYMMETRIC: return "COORD_TRANS_MODE_ASYMMETRIC";
+        case CoordinateTransformationMode::TF_HALF_PIXEL_FOR_NN: return "COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN";
+        case CoordinateTransformationMode::ALIGN_CORNERS: return "COORD_TRANS_MODE_ALIGN_CORNERS";
+        default: return "";
+    }
+}
+
+std::string toString(NearestMode mode) {
+    switch (mode) {
+        case NearestMode::ROUND_PREFER_FLOOR:  return "NEAREST_ROUND_PREFER_FLOOR";
+        case NearestMode::ROUND_PREFER_CEIL: return "NEAREST_ROUND_PREFER_CEIL";
+        case NearestMode::FLOOR: return "NEAREST_FLOOR";
+        case NearestMode::CEIL: return "NEAREST_CEIL";
+        case NearestMode::SIMPLE: return "NEAREST_SIMPLE";
         default: return "";
     }
 }

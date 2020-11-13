@@ -19,9 +19,9 @@
 /**
  * @brief A namespace with const values for Execution Graph parameters names.
  *  
- * Executable Graph Info is represented in ICNNNetwork format with general CNNLayer nodes inside
+ * Executable Graph Info is represented in CNNNetwork format with general ExecutionNode nodes inside
  * including connections between the nodes. Each node describes an executable hardware-specific
- * primitive and stores its parameters within CNNLayer::params map.
+ * primitive and stores its parameters within ExecutionNode::get_rt_info map.
  * There is a list of general keys for the parameters map.
  */
 namespace ExecGraphInfoSerialization {
@@ -71,6 +71,12 @@ static const char LAYER_TYPE[] = "layerType";
 
 /**
  * @ingroup ie_dev_exec_graph
+ * @brief Used to get runtime precision of the executable primitive.
+ */
+static const char RUNTIME_PRECISION[] = "runtimePrecision";
+
+/**
+ * @ingroup ie_dev_exec_graph
  * @brief The Execution node which is used to represent node in execution graph.
  * 
  * It contains the following type of information in node runtime information:
@@ -81,6 +87,7 @@ static const char LAYER_TYPE[] = "layerType";
  * - ExecGraphInfoSerialization::OUTPUT_LAYOUTS
  * - ExecGraphInfoSerialization::EXECUTION_ORDER
  * - ExecGraphInfoSerialization::LAYER_TYPE
+ * - ExecGraphInfoSerialization::RUNTIME_PRECISION
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutionNode) : public ngraph::Node {
 public:
@@ -120,6 +127,10 @@ public:
             cloned->set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));
 
         return cloned;
+    }
+
+    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+        return true;
     }
 };
 

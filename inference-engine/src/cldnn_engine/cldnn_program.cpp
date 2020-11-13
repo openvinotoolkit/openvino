@@ -88,10 +88,6 @@
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
 
-#include "low_precision_transformations/transformer.hpp"
-#include "low_precision_transformations/fully_connected.hpp"
-#include "low_precision_transformations/gemm.hpp"
-
 #include <iostream>
 #include <iomanip>
 #include "cldnn_common_utils.h"
@@ -397,54 +393,21 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
     , p_currentOutputs({}) {
     InitFormat(network);
 
+    bool fqFound = false;
+
+    bool baselineIsFP16 = false;
+    InputsDataMap inputsMap;
+    network.getInputsInfo(inputsMap);
+    if (!inputsMap.empty()) {
+        auto input0 = getInputTo(inputsMap.begin()->second->getInputData());
+        if (!input0.empty() && (input0.begin()->second->params.count("lpt_back_to_fp16") != 0)) {
+            baselineIsFP16 = true;
+            fqFound = true;
+        }
+    }
+
+    // [WA part2] Try to find non-quantized layers and convert them back to FP16
     if (config.enableInt8) {
-        auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                  true,  // quantizeOutputs
-                                                  true,  // weightsToConst
-                                                  LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                  LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                  true,  // roundQuantizedValues
-                                                  true,  // updateBiases
-                                                  true,   // supportAsymmetricQuantization
-                                                  {Precision::U8, Precision::I8},  // Precision on activations
-                                                  {Precision::I8});  // Precision on weights
-
-        auto transforms = LowPrecisionTransformer::getAllTransformations(params)
-                .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
-                .add<GemmTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
-
-        bool fqFound = false;
-        bool allFQareSupported = true;
-        bool baselineIsFP16 = false;
-        {
-            auto it = details::CNNNetworkIterator(&network);
-            auto end = details::CNNNetworkIterator();
-            while (it != end) {
-                auto& layer = *it;
-                if (layer->precision == Precision::FP16) {
-                    baselineIsFP16 = true;
-                }
-
-                if (CaselessEq<std::string>()(layer->type, "FakeQuantize")) {
-                    fqFound = true;
-                    auto levels = layer->GetParamAsUInt("levels");
-                    if (levels != 255 && levels != 256) {
-                        allFQareSupported = false;
-                    }
-                }
-                it++;
-            }
-        }
-
-        // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-        if (fqFound && allFQareSupported) {
-            NetPass::ConvertPrecision(network, Precision::FP16, Precision::FP32);
-        }
-
-        LowPrecisionTransformer transformer(transforms);
-        transformer.transform(network);
-
-        // [WA part2] Try to find non-quantized layers and convert them back to FP16
         if (fqFound && baselineIsFP16 && config.enable_fp16_for_quantized_models) {
             auto layersSorted = BFSSort(network);
 
@@ -744,6 +707,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Pooling" , Pooling },
         { "FullyConnected" , FullyConnected },
         { "SoftMax" , SoftMax },
+        { "LogSoftmax", LogSoftmax },
         { "Power" , Power },
         { "Split" , Split },
         { "VariadicSplit", VariadicSplit },
@@ -770,6 +734,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Copy" , Copy },
         { "Resample" , Resample },
         { "Interp" , Interp },
+        { "Interpolate" , Interpolate },
         { "RegionYolo" , RegionYolo },
         { "ReorgYolo" , ReorgYolo },
         { "Const" , ConstantBlob },
@@ -829,6 +794,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Ceiling" , Ceiling },
         { "Erf" , Erf },
         { "HardSigmoid" , HardSigmoid },
+        { "HSigmoid", HSigmoid },
         { "Log" , Log },
         { "Neg" , Neg },
         { "Reciprocal" , Reciprocal },
@@ -850,6 +816,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "CTCGreedyDecoder", CTCGreedyDecoder },
         { "PriorBoxClustered", PriorBoxClustered },
         { "CumSum", CumSum },
+        { "Round", Round },
         { "EmbeddingBagPackedSum", EmbeddingBagPackedSum },
         { "EmbeddingBagOffsetsSum", EmbeddingBagOffsetsSum },
         { "EmbeddingSegmentsSum", EmbeddingSegmentsSum },
@@ -1398,6 +1365,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Ceiling:
         case Erf:
         case HardSigmoid:
+        case HSigmoid:
         case Log:
         case Neg:
         case Reciprocal:
@@ -1420,6 +1388,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case FullyConnected: CreateFullyConnectedPrimitive(topology, layer);
             break;
         case SoftMax: CreateSoftMaxPrimitive(topology, layer);
+            break;
+        case LogSoftmax: CreateLogSoftmaxPrimitive(topology, layer);
             break;
         case Power: CreatePowerPrimitive(topology, layer);
             break;
@@ -1468,6 +1438,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Resample: CreateResamplePrimitive(topology, layer);
             break;
         case Interp: CreateInterpPrimitive(topology, layer);
+            break;
+        case Interpolate: CreateInterpolatePrimitive(topology, layer);
             break;
         case ArgMax:
         case ArgMin:
@@ -1540,6 +1512,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case PriorBoxClustered: CreatePriorBoxClusteredPrimitive(topology, layer);
             break;
         case CumSum: CreateCumSumPrimitive(topology, layer);
+            break;
+        case Round: CreateRoundPrimitive(topology, layer);
             break;
         case EmbeddingBagPackedSum: CreateEmbeddingBagPackedSumPrimitive(topology, layer);
             break;
@@ -1822,8 +1796,18 @@ void Program::CreatePermutePrimitive(cldnn::topology& topology, InferenceEngine:
     for (auto& a : permuteLayer->GetParamAsInts("order"))
         ie_order.push_back(static_cast<uint16_t>(a));
 
+    auto outDesc = layer->outData[0]->getTensorDesc();
+    auto outDims = outDesc.getDims();
+
+    int rank = std::max(4, static_cast<int>(outDims.size()));
+    if (ie_order.empty()) {
+        // if order size is empty - we need to set inversed axes order
+        for (int o = rank - 1; o >= 0; o--)
+            ie_order.push_back((uint16_t)o);
+    }
+
     // if order size is less than 4 - fill the rest with just copy
-    for (auto o = ie_order.size(); o < 4; o++)
+    for (auto o = ie_order.size(); o < rank; o++)
         ie_order.push_back((uint16_t)o);
 
     /*
@@ -2887,6 +2871,36 @@ void Program::CreateSoftMaxPrimitive(cldnn::topology& topology, InferenceEngine:
     AddPrimitiveToProfiler(softmaxLayerName, layer);
 }
 
+void Program::CreateLogSoftmaxPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 1);
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto logSoftmaxLayer = as<InferenceEngine::GenericLayer*>(layer);
+    auto sz = logSoftmaxLayer->input().get()->getTensorDesc().getDims().size();
+
+    auto axis = logSoftmaxLayer->GetParamAsInt("axis", 1);
+    if (axis < 0) axis += sz;
+    cldnn::softmax::dimension_t softmax_axis;
+
+    switch (axis) {
+        case 0: softmax_axis = cldnn::softmax::normalize_all; break;
+        case 1: softmax_axis = cldnn::softmax::normalize_f; break;
+        case 2: softmax_axis = sz > 4 ? cldnn::softmax::normalize_z : cldnn::softmax::normalize_y; break;
+        case 3: softmax_axis = sz > 4 ? cldnn::softmax::normalize_y : cldnn::softmax::normalize_x; break;
+        case 4: softmax_axis = cldnn::softmax::normalize_x; break;
+        default: THROW_CLDNN_EXCEPTION("Unsupported logsoftmax axis " << axis);
+    }
+
+    std::string softmaxLayerName = "softMax";
+    auto softmaxPrim = cldnn::softmax(softmaxLayerName, inputPrimitives[0], softmax_axis);
+    topology.add(softmaxPrim);
+    AddPrimitiveToProfiler(softmaxLayerName, layer);
+
+    std::string logSoftmaxLayerName = layer_type_name_ID(layer);
+    auto logPrim = cldnn::activation(logSoftmaxLayerName, softmaxLayerName, cldnn::activation_func::log);
+    topology.add(logPrim);
+    AddPrimitiveToProfiler(logSoftmaxLayerName, layer);
+}
+
 void Program::CreateFullyConnectedPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, {1, 2, 3});
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
@@ -3075,6 +3089,8 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
             activationType = Exp;
         } else if (activation_type == "not")  {
             activationType = Not;
+        } else if (activation_type == "hsigmoid")  {
+            activationType = HSigmoid;
         } else {
             THROW_CLDNN_EXCEPTION("Unsupported activation type (" + activation_type +
                                   ") in layer " + layer->name);
@@ -3194,6 +3210,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
         func = cldnn::activation_func::hard_sigmoid;
         params.a = layer->GetParamAsFloat("alpha", 0.2f);
         params.b = layer->GetParamAsFloat("beta", 0.5f);
+        break;
+    }
+    case HSigmoid:
+    {
+        func = cldnn::activation_func::hsigmoid;
         break;
     }
     case Log:
@@ -3342,8 +3363,14 @@ void Program::CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::
     auto outDims = layer->outData[0]->getTensorDesc().getDims();
     auto outTensor = CldnnTensorFromIEDims(outDims);
 
+    std::vector<int> pads_begin(outDims.size(), 0);
+    std::vector<int> pads_end(outDims.size(), 0);
     int pad_begin = interpLayer->GetParamAsInt("pad_beg_", 0);
     int pad_end = interpLayer->GetParamAsInt("pad_end_", 0);
+    for (size_t i = 2; i < pads_begin.size(); ++i) {
+        pads_begin[i] = pad_begin;
+        pads_end[i] = pad_end;
+    }
     int align_corners = interpLayer->GetParamAsInt("align_corners", 1);
 
     std::string resampleLayerName = layer_type_name_ID(layer);
@@ -3352,10 +3379,210 @@ void Program::CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::
         resampleLayerName,
         inputPrimitives[0],
         outTensor,
-        pad_begin,
-        pad_end,
+        pads_begin,
+        pads_end,
         align_corners,
         cldnn::resample_type::bilinear);
+
+    topology.add(resamplePrim);
+    AddPrimitiveToProfiler(resampleLayerName, layer);
+}
+
+static cldnn::coordinate_transformation_mode CoordinateTransformationModeFromString(const std::string &str) {
+    static const caseless_map<std::string, cldnn::coordinate_transformation_mode> CoordTransformationMode = {
+        { "half_pixel" , cldnn::coordinate_transformation_mode::half_pixel },
+        { "pytorch_half_pixel" , cldnn::coordinate_transformation_mode::pytorch_half_pixel },
+        { "asymmetric" , cldnn::coordinate_transformation_mode::asymmetric },
+        { "tf_half_pixel_for_nn" , cldnn::coordinate_transformation_mode::tf_half_pixel_for_nn },
+        { "align_corners" , cldnn::coordinate_transformation_mode::align_corners },
+    };
+    auto it = CoordTransformationMode.find(str);
+    if (it != CoordTransformationMode.end())
+        return it->second;
+    else
+        THROW_CLDNN_EXCEPTION("Unknown coordinate transformation mode: " << str);
+}
+
+static cldnn::nearest_mode NearestModeFromString(const std::string &str) {
+    static const caseless_map<std::string, cldnn::nearest_mode> NearestMode = {
+        { "round_prefer_floor" , cldnn::nearest_mode::round_prefer_floor },
+        { "round_prefer_ceil" , cldnn::nearest_mode::round_prefer_ceil },
+        { "floor" , cldnn::nearest_mode::floor },
+        { "ceil" , cldnn::nearest_mode::ceil },
+        { "simple" , cldnn::nearest_mode::simple },
+    };
+    auto it = NearestMode.find(str);
+    if (it != NearestMode.end())
+        return it->second;
+    else
+        THROW_CLDNN_EXCEPTION("Unknown nearest mode: " << str);
+}
+
+static cldnn::shape_calculation_mode ShapeCalculationModeFromString(const std::string &str) {
+    static const caseless_map<std::string, cldnn::shape_calculation_mode> shapeCalcMode = {
+        { "sizes" , cldnn::shape_calculation_mode::sizes },
+        { "scales" , cldnn::shape_calculation_mode::scales },
+    };
+    auto it = shapeCalcMode.find(str);
+    if (it != shapeCalcMode.end())
+        return it->second;
+    else
+        THROW_CLDNN_EXCEPTION("Unknown shape calculation mode: " << str);
+}
+
+inline cldnn::resample::resample_axis InterpolateAxisFromIEAxis(int axis, unsigned sz) {
+    if (axis < 0)
+        axis += sz;
+    if (axis < 0 || axis >= sz)
+        THROW_CLDNN_EXCEPTION("Interpolate axis is not correspond to number of dimensions");
+
+    // Difference in dimension ordering between IE and clDNN,
+    // reverse spatial dimensions after batch and feature.
+    unsigned cldnn_axis = axis;
+    if (axis >= 2) {
+        auto spatial_axis = axis - 2;
+        // Default and minimum number of dimensions is 4
+        auto spatial_size = std::max(sz, 4u) - 2;
+        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
+    }
+
+    switch (cldnn_axis) {
+        case 0:
+            return cldnn::resample::resample_axis::along_b;
+        case 1:
+            return cldnn::resample::resample_axis::along_f;
+        case 2:
+            return cldnn::resample::resample_axis::along_x;
+        case 3:
+            return cldnn::resample::resample_axis::along_y;
+        case 4:
+            return cldnn::resample::resample_axis::along_z;
+        case 5:
+            return cldnn::resample::resample_axis::along_w;
+        default:
+            break;
+    }
+    THROW_CLDNN_EXCEPTION("Unsupported Interpolate axis: " << axis);
+}
+
+void Program::CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, {3, 4});
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto interpolateLayer = as<InferenceEngine::GenericLayer*> (layer);
+
+    std::shared_ptr<Data> insData0 = layer->insData[0].lock();
+    IE_ASSERT(insData0 != nullptr);
+    auto insData0dims = insData0->getTensorDesc().getDims();
+    auto outDims = layer->outData[0]->getTensorDesc().getDims();
+    auto outTensor = CldnnTensorFromIEDims(outDims);
+
+    auto pads_begin = interpolateLayer->GetParamAsInts("pads_begin", {});
+    auto pads_end = interpolateLayer->GetParamAsInts("pads_end", {});
+    for (size_t i = pads_begin.size(); i < outDims.size() || i < 4; ++i)
+        pads_begin.push_back(0);
+    for (size_t i = pads_end.size(); i < outDims.size() || i < 4; ++i)
+        pads_end.push_back(0);
+    std::string mode = interpolateLayer->GetParamAsString("mode");
+    std::string shape_calc_mode = interpolateLayer->GetParamAsString("shape_calculation_mode");
+    std::string coordinate_trans_mode = interpolateLayer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+    std::string nearest_mode = interpolateLayer->GetParamAsString("nearest_mode", "round_prefer_floor");
+    int antialias = interpolateLayer->GetParamAsBool("antialias", false);
+    float cube_coeff = interpolateLayer->GetParamAsFloat("cube_coeff", -0.75f);
+
+    std::string resampleLayerName = layer_type_name_ID(layer);
+    auto cldnnSampleType = ResampleTypeFromString(mode);
+    auto shapeCalcMode = ShapeCalculationModeFromString(shape_calc_mode);
+    auto coordTransMode = CoordinateTransformationModeFromString(coordinate_trans_mode);
+    auto nearestMode = NearestModeFromString(nearest_mode);
+
+    std::vector<float> scales;
+    auto scalesInput = layer->insData[2].lock();
+    auto scalesInputCreator = getCreatorLayer(scalesInput).lock();
+    if (scalesInputCreator->blobs.size() == 1) {
+        auto constantBlob = scalesInputCreator->blobs.begin()->second;
+        auto axesPrecision = constantBlob->getTensorDesc().getPrecision();
+        if (axesPrecision == InferenceEngine::Precision::FP32) {
+            auto data = constantBlob->buffer().as<float*>();
+            for (size_t i = 0; i < constantBlob->size(); ++i)
+                scales.push_back(data[i]);
+        } else if (axesPrecision == InferenceEngine::Precision::FP16) {
+            auto data = static_cast<const uint16_t *>(constantBlob->buffer());
+            for (size_t i = 0; i < constantBlob->size(); ++i)
+                scales.push_back(cldnn::half_to_float(data[i]));
+        } else {
+            THROW_IE_EXCEPTION << layer->name << " Incorrect scales input precision";
+        }
+    }
+
+    std::vector<cldnn::resample::resample_axis> axes;
+    if (inputPrimitives.size() == 4) {
+        auto axesInput = layer->insData[3].lock();
+        auto axesInputCreator = getCreatorLayer(axesInput).lock();
+        if (axesInputCreator->blobs.size() == 1) {
+            auto constantBlob = axesInputCreator->blobs.begin()->second;
+            auto axesPrecision = constantBlob->getTensorDesc().getPrecision();
+            if (axesPrecision == InferenceEngine::Precision::I32) {
+                auto data = constantBlob->buffer().as<int32_t*>();
+                for (size_t i = 0; i < constantBlob->size(); ++i)
+                    axes.push_back(InterpolateAxisFromIEAxis(data[i], insData0dims.size()));
+            } else if (axesPrecision == InferenceEngine::Precision::I64) {
+                auto data = constantBlob->buffer().as<int64_t*>();
+                for (size_t i = 0; i < constantBlob->size(); ++i)
+                    axes.push_back(InterpolateAxisFromIEAxis(static_cast<int32_t>(data[i]), insData0dims.size()));
+            } else {
+                THROW_IE_EXCEPTION << layer->name
+                                   << " Incorrect axes input precision";
+            }
+        }
+    } else {
+        for (int i = 0; i < insData0dims.size(); ++i) {
+            axes.push_back(InterpolateAxisFromIEAxis(i, insData0dims.size()));
+        }
+    }
+
+    if (axes.size() != scales.size())
+        THROW_IE_EXCEPTION << layer->name << " Incorrect axes and scales should be the same size";
+
+    cldnn::resample::AxesAndScales axesAndScales;
+    for (size_t i = 0; i < axes.size(); ++i) {
+        axesAndScales[axes[i]] = scales[i];
+    }
+
+    if (cldnnSampleType == cldnn::resample_type::linear_onnx) {
+        if (insData0dims.size() != 2 && insData0dims.size() != 4)
+            THROW_CLDNN_EXCEPTION("mode 'linear_onnx' supports only 2D or 4D tensors");
+        if (axes.size() != 2 && insData0dims.size() != axes.size())
+            THROW_CLDNN_EXCEPTION("mode 'linear_onnx' supports only axes with size 2 or equal to input rank");
+        bool correctAxes =
+            ((axes[0] == cldnn::resample::resample_axis::along_b) &&
+             (axes[1] == cldnn::resample::resample_axis::along_f)) ||
+            ((axes[0] == cldnn::resample::resample_axis::along_y) &&
+             (axes[1] == cldnn::resample::resample_axis::along_x));
+        if (axes.size() == 4 && insData0dims.size() == 4) {
+            correctAxes = axes[0] == cldnn::resample::resample_axis::along_b &&
+                          axes[1] == cldnn::resample::resample_axis::along_f &&
+                          axes[2] == cldnn::resample::resample_axis::along_y &&
+                          axes[3] == cldnn::resample::resample_axis::along_x;
+        }
+        if (!correctAxes)
+            THROW_CLDNN_EXCEPTION(
+                "mode 'linear_onnx' supports only case when axes = {2, 3} or "
+                "axes = {0, 1} or axes = {0, 1, 2, 3}");
+    }
+
+    auto resamplePrim = cldnn::resample(
+        resampleLayerName,
+        inputPrimitives[0],
+        outTensor,
+        axesAndScales,
+        pads_begin,
+        pads_end,
+        antialias,
+        cube_coeff,
+        cldnnSampleType,
+        shapeCalcMode,
+        coordTransMode,
+        nearestMode);
 
     topology.add(resamplePrim);
     AddPrimitiveToProfiler(resampleLayerName, layer);
@@ -3675,36 +3902,11 @@ void Program::CreateTilePrimitive(cldnn::topology& topology, InferenceEngine::CN
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     auto tileLayer = as<InferenceEngine::GenericLayer*> (layer);
 
-    int axis = tileLayer->GetParamAsInt("axis", 1);
-    int tiles = tileLayer->GetParamAsInt("tiles");
-
-    auto sz = tileLayer->input().get()->getTensorDesc().getDims().size();
-
-    auto cldnnAxisFromIE = [&](int axis) {
-        switch (axis) {
-            case 0: return cldnn::tile::tile_axis::along_b;
-            case 1: return cldnn::tile::tile_axis::along_f;
-            case 2:
-                if (sz > 4)
-                    return cldnn::tile::tile_axis::along_z;
-                else
-                    return cldnn::tile::tile_axis::along_y;
-            case 3:
-                if (sz > 4)
-                    return cldnn::tile::tile_axis::along_y;
-                else
-                    return cldnn::tile::tile_axis::along_x;
-            case 4: return cldnn::tile::tile_axis::along_x;
-            default: THROW_CLDNN_EXCEPTION("Unsupported tile axis: " << axis);
-        }
-    };
-
     std::string tileLayerName = layer_type_name_ID(layer);
     auto tilePrim = cldnn::tile(
         tileLayerName,
         inputPrimitives[0],
-        cldnnAxisFromIE(axis),
-        tiles);
+        CldnnTensorFromIEDims(tileLayer->outData[0]->getTensorDesc().getDims()));
 
     topology.add(tilePrim);
     AddPrimitiveToProfiler(tileLayerName, layer);
@@ -5053,6 +5255,28 @@ void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::
     AddPrimitiveToProfiler(layerName, layer);
 }
 
+void Program::CreateRoundPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, 1);
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto layerName = layer_type_name_ID(layer);
+
+    std::string mode = layer->GetParamAsString("mode", "half_to_even");
+
+    if ((mode != "half_to_even") && (mode != "half_away_from_zero")) {
+        THROW_CLDNN_EXCEPTION("Unsupported mode (" + mode + ") in layer " + layerName);
+    }
+
+    auto func = mode == "half_to_even" ? cldnn::activation_func::round_half_to_even : cldnn::activation_func::round_half_away_from_zero;
+
+    auto primitive = cldnn::activation(
+            layerName,
+            inputPrimitives[0],
+            func);
+
+    topology.add(primitive);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
 void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
     ValidateLayer(layer, 2);
     auto pbcLayer = as<InferenceEngine::GenericLayer*>(layer);
@@ -5086,6 +5310,8 @@ void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, Infere
         step_h = static_cast<float>(img_h) / inp_dims.at(img_dims.size() - 2);
     }
 
+    auto output_dt = DataTypeFromPrecision(layer->outData[0]->getTensorDesc().getPrecision());
+
     std::vector<cldnn::primitive_id> inputPrimitives = GetPrevLayersPrimitives(layer);
     // second input isn't used by value - only dimensions taken from the layer input
     std::string priorBoxLayerName = layer_type_name_ID(layer);
@@ -5099,7 +5325,8 @@ void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, Infere
         step_h,
         offset,
         width,
-        height);
+        height,
+        output_dt);
 
     topology.add(priorBoxPrim);
     AddPrimitiveToProfiler(priorBoxLayerName, layer);
@@ -5499,9 +5726,9 @@ void Program::AddInputPrimitive(cldnn::topology& topology, InputInfo::Ptr inputI
         std::string uv_name = inputName + "_UV";
 
         cldnn::layout y_layout(DataTypeFromPrecision(ip),
-                                cldnn::format::nv12, { 1, 1, height, width });
+                                cldnn::format::nv12, { 1, 1, width, height });
         cldnn::layout uv_layout(DataTypeFromPrecision(ip),
-                                cldnn::format::nv12, { 1, 2, height / 2, width / 2 });
+                                cldnn::format::nv12, { 1, 2, width / 2, height / 2 });
         auto inputY = cldnn::input_layout(y_name, y_layout);
         auto inputUV = cldnn::input_layout(uv_name, uv_layout);
 
@@ -5676,6 +5903,10 @@ cldnn::resample_type Program::ResampleTypeFromString(const std::string &str) {
         { "caffe.ResampleParameter.LINEAR" , cldnn::resample_type::caffe_bilinear },
         { "caffe.ResampleParameter.NEAREST" , cldnn::resample_type::nearest },
         { "Interp" , cldnn::resample_type::bilinear },
+        { "linear" , cldnn::resample_type::caffe_bilinear },
+        { "linear_onnx" , cldnn::resample_type::linear_onnx },
+        { "cubic" , cldnn::resample_type::cubic },
+        { "nearest" , cldnn::resample_type::nearest },
     };
     auto it = UpsamplingTypeNameToType.find(str);
     if (it != UpsamplingTypeNameToType.end())

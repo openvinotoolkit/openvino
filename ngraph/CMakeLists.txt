@@ -14,8 +14,6 @@
 # limitations under the License.
 # ******************************************************************************
 
-cmake_minimum_required (VERSION 3.11)
-
 # set directory where the custom finders live
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
@@ -238,10 +236,11 @@ message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS ${NGRAPH_FORWARD_CMAKE_ARGS}")
 if (LINUX)
     include(GNUInstallDirs)
 else()
-    set(CMAKE_INSTALL_BINDIR "bin")
-    set(CMAKE_INSTALL_INCLUDEDIR "include")
-    set(CMAKE_INSTALL_DOCDIR "doc")
-    set(CMAKE_INSTALL_LIBDIR "lib")
+    set(CMAKE_INSTALL_BINDIR "bin" CACHE STRING "User executables (bin)")
+    set(CMAKE_INSTALL_LIBDIR "lib" CACHE STRING "Object code libraries (lib)")
+    set(CMAKE_INSTALL_INCLUDEDIR "include" CACHE STRING "C header files (include)")
+    set(CMAKE_INSTALL_DOCDIR "doc" CACHE STRING "Document files (doc)")
+    mark_as_advanced(CMAKE_INSTALL_BINDIR CMAKE_INSTALL_LIBDIR CMAKE_INSTALL_INCLUDEDIR, CMAKE_INSTALL_DOCDIR)
 endif()
 
 if (DEFINED NGRAPH_INSTALL_PREFIX)
@@ -461,9 +460,14 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     if (MSVC)
         # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
         # These two options can't be mixed, because they requires link two imcompatiable runtime.
-        set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
         set(protobuf_WITH_ZLIB  OFF CACHE BOOL "" FORCE)
-        set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
+
+        if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
+            set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
+        endif()
+        if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
+            set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
+        endif()
     endif()
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
         include(cmake/external_protobuf.cmake)
@@ -478,22 +482,10 @@ endif()
 
 add_subdirectory(core)
 
-add_subdirectory(frontend)
-
-if (NGRAPH_TEST_UTIL_ENABLE)
-    include(cmake/external_gtest.cmake)
-endif()
-
-add_subdirectory(test)
-
-if (NGRAPH_PYTHON_BUILD_ENABLE)
-    add_subdirectory(python)
-endif()
-
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     include(CMakePackageConfigHelpers)
-
-    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
 
     install(EXPORT ngraphTargets
         FILE ngraphTargets.cmake
@@ -515,11 +507,16 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
         COMPONENT ngraph)
 endif()
 
-install(DIRECTORY
-    ${CMAKE_CURRENT_SOURCE_DIR}/licenses
-    DESTINATION "${NGRAPH_COMPONENT_PREFIX}."
-    COMPONENT ngraph
-)
+add_subdirectory(frontend)
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE DESTINATION "${NGRAPH_COMPONENT_PREFIX}." COMPONENT ngraph)
+if (NGRAPH_TEST_UTIL_ENABLE)
+    include(cmake/external_gtest.cmake)
+endif()
+
+add_subdirectory(test)
+
+if (NGRAPH_PYTHON_BUILD_ENABLE)
+    add_subdirectory(python)
+endif()
+
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/VERSION DESTINATION "${NGRAPH_COMPONENT_PREFIX}." COMPONENT ngraph)

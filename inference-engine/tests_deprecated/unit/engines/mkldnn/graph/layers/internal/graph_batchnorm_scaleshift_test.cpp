@@ -337,7 +337,8 @@ TEST_P(MKLDNNGraphDynBatchBatchNormScaleShiftTests, TestsDynBatchBatchNormWithSc
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchBatchNormWithScaleShift, MKLDNNGraphDynBatchBatchNormScaleShiftTests,
         ::testing::Values(
-                batchnorm_scaleshift_test_params{{1, 32, 128, 256}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::jit},
+                // TODO: rewrite to ngraph to have reshape functionality
+                // batchnorm_scaleshift_test_params{{1, 32, 128, 256}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::jit},
+                // batchnorm_scaleshift_test_params{{1, 32, 128, 256}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 batchnorm_scaleshift_test_params{{4, 3, 227, 227}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::jit},
-                batchnorm_scaleshift_test_params{{1, 32, 128, 256}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 batchnorm_scaleshift_test_params{{4, 3, 227, 227}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));

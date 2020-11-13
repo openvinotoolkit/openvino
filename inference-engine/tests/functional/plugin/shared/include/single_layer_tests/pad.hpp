@@ -13,11 +13,14 @@
 #include "ngraph_functions/builders.hpp"
 
 typedef std::tuple<
-        InferenceEngine::SizeVector,   // padsBegin
-        InferenceEngine::SizeVector,   // padsEnd
+        std::vector<int64_t>,          // padsBegin
+        std::vector<int64_t>,          // padsEnd
         float,                         // argPadValue
         ngraph::helpers::PadMode,      // padMode
         InferenceEngine::Precision,    // Net precision
+        InferenceEngine::Precision,    // Input precision
+        InferenceEngine::Precision,    // Output precision
+        InferenceEngine::Layout,       // Input layout
         InferenceEngine::SizeVector,   // Input shapes
         LayerTestsUtils::TargetDevice  // Target device name
 > padLayerTestParamsSet;

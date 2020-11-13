@@ -33,27 +33,6 @@ namespace InferenceEngine {
     }
 
 /**
- * @def TO_STATUSVAR(x, statusVar, descBufferVar)
- * @brief Converts C++ exceptioned function call to a status variable
- * @ingroup ie_dev_api_error_debug
- */
-#define TO_STATUSVAR(x, statusVar, descBufferVar)                                                                      \
-    do {                                                                                                               \
-        try {                                                                                                          \
-            x;                                                                                                         \
-            statusVar = OK;                                                                                            \
-        } catch (const InferenceEngine::details::InferenceEngineException& iex) {                                      \
-            statusVar =                                                                                                \
-                InferenceEngine::DescriptionBuffer((iex.hasStatus() ? iex.getStatus() : GENERAL_ERROR), descBufferVar) \
-                << iex.what();                                                                                         \
-        } catch (const std::exception& ex) {                                                                           \
-            statusVar = InferenceEngine::DescriptionBuffer(GENERAL_ERROR, descBufferVar) << ex.what();                 \
-        } catch (...) {                                                                                                \
-            statusVar = InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                \
-        }                                                                                                              \
-    } while (false)
-
-/**
  * @def TO_STATUS_NO_RESP(x)
  * @brief Converts C++ exceptioned function call into a status code. Does not work with a ResponseDesc object
  * @ingroup ie_dev_api_error_debug

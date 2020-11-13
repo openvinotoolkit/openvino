@@ -266,8 +266,6 @@ public:
     }
 
 
-    void Propagate();
-
     float OutputScaleFactor(uint32_t component_index) {
         return OutputScaleFactor(component[component_index]);
     }

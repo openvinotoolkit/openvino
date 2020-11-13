@@ -31,6 +31,7 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/provenance.hpp"
@@ -55,6 +56,10 @@ void ngraph::traverse_nodes(const Function* p, std::function<void(std::shared_pt
     for (auto r : p->get_results())
     {
         nodes.push_back(r);
+    }
+    for (auto s : p->get_sinks())
+    {
+        nodes.emplace_back(s);
     }
 
     for (auto param : p->get_parameters())
@@ -311,7 +316,7 @@ std::vector<std::shared_ptr<ngraph::Node>>
             // There is a friendly name for this node so copy it
             cloned_node->set_friendly_name(node->get_friendly_name());
             //  TODO: workaround for shape inference, delete it after fix
-            if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
+            if (std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(cloned_node))
             {
                 cloned_node->validate_and_infer_types();
             }
@@ -379,7 +384,7 @@ std::list<std::shared_ptr<ngraph::Node>>
                 // There is a friendly name for this node so copy it
                 cloned_node->set_friendly_name(node->get_friendly_name());
                 //  TODO: workaround for shape inference, delete it after fix
-                if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
+                if (std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(cloned_node))
                 {
                     cloned_node->validate_and_infer_types();
                 }
@@ -418,7 +423,7 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     // clone function operations
     clone_nodes(func.get_ops(), node_map);
 
-    // get cloned function results and parameters
+    // get cloned function results and sinks and parameters
     ResultVector cloned_results;
     for (shared_ptr<Node> node : func.get_results())
     {
@@ -429,6 +434,12 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
         }
         cloned_results.push_back(result);
     }
+    SinkVector cloned_sinks;
+    for (auto node : func.get_sinks())
+    {
+        cloned_sinks.push_back(static_pointer_cast<op::Sink>(node_map.at(node.get())));
+    }
+
     std::vector<std::shared_ptr<op::Parameter>> cloned_params;
     for (auto param : func.get_parameters())
     {
@@ -438,6 +449,7 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     // create and return cloned function
     auto result = std::make_shared<ngraph::Function>(cloned_results, cloned_params);
     result->set_friendly_name(func.get_friendly_name());
+    result->add_sinks(cloned_sinks);
     return result;
 }
 
@@ -570,15 +582,11 @@ void ngraph::insert_new_node_between(const shared_ptr<Node>& src_node,
 
 std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const Shape& shape)
 {
-    std::shared_ptr<Node> zero = op::Constant::create(element_type, Shape{}, {0.0});
+    auto zero = op::Constant::create(element_type, Shape{}, {0.0});
     if (shape.size() > 0)
     {
-        AxisSet axes;
-        for (size_t i = 0; i < shape.size(); i++)
-        {
-            axes.insert(i);
-        }
-        zero = std::make_shared<op::Broadcast>(zero, shape, axes);
+        return std::make_shared<op::v1::Broadcast>(
+            zero, op::Constant::create(element::u64, Shape{shape.size()}, shape));
     }
     return zero;
 }
@@ -866,6 +874,18 @@ bool ngraph::check_for_cycles(const ngraph::Function* func,
         }
     }
 
+    for (auto res : func->get_sinks())
+    {
+        std::deque<std::shared_ptr<Node>> path;
+        // mirror of path stack for faster cycle check
+        std::unordered_set<std::shared_ptr<Node>> path_set;
+        if (check_for_cycles_bkwd(res, path, path_set, cycle_nodes))
+        {
+            is_bkwd_cycle = true;
+            return true;
+        }
+    }
+
     for (auto param : func->get_parameters())
     {
         std::deque<std::shared_ptr<Node>> path;
@@ -902,6 +922,8 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
         if (has_result_output && !is_type<ngraph::op::Parameter>(replacement.get_node()))
         {
             replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
+            // Update output tensor name
+            replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
         }
         output.replace(replacement);
         copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},

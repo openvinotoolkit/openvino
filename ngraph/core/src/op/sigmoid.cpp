@@ -40,7 +40,7 @@ op::Sigmoid::Sigmoid(const Output<Node>& arg)
     constructor_validate_and_infer_types();
 }
 
-namespace
+namespace sigmoid
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
@@ -80,5 +80,5 @@ namespace
 bool op::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sigmoid::evaluate");
-    return evaluate_sigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return sigmoid::evaluate_sigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

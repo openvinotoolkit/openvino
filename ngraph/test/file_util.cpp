@@ -89,9 +89,3 @@ TEST(file_util, path_join)
         EXPECT_STREQ("/test1/test2", file_util::path_join(s1, s2).c_str());
     }
 }
-
-TEST(file_util, get_temp_directory_path)
-{
-    string tmp = file_util::get_temp_directory_path();
-    EXPECT_NE(0, tmp.size());
-}

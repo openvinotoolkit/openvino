@@ -278,6 +278,8 @@ namespace ngraph
 
                     if (inputs.size() == 4) // sizes input is provided
                     {
+                        attrs.shape_calculation_mode =
+                            default_opset::Interpolate::ShapeCalcMode::sizes;
                         const auto& sizes = inputs.at(3);
                         const auto& sizes_shape = sizes.get_partial_shape();
 
@@ -291,6 +293,9 @@ namespace ngraph
                         return {std::make_shared<default_opset::Interpolate>(
                             data, sizes, scales, attrs)};
                     }
+
+                    attrs.shape_calculation_mode =
+                        default_opset::Interpolate::ShapeCalcMode::scales;
 
                     const auto& scales = inputs.at(2);
                     const auto& scales_shape = scales.get_partial_shape();

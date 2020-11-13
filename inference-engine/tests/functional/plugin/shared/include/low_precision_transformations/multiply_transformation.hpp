@@ -17,13 +17,13 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
     bool broadcast;
-    std::vector<InferenceEngine::Precision> precisionOnActivations;
-    std::vector<InferenceEngine::Precision> expectedPrecisions;
+    std::vector<ngraph::element::Type> precisionOnActivations;
+    std::vector<ngraph::element::Type> expectedPrecisions;
 };
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
     MultiplyTestValues
 > MultiplyTransformationParams;
@@ -36,9 +36,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -10,7 +10,7 @@ namespace GNAPluginNS {
 struct GNAFlags {
     uint8_t gna_lib_async_threads_num = 1;
 
-    bool compact_mode = true;
+    bool compact_mode = false;
     bool exclusive_async_requests = false;
     bool uniformPwlDesign = false;
     bool gna_openmp_multithreading = false;

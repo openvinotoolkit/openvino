@@ -24,6 +24,8 @@ typedef std::tuple<
         size_t,                        // Size
         std::vector<int64_t>,          // Reduction axes
         InferenceEngine::Precision,    // Network precision
+        InferenceEngine::Precision,    // Input precision
+        InferenceEngine::Precision,    // Output precision
         InferenceEngine::SizeVector,   // Input shapes
         std::string                    // Device name
 > lrnLayerTestParamsSet;

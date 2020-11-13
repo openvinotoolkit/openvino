@@ -22,14 +22,14 @@ namespace BehaviorTestsDefinitions {
     void HoldersTest::SetUp() {
         std::tie(targetDevice, order) = this->GetParam();
         deathTestStyle = ::testing::GTEST_FLAG(death_test_style);
-        if ((deathTestStyle == "fast" && targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
-            targetDevice == CommonTestUtils::DEVICE_GPU) {
-            // Default death test mode "fast" must be used in single-threaded context only.
-            // "MyriadBehaviorTests" links "XLink" library that statically initializes "libusb".
-            // Which in turn creates a thread.
+        if (deathTestStyle == "fast") {
             ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
         }
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+            function = ngraph::builder::subgraph::makeReadConcatSplitAssign();
+        } else {
+            function = ngraph::builder::subgraph::makeConvPoolRelu();
+        }
     }
 
     void HoldersTest::TearDown() {
@@ -46,6 +46,12 @@ EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
         InferenceEngine::Core core;
         auto exe_net = core.LoadNetwork(cnnNet, deviceName);
         auto request = exe_net.CreateInferRequest();
+        std::vector<InferenceEngine::VariableState> states = {};
+        try {
+            states = request.QueryState();
+        } catch(...) {
+            // do nothing
+        }
 
         auto release = [&](int i) {
             switch (i) {
@@ -57,6 +63,9 @@ EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
                     break;
                 case 2:
                     request = {};
+                    break;
+                case 3:
+                    states = {};
                     break;
                 default:
                     break;

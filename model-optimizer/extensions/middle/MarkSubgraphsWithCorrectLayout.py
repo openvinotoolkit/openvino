@@ -16,10 +16,16 @@
 import logging as log
 from collections import deque
 
+from typing import Set
+
 from extensions.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose, \
-    mark_as_correct_data_layout
+    mark_as_correct_data_layout, mark_output_as_in_correct_layout, mark_input_as_in_correct_layout
+from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from extensions.middle.pass_separator import PostMiddleStart
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
+from mo.graph.perm_inputs import PermuteInputs
+from mo.graph.port import Port
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -30,8 +36,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
     1. Prevents from adding Transpose operations before and after "reinterp_shape" like operations which change rank of
     the input and output tensors of this layout agnostic op.
     2. Disable attributes permutation for all intermediate ops between these "reinterp_shape" nodes.
-
-    For now the transformation is triggered for MatMul operation only getting input as 4D or 5D tensors.
+    3. Marks nodes along the weight path of convolutions as in correct layout to not permute them from NHWC to NCHW
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
@@ -47,14 +52,15 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
 
     @staticmethod
     def get_input_nodes(node: Node):
-        return [src_port.get_source().node for src_port in node.in_ports().values()]
+        return [src_port.get_source().node for src_port in node.in_ports().values() if not src_port.disconnected()]
 
     @staticmethod
     def get_output_nodes(node: Node):
         result = []
         for out_port in node.out_ports().values():
-            for dest_port in out_port.get_destinations():
-                result.append(dest_port.node)
+            if not out_port.disconnected():
+                for dest_port in out_port.get_destinations():
+                    result.append(dest_port.node)
         return result
 
     def bfs(self, start_nodes: list, visited: set, condition: callable = None, forward: bool = True):
@@ -64,7 +70,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         :param start_nodes: Nodes to start search from
         :param visited: set of already visited nodes where traversing should not happen
         :param condition: function getting a Node as input and returning whether the node should be included into the
-        resukt or not. If the value is None then the node is added unconditionally.
+        result or not. If the value is None then the node is added unconditionally.
         :param forward: boolean flag specifying the traverse direction
         :return: the list of Nodes visited
         """
@@ -121,3 +127,138 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
             for visited_node in marked_nodes:
                 mark_as_correct_data_layout(visited_node)
                 visited_node['nchw_layout'] = True
+
+        _, nodes_weigths, nodes_in_weights = self.get_ports_and_nodes_on_weights(graph)
+        for node in nodes_weigths:
+            if node in nodes_in_weights:
+                for ind, port in node.in_ports().items():
+                    if ind not in nodes_in_weights[node]:
+                        mark_input_as_in_correct_layout(node, ind)
+                for ind, port in node.out_ports().items():
+                    mark_output_as_in_correct_layout(node, ind)
+            else:
+                mark_as_correct_data_layout(node)
+            node['nchw_layout'] = True
+            if node.soft_get('type') == 'Const':  # WA for Const op deletion during clean_up
+                node.out_node()['nchw_layout'] = True
+
+        for node in self.get_ports_and_nodes_on_shape_subgraphs(graph)[1]:
+            mark_as_correct_data_layout(node)
+            node['nchw_layout'] = True
+            if node.soft_get('type') == 'Const':  # WA for Const op deletion during clean_up
+                node.out_node()['nchw_layout'] = True
+
+    @staticmethod
+    def get_weighted_layer_type_to_in_weights_port():
+        get_weights_port_index = lambda node: node.weights_index if node.has_valid('weights_index') else 1
+        weighted_layer_type_to_in_weights_port = {
+            'Convolution': get_weights_port_index,
+            'DeformableConvolution': get_weights_port_index,
+            'Deconvolution': get_weights_port_index,
+            'BinaryConvolution': get_weights_port_index,
+        }
+        return weighted_layer_type_to_in_weights_port
+
+    @staticmethod
+    def insert_permute_inputs_before_dynamic_weights_subgraph(dynamic_subgraphs: Set[Node] = None):
+        """
+        The function inserts permutations on input nodes in the weights subgraph
+        :param dynamic_subgraphs: Set of Nodes belonging to weight path subgraphs
+        :return: the list of Nodes which are inputs to weight path subgraphs
+        """
+        dynamic_in_nodes = dict()
+        for node in dynamic_subgraphs:
+            node_type = node.soft_get('type')
+            if node_type not in ['Const', 'Parameter', 'ShapeOf']:
+                idx_lst = list()
+                for idx in [idx for idx, port in node.in_ports().items() if
+                            not port.disconnected() and port.get_source().node not in dynamic_subgraphs]:
+                    PermuteInputs().set_input_permutation(node.in_node(idx), node, 'input:{}'.format(idx),
+                                                          'transpose_nchw_to_nhwc')
+                    idx_lst.append(idx)
+                if len(idx_lst):
+                    dynamic_in_nodes[node] = idx_lst
+        return dynamic_in_nodes
+
+    @staticmethod
+    def walk_up_from_in_ports_to_out_ports(in_ports: Set[Port], out_ports: Set[Port], port_condition=None):
+        """"
+        Returns all intermediate ports and nodes of such a sub-graph:
+
+            out_ports
+            |        |
+           \/       \/
+            .   .   .
+            |        |
+           \/       \/
+            in_ports
+        """
+        visited_ports = set()
+        visited_nodes = set()
+
+        deque_of_in_ports = deque(in_ports)
+        while len(deque_of_in_ports):
+            in_port = deque_of_in_ports.popleft()
+            if in_port.get_source() is None:
+                continue
+            source_node = in_port.get_source().node
+            if in_port in visited_ports:  # do not check visited_nodes as search is based on ports
+                continue
+            visited_ports.update({in_port, in_port.get_source()})
+            if in_port.get_source() in out_ports:  # reached source marked to stop the search
+                if not len(in_port.get_source().node.in_ports()):  # for Constants and Parameters to be visited
+                    visited_nodes.add(in_port.get_source().node)
+                continue
+            for idx, port in source_node.in_ports().items():
+                if not port.disconnected() and (not port_condition or port_condition(source_node, idx)):
+                    deque_of_in_ports.append(port)
+            visited_nodes.add(source_node)
+        return visited_ports, visited_nodes
+
+    @staticmethod
+    def is_not_weight_port(node: Node, idx: int):
+        w_types_to_in_port_dict = MarkSubGraphsWithCorrectLayout.get_weighted_layer_type_to_in_weights_port()
+        node_type = node.soft_get('type')
+        return node_type in w_types_to_in_port_dict.keys() and idx != w_types_to_in_port_dict[node_type](node)
+
+    @staticmethod
+    def get_ports_and_nodes_on_weights(graph):
+        nodes = graph.get_op_nodes()
+
+        # collect all input ports with weights
+        weight_ports = set()
+        result_ports = set()
+        start_ports = set()
+        w_types_to_in_port_dict = MarkSubGraphsWithCorrectLayout.get_weighted_layer_type_to_in_weights_port()
+        for node in nodes:
+            node_type = node.soft_get('type', 'unknown')
+            if node_type not in w_types_to_in_port_dict.keys():
+                if node_type in ['Const', 'Parameter', 'ShapeOf', 'ExtractImagePatches']:
+                    start_ports.add(node.out_port(0))
+                continue
+            weight_port_idx = w_types_to_in_port_dict[node_type](node)
+            assert node.is_in_port_connected(weight_port_idx), \
+                'Unexpected port configuration of {} node with name=`{}`'.format(node_type,
+                                                                                 node.soft_get('name', node.id))
+            weight_ports.add(node.in_port(weight_port_idx))
+        for result in graph.get_op_nodes(type='Result'):
+            result_ports.update(result.in_ports().values())
+
+        # collect all sub-graphs that start with Constant/Parameter/ShapeOf/ExtractImagePatches and end at in_port as
+        # weights
+        ports_w, nodes_w = MarkSubGraphsWithCorrectLayout.walk_up_from_in_ports_to_out_ports(weight_ports, start_ports)
+        # collect all sub-graphs that start with Constant/Parameter/ShapeOf/ExtractImagePatches, end at Result nodes and
+        # not contains branches that end as weights
+        ports_d, nodes_d = MarkSubGraphsWithCorrectLayout.walk_up_from_in_ports_to_out_ports(
+            result_ports, start_ports, MarkSubGraphsWithCorrectLayout.is_not_weight_port)
+        nodes_dif = nodes_w.difference(nodes_d)
+        nodes_in_w = MarkSubGraphsWithCorrectLayout.insert_permute_inputs_before_dynamic_weights_subgraph(nodes_dif)
+        return ports_w.difference(ports_d), nodes_dif, nodes_in_w
+
+    @staticmethod
+    def get_ports_and_nodes_on_shape_subgraphs(graph):
+        shape_sources = {shape_of.out_port(0) for shape_of in graph.get_op_nodes(type='ShapeOf')}
+        end_points = LayoutChangeForConstantShapePaths().find_shape_subgraph_endpoints(
+            [shape.out_port(0) for shape in graph.get_op_nodes(type='ShapeOf')])
+        ports, nodes = MarkSubGraphsWithCorrectLayout.walk_up_from_in_ports_to_out_ports(end_points, shape_sources)
+        return ports, nodes

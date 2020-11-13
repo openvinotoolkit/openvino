@@ -43,7 +43,7 @@ public:
         defaultConfig.UpdateFromMap(config);
     }
 
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(
+    InferenceEngine::ExecutableNetwork ImportNetwork(
                                                 const std::string &modelFileName,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
@@ -69,14 +69,13 @@ public:
         return GetCurrentPlugin()->GetName();
     }
 
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
-                      const std::map<std::string, std::string>& config,
-                      InferenceEngine::QueryNetworkResult& res) const override {
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+                                                     const std::map<std::string, std::string>& config) const override {
         auto plg = GetCurrentPlugin();
         try {
             plg->SetConfig(config);
         } catch (InferenceEngine::details::InferenceEngineException) {}
-        plg->QueryNetwork(network, config, res);
+        return plg->QueryNetwork(network, config);
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name,

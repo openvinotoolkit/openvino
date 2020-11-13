@@ -265,8 +265,9 @@ protected:
 TEST_P(MKLDNNGraphDynBatchTileTests, TestsDynBatchTile) {}
 
 
+// TODO: rewrite to ngraph to have reshape functionality
 INSTANTIATE_TEST_CASE_P(
-        TestsDynBatchTile, MKLDNNGraphDynBatchTileTests,
+        DISABLED_TestsDynBatchTile, MKLDNNGraphDynBatchTileTests,
         ::testing::Values(
                 tile_test_params{
                         {1, 128, 1, 1}, 3, 24, 1, MKLDNNPlugin::impl_desc_type::unknown, {

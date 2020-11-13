@@ -124,6 +124,14 @@ DECL_PASS(ReorderMaxPool);
 DECL_PASS(HandleMultipleActivationsForTheLayer);
 
 /**
+ * @brief GNA doesn't provide intermediate results (sums) when the layer is fused with activation.
+ * When more layers use the sums as inputs (beside the activation) then the diagonal layer
+ * is inserted before the activation to forbid the fusing and make the sums exposed.
+ * This is observed in the multiple_activations_onGNA_INT16 test.
+ */
+DECL_PASS(ForbidActivationFusing);
+
+/**
  * @brief copy layer insertion required in cases where input layer does not have output memory
  */
 DECL_PASS(InsertCopyLayer);
@@ -145,6 +153,18 @@ DECL_PASS(InsertConcatAligningFilter);
 DECL_PASS(ReorderConcatInputs);
 
 /**
+* @brief in cases that network output layer is connected to only one layer which is activation additional identity is inserted
+* so the operation is not fused with the activation allowing to get te results from said layer
+*/
+DECL_PASS(BreakFusingOfOutputLayers);
+
+/**
+ * @brief insert identity at the output of LSTMCell which fixes cases where data is not propagated correctly through network
+ * and LSTMCell returns all zeroes
+ */
+DECL_PASS_BEFORE_COPY(InsertIdentityToLSTMCell);
+
+/**
 * @brief unrolled LSTM cell layer in supported GNA primitives
 */
 DECL_PASS_BEFORE_COPY(UnrollLSTMCell);
@@ -158,6 +178,11 @@ DECL_PASS_BEFORE_COPY(UnrollTI);
 * @brief removed const layer before reshape layer
 */
 DECL_PASS_BEFORE_COPY(RemoveConst);
+
+/**
+ * @brief remove concat layers with single input
+*/
+DECL_PASS_BEFORE_COPY(RemoveSingleInputConcat);
 
 /**
  * @brief removed extra identity layer for multi-output

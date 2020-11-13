@@ -185,9 +185,6 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
  */
     template <class Layer>
     inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer, int oDataIdx, const std::function<bool(CNNLayerPtr)> &shouldSkip)  {
-        // TODO: need to have generic function that creates slice of the graph : starting from given layer
-        //  and skipped all non functional - ending up into functional one
-
         std::list<CNNLayerPtr> currentSet;
         std::vector<CNNLayerPtr> resultSet;
 
@@ -223,9 +220,14 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
             separate_layers(getInputTo(layer->outData[i]));
         }
 
+        std::set< CNNLayerPtr > visited;
         while (!currentSet.empty()) {
             auto currentLayer = currentSet.front();
             currentSet.pop_front();
+            if (visited.count(currentLayer)) {
+                continue;
+            }
+            visited.insert(currentLayer);
             for (auto && oData : currentLayer->outData) {
                 separate_layers(getInputTo(oData));
             }
@@ -623,8 +625,8 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
 
     // remove osp->layer connection
     for (auto  && outData : getInputTo(osp)) {
-        for (auto i = outData.second->insData.begin(); i != outData.second->insData.end(); i++) {
-            auto insData = i->lock();
+        for (int i = 0; i < outData.second->insData.size(); i++) {
+            auto insData = outData.second->insData[i].lock();
             if (!insData) {
                 THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<", its output layer(" <<
                                    outData.first << " has invalid input configuration";
@@ -637,7 +639,7 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
 
             // found layer that need to be removed
             if (creator.get() == layer.get()) {
-                outData.second->insData.erase(i);
+                outData.second->insData[i] = isp;
                 break;
             }
         }
@@ -647,11 +649,6 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
     for (auto  && outData : getInputTo(osp)) {
         // new syntetic name to avoid duplicates in map
         getInputTo(isp)[layer->name + "_" + outData.first] = outData.second;
-    }
-
-    // add osp->isp connections
-    for (auto  && outData : getInputTo(osp)) {
-        outData.second->insData.push_back(isp);
     }
 
     // removing layer->osp, and layer->isp connection not necessary - layer will delete it by itself

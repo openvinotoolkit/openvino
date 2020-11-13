@@ -51,9 +51,6 @@ public:
             if (layer->insData.size() != 1)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
 
-            if (layer->insData[0].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only FP32 is supported!";
-
             if (layer->insData[0].lock()->getTensorDesc().getDims() != layer->outData[0]->getTensorDesc().getDims())
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
 
@@ -71,6 +68,7 @@ public:
             else if (math_func == "Atan") mathFunction = Math::Atan;
             else if (math_func == "Atanh") mathFunction = Math::Atanh;
             else if (math_func == "Ceil") mathFunction = Math::Ceil;
+            else if (math_func == "Ceiling") mathFunction = Math::Ceil;
             else if (math_func == "Cos") mathFunction = Math::Cos;
             else if (math_func == "Cosh") mathFunction = Math::Cosh;
             else if (math_func == "Floor") mathFunction = Math::Floor;
@@ -88,7 +86,7 @@ public:
             else
                 THROW_IE_EXCEPTION << layer->name << " Incorrect Math layer type!";
 
-            addConfig(layer, { { ConfLayout::PLN, false, 0 } }, { { ConfLayout::PLN, false, 0 } });
+            addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
@@ -279,6 +277,7 @@ REG_FACTORY_FOR(MathImpl, Asinh);
 REG_FACTORY_FOR(MathImpl, Atan);
 REG_FACTORY_FOR(MathImpl, Atanh);
 REG_FACTORY_FOR(MathImpl, Ceil);
+REG_FACTORY_FOR(MathImpl, Ceiling);
 REG_FACTORY_FOR(MathImpl, Cos);
 REG_FACTORY_FOR(MathImpl, Cosh);
 REG_FACTORY_FOR(MathImpl, Erf);

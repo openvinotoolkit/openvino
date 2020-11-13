@@ -89,6 +89,8 @@ namespace ngraph
 
                     // Define the CoordinateTransform for updates coordinates.
                     // All except indices-dimensions.
+                    if (updates_indices_coord_iter == updates_indices_transform.end())
+                        break;
                     Coordinate updates_update_start_corner = *updates_indices_coord_iter;
                     Coordinate updates_update_end_corner(updates_shape);
                     for (size_t i = 0; i < indices_ndim; ++i)
@@ -105,6 +107,8 @@ namespace ngraph
                     auto updates_update_coord_iter = updates_update_transform.begin();
                     for (const Coordinate& out_cord : out_transform)
                     {
+                        if (updates_update_coord_iter == updates_update_transform.end())
+                            break;
                         const auto src_idx =
                             updates_update_transform.index(*updates_update_coord_iter) * elem_size;
                         std::copy(updates + src_idx,

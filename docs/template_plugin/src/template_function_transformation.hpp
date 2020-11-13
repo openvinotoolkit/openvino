@@ -18,8 +18,6 @@ class MyFunctionTransformation;
 // template_function_transformation.hpp
 class ngraph::pass::MyFunctionTransformation: public ngraph::pass::FunctionPass {
 public:
-    MyFunctionTransformation() : FunctionPass() {}
-
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 // ! [function_pass:template_transformation_hpp]

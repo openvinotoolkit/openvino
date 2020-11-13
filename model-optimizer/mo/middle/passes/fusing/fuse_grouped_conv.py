@@ -46,7 +46,7 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
     channel_dim = gconv.channel_dims[0]
     split_axis = start_node.in_port(1).data.get_value()
     if channel_dim != split_axis or channel_dim != last_node.axis:
-        log.debug('Grouped convolutions fusion : split or concat has wierd axis!')
+        log.debug('Grouped convolutions fusion : split or concat has weird axis!')
         return False
 
     # Check that all convolutions has the same parameters

@@ -51,8 +51,12 @@ ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT32);
+    k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT32);
+    k.EnableOutputDataType(Datatype::INT64);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
@@ -89,25 +93,18 @@ bool StridedSliceKernelRef::Validate(const Params& p, const optional_params& o) 
 }
 
 CommonDispatchData StridedSliceKernelRef::SetDefault(const strided_slice_params& params, const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
     // If the new_axis_mask is set, then begin, end, and stride are ignored
     // and a new length 1 dimension is adding. Input data just copying to output
     // TODO: remove data copying in case where only shape size changing
-    std::vector<size_t> gws = {params.output.Batch().v, params.output.Feature().v,
-                               params.output.Z().v * params.output.Y().v * params.output.X().v};
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Z().v * params.output.Y().v * params.output.X().v };
 
-    auto lws = GetOptimalLocalWorkGroupSizes(gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.gws0 = gws[0];
-    runInfo.gws1 = gws[1];
-    runInfo.gws2 = gws[2];
-
-    runInfo.lws0 = lws[0];
-    runInfo.lws1 = lws[1];
-    runInfo.lws2 = lws[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& params) const {
@@ -167,14 +164,14 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
 
     assert(params.GetType() == KernelType::STRIDED_SLICE);
 
-    auto runInfo = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams, options);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

@@ -22,7 +22,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(QuantGroupConv3D).*)",
         // TODO: Issue 31845
         R"(.*(FakeQuantizeLayerTest).*)",
-        R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: failed to downgrade to opset v0 in interpreter backend
         R"(.*Gather.*axis=-1.*)",
         // TODO: Issue 33151
@@ -36,12 +35,12 @@ std::vector<std::string> disabledTestPatterns() {
 #if (defined(_WIN32) || defined(_WIN64))
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
+        // TODO: Issue: 40957
+        R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 25533
         R"(.*ConvertLikeLayerTest.*)",
-        // TODO: Issue: 34516
-        R"(.*ConvertLayerTest.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
@@ -50,6 +49,9 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 37862
-        R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)"
+        R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)",
+        // TODO: Issue: 38841
+        R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
+        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
     };
 }

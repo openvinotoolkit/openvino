@@ -22,6 +22,7 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const Strides& dilations,
                                  const CoordinateDiff& pads_begin,
                                  const CoordinateDiff& pads_end,
+                                 const element::Type output_type,
                                  const size_t& group,
                                  const PadType& auto_pad)
         : Op({data_batch, filters})
@@ -30,10 +31,53 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
         , m_pads_begin(pads_begin)
         , m_pads_end(pads_end)
         , m_auto_pad(auto_pad)
-        , m_group(group) {
+        , m_group(group)
+        , m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
+op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
+                                 const Output<Node>& filters,
+                                 const Output<Node>& bias,
+                                 const Strides& strides,
+                                 const Strides& dilations,
+                                 const CoordinateDiff& pads_begin,
+                                 const CoordinateDiff& pads_end,
+                                 const element::Type output_type,
+                                 const size_t& group,
+                                 const PadType& auto_pad)
+        : Op({data_batch, filters, bias})
+        , m_strides(strides)
+        , m_dilations(dilations)
+        , m_pads_begin(pads_begin)
+        , m_pads_end(pads_end)
+        , m_auto_pad(auto_pad)
+        , m_group(group)
+        , m_output_type(output_type) {
+    constructor_validate_and_infer_types();
+}
+
+// KMB compilation support
+op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
+                                 const Output<Node>& filters,
+                                 const Strides& strides,
+                                 const Strides& dilations,
+                                 const CoordinateDiff& pads_begin,
+                                 const CoordinateDiff& pads_end,
+                                 const size_t& group,
+                                 const PadType& auto_pad)
+        : Op({data_batch, filters})
+        , m_strides(strides)
+        , m_dilations(dilations)
+        , m_pads_begin(pads_begin)
+        , m_pads_end(pads_end)
+        , m_auto_pad(auto_pad)
+        , m_group(group)
+        , m_output_type(element::undefined) {
+    constructor_validate_and_infer_types();
+}
+
+// KMB compilation support
 op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
                                  const Output<Node>& bias,
@@ -49,7 +93,8 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
         , m_pads_begin(pads_begin)
         , m_pads_end(pads_end)
         , m_auto_pad(auto_pad)
-        , m_group(group) {
+        , m_group(group)
+        , m_output_type(element::undefined) {
     constructor_validate_and_infer_types();
 }
 
@@ -59,23 +104,12 @@ void op::ConvolutionIE::validate_and_infer_types() {
     PartialShape filters_shape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
-    element::Type result_et;
-
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, data_batch_et, filters_et),
-        "Element types for data batch and filters do not match (data batch element type: ",
-        data_batch_et,
-        ", filters element type: ",
-        filters_et,
-        ").");
-
     PartialShape result_shape{PartialShape::dynamic()};
 
     // In case if number of groups greater than 1 and channel dimension is dynamic we can't calculate output shape
     if (m_group > 1) {
         if (data_batch_shape.rank().is_dynamic() || data_batch_shape[1].is_dynamic()) {
-            set_output_type(0, result_et, result_shape);
+            set_output_type(0, m_output_type, result_shape);
             return;
         } else {
             // Update channel dimension according to groups count
@@ -109,7 +143,7 @@ void op::ConvolutionIE::validate_and_infer_types() {
                                              m_strides,
                                              m_dilations);
 
-    set_output_type(0, result_et, result_shape);
+    set_output_type(0, m_output_type, result_shape);
 }
 
 shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVector & new_args) const {
@@ -120,6 +154,7 @@ shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVe
                                           m_dilations,
                                           m_pads_begin,
                                           m_pads_end,
+                                          m_output_type,
                                           m_group,
                                           m_auto_pad);
     } else if (new_args.size() == 3) {
@@ -130,6 +165,7 @@ shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVe
                                           m_dilations,
                                           m_pads_begin,
                                           m_pads_end,
+                                          m_output_type,
                                           m_group,
                                           m_auto_pad);
     }

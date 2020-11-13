@@ -41,6 +41,7 @@ static std::vector<Dims> s_expParams = {
     {{1, 1, 224, 235}},
     {{1, 2, 224, 235}},
     {{1, 3, 224, 235}},
-    {{10, 17191, 1, 1}},
+    // TODO: rewrite to ngraph to have reshape functionality
+    // {{10, 17191, 1, 1}},
     {{1, 1, 10, 17191}}
 };

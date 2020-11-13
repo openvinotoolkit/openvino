@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "single_layer_tests/lstm_sequence.hpp"
-#include <transformations/bidirectional_sequences_decomposition.hpp>
+#include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 
 namespace LayerTestsDefinitions {
 
@@ -41,7 +41,7 @@ namespace LayerTestsDefinitions {
                         {4 * hidden_size, hidden_size}, {4 * hidden_size}},
         };
         std::ostringstream result;
-        result << "seq_lenghts" << seq_lenghts << "_";
+        result << "seq_lenghts=" << seq_lenghts << "_";
         result << "batch=" << batch << "_";
         result << "hidden_size=" << hidden_size << "_";
         result << "input_size=" << input_size << "_";
@@ -82,11 +82,6 @@ namespace LayerTestsDefinitions {
                                      std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(1)),
                                      std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(2))};
         function = std::make_shared<ngraph::Function>(results, params, "lstm_sequence");
-        if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
-            ngraph::pass::Manager m;
-            m.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-            m.run_passes(function);
-        }
     }
 
 

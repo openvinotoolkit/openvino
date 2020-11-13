@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -21,6 +22,7 @@ bool fuse_type_to_parameter(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
 bool fuse_type_to_convert(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nms3(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nms4(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_nms5(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
@@ -81,6 +83,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset4::ShapeOf::type_info, fuse_type_to_shapeof},
         {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
         {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
+        {opset5::NonMaxSuppression::type_info, fuse_type_to_nms5},
         {opset4::TopK::type_info, fuse_type_to_topk},
         {opset4::NonZero::type_info, fuse_type_to_nonzero},
         {opset4::Bucketize::type_info, fuse_type_to_bucketize},
@@ -161,9 +164,12 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         // If output type mismatch given type we try to fuse type into this operation
         // otherwise we insert Convert operation.
         for (auto &node : f->get_ordered_ops()) {
-            // Recursively run for TensorIterator body function
-            if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
-                convert_function_precision(ti->get_body());
+            m_transformation_callback(node);
+            // Recursively apply transformation for sub-graph based operations
+            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+                if (auto sub_graph = sub_graph_node->get_function()) {
+                    convert_function_precision(sub_graph);
+                }
             }
             convert_node_input_precision(node);
         }
@@ -234,6 +240,14 @@ bool fuse_type_to_nms4(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
     return false;
 }
 
+bool fuse_type_to_nms5(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
+    if (auto nms = as_type_ptr<opset5::NonMaxSuppression>(node)) {
+        nms->set_output_type(to);
+        return true;
+    }
+    return false;
+}
+
 bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     if (auto topk = as_type_ptr<opset4::TopK>(node)) {
         if (idx == 1 && (to == element::i32 || to == element::i64)) {
@@ -297,8 +311,36 @@ bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::T
     return false;
 }
 
+template <typename src_type, typename dst_type>
+inline dst_type convert_value(src_type val) {
+    if (val > std::numeric_limits<dst_type>::max()) {
+        return std::numeric_limits<dst_type>::max();
+    } else if (val < std::numeric_limits<dst_type>::lowest()) {
+        return std::numeric_limits<dst_type>::lowest();
+    }
+    return static_cast<dst_type>(val);
+}
+
+// We need to treat U64->I32 and U32->I32 as a separate case, because of C++'s implicit promotion from signed to unsigned,
+// and we don't need to compare and clamp the input to std::numeric_limits<int32_t>::lowest()
+template <>
+inline int32_t convert_value<uint64_t, int32_t>(uint64_t val) {
+    if (val > std::numeric_limits<int32_t>::max()) {
+        return std::numeric_limits<int32_t>::max();
+    }
+    return static_cast<int32_t>(val);
+}
+
+template <>
+inline int32_t convert_value<uint32_t, int32_t>(uint32_t val) {
+    if (val > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+        return std::numeric_limits<int32_t>::max();
+    }
+    return static_cast<int32_t>(val);
+}
+
 template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
-std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant> & constant) {
+static std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant>& constant) {
     using src_type = typename element_type_traits<PREC_FROM>::value_type;
     using dst_type = typename element_type_traits<PREC_TO>::value_type;
 
@@ -310,12 +352,7 @@ std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant
 
     std::vector<dst_type> final_data;
     for (size_t i = 0; i < size; ++i) {
-        const auto & val = src_data[i];
-        if (val > std::numeric_limits<dst_type>::max()) {
-            dst_data[i] = std::numeric_limits<dst_type>::max();
-        } else {
-            dst_data[i] = static_cast<dst_type>(val);
-        }
+        dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
     }
     return new_constant;
 }

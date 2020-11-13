@@ -69,7 +69,7 @@ private:
             auto irIndex = oldIndices[i];
             if (irIndex < 0) {
                 // handle negative indices
-                irIndex = ndims - std::abs(irIndex);
+                irIndex = static_cast<int>(ndims - std::abs(irIndex));
             }
             VPU_THROW_UNLESS(irIndex < ndims,
                             "Stage {} of type {} expects input with index {} ({}) include values less than ",
@@ -99,7 +99,7 @@ private:
 
     void initialCheckImpl() const override {
         VPU_THROW_UNLESS(input(0)->desc().type() == output(0)->desc().type(),
-                         "Stage {} of type {} expects that data types of input with index {} ({}) ",
+                         "Stage {} of type {} expects that data types of input with index {} ({}) "
                          "and output with index {} ({}) are the same, but it is {} and {}",
                          name(), type(), 0, input(0)->name(), 0, output(0)->name(), input(0)->desc().type(), output(0)->desc().type());
         assertInputsOutputsTypes(this,

@@ -4,10 +4,6 @@
 
 set (TARGET_NAME "inference_engine_preproc")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
@@ -89,26 +85,7 @@ if(ENABLE_AVX512F AND NOT GNU_5_DEBUG_CASE)
 endif()
 
 if(ARM OR AARCH64)
-    set(neon_flags "")
-    if(WIN32 OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    elseif(ANDROID)
-        if(ANDROID_ABI STREQUAL "arm64-v8a")
-            set(neon_flags "-mfpu=neon")
-        elseif(ANDROID_ABI STREQUAL "armeabi-v7a-hard with NEON")
-            set(neon_flags "-march=armv7-a -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon")
-        elseif((ANDROID_ABI STREQUAL "armeabi-v7a with NEON") OR
-               (ANDROID_ABI STREQUAL "armeabi-v7a" AND
-                DEFINED CMAKE_ANDROID_ARM_NEON AND CMAKE_ANDROID_ARM_NEON))
-            set(neon_flags "-march=armv7-a -mfloat-abi=softfp -mfpu=neon")
-        endif()
-    else()
-        if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
-            set(neon_flags "-O2 -ftree-vectorize")
-        elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7-a")
-            set(neon_flags "-mfpu=neon")
-        endif()
-    endif()
+    ie_arm_neon_optimization_flags(neon_flags)
 
     if(neon_flags)
         file(GLOB NEON_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.hpp)
@@ -128,6 +105,10 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS})
 
+ie_faster_build(${TARGET_NAME}_obj
+    UNITY
+)
+
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_PREPROC_PLUGIN
                                                       $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>)
@@ -143,15 +124,11 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 # Create shared library file from object library
 
-file(TOUCH ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
-
 add_library(${TARGET_NAME} SHARED
-            # according to https://cmake.org/cmake/help/latest/command/add_library.html#id4
-            # Some native build systems (such as Xcode) may not like targets that have only
-            # object files, so consider adding at least one real source file to any target that
-            # references $<TARGET_OBJECTS:objlib>.
-            ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Preprocessing plugin")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
@@ -170,8 +147,9 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}
-                   EXCLUDE_PATTERNS ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # Static library used for unit tests which are always built
 
@@ -190,6 +168,11 @@ target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt
                                        INTERFACE inference_engine_s)
 
 target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
+
+# LTO
+
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # developer package
 

@@ -31,7 +31,7 @@ else
 fi
 
 echo "Test directory: ${TEST_DIR}"
-cd ${TEST_DIR}
+cd "${TEST_DIR}"
 
 export IE_VPU_MYRIADX=1
 
@@ -64,7 +64,7 @@ fi
 # Wait for all processes to finish
 sts=""
 for p in ${pids}; do
-    if wait ${p}; then
+    if wait "${p}"; then
         sts+=" 1"
     else
         sts+=" 0"

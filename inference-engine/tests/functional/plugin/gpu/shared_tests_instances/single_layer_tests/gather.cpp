@@ -57,6 +57,10 @@ const auto Gather6dAxes5 = testing::Combine(
         testing::ValuesIn(axes5),
         testing::ValuesIn(inputShapes6DAxes5),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -90,11 +94,15 @@ const auto GatherAxes4 = testing::Combine(
         testing::ValuesIn(axes4),
         testing::ValuesIn(inputShapesAxes4),
         testing::ValuesIn(netPrecisionsFP16),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes4,
+        smoke_GatherAxes4,
         GatherLayerTest,
         GatherAxes4,
         GatherLayerTest::getTestCaseName
@@ -106,11 +114,15 @@ const auto Gather6dAxes4 = testing::Combine(
         testing::ValuesIn(axes4),
         testing::ValuesIn(inputShapes6DAxes4),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes4,
+        smoke_Gather6dAxes4,
         GatherLayerTest,
         Gather6dAxes4,
         GatherLayerTest::getTestCaseName
@@ -150,11 +162,15 @@ const auto GatherAxes3 = testing::Combine(
         testing::ValuesIn(axes3),
         testing::ValuesIn(inputShapesAxes3),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes3,
+        smoke_GatherAxes3,
         GatherLayerTest,
         GatherAxes3,
         GatherLayerTest::getTestCaseName
@@ -166,11 +182,15 @@ const auto Gather6dAxes3 = testing::Combine(
         testing::ValuesIn(axes3),
         testing::ValuesIn(inputShapes6DAxes3),
         testing::ValuesIn(netPrecisionsI32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes3,
+        smoke_Gather6dAxes3,
         GatherLayerTest,
         Gather6dAxes3,
         GatherLayerTest::getTestCaseName
@@ -210,11 +230,15 @@ const auto GatherAxes2 = testing::Combine(
         testing::ValuesIn(axes2),
         testing::ValuesIn(inputShapesAxes2),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes2,
+        smoke_GatherAxes2,
         GatherLayerTest,
         GatherAxes2,
         GatherLayerTest::getTestCaseName
@@ -226,11 +250,15 @@ const auto Gather6dAxes2 = testing::Combine(
         testing::ValuesIn(axes2),
         testing::ValuesIn(inputShapes6DAxes2),
         testing::ValuesIn(netPrecisionsFP16),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes2,
+        smoke_Gather6dAxes2,
         GatherLayerTest,
         Gather6dAxes2,
         GatherLayerTest::getTestCaseName
@@ -270,11 +298,15 @@ const auto GatherAxes1 = testing::Combine(
         testing::ValuesIn(axes1),
         testing::ValuesIn(inputShapesAxes1),
         testing::ValuesIn(netPrecisionsI32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes1,
+        smoke_GatherAxes1,
         GatherLayerTest,
         GatherAxes1,
         GatherLayerTest::getTestCaseName
@@ -286,11 +318,15 @@ const auto Gather6dAxes1 = testing::Combine(
         testing::ValuesIn(axes1),
         testing::ValuesIn(inputShapes6DAxes1),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes1,
+        smoke_Gather6dAxes1,
         GatherLayerTest,
         Gather6dAxes1,
         GatherLayerTest::getTestCaseName
@@ -330,11 +366,15 @@ const auto GatherAxes0 = testing::Combine(
         testing::ValuesIn(axes0),
         testing::ValuesIn(inputShapesAxes0),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes0,
+        smoke_GatherAxes0,
         GatherLayerTest,
         GatherAxes0,
         GatherLayerTest::getTestCaseName
@@ -346,11 +386,15 @@ const auto Gather6dAxes0 = testing::Combine(
         testing::ValuesIn(axes0),
         testing::ValuesIn(inputShapes6DAxes0),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes0,
+        smoke_Gather6dAxes0,
         GatherLayerTest,
         Gather6dAxes0,
         GatherLayerTest::getTestCaseName
