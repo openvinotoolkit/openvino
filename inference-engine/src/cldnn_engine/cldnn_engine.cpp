@@ -153,10 +153,10 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                     } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(op)) {
                         enable_convert_to_sequence &= false;
                         count_rnn++;
-                    } else if (const auto &lstm_cell_v4 = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(op)) {
-                        enable_convert_to_sequence &= lstm_cell_v4->get_clip() == 0.0f;
+                    } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(op)) {
+                        enable_convert_to_sequence &= lstm_cell->get_clip() == 0.0f;
                         enable_convert_to_sequence &=
-                                lstm_cell_v4->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                                lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
                         count_rnn++;
                     }
                 }
