@@ -65,7 +65,6 @@ namespace ngraph
 
             size_t operator[](size_t i) const noexcept { return m_data[i]; }
             size_t& operator[](size_t i) noexcept { return m_data[i]; }
-
             size_t at(size_t i) const
             {
                 if (i >= m_size)
@@ -91,16 +90,12 @@ namespace ngraph
             }
 
             size_t size() const noexcept { return m_size; }
-
             size_t* data() noexcept { return m_data.data(); }
-
             const size_t* data() const noexcept { return m_data.data(); }
-
             const size_t* begin() const { return data(); }
             size_t* begin() { return data(); }
             const size_t* end() const { return std::next(data(), size()); }
             size_t* end() { return std::next(data(), size()); }
-
             friend bool operator<(const CoordinateImpl& lhs, const CoordinateImpl& rhs)
             {
                 return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());

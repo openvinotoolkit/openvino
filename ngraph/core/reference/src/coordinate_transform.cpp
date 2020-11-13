@@ -190,7 +190,6 @@ namespace
     };
 
     Coordinate default_source_end_corner(const Shape& source_shape) { return source_shape; }
-
     template <typename CoordinateCorner,
               typename SourceStrides,
               typename SourceAxisOrder,
