@@ -642,21 +642,12 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::ResponseDesc response;
     InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
-    auto testSuccesfull = false;
-    const auto maxAttempts = 1000;
-    const auto tooSmallTimeoutToComplete = 1; // 1ms
-    // we try to get RESULT_NOT_READY up to 1000 times
-    // as might happen that the result will be OK after waiting 1ms
-    // in some circumstances as thread scheduling, OS specifics etc
-    for (int tries = 0; tries < maxAttempts && !testSuccesfull; ++tries) {
-        req.StartAsync();
-        sts = req.Wait(tooSmallTimeoutToComplete);
-        if (sts == InferenceEngine::StatusCode::RESULT_NOT_READY) {
-            testSuccesfull = true;
-            ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
-        }
-        ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK);
+    const auto probablyTooSmallTimeoutToComplete = 1; // 1ms
+    req.StartAsync();
+    ASSERT_NO_THROW(sts = req.Wait(probablyTooSmallTimeoutToComplete));
+    if (sts == InferenceEngine::StatusCode::RESULT_NOT_READY) {
+        ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
     }
-    ASSERT_TRUE(testSuccesfull);
+    ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK);
 }
 }  // namespace BehaviorTestsDefinitions
