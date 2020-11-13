@@ -435,7 +435,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<scale>();
 
-            should_fuse |= input_data.is_type<eltwise>() && eltwise_supports_fusings(input_data.as<eltwise>());
+            // Here we need to check that Eltwise already has fused ops to avoid missing Activation primitive in
+            // case `Conv -> Eltwise -> Activation` which will be replaced via fused_conv_eltwise primitive later
+            // without handling any fused ops
+            should_fuse |= input_data.is_type<eltwise>() && eltwise_supports_fusings(input_data.as<eltwise>()) && input_data.has_fused_primitives();
 
             if (!should_fuse)
                 return;
@@ -801,6 +804,10 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     // currently works only for these formats
     data_types data_type = conv_node->get_output_layout().data_type;
     eltwise_node* eltw_node = static_cast<eltwise_node*>(*(node->users.begin()));
+
+    if (eltw_node->has_fused_primitives())
+        return;
+
     for (auto& dep : eltw_node->get_dependencies()) {
         format fmt = dep->get_output_layout().format;
         data_types dep_dt = dep->get_output_layout().data_type;
