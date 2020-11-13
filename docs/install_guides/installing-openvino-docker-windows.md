@@ -15,6 +15,10 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or later) editions
 - Windows Server* 2016 or higher 
 
+## Prebuilt images
+
+Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
+
 ## Build a Docker* Image for CPU
 
 You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. 
@@ -39,8 +43,8 @@ docker build . -t <image_name> `
 
 ### Install Microsoft Visual Studio* Build Tools
 You can add Microsoft Visual Studio Build Tools* to Windows* OS Docker image. Available options are to use offline installer for Build Tools 
-(follow [Instruction for the offline installer](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or 
-to use online installer for Build Tools (follow [Instruction for the online installer](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019).
+(follow [Instruction for the offline installer](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019)) or 
+to use online installer for Build Tools (follow [Instruction for the online installer](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019)).
 Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license. 
 Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
 
@@ -75,10 +79,6 @@ docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deploymen
 ## Troubleshooting
 
 If you got a proxy issues, please setup proxy settings for Docker. See the Proxy section in [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
-
-## Prebuilt images
-
-Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
 
 ## Additional Resources
 

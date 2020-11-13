@@ -16,6 +16,10 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 
 - Linux with installed GPU driver and with Linux kernel supported by GPU driver
 
+## Prebuilt images
+
+Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
+
 ## Use Docker* Image for CPU
 
 - Kernel reports the same information for all containers as for native application, for example, CPU, memory information.
@@ -279,10 +283,6 @@ For instructions for previous releases with FPGA Support, see documentation for 
 ## Troubleshooting
 
 If you got a proxy issues, please setup proxy settings for Docker. See the Proxy section in [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
-
-## Prebuilt images
-
-Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
 
 ## Additional Resources
 
