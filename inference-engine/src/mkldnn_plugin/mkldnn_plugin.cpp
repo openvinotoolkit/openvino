@@ -58,12 +58,10 @@
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
-#ifndef USE_CNNNETWORK_LPT
 # include <low_precision/transformer.hpp>
 # include <low_precision/convolution.hpp>
 # include <low_precision/group_convolution.hpp>
 # include <low_precision/multiply_to_group_convolution.hpp>
-#endif
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -89,8 +87,6 @@ Engine::~Engine() {
 }
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
-    OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNNPlugin, "Transformation");
-
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
@@ -155,7 +151,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     manager.run_passes(nGraphFunc);
 
-#ifndef USE_CNNNETWORK_LPT
     using namespace ngraph::pass::low_precision;
     if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(
@@ -173,7 +168,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
         transformer.transform(nGraphFunc);
     }
-#endif
 
     ngraph::pass::Manager legacyManager;
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -202,7 +196,11 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     });
     legacyManager.run_passes(nGraphFunc);
 
+    OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
+
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+
+    OV_ITT_TASK_NEXT(taskChain, "ConvertIOPrecision");
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
@@ -245,6 +243,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     }
 
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+
     bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
         Transformation(clonedNetwork, conf);
@@ -252,6 +251,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     }
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
+        OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "CNNNet_based_ConstFolding");
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
