@@ -1755,8 +1755,17 @@ void FuseFQIntoWeightsPass::run() {
                     << outputRange.first.size() << ", max size: " << outputRange.second.size();
             }
 
+            if (inputRange.first.size() != outputRange.first.size() ||
+                inputRange.second.size() != outputRange.second.size()) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " size of input and output range differs. "
+                    << "input min size: " << inputRange.first.size() << ", "
+                    << "output min size: " << outputRange.first.size() << ", "
+                    << "input max size: " << inputRange.second.size() << ", "
+                    << "output max size: " << outputRange.second.size();
+            }
+
             if (levels > std::numeric_limits<uint8_t>::max() && outputRange.first.size() > 1) {
-                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation for int16 weights."
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantization for int16 weights."
                     << " Per-channel quantization ";
             }
 

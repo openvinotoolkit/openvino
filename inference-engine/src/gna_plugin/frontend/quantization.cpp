@@ -253,7 +253,7 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             if (*ptr_quantized_weights &&
                 (value > std::numeric_limits<int8_t>::max() ||
                 value < std::numeric_limits<int8_t>::min())) {
-                THROW_GNA_EXCEPTION << "unsupported weights range for I8 quantisation: " << value;
+                THROW_GNA_EXCEPTION << "unsupported weights range for I8 quantization: " << value;
             }
 
             if (value > std::numeric_limits<int8_t>::max()) {

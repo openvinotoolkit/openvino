@@ -82,32 +82,65 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    std::shared_ptr<ngraph::Node> fakeQNode;
-    std::shared_ptr<ngraph::Node> fakeQNode2;
-    fakeQNode = ngraph::builder::makeFakeQuantize(
-            paramOuts[0],
-            ngraph::element::f32,
-            levels[0],
-            constShape[0],
-            {fqDirectArg[0]},
-            {fqDirectArg[1]},
-            {fqDirectArg[2]},
-            {fqDirectArg[3]});
-    auto const_param = ngraph::builder::makeConstant(ngPrc, {constShape[1][0], inputShape[1]}, std::vector<float>{1.0f}, false);
-    auto inputLowNode = ngraph::builder::makeConstant(ngraph::element::f32, constShape[0], std::vector<float>{fqDirectArg[2]}, false);
-    auto inputHighNode = ngraph::builder::makeConstant(ngraph::element::f32, constShape[0], std::vector<float>{fqDirectArg[3]}, false);
-    auto outputLowNode = ngraph::builder::makeConstant(ngraph::element::f32, constShape[1], std::vector<float>{fqDirectArg[2]}, false);
-    auto outputHighNode = ngraph::builder::makeConstant(ngraph::element::f32, constShape[1], std::vector<float>{fqDirectArg[3]}, false);
-
-    fakeQNode2 = std::make_shared<ngraph::opset1::FakeQuantize>(const_param, inputLowNode, inputHighNode, outputLowNode, outputHighNode, levels[1]);
+    const int seed = 0;
+    std::mt19937 gen(static_cast<float>(seed));
 
 
-    auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
-    auto fq2 = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode2);
-    auto matmul = std::make_shared<ngraph::opset1::MatMul>(fq, fq2, false, true);
+    auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
+        std::vector<float> res;
+
+        std::uniform_real_distribution<float> dist(min, max);
+        for (int i = 0; i < vec_len; i++)
+            res.emplace_back(static_cast<float>(dist(gen)));
+
+        return res;
+    };
+
+
+    auto weightsRowNum = constShape[1][0];
+    auto weightsColNum = inputShape[1];
+    auto weightsData = generateFloatNumbers(weightsRowNum * weightsColNum, inputDataMin, inputDataMax);
+    auto const_param = ngraph::builder::makeConstant<float>(ngPrc, { constShape[1][0], inputShape[1] }, { 1.0f });
+    auto inputMinRange = std::vector<float>{};
+    auto inputMaxRange = std::vector<float>{};
+    auto channelDataSize = constShape[1];
+
+    if (channelDataSize[0] == 1) {
+        // If per tensor data needs to be provided
+        inputMinRange.push_back(inputDataMin);
+        inputMaxRange.push_back(inputDataMax);
+    } else if (channelDataSize[0] == weightsRowNum) {
+        // If per channel data needs to be provided
+        for (size_t i = 0; i < weightsRowNum; ++i) {
+            auto minChannelVal = std::numeric_limits<float>::max();
+            auto maxChannelVal = std::numeric_limits<float>::min();
+            for (size_t j = 0; j < weightsColNum; ++j) {
+                minChannelVal = std::min(minChannelVal, weightsData[i * weightsColNum + j]);
+                maxChannelVal = std::max(maxChannelVal, weightsData[i * weightsColNum + j]);
+            }
+
+            inputMinRange.push_back(minChannelVal);
+            inputMaxRange.push_back(maxChannelVal);
+        }
+    } else {
+        FAIL() << "Invalid test configuration";
+    }
+
+    auto lowNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMinRange, false);
+    auto highNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMaxRange, false);
+
+    auto inputFQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, levels[0], constShape[0],
+        { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
+
+    auto weightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(const_param,
+        lowNode, highNode, lowNode, highNode, levels[1]);
+
+    auto inputFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(inputFQNode);
+    auto weightsFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(weightsFQNode);
+    auto matmul = std::make_shared<ngraph::opset1::MatMul>(inputFQ, weightsFQ, false, true);
     std::shared_ptr<ngraph::Node> biases_node;
     if (biases) {
-        auto const_bias = ngraph::builder::makeConstant(ngPrc, {1, constShape[1][0]}, std::vector<float>{-1.0f});
+        auto const_bias = ngraph::builder::makeConstant(ngPrc, {1, constShape[1][0]}, std::vector<float>{ -1.0f });
         biases_node = std::make_shared<ngraph::opset1::Add>(matmul, const_bias);
     } else {
         biases_node = matmul;
@@ -116,7 +149,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto sigmoid = std::make_shared<ngraph::opset1::Sigmoid>(biases_node);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(sigmoid)};
     if (biases) {
-        auto sigmoid_2 = std::make_shared<ngraph::opset1::Sigmoid>(fq);
+        auto sigmoid_2 = std::make_shared<ngraph::opset1::Sigmoid>(inputFQ);
         results.push_back(std::make_shared<ngraph::opset1::Result>(sigmoid_2));
     }
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantizeSubgraph");

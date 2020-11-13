@@ -411,7 +411,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & netwo
             if (inputRange.second.size() != 1 || inputRange.second.size() != 1 ||
                 outputRange.second.size() != 1 || outputRange.second.size() != 1) {
                 THROW_GNA_LAYER_EXCEPTION(nextToInputLayer.second)
-                    << "unsupported,per-channel quantisation for input layer : " << input.second->name();
+                    << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
             float scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
 
