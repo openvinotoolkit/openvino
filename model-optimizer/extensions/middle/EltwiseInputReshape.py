@@ -63,25 +63,21 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
                             reshape_op.out_port(0).connect(eltwise_op_node.in_port(port))
 
 
-# compute a map of unsqueeze_dims for each producer of eltwise node
 def compute_unsqueeze_map_for_eltwise(eltwise_node: Node):
+    '''
+    The function computes a map of unsqueeze_dims for each producer of eltwise node.
+    These unsqueeze_dims are needed to normalize input shapes of eltwise node.
+    '''
     eltwise_shape = eltwise_node.out_port(0).data.get_shape()
-    max_dims = None
-    for in_port_idx in eltwise_node.in_ports():
-        consumer_port = eltwise_node.in_port(in_port_idx)
-        producer_port = consumer_port.get_source()
-        producer_shape = producer_port.data.get_shape()
-        if max_dims is None or len(producer_shape) > max_dims:
-            max_dims = len(producer_shape)
-
-    axis = eltwise_node.axis if eltwise_node.has_valid('axis') else None
+    max_dims = max(
+        [len(port.data.get_shape()) for port in eltwise_node.in_ports().values() if port.data.get_shape() is not None])
+    axis = eltwise_node.soft_get('axis', None)
     unsqueeze_dims_map = {}
-    for in_port_idx in eltwise_node.in_ports():
-        consumer_port = eltwise_node.in_port(in_port_idx)
+    for consumer_port in eltwise_node.in_ports().values():
         producer_port = consumer_port.get_source()
         producer_shape = producer_port.data.get_shape()
-
         unsqueeze_dims = int64_array([])
+
         # 1. Compute unsqueeze dimensions in the tail
         if len(producer_shape) != max_dims and len(producer_shape) > 0 and axis is not None:
             num_unsqueeze_dims = max_dims - axis - len(producer_shape)
@@ -100,16 +96,19 @@ def compute_unsqueeze_map_for_eltwise(eltwise_node: Node):
     return unsqueeze_dims_map
 
 
-# normalize input shapes for eltwise node by using Unsqueeze operation
 def normalize_eltwise_inputs(graph: Graph):
+    '''
+    The function normalizes input shapes for eltwise nodes.
+    In the first step the function gets to know which shapes/unsqueeze dims for inputs are required for normalization.
+    In the second step the function inserts Unsqueeze nodes between non-normalized inputs and eltwise nodes.
+    '''
     # Generate a map for producers of eltwise nodes with non-normalized shapes
     # and in this map every producer has another map that reflects normalized shape
     # to a list of eltwise consumers
     mapping = {}
     for eltwise_node in graph.get_op_nodes(is_eltwise=True):
         unsqueeze_dims_map = compute_unsqueeze_map_for_eltwise(eltwise_node)
-        for in_port_idx in eltwise_node.in_ports():
-            consumer_port = eltwise_node.in_port(in_port_idx)
+        for consumer_port in eltwise_node.in_ports().values():
             producer_port = consumer_port.get_source()
             unsqueeze_dims = unsqueeze_dims_map[producer_port]
             if unsqueeze_dims is not None and len(unsqueeze_dims) > 0:

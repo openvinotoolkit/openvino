@@ -14,11 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
 
 
 def eltwise_infer(node, op=None, **kwargs):
