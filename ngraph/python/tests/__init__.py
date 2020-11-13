@@ -235,3 +235,4 @@ xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of ty
 xfail_issue_41815 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::NonMaxSuppression casted "
                                       "(yolo_evaluation_layer_1/concat_6:0_btc[0]:f32{1,2535,4},")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
+xfail_issue_42818 = xfail_test(reason="AssertionError: This model has no test data")
