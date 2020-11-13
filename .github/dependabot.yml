@@ -1,0 +1,13 @@
+version: 2
+updates:
+- package-ecosystem: pip
+  directory: "/ngraph/python"
+  schedule:
+    interval: weekly
+    day: monday
+    time: "13:00"
+  open-pull-requests-limit: 10
+  reviewers:
+  - postrational
+  labels:
+  - dependencies
