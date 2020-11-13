@@ -1531,8 +1531,9 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         uint32_t w_dim_in = FROM_IR_DIM(inputs, 1);
         uint32_t h_dim_in = FROM_IR_DIM(inputs, 2);
         uint32_t c_dim_in = FROM_IR_DIM(inputs, 3);
+        uint32_t b_dim_in = FROM_IR_DIM(inputs, 4);
 
-        num_columns = (w_dim_in == 1) ? h_dim_in * c_dim_in : w_dim_in * c_dim_in;
+        num_columns = (w_dim_in == 1) ? h_dim_in * c_dim_in * b_dim_in : w_dim_in * c_dim_in * b_dim_in;
         num_rows = (w_dim_in == 1) ? w_dim_in : h_dim_in;
     } else {
         num_columns = FROM_IR_DIM(inputs, 2);
@@ -1554,7 +1555,6 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
             layer->params["output_offset"] = std::to_string(rowsCopiedOffset);
         }
     }
-
     size_t num_data_bytes_out = num_columns * num_rows * outputs->getPrecision().size();
     size_t num_data_bytes_in = num_columns * num_rows * inputs->getPrecision().size();
 
@@ -2041,7 +2041,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             // if request for allocation less that realTensorInput - we need to extend request
             auto minInput = inputDesc->minBytesRequiredForStoreInput(prevLayer);
             if (num_data_bytes_in < minInput) {
-                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, 8);
+                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, 8) << "\n";
                 num_data_bytes_in = ALIGN(minInput, 8);
             }
 
