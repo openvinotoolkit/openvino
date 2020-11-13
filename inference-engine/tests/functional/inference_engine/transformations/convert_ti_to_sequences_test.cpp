@@ -34,8 +34,8 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         auto Zi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto squeeze = std::make_shared<opset5::Squeeze>(Xi, axis);
+        auto reshape_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 16});
+        auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
@@ -46,8 +46,8 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
 
         auto lstm_cell = std::make_shared<opset5::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
         auto res_1 = std::make_shared<opset5::Result>(lstm_cell);
-        auto axis_unsqueeze = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(lstm_cell, axis_unsqueeze);
+        auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 128});
+        auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                ParameterVector{Xi, Yi, Zi});
@@ -121,8 +121,8 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto squeeze = std::make_shared<opset5::Squeeze>(Xi, axis);
+        auto reshape_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 16});
+        auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
@@ -133,8 +133,8 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
 
         auto rnn_cell = std::make_shared<opset5::RNNCell>(squeeze, Yi, W, R, B, 128);
         auto res_1 = std::make_shared<opset5::Result>(rnn_cell);
-        auto axis_unsqueeze = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell, axis_unsqueeze);
+        auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 128});
+        auto unsqueeze = std::make_shared<opset5::Reshape>(rnn_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                ParameterVector{Xi, Yi});
@@ -204,8 +204,8 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto squeeze = std::make_shared<opset5::Squeeze>(Xi, axis);
+        auto reshape_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 16});
+        auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
@@ -216,8 +216,8 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
 
         auto gru_cell = std::make_shared<opset5::GRUCell>(squeeze, Yi, W, R, B, 128);
         auto res_1 = std::make_shared<opset5::Result>(gru_cell);
-        auto axis_unsqueeze = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(gru_cell, axis_unsqueeze);
+        auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 128});
+        auto unsqueeze = std::make_shared<opset5::Reshape>(gru_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                ParameterVector{Xi, Yi});
