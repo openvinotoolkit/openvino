@@ -140,7 +140,7 @@ public:
     virtual void read(void* p, size_t n) const override;
     bool has_storage() const;
     void release_storage();
-    void make_storage(const element::Type& element_type, const Shape& shape);
+    void make_storage(const element::Type& element_type, const PartialShape& shape);
     const std::shared_ptr<ngraph::runtime::Tensor>& get_wrapped_tensor() const;
 
 private:

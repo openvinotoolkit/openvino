@@ -102,16 +102,23 @@ namespace ngraph
                     const auto& function_output =
                         m_function->get_results()[m_allocated_expected_outputs];
 
-                    network_out_name = function_output->get_friendly_name();
+                    // determine output name in IE convention
+                    // (based on name of node which produces the result)
+                    const auto& prev_layer = function_output->input_value(0);
+                    network_out_name = prev_layer.get_node_shared_ptr()->get_friendly_name();
+                    if (prev_layer.get_node_shared_ptr()->get_output_size() != 1)
+                    {
+                        network_out_name += "." + std::to_string(prev_layer.get_index());
+                    }
 
                     NGRAPH_CHECK(
                         m_network_outputs.count(network_out_name) == 1,
                         "nGraph function's output number ",
                         m_allocated_expected_outputs,
                         " was not found in the CNNNetwork built from it. Function's output name: ",
-                        function_output->get_friendly_name());
+                        network_out_name);
 
-                    network_output = m_network_outputs[function_output->get_friendly_name()];
+                    network_output = m_network_outputs[network_out_name];
                 }
 
                 auto blob =
