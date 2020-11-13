@@ -87,8 +87,6 @@ Engine::~Engine() {
 }
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
-    OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNNPlugin, "Transformation");
-
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
@@ -198,7 +196,11 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     });
     legacyManager.run_passes(nGraphFunc);
 
+    OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
+
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+
+    OV_ITT_TASK_NEXT(taskChain, "ConvertIOPrecision");
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
@@ -241,6 +243,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     }
 
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+
     bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
         Transformation(clonedNetwork, conf);
@@ -248,6 +251,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     }
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
+        OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "CNNNet_based_ConstFolding");
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
