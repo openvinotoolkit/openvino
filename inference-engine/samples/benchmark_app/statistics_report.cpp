@@ -96,7 +96,7 @@ void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCount
         return;
     }
     if (perfCounts.empty()) {
-        slog::info << "Peformance counters are empty. No reports are dumped." << slog::endl;
+        slog::info << "Performance counters are empty. No reports are dumped." << slog::endl;
         return;
     }
     CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_" + _config.report_type + "_report.csv");
