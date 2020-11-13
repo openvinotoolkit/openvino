@@ -240,21 +240,29 @@ CoordinateTransformBasic::CoordinateTransformBasic(const Shape& source_shape)
     : m_source_shape(source_shape)
     , m_n_axes(m_source_shape.size())
 {
+    m_stride.reserve(m_source_shape.size());
+    m_stride.push_back(1);
+    if (m_source_shape.size() > 1)
+    {
+        std::partial_sum(m_source_shape.rbegin(),
+                         std::prev(m_source_shape.rend()),
+                         std::back_inserter(m_stride),
+                         std::multiplies<size_t>{});
+    }
+    std::reverse(std::begin(m_stride), std::end(m_stride));
 }
 
 // Compute the index of a source-space coordinate in the buffer.
 size_t CoordinateTransformBasic::index(const Coordinate& c) const noexcept
 {
     size_t index = 0;
-    size_t stride = 1;
     size_t const padding = c.size() - m_source_shape.size();
 
     for (size_t axis = m_source_shape.size(); axis-- > 0;)
     {
         if (m_source_shape[axis] > 1)
         {
-            index += c[axis + padding] * stride;
-            stride *= m_source_shape[axis];
+            index += c[axis + padding] * m_stride[axis];
         }
     }
 

@@ -94,6 +94,7 @@ namespace ngraph
 
     protected:
         Shape m_source_shape;
+        std::vector<size_t> m_stride;
         size_t m_n_axes;
     };
 
@@ -141,7 +142,7 @@ namespace ngraph
 
         /// \brief The tensor element index calculation by given coordinate.
         /// \param c tensor element coordinate
-        size_t index(const Coordinate& c) const;
+        size_t index(const Coordinate& c) const ;
 
         /// \brief Checks that coordinate belongs to given coordinates subset.
         /// \param c tensor element coordinate
