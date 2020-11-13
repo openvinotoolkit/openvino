@@ -948,7 +948,10 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
 
     auto parent = newOperation;
     if (shouldConvert) {
-        parent = std::make_shared<DequantizationConvert>(parent, dequantization.convert->get_output_element_type(0));
+        const auto convertOutputPrecision = dequantization.convert != nullptr ?
+            dequantization.convert->get_output_element_type(0) :
+            dequantization.multiply->get_output_element_type(0);
+        parent = std::make_shared<DequantizationConvert>(parent, convertOutputPrecision);
         ngraph::copy_runtime_info({ newOperation, parent }, parent);
     }
 
