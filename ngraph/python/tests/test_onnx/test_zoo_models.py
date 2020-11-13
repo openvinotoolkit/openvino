@@ -95,6 +95,9 @@ tolerance_map = {
     "resnet34v2": {"atol": 1e-05, "rtol": 0.001},
     "vgg16": {"atol": 1e-05, "rtol": 0.001},
     "vgg19-bn": {"atol": 1e-05, "rtol": 0.001},
+    "test_tiny_yolov2": {"atol": 1e-05, "rtol": 0.001},
+    "test_resnet152v2": {"atol": 1e-04, "rtol": 0.001},
+    "test_mobilenetv2-1": {"atol": 1e-04, "rtol": 0.001},
 }
 
 zoo_models = []
@@ -161,15 +164,11 @@ if len(zoo_models) > 0:
             (xfail_issue_41815, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov3_model_tiny_yolov3_11_yolov3_tiny_cpu"),
 
             # Model MSFT
-            (xfail_issue_36533, "test_MSFT_opset10_tf_inception_v2_model_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset8_test_tiny_yolov2_model_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset9_tf_inception_v2_model_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset8_tf_inception_v2_model_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset7_test_resnet152v2_resnet152v2_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset7_test_tiny_yolov2_model_cpu"),
             (xfail_issue_36533, "test_MSFT_opset7_tf_inception_v2_model_cpu"),
+            (xfail_issue_36533, "test_MSFT_opset8_tf_inception_v2_model_cpu"),
+            (xfail_issue_36533, "test_MSFT_opset9_tf_inception_v2_model_cpu"),
             (xfail_issue_36533, "test_MSFT_opset11_tf_inception_v2_model_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset7_test_mobilenetv2_1.0_mobilenetv2_1.0_cpu"),
+            (xfail_issue_36533, "test_MSFT_opset10_tf_inception_v2_model_cpu"),
 
             (xfail_issue_40686, "test_MSFT_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
             (xfail_issue_40686, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
