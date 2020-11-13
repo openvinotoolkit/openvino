@@ -6,6 +6,8 @@
 #include <fstream>
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
+#include <queue>
 
 #include <ngraph/variant.hpp>
 #include "ngraph/ops.hpp"
@@ -130,11 +132,41 @@ void visit_exec_graph_node(pugi::xml_node& data, std::string& node_type_name,
     }
 }
 
+std::vector<std::shared_ptr<Node>> get_ordered_ops(const ngraph::Function& f) {
+    // Breadth-first traversal starting from graph outputs
+    std::vector<std::shared_ptr<Node>> ordered;
+    std::queue<std::shared_ptr<Node>> visit_queue;
+    std::unordered_set<Node*> visited;
+
+    auto results = f.get_results();
+    for (auto result = results.crbegin(); result != results.crend(); ++result) {
+        visit_queue.push(*result);
+        visited.insert(result->get());
+    }
+
+    while (visit_queue.size()) {
+        auto node = visit_queue.front();
+        auto inputs = node->inputs();
+        for (auto input = inputs.crbegin(); input != inputs.crend(); ++input) {
+            auto source_output =
+                input->get_source_output().get_node_shared_ptr();
+            if (visited.find(source_output.get()) == visited.end()) {
+                visit_queue.push(source_output);
+                visited.insert(source_output.get());
+            }
+        }
+        ordered.push_back(node);
+        visit_queue.pop();
+    }
+    std::reverse(ordered.begin(), ordered.end());
+    return ordered;
+}
+
 const std::unordered_map<ngraph::Node*, int> create_layer_ids(
     const ngraph::Function& f) {
     std::unordered_map<ngraph::Node*, int> layer_ids;
     int id = 0;
-    for (const auto& node : f.get_ordered_ops()) {
+    for (const auto& node : get_ordered_ops(f)) {
         layer_ids[node.get()] = id++;
     }
     return layer_ids;
@@ -144,7 +176,7 @@ const std::vector<Edge> create_edge_mapping(
     const std::unordered_map<ngraph::Node*, int>& layer_ids,
     const ngraph::Function& f) {
     std::vector<Edge> edges;
-    for (const auto& node : f.get_ordered_ops()) {
+    for (const auto& node : get_ordered_ops(f)) {
         if (ngraph::op::is_parameter(node)) {
             continue;
         }
@@ -313,7 +345,7 @@ void ngfunction_2_irv10(
         create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
-    for (const auto& n : f.get_ordered_ops()) {
+    for (const auto& n : get_ordered_ops(f)) {
         ngraph::Node* node = n.get();
 
         NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(), "Internal error");

@@ -69,13 +69,12 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs_MO) {
     expected.serialize(m_out_xml_path, m_out_bin_path);
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
-    // Compare function does not support models with multiple outputs
     bool success;
     std::string message;
     std::tie(success, message) =
         compare_functions(result.getFunction(), expected.getFunction());
 
-    ASSERT_FALSE(success) << message;
+    ASSERT_TRUE(success) << message;
 }
 
 TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
@@ -87,13 +86,12 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
     expected.serialize(m_out_xml_path, m_out_bin_path);
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
-    // Compare function does not support models with multiple outputs
     bool success;
     std::string message;
     std::tie(success, message) =
         compare_functions(result.getFunction(), expected.getFunction());
 
-    ASSERT_FALSE(success) << message;
+    ASSERT_TRUE(success) << message;
 }
 
 TEST_F(SerializationTest, ModelWithMultipleLayers_MO) {
