@@ -345,8 +345,8 @@ TEST(copy, sinh)
 TEST(copy, strided_slice)
 {
     Shape shape_in{2, 3, 4};
-    Coordinate lower{0, 0, 0};
-    Coordinate upper{2, 3, 4};
+    std::vector<size_t> lower{0, 0, 0};
+    std::vector<size_t> upper{2, 3, 4};
     Strides strides{1, 1, 1};
 
     auto arg0 = make_shared<op::Parameter>(element::f32, shape_in);

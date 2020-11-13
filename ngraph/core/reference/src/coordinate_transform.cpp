@@ -557,7 +557,7 @@ const CoordinateIterator& CoordinateTransform::end() const noexcept
 // The "is_end" parameter is true if we want the "end()" iterator.
 CoordinateIterator::CoordinateIterator(const Shape& target_shape, bool is_end)
     : m_target_shape(target_shape)
-    , m_coordinate(target_shape.size(), 0)
+    , m_coordinate(target_shape.size())
 {
     // The case where we have a zero-length axis is a bit special, in that
     // the iterator always starts out of bounds.

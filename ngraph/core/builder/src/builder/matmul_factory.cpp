@@ -57,8 +57,8 @@ static Output<Node> get_sub_matrix(const Output<Node>& node, size_t idx)
     upper_bounds.at(0) = idx + 1;
 
     std::vector<int64_t> mask(shape.size(), 0);
-    auto begin = op::Constant::create(element::i64, {lower_bounds.size()}, lower_bounds);
-    auto end = op::Constant::create(element::i64, {upper_bounds.size()}, upper_bounds);
+    auto begin = op::Constant::create(element::i64, {lower_bounds.size()}, static_cast<std::vector<size_t>>(lower_bounds));
+    auto end = op::Constant::create(element::i64, {upper_bounds.size()}, static_cast<std::vector<size_t>>(upper_bounds));
     auto sub_matrix = make_shared<op::v1::StridedSlice>(node, begin, end, mask, mask);
     // Remove first single entry dim.
     return builder::opset1::squeeze(sub_matrix);

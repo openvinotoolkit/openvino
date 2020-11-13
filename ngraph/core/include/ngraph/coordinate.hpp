@@ -25,8 +25,103 @@
 
 namespace ngraph
 {
+    namespace details
+    {
+        class CoordinateImpl
+        {
+        public:
+            enum
+            {
+                max_size = 20
+            };
+
+            CoordinateImpl() = default;
+
+            template <typename It>
+            CoordinateImpl(It first, It last)
+            {
+                std::copy(first, last, m_data.data());
+                m_size = std::distance(first, last);
+            }
+
+            template <typename T>
+            CoordinateImpl(const T& v)
+                : CoordinateImpl(std::begin(v), std::end(v))
+            {
+            }
+
+            CoordinateImpl(size_t s, size_t v = 0)
+                : m_size{s}
+            {
+                if (v != 0)
+                {
+                    std::fill_n(data(), s, v);
+                }
+                else
+                {
+                    m_data = {};
+                }
+            }
+
+            size_t operator[](size_t i) const noexcept { return m_data[i]; }
+            size_t& operator[](size_t i) noexcept { return m_data[i]; }
+
+            size_t at(size_t i) const
+            {
+                if (i >= m_size)
+                {
+                    throw std::runtime_error{"index out of range"};
+                }
+                return m_data[i];
+            }
+
+            size_t& at(size_t i)
+            {
+                if (i >= m_size)
+                {
+                    throw std::runtime_error{"index out of range"};
+                }
+                return m_data[i];
+            }
+
+            void push_back(size_t v)
+            {
+                m_data[m_size] = v;
+                ++m_size;
+            }
+
+            size_t size() const noexcept { return m_size; }
+
+            size_t* data() noexcept { return m_data.data(); }
+
+            const size_t* data() const noexcept { return m_data.data(); }
+
+            const size_t* begin() const { return data(); }
+            size_t* begin() { return data(); }
+            const size_t* end() const { return std::next(data(), size()); }
+            size_t* end() { return std::next(data(), size()); }
+
+            friend bool operator<(const CoordinateImpl& lhs, const CoordinateImpl& rhs)
+            {
+                return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+            }
+
+            friend bool operator==(const CoordinateImpl& lhs, const CoordinateImpl& rhs)
+            {
+                return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin());
+            }
+            friend bool operator!=(const CoordinateImpl& lhs, const CoordinateImpl& rhs)
+            {
+                return !(lhs == rhs);
+            }
+
+        private:
+            std::array<size_t, max_size> m_data;
+            size_t m_size = 0;
+        };
+    } // namespace details
     /// \brief Coordinates for a tensor element
-    class Coordinate : public std::vector<size_t>
+    class Coordinate : public details::CoordinateImpl
     {
     public:
         NGRAPH_API Coordinate();
@@ -44,8 +139,13 @@ namespace ngraph
 
         template <class InputIterator>
         Coordinate(InputIterator first, InputIterator last)
-            : std::vector<size_t>(first, last)
+            : details::CoordinateImpl(first, last)
         {
+        }
+
+        operator std::vector<size_t>() const
+        {
+            return std::vector<size_t>(data(), std::next(data(), size()));
         }
 
         NGRAPH_API Coordinate& operator=(const Coordinate& v);
@@ -69,4 +169,4 @@ namespace ngraph
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const Coordinate& coordinate);
-}
+} // namespace ngraph
