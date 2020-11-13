@@ -260,6 +260,7 @@ namespace SubgraphTestsDefinitions {
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+        IE_SUPPRESS_DEPRECATED_START
         LoadNetwork();
         auto states = executableNetwork.QueryState();
         for (auto& state : states) {
@@ -276,6 +277,7 @@ namespace SubgraphTestsDefinitions {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
+        IE_SUPPRESS_DEPRECATED_END
         Infer();
         switchToNgraphFriendlyModel();
         Validate();
@@ -297,6 +299,7 @@ namespace SubgraphTestsDefinitions {
             manager.run_passes(function);
             LoadNetwork();
         }
+        IE_SUPPRESS_DEPRECATED_START
         auto states = executableNetwork.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
@@ -312,6 +315,7 @@ namespace SubgraphTestsDefinitions {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
+        IE_SUPPRESS_DEPRECATED_END
         Infer();
 
         CreatePureTensorIteratorModel();
