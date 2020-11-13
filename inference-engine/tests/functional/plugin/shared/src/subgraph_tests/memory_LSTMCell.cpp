@@ -58,13 +58,13 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        input_bias = CommonTestUtils::generate_float_numbers(inputSize, -0.25f, 0.0f);
-        input_weights = CommonTestUtils::generate_float_numbers(inputSize, 0.0f, 0.15f);
+        input_bias = CommonTestUtils::generate_float_numbers(inputSize, -0.2f, 0.0f);
+        input_weights = CommonTestUtils::generate_float_numbers(inputSize, 0.0f, 0.1f);
         hidden_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
         cell_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
         weights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
         reccurrenceWeights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
-        bias_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize, -0.25f, 0.15f);
+        bias_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize, -0.2f, 0.1f);
 
         auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
 
