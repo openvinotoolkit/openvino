@@ -19,9 +19,11 @@
 #include "ngraph/evaluator.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/convert.hpp"
+#include "ngraph/op/gather.hpp"
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/minimum.hpp"
 #include "ngraph/op/reshape.hpp"
+#include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -1084,6 +1086,54 @@ namespace
         // Noting we can do
         return {MaxValue(data.m_value)};
     }
+
+    vector<MaxValue> exec_shape_of(Node* node, vector<MaxValue>& inputs)
+    {
+        const auto& inputPS = node->get_input_partial_shape(0);
+        std::vector<uint64_t> shapeDims;
+        for (size_t i = 0; i < inputPS.rank().get_length(); i++)
+        {
+            if (inputPS[i].is_static())
+            {
+                shapeDims.push_back(inputPS[i].get_length());
+            }
+            else
+            {
+                shapeDims.push_back(std::numeric_limits<uint64_t>::max());
+            }
+        }
+
+        return {MaxValue(shapeDims, 0)};
+    }
+
+    vector<MaxValue> exec_gather(Node* node, vector<MaxValue>& inputs)
+    {
+        auto gather = as_type<op::v1::Gather>(node);
+
+        const auto& indices =
+            as_type_ptr<op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
+        const auto& axis =
+            as_type_ptr<op::v0::Constant>(node->input_value(2).get_node_shared_ptr());
+
+        if (!indices || !axis)
+        {
+            return {MaxValue()};
+        }
+
+        if (gather->get_axis() != 0)
+        {
+            return {MaxValue()};
+        }
+
+        const auto& indicesVec = indices->cast_vector<int64_t>();
+        if (indicesVec.size() != 1 || indicesVec[0] >= inputs[0].m_slices.size())
+        {
+            return {MaxValue()};
+        }
+
+        return {MaxValue(inputs[0].m_slices[indicesVec[0]])};
+    }
+
     vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) { return {inputs.at(0)}; }
 }
 
@@ -1093,12 +1143,14 @@ pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
         {op::v0::Concat::type_info, exec_concat},
         {op::v0::Constant::type_info, exec_constant},
         {op::v0::Convert::type_info, exec_nop},
+        {op::v1::Gather::type_info, exec_gather},
         {op::v0::Minimum::type_info, exec_minimum},
         {op::v1::Minimum::type_info, exec_minimum},
         {op::v1::ReduceMin::type_info, exec_reduce_min},
+        {op::v1::Reshape::type_info, exec_nop},
+        {op::v3::ShapeOf::type_info, exec_shape_of},
         {op::v0::Squeeze::type_info, exec_nop},
-        {op::v0::Unsqueeze::type_info, exec_nop},
-        {op::v1::Reshape::type_info, exec_nop}};
+        {op::v0::Unsqueeze::type_info, exec_nop}};
     Evaluator<MaxValue>::value_map value_map;
     Evaluator<MaxValue> evaluator(handlers, value_map);
     auto val = evaluator.evaluate(value);

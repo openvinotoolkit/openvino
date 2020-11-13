@@ -18,6 +18,7 @@ ngraph::vpu::op::StaticShapeTopK::StaticShapeTopK(
         const element::Type& index_element_type)
         : Op{{data, k}}
         , m_axis{axis}
+        , m_maximumK{-1}
         , m_normalized_axis{0}
         , m_mode{as_enum<Mode>(mode)}
         , m_sort{as_enum<SortType>(sort)}
@@ -34,6 +35,7 @@ ngraph::vpu::op::StaticShapeTopK::StaticShapeTopK(
         const ngraph::element::Type &index_element_type)
         : Op{{data, k}}
         , m_axis{axis}
+        , m_maximumK{-1}
         , m_normalized_axis{0}
         , m_mode{mode}
         , m_sort{sort}
@@ -95,11 +97,12 @@ void ngraph::vpu::op::StaticShapeTopK::validate_and_infer_types() {
         const auto is_max_value_calculated = max_k.first;
         const auto calculated_max_value = max_k.second;
         if (is_max_value_calculated) {
-            output_shape[m_normalized_axis] = calculated_max_value;
-        } else {
-            output_shape[m_normalized_axis] = -1;
+            m_maximumK = calculated_max_value;
         }
     }
+
+    output_shape[m_normalized_axis] = m_maximumK;
+
     NODE_VALIDATION_CHECK(this, output_shape.is_static(),
             "StaticShapeTopK output shape is not fully defined: ", output_shape);
 

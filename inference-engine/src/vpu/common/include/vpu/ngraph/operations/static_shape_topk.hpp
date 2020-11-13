@@ -58,6 +58,7 @@ public:
 
 protected:
     int64_t m_axis;
+    int64_t m_maximumK;
     uint64_t m_normalized_axis;
     Mode m_mode;
     SortType m_sort;
