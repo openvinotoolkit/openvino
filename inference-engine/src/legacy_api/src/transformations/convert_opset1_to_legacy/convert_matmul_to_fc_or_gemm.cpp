@@ -18,6 +18,7 @@
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/utils/utils.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFCorGemm, "ConvertMatMulToFCorGemm", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFC, "ConvertMatMulToFC", 0);
 
 ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {

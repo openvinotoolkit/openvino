@@ -1181,6 +1181,7 @@ void NMSValidator::parseParams(CNNLayer* layer) {
 
     casted->center_point_box = layer->GetParamAsBool("center_point_box", false);
     casted->sort_result_descending = layer->GetParamAsBool("sort_result_descending", true);
+    casted->output_type = layer->GetParamAsString("output_type", "I64");
 }
 
 #define REG_LAYER_VALIDATOR_FOR_TYPE(__validator, __type) _validators[#__type] = std::make_shared<__validator>(#__type)
