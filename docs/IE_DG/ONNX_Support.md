@@ -35,7 +35,7 @@ the path saved in model should be:
 * A single model can use many external weights files.
 * Data of many tensors can be stored in a single external weights file (it is processed using offset and length values which can be also saved in a model).
 
-The described mechanism is the only possibility to read weights from external files. The following input parameters of `ReadNetwork` function overloads are NOT supported for ONNX models and should be passed as empty (or `nullptr`):
+The described mechanism is the only possibility to read weights from external files. The following input parameters of `ReadNetwork` function overloads are NOT supported for ONNX models and should be passed as empty:
 * `const std::wstring& binPath`
 * `const std::string& binPath`
 * `const Blob::CPtr& weights`

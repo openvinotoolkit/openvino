@@ -45,7 +45,7 @@ weights respectively.
 
 Currently there are no possibility to read external weights from memory for ONNX models.
 Function `ReadNetwork(const std::string& model, const Blob::CPtr& weights)`
-should be called with `weights` equal `nullptr` in such a case.
+should be called with `weights` passed as an empty `Blob`.
 
 @snippet openvino/docs/snippets/protecting_model_guide.cpp part1
 
