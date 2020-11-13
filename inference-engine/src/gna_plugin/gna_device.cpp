@@ -75,7 +75,7 @@ void GNADeviceHelper::propagateSync(const uint32_t requestConfigId, Gna2Accelera
 }
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
-    uint32_t reqId;
+    uint32_t reqId{};
     if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";

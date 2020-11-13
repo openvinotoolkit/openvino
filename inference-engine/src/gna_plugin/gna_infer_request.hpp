@@ -8,12 +8,14 @@
 #include <string>
 #include <map>
 
+#include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
 #include "gna_plugin.hpp"
 
 namespace GNAPluginNS {
 
 class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
+ protected:
     std::shared_ptr<GNAPlugin> plg;
     uint32_t inferRequestIdx = -1;
 

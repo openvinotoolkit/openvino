@@ -129,6 +129,9 @@ GNA2_API enum Gna2Status Gna2RequestEnqueue(
 GNA2_API enum Gna2Status Gna2RequestWait(
     uint32_t requestId,
     uint32_t timeoutMilliseconds) {
+    if (current != nullptr) {
+        return current->Gna2RequestWait(requestId, timeoutMilliseconds);
+    }
     return Gna2StatusSuccess;
 }
 

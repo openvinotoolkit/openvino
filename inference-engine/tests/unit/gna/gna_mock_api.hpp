@@ -80,5 +80,8 @@ public:
         uint32_t sizeRequested,
         uint32_t * sizeGranted,
         void ** memoryAddress));
+    MOCK_METHOD2(Gna2RequestWait, Gna2Status(
+        uint32_t requestId,
+        uint32_t timeoutMilliseconds));
 #endif
 };
