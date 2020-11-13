@@ -17,6 +17,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <vector>
 
 #include "ngraph/attribute_adapter.hpp"
