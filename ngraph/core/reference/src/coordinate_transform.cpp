@@ -91,11 +91,30 @@ namespace
             {
                 const size_t source_axis = m_source_axis_order[target_axis];
 
+                constexpr bool is_default_source_strides =
+                    std::is_same<DefaultStrides, SourceStrides>::value;
+                constexpr bool is_default_start_corner =
+                    std::is_same<DefaultStartCorner, CoordinateCorner>::value;
+                constexpr bool is_default_padding =
+                    std::is_same<DefaultPading, TargetPadding>::value;
+                constexpr bool is_default_dilation_strides =
+                    std::is_same<DefaultStrides, DilationStrides>::value;
+
                 const size_t target_pos = c_target[target_axis];
-                const size_t pos_destrided = target_pos * m_source_strides[source_axis];
-                const size_t pos_deshifted = pos_destrided + m_source_start_corner[source_axis];
-                const size_t pos_depadded = pos_deshifted - m_target_padding_below[target_axis];
-                const size_t pos_dedilated = pos_depadded / m_target_dilation_strides[target_axis];
+                const size_t pos_destrided = is_default_source_strides
+                                                 ? target_pos
+                                                 : target_pos * m_source_strides[source_axis];
+                const size_t pos_deshifted =
+                    is_default_start_corner ? pos_destrided
+                                            : pos_destrided + m_source_start_corner[source_axis];
+
+                const size_t pos_depadded =
+                    is_default_padding ? pos_deshifted
+                                       : pos_deshifted - m_target_padding_below[target_axis];
+                const size_t pos_dedilated =
+                    is_default_dilation_strides
+                        ? pos_depadded
+                        : pos_depadded / m_target_dilation_strides[target_axis];
                 c_source[source_axis] = pos_dedilated;
             }
 
@@ -215,7 +234,7 @@ namespace
         return result;
     }
 
-//    Coordinate default_source_start_corner(size_t n_axes) { return Coordinate(n_axes, 0); }
+    //    Coordinate default_source_start_corner(size_t n_axes) { return Coordinate(n_axes, 0); }
 } // namespace
 
 CoordinateTransformBasic::CoordinateTransformBasic(const Shape& source_shape)
