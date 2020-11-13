@@ -130,6 +130,7 @@ endif ()
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT)
+    reset_deps_cache(TBB_DIR)
 
     if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
         if (WIN32 AND X86_64)
@@ -169,6 +170,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
+    update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB root folder")
 
     if (WIN32)
         log_rpath_from_dir(TBB "${TBB}/bin")
