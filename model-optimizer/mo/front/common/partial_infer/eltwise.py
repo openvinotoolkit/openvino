@@ -24,7 +24,6 @@ from mo.graph.graph import Node
 def eltwise_infer(node, op=None, **kwargs):
     raw_inputs = [(inp, attr) for inp, attr in node.get_sorted_inputs()
                   if 'control_flow_edge' not in attr or not attr['control_flow_edge']]
-    inputs = [Node(node.graph, inp) for inp, attr in raw_inputs]
     shapes = [node.graph.node[inp]['shape'] for inp, attr in raw_inputs]
     values = [node.graph.node[inp]['value'] for inp, attr in raw_inputs]
 
@@ -47,25 +46,11 @@ def eltwise_infer(node, op=None, **kwargs):
         if len(shape) != max_dims and len(shape) > 0 and axis is not None:
             new_shape = shape
 
-            # Compute unsqueeze_dims
-            num_unsqueeze_dims = max_dims - axis - len(shape)
-            unsqueeze_dims = int64_array([])
-            if num_unsqueeze_dims > 0:
-                unsqueeze_dims = np.arange(len(shape), len(shape) + num_unsqueeze_dims, dtype=np.int64)
-
             # Extend shape with 1's
             for cnt in range(axis + len(shape), max_dims):
                 new_shape = np.append(new_shape, 1)
 
             shapes[id] = new_shape
-
-            # Save shape for further transformation that applies this shapes for input nodes
-            # We set new_shape attribute on edge for given input node
-            edge_attrs = node.graph.get_edge_data(inputs[id].id, node.id)[0]
-
-            nx.set_edge_attributes(G=node.graph,
-                                   values={(inputs[id].id, node.id, 0): unsqueeze_dims},
-                                   name='unsqueeze_dims')
 
             # Reshape value to correctly calculate output shape
             if values[id] is not None:
