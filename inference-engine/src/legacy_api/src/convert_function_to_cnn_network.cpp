@@ -692,6 +692,106 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
         return res;
     });
+
+    addSpecificCreator({"LRN_IE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                      const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Norm", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::NormLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"MatMul"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                      const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Gemm", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::GemmLayer>(attrs);
+
+        auto transpUppercaseFirstChar = [](const std::string& transpose) -> std::string {
+            std::string value = transpose;
+            value.at(0) = ::toupper(value.at(0));
+            return value;
+        };
+
+        res->params["transpose_a"] = transpUppercaseFirstChar(params.at("transpose_a"));
+        res->params["transpose_b"] = transpUppercaseFirstChar(params.at("transpose_b"));
+        return res;
+    });
+
+    addSpecificCreator({"OneHotIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                      const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "OneHot", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::OneHotLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"PadIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                      const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Pad", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::PadLayer>(attrs);
+
+        res->params["pad_mode"] = params.at("pad_mode");
+        res->params["pads_begin"] = params.at("pads_begin");
+        res->params["pads_end"] = params.at("pads_end");
+
+        if (params.at("pad_mode") == "constant") {
+            res->params["pad_value"] = params.at("pad_value");
+        }
+
+        return res;
+    });
+
+    addSpecificCreator({"FakeQuantize"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "FakeQuantize", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::QuantizeLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"ConvolutionIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Convolution", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::ConvolutionLayer>(attrs);
+        res->params = params;
+
+        auto & rt_info = node->get_rt_info();
+        bool keep_constants(false);
+        if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
+            keep_constants = attr->get();
+        }
+
+        // Restore output and krenel size
+        auto shape = node->get_input_shape(1);
+        shape.erase(shape.begin(), shape.begin() + 2);
+
+        res->params["kernel"] = Builder::asString(dynamic_cast<std::vector<size_t>&>(shape));
+        res->params["output"] = Builder::asString(node->get_shape()[1]);
+
+        // forward auto_pad only when its value is different than explicit
+        if (params.at("auto_pad") == "explicit") {
+            res->params.erase("auto_pad");
+        }
+
+        Builder::NodeConverter<ngraph::op::Constant> converter;
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        if (!keep_constants && converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+
+            if (node->inputs().size() == 3) {
+                const auto biasNode = node->input_value(2).get_node_shared_ptr();
+                if (converter.canCreate(biasNode)) {
+                    const auto& bias = converter.createLayer(biasNode);
+                    res->blobs["biases"] = bias->blobs["custom"];
+                    res->_biases = bias->blobs["custom"];
+                }
+            }
+        }
+
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -729,7 +829,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Concat>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Constant>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ConvolutionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::DeconvolutionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Cos>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Cosh>>(),
@@ -745,7 +844,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Elu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Erf>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Exp>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::FakeQuantize>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Floor>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Ceiling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GatherIE>>(),
@@ -753,10 +851,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Interp>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Interpolate>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Log>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::LRN_IE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::MVN>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::FullyConnected>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::MatMul>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GenericIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GRN>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::MaxPool>>(),
@@ -764,9 +860,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Minimum>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Multiply>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::OneHotIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PRelu>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Power>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClusteredIE>>(),
