@@ -19,8 +19,6 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet3ToOpSet2, "ConvertOpSet3ToOpSet2", 0);
 
 bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet3ToOpSet2");
-
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConvertBroadcast3>();

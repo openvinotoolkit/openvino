@@ -23,6 +23,7 @@
 #include <openvino/function_name.hpp>
 #include <openvino/macro_overload.hpp>
 #include <string>
+#include <utility>
 
 namespace openvino
 {
@@ -125,9 +126,95 @@ namespace openvino
             {
                 internal::taskBegin(domain(), taskHandle);
             }
+
+            /**
+             * @brief The ScopedTask destructor closes or ends the task scope
+             */
             ~ScopedTask() noexcept { internal::taskEnd(domain()); }
+
             ScopedTask(const ScopedTask&) = delete;
             ScopedTask& operator=(const ScopedTask&) = delete;
+        };
+
+        /**
+         * @class TaskChain
+         * @ingroup ie_dev_profiling
+         * @brief Used to annotate a sequence of sections of code which would be named at runtime
+         * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
+         */
+        template <domain_t(*domain)()>
+        class TaskChain
+        {
+            uint32_t _id = 1;
+            std::string _prefix;
+            bool _skipped {};
+
+            TaskChain(const TaskChain&) = delete;
+            TaskChain& operator=(const TaskChain&) = delete;
+
+        public:
+            /**
+             * @brief Construct TaskChain with defined annotation handle
+             */
+            TaskChain(handle_t taskHandle, std::string && prefix) noexcept
+                : _prefix(std::forward<std::string>(prefix))
+            {
+                internal::taskBegin(domain(), taskHandle);
+            }
+
+            /**
+             * @brief The TaskChain destructor closes or ends the task scope
+             */
+            ~TaskChain() noexcept { skip(); }
+
+            /**
+             * @brief Ends the previous task from the chain and starts a new one with the given annotation handle
+             */
+            void next(handle_t taskHandle)
+            {
+                if(_skipped)
+                    _skipped = false;
+                else
+                    internal::taskEnd(domain());
+                internal::taskBegin(domain(), taskHandle);
+                ++_id;
+            }
+
+            /*
+             * @brief Generating a task name using a sequence number.
+             */
+            std::string taskName() const
+            {
+                return _prefix + "_" + std::to_string(_id);
+            }
+
+            /*
+             * @brief Generating a task name using a scope name.
+             */
+            std::string taskNameOrHandle(const std::string & name) const
+            {
+                return _prefix + "_" + name;
+            }
+
+            /*
+             * @brief Returns a handle provided as argument.
+             */
+            handle_t taskNameOrHandle(handle_t handle) const
+            {
+                return handle;
+            }
+
+            /*
+             * @brief Skips the remaining task scope.
+             */
+            void skip()
+            {
+                if(!_skipped)
+                {
+                    _skipped = true;
+                    internal::taskEnd(domain());
+                }
+            }
         };
 
 /**
@@ -142,6 +229,9 @@ namespace openvino
 /**
  * @cond
  */
+
+#define OV_ITT_CONCAT2(X, Y) X ## Y
+#define OV_ITT_CONCAT(X, Y) OV_ITT_CONCAT2(X, Y)
 
 #define OV_ITT_DOMAIN_1(domainName)                                                                 \
 inline openvino::itt::domain_t domainName() noexcept                                                \
@@ -176,17 +266,87 @@ inline openvino::itt::domain_t domainName() noexcept                            
  */
 
 #define OV_ITT_SCOPED_TASK_1(domain)                                                                \
-        struct Task ## __LINE__ {};                                                                 \
-        openvino::itt::ScopedTask<domain> ittScopedTask ## __LINE__                                 \
-                    (openvino::itt::handle<Task ## __LINE__>(ITT_FUNCTION_NAME));
+        openvino::itt::ScopedTask<domain> OV_ITT_CONCAT(ittScopedTask, __LINE__)                    \
+                    (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>(ITT_FUNCTION_NAME));
 
 #define OV_ITT_SCOPED_TASK_2(domain, taskOrTaskName)                                                \
-        struct Task ## __LINE__ {};                                                                 \
-        openvino::itt::ScopedTask<domain> ittScopedTask ## __LINE__                                 \
-                    (openvino::itt::handle<Task ## __LINE__>(taskOrTaskName));
+        openvino::itt::ScopedTask<domain> OV_ITT_CONCAT(ittScopedTask, __LINE__)                    \
+                    (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>(taskOrTaskName));
 
 /**
  * @endcond
  */
+
+/**
+ * @def OV_ITT_TASK_CHAIN(chainId, domain, prefix, taskName)
+ * @ingroup ie_dev_profiling
+ * @brief Begins the sequrence of an annotated sections of code using @p prefix and @p taskName as section id.
+ * @details In case if prefix absent, the current function name is used,
+ *          if taskName absent, the first chain index is used, i.e 1.
+ * @param chainId [in] The tasks chain identifier.
+ * @param domainName [in] Known at compile time name of module or library (the domain name).
+ * @param prefix [in] The task chain name prefix. The task name starts with this prefix. Parameter is optional.
+ * @param taskName [in] The annotation name for section of code. Parameter is optional.
+ */
+#define OV_ITT_TASK_CHAIN(...) OV_ITT_MACRO_OVERLOAD(OV_ITT_TASK_CHAIN, __VA_ARGS__)
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_TASK_CHAIN_2(chainId, domain)                                                        \
+        openvino::itt::TaskChain<domain> chainId                                                    \
+            (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>                            \
+                (std::string(ITT_FUNCTION_NAME) + "_1"),                                            \
+            ITT_FUNCTION_NAME);
+
+#define OV_ITT_TASK_CHAIN_3(chainId, domain, prefix)                                                \
+        openvino::itt::TaskChain<domain> chainId                                                    \
+            (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>                            \
+                (std::string(prefix) + "_1"),                                                       \
+            prefix);
+
+#define OV_ITT_TASK_CHAIN_4(chainId, domain, prefix, taskName)                                      \
+        openvino::itt::TaskChain<domain> chainId                                                    \
+            (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>                            \
+                (std::string(prefix) + "_" + taskName),                                             \
+            prefix);
+
+/**
+ * @endcond
+ */
+
+/**
+ * @def OV_ITT_TASK_NEXT(chainId, taskName)
+ * @ingroup ie_dev_profiling
+ * @brief Inserts new annotated section of code to tasks chain using @p taskName as section id.
+ * @details If taskName is missing, the current chain index is used.
+ * @param chainId [in] The tasks chain identifier.
+ * @param taskOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
+ */
+#define OV_ITT_TASK_NEXT(...) OV_ITT_MACRO_OVERLOAD(OV_ITT_TASK_NEXT, __VA_ARGS__)
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_TASK_NEXT_1(chainId)                                                                 \
+        chainId.next(openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>(chainId.taskName()));
+
+#define OV_ITT_TASK_NEXT_2(chainId, taskOrTaskName)                                                 \
+        chainId.next(openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>(chainId.taskNameOrHandle(taskOrTaskName)));
+
+/**
+ * @endcond
+ */
+
+/**
+ * @def OV_ITT_TASK_SKIP(chainId)
+ * @ingroup ie_dev_profiling
+ * @brief Skips the remaining task scope.
+ * @param chainId [in] The tasks chain identifier.
+ */
+#define OV_ITT_TASK_SKIP(chainId) chainId.skip();
+
     } // namespace itt
 } // namespace openvino
