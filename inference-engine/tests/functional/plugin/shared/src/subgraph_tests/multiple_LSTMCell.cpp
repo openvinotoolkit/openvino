@@ -402,6 +402,7 @@ void MultipleLSTMCellTest::Run() {
                                                   InferenceEngine::SizeVector({1, hiddenSize}),
                                                   InferenceEngine::Layout::NC);
     LoadNetwork();
+    IE_SUPPRESS_DEPRECATED_START
     auto states = executableNetwork.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
@@ -425,6 +426,7 @@ void MultipleLSTMCellTest::Run() {
             GTEST_FAIL() << "unknown memory state";
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
     Infer();
     switchToNgraphFriendlyModel();
     Validate();
@@ -450,6 +452,7 @@ void MultipleLSTMCellTest::RunLowLatency(bool regular_api) {
         manager.run_passes(function);
         LoadNetwork();
     }
+    IE_SUPPRESS_DEPRECATED_START
     auto states = executableNetwork.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
@@ -473,6 +476,7 @@ void MultipleLSTMCellTest::RunLowLatency(bool regular_api) {
             GTEST_FAIL() << "unknown memory state";
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
     Infer();
 
     // Calculate ref values for Unrolled TI
