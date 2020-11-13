@@ -520,12 +520,6 @@ kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
     }
 }
 
-std::string to_host_version(const cldnn::version_t& version) {
-    std::stringstream ss;
-    ss << version.major << "." << version.minor << "." << version.build << "." << version.revision;
-    return ss.str();
-}
-
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
     const auto& pad = l.data_padding;
     const auto& vals = l.size.sizes(l.format);
@@ -735,7 +729,6 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     params.engineInfo.computeUnitsCount = device_info.compute_units_count;
     params.engineInfo.deviceCache = context->get_device_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
-    params.engineInfo.hostVersion = to_host_version(cldnn::get_version());
 
     auto impl_forcing_bo = program.get_options().get<build_option_type::force_implementations>();
     const auto& impl_forcing = impl_forcing_bo->forcing;

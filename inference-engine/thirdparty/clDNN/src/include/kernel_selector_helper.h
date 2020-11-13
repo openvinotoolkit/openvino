@@ -109,7 +109,6 @@ cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
 kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode);
-std::string to_host_version(const cldnn::version_t& version);
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split = 1, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
