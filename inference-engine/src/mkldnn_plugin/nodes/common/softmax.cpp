@@ -27,8 +27,8 @@ struct jit_args_softmax {
 };
 
 struct jit_softmax_config_params {
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    Precision src_dt;
+    Precision dst_dt;
 };
 
 
@@ -171,27 +171,27 @@ private:
 
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, Precision src_dt) {
         switch (src_dt) {
-            case memory::f32:
+            case Precision::FP32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case memory::bf16:
+            case Precision::BF16:
                 vpmovzxwd(vmm_src, op);
                 uni_vpslld(vmm_src, vmm_src, 16);
                 break;
             default:
-                assert(!"unknown dst_dt");
+                assert(!"unknown src_dt");
         }
     }
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
+    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, Precision dst_dt) {
         Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
-            case memory::f32:
+            case Precision::FP32:
                 uni_vmovups(op, vmm_dst);
                 break;
-            case memory::bf16:
+            case Precision::BF16:
                 vcvtneps2bf16(ymm_dst, vmm_dst);
                 uni_vmovups(op, ymm_dst);
                 break;
@@ -211,8 +211,8 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
 
     block_size = 1;
     auto jcp = jit_softmax_config_params();
-    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(inpPrc);
-    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(outPrc);
+    jcp.src_dt = inpPrc;
+    jcp.dst_dt = outPrc;
 
     if (mayiuse(avx512_common)) {
         softmax_kernel.reset(new jit_uni_softmax_kernel_f32<avx512_common>(jcp));
@@ -276,18 +276,18 @@ void SoftmaxGeneric::execute(const uint8_t *src_data, uint8_t *dst_data, int B, 
             auto float_dst_data = reinterpret_cast<float*>(dst_data);
             calculate(float_src_data, float_dst_data, B, C, H, W);
         } else if (Precision::BF16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<bfloat16*>(dst_data);
+            auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(float_src_data, bf16_dst_data, B, C, H, W);
         } else {
             THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
         }
     } else if (Precision::BF16 == input_prec) {
-        auto bf16_src_data = reinterpret_cast<const bfloat16*>(src_data);
+        auto bf16_src_data = reinterpret_cast<const bfloat16_t*>(src_data);
         if (Precision::FP32 == output_prec) {
             auto float_dst_data = reinterpret_cast<float*>(dst_data);
             calculate(bf16_src_data, float_dst_data, B, C, H, W);
         } else if (Precision::BF16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<bfloat16*>(dst_data);
+            auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(bf16_dst_data, bf16_dst_data, B, C, H, W);
         } else {
             THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();

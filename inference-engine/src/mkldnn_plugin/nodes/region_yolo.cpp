@@ -34,8 +34,8 @@ struct jit_args_logistic {
 };
 
 struct jit_logistic_config_params {
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    InferenceEngine::Precision src_dt;
+    InferenceEngine::Precision dst_dt;
     unsigned src_data_size;
     unsigned dst_data_size;
 };
@@ -178,27 +178,27 @@ private:
         int float_1   = 0x3f800000;  // 1 //  1.0f
     } vals_for_logistic_activate;
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, InferenceEngine::Precision src_dt) {
         switch (src_dt) {
-            case memory::f32:
+            case InferenceEngine::Precision::FP32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case memory::bf16:
+            case InferenceEngine::Precision::BF16:
                 vpmovzxwd(vmm_src, op);
                 uni_vpslld(vmm_src, vmm_src, 16);
                 break;
             default:
-                assert(!"unknown dst_dt");
+                assert(!"unknown src_dt");
         }
     }
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
+    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, InferenceEngine::Precision dst_dt) {
         Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
-            case memory::f32:
+            case InferenceEngine::Precision::FP32:
                 uni_vmovups(op, vmm_dst);
                 break;
-            case memory::bf16:
+            case InferenceEngine::Precision::BF16:
                 vcvtneps2bf16(ymm_dst, vmm_dst);
                 uni_vmovups(op, ymm_dst);
                 break;
@@ -206,12 +206,12 @@ private:
                 assert(!"unknown dst_dt");
         }
     }
-    inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+    inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address &op, InferenceEngine::Precision src_dt) {
         switch (src_dt) {
-            case memory::f32:
+            case InferenceEngine::Precision::FP32:
                 movss(xmm_src, op);
                 break;
-            case memory::bf16:
+            case InferenceEngine::Precision::BF16:
                 pinsrw(xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
@@ -219,12 +219,12 @@ private:
                 assert(!"unknown src_dt");
         }
     }
-    inline void store_scalar(const Xbyak::Address &op, Xbyak::Xmm xmm_dst, memory::data_type dst_dt) {
+    inline void store_scalar(const Xbyak::Address &op, Xbyak::Xmm xmm_dst, InferenceEngine::Precision dst_dt) {
         switch (dst_dt) {
-            case memory::f32:
+            case InferenceEngine::Precision::FP32:
                 movss(op, xmm_dst);
                 break;
-            case memory::bf16:
+            case InferenceEngine::Precision::BF16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
                 pextrw(op, xmm_dst, 0x0);
                 break;
@@ -265,7 +265,7 @@ public:
             mask = layer->GetParamAsInts("mask", {});
 
             jit_logistic_config_params jcp;
-            jcp.src_dt = jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(output_prec);
+            jcp.src_dt = jcp.dst_dt = output_prec;
             jcp.src_data_size = jcp.dst_data_size = output_prec.size();
 
             block_size = 1;
@@ -290,7 +290,6 @@ public:
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
                        ResponseDesc *resp) noexcept override {
-        StatusCode retCode = OK;
         size_t mask_size = mask.size();
 
         size_t IW = (inputs[0]->getTensorDesc().getDims().size() > 3) ? inputs[0]->getTensorDesc().getDims()[3] : 1;
@@ -317,28 +316,18 @@ public:
 
         try {
             cpu_convert(src_data, dst_data, inputs[0]->getTensorDesc().getPrecision(), outputs[0]->getTensorDesc().getPrecision(), B * IC * IH * IW);
-        }
-        catch (const std::exception& excp) {
-            snprintf(resp->msg, sizeof(resp->msg), "%s", excp.what());
-            return GENERAL_ERROR;
-        }
 
-        for (int b = 0; b < B; b++) {
-            for (int n = 0; n < num_; n++) {
-                size_t index = b * inputs_size + n * IW * IH * (classes + coords + 1);
-                if (OK != (retCode = calculate_logistic(index, total_size, dst_data, resp))) {
-                    break;
-                }
+            for (int b = 0; b < B; b++) {
+                for (int n = 0; n < num_; n++) {
+                    size_t index = b * inputs_size + n * IW * IH * (classes + coords + 1);
+                    calculate_logistic(index, total_size, dst_data);
 
-                index = b * inputs_size + IW * IH * (n * (classes + coords + 1) + coords);
-                if (OK != (retCode = calculate_logistic(index, end_index, dst_data, resp))) {
-                    break;
+                    index = b * inputs_size + IW * IH * (n * (classes + coords + 1) + coords);
+                    calculate_logistic(index, end_index, dst_data);
                 }
             }
-        }
 
-        if (do_softmax && OK == retCode) {
-            try {
+            if (do_softmax) {
                 int index = IW * IH * (coords + 1);
                 int batch_offset = inputs_size / num;
                 for (int b = 0; b < B * num; b++) {
@@ -346,15 +335,15 @@ public:
                                             dst_data + output_prec.size() * (index + b * batch_offset), 1, classes, IH, IW);
                 }
             }
-            catch (const std::exception& excp) {
-                snprintf(resp->msg, sizeof(resp->msg), "%s", excp.what());
-                return GENERAL_ERROR;
-            }
-            catch(...) {
-                return GENERAL_ERROR;
-            }
         }
-        return retCode;
+        catch (const std::exception& excp) {
+            snprintf(resp->msg, sizeof(resp->msg), "%s", excp.what());
+            return GENERAL_ERROR;
+        }
+        catch(...) {
+            return GENERAL_ERROR;
+        }
+        return OK;
     }
 
 private:
@@ -391,7 +380,7 @@ private:
     }
 
 
-    inline StatusCode calculate_logistic(size_t start_index, int count, uint8_t * dst_data, ResponseDesc *resp) {
+    inline void calculate_logistic(size_t start_index, int count, uint8_t * dst_data) {
         auto dst_data_size = output_prec.size();
         if (logistic_kernel) {
             int blocks_num = div_up(count, block_size);
@@ -412,18 +401,14 @@ private:
                     float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
                 }
             } else if (Precision::BF16 == output_prec) {
-                auto bf16_dst_data = reinterpret_cast<bfloat16*>(dst_data);
+                auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
                 for (int i = 0; i < count; i++) {
                     bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
                 }
             } else {
-                if (resp != nullptr) {
-                    snprintf(resp->msg, sizeof(resp->msg), "Unsupported precision configuration outPrc=%s", output_prec.name());
-                }
-                return GENERAL_ERROR;
+                THROW_IE_EXCEPTION << "Unsupported precision configuration outPrc=" << output_prec.name();
             }
         }
-        return OK;
     }
 };
 
