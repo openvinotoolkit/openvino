@@ -49,21 +49,8 @@ void MultipleConcatTest::SetUp() {
     std::vector<size_t> input_dims { 1, inputSize };
     std::vector<size_t> constant_dims {1, constantSize};
 
-    const int seed = 0;
-    std::mt19937 gen(static_cast<float>(seed));
-
-    auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
-        std::vector<float> res;
-
-        std::uniform_real_distribution<float> dist(min, max);
-        for (int i = 0; i < vec_len; i++)
-            res.emplace_back(static_cast<float>(dist(gen)));
-
-        return res;
-    };
-
-    auto concat_1_vals = generateFloatNumbers(constantSize, -2.0f, 2.0f);
-    auto concat_2_vals = generateFloatNumbers(constantSize, -5.0f, 5.0f);
+    auto concat_1_vals = CommonTestUtils::generate_float_numbers(constantSize, -2.0f, 2.0f);
+    auto concat_2_vals = CommonTestUtils::generate_float_numbers(constantSize, -5.0f, 5.0f);
 
     auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
 

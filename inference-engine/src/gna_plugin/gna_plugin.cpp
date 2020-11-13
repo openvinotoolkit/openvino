@@ -408,6 +408,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
+        passes->registerPass<Concat4Dto2DPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
         if (policy.PermutePolicy != Policy::Permute::DISABLED) {

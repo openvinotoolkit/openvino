@@ -41,20 +41,7 @@ std::string MatmulSqueezeAddTest::getTestCaseName(testing::TestParamInfo<matmulS
 }
 
 void MatmulSqueezeAddTest::SetUp() {
-    auto generateFloatNumbers = [](float startFrom, float upTo, std::size_t vec_len) {
-        std::vector<float> res;
-
-        std::mt19937 gen(
-            static_cast<float>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
-
-        std::uniform_real_distribution<float> dist(startFrom, upTo);
-
-        for (int i = 0; i < vec_len; i++)
-            res.emplace_back(static_cast<float>(dist(gen)));
-
-        return res;
-    };
-
+    auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> tempConfig;
     std::vector<size_t> inputShape;
@@ -67,14 +54,14 @@ void MatmulSqueezeAddTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
     auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, { outputSize, inputShape[1] },
-        generateFloatNumbers(0, 1, outputSize * inputShape[1]), false);
+        CommonTestUtils::generate_float_numbers(outputSize * inputShape[1], 0, 1, seed), false);
     auto matmul_0 = std::make_shared<ngraph::op::MatMul>(params[0], constant_0, false, true);
 
     auto constant_1 = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 1 }, std::vector<size_t>{0});
     auto unsqueeze_0 = std::make_shared<ngraph::op::Unsqueeze>(matmul_0, constant_1);
 
     auto constant_2 = ngraph::builder::makeConstant<float>(ngPrc, { 1, inputShape[0], outputSize },
-        generateFloatNumbers(0, 1, inputShape[0] * outputSize), false);
+        CommonTestUtils::generate_float_numbers(inputShape[0] * outputSize, 0, 1, seed), false);
     auto add_0 = std::make_shared<ngraph::op::v1::Add>(unsqueeze_0, constant_2);
 
     auto constant_3 = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 1 }, std::vector<size_t>{0});

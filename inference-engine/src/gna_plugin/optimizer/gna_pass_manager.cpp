@@ -634,6 +634,10 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             continue;
         }
 
+        if (l->outData.size() != 1) {
+            continue;
+        }
+
         if (getInputTo(l->outData.front()).empty()) {
             continue;
         }
@@ -661,7 +665,18 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 next->input()->setDims(toRemove->input()->getDims());
                 next->input()->setLayout(Layout::NHWC);
                 auto layerBeforePermute = CNNNetPrevLayer(toRemove);
-                layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
+
+                DataPtr output = nullptr;
+                for (auto before_output : layerBeforePermute->outData) {
+                    if (areEqualDatas(toRemove->input(), before_output)) {
+                        output = before_output;
+                        output->setLayout(Layout::NHWC);
+                        break;
+                    }
+                }
+                if (output == nullptr) {
+                    THROW_GNA_EXCEPTION << "Could not find correct data link between " << toRemove->name << " and " << layerBeforePermute->name;
+                }
 
                 auto* convolution = dynamic_cast<ConvolutionLayer*>(next.get());
                 if (!convolution) {
@@ -803,6 +818,85 @@ void InsertCopyLayerPass::run() {
                 }
                 auto prevLayer = CNNNetPrevLayer(l, i);
                 InsertCopyLayer(prevLayer, l, i, getPassManager(), bInsertDelayed ? DelayedCopyLayerName : CopyLayerName);
+            }
+        }
+    }
+}
+
+void Concat4Dto2DPass::run() {
+    // Find 4D concat layers that will have to use ConcatAlignFilters and can be substituted by 2D concat
+    // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used if sizes before
+    // axis are all ones then concat can be changed to 2D for example, lets say all unputs have same shape equal to:
+    // 1, 1, 5, 3 then for axis 0, 1, 2 the change will be made and inputs will be reshaped to 1, 15,
+    // but for shape 2, 1, 5, 3 only axis 0 is valid and inputs will reshape to 1, 30
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+
+    if (getPassManager()->getPolicy().ConcatConversionPolicy == Policy::Concat4Dto2DConversion::DISABLED) return;
+    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED) return;
+    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED_FOR_FP32 && !quantized) return;
+
+    for (auto & l : *pLayers) {
+        LayerInfo info(l);
+        auto concatLayer = info.as<ConcatLayer*>();
+        if (!concatLayer) continue;
+        if (concatLayer->insData.size() < 1) continue;
+
+        auto dims_size = concatLayer->insData[0].lock()->getDims().size();
+        if (dims_size > 2) {
+            auto axis = concatLayer->_axis;
+            bool skip_layer = false;
+            for (int i = 0; i < axis; i++) {
+                if (concatLayer->insData[0].lock()->getDims()[i] != 1) skip_layer = true;
+            }
+            if (skip_layer) continue;
+            skip_layer = true;
+            std::vector<size_t> total_sizes;
+            for (auto& input : concatLayer->insData) {
+                auto input_dims = input.lock()->getDims();
+                total_sizes.push_back(std::accumulate(input_dims.begin(), input_dims.end(), size_t(1), std::multiplies<size_t>()));
+                if (total_sizes.back() % 64 != 0) skip_layer = false;
+            }
+            if (skip_layer) continue;
+
+            for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+                auto getLayerByIndex = [&concatLayer](int idx) {
+                    auto input = concatLayer->insData[idx];
+                    auto lockedInput = input.lock();
+                    if (!lockedInput) {
+                        THROW_GNA_EXCEPTION << "cannot get insdata : "<< idx << " for layer: " << concatLayer->name;
+                    }
+                    return lockedInput;
+                };
+
+                auto concatInput = getLayerByIndex(input_idx);
+
+                auto tensor = InferenceEngine::TensorDesc(concatInput->getTensorDesc());
+                tensor.reshape(SizeVector({1, total_sizes[input_idx]}), Layout::NC);
+                auto reshapeName = l->name + "_input_"+ std::to_string(input_idx) +"_reshape";
+                auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
+
+                CNNNetworkInsertLayer(getCreatorLayer(concatInput).lock(), l, reshape);
+                gnalog() << "\tInserted " << reshapeName << " between " << getCreatorLayer(concatInput).lock()->name << " and " << l->name << std::endl;
+            }
+
+            for (auto output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
+                auto output = concatLayer->outData[output_idx];
+                auto output_tensor_copy = TensorDesc(output->getTensorDesc());
+
+                auto dims = output_tensor_copy.getDims();
+                auto total_size = std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>());
+
+                auto new_tensor = output->getTensorDesc();
+                new_tensor.reshape(SizeVector({1, total_size}), Layout::NC);
+
+                auto new_output = CNNReplaceDataWithChangedTensorDescription(output, new_tensor);
+                gnalog() << "\tChanged " << output->getName() << " dims to 2D" << std::endl;
+
+                auto reshapeName = l->name + "_output_"+ std::to_string(output_idx) +"_reshape";
+
+                auto reshape = CNNNetworkCreateReshape(output_tensor_copy, reshapeName, quantized);
+                CNNNetworkInsertLayer(l, nullptr, reshape, output_idx);
+                gnalog() << "\tInserted " << reshapeName << " after " << l->name << std::endl;
             }
         }
     }
