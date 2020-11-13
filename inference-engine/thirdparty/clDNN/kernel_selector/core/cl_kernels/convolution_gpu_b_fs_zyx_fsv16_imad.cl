@@ -107,9 +107,9 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     out_f = out_f - (out_f / ALIGN(FILTER_OFM_NUM, SIMD)) * (SIMD - (FILTER_OFM_NUM % SIMD));
 #endif
 
-    const int input_x = out_x * STRIDE_SIZE_X - INPUT0_PAD_BEFORE_SIZE_X;
-    const int input_y = out_y * STRIDE_SIZE_Y - INPUT0_PAD_BEFORE_SIZE_Y;
-    const int input_z = out_z * STRIDE_SIZE_Z - INPUT0_PAD_BEFORE_SIZE_Z;
+    const int input_x = out_x * STRIDE_SIZE_X - PADDING_SIZE_X;
+    const int input_y = out_y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
+    const int input_z = out_z * STRIDE_SIZE_Z - PADDING_SIZE_Z;
 
 #if FEATURE_SLM_SPLIT == 1
     const uint in_f_start = 0;
@@ -248,8 +248,8 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                 } else {
                                                     const uint addr = input_idx + get_sub_group_local_id() * FSV + v +
                                                                 ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
-                                                                    (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
-                                                                    (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
+                                                                 (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
+                                                                 (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
                                                     input_int8_arr[v] = conv_input[addr];
                                                 }
                                         #ifdef SHOULD_USE_DATA_ZP
@@ -408,7 +408,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
     uint sgid_start_idx = get_sub_group_id();
     sgid_start_idx = sgid_start_idx == 0 ? 0 : sgid_start_idx - 1;
-    __local ACCUMULATOR_TYPE* partial_acc_ptr = partial_acc + sgid_start_idx * OFM_SIZE_PER_SIMD * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH + 
+    __local ACCUMULATOR_TYPE* partial_acc_ptr = partial_acc + sgid_start_idx * OFM_SIZE_PER_SIMD * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH +
                                                 get_sub_group_local_id();
 
     if (get_sub_group_id() < OFM_BLOCKS_PER_SIMD) {

@@ -123,8 +123,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     const uint f = fm % ALIGN(FILTER_OFM_NUM, SIMD_SIZE) + g * FILTER_OFM_NUM;
     const uint sglid = get_sub_group_local_id();
 
-    const int input_x = oc * STRIDE_SIZE_X - INPUT0_PAD_BEFORE_SIZE_X;
-    const int input_y = or * STRIDE_SIZE_Y - INPUT0_PAD_BEFORE_SIZE_Y;
+    const int input_x = oc * STRIDE_SIZE_X - PADDING_SIZE_X;
+    const int input_y = or * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
     PACKED_TYPE in[IN_BLOCK_HEIGHT];
     #ifdef SHOULD_USE_DATA_ZP
