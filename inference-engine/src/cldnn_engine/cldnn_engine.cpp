@@ -363,9 +363,9 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     }
 }
 
-RemoteContext::Ptr clDNNEngine::GetDefaultContext() {
+RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
-        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), _impl->m_config));
+        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
     }
     return std::dynamic_pointer_cast<RemoteContext>(m_defaultContext);
 }

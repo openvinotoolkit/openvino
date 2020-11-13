@@ -150,7 +150,7 @@ public:
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-    RemoteContext::Ptr GetDefaultContext() override {
+    RemoteContext::Ptr GetDefaultContext(const ParamMap& /*params*/) override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 

@@ -79,6 +79,7 @@ namespace LayerTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         LoadNetwork();
+        IE_SUPPRESS_DEPRECATED_START
         auto states = executableNetwork.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
@@ -90,6 +91,7 @@ namespace LayerTestsDefinitions {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
+        IE_SUPPRESS_DEPRECATED_END
         Infer();
         switchToNgraphFriendlyModel();
         Validate();
