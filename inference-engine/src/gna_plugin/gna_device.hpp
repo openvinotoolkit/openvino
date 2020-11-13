@@ -125,7 +125,7 @@ public:
     bool isUpTo20GnaDevice() const {
         return detectedGnaDevVersion <= Gna2DeviceVersion2_0;
     }
-    static void checkGna2Status(Gna2Status status);
+    static void checkGna2Status(Gna2Status status, const std::string& from);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
 #endif
     GnaWaitStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
@@ -187,7 +187,7 @@ public:
             gna2InstrumentationPoints,
             instrumentationResults,
             &instrumentationConfigId);
-        checkGna2Status(status);
+        checkGna2Status(status, "Gna2InstrumentationConfigCreate");
 #endif
     }
 };  // NOLINT
