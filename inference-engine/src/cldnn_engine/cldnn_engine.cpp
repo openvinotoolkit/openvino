@@ -37,6 +37,7 @@
 
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_precision_for_nmsie3.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
@@ -153,6 +154,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             // because NMS-5 has dynamic output shapes, and, hence, some constant foldings
             // will not be executed, and some subsequent nodes will have dynamic output shapes.
             manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
+            // We need to convert precision of NMSIE using a separate transformation, because
+            // CommonOptimizations cannot convert precisions of legacy operations.
+            manager.register_pass<ngraph::pass::ConvertNMSIE3Precision>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
