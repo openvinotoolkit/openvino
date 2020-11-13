@@ -156,7 +156,13 @@ void FrontEnd::detectNetworkBatch(
     env.log->trace("Reshape the network");
 
     ie::ResponseDesc desc;
-    const auto status = network.reshape(inputShapes, &desc);
+    auto status = ie::StatusCode::OK;
+    try {
+        status = network.reshape(inputShapes, &desc);
+    }
+    catch (...) {
+        status = ie::StatusCode::GENERAL_ERROR;
+    }
 
     if (status != ie::StatusCode::OK) {
         env.log->trace("Failed to reshape Network: %v", desc.msg);
