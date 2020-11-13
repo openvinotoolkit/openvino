@@ -46,7 +46,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        // Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+        // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
         configuration.insert({PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO});
 
         InferenceEngine::SizeVector inputShapes;
@@ -60,24 +60,7 @@ protected:
         auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
 
-        std::string strExpectedPrc;
-        if (Precision::BF16 == inPrc) {
-            strExpectedPrc = "BF16";
-        } else if (Precision::FP32 == inPrc) {
-            strExpectedPrc = "FP32";
-        }
-
-        std::string isaType;
-        if (with_cpu_x86_avx512f()) {
-            isaType = "jit_avx512";
-        } else if (with_cpu_x86_avx2()) {
-            isaType = "jit_avx2";
-        } else if (with_cpu_x86_sse42()) {
-            isaType = "jit_sse42";
-        } else {
-            isaType = "ref";
-        }
-        selectedType = isaType + "_" + strExpectedPrc;
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
 
         threshold = 0.015f; //slightly increase threshold
 

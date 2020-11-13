@@ -47,6 +47,7 @@ public:
     void CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
 
 protected:
+    std::string getPrimitiveType() const;
     std::vector<cpu_memory_format_t> inFmts, outFmts;
     std::vector<std::string> priority;
     std::string selectedType;

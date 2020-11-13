@@ -18,6 +18,9 @@ TEST_P(ConvertCPULayerTest, CompareWithRefs) {
     inPrc = std::get<1>(params);
     outPrc = std::get<2>(params);
 
+    // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+    configuration.insert({PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO});
+
     Run();
 }
 

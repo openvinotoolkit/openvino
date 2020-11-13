@@ -68,14 +68,7 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        std::string strExpectedPrc;
-        if (Precision::BF16 == inPrc) {
-            strExpectedPrc = "BF16";
-        } else if (Precision::FP32 == inPrc) {
-            strExpectedPrc = "FP32";
-        }
-
-        selectedType = "unknown_" + strExpectedPrc;
+        selectedType = std::string("unknown_") + inPrc.name();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
         auto param = std::make_shared<ngraph::op::Parameter>(ngPrc, inputShape);
@@ -95,7 +88,7 @@ TEST_P(RegionYoloCPULayerTest, CompareWithRefs) {
 namespace {
 const std::vector<Precision> inpOutPrc = {Precision::BF16, Precision::FP32};
 
-// Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+// Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
 const std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
 
 const std::vector<ngraph::Shape> inShapes_caffe = {

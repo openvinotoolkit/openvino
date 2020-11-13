@@ -51,24 +51,7 @@ protected:
         std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, inPrc, outPrc,
                  inLayout, outLayout, targetDevice, additional_config) = basicParamsSet;
 
-        std::string strExpectedPrc;
-        if (Precision::BF16 == inPrc) {
-            strExpectedPrc = "BF16";
-        } else if (Precision::FP32 == inPrc) {
-            strExpectedPrc = "FP32";
-        }
-
-        std::string isaType;
-        if (with_cpu_x86_avx512f()) {
-            isaType = "jit_avx512";
-        } else if (with_cpu_x86_avx2()) {
-            isaType = "jit_avx2";
-        } else if (with_cpu_x86_sse42()) {
-            isaType = "jit_sse42";
-        } else {
-            isaType = "ref";
-        }
-        selectedType = isaType + "_" + strExpectedPrc;
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
 
         auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::BOOL); // Because ngraph supports only boolean input for logical ops
         configuration.insert(additional_config.begin(), additional_config.end());
@@ -134,7 +117,7 @@ std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-// Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+// Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
 std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
 
 std::vector<Precision> bf16InpOutPrc = {Precision::BF16, Precision::FP32};

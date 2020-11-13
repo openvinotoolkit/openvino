@@ -54,13 +54,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        std::string strExpectedPrc;
-        if (Precision::BF16 == inPrc) {
-            strExpectedPrc = "BF16";
-        } else if (Precision::FP32 == inPrc) {
-            strExpectedPrc = "FP32";
-        }
-        selectedType = "unknown_" + strExpectedPrc;
+        selectedType = std::string("unknown_") + inPrc.name();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -86,7 +80,7 @@ TEST_P(PermuteLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-// Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+// Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
 std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {

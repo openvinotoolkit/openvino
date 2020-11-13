@@ -49,27 +49,9 @@ protected:
         std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
         std::pair<ActivationTypes, std::vector<float>> activationDecl;
         std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = basicParamsSet;
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
 
-        std::string strExpectedPrc;
-        if (Precision::BF16 == inPrc) {
-            strExpectedPrc = "BF16";
-        } else if (Precision::FP32 == inPrc) {
-            strExpectedPrc = "FP32";
-        }
-
-        std::string isaType;
-        if (with_cpu_x86_avx512f()) {
-            isaType = "jit_avx512";
-        } else if (with_cpu_x86_avx2()) {
-            isaType = "jit_avx2";
-        } else if (with_cpu_x86_sse42()) {
-            isaType = "jit_sse42";
-        } else {
-            isaType = "ref";
-        }
-        selectedType = isaType + "_" + strExpectedPrc;
-
-        // Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+        // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
         configuration.insert({PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO});
 
         activationType = activationDecl.first;
@@ -103,26 +85,24 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Elu,         {{0.1f}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
-        {Mish,        {{}}}
+        {Mish,        {{}}},
+        {PReLu, {{-0.01f}}}
 };
 
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
-        {PReLu, {{-0.01f}}},
+std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
+        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+        CPUSpecificParams({nchw}, {nchw}, {}, {})
 };
 
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
-        {{1, 50}, {{}}},
-        {{1, 128}, {{}}},
-};
-
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
-        {{1, 50}, {{1}, {50}}},
-        {{1, 128}, {{1}, {128}}},
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic4D = {
+        {{2, 4, 4, 1}, {{}}},
+        {{2, 17, 5, 4}, {{}}},
 };
 
 std::vector<Precision> bf16InpOutPrc = {Precision::BF16, Precision::FP32};
 
-const auto basicCases = ::testing::Combine(
+const auto basicCases4D = ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
             ::testing::Values(Precision::BF16),
@@ -130,26 +110,37 @@ const auto basicCases = ::testing::Combine(
             ::testing::ValuesIn(bf16InpOutPrc),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+            ::testing::ValuesIn(CommonTestUtils::combineParams(basic4D)),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::Values(emptyCPUSpec)
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D))
 );
 
-const auto basicPreluCases = ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
+
+std::vector<CPUSpecificParams> cpuParams_5D = {
+        CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
+        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
+        CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
+};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic5D = {
+        {{2, 4, 3, 4, 1}, {{}}},
+        {{2, 17, 7, 5, 4}, {{}}},
+};
+
+const auto basicCases5D = ::testing::Combine(
         ::testing::Combine(
-                ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
+                ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
                 ::testing::Values(Precision::BF16),
                 ::testing::ValuesIn(bf16InpOutPrc),
                 ::testing::ValuesIn(bf16InpOutPrc),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
+                ::testing::ValuesIn(CommonTestUtils::combineParams(basic5D)),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::Values(emptyCPUSpec)
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases, ActivationLayerCPUTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_Activation_Eltwise_Prelu_CPU_BF16, ActivationLayerCPUTest, basicPreluCases, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation5D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
 } // namespace
-
 } // namespace CPULayerTestsDefinitions

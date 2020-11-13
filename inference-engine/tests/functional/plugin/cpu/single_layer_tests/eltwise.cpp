@@ -47,24 +47,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        std::string strExpectedPrc;
-        if (Precision::BF16 == inPrc) {
-            strExpectedPrc = "BF16";
-        } else if (Precision::FP32 == inPrc) {
-            strExpectedPrc = "FP32";
-        }
-
-        std::string isaType;
-        if (with_cpu_x86_avx512f()) {
-            isaType = "jit_avx512";
-        } else if (with_cpu_x86_avx2()) {
-            isaType = "jit_avx2";
-        } else if (with_cpu_x86_sse42()) {
-            isaType = "jit_sse42";
-        } else {
-            isaType = "ref";
-        }
-        selectedType = isaType + "_" + strExpectedPrc;
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
 
         std::vector<size_t> inputShape1, inputShape2;
         if (inputShapes.size() == 1) {
@@ -144,7 +127,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Differen
         ngraph::helpers::EltwiseTypes::POWER,
         // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
 };
-// Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+// Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
 std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
 
 std::vector<Precision> bf16InpOutPrc = {Precision::BF16, Precision::FP32};

@@ -148,6 +148,20 @@ std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUTestsBase::getCPUInfo
     return cpuInfo;
 }
 
+std::string CPUTestsBase::getPrimitiveType() const {
+    std::string isaType;
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        isaType = "jit_avx512";
+    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+        isaType = "jit_avx2";
+    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+        isaType = "jit_sse42";
+    } else {
+        isaType = "ref";
+    }
+    return isaType;
+}
+
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
     auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {

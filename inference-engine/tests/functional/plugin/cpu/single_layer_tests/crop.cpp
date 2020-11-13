@@ -73,14 +73,7 @@ protected:
         auto ss = ngraph::builder::makeStridedSlice(paramOuts[0], ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,
                                                     ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
 
-        std::string strExpectedPrc;
-        if (Precision::BF16 == inPrc) {
-            strExpectedPrc = "BF16";
-        } else if (Precision::FP32 == inPrc) {
-            strExpectedPrc = "FP32";
-        }
-
-        selectedType = "unknown_" + strExpectedPrc;
+        selectedType = std::string("unknown_") + inPrc.name();
 
         ss->get_rt_info() = getCPUInfo();
 
@@ -97,7 +90,7 @@ TEST_P(CropLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-// Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+// Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
 const std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
 
 const std::vector<Precision> netPrc = {Precision::BF16, Precision::FP32};
