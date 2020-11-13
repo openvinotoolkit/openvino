@@ -211,7 +211,7 @@ def validate_test_case(request, test_info):
 
 
 @pytest.fixture(scope="function")
-def prepare_db_info(request, test_info, executable, niter):
+def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     """Fixture for preparing and validating data to submit to a database.
 
     Fixture prepares data and metadata to submit to a database. One of the steps
@@ -243,7 +243,6 @@ def prepare_db_info(request, test_info, executable, niter):
     test_info["db_info"].update(info)
 
     # add manifest metadata
-    manifest_metadata = metadata_from_manifest(request.config.getoption("manifest"))
     test_info["db_info"].update(manifest_metadata)
 
     # validate db_info
@@ -273,16 +272,9 @@ def prepare_db_info(request, test_info, executable, niter):
             "niter": {"type": "integer"},
             "test_name": {"type": "string"},
             "results": {"type": "object"},
-            "_id": {"type": "string"},
-            "product_type": {"enum": ["private_linux_ubuntu_18_04", "private_windows_vs2019"]},
-            "repo_url": {"type": "string"},
-            "commit_sha": {"type": "string"},
-            "commit_date": {"type": "string"},
-            "target_branch": {"type": "string"},
-            "version": {"type": "string"}
+            "_id": {"type": "string"}
         },
-        "required": ["device", "model", "run_id", "timetest", "niter", "test_name", "results", "_id", "product_type", 
-                     "repo_url", "commit_sha", "commit_date", "target_branch", "version"],
+        "required": ["device", "model", "run_id", "timetest", "niter", "test_name", "results", "_id"],
         "additionalProperties": true
     }
     """
@@ -294,6 +286,42 @@ def prepare_db_info(request, test_info, executable, niter):
         request.config.option.db_submit = False
         raise
     yield
+
+
+@pytest.fixture(scope="session", autouse=True)
+def manifest_metadata(request):
+    """Fixture function for command-line option."""
+
+    run_id = request.config.getoption("db_submit")
+    if not run_id:
+        yield
+        return
+
+    manifest_meta = metadata_from_manifest(request.config.getoption("manifest"))
+
+    schema = """
+        {
+            "type": "object",
+            "properties": {
+                "product_type": {"enum": ["private_linux_ubuntu_18_04", "private_windows_vs2019"]},
+                "repo_url": {"type": "string"},
+                "commit_sha": {"type": "string"},
+                "commit_date": {"type": "string"},
+                "target_branch": {"type": "string"},
+                "version": {"type": "string"}
+            },
+            "required": ["product_type", "repo_url", "commit_sha", "commit_date", "target_branch", "version"],
+            "additionalProperties": false
+        }
+        """
+    schema = json.loads(schema)
+
+    try:
+        validate(instance=manifest_meta, schema=schema)
+    except ValidationError:
+        request.config.option.db_submit = False
+        raise
+    yield manifest_meta
 
 
 @pytest.fixture(scope="session", autouse=True)
