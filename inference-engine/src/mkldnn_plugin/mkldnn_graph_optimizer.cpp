@@ -38,6 +38,8 @@
 #include <set>
 #include <algorithm>
 
+#include "mkldnn_itt.h"
+
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -45,6 +47,8 @@ using namespace InferenceEngine;
 MKLDNNGraphOptimizer::MKLDNNGraphOptimizer() {}
 
 void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations");
+
     MergeTwoEqualScaleShifts(graph);
     graph.RemoveDroppedNodes();
 
@@ -134,6 +138,8 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &graph) {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations");
+
     RemoveIOScaleShifts(graph);
     graph.RemoveDroppedNodes();
 
