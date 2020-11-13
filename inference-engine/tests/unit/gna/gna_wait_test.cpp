@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+// to suppress deprecated definition errors
+#define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #include "gna_infer_request.hpp"
 #include "gna_mock_api.hpp"
 
