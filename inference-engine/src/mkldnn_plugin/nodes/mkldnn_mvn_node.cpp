@@ -662,18 +662,18 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
                 auto dst_data = reinterpret_cast<float*>(dstMemPtr->GetData());
                 mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else if (output_prec == Precision::BF16) {
-                auto dst_data = reinterpret_cast<bfloat16*>(dstMemPtr->GetData());
+                auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
                 mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else {
                 THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
             }
         } else if (input_prec == Precision::BF16) {
-            auto src_data = reinterpret_cast<bfloat16*>(srcMemPtr->GetData());
+            auto src_data = reinterpret_cast<bfloat16_t*>(srcMemPtr->GetData());
             if (output_prec == Precision::FP32) {
                 auto dst_data = reinterpret_cast<float*>(dstMemPtr->GetData());
                 mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else if (output_prec == Precision::BF16) {
-                auto dst_data = reinterpret_cast<bfloat16*>(dstMemPtr->GetData());
+                auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
                 mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else {
                 THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
@@ -694,8 +694,8 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
                 auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
                 mvn_blk<float, uint8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else if (input_prec == Precision::BF16) {
-                auto src_data = reinterpret_cast<const bfloat16 *>(srcMemPtr->GetData());
-                mvn_blk<bfloat16, uint8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+                auto src_data = reinterpret_cast<const bfloat16_t *>(srcMemPtr->GetData());
+                mvn_blk<bfloat16_t, uint8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else {
                 THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
             }
@@ -711,8 +711,8 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
                 auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
                 mvn_blk<float, int8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else if (input_prec == Precision::BF16) {
-                auto src_data = reinterpret_cast<const bfloat16 *>(srcMemPtr->GetData());
-                mvn_blk<bfloat16, int8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+                auto src_data = reinterpret_cast<const bfloat16_t *>(srcMemPtr->GetData());
+                mvn_blk<bfloat16_t, int8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else {
                 THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
             }
@@ -728,25 +728,25 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
                 auto src_data = reinterpret_cast<float *>(srcMemPtr->GetData());
                 mvn_blk<float, float>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else if (input_prec == Precision::BF16) {
-                auto src_data = reinterpret_cast<const bfloat16*>(srcMemPtr->GetData());
-                mvn_blk<bfloat16, float>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+                auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+                mvn_blk<bfloat16_t, float>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else {
                 THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
             }
         } else if (output_prec == Precision::BF16) {
-            auto dst_data = reinterpret_cast<bfloat16*>(dstMemPtr->GetData());
+            auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
             if (input_prec == Precision::U8) {
                 auto src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetData());
-                mvn_blk<uint8_t, bfloat16>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+                mvn_blk<uint8_t, bfloat16_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else if (input_prec == Precision::I8) {
                 auto src_data = reinterpret_cast<const int8_t *>(srcMemPtr->GetData());
-                mvn_blk<int8_t, bfloat16>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+                mvn_blk<int8_t, bfloat16_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else if (input_prec == Precision::FP32) {
                 auto src_data = reinterpret_cast<float *>(srcMemPtr->GetData());
-                mvn_blk<float, bfloat16>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+                mvn_blk<float, bfloat16_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else if (input_prec == Precision::BF16) {
-                auto src_data = reinterpret_cast<const bfloat16*>(srcMemPtr->GetData());
-                mvn_blk<bfloat16, bfloat16>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+                auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+                mvn_blk<bfloat16_t, bfloat16_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
             } else {
                 THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
             }

@@ -495,9 +495,9 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
                 auto dst_data = reinterpret_cast<float*>(dstMemPtr->GetData());
                 NearestNeighbor_PLN<float, float>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
             } else if (output_prec == Precision::BF16) {
-                auto src_data = reinterpret_cast<const bfloat16*>(srcMemPtr->GetData());
-                auto dst_data = reinterpret_cast<bfloat16*>(dstMemPtr->GetData());
-                NearestNeighbor_PLN<bfloat16, bfloat16>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+                auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+                auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
+                NearestNeighbor_PLN<bfloat16_t, bfloat16_t>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
             } else {
                 THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
             }
@@ -545,9 +545,9 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
                     THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
                 }
             } else if (output_prec == Precision::BF16) {
-                auto src_data = reinterpret_cast<const bfloat16*>(srcMemPtr->GetData());
-                auto dst_data = reinterpret_cast<bfloat16*>(dstMemPtr->GetData());
-                NearestNeighbor_BLK<bfloat16, bfloat16>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+                auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+                auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
+                NearestNeighbor_BLK<bfloat16_t, bfloat16_t>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
             } else {
                 THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
             }
@@ -569,9 +569,9 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
             auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
             LinearInterpolation<float, float>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW, kernel_width, isDownsample && antialias);
         } else if (input_prec == Precision::BF16) {
-            auto src_data = reinterpret_cast<const bfloat16*>(srcMemPtr->GetData());
-            auto dst_data = reinterpret_cast<bfloat16*>(dstMemPtr->GetData());
-            LinearInterpolation<bfloat16, bfloat16>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW, kernel_width,
+            auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+            auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
+            LinearInterpolation<bfloat16_t, bfloat16_t>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW, kernel_width,
                 isDownsample && antialias);
         } else {
             THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();

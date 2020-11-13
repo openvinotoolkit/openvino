@@ -977,9 +977,9 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
             THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
         }
     } else if (output_prec == Precision::BF16) {
-        auto dst_data = reinterpret_cast<bfloat16*>(dst_ptr);
-        auto src_data = reinterpret_cast<const bfloat16*>(src_ptr);
-        normalize_function<bfloat16, bfloat16>(src_data, dst_data, dims);
+        auto dst_data = reinterpret_cast<bfloat16_t*>(dst_ptr);
+        auto src_data = reinterpret_cast<const bfloat16_t*>(src_ptr);
+        normalize_function<bfloat16_t, bfloat16_t>(src_data, dst_data, dims);
     } else {
         THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
     }

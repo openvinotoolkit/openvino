@@ -277,13 +277,13 @@ public:
         auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
         if (inputPrec == Precision::BF16) {
             if (outputPrec == Precision::BF16) {
-                return executeSpecified<bfloat16, bfloat16>(inputs, outputs, resp);
+                return executeSpecified<bfloat16_t, bfloat16_t>(inputs, outputs, resp);
             } else {
-                return executeSpecified<bfloat16, float>(inputs, outputs, resp);
+                return executeSpecified<bfloat16_t, float>(inputs, outputs, resp);
             }
         } else {
             if (outputPrec == Precision::BF16) {
-                return executeSpecified<float, bfloat16>(inputs, outputs, resp);
+                return executeSpecified<float, bfloat16_t>(inputs, outputs, resp);
             } else {
                 return executeSpecified<float, float>(inputs, outputs, resp);
             }

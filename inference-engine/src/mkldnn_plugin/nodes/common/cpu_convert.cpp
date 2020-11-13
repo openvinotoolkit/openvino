@@ -52,7 +52,7 @@ void convertFrom(const void *srcPtr, void *dstPtr, Precision dstPrc, const size_
             convert<srcType, PrecisionTrait<Precision::FP32>::value_type>(srcPtr, dstPtr, size);
             break;
         case Precision::BF16:
-            convert<srcType, MKLDNNPlugin::bfloat16>(srcPtr, dstPtr, size);
+            convert<srcType, MKLDNNPlugin::bfloat16_t>(srcPtr, dstPtr, size);
             break;
         case Precision::BOOL:
             convert<srcType, PrecisionTrait<Precision::BOOL>::value_type>(srcPtr, dstPtr, size);
@@ -97,7 +97,7 @@ void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision d
             convertFrom<PrecisionTrait<Precision::FP32>::value_type>(srcPtr, dstPtr, dstPrc, size);
             break;
         case Precision::BF16:
-            convertFrom<MKLDNNPlugin::bfloat16>(srcPtr, dstPtr, dstPrc, size);
+            convertFrom<MKLDNNPlugin::bfloat16_t>(srcPtr, dstPtr, dstPrc, size);
             break;
         case Precision::BOOL:
             convertFrom<PrecisionTrait<Precision::BOOL>::value_type>(srcPtr, dstPtr, dstPrc, size);
