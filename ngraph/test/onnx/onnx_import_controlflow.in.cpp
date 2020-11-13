@@ -81,6 +81,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/loop/loop_2d_add_no_identity_termination_cond.prototxt"));
 
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    // termination condition
+    test_case.add_input<bool>({true});
+    // a_init
+    test_case.add_input<float>({0.f, 0.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
+    test_case.add_expected_output<float>(
+        Shape{6, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f, 6.f, 6.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond_static_shapes)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/loop/loop_2d_add_no_identity_termination_cond_static_shapes.prototxt"));
+
     auto test_case = test::TestCase<TestEngine>(function);
     // termination condition
     test_case.add_input<bool>({true});
@@ -88,8 +106,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
     test_case.add_input<float>({0.f, 0.f});
 
     test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
-    test_case.add_expected_output<float>(Shape{5, 2},
-                                         {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f});
     test_case.run();
 }
 
@@ -119,12 +135,27 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_terminat
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/loop/loop_2d_add_const_no_identity_termination_cond.prototxt"));
 
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    // a_init
+    test_case.add_input<float>({0.f, 0.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {4.f, 4.f});
+    test_case.add_expected_output<float>(Shape{4, 2}, {1, 1, 2, 2, 3, 3, 4, 4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME},
+            onnx_controlflow_loop_2d_const_no_identity_termination_cond_static_shapes)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/loop/loop_2d_add_const_no_identity_termination_cond_static_shapes.prototxt"));
+
     auto test_case = test::TestCase<TestEngine>(function);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
-    test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
+    test_case.add_expected_output<float>(Shape{1, 2}, {4.f, 4.f});
     test_case.run();
 }
 
@@ -139,6 +170,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_a
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/loop/loop_2d_add_cond_and_trip_count_as_inputs.prototxt"));
 
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    // trip count
+    test_case.add_input<int64_t>({10});
+
+    // termination condition
+    test_case.add_input<bool>({true});
+
+    // a_init
+    test_case.add_input<float>({0.f, 0.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
+    test_case.add_expected_output<float>(
+        Shape{6, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f, 6.f, 6.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME},
+            onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs_static_shapes)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/loop/loop_2d_add_cond_and_trip_count_as_inputs_static_shapes.prototxt"));
+
     auto test_case = test::TestCase<TestEngine>(function);
     // trip count
     test_case.add_input<int64_t>({10});
@@ -149,9 +203,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_a
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
-    test_case.add_expected_output<float>(Shape{1, 2}, {5.f, 5.f});
-    test_case.add_expected_output<float>(Shape{5, 2},
-                                         {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f});
+    test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
     test_case.run();
 }
 
@@ -278,7 +330,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic)
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_trip_count_dynamic.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     // trip count
     test_case.add_input<int64_t>({3});
     // a_init
@@ -359,7 +411,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_output
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/loop/loop_no_variadic_inputs_and_outputs.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     // trip_count
     test_case.add_input<int64_t>({1});
     // init condition
@@ -375,7 +427,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power)
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_pow.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     // trip_count
     test_case.add_input<int64_t>({5});
     // pow init

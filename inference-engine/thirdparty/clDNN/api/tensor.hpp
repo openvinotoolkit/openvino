@@ -323,9 +323,12 @@ struct format {
                 { gs_oi_yxs_gsv32_yxsv4,                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 32}}}},
                 { g_os_is_yx_isv16_osv16,                      { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{1, 16}, {0, 16}}}},
                 { gi_yxs_os_yxsv2_osv16,                       { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{0, 16}}}},
-                { iy_xs_os_xsv2_osv8__ao32,                    { 1, 1, 2, 0, 0, "giyxo",  "oixy????g",  {{2, 2}, {0, 8}}}},
-                { iy_xs_os_xsv2_osv16__ao32,                   { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 16}}}},
+                { giy_xs_os_xsv2_osv8__ao32,                   { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 8}}}},
+                { giy_xs_os_xsv2_osv16__ao32,                  { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 16}}}},
         };
+        if (traits.find(fmt) == traits.end()) {
+            throw std::runtime_error("[clDNN] Format description is missing in fmt traits");
+        }
         return traits.at(fmt);
     }
 
