@@ -84,7 +84,7 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
                     new_soft_nms_sigma,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    nms_5->get_output_type());
+                    element::i32);
             new_ops.emplace_back(nms_legacy);
         } else {
             nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
@@ -95,13 +95,16 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
                     new_score_threshold,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    nms_5->get_output_type());
+                    element::i32);
             new_ops.emplace_back(nms_legacy);
         }
 
+        Output<Node> convert_1 = std::make_shared<opset1::Convert>(nms_legacy->output(0), nms_5->get_output_type());
+        Output<Node> convert_2 = std::make_shared<opset1::Convert>(nms_legacy->output(2), nms_5->get_output_type());
+
         nms_legacy->set_friendly_name(nms_5->get_friendly_name());
         ngraph::copy_runtime_info(nms_5, new_ops);
-        ngraph::replace_node(nms_5, nms_legacy);
+        ngraph::replace_node(nms_5, {convert_1, nms_legacy->output(1), convert_2});
         return true;
     };
 

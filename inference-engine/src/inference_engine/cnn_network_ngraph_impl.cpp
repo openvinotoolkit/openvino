@@ -27,6 +27,7 @@
 
 // TODO: remove this pass usage
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
@@ -337,10 +338,12 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         auto specialized_ngraph_function = cloneFunction(true);
         // Call this transformation because OneHot IE and nGraph have different output precisions
         {
-            OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertOneHot");
+            OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
             ::ngraph::pass::Manager manager;
             manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
                     specialized_ngraph_function);
+            manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>();
+            manager.register_pass<::ngraph::pass::ConstantFolding>();
             manager.run_passes(specialized_ngraph_function);
         }
         specialized_ngraph_function->validate_nodes_and_infer_types();
