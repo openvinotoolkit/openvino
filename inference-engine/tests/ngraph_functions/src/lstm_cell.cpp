@@ -29,17 +29,29 @@ std::shared_ptr<ngraph::Node> makeLSTM(const std::vector<ngraph::Output<Node>>& 
                                                           activations_alpha, activations_beta, clip);
     } else {
         std::shared_ptr<Node> seq_lengths;
-        if (mode == ngraph::helpers::SequenceTestsMode::PURE_SEQ
-            || mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST) {
-            std::vector<float> lengths(in[0].get_shape()[0], in[0].get_shape()[1]);
-            seq_lengths = ngraph::builder::makeConstant(element::i64, constants[3], lengths, false);
-        } else if (mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST) {
-            for (size_t  i = 0; i <= in[0].get_shape().at(0); ++i) {
-                std::vector<float> lengths;
-                seq_lengths = ngraph::builder::makeConstant(element::i64, constants[3], lengths, true, in[0].get_shape()[1], 0);
+        switch (mode) {
+            case ngraph::helpers::SequenceTestsMode::PURE_SEQ:
+            case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST: {
+                std::vector<float> lengths(in[0].get_shape()[0], in[0].get_shape()[1]);
+                seq_lengths = ngraph::builder::makeConstant(element::i64, constants[3], lengths, false);
+                break;
             }
-        } else {
-            seq_lengths = in.at(3).get_node_shared_ptr();
+            case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST: {
+                for (size_t i = 0; i <= in[0].get_shape().at(0); ++i) {
+                    std::vector<float> lengths;
+                    seq_lengths = ngraph::builder::makeConstant(element::i64, constants[3], lengths, true,
+                                                                in[0].get_shape()[1], 0);
+                }
+                break;
+            }
+            case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM:
+            case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM: {
+                // Seq_lengths should be as a Parameter node for these two modes
+                seq_lengths = in.at(3).get_node_shared_ptr();
+                break;
+            }
+            default:
+                throw std::runtime_error("Incorrect mode for creation of Sequence operation");
         }
         return std::make_shared<ngraph::opset5::LSTMSequence>(in[0], in[1], in[2], seq_lengths, W, R, B, hidden_size, direction,
                                                           activations_alpha, activations_beta, activations, clip);

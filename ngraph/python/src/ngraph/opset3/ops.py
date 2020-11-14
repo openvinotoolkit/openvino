@@ -432,8 +432,8 @@ def rnn_cell(
     @param W:                       The weight tensor with shape: [hidden_size, input_size].
     @param R:                       The recurrence weight tensor with shape: [hidden_size,
                                     hidden_size].
-    :param B:                       The sum of biases (weight and recurrence) with shape: [hidden_size].
-    :param hidden_size:             The number of hidden units for recurrent cell.
+    @param B:                       The sum of biases (weight and recurrence) with shape: [hidden_size].
+    @param hidden_size:             The number of hidden units for recurrent cell.
                                     Specifies hidden state size.
     @param activations:             The vector of activation functions used inside recurrent cell.
     @param activation_alpha:        The vector of alpha parameters for activation functions in
@@ -557,7 +557,7 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     """! Return a node which produces a tensor containing the shape of its input data.
 
     @param data: The tensor containing the input data.
-    :para output_type: Output element type.
+    @param output_type: Output element type.
     @return ShapeOf node
     """
     return _get_node_factory_opset3().create(
