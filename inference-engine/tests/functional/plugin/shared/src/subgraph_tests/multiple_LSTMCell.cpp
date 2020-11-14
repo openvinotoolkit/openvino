@@ -55,27 +55,14 @@ void MultipleLSTMCellTest::SetUp() {
     std::vector<size_t> hidden_memory_dims {1, hiddenSize};
     std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-    const int seed = 0;
-    std::mt19937 gen(static_cast<float>(seed));
-
-    auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
-        std::vector<float> res;
-
-        std::uniform_real_distribution<float> dist(min, max);
-        for (int i = 0; i < vec_len; i++)
-            res.emplace_back(static_cast<float>(dist(gen)));
-
-        return res;
-    };
-
-    input_bias = generateFloatNumbers(inputSize, -0.25f, 0.0f);
-    input_weights = generateFloatNumbers(inputSize, 0.0f, 0.15f);
-    hidden_memory_init = generateFloatNumbers(hiddenSize, -0.2f, 0.2f);
-    cell_memory_init = generateFloatNumbers(hiddenSize, -0.2f, 0.2f);
-    weights_vals = generateFloatNumbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
-    weights_2_vals = generateFloatNumbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
-    reccurrenceWeights_vals = generateFloatNumbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
-    bias_vals = generateFloatNumbers(4 * hiddenSize, -0.25f, 0.15f);
+    input_bias = CommonTestUtils::generate_float_numbers(inputSize, -0.25f, 0.0f);
+    input_weights = CommonTestUtils::generate_float_numbers(inputSize, 0.0f, 0.15f);
+    hidden_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+    cell_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+    weights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
+    weights_2_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
+    reccurrenceWeights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
+    bias_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize, -0.25f, 0.15f);
 
     auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
 
@@ -415,6 +402,7 @@ void MultipleLSTMCellTest::Run() {
                                                   InferenceEngine::SizeVector({1, hiddenSize}),
                                                   InferenceEngine::Layout::NC);
     LoadNetwork();
+    IE_SUPPRESS_DEPRECATED_START
     auto states = executableNetwork.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
@@ -438,6 +426,7 @@ void MultipleLSTMCellTest::Run() {
             GTEST_FAIL() << "unknown memory state";
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
     Infer();
     switchToNgraphFriendlyModel();
     Validate();
@@ -463,6 +452,7 @@ void MultipleLSTMCellTest::RunLowLatency(bool regular_api) {
         manager.run_passes(function);
         LoadNetwork();
     }
+    IE_SUPPRESS_DEPRECATED_START
     auto states = executableNetwork.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
@@ -486,6 +476,7 @@ void MultipleLSTMCellTest::RunLowLatency(bool regular_api) {
             GTEST_FAIL() << "unknown memory state";
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
     Infer();
 
     // Calculate ref values for Unrolled TI
