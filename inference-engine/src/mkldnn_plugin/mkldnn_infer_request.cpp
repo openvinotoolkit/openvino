@@ -112,14 +112,14 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
             // these precisions are supported by mkldnn, so we push the blob directly
             // BUT if a mean image exists, we convert the blob and send FP32
             case InferenceEngine::Precision::U8:
-            case InferenceEngine::Precision::BOOL:
-            case InferenceEngine::Precision::I16: {
+            case InferenceEngine::Precision::BOOL: {
                 if (graph->hasMeanImageFor(input.first))
                     inPrec = InferenceEngine::Precision::FP32;
                 break;
             }
             // these precisions are unsupported by mkldnn, so we convert the blob and send I32
             case InferenceEngine::Precision::U16:
+            case InferenceEngine::Precision::I16:
             case InferenceEngine::Precision::I64:
             case InferenceEngine::Precision::U64: {
                 inPrec = InferenceEngine::Precision::I32;

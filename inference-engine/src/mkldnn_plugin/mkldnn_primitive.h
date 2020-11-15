@@ -17,10 +17,10 @@ class MKLDNNPrimitive {
 public:
     MKLDNNPrimitive();
     operator bool();
-    MKLDNNPrimitive& operator=(const std::shared_ptr<mkldnn::primitive>& prim);
+    MKLDNNPrimitive& operator=(const std::shared_ptr<mkldnn::primitive>& primitive);
     mkldnn::primitive operator*();
 
-    void reset(mkldnn::primitive* prim);
+    void reset(mkldnn::primitive* primitive);
     void setBatchLimit(int batch, size_t inputNum, size_t outputNum);
 
 private:

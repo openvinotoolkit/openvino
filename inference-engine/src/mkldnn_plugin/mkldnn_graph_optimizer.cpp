@@ -18,6 +18,8 @@
 #include "nodes/mkldnn_interpolate_node.h"
 #include "nodes/mkldnn_input_node.h"
 
+#include "mkldnn/ie_mkldnn.h"
+
 #include <blob_factory.hpp>
 #include <legacy/ie_layers_internal.hpp>
 
@@ -30,7 +32,7 @@
 #  define _WINSOCK2API_
 #endif
 #endif
-#include <cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 #include <string>
 #include <list>
@@ -43,6 +45,24 @@
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+
+static constexpr mkldnn::algorithm depthwise_scale_shift = mkldnn::algorithm::depthwise_scale_shift;
+static constexpr mkldnn::algorithm depthwise_prelu = mkldnn::algorithm::depthwise_prelu;
+
+static constexpr mkldnn::algorithm eltwise_relu = mkldnn::algorithm::eltwise_relu;
+static constexpr mkldnn::algorithm eltwise_elu = mkldnn::algorithm::eltwise_elu;
+static constexpr mkldnn::algorithm eltwise_gelu = mkldnn::algorithm::eltwise_gelu;
+static constexpr mkldnn::algorithm eltwise_logistic = mkldnn::algorithm::eltwise_logistic;
+static constexpr mkldnn::algorithm eltwise_bounded_relu = mkldnn::algorithm::eltwise_bounded_relu;
+static constexpr mkldnn::algorithm eltwise_clamp = mkldnn::algorithm::eltwise_clip;
+static constexpr mkldnn::algorithm eltwise_swish = mkldnn::algorithm::eltwise_swish;
+static constexpr mkldnn::algorithm eltwise_mish = mkldnn::algorithm::eltwise_mish;
+static constexpr mkldnn::algorithm eltwise_hswish = mkldnn::algorithm::eltwise_hswish;
+static constexpr mkldnn::algorithm eltwise_tanh = mkldnn::algorithm::eltwise_tanh;
+static constexpr mkldnn::algorithm eltwise_linear = mkldnn::algorithm::eltwise_linear;
+static constexpr mkldnn::algorithm eltwise_abs = mkldnn::algorithm::eltwise_abs;
+static constexpr mkldnn::algorithm eltwise_square = mkldnn::algorithm::eltwise_square;
+static constexpr mkldnn::algorithm eltwise_sqrt = mkldnn::algorithm::eltwise_sqrt;
 
 MKLDNNGraphOptimizer::MKLDNNGraphOptimizer() {}
 
@@ -97,10 +117,8 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseConvolutionAndDWConvolution(graph);
     graph.RemoveDroppedNodes();
 
-#if defined(COMPILED_CPU_MKLDNN_QUANTIZE_NODE)
     FuseBinaryConvolutionAndQuantize(graph);
     graph.RemoveDroppedNodes();
-#endif
 
     FuseBatchNormWithScale(graph);
     graph.RemoveDroppedNodes();
@@ -108,16 +126,15 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     RemoveIdentityOperator(graph);
     graph.RemoveDroppedNodes();
 
-#if defined(COMPILED_CPU_MKLDNN_ELTWISE_NODE)
     FuseConvolutionSumAndConvolutionSumActivation(graph);
     graph.RemoveDroppedNodes();
-#endif
 
     FuseConvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
-    FuseFullyConnectedAndSimpleOperation(graph);
-    graph.RemoveDroppedNodes();
+    // TODO [oneDNN]: eltwise injectors is not ported yet
+//    FuseFullyConnectedAndSimpleOperation(graph);
+//    graph.RemoveDroppedNodes();
 
     FuseMVNAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
@@ -140,7 +157,6 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     RemoveIOScaleShifts(graph);
     graph.RemoveDroppedNodes();
 
-#if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
     ChangeConvertToReorder(graph);
     graph.RemoveDroppedNodes();
 
@@ -149,7 +165,6 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
 
     DropConvertReorder(graph);
     graph.RemoveDroppedNodes();
-#endif
 
     MergePermuteAndReorder(graph);
     graph.RemoveDroppedNodes();
@@ -956,7 +971,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
         auto outDims = childNode->outDims[0];
         int elemSize = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(layer->precision));
 
-        int L3_cache_size = mkldnn_get_cache_size(3, false);
+        int L3_cache_size = mkldnn::utils::get_cache_size(3, false);
         int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
         int dw_conv_output_size = outDims[0] * outDims[1]* outDims[2] * outDims[3] * elemSize;
 
@@ -965,7 +980,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
             THROW_IE_EXCEPTION << "Cannot get convolution node " << parentNode->getName();
 
         bool isInt8 = parentConvolutionNode->canBeExecutedInInt8();
-        bool isAVX512NotSupported = !mkldnn::impl::cpu::mayiuse(impl::cpu::cpu_isa_t::avx512_common);
+        bool isAVX512NotSupported = !mkldnn::impl::cpu::x64::mayiuse(mkldnn::impl::cpu::x64::cpu_isa_t::avx512_common);
 
         return isInt8 ? isAVX512NotSupported : (dw_conv_input_size + dw_conv_output_size > L3_cache_size / 2);
     };
@@ -991,7 +1006,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
     }
 }
 
-#if defined(COMPILED_CPU_MKLDNN_QUANTIZE_NODE)
 void MKLDNNGraphOptimizer::FuseConvolutionAndQuantize(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
@@ -1205,7 +1219,6 @@ void MKLDNNGraphOptimizer::FusePoolingAndQuantize(MKLDNNGraph &graph) {
         graph.DropNode(child);
     }
 }
-#endif
 
 /**
  *  Check if there is a data dependency between parent and child
@@ -1273,7 +1286,6 @@ static bool is_data_dependency(const std::shared_ptr<MKLDNNNode> &parent,
  *                ***
  */
 
-#if defined(COMPILED_CPU_MKLDNN_ELTWISE_NODE)
 void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph) {
     std::vector<MKLDNNNodePtr> &graphNodes = graph.GetNodes();
 
@@ -1415,7 +1427,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         sum->remove();
     }
 }
-#endif
 
 void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
@@ -1760,7 +1771,6 @@ void MKLDNNGraphOptimizer::RemoveIdentityOperator(MKLDNNGraph &graph) {
     }
 }
 
-#if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
 void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
     std::set<MKLDNNNodePtr> processed;
     int graphNodesSize = graph.GetNodes().size();
@@ -1898,7 +1908,6 @@ void MKLDNNGraphOptimizer::ChangeConvertToReorder(MKLDNNGraph& graph) {
         graph.DropNode(convertCandidate);
     }
 }
-#endif
 
 void MKLDNNGraphOptimizer::RemoveIOScaleShifts(MKLDNNGraph &graph) {
     for (MKLDNNNodePtr& node : graph.GetNodes()) {
@@ -1914,7 +1923,6 @@ void MKLDNNGraphOptimizer::RemoveIOScaleShifts(MKLDNNGraph &graph) {
             if (cur->getTensorDesc().getPrecision() != l->outData[0]->getTensorDesc().getPrecision()) {
                 if (node->name.find("_iScaleShift_") != std::string::npos) {
                     auto child = node->childEdges[0].lock()->getChild();
-#if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
                     if (child->type == Reorder) {
                         MKLDNNReorderNode* rn = dynamic_cast<MKLDNNReorderNode*>(child.get());
                         if (rn != nullptr) {
@@ -1922,16 +1930,11 @@ void MKLDNNGraphOptimizer::RemoveIOScaleShifts(MKLDNNGraph &graph) {
                             graph.DropNode(node);
                         }
                     } else {
-#else
                         THROW_IE_EXCEPTION << "Strange case. No Reorder after iScaleShift";
-#endif
-#if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
                     }
-#endif
                 } else if (node->name.find("_oScaleShift_") != std::string::npos) {
                     auto parent = node->parentEdges[0].lock()->getParent();
 
-#if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
                     if (parent->type == Reorder) {
                         MKLDNNReorderNode* rn = dynamic_cast<MKLDNNReorderNode*>(parent.get());
                         if (rn != nullptr) {
@@ -1939,12 +1942,8 @@ void MKLDNNGraphOptimizer::RemoveIOScaleShifts(MKLDNNGraph &graph) {
                             graph.DropNode(node);
                         }
                     } else {
-#else
                         THROW_IE_EXCEPTION << "Strange case. No Reorder before oScaleShift";
-#endif
-#if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
                     }
-#endif
                 }
             }
         }

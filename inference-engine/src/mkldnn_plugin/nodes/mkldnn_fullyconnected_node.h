@@ -20,6 +20,8 @@ public:
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
+    void execute(mkldnn::stream strm) override;
+
     bool canBeInPlace() const override {
         return false;
     }
@@ -43,7 +45,7 @@ protected:
 private:
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
-    mkldnn::memory::format weightsFormatForSrcFormat(mkldnn::memory::format sourceFormat);
+    mkldnn::memory::format_tag weightsFormatForSrcFormat(mkldnn::memory::format_tag sourceFormat);
 
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);

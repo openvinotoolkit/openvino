@@ -120,6 +120,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
             {ngraph::element::i64,     ngraph::element::i32},
             {ngraph::element::u64,     ngraph::element::i32},
+            {ngraph::element::i16,     ngraph::element::i32},
             {ngraph::element::u16,     ngraph::element::i32},
             {ngraph::element::u32,     ngraph::element::i32},
             {ngraph::element::f16,     ngraph::element::f32},
@@ -322,6 +323,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
             NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
             NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
+            NetPass::ConvertPrecision(*implNetwork, Precision::I16, Precision::I32);
         }
     }
 

@@ -5740,7 +5740,8 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2EltwiseOpFusing) {
     compare(*output, *dstOut);
 }
 
-TEST_F(MKLDNNGraphStructureTests, TestGemmConvolutionWith2DepthwiseOpFusing) {
+// TODO [oneDNN]: while depthwise post ops is not ported properly
+TEST_F(MKLDNNGraphStructureTests, DISABLED_TestGemmConvolutionWith2DepthwiseOpFusing) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>

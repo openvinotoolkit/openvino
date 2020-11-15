@@ -15,6 +15,23 @@
 
 namespace MKLDNNPlugin {
 
+class PartialBlkDesc {
+public:
+    bool operator == (const PartialBlkDesc& it) const;
+    bool operator < (const PartialBlkDesc& it) const;
+
+    bool isAutoExtendedWith(const InferenceEngine::SizeVector &dims) const;
+
+    static PartialBlkDesc extractFrom(const InferenceEngine::TensorDesc &desc);
+    static PartialBlkDesc makePlain(const InferenceEngine::SizeVector &dims);
+
+private:
+    PartialBlkDesc() = default;
+    InferenceEngine::SizeVector outer_order;
+    InferenceEngine::SizeVector inner_blk_size;
+    InferenceEngine::SizeVector inner_blk_idxes;
+};
+
 class MKLDNNExtensionUtils {
 public:
     static uint8_t sizeOfDataType(mkldnn::memory::data_type dataType);
