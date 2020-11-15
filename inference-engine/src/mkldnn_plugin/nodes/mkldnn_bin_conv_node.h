@@ -48,7 +48,7 @@ private:
     ptrdiff_t dw_conv_iw = 0;
     std::vector<ptrdiff_t> dw_conv_kernel;
     std::vector<ptrdiff_t> dw_conv_strides;
-    mkldnn::memory::data_type dw_conv_in_dt = mkldnn::memory::data_type::data_undef;
+    mkldnn::memory::data_type dw_conv_in_dt = mkldnn::memory::data_type::undef;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 
     int baseInputsNumber;

@@ -37,7 +37,7 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
         inputDataType = outputDataType;
 
     auto& outDims = getChildEdgeAt(0)->getDims();
-    memory::format outFormat = MKLDNNMemory::GetPlainFormat(outDims);
+    memory::format_tag outFormat = MKLDNNMemory::GetPlainFormat(outDims);
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());

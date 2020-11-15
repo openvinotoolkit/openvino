@@ -139,7 +139,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].desc = getTensorDesc(precision, srcDims.ToSizeVector());
         config.outConfs.resize(outDims.size());
 
-        std::vector<memory::format> outFormats;
+        std::vector<memory::format_tag> outFormats;
 
         for (size_t i = 0; i < outDims.size(); i++) {
             auto o_Dims = outDims[i];
@@ -197,7 +197,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         const auto& blkDims = refConfig.inConfs[0].desc.getBlockingDesc().getBlockDims();
         auto numOfDim = blkDims.size();
 
-        std::vector<memory::format> outFormats;
+        std::vector<memory::format_tag> outFormats;
         SizeVector offsets(numOfDim, 0lu);
         SizeVector strides(numOfDim);
         strides.back() = 1lu;

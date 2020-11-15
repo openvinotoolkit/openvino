@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_pooling_node.h"
-#include "desc_iterator.hpp"
+
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_conv_node.h"
 #include "mkldnn_concat_node.h"
@@ -14,6 +14,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <legacy/ie_layers_internal.hpp>
+#include <utils/general_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -88,18 +89,18 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     }
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
         // i8 layers supports only ndhwc and nhwc layouts
-        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
-        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
+        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
+        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
         createDescriptor({ in_candidate }, { out_candidate });
     } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && parentDims[1] == 1) {
         // WA. We should force planar layout since it provides better performance
-        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};
-        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};
+        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format_tag::ncdhw : memory::format_tag::nchw};
+        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format_tag::ncdhw : memory::format_tag::nchw};
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
-        if (inputDataType != memory::bf16) {
-            inputDataType = memory::f32;
-            outputDataType = memory::f32;
+        if (inputDataType != memory::data_type::bf16) {
+            inputDataType = memory::data_type::f32;
+            outputDataType = memory::data_type::f32;
         }
         // It doesn't support any format
         for (auto format : getAvailableFormatsForDims(parentDims)) {
@@ -119,8 +120,7 @@ void MKLDNNPoolingNode::createPrimitive() {
 
     auto prim_desc = createPrimitiveDescriptor<pooling_forward::primitive_desc, pooling_forward::desc>(attr);
 
-    prim.reset(new pooling_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
-                                   getChildEdgeAt(0)->getMemory().GetPrimitive()));
+    prim.reset(new pooling_forward(prim_desc));
 }
 
 bool MKLDNNPoolingNode::created() const {
@@ -149,23 +149,28 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
             }
         }
         if (!exclude_pad && (not_zero_l || not_zero_r))
-            alg = pooling_avg_include_padding;
+            alg = algorithm::pooling_avg_include_padding;
         else
-            alg = pooling_avg_exclude_padding;
+            alg = algorithm::pooling_avg_exclude_padding;
     } else if (type == PoolingLayer::PoolType::MAX) {
-        alg = pooling_max;
+        alg = algorithm::pooling_max;
     } else {
         // TODO: Handle rest of the possible: STOCH, ROI, SPACIAL_PYRAMID
         THROW_IE_EXCEPTION << "Unsupported pooling type";
     }
 
+    auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
+        return memory::dims(orig_dims.begin(), orig_dims.end());
+    };
     std::shared_ptr<pooling_forward::desc> desc_ptr(
             new pooling_forward::desc(prop_kind::forward_scoring, alg,
                                       in_candidate, out_candidate,
-                                      stride, kernel, effective_pad_begin, effective_pad_end,
-                                      mkldnn::padding_kind::zero));
+                                      convert(stride),
+                                      convert(kernel),
+                                      convert(effective_pad_begin),
+                                      convert(effective_pad_end)));
 
-    if (alg == pooling_avg_include_padding) {
+    if (alg == algorithm::pooling_avg_include_padding) {
         // In case of AVG including paddings the norm coeff should be calculated
         // with tacking into account original pads. So we need to restore
         // original values for end paddings.
@@ -190,7 +195,7 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
 
     for (auto& desc : descs) {
         auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-        while (itpd.is_not_end()) {
+        while (static_cast<bool>(itpd)) {
             InferenceEngine::LayerConfig config;
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
@@ -201,30 +206,18 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
-            std::vector<mkldnn::memory::format> outFormats;
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
                 dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(itpd, i));
                 config.outConfs.push_back(dataConfig);
-
-                auto primDesc = itpd.fetch();
-                auto dstPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(dst_pd), 0);
-                if (dstPrimDesc) {
-                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
-                } else {
-                    // This path is needed to correctly handle Deconvolution node
-                    auto diffSrcPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(diff_src_pd), 0);
-                    if (diffSrcPrimDesc) {
-                        outFormats.emplace_back(static_cast<memory::format>(itpd.diff_src_primitive_desc().desc().data.format));
-                    }
-                }
             }
-            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
-            itpd++;
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+            if (!itpd.next_impl())
+                break;
         }
     }
 }
@@ -253,7 +246,7 @@ void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &confi
 
         itpd = std::make_shared<primitive_desc_iterator>(desc.createPrimitiveDescriptorIterator(getEngine(), attr));
 
-        while (itpd->is_not_end()) {
+        while (itpd) {
             InferenceEngine::LayerConfig cfg;
             cfg.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
@@ -271,7 +264,7 @@ void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &confi
                 dataConfig.desc = getDstMemDesc(*itpd, i);
                 cfg.outConfs.push_back(dataConfig);
             }
-            impl_desc_type impl_type = parse_impl_name(itpd->get_impl_info_str().c_str());
+            impl_desc_type impl_type = parse_impl_name(itpd->impl_info_str());
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {
                     THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
@@ -284,7 +277,8 @@ void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &confi
                 }
             }
             selected_count++;
-            (*itpd)++;
+            if (!itpd->next_impl())
+                break;
         }
     }
 

@@ -6,11 +6,12 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+#include <common/primitive_attr.hpp>
+
 #include <string>
 #include <memory>
 #include <vector>
 #include <utility>
-#include <primitive_attr.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -27,7 +28,7 @@ struct jit_quantize_params {
     InferenceEngine::Precision wei_prc;
     InferenceEngine::Precision dst_prc;
 
-    mkldnn::memory::format src_format;
+    mkldnn::memory::format_tag src_format;
 
     QuantizeOpType op_type;
 };
@@ -112,7 +113,7 @@ public:
 
 private:
     void init() override;
-    std::vector<mkldnn::memory::format> getDataFormats() const;
+    std::vector<mkldnn::memory::format_tag> getDataFormats() const;
     void executeReference();
     void executeBinarization();
     void executeQuantization();
