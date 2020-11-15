@@ -25,7 +25,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
-        if (!ti || !m_transformation_callback(ti))
+        if (!ti || m_transformation_callback(ti))
             return false;
 
         // create pattern
@@ -181,7 +181,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
-        if (!ti || !m_transformation_callback(ti))
+        if (!ti || m_transformation_callback(ti))
             return false;
 
         // create pattern
@@ -295,16 +295,16 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
                 rnn_cell->get_clip());
 
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(1), axis_out);
 
-        std::shared_ptr<Node> out = out_0;
+        Output<Node> out = sequence->output(0);
         if (slice_axis == 0) {
-            auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 0, 2});
-            out = std::make_shared<ngraph::opset5::Transpose>(out_0, order);
+            auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {2, 1, 0, 3});
+            out = std::make_shared<ngraph::opset5::Transpose>(sequence->output(0), order);
         }
+        auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(out, axis_out);
 
-        ngraph::NodeVector outputs = {out, out_1};
+        ngraph::NodeVector outputs = {out_0, out_1};
         for (size_t i = 0; i < ordered_out_descs.size(); ++i) {
             if (ordered_out_descs[i]) {
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
@@ -332,7 +332,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
-        if (!ti || !m_transformation_callback(ti))
+        if (!ti || m_transformation_callback(ti))
             return false;
 
         // create pattern
@@ -451,7 +451,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
 
         Output<Node> out = sequence->output(0);
         if (slice_axis == 0) {
-            auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {2, 1, 0, 3});
+            auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {2, 1, 0, 3});
             out = std::make_shared<ngraph::opset5::Transpose>(sequence->output(0), order);
         }
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(out, axis_out);

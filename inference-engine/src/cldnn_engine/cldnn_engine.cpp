@@ -130,40 +130,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                        ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
             }
 
-            if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
-                return true;
-            }
-
-            if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(node)) {
-                return true;
-            }
-
-            if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(node)) {
-                return lstm_cell->get_clip() != 0.0f || lstm_cell->get_activations()
-                                                        != std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-            }
-
-            if (auto ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
-                size_t count_rnn = 0;
-                bool enable_convert_to_sequence = true;
-                for (const auto &op : ti_op->get_body()->get_ops()) {
-                    if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(op)) {
-                        enable_convert_to_sequence &= false;
-                        count_rnn++;
-                    } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(op)) {
-                        enable_convert_to_sequence &= false;
-                        count_rnn++;
-                    } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(op)) {
-                        enable_convert_to_sequence &= lstm_cell->get_clip() == 0.0f;
-                        enable_convert_to_sequence &=
-                                lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-                        count_rnn++;
-                    }
-                }
-                enable_convert_to_sequence &= count_rnn == 1;
-                return enable_convert_to_sequence;
-            }
-
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
@@ -183,6 +149,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         {
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
             ngraph::pass::Manager manager;
+            using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
+            const auto& pass_config = manager.get_pass_config();
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
             manager.register_pass<ngraph::pass::ConvertPriorBox>();
@@ -197,6 +165,39 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             manager.register_pass<ngraph::pass::RNNCellDecomposition>();
 
             manager.set_callback(transformations_callback);
+
+            auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+                if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
+                    return false;
+                } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
+                        node)) {
+                    return false;
+                } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+                        node)) {
+                    return lstm_cell->get_clip() == 0.0f &&
+                           lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                }
+                return false;
+            };
+
+            pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
+                    ngraph::pass::LSTMCellDecomposition>(
+                    [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                        return !isCellPrimitiveSupported(node);
+                    });
+
+            pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
+                    ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                    ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+                    [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                        if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                            size_t count_rnn = 0;
+                            for (const auto &op : ti_op->get_body()->get_ops())
+                                count_rnn += isCellPrimitiveSupported(op);
+                            return count_rnn != 1;
+                        }
+                        return true;
+                    });
             manager.run_passes(nGraphFunc);
 
             enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);

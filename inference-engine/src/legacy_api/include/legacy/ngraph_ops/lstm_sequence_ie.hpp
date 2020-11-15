@@ -43,12 +43,6 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    void set_seq_axis(int64_t seq_axis) {
-        m_seq_axis = seq_axis;
-    };
-    int64_t get_seq_axis() const {
-        return m_seq_axis;
-    }
 protected:
     int64_t m_seq_axis;
     ngraph::op::RecurrentSequenceDirection m_direction;

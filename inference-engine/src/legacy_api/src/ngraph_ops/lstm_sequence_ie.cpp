@@ -89,5 +89,5 @@ shared_ptr<Node> op::LSTMSequenceIE::clone_with_new_inputs(const OutputVector &n
     check_new_args_count(this, new_args);
     return make_shared<op::LSTMSequenceIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
             new_args.at(4), new_args.at(5), m_hidden_size, m_direction, m_activations, m_activations_alpha, m_activations_beta,
-            m_clip);
+            m_clip, m_seq_axis);
 }
