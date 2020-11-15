@@ -85,7 +85,7 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
                     center_point_box,
                     nms_5->get_sort_result_descending(),
                     element::i32);
-            new_ops.emplace_back(nms_legacy);
+            new_ops.push_back(nms_legacy);
         } else {
             nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
                     new_args.at(0),
@@ -96,15 +96,24 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
                     center_point_box,
                     nms_5->get_sort_result_descending(),
                     element::i32);
-            new_ops.emplace_back(nms_legacy);
+            new_ops.push_back(nms_legacy);
         }
 
-        Output<Node> convert_1 = std::make_shared<opset1::Convert>(nms_legacy->output(0), nms_5->get_output_type());
-        Output<Node> convert_2 = std::make_shared<opset1::Convert>(nms_legacy->output(2), nms_5->get_output_type());
+        Output<Node> output_0 = nms_legacy->output(0);
+        if (nms_5->output(0).get_element_type() != output_0.get_element_type()) {
+            output_0 = std::make_shared<opset1::Convert>(output_0, nms_5->output(0).get_element_type());
+            new_ops.emplace_back(output_0.get_node_shared_ptr());
+        }
+
+        Output<Node> output_2 = nms_legacy->output(2);
+        if (nms_5->output(2).get_element_type() != output_2.get_element_type()) {
+            output_2 = std::make_shared<opset1::Convert>(output_2, nms_5->output(2).get_element_type());
+            new_ops.emplace_back(output_2.get_node_shared_ptr());
+        }
 
         nms_legacy->set_friendly_name(nms_5->get_friendly_name());
         ngraph::copy_runtime_info(nms_5, new_ops);
-        ngraph::replace_node(nms_5, {convert_1, nms_legacy->output(1), convert_2});
+        ngraph::replace_node(nms_5, {output_0, nms_legacy->output(1), output_2});
         return true;
     };
 
