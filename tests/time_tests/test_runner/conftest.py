@@ -30,7 +30,7 @@ import yaml
 from jsonschema import validate, ValidationError
 
 from scripts.run_timetest import check_positive_int
-from test_runner.utils import upload_timetest_data, metadata_from_manifest, \
+from test_runner.utils import upload_timetest_data, metadata_from_manifest, get_os_name, get_os_version, \
     DATABASE, DB_COLLECTIONS
 
 
@@ -236,7 +236,8 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
         "device": request.node.funcargs["instance"]["device"],
         "niter": niter,
         "test_name": request.node.name,
-        "results": test_info["results"]
+        "results": test_info["results"],
+        "os": "_".join([str(item) for item in [get_os_name(), *get_os_version()]])
     }
     info['_id'] = hashlib.sha256(
         ''.join([str(info[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
@@ -272,9 +273,10 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
             "niter": {"type": "integer"},
             "test_name": {"type": "string"},
             "results": {"type": "object"},
+            "os": {"type": "string"},
             "_id": {"type": "string"}
         },
-        "required": ["device", "model", "run_id", "timetest", "niter", "test_name", "results", "_id"],
+        "required": ["device", "model", "run_id", "timetest", "niter", "test_name", "results", "os", "_id"],
         "additionalProperties": true
     }
     """
