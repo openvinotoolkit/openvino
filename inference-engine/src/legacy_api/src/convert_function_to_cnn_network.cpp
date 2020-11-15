@@ -818,7 +818,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
 
         res->cellType = RNNSequenceLayer::CellType::LSTM;
-
+        res->axis = std::stoi(res->params["axis"]);
         if (res->params["direction"] == "reverse")
             res->params["direction"] = "Backward";
         else if (res->params["direction"] == "forward")

@@ -32,7 +32,8 @@ public:
                    const std::vector<std::string> &activations,
                    const std::vector<float> &activations_alpha,
                    const std::vector<float> &activations_beta,
-                   float clip);
+                   float clip,
+                   int64_t seq_len = 1);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
 
@@ -42,7 +43,14 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    void set_seq_axis(int64_t seq_axis) {
+        m_seq_axis = seq_axis;
+    };
+    int64_t get_seq_axis() const {
+        return m_seq_axis;
+    }
 protected:
+    int64_t m_seq_axis;
     ngraph::op::RecurrentSequenceDirection m_direction;
 };
 }  // namespace op

@@ -144,17 +144,16 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
                 lstm_cell->get_clip());
 
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(0), axis_out);
+        Output<Node> out = sequence->output(0);
+        if (slice_axis == 0) {
+            auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {2, 1, 0, 3});
+            out = std::make_shared<ngraph::opset5::Transpose>(out, order);
+        }
+        auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(out, axis_out);
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(1), axis_out);
         auto out_2 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(2), axis_out);
 
-        std::shared_ptr<Node> out = out_0;
-        if (slice_axis == 0) {
-            auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 0, 2});
-            out = std::make_shared<ngraph::opset5::Transpose>(out_0, order);
-        }
-
-        ngraph::NodeVector outputs = {out, out_1, out_2};
+        ngraph::NodeVector outputs = {out_0, out_1, out_2};
         for (size_t i = 0; i < ordered_out_descs.size(); ++i) {
             if (ordered_out_descs[i]) {
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
@@ -164,12 +163,12 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
             }
         }
 
-        ngraph::NodeVector new_nodes = {in_1, in_2, in_4, in_5, in_6, sequence, out_0, out_1, out_2};
+        ngraph::OutputVector new_nodes = {in_1, in_2, in_4, in_5, in_6, sequence->output(0), out_0, out_1, out_2};
         if (slice_axis == 0) {
             new_nodes.push_back(out);
             new_nodes.push_back(in_0.get_node_shared_ptr());
         }
-        copy_runtime_info(ti, new_nodes);
+        copy_runtime_info(ti, as_node_vector(new_nodes));
         return true;
     };
 
@@ -448,16 +447,16 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
                 rnn_cell->get_linear_before_reset());
 
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(1), axis_out);
 
-        std::shared_ptr<Node> out = out_0;
+        Output<Node> out = sequence->output(0);
         if (slice_axis == 0) {
-            auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 0, 2});
-            out = std::make_shared<ngraph::opset5::Transpose>(out_0, order);
+            auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {2, 1, 0, 3});
+            out = std::make_shared<ngraph::opset5::Transpose>(sequence->output(0), order);
         }
+        auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(out, axis_out);
 
-        ngraph::NodeVector outputs = {out, out_1};
+        ngraph::NodeVector outputs = {out_0, out_1};
         for (size_t i = 0; i < ordered_out_descs.size(); ++i) {
             if (ordered_out_descs[i]) {
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
