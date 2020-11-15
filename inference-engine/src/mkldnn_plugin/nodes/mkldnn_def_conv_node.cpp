@@ -5,7 +5,7 @@
 #include "mkldnn_def_conv_node.h"
 #include "mkldnn_reorder_node.h"
 #include "mkldnn_input_node.h"
-#include "desc_iterator.hpp"
+
 #include "mkldnn_eltwise_node.h"
 #include <legacy/ie_layers.h>
 #include <string>
@@ -14,7 +14,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <legacy/ie_layers_internal.hpp>
-#include "jit_generator.hpp"
+#include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 
 using namespace mkldnn;
@@ -22,7 +22,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
@@ -32,13 +32,20 @@ template <cpu_isa_t isa>
 struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_def_conv_kernel_f32)
 
-    explicit jit_uni_def_conv_kernel_f32(jit_def_conv_params jcp) : jit_uni_def_conv_kernel(jcp), jit_generator() {
+    explicit jit_uni_def_conv_kernel_f32(jit_def_conv_params jcp) : jit_uni_def_conv_kernel(jcp), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    };
+
+    void generate() override {
         this->preamble();
 
         mov(reg_input, ptr[this->param1 + GET_OFF(src)]);
         mov(reg_def_off, ptr[this->param1 + GET_OFF(off)]);
         mov(reg_kernel, ptr[this->param1 + GET_OFF(filt)]);
-        if (jcp.with_bias)
+        if (jcp_.with_bias)
             mov(reg_bias, ptr[this->param1 + GET_OFF(bias)]);
         mov(reg_output, ptr[this->param1 + GET_OFF(dst)]);
         mov(reg_input_buffer, ptr[this->param1 + GET_OFF(buf)]);
@@ -49,12 +56,10 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
         this->postamble();
 
         prepare_table();
-
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
@@ -157,7 +162,7 @@ private:
     }
 
     void apply_filter(int ow_step, int oc_blocks_step, int oc_step, int ic_step) {
-        int repeats = isa == cpu::sse42 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+        int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
 
         for (int kh = 0; kh < jcp_.kh; kh++) {
             for (int kw = 0; kw < jcp_.kw; kw++) {
@@ -182,7 +187,7 @@ private:
                                 Vmm vmm_src = get_vmm_src(ow);
                                 Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
 
-                                if (isa == cpu::sse42 && ow > 0) {
+                                if (isa == cpu::x64::sse41 && ow > 0) {
                                     uni_vmovups(vmm_ker, ptr[aux2_reg_kernel + ker_off * jcp_.typesize_in]);
                                 }
 
@@ -196,7 +201,7 @@ private:
     }
 
     void init_accums(int ow_step, int oc_blocks_step, int oc_step) {
-        int repeats = isa == cpu::sse42 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+        int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
         for (int r = 0; r < repeats; r++) {
             for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
                 for (int ow = 0; ow < ow_step; ow++) {
@@ -600,7 +605,7 @@ private:
     }
 
     void store_output(int ow_step, int oc_blocks_step, int oc_step) {
-        int repeats = isa == cpu::sse42 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+        int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
 
         if (jcp_.with_bias) {
             for (int r = 0; r < repeats; r++) {
@@ -624,8 +629,8 @@ private:
         }
 
         for (int r = 0; r < repeats; r++) {
-            int tail_size = isa == cpu::sse42 ? std::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
-            bool is_scalar_store = isa == cpu::sse42 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
+            int tail_size = isa == cpu::x64::sse41 ? std::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
+            bool is_scalar_store = isa == cpu::x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
             if (is_scalar_store) {
                 for (int ow = 0; ow < ow_step; ow++) {
                     Vmm vmm_dst = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ow);
@@ -642,7 +647,7 @@ private:
                             movq(reg_tmp_64, xmm_dst);
                             mov(ptr[aux_reg_output + out_off * jcp_.typesize_out], reg_tmp_32);
 
-                            if (isa == cpu::sse42) {
+                            if (isa == cpu::x64::sse41) {
                                 psrldq(vmm_dst, jcp_.typesize_out);
                             } else {
                                 Ymm ymm_dst = get_ymm_acc(ow);
@@ -814,36 +819,36 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_common)) {
         impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::avx2)) {
+    } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::sse42)) {
+    } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
     } else {
         impl_type = impl_desc_type::ref;
     }
 
-    if (mayiuse(cpu::sse42)) {
+    if (mayiuse(cpu::x64::sse41)) {
         // optimzed implementation
-        auto dataFormat = memory::format::nhwc;
-        auto offFormat = memory::format::nchw;
-        auto weiFormat = group > 1 ? mayiuse(avx512_common) ? memory::format::gOIhw16i16o : memory::format::gOIhw8i8o
-                                   : mayiuse(avx512_common) ? memory::format::OIhw16i16o : memory::format::OIhw8i8o;
+        auto dataFormat = memory::format_tag::nhwc;
+        auto offFormat = memory::format_tag::nchw;
+        auto weiFormat = group > 1 ? mayiuse(avx512_common) ? memory::format_tag::gOIhw16i16o : memory::format_tag::gOIhw8i8o
+                                   : mayiuse(avx512_common) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
 
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), memory::f32, dataFormat);
-        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::f32, offFormat);
-        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(2)->getDims(), memory::f32, weiFormat);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), memory::f32, dataFormat);
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), memory::data_type::f32, dataFormat);
+        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::data_type::f32, offFormat);
+        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(2)->getDims(), memory::data_type::f32, weiFormat);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), memory::data_type::f32, dataFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_type, dataFormat});
     } else {
         // reference implementation
-        auto weiFormat = group > 1 ? memory::format::goihw : memory::format::oihw;
+        auto weiFormat = group > 1 ? memory::format_tag::goihw : memory::format_tag::oihw;
 
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), memory::f32, memory::format::nchw);
-        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::f32, memory::format::nchw);
-        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(2)->getDims(), memory::f32, memory::format::oihw);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), memory::f32, memory::format::nchw);
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), memory::data_type::f32, memory::format_tag::nchw);
+        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::data_type::f32, memory::format_tag::nchw);
+        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(2)->getDims(), memory::data_type::f32, memory::format_tag::oihw);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), memory::data_type::f32, memory::format_tag::nchw);
         supportedPrimitiveDescriptors.push_back({config, impl_type, weiFormat});
     }
 }
@@ -883,7 +888,7 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
 
     jcp.with_bias = false;
 
-    const int simd_w = mayiuse(cpu::avx512_common) ? 16 : 8;
+    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     jcp.ic_block = simd_w;
     jcp.nb_ic = div_up(jcp.ic, jcp.ic_block);
 
@@ -895,18 +900,21 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
     jcp.typesize_off = sizeof(float);
     jcp.typesize_out = sizeof(float);
 
-    jcp.ur_w = mayiuse(cpu::avx512_common) ? 6 : 3;
-    jcp.nb_oc_blocking = !mayiuse(cpu::avx2) ? 2 : 4;
+    jcp.ur_w = mayiuse(cpu::x64::avx512_common) ? 6 : 3;
+    jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
 
-    jcp.nthr = mkldnn_get_max_threads();
+    jcp.nthr = dnnl_get_max_threads();
 
-    if (mayiuse(cpu::avx512_common)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::avx512_common>(jcp));
-    } else if (mayiuse(cpu::avx2)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::avx2>(jcp));
-    } else if (mayiuse(cpu::sse42)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::sse42>(jcp));
+    if (mayiuse(cpu::x64::avx512_common)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
     }
+
+    if (def_conv_kernel)
+        def_conv_kernel->create_ker();
 }
 
 void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const float* offsets, const float* weights, float* dst,
@@ -1044,10 +1052,10 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src = reinterpret_cast<const float *>(srcMemory0.GetData()) + srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.GetData()) + srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetData()) + srcMemory2.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    float *dst = reinterpret_cast<float *>(dstMemory.GetData()) + dstMemory.GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const auto *src = reinterpret_cast<const float *>(srcMemory0.GetPtr());
+    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.GetPtr());
+    const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetPtr());
+    float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
 
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
 

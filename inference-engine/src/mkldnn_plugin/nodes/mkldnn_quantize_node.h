@@ -63,6 +63,8 @@ struct jit_uni_quantize_kernel {
     explicit jit_uni_quantize_kernel(jit_quantize_params jqp) : ker_(nullptr), jqp_(jqp) {}
     virtual ~jit_uni_quantize_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_quantize_params jqp_;
 };
 

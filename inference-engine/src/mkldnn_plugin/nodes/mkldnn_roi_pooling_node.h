@@ -58,6 +58,8 @@ struct jit_uni_roi_pooling_kernel {
     explicit jit_uni_roi_pooling_kernel(jit_roi_pooling_params jpp) : ker_(nullptr), jpp_(jpp) {}
     virtual ~jit_uni_roi_pooling_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_roi_pooling_params jpp_;
 };
 
