@@ -3,17 +3,19 @@
 //
 
 #include "mkldnn_quantize_node.h"
-#include "desc_iterator.hpp"
+
 #include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <math.h>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "utils/general_utils.h"
+
 #include <algorithm>
 #include <set>
 #include <cmath>
-#include "jit_generator.hpp"
+#include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
@@ -24,7 +26,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace details;
 using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
@@ -34,7 +36,14 @@ template <cpu_isa_t isa>
 struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_binarization_kernel)
 
-    explicit jit_uni_binarization_kernel(jit_quantize_params jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {
+    explicit jit_uni_binarization_kernel(jit_quantize_params jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    };
+
+    void generate() override {
         this->preamble();
 
         mov(reg_from, ptr[param + GET_OFF(from)]);
@@ -45,7 +54,7 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
         const int nbits = 8;
         int simd_w = isa == avx512_common ? 16 : 8;
-        const int C = jqp.c;
+        const int C = jqp_.c;
         const int tail_size = C % simd_w;
 
         Label unrolled_loop_label;
@@ -54,8 +63,8 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
         Label exit_label;
 
         L(unrolled_loop_label); {
-            int step = isa == cpu::sse42 ? nbits / 2 : isa == cpu::avx2 ? nbits : 2 * nbits;
-            const int ur_ch = isa == cpu::sse42 ? nbits : isa == cpu::avx2 ? nbits / 2 : nbits / 4;
+            int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : 2 * nbits;
+            const int ur_ch = isa == cpu::x64::sse41 ? nbits : isa == cpu::x64::avx2 ? nbits / 2 : nbits / 4;
             const int unrolled_loop_step = ur_ch * step;
 
             cmp(reg_work_amount, unrolled_loop_step);
@@ -91,8 +100,8 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
         }
 
         L(main_loop_label); {
-            int repeats = isa == cpu::sse42 ? 2 : 1;
-            int step = isa == cpu::sse42 ? nbits / 2 : isa == cpu::avx2 ? nbits : nbits * 2;
+            int repeats = isa == cpu::x64::sse41 ? 2 : 1;
+            int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : nbits * 2;
             const int main_loop_step = step * repeats;
 
             cmp(reg_work_amount, main_loop_step);
@@ -161,12 +170,10 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
         L(exit_label);
 
         this->postamble();
-
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     inline Vmm vmm_src(int idx) { return Vmm(idx); }
@@ -197,25 +204,30 @@ template <cpu_isa_t isa>
 struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_quantization_kernel)
 
-    explicit jit_uni_quantization_kernel(jit_quantize_params jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {
-        do_dequantization = jqp.op_type == QuantizeOpType::FakeQuantization;
-        do_rounding = do_dequantization || jqp.dst_prc == Precision::FP32;
+    explicit jit_uni_quantization_kernel(jit_quantize_params jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    };
+
+    void generate() override {
+        do_dequantization = jqp_.op_type == QuantizeOpType::FakeQuantization;
+        do_rounding = do_dequantization || jqp_.dst_prc == Precision::FP32;
 
         this->preamble();
 
-        if (jqp.src_format == memory::format::tnc || jqp.src_format == memory::format::nchw || jqp.src_format == memory::format::ncdhw)
+        if (jqp_.src_format == memory::format_tag::tnc || jqp_.src_format == memory::format_tag::nchw || jqp_.src_format == memory::format_tag::ncdhw)
             compute_planar();
         else
             compute_generic();
 
 
         this->postamble();
-
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     inline Vmm vmm_val(int idx) { return Vmm(idx + 0); }
@@ -283,12 +295,12 @@ private:
         mov(reg_output_shift, ptr[param + GET_OFF(output_shift)]);
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-        if (isa == cpu::avx512_common)
+        if (isa == cpu::x64::avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        int simd_w = isa == cpu::avx512_common ? 16 : 8;
+        int simd_w = isa == cpu::x64::avx512_common ? 16 : 8;
         int tail_simd_w = 4;
-        int repeats = isa == cpu::sse42 ? 2 : 1;
+        int repeats = isa == cpu::x64::sse41 ? 2 : 1;
 
         Label main_loop_label;
         Label tail_blk4_label;
@@ -400,13 +412,13 @@ private:
         mov(reg_block_size, ptr[param + GET_OFF(block_size)]);
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-        if (isa == cpu::avx512_common)
+        if (isa == cpu::x64::avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        int simd_w = isa == cpu::avx512_common ? 16 : 8;
+        int simd_w = isa == cpu::x64::avx512_common ? 16 : 8;
         int tail8_simd_w = 8;
         int tail4_simd_w = 4;
-        int repeats = isa == cpu::sse42 ? 2 : 1;
+        int repeats = isa == cpu::x64::sse41 ? 2 : 1;
 
         Label main_loop_label;
         Label tail_blk8_label;
@@ -1071,28 +1083,28 @@ void MKLDNNQuantizeNode::init() {
     }
 }
 
-std::vector<mkldnn::memory::format> MKLDNNQuantizeNode::getDataFormats() const {
+std::vector<mkldnn::memory::format_tag> MKLDNNQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
     if (getParentEdgesAtPort(0)[0]->getDims()[getAxis()] == 3) {
         return { MKLDNNMemory::GetPlainFormat(getParentEdgesAtPort(0)[0]->getDims()) };
     } else {
         if (isBinarization()) {
-            return {memory::nhwc};
+            return {memory::format_tag::nhwc};
         } else {
             switch (getParentEdgesAtPort(0)[0]->getDims().ndims()) {
                 case 4:
                     if (getAxis() == 1) {
-                        auto blkFormat = mayiuse(cpu::avx512_common) ? memory::nChw16c : memory::nChw8c;
-                        return {blkFormat, memory::nhwc, memory::nchw};
+                        auto blkFormat = mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
+                        return {blkFormat, memory::format_tag::nhwc, memory::format_tag::nchw};
                     } else {
-                        return {memory::nchw};
+                        return {memory::format_tag::nchw};
                     }
                 case 5:
                     if (getAxis() == 1) {
-                        auto blkFormat = mayiuse(cpu::avx512_common) ? memory::nCdhw16c : memory::nCdhw8c;
-                        return {blkFormat, memory::ndhwc, memory::ncdhw};
+                        auto blkFormat = mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
+                        return {blkFormat, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
                     } else {
-                        return {memory::ncdhw};
+                        return {memory::format_tag::ncdhw};
                     }
                 default:
                     return {MKLDNNMemory::GetPlainFormat(getParentEdgesAtPort(0)[0]->getDims())};
@@ -1131,17 +1143,17 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
         return;
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_common)) {
         impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::avx2)) {
+    } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::sse42)) {
+    } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
     } else {
         impl_type = impl_desc_type::ref;
     }
 
-    if (!mayiuse(cpu::sse42) || getAxis() != 1) {
+    if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 
         if (!isBinarization()) {
@@ -1194,27 +1206,30 @@ void MKLDNNQuantizeNode::createPrimitive() {
     jqp.op_type = quantizeOpType;
 
     if (getSelectedPrimitiveDescriptor()->getImplementationType() != impl_desc_type::ref) {
-        if (mayiuse(cpu::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_common)) {
             if (isBinarization())
-                quantize_kernel.reset(new jit_uni_binarization_kernel<cpu::avx512_common>(jqp));
+                quantize_kernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx512_common>(jqp));
             else
-                quantize_kernel.reset(new jit_uni_quantization_kernel<cpu::avx512_common>(jqp));
-        } else if (mayiuse(cpu::avx2)) {
+                quantize_kernel.reset(new jit_uni_quantization_kernel<cpu::x64::avx512_common>(jqp));
+        } else if (mayiuse(cpu::x64::avx2)) {
             if (isBinarization())
-                quantize_kernel.reset(new jit_uni_binarization_kernel<cpu::avx2>(jqp));
+                quantize_kernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx2>(jqp));
             else
-                quantize_kernel.reset(new jit_uni_quantization_kernel<cpu::avx2>(jqp));
-        } else if (mayiuse(cpu::sse42)) {
+                quantize_kernel.reset(new jit_uni_quantization_kernel<cpu::x64::avx2>(jqp));
+        } else if (mayiuse(cpu::x64::sse41)) {
             if (isBinarization())
-                quantize_kernel.reset(new jit_uni_binarization_kernel<cpu::sse42>(jqp));
+                quantize_kernel.reset(new jit_uni_binarization_kernel<cpu::x64::sse41>(jqp));
             else
-                quantize_kernel.reset(new jit_uni_quantization_kernel<cpu::sse42>(jqp));
+                quantize_kernel.reset(new jit_uni_quantization_kernel<cpu::x64::sse41>(jqp));
         }
     }
+    if (quantize_kernel)
+        quantize_kernel->create_ker();
 
     size_t axisSize = getParentEdgeAt(0)->getDims()[getAxis()];
     size_t axisPaddedSize = rnd_up(axisSize, 16);
-    MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)axisPaddedSize}, memory::f32, memory::x};
+
+    MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)axisPaddedSize}, memory::data_type::f32, memory::format_tag::x};
 
     if (isBinarization()) {
         auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
@@ -1248,8 +1263,7 @@ void MKLDNNQuantizeNode::executeReference() {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const float *>(srcMemory->GetData()) +
-               srcMemory->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
 
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
     auto srcDims = config.inConfs[0].desc.getDims();
@@ -1277,11 +1291,10 @@ void MKLDNNQuantizeNode::executeReference() {
         }
         d_str[1] = tmp;
 
-        auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetData()) +
-                   dstMemory->GetDescriptor().data.layout_desc.blocking.offset_padding;
+        auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
 
         const int nbits = 8;
-        const int CB = utils::div_up(C, nbits);
+        const int CB = impl::utils::div_up(C, nbits);
 
         auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
         auto output_mask = reinterpret_cast<const uint32_t*>(internalBlobMemory[1]->GetData());
@@ -1314,8 +1327,7 @@ void MKLDNNQuantizeNode::executeReference() {
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto dst = reinterpret_cast<float *>(dstMemory->GetData()) +
-                   dstMemory->GetDescriptor().data.layout_desc.blocking.offset_padding;
+        auto dst = reinterpret_cast<float *>(dstMemory->GetPtr());
 
         auto crop_low = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
         auto crop_high = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
@@ -1369,12 +1381,8 @@ void MKLDNNQuantizeNode::executeBinarization() {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetData()) +
-               srcMemory->GetDescriptor().data.layout_desc.blocking.offset_padding *
-               MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(srcMemory->GetDescriptor().data.data_type));
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetData()) +
-               dstMemory->GetDescriptor().data.layout_desc.blocking.offset_padding *
-               MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dstMemory->GetDescriptor().data.data_type));
+    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
+    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
 
     auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
@@ -1413,12 +1421,8 @@ void MKLDNNQuantizeNode::executeQuantization() {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetData()) +
-            srcMemory->GetDescriptor().data.layout_desc.blocking.offset_padding *
-           MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(srcMemory->GetDescriptor().data.data_type));
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetData()) +
-            dstMemory->GetDescriptor().data.layout_desc.blocking.offset_padding *
-            MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dstMemory->GetDescriptor().data.data_type));
+    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
+    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
 
     auto crop_low = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto crop_high = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
@@ -1430,22 +1434,22 @@ void MKLDNNQuantizeNode::executeQuantization() {
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
     auto srcDims = config.inConfs[0].desc.getDims();
 
-    bool is_blk_format = jqp.src_format != memory::format::nhwc && jqp.src_format != memory::format::ndhwc;
-    int blk_size = (jqp.src_format == memory::format::tnc ||
-                    jqp.src_format == memory::format::nchw ||
-                    jqp.src_format == memory::format::ncdhw) ? 1 : mayiuse(cpu::avx512_common) ? 16 : 8;
+    bool is_blk_format = jqp.src_format != memory::format_tag::nhwc && jqp.src_format != memory::format_tag::ndhwc;
+    int blk_size = (jqp.src_format == memory::format_tag::tnc ||
+                    jqp.src_format == memory::format_tag::nchw ||
+                    jqp.src_format == memory::format_tag::ncdhw) ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
 
     auto src_type_size = jqp.src_prc.size();
     auto dst_type_size = jqp.dst_prc.size();
 
     std::vector<size_t> s_str = config.inConfs[0].desc.getBlockingDesc().getStrides();
 
-    if (jqp.src_format == memory::format::nChw8c || jqp.src_format == memory::format::nChw16c ||
-        jqp.src_format == memory::format::nCdhw8c || jqp.src_format == memory::format::nCdhw16c) {
+    if (jqp.src_format == memory::format_tag::nChw8c || jqp.src_format == memory::format_tag::nChw16c ||
+        jqp.src_format == memory::format_tag::nCdhw8c || jqp.src_format == memory::format_tag::nCdhw16c) {
             s_str[1] /= blk_size;
     }
 
-    if (jqp.src_format == memory::format::nhwc || jqp.src_format == memory::format::ndhwc) {
+    if (jqp.src_format == memory::format_tag::nhwc || jqp.src_format == memory::format_tag::ndhwc) {
         size_t tmp = s_str[s_str.size() - 1];
         for (int i = s_str.size() - 1; i > 1; i--) {
             s_str[i] = s_str[i - 1];
@@ -1460,7 +1464,7 @@ void MKLDNNQuantizeNode::executeQuantization() {
     const int H = srcDims.size() == 3 ? srcDims[2] : srcDims.size() > 3 ? srcDims[srcDims.size() - 2] : 1;
     const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
 
-    if (jqp.src_format == memory::format::tnc) {
+    if (jqp.src_format == memory::format_tag::tnc) {
         parallel_nd(N, CB, D, [&](int n, int cb, int d) {
             auto arg = jit_quantize_call_args();
 
@@ -1507,7 +1511,7 @@ void MKLDNNQuantizeNode::executeQuantization() {
 
             arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
             arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
-            arg.block_size = (is_blk_format && jqp.src_format != memory::format::nc) ? (size_t) blk_size : nstl::min(blk_size, C - c);
+            arg.block_size = (is_blk_format && jqp.src_format != memory::format_tag::nc) ? (size_t) blk_size : nstl::min(blk_size, C - c);
             arg.work_amount = (size_t) W;
 
             (*quantize_kernel)(&arg);
@@ -1537,8 +1541,9 @@ void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
         outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
     }
 
-    mkldnn::algorithm alg = quantizeOpType == QuantizeOpType::FakeQuantization ? mkldnn::quantization_quantize_dequantize :
-                            quantizeOpType == QuantizeOpType::Quantization ? mkldnn::quantization_quantize : mkldnn::binarization_depthwise;
+    mkldnn::algorithm alg = quantizeOpType == QuantizeOpType::FakeQuantization ? mkldnn::algorithm::quantization_quantize_dequantize :
+                            quantizeOpType == QuantizeOpType::Quantization ? mkldnn::algorithm::quantization_quantize :
+                            mkldnn::algorithm::binarization_depthwise;
 
     ops.append_quantization(alg, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
 }

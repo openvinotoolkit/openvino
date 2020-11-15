@@ -3,21 +3,21 @@
 //
 
 #include "mkldnn_roi_pooling_node.h"
-#include "desc_iterator.hpp"
+
 #include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <math.h>
 #include <mkldnn_extension_utils.h>
-#include "jit_generator.hpp"
+#include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
@@ -27,7 +27,14 @@ template <cpu_isa_t isa>
 struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_pooling_kernel_f32)
 
-    explicit jit_uni_roi_pooling_kernel_f32(jit_roi_pooling_params jcp) : jit_uni_roi_pooling_kernel(jcp), jit_generator() {
+    explicit jit_uni_roi_pooling_kernel_f32(jit_roi_pooling_params jcp) : jit_uni_roi_pooling_kernel(jcp), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    };
+
+    void generate() override {
         this->preamble();
 
         Label exit_label;
@@ -64,12 +71,10 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
         L(exit_label);
 
         this->postamble();
-
-        ker_ = (decltype(ker_)) this->getCode();
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
@@ -109,8 +114,6 @@ private:
     reg64_t reg_yoff = h_iter;
     reg64_t reg_xoff = r12;
 
-    void (*jit_ker)(jit_roi_pooling_call_args *);
-
     void roi_pool_max(int c_blocks) {
         Label h_loop_label;
         Label w_loop_label;
@@ -132,14 +135,14 @@ private:
                     Vmm vmm_src = get_src_reg(i);
 
                     uni_vmovups(vmm_src, ptr[aux_reg_input1 + i * jpp_.ih * jpp_.iw * jpp_.c_block * sizeof(float)]);
-                    if (isa == cpu::sse42) {
+                    if (isa == cpu::x64::sse41) {
                         movups(vmm_mask, vmm_max);
                         cmpps(vmm_mask, vmm_src, _cmp_lt_os);
                         blendvps(vmm_max, vmm_src);
-                    } else if (isa == cpu::avx2) {
+                    } else if (isa == cpu::x64::avx2) {
                         vcmpps(vmm_mask, vmm_max, vmm_src, _cmp_lt_os);
                         vblendvps(vmm_max, vmm_max, vmm_src, vmm_mask);
-                    } else if (isa == cpu::avx512_common) {
+                    } else if (isa == cpu::x64::avx512_common) {
                         vcmpps(k_store_mask,  vmm_max,  vmm_src, _cmp_lt_os);
                         vblendmps(vmm_max| k_store_mask, vmm_max, vmm_src);
                     }
@@ -222,7 +225,7 @@ private:
         else
             roi_pool_bilinear(c_blocks);
 
-        if (isa == cpu::sse42) {
+        if (isa == cpu::x64::sse41) {
             add(reg_input, 4 * sizeof(float));
             add(reg_output, 4 * sizeof(float));
 
@@ -235,7 +238,7 @@ private:
 
         L(empty_roi_label);
         empty_roi(c_blocks);
-        if (isa == cpu::sse42) {
+        if (isa == cpu::x64::sse41) {
             add(reg_output, 4 * sizeof(float));
             empty_roi(c_blocks);
         }
@@ -310,28 +313,28 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
 
     auto parentDims = getParentEdgeAt(0)->getDims();
-    auto format = mayiuse(avx512_common) ? memory::format::nChw16c : memory::format::nChw8c;
+    auto format = mayiuse(avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
     impl_desc_type impl_type;
-    if (mayiuse(cpu::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_common)) {
         impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::avx2)) {
+    } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::sse42)) {
+    } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
     } else {
         impl_type = impl_desc_type::ref;
     }
 
-    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), memory::f32, format);
-    config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::f32, memory::nc);
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), memory::f32, format);
+    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), memory::data_type::f32, format);
+    config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::data_type::f32, memory::format_tag::nc);
+    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), memory::data_type::f32, format);
     supportedPrimitiveDescriptors.push_back({config, impl_type, format});
 }
 
 void MKLDNNROIPoolingNode::createPrimitive() {
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
 
-    const int simd_w = mayiuse(cpu::avx512_common) ? 16 : 8;
+    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     jpp.c_block = simd_w;
 
     auto inDims = config.inConfs[0].desc.getDims();
@@ -350,17 +353,20 @@ void MKLDNNROIPoolingNode::createPrimitive() {
 
     jpp.nb_c = jpp.c / jpp.c_block;
 
-    jpp.nb_c_blocking = mayiuse(cpu::avx512_common) ? 15 : 7;
+    jpp.nb_c_blocking = mayiuse(cpu::x64::avx512_common) ? 15 : 7;
 
     jpp.alg = opType;
 
-    if (mayiuse(cpu::avx512_common)) {
-        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::avx512_common>(jpp));
-    } else if (mayiuse(cpu::avx2)) {
-        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::avx2>(jpp));
-    } else if (mayiuse(cpu::sse42)) {
-        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::sse42>(jpp));
+    if (mayiuse(cpu::x64::avx512_common)) {
+        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_common>(jpp));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
     }
+
+    if (roi_pooling_kernel)
+        roi_pooling_kernel->create_ker();
 }
 
 void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
@@ -368,16 +374,16 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src_data = reinterpret_cast<const float *>(srcMemory0.GetData()) + srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    const auto *src_roi = reinterpret_cast<const float *>(srcMemory1.GetData()) + srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    float *dst = reinterpret_cast<float *>(dstMemory.GetData()) + dstMemory.GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const auto *src_data = reinterpret_cast<const float *>(srcMemory0.GetPtr());
+    const auto *src_roi = reinterpret_cast<const float *>(srcMemory1.GetPtr());
+    float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
 
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
 
     auto src_strides = config.inConfs[0].desc.getBlockingDesc().getStrides();
     auto dst_strides = config.outConfs[0].desc.getBlockingDesc().getStrides();
 
-    int cb_work = utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
+    int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
     int MB = jpp.mb;
 
     size_t src_roi_step = config.inConfs[1].desc.getBlockingDesc().getStrides()[0];
