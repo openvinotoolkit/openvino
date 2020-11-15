@@ -22,7 +22,7 @@ XLinkError_t XLinkStreamInitialize(
 
     memset(stream, 0, sizeof(*stream));
 
-    if (sem_init(&stream->sem, 0, 0)) {
+    if (XLink_sem_init(&stream->sem, 0, 0)) {
         mvLog(MVLOG_ERROR, "Cannot initialize semaphore\n");
         return X_LINK_ERROR;
     }
@@ -39,7 +39,7 @@ void XLinkStreamReset(streamDesc_t* stream) {
         return;
     }
 
-    if(sem_destroy(&stream->sem)) {
+    if(XLink_sem_destroy(&stream->sem)) {
         mvLog(MVLOG_DEBUG, "Cannot destroy semaphore\n");
     }
 

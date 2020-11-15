@@ -21,9 +21,17 @@ int pthread_cond_destroy(pthread_cond_t* __cond)
     return 0;
 }
 
+int pthread_cond_wait(pthread_cond_t *__cond,
+    pthread_mutex_t *__mutex)
+{
+    if (__cond == NULL || __mutex == NULL)
+        return ERROR_INVALID_HANDLE;
+    return pthread_cond_timedwait(__cond, __mutex, NULL);
+}
+
 int pthread_cond_timedwait(pthread_cond_t* __cond,
     pthread_mutex_t* __mutex,
-    const struct timespec* __abstime) 
+    const struct timespec* __abstime)
 {
     if (__cond == NULL) {
         return ERROR_INVALID_HANDLE;
@@ -42,12 +50,22 @@ int pthread_cond_timedwait(pthread_cond_t* __cond,
     return rc == ERROR_TIMEOUT ? ETIMEDOUT : rc;
 }
 
-int pthread_cond_broadcast(pthread_cond_t *__cond)
+int pthread_cond_signal(pthread_cond_t *__cond)
 {
     if (__cond == NULL) {
         return ERROR_INVALID_HANDLE;
     }
 
     WakeConditionVariable(&__cond->_cv);
+    return 0;
+}
+
+int pthread_cond_broadcast(pthread_cond_t *__cond)
+{
+    if (__cond == NULL) {
+        return ERROR_INVALID_HANDLE;
+    }
+
+    WakeAllConditionVariable(&__cond->_cv);
     return 0;
 }
