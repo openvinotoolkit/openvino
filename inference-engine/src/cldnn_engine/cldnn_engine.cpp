@@ -198,7 +198,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                             size_t count_rnn = 0;
                             for (const auto &op : ti_op->get_body()->get_ops())
                                 count_rnn += isCellPrimitiveSupported(op);
-                            return count_rnn == 1;
+                            return count_rnn != 1;
                         }
                         return true;
                     });
