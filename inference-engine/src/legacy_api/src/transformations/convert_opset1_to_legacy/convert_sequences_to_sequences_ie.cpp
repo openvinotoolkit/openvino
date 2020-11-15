@@ -155,7 +155,7 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         auto in_4 = std::make_shared<ngraph::opset5::Squeeze>(gru_sequence->input_value(5), axis_2);
 
         auto gru_sequence_ie = std::make_shared<ngraph::op::GRUSequenceIE>(
-                gru_sequence->input_value(0), // X
+                in_0, // X
                 in_1,  // initial_hidden_state
                 gru_sequence->input_value(2),
                 in_3,  // WR

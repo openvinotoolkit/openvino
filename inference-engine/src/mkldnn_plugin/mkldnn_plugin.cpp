@@ -169,7 +169,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
             ngraph::pass::LSTMCellDecomposition>(
             [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-                return !isCellPrimitiveSupported(node);
+                return isCellPrimitiveSupported(node);
             });
 
     pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,

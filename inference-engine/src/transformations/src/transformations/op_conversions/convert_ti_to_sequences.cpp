@@ -300,7 +300,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         Output<Node> out = sequence->output(0);
         if (slice_axis == 0) {
             auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {2, 1, 0, 3});
-            out = std::make_shared<ngraph::opset5::Transpose>(sequence->output(0), order);
+            out = std::make_shared<ngraph::opset5::Transpose>(out, order);
         }
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(out, axis_out);
 
@@ -452,7 +452,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         Output<Node> out = sequence->output(0);
         if (slice_axis == 0) {
             auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {2, 1, 0, 3});
-            out = std::make_shared<ngraph::opset5::Transpose>(sequence->output(0), order);
+            out = std::make_shared<ngraph::opset5::Transpose>(out, order);
         }
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(out, axis_out);
 
