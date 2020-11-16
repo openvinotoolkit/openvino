@@ -38,7 +38,8 @@ from tests import (
     xfail_issue_39669,
     xfail_issue_38726,
     xfail_issue_40686,
-    xfail_issue_42779)
+    xfail_issue_42779,
+    xfail_issue_42818)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -123,7 +124,6 @@ if len(zoo_models) > 0:
             (xfail_issue_42297, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
             (xfail_issue_41814, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
             (xfail_issue_37957, "test_MSFT_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
-            (xfail_issue_36465, "test_MSFT_opset9_LSTM_Seq_lens_unpacked_model_cpu"),
         ]
         for test_case in import_xfail_list:
             xfail, test_name = test_case
@@ -182,7 +182,9 @@ if len(zoo_models) > 0:
             (xfail_issue_34323, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
 
             (xfail_issue_41815, "test_MSFT_opset11_tinyyolov3_yolov3_tiny_cpu"),
-            (xfail_issue_41815, "test_MSFT_opset10_yolov3_yolov3_cpu")
+            (xfail_issue_41815, "test_MSFT_opset10_yolov3_yolov3_cpu"),
+
+            (xfail_issue_42818, "test_MSFT_opset9_LSTM_Seq_lens_unpacked_model_cpu"),
         ]
         for test_case in import_xfail_list + execution_xfail_list:
             xfail, test_name = test_case
