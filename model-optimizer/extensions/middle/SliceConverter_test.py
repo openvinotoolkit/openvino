@@ -17,148 +17,307 @@
 import unittest
 
 import numpy as np
-from generator import generate, generator
 
 from extensions.middle.SliceConverter import ConvertSlice
 from mo.front.common.partial_infer.utils import int64_array
+from mo.graph.graph import Node
+from mo.ops.slice import Slice
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, \
-    regular_op_with_empty_data, result, connect, const, empty_data
+from mo.utils.unittest.graph import build_graph
+
+nodes_attributes = {
+    # input data
+    'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_2': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
+    'placeholder_3': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
+    'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    # Slice layer
+    'slice': {'type': 'Slice', 'kind': 'op', 'op': 'Slice', 'name': 'slice_node'},
+    'slice_data': {'value': None, 'shape': None, 'kind': 'data'},
+    # Output operation
+    'output_op': {'type': 'Const', 'value': None, 'kind': 'op', 'op': 'Const'},
+    'output_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'op_output': { 'kind': 'op', 'op': 'Result'},
+    # StridedSlice layer
+    'strided_slice': {'kind': 'op', 'op': 'StridedSlice', 'slices': None, 'shrink_axis_mask': None}
+}
 
 
-@generator
 class ConvertSliceTests(unittest.TestCase):
-    @generate(*[
-        (int64_array([1, 3, 300, 300]), np.array([0, 0]), np.array([150, 150]), np.array([2, 3]), np.array([1, 1]),
-         (int64_array([0, 0]), int64_array([])), (int64_array([0, 0]), int64_array([])), int64_array([1, 1, 1, 1]),
-         int64_array([0, 0, 1, 1]), int64_array([0, 0, 1, 1])),
+    nodes_attributes = {
+        # input data
+        'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+        'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+        # Slice layer inputs
+        'starts': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
+        'starts_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+        'ends': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
+        'ends_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+        'strides': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
+        'strides_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+        'axes': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
+        'axes_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+        'steps': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
+        'steps_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+        # Slice layer
+        'slice': {'type': 'Slice', 'kind': 'op', 'op': 'Slice', 'name': 'slice_node'},
+        'slice_data': {'value': None, 'shape': None, 'kind': 'data'},
+        # Output operation
+        'output_op': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
+        'output_data': {'shape': None, 'kind': 'data', 'data_type': None},
+        'op_output': {'kind': 'op', 'op': 'Result'},
+        # StridedSlice layer
+        'strided_slice': {'kind': 'op', 'op': 'StridedSlice', 'slices': None, 'shrink_axis_mask': None}
+    }
 
-        (int64_array([1, 3, 300, 300]), np.array([0]), np.array([150]), np.array([2]), np.array([1]),
-         (int64_array([0, 0]), int64_array([0])), (int64_array([0, 0]), int64_array([0])), int64_array([1, 1, 1, 1]),
-         int64_array([0, 0, 1, 0]), int64_array([0, 0, 1, 0])),
+    def test_slice_all_params(self):
+        input_shape = int64_array([5, 10, 20])
+        starts_value = int64_array([4, 2])
+        ends_value = int64_array([15, 8])
+        axes_value = int64_array([2, 1])
+        steps_value = int64_array([1, 1])
 
-        (int64_array([1, 3, 300, 300]), np.array([0, 0]), np.array([150, 150]), np.array([-2, -1]), np.array([1, 1]),
-         (int64_array([0, 0]), int64_array([])), (int64_array([0, 0]), int64_array([])), int64_array([1, 1, 1, 1]),
-         int64_array([0, 0, 1, 1]), int64_array([0, 0, 1, 1]))
-    ])
-    def test_convert_slice_to_strided_slice(self, input_shape, start, end, axes, steps,
-                                            ss_begin_parts: tuple, ss_end_parts: tuple, ss_steps,
-                                            ss_begin_mask, ss_end_mask):
-        graph = build_graph(
-            nodes_attrs={
-                **regular_op_with_shaped_data('input', input_shape, {'type': 'Parameter'}),
-                **valued_const_with_data('start', start),
-                **valued_const_with_data('end', end),
-                **valued_const_with_data('axes', axes),
-                **valued_const_with_data('steps', steps),
-                **regular_op_with_empty_data('slice', {'type': None, 'op': 'Slice'}),
-                **result('result')
-            },
-            edges=[
-                *connect('input', 'slice'),
-                *connect('start', '1:slice'),
-                *connect('end', '2:slice'),
-                *connect('axes', '3:slice'),
-                *connect('steps', '4:slice'),
-                *connect('slice', 'result')
-            ]
-        )
-        ref_graph = build_graph(
-            nodes_attrs={
-                **regular_op_with_shaped_data('input', input_shape, {'type': 'Parameter'}),
-                **valued_const_with_data('start', start),
-                **valued_const_with_data('begin_first_part', ss_begin_parts[0]),
-                **valued_const_with_data('begin_last_part', ss_begin_parts[1]),
-                **regular_op_with_empty_data('convert_start', {'op': 'Cast', 'type': 'Convert', 'dst_type': np.int64}),
-                **regular_op_with_empty_data('ss_begin', {'type': 'Concat', 'op': 'Concat', 'axis': 0}),
-                **valued_const_with_data('end', end),
-                **valued_const_with_data('end_first_part', ss_end_parts[0]),
-                **valued_const_with_data('end_last_part', ss_end_parts[1]),
-                **regular_op_with_empty_data('convert_end', {'op': 'Cast', 'type': 'Convert', 'dst_type': np.int64}),
-                **regular_op_with_empty_data('ss_end', {'type': 'Concat', 'op': 'Concat', 'axis': 0}),
-                **const('ss_steps', ss_steps),
-                **empty_data('ss_steps_d'),
-                **regular_op_with_empty_data('ss', {'op': 'StridedSlice', 'type': 'StridedSlice',
-                                                    'begin_mask': ss_begin_mask, 'end_mask': ss_end_mask,
-                                                    'new_axis_mask': np.zeros(len(input_shape), dtype=np.int64),
-                                                    'shrink_axis_mask': np.zeros(len(input_shape), dtype=np.int64),
-                                                    'ellipsis_mask': np.zeros(len(input_shape), dtype=np.int64)}),
-                **result('result')
-            },
-            edges=[
-                *connect('input', 'ss'),
-                *connect('begin_first_part', 'ss_begin'),
-                *connect('start', 'convert_start'),
-                *connect('convert_start', '1:ss_begin'),
-                *connect('begin_last_part', '2:ss_begin'),
-                *connect('ss_begin', '1:ss'),
-                *connect('end_first_part', 'ss_end'),
-                *connect('end', 'convert_end'),
-                *connect('convert_end', '1:ss_end'),
-                *connect('end_last_part', '2:ss_end'),
-                *connect('ss_end', '2:ss'),
-                *connect('ss_steps', '3:ss'),
-                *connect('ss', 'result')
-            ]
-        )
-        ConvertSlice().find_and_replace_pattern(graph)
-        (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
+        masks_value = np.zeros([len(input_shape)], dtype=np.int64)
+        graph = build_graph(self.nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'slice', {'in': 0}),
+                             ('starts', 'starts_data'),
+                             ('starts_data', 'slice', {'in': 1}),
+                             ('ends', 'ends_data'),
+                             ('ends_data', 'slice', {'in': 2}),
+                             ('axes', 'axes_data'),
+                             ('axes_data', 'slice', {'in': 3}),
+                             ('steps', 'steps_data'),
+                             ('steps_data', 'slice', {'in': 4}),
+                             ('slice', 'slice_data'),
+                             ('slice_data', 'output_op'),
+                             ('output_op', 'output_data'),
+                             ('output_data', 'op_output')
+                             ],
+                            {'placeholder_1_data': {'shape': input_shape},
+                             'starts': {'shape': starts_value.shape, 'value': starts_value},
+                             'starts_data': {'shape': starts_value.shape, 'value': starts_value},
+                             'ends': {'shape': ends_value.shape, 'value': ends_value},
+                             'ends_data': {'shape': ends_value.shape, 'value': ends_value},
+                             'steps': {'shape': steps_value.shape, 'value': steps_value},
+                             'steps_data': {'shape': steps_value.shape, 'value': steps_value},
+                             'axes': {'shape': axes_value.shape, 'value': axes_value},
+                             'axes_data': {'shape': axes_value.shape, 'value': axes_value},
+                             }, nodes_with_edges_only=True
+                            )
+        slice_node = Node(graph, 'slice')
+        Slice.infer(slice_node)
+
+        pattern = ConvertSlice()
+        pattern.find_and_replace_pattern(graph)
+
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'StridedSlice', 'Something wrong with transformed Slice node'
+
+        graph_ref = build_graph(self.nodes_attributes,
+                                [('placeholder_1', 'placeholder_1_data'),
+                                 ('placeholder_1_data', 'strided_slice', {'in': 0}),
+                                 ('starts', 'starts_data'),
+                                 ('starts_data', 'strided_slice', {'in': 1}),
+                                 ('ends', 'ends_data'),
+                                 ('ends_data', 'strided_slice', {'in': 2}),
+                                 ('strides', 'strides_data'),
+                                 ('strides_data', 'strided_slice', {'in': 3}),
+                                 ('strided_slice', 'slice_data'),
+                                 ('slice_data', 'output_op'),
+                                 ('output_op', 'output_data'),
+                                 ('output_data', 'op_output')
+                                 ],
+                                {'placeholder_1_data': {'shape': input_shape},
+                                 'strided_slice': {'new_axis_mask': masks_value, 'shrink_axis_mask': masks_value,
+                                                   'ellipsis_mask': masks_value, 'begin_mask': int64_array([0, 1, 1]),
+                                                   'end_mask': int64_array([0, 1, 1])},
+                                 'slice_data': {'shape': int64_array([5, 6, 11])}
+                                 }, nodes_with_edges_only=True
+                                )
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output_op', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-    def test_convert_slice_to_strided_slice_without_axes_and_steps(self):
-        graph = build_graph(
-            nodes_attrs={
-                **regular_op_with_shaped_data('input', int64_array([2, 5, 10]), {'type': 'Parameter'}),
-                **valued_const_with_data('start', np.array([0, 0, 0])),
-                **valued_const_with_data('end', np.array([1, 3, 5])),
-                **regular_op_with_empty_data('slice', {'type': None, 'op': 'Slice'}),
-                **result('result')
-            },
-            edges=[
-                *connect('input', 'slice'),
-                *connect('start', '1:slice'),
-                *connect('end', '2:slice'),
-                *connect('slice', 'result')
-            ]
-        )
-        ref_graph = build_graph(
-            nodes_attrs={
-                **regular_op_with_shaped_data('input', int64_array([2, 5, 10]), {'type': 'Parameter'}),
-                **valued_const_with_data('start', np.array([0, 0, 0])),
-                **valued_const_with_data('begin_first_part', int64_array([])),
-                **valued_const_with_data('begin_last_part', int64_array([])),
-                **regular_op_with_empty_data('convert_start', {'op': 'Cast', 'type': 'Convert', 'dst_type': np.int64}),
-                **regular_op_with_empty_data('ss_begin', {'type': 'Concat', 'op': 'Concat', 'axis': 0}),
-                **valued_const_with_data('end', np.array([1, 3, 5])),
-                **valued_const_with_data('end_first_part', int64_array([])),
-                **valued_const_with_data('end_last_part', int64_array([])),
-                **regular_op_with_empty_data('convert_end', {'op': 'Cast', 'type': 'Convert', 'dst_type': np.int64}),
-                **regular_op_with_empty_data('ss_end', {'type': 'Concat', 'op': 'Concat', 'axis': 0}),
-                **const('ss_steps', int64_array([1, 1, 1])),
-                **empty_data('ss_steps_d'),
-                **regular_op_with_empty_data('ss', {'op': 'StridedSlice', 'type': 'StridedSlice',
-                                                    'begin_mask': int64_array([1, 1, 1]), 'end_mask': int64_array([1, 1, 1]),
-                                                    'new_axis_mask': np.zeros(3, dtype=np.int64),
-                                                    'shrink_axis_mask': np.zeros(3, dtype=np.int64),
-                                                    'ellipsis_mask': np.zeros(3, dtype=np.int64)}),
-                **result('result')
-            },
-            edges=[
-                *connect('input', 'ss'),
-                *connect('begin_first_part', 'ss_begin'),
-                *connect('start', 'convert_start'),
-                *connect('convert_start', '1:ss_begin'),
-                *connect('begin_last_part', '2:ss_begin'),
-                *connect('ss_begin', '1:ss'),
-                *connect('end_first_part', 'ss_end'),
-                *connect('end', 'convert_end'),
-                *connect('convert_end', '1:ss_end'),
-                *connect('end_last_part', '2:ss_end'),
-                *connect('ss_end', '2:ss'),
-                *connect('ss_steps', '3:ss'),
-                *connect('ss', 'result')
-            ]
-        )
-        ConvertSlice().find_and_replace_pattern(graph)
-        (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
+    def test_no_steps_no_axes(self):
+        input_shape = int64_array([5, 10, 20])
+        starts_value = int64_array([3, 2, 7])
+        ends_value = int64_array([5, 8, 15])
+        steps_value = int64_array([1, 1, 1])
+        masks_value = np.zeros([len(input_shape)], dtype=np.int64)
+        graph = build_graph(self.nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'slice', {'in': 0}),
+                             ('starts', 'starts_data'),
+                             ('starts_data', 'slice', {'in': 1}),
+                             ('ends', 'ends_data'),
+                             ('ends_data', 'slice', {'in': 2}),
+                             ('slice', 'slice_data'),
+                             ('slice_data', 'output_op'),
+                             ('output_op', 'output_data'),
+                             ('output_data', 'op_output')
+                             ],
+                            {'placeholder_1_data': {'shape': input_shape},
+                             'starts': {'shape': starts_value.shape, 'value': starts_value},
+                             'starts_data': {'shape': starts_value.shape, 'value': starts_value},
+                             'ends': {'shape': ends_value.shape, 'value': ends_value},
+                             'ends_data': {'shape': ends_value.shape, 'value': ends_value},
+                             }, nodes_with_edges_only=True
+                            )
+        slice_node = Node(graph, 'slice')
+        Slice.infer(slice_node)
+
+        pattern = ConvertSlice()
+        pattern.find_and_replace_pattern(graph)
+
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'StridedSlice', 'Something wrong with transformed Slice node'
+
+        graph_ref = build_graph(self.nodes_attributes,
+                                [('placeholder_1', 'placeholder_1_data'),
+                                 ('placeholder_1_data', 'strided_slice', {'in': 0}),
+                                 ('starts', 'starts_data'),
+                                 ('starts_data', 'strided_slice', {'in': 1}),
+                                 ('ends', 'ends_data'),
+                                 ('ends_data', 'strided_slice', {'in': 2}),
+                                 ('strides', 'strides_data'),
+                                 ('strides_data', 'strided_slice', {'in': 3}),
+                                 ('strided_slice', 'slice_data'),
+                                 ('slice_data', 'output_op'),
+                                 ('output_op', 'output_data'),
+                                 ('output_data', 'op_output')
+                                 ],
+                                {'placeholder_1_data': {'shape': input_shape},
+                                 'strided_slice': {'new_axis_mask': masks_value, 'shrink_axis_mask': masks_value,
+                                                   'ellipsis_mask': masks_value, 'begin_mask': np.ones([3]),
+                                                   'end_mask': np.ones([3])},
+                                 'slice_data': {'shape': int64_array([2, 6, 8])}
+                                 }, nodes_with_edges_only=True
+                                )
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output_op', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_no_axes(self):
+        input_shape = int64_array([5, 10, 20])
+        starts_value = int64_array([3, 2, 7])
+        ends_value = int64_array([5, 8, 15])
+        steps_value = int64_array([2, 3, 1])
+        masks_value = np.zeros([len(input_shape)], dtype=np.int64)
+        graph = build_graph(self.nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'slice', {'in': 0}),
+                             ('starts', 'starts_data'),
+                             ('starts_data', 'slice', {'in': 1}),
+                             ('ends', 'ends_data'),
+                             ('ends_data', 'slice', {'in': 2}),
+                             ('steps', 'steps_data'),
+                             ('steps_data', 'slice', {'in': 4}),
+                             ('slice', 'slice_data'),
+                             ('slice_data', 'output_op'),
+                             ('output_op', 'output_data'),
+                             ('output_data', 'op_output')
+                             ],
+                            {'placeholder_1_data': {'shape': input_shape},
+                             'starts': {'shape': starts_value.shape, 'value': starts_value},
+                             'starts_data': {'shape': starts_value.shape, 'value': starts_value},
+                             'ends': {'shape': ends_value.shape, 'value': ends_value},
+                             'ends_data': {'shape': ends_value.shape, 'value': ends_value},
+                             'steps': {'shape': steps_value.shape, 'value': steps_value},
+                             'steps_data': {'shape': steps_value.shape, 'value': steps_value},
+                             }, nodes_with_edges_only=True
+                            )
+        slice_node = Node(graph, 'slice')
+        Slice.infer(slice_node)
+
+        pattern = ConvertSlice()
+        pattern.find_and_replace_pattern(graph)
+
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'StridedSlice', 'Something wrong with transformed Slice node'
+
+        graph_ref = build_graph(self.nodes_attributes,
+                                [('placeholder_1', 'placeholder_1_data'),
+                                 ('placeholder_1_data', 'strided_slice', {'in': 0}),
+                                 ('starts', 'starts_data'),
+                                 ('starts_data', 'strided_slice', {'in': 1}),
+                                 ('ends', 'ends_data'),
+                                 ('ends_data', 'strided_slice', {'in': 2}),
+                                 ('strides', 'strides_data'),
+                                 ('strides_data', 'strided_slice', {'in': 3}),
+                                 ('strided_slice', 'slice_data'),
+                                 ('slice_data', 'output_op'),
+                                 ('output_op', 'output_data'),
+                                 ('output_data', 'op_output')
+                                 ],
+                                {'placeholder_1_data': {'shape': input_shape},
+                                 'strided_slice': {'new_axis_mask': masks_value, 'shrink_axis_mask': masks_value,
+                                                   'ellipsis_mask': masks_value, 'begin_mask': np.ones([3]),
+                                                   'end_mask': np.ones([3])},
+                                 'slice_data': {'shape': int64_array([1, 2, 8])}
+                                 }, nodes_with_edges_only=True
+                                )
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output_op', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_no_steps(self):
+        input_shape = int64_array([5, 10, 20])
+        starts_value = int64_array([4, 2])
+        ends_value = int64_array([15, 8])
+        axes_value = int64_array([2, 1])
+        masks_value = np.zeros([len(input_shape)], dtype=np.int64)
+        graph = build_graph(self.nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'slice', {'in': 0}),
+                             ('starts', 'starts_data'),
+                             ('starts_data', 'slice', {'in': 1}),
+                             ('ends', 'ends_data'),
+                             ('ends_data', 'slice', {'in': 2}),
+                             ('axes', 'axes_data'),
+                             ('axes_data', 'slice', {'in': 3}),
+                             ('slice', 'slice_data'),
+                             ('slice_data', 'output_op'),
+                             ('output_op', 'output_data'),
+                             ('output_data', 'op_output')
+                             ],
+                            {'placeholder_1_data': {'shape': input_shape},
+                             'starts': {'shape': starts_value.shape, 'value': starts_value},
+                             'starts_data': {'shape': starts_value.shape, 'value': starts_value},
+                             'ends': {'shape': ends_value.shape, 'value': ends_value},
+                             'ends_data': {'shape': ends_value.shape, 'value': ends_value},
+                             'axes': {'shape': axes_value.shape, 'value': axes_value},
+                             'axes_data': {'shape': axes_value.shape, 'value': axes_value},
+                             }, nodes_with_edges_only=True
+                            )
+        slice_node = Node(graph, 'slice')
+        Slice.infer(slice_node)
+
+        pattern = ConvertSlice()
+        pattern.find_and_replace_pattern(graph)
+
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'StridedSlice', 'Something wrong with transformed Slice node'
+
+        graph_ref = build_graph(self.nodes_attributes,
+                                [('placeholder_1', 'placeholder_1_data'),
+                                 ('placeholder_1_data', 'strided_slice', {'in': 0}),
+                                 ('starts', 'starts_data'),
+                                 ('starts_data', 'strided_slice', {'in': 1}),
+                                 ('ends', 'ends_data'),
+                                 ('ends_data', 'strided_slice', {'in': 2}),
+                                 ('strides', 'strides_data'),
+                                 ('strides_data', 'strided_slice', {'in': 3}),
+                                 ('strided_slice', 'slice_data'),
+                                 ('slice_data', 'output_op'),
+                                 ('output_op', 'output_data'),
+                                 ('output_data', 'op_output')
+                                 ],
+                                {'placeholder_1_data': {'shape': input_shape},
+                                 'strided_slice': {'new_axis_mask': masks_value, 'shrink_axis_mask': masks_value,
+                                                   'ellipsis_mask': masks_value, 'begin_mask': int64_array([0, 1, 1]),
+                                                   'end_mask': int64_array([0, 1, 1])},
+                                 'slice_data': {'shape': int64_array([5, 6, 11])}
+                                 }, nodes_with_edges_only=True
+                                )
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output_op', check_op_attrs=True)
         self.assertTrue(flag, resp)
