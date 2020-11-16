@@ -954,9 +954,10 @@ void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_sh
 
     for (uint64_t i = 0; i < num_spatial_dims; ++i)
     {
-        int total_padding = strides[i] * (input_data_shape[i] - 1) +
-                            dilations[i] * (filters_shape[i] - 1) + 1 - output_shape[i] +
-                            output_padding[i];
+        int total_padding = std::max<int>(strides[i] * (input_data_shape[i] - 1) +
+                                              dilations[i] * (filters_shape[i] - 1) + 1 -
+                                              output_shape[i] + output_padding[i],
+                                          0);
         if (auto_pad_type != op::PadType::SAME_UPPER)
         {
             pads_begin[i] = total_padding / 2;
