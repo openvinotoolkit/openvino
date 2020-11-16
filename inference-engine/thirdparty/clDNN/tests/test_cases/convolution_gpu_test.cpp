@@ -7829,6 +7829,10 @@ public:
         _padded_input = padded_input;
     }
 
+    void set_bigger_pad(bool bigger_pad) {
+        _bigger_pad = bigger_pad;
+    }
+
 protected:
     VVVVF<InputT> _input;
     VVVVF<WeightsT> _weights;
@@ -7840,6 +7844,7 @@ protected:
     int _offset_x, _offset_y;
     int _dilation_x, _dilation_y;
     bool _padded_input;
+    bool _bigger_pad;
 
     size_t batch_num() const { return _input.size(); }
     size_t input_features() const { return _input[0].size(); }
@@ -7855,6 +7860,7 @@ protected:
     bool has_input_zp() { return _input_zp.size() > 0; }
     bool has_weights_zp() { return _weights_zp.size() > 0; }
     bool need_padded_input() { return _padded_input; }
+    bool bigger_pad() { return _bigger_pad; }
 
     data_types input_type() const { return type_to_data_type<InputT>::value; }
     format input_format() const { return _input_fmt; }
@@ -7874,9 +7880,15 @@ protected:
     }
     padding padding_size() const {
         if (_padded_input) {
-            return padding{
-                      tensor(0, 0, TensorValue(filter_x() / 2), TensorValue(filter_y() / 2)).sizes(),
-                      tensor(0, 0, TensorValue(filter_x() / 2), TensorValue(filter_y() / 2)).sizes()};
+            if (_bigger_pad) {
+                return padding{
+                        tensor(0, 0, TensorValue(filter_x() / 2 + 1), TensorValue(filter_y() / 2 + 1)).sizes(),
+                        tensor(0, 0, TensorValue(filter_x() / 2 + 1), TensorValue(filter_y() / 2 + 1)).sizes()};
+            } else {
+                return padding{
+                        tensor(0, 0, TensorValue(filter_x() / 2), TensorValue(filter_y() / 2)).sizes(),
+                        tensor(0, 0, TensorValue(filter_x() / 2), TensorValue(filter_y() / 2)).sizes()};
+            }
         } else {
             return padding{};
         }
@@ -7901,6 +7913,7 @@ struct convolution_random_test_all_params {
     bool asymmetric_weights;
     bool asymmetric_data;
     bool need_padded_input;
+    bool bigger_pad;
 };
 
 template <typename InputT, typename WeightsT, typename OutputT>
@@ -7958,6 +7971,7 @@ public:
         this->set_weights_zp(std::move(weights_zp_data));
         this->set_input_zp(std::move(input_zp_data));
         this->set_padded_input(params.need_padded_input);
+        this->set_bigger_pad(params.bigger_pad);
     }
 
     void run_random(const convolution_random_test_all_params& params) {
@@ -7986,6 +8000,7 @@ static std::string to_string_convolution_all_params(const testing::TestParamInfo
     bool asymm_weights = params.asymmetric_weights;
     bool asymm_input = params.asymmetric_data;
     bool padded_input = params.need_padded_input;
+    bool bigger_pad = params.bigger_pad;
     // Wrapper for negative walues as ex. "-1" will generate invalid gtest param string
     auto to_string_neg = [](int val) {
         if (val >= 0)
@@ -8002,7 +8017,8 @@ static std::string to_string_convolution_all_params(const testing::TestParamInfo
         "_d" + std::to_string(Dilation[0]) + 'x' + std::to_string(Dilation[1]) +
         "_g" + std::to_string(groups) +
         (Bias ? "_bias" : "") + (asymm_weights ? "_wzp" : "") + (asymm_input ? "_izp" : "") +
-        (padded_input ? "_in_pad" : "");
+        (padded_input ? "_in_pad" : "") +
+        (bigger_pad ? "_bigger_pad" : "");
 }
 
 template <typename InputT, typename WeightsT, typename OutputT>
@@ -8196,96 +8212,112 @@ using convolution_scale_random_test_s8s8f32 = convolution_scale_random_test<int8
 using convolution_scale_random_test_u8s8f32 = convolution_scale_random_test<uint8_t, int8_t, float>;
 
 struct params_generator : std::vector<convolution_random_test_all_params> {
-    params_generator& smoke_test_params(format::type input_format, bool asymm_weights = false, bool asymm_data = false, bool padded_input = false) {
+    params_generator& smoke_test_params(format::type input_format,
+                                        bool asymm_weights = false,
+                                        bool asymm_data = false,
+                                        bool padded_input = false,
+                                        bool bigger_pad = false) {
         std::vector<size_t> batches = { 1, 2 };
         for (auto b : batches) {
             // first conv
             push_back(convolution_random_test_all_params{
-                b, 3, 32, { 28, 28 }, { 7, 7 }, { 2, 2 }, { -3, -3 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 3, 32, { 28, 28 }, { 7, 7 }, { 2, 2 }, { -3, -3 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 3, 64, { 1024, 10 }, { 5, 5 }, { 2, 2 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 3, 64, { 1024, 10 }, { 5, 5 }, { 2, 2 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 3, 15, { 10, 10 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 3, 15, { 10, 10 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 4, 18, { 10, 10 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 4, 18, { 10, 10 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             // 3x3
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 14, 14 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 14, 14 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             // 1x1
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 28, 28 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 28, 28 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             // 5x5
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 28, 28 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 28, 28 }, { 5, 5 }, { 2, 2 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 2, 2 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             // depthwise
             push_back(convolution_random_test_all_params{
-                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input });
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input });
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             // dilation
             push_back(convolution_random_test_all_params{
-                b, 32, 24, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 32, 24, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 32, 24, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 32, 24, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             // depthwise + dilation
             push_back(convolution_random_test_all_params{
-                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input });
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input });
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
         }
         return *this;
     }
 
-    params_generator& extra_test_params(format::type input_format, bool asymm_weights = false, bool asymm_data = false, bool padded_input = false) {
+    params_generator& extra_test_params(format::type input_format,
+                                        bool asymm_weights = false,
+                                        bool asymm_data = false,
+                                        bool padded_input = false,
+                                        bool bigger_pad = false) {
         std::vector<size_t> batches = { 1, 2 };
         for (auto b : batches) {
             // 1x1
             push_back(convolution_random_test_all_params{
-                b, 23, 41, { 19, 19 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 23, 41, { 19, 19 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 23, 41, { 19, 19 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 23, 41, { 19, 19 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             // 3x3
             push_back(convolution_random_test_all_params{
-                b, 16, 28, { 14, 14 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 16, 28, { 14, 14 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 23, 41, { 19, 17 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 23, 41, { 19, 17 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             // 5x5
             push_back(convolution_random_test_all_params{
-                b, 16, 28, { 14, 14 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 16, 28, { 14, 14 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                b, 23, 41, { 19, 17 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                b, 23, 41, { 19, 17 }, { 5, 5 }, { 1, 1 }, { -2, -2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
         }
         return *this;
     }
 
-    params_generator& bs_test_params(format::type input_format, bool asymm_weights = false, bool asymm_data = false, bool padded_input = false) {
+    params_generator& bs_test_params(format::type input_format,
+                                     bool asymm_weights = false,
+                                     bool asymm_data = false,
+                                     bool padded_input = false,
+                                     bool bigger_pad = false) {
         std::vector<int> strides = { 1, 2 };
         for (auto s : strides) {
             // 1x1
             push_back(convolution_random_test_all_params{
             //      feature   input     filter    stride    offset  dilation  bias  groups
             //batch in  out   x  y      x  y      x  y      x  y      x  y
-                16, 32, 32, { 4, 4 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                16, 32, 32, { 4, 4 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                16, 32, 32, { 9, 9 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                16, 32, 32, { 9, 9 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             // 3x3
             push_back(convolution_random_test_all_params{
-                16, 32, 32, { 4, 4 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                16, 32, 32, { 4, 4 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
             push_back(convolution_random_test_all_params{
-                16, 32, 32, { 9, 9 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+                16, 32, 32, { 9, 9 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
         }
         return *this;
     }
 
-    params_generator& all_test_params(format::type input_format, bool asymm_weights = false, bool asymm_data = false, bool padded_input = false) {
-        return smoke_test_params(input_format, asymm_weights, asymm_data, padded_input)
-            .extra_test_params(input_format, asymm_weights, asymm_data, padded_input);
+    params_generator& all_test_params(format::type input_format,
+                                      bool asymm_weights = false,
+                                      bool asymm_data = false,
+                                      bool padded_input = false,
+                                      bool bigger_pad = false) {
+        return smoke_test_params(input_format, asymm_weights, asymm_data, padded_input, bigger_pad)
+            .extra_test_params(input_format, asymm_weights, asymm_data, padded_input, bigger_pad);
     }
 
     params_generator& add(convolution_random_test_all_params params) {
@@ -8331,6 +8363,7 @@ INSTANTIATE_TEST_CASE_P(
         .smoke_test_params(format::b_fs_yx_fsv16, false, true)
         .smoke_test_params(format::b_fs_yx_fsv16, true, false)
         .smoke_test_params(format::b_fs_yx_fsv16, false, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, false, true, true)
         .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
     ),
     to_string_convolution_all_params
@@ -8374,9 +8407,9 @@ INSTANTIATE_TEST_CASE_P(
         .all_test_params(format::b_fs_yx_fsv32, true, false)
         .all_test_params(format::b_fs_yx_fsv16)
         .add(convolution_random_test_all_params{
-            1, 89, 3, { 1, 1 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv4, false, false, false })
+            1, 89, 3, { 1, 1 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv4, false, false, false, false })
         .add(convolution_random_test_all_params{
-            1, 16, 32, { 3, 3 }, { 17, 17 }, { 1, 1 }, { -8, -8 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv16, false, false, true })
+            1, 16, 32, { 3, 3 }, { 17, 17 }, { 1, 1 }, { -8, -8 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv16, false, false, true, false })
     ),
     to_string_convolution_all_params
 );
