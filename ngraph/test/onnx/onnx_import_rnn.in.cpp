@@ -491,6 +491,27 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_mixed_seq_reverse)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_import_only_lstm_dynamic_batch_seq_all_inputs)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/lstm_dyn_batch_seq.prototxt"));
+
+    auto batch_size = Dimension::dynamic();
+    auto seq_length = Dimension::dynamic();
+    int64_t hidden_size = 3;
+    int64_t num_directions = 1;
+    auto Y_expected_output = PartialShape{batch_size, num_directions, seq_length, hidden_size};
+    auto Y_h_expected_output = PartialShape{num_directions, batch_size, hidden_size};
+    auto Y_c_expected_output = PartialShape{num_directions, batch_size, hidden_size};
+
+    EXPECT_EQ(function->get_output_size(), 3);
+    EXPECT_EQ(function->get_output_partial_shape(0), Y_expected_output);
+    EXPECT_EQ(function->get_output_partial_shape(1), Y_h_expected_output);
+    EXPECT_EQ(function->get_output_partial_shape(2), Y_c_expected_output);
+
+    EXPECT_EQ(count_ops_of_type<op::v5::LSTMSequence>(function), 1);
+}
+
 // RNNLikeSequenceOp test fixture for test setup reuse
 class GRUSequenceOp : public testing::Test
 {
