@@ -174,7 +174,7 @@ const auto params_4D_BF16 = ::testing::Combine(
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::Values(emptyCPUSpec));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_BF16_MemOrder, EltwiseLayerCPUTest, params_4D_BF16, EltwiseLayerCPUTest::getTestCaseName);
 

@@ -52,7 +52,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 37862
         R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)",
-        // TODO: Issue: 38841l
+        // TODO: Issue: 38841
         R"(.*TopKLayerTest.*k=5.*sort=none.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",

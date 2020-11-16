@@ -62,7 +62,7 @@ protected:
 
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 
-        threshold = 0.015f; //slightly increase threshold
+        threshold = 0.015f;
 
         mvn->get_rt_info() = getCPUInfo();
 
