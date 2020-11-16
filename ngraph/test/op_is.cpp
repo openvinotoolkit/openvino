@@ -877,7 +877,7 @@ namespace
 
     void op_is_Unsqueeze()
     {
-        op::Unsqueeze node;
+        op::v0::Unsqueeze node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));

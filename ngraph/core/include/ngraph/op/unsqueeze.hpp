@@ -21,9 +21,6 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
@@ -31,7 +28,7 @@ namespace ngraph
     {
         namespace v0
         {
-            class NGRAPH_API Unsqueeze : public ngraph::op::util::FusedOp
+            class NGRAPH_API Unsqueeze : public Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -39,9 +36,7 @@ namespace ngraph
                 Unsqueeze() = default;
                 Unsqueeze(const Output<Node>& data, const Output<Node>& axes);
 
-                virtual void pre_validate_and_infer_types() override;
-                virtual OutputVector decompose_op() const override;
-
+                void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
@@ -55,5 +50,3 @@ namespace ngraph
         using v0::Unsqueeze;
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END
