@@ -1306,6 +1306,8 @@ case name:\
 }
 
 void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
+    static int count = 0;
+    count++;
     if (LayerInfo(layer).isTrivialPermute()) {
         return;
     }
@@ -1332,6 +1334,12 @@ void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     if (squeezedInputOrder.size() > 2) {
         THROW_GNA_EXCEPTION << "unsupported permute (requested transpose is not 2D)";
+    }
+
+    if (count%2 == 0) {
+        auto temp = squeezedInputOrder[0];
+        squeezedInputOrder[0] =  squeezedInputOrder[1];
+        squeezedInputOrder[1] = temp;
     }
 
     if (std::min(squeezedInputOrder[0], squeezedInputOrder[1]) > 8) {
