@@ -34,6 +34,7 @@ namespace ngraph
                 , m_strides{convpool::get_strides(node)}
                 , m_dilations{convpool::get_dilations(node)}
                 , m_auto_pad{convpool::get_auto_pad(node)}
+                , m_rounding_type{convpool::get_rounding_type(node)}
             {
                 const auto paddings = convpool::get_pads(node);
                 const CoordinateDiff& padding_above{paddings.second};
@@ -52,7 +53,7 @@ namespace ngraph
                                                                  m_padding_above,
                                                                  m_kernel_shape,
                                                                  !count_include_pad,
-                                                                 ngraph::op::RoundingType::FLOOR,
+                                                                 m_rounding_type,
                                                                  m_auto_pad)};
             }
 
@@ -63,7 +64,7 @@ namespace ngraph
                                                                  m_padding_below,
                                                                  m_padding_above,
                                                                  m_kernel_shape,
-                                                                 ngraph::op::RoundingType::FLOOR,
+                                                                 m_rounding_type,
                                                                  m_auto_pad)};
             }
 
