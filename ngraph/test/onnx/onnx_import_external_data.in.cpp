@@ -134,7 +134,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path)
     catch (const ngraph_error& error)
     {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            std::string("inner_scope/tensors_data/tensor.data, offset: 4096, "
+                            std::string("tensor.data, offset: 4096, "
                                         "data_lenght: 16, sha1_digest: 0)"),
                             error.what());
     }
