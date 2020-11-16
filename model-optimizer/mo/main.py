@@ -249,9 +249,16 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
+
+        orig_model_name = os.path.join(output_dir, argv.model_name)
+        from openvino.inference_engine import IECore
+        ie = IECore()
+        net = ie.read_network(model=orig_model_name + ".xml", weights=orig_model_name + ".bin")
+        # net.serialize(orig_model_name + "_s.xml", orig_model_name + "_s.bin")
+
         print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
-        print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, argv.model_name)))
-        print('[ SUCCESS ] BIN file: {}.bin'.format(os.path.join(output_dir, argv.model_name)))
+        print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
+        print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))
 
     return 0
 
