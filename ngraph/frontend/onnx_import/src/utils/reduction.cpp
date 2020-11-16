@@ -19,6 +19,7 @@
 
 #include "ngraph/op/constant.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "reduction.hpp"
 
 namespace ngraph
@@ -34,11 +35,10 @@ namespace ngraph
                     auto reduction_axes =
                         node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
+                    const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+
                     if (reduction_axes.empty())
                     {
-                        const auto input_rank =
-                            node.get_ng_inputs().at(0).get_partial_shape().rank();
-
                         NGRAPH_CHECK(input_rank.is_static(),
                                      "The input tensor's rank needs to be known(static) when the "
                                      "'axes' attribute is not specified. Node: ",
@@ -46,6 +46,17 @@ namespace ngraph
 
                         reduction_axes = onnx_import::common::get_monotonic_range<int64_t>(
                             input_rank.get_length());
+                    }
+
+                    if (input_rank.is_static())
+                    {
+                        CHECK_VALID_NODE(node,
+                                         reduction_axes.size() <= input_rank.get_length(),
+                                         "Number of reduction axes (",
+                                         reduction_axes.size(),
+                                         ") is larger than the input tensor's rank (",
+                                         input_rank.get_length(),
+                                         ")");
                     }
 
                     return default_opset::Constant::create(
