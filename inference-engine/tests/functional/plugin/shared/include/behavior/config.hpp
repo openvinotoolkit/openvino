@@ -15,7 +15,6 @@
 #include "ngraph_functions/builders.hpp"
 #include <ie_plugin_config.hpp>
 #include <vpu/vpu_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include <gna/gna_config.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ie_core.hpp>
