@@ -68,8 +68,8 @@ benchmark_app [OPTION]
 Options:
 
     -h, --help                Print a usage message
+    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.	
     -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
-    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
     -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
                               Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
                               Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. 
@@ -143,11 +143,11 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    
    * On CPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png  -d CPU -api async --progress true
    ```
    * On FPGA:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d HETERO:FPGA,CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png -d HETERO:FPGA,CPU -api async --progress true
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
