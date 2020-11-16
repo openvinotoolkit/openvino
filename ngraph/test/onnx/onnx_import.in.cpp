@@ -1128,6 +1128,30 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_resize10_import_only)
     EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(resize_fn), 1);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_empty_constant_as_input)
+{
+    // this model contains a Constant node with an empty underlying tensor
+    // this node is connected to the "roi" input of the Resize op but this input should be
+    // ignored since the Resize coordinate_transformation_mode is set to asymmetric
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_empty_constant_as_input.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 8},
+        {1.0f,  1.5f,  2.0f, 2.5f, 3.0f, 3.0f,  3.0f,  3.0f,  2.5f,  3.25f, 4.0f,
+         4.75f, 5.5f,  5.5f, 5.5f, 5.5f, 4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  8.0f,
+         8.0f,  8.0f,  4.0f, 5.0f, 6.0f, 7.0f,  8.0f,  8.0f,  8.0f,  8.0f,
+
+         6.0f,  5.0f,  4.0f, 3.0f, 2.0f, 2.0f,  2.0f,  2.0f,  6.5f,  6.5f,  6.5f,
+         6.5f,  6.5f,  6.5f, 6.5f, 6.5f, 7.0f,  8.0f,  9.0f,  10.0f, 11.0f, 11.0f,
+         11.0f, 11.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 11.0f, 11.0f, 11.0f});
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest)
 {
     const auto function = onnx_import::import_onnx_model(
@@ -1181,10 +1205,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_nearest)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_down_linear)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_scales_linear_asymmetric)
 {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_scales_down_linear.prototxt"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_down_scales_linear_asymmetric.prototxt"));
 
     const Shape expected_output_shape{1, 1, 1, 2};
     auto test_case = test::TestCase<TestEngine>(function);
@@ -1215,45 +1239,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor_dynam
     test_case.run_with_tolerance_as_fp();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_nearest_asymmetric_floor)
-{
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/resize11_sizes_nearest_asymmetric_floor.prototxt"));
-
-    const Shape expected_output_shape{2, 1, 4, 1};
-    auto test_case = test::TestCase<TestEngine>(function);
-    std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
-    test_case.add_input<float>(input_data);
-    test_case.add_expected_output<float>(expected_output_shape,
-                                         {1.0f, 1.0f, 4.0f, 4.0f, 6.0f, 6.0f, 7.0f, 7.0f});
-
-    test_case.run_with_tolerance_as_fp();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_linear)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_linear_asymmetric)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_sizes_linear.prototxt"));
-
-    const Shape expected_output_shape{2, 1, 4, 8};
-    auto test_case = test::TestCase<TestEngine>(function);
-    std::vector<float> input_data{2.0f, 4.0f, 1.0f, 3.0f, 7.0f, 8.0f, 9.0f, 6.0f};
-    test_case.add_input<float>(input_data);
-    test_case.add_expected_output<float>(
-        expected_output_shape,
-        {2.0f, 2.5f, 3.0f,  3.5f, 4.0f,  4.0f,  4.0f, 4.0f,  1.5f, 2.0f,  2.5f,  3.0f, 3.5f,
-         3.5f, 3.5f, 3.5f,  1.0f, 1.5f,  2.0f,  2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  1.0f, 1.5f,
-         2.0f, 2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  7.0f, 7.25f, 7.5f, 7.75f, 8.0f,  8.0f, 8.0f,
-         8.0f, 8.0f, 7.75f, 7.5f, 7.25f, 7.0f,  7.0f, 7.0f,  7.0f, 9.0f,  8.25f, 7.5f, 6.75f,
-         6.0f, 6.0f, 6.0f,  6.0f, 9.0f,  8.25f, 7.5f, 6.75f, 6.0f, 6.0f,  6.0f,  6.0f});
-
-    test_case.run_with_tolerance_as_fp(2.0e-5f);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_up_linear_asymmetric)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_scales_up_linear_asymmetric.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_scales_linear_asymmetric.prototxt"));
 
     const Shape expected_output_shape{2, 1, 4, 8};
     auto test_case = test::TestCase<TestEngine>(function);
@@ -1288,28 +1277,444 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_empty_constant_as_input)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_cubic_align_corners)
 {
-    // this model contains a Constant node with an empty underlying tensor
-    // this node is connected to the "roi" input of the Resize op but this input should be
-    // ignored since the Resize coordinate_transformation_mode is set to asymmetric
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_empty_constant_as_input.prototxt"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_up_scales_cubic_align_corners.prototxt"));
 
+    const Shape expected_output_shape{1, 1, 8, 8};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {
+            1.0f,         1.34110787f,  1.80029155f,  2.32944606f,  2.67055394f,  3.19970845f,
+            3.65889213f,  4.0f,         2.36443149f,  2.70553936f,  3.16472303f,  3.69387755f,
+            4.03498542f,  4.56413994f,  5.02332362f,  5.36443149f,  4.20116618f,  4.54227405f,
+            5.00145773f,  5.53061224f,  5.87172012f,  6.40087464f,  6.86005831f,  7.20116618f,
+            6.31778426f,  6.65889213f,  7.1180758f,   7.64723032f,  7.98833819f,  8.51749271f,
+            8.97667638f,  9.31778426f,  7.68221574f,  8.02332362f,  8.48250729f,  9.01166181f,
+            9.35276968f,  9.8819242f,   10.34110787f, 10.68221574f, 9.79883382f,  10.13994169f,
+            10.59912536f, 11.12827988f, 11.46938776f, 11.99854227f, 12.45772595f, 12.79883382f,
+            11.63556851f, 11.97667638f, 12.43586006f, 12.96501458f, 13.30612245f, 13.83527697f,
+            14.29446064f, 14.6355685f,  13.0f,        13.34110787f, 13.80029155f, 14.32944606f,
+            14.67055394f, 15.19970845f, 15.65889213f, 16.0f,
+        });
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_tf_half_pixel)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_scales_tf_half_pixel.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 8, 8};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.95703f, 2.43359f, 3.0625f,  3.46875f, 4.09766f, 4.57422f, 4.87109f, 4.80078f,
+         3.86328f, 4.33984f, 4.96875f, 5.375f,   6.00391f, 6.48047f, 6.77734f, 6.70703f,
+         6.37891f, 6.85547f, 7.48438f, 7.89063f, 8.51953f, 8.99609f, 9.29297f, 9.22266f,
+         8.00391f, 8.48047f, 9.10938f, 9.51563f, 10.1445f, 10.6211f, 10.918f,  10.8477f,
+         10.5195f, 10.9961f, 11.625f,  12.0313f, 12.6602f, 13.1367f, 13.4336f, 13.3633f,
+         12.4258f, 12.9023f, 13.5313f, 13.9375f, 14.5664f, 15.043f,  15.3398f, 15.2695f,
+         13.6133f, 14.0898f, 14.7188f, 15.125f,  15.7539f, 16.2305f, 16.5273f, 16.457f,
+         13.332f,  13.8086f, 14.4375f, 14.8438f, 15.4727f, 15.9492f, 16.2461f, 16.1758f});
+    test_case.run_with_tolerance_as_fp(2.0e-2f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_all_attributes_default)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_up_sizes_all_attributes_default.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 7, 8};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f, 2.0f, 3.0f, 4.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 2.0f,
+         2.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         2.0f, 2.0f, 2.0f, 2.0f, 3.0f, 3.0f, 3.0f, 3.0f, 4.0f, 4.0f, 4.0f, 4.0f, 3.0f, 3.0f,
+         3.0f, 3.0f, 4.0f, 4.0f, 4.0f, 4.0f, 3.0f, 3.0f, 3.0f, 3.0f, 4.0f, 4.0f, 4.0f, 4.0f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_nearest_asymmetric_floor)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_sizes_nearest_asymmetric_floor.prototxt"));
+
+    const Shape expected_output_shape{2, 1, 4, 1};
     auto test_case = test::TestCase<TestEngine>(function);
     std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
     test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(expected_output_shape,
+                                         {1.0f, 1.0f, 4.0f, 4.0f, 6.0f, 6.0f, 7.0f, 7.0f});
+
+    test_case.run_with_tolerance_as_fp();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_linear_asymmetric)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_linear_asymmetric.prototxt"));
+
+    const Shape expected_output_shape{2, 1, 4, 8};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{2.0f, 4.0f, 1.0f, 3.0f, 7.0f, 8.0f, 9.0f, 6.0f};
+    test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
-        Shape{1, 2, 4, 8},
-        {1.0f,  1.5f,  2.0f, 2.5f, 3.0f, 3.0f,  3.0f,  3.0f,  2.5f,  3.25f, 4.0f,
-         4.75f, 5.5f,  5.5f, 5.5f, 5.5f, 4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  8.0f,
-         8.0f,  8.0f,  4.0f, 5.0f, 6.0f, 7.0f,  8.0f,  8.0f,  8.0f,  8.0f,
+        expected_output_shape,
+        {2.0f, 2.5f, 3.0f,  3.5f, 4.0f,  4.0f,  4.0f, 4.0f,  1.5f, 2.0f,  2.5f,  3.0f, 3.5f,
+         3.5f, 3.5f, 3.5f,  1.0f, 1.5f,  2.0f,  2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  1.0f, 1.5f,
+         2.0f, 2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  7.0f, 7.25f, 7.5f, 7.75f, 8.0f,  8.0f, 8.0f,
+         8.0f, 8.0f, 7.75f, 7.5f, 7.25f, 7.0f,  7.0f, 7.0f,  7.0f, 9.0f,  8.25f, 7.5f, 6.75f,
+         6.0f, 6.0f, 6.0f,  6.0f, 9.0f,  8.25f, 7.5f, 6.75f, 6.0f, 6.0f,  6.0f,  6.0f});
 
-         6.0f,  5.0f,  4.0f, 3.0f, 2.0f, 2.0f,  2.0f,  2.0f,  6.5f,  6.5f,  6.5f,
-         6.5f,  6.5f,  6.5f, 6.5f, 6.5f, 7.0f,  8.0f,  9.0f,  10.0f, 11.0f, 11.0f,
-         11.0f, 11.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 11.0f, 11.0f, 11.0f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
 
-    test_case.run();
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_cubic_half_pixel)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_sizes_cubic_half_pixel.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 3, 3};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(expected_output_shape,
+                                         {1.6307871,
+                                          3.0046299,
+                                          4.3784733,
+                                          7.1261587,
+                                          8.5,
+                                          9.873844,
+                                          12.621532,
+                                          13.995373,
+                                          15.369216});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_linear_pytorch_half_pixel)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_down_sizes_linear_pytorch_half_pixel.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 3, 1};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(expected_output_shape, {1.666666f, 7.0f, 12.333333f});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_cubic_half_pixel)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_cubic_half_pixel.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 9, 10};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {0.45507922f,  0.64057922f,  0.97157922f,  1.42257922f,  1.90732922,   2.22332922f,
+         2.70807922f,  3.15907922f,  3.49007922f,  3.67557922,   1.39437963f,  1.57987963f,
+         1.91087963f,  2.36187963f,  2.84662963,   3.16262963f,  3.64737963f,  4.09837963f,
+         4.42937963f,  4.61487963,   2.95130693f,  3.13680693f,  3.46780693f,  3.91880693f,
+         4.40355693,   4.71955693f,  5.20430693f,  5.65530693f,  5.98630693f,  6.17180693,
+         5.20525069f,  5.39075069f,  5.72175069f,  6.17275069f,  6.65750069,   6.97350069f,
+         7.45825069f,  7.90925069f,  8.24025069f,  8.42575069,   6.88975f,     7.07525f,
+         7.40625f,     7.85725f,     8.342,        8.658f,       9.14275f,     9.59375f,
+         9.92475f,     10.11025f,    8.57424931f,  8.75974931f,  9.09074931f,  9.54174931f,
+         10.02649931,  10.34249931f, 10.82724931f, 11.27824931f, 11.60924931f, 11.79474931,
+         10.82819307f, 11.01369307f, 11.34469307f, 11.79569307f, 12.28044307,  12.59644307f,
+         13.08119307f, 13.53219307f, 13.86319307f, 14.04869307,  12.38512037f, 12.57062037f,
+         12.90162037f, 13.35262037f, 13.83737037,  14.15337037f, 14.63812037f, 15.08912037f,
+         15.42012037f, 15.60562037,  13.32442078f, 13.50992078f, 13.84092078f, 14.29192078f,
+         14.77667078,  15.09267078f, 15.57742078f, 16.02842078f, 16.35942078f, 16.54492078});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_up_sizes_cubic_half_pixel_dynamic_sizes.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 9, 10};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_input<float>(std::vector<float>{1, 1, 9, 10}); // sizes
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {0.45507922f,  0.64057922f,  0.97157922f,  1.42257922f,  1.90732922,   2.22332922f,
+         2.70807922f,  3.15907922f,  3.49007922f,  3.67557922,   1.39437963f,  1.57987963f,
+         1.91087963f,  2.36187963f,  2.84662963,   3.16262963f,  3.64737963f,  4.09837963f,
+         4.42937963f,  4.61487963,   2.95130693f,  3.13680693f,  3.46780693f,  3.91880693f,
+         4.40355693,   4.71955693f,  5.20430693f,  5.65530693f,  5.98630693f,  6.17180693,
+         5.20525069f,  5.39075069f,  5.72175069f,  6.17275069f,  6.65750069,   6.97350069f,
+         7.45825069f,  7.90925069f,  8.24025069f,  8.42575069,   6.88975f,     7.07525f,
+         7.40625f,     7.85725f,     8.342,        8.658f,       9.14275f,     9.59375f,
+         9.92475f,     10.11025f,    8.57424931f,  8.75974931f,  9.09074931f,  9.54174931f,
+         10.02649931,  10.34249931f, 10.82724931f, 11.27824931f, 11.60924931f, 11.79474931,
+         10.82819307f, 11.01369307f, 11.34469307f, 11.79569307f, 12.28044307,  12.59644307f,
+         13.08119307f, 13.53219307f, 13.86319307f, 14.04869307,  12.38512037f, 12.57062037f,
+         12.90162037f, 13.35262037f, 13.83737037,  14.15337037f, 14.63812037f, 15.08912037f,
+         15.42012037f, 15.60562037,  13.32442078f, 13.50992078f, 13.84092078f, 14.29192078f,
+         14.77667078,  15.09267078f, 15.57742078f, 16.02842078f, 16.35942078f, 16.54492078});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_round_prefer_floor_half_pixel)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_round_prefer_floor_half_pixel.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 7, 8};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f, 2.0f, 3.0f, 4.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 2.0f,
+         2.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         2.0f, 2.0f, 2.0f, 2.0f, 3.0f, 3.0f, 3.0f, 3.0f, 4.0f, 4.0f, 4.0f, 4.0f, 3.0f, 3.0f,
+         3.0f, 3.0f, 4.0f, 4.0f, 4.0f, 4.0f, 3.0f, 3.0f, 3.0f, 3.0f, 4.0f, 4.0f, 4.0f, 4.0f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_prefer_ceil_asymmetric)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_prefer_ceil_asymmetric.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 8, 8};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {
+            1.0f,  2.0f,  2.0f,  3.0f,  3.0f,  4.0f,  4.0f,  4.0f,  5.0f,  6.0f,  6.0f,
+            7.0f,  7.0f,  8.0f,  8.0f,  8.0f,  5.0f,  6.0f,  6.0f,  7.0f,  7.0f,  8.0f,
+            8.0f,  8.0f,  9.0f,  10.0f, 10.0f, 11.0f, 11.0f, 12.0f, 12.0f, 12.0f, 9.0f,
+            10.0f, 10.0f, 11.0f, 11.0f, 12.0f, 12.0f, 12.0f, 13.0f, 14.0f, 14.0f, 15.0f,
+            15.0f, 16.0f, 16.0f, 16.0f, 13.0f, 14.0f, 14.0f, 15.0f, 15.0f, 16.0f, 16.0f,
+            16.0f, 13.0f, 14.0f, 14.0f, 15.0f, 15.0f, 16.0f, 16.0f, 16.0f,
+        });
+    test_case.run_with_tolerance_as_fp(2.0e-2f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_ceil_half_pixel)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_ceil_half_pixel.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 8, 8};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0f,  2.0f,  2.0f,  3.0f,  3.0f,  4.0f,  4.0f,  4.0f,  5.0f,  6.0f,  6.0f,  7.0f,  7.0f,
+         8.0f,  8.0f,  8.0f,  5.0f,  6.0f,  6.0f,  7.0f,  7.0f,  8.0f,  8.0f,  8.0f,  9.0f,  10.0f,
+         10.0f, 11.0f, 11.0f, 12.0f, 12.0f, 12.0f, 9.0f,  10.0f, 10.0f, 11.0f, 11.0f, 12.0f, 12.0f,
+         12.0f, 13.0f, 14.0f, 14.0f, 15.0f, 15.0f, 16.0f, 16.0f, 16.0f, 13.0f, 14.0f, 14.0f, 15.0f,
+         15.0f, 16.0f, 16.0f, 16.0f, 13.0f, 14.0f, 14.0f, 15.0f, 15.0f, 16.0f, 16.0f, 16.0f});
+    test_case.run_with_tolerance_as_fp(2.0e-2f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_floor_align_corners)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_floor_align_corners.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 8, 8};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0f,  1.0f,  1.0f,  2.0f,  2.0f,  3.0f,  3.0f,  4.0f,  1.0f,  1.0f,  1.0f,  2.0f, 2.0f,
+         3.0f,  3.0f,  4.0f,  1.0f,  1.0f,  1.0f,  2.0f,  2.0f,  3.0f,  3.0f,  4.0f,  5.0f, 5.0f,
+         5.0f,  6.0f,  6.0f,  7.0f,  7.0f,  8.0f,  5.0f,  5.0f,  5.0f,  6.0f,  6.0f,  7.0f, 7.0f,
+         8.0f,  9.0f,  9.0f,  9.0f,  10.0f, 10.0f, 11.0f, 11.0f, 12.0f, 9.0f,  9.0f,  9.0f, 10.0f,
+         10.0f, 11.0f, 11.0f, 12.0f, 13.0f, 13.0f, 13.0f, 14.0f, 14.0f, 15.0f, 15.0f, 16.0f});
+    test_case.run_with_tolerance_as_fp(2.0e-2f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_tf_half_pixel)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_sizes_tf_half_pixel.prototxt"));
+
+    const Shape expected_output_shape{1, 1, 3, 2};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f,
+                                  2.0f,
+                                  3.0f,
+                                  4.0f,
+                                  5.0f,
+                                  6.0f,
+                                  7.0f,
+                                  8.0f,
+                                  9.0f,
+                                  10.0f,
+                                  11.0f,
+                                  12.0f,
+                                  13.0f,
+                                  14.0f,
+                                  15.0f,
+                                  16.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(expected_output_shape,
+                                         {6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f});
+    test_case.run_with_tolerance_as_fp(2.0e-2f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_shape)
