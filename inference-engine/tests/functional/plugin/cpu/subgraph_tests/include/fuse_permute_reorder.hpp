@@ -17,9 +17,52 @@ using namespace CPUTestUtils;
 
 namespace LayerTestsDefinitions {
 
+/*    graph0                      graph1
+      ---------                   ---------
+      |Input  |                   |Input  |
+      ---------                   ---------
+          |                           |
+    -------------                 ---------
+    | --------- |                 |Permute|
+    | |Permute| |                 ---------
+    | --------- |                     |
+    |     |     |            -------------------
+    | --------- |            |                 |
+    | |Reorder| |            |           -------------
+    | --------- |
+    |-----------|            |           | --------- |
+          |                  |           | |Permute| |
+      ---------          ---------       | --------- |
+      |Output |          |Reshape|       |     |     |
+      ---------          ---------       | --------- |
+                             |           | |Reorder| |
+                             |           | --------- |
+                             |           |-----------|
+                             |                 |
+                             |             ---------
+                             |             |Permute|
+                             |             ---------
+                             |                 |
+                             --------   --------
+                                    |   |
+                                  ---------
+                                  |Concat |
+                                  ---------
+                                      |
+                                  ---------
+                                  |Output |
+                                  ---------
+*/
+
+enum TestGraphType {
+    graph0 = 0,
+    graph1 = 1
+};
+
 using FusePermuteAndReorderParams = std::tuple<
-        InferenceEngine::SizeVector, // Input shape
-        InferenceEngine::Precision   // Input precision
+        TestGraphType,                  // Test graph type
+        InferenceEngine::SizeVector,    // Input shape
+        InferenceEngine::Precision      // Input precision
 >;
 
 class FusePermuteAndReorderTest : public testing::WithParamInterface<FusePermuteAndReorderParams>, public CPUTestsBase,
@@ -29,7 +72,12 @@ public:
 
 protected:
     void SetUp() override;
-    std::string pluginTypeNode;
+    void createGraph0();
+    void createGraph1();
+
+    InferenceEngine::SizeVector inputShape;
+    InferenceEngine::Precision inPrec;
+    TestGraphType graphType;
 };
 
 } // namespace LayerTestsDefinitions
