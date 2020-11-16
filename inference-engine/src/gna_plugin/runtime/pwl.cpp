@@ -493,9 +493,11 @@ void PwlDesignOpt16(const DnnActivation activation_type,
         case kActKaldiLstmClipping:
             make_gna_pwl(activation_type, pwl, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER, scale_in, scale_out, ptr_segment, n);
             break;
-        case kActDivByN:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment, n);
+        case kActDivByN: {
+            int32_t n_4 = n/4;
+	    make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment, n_4);
             break;
+	}
         case kActLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
             double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
