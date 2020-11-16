@@ -90,12 +90,22 @@ public:
         auto input = inputNodes.find(name);
         if (input != inputNodes.end()) {
             MKLDNNPlugin::MKLDNNDims outDims;
+            if(input->second->getChildEdgeAt(0)->getDims().ndims() == 0 )
+                outDims = MKLDNNPlugin::MKLDNNDims(InferenceEngine::SizeVector(1,1));
+            else
+                outDims = input->second->getChildEdgeAt(0)->getDims();
+            if (batch < 1)
+                batch = outDims[0];
 
             const void *ext_data_ptr = in->cbuffer();
             void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
 
             if (ext_data_ptr != inter_data_ptr) {
                 MKLDNNPlugin::MKLDNNMemoryDesc ext_tdesc(in->getTensorDesc());
+
+                if (ext_tdesc.getDims().ndims() == 0) {
+                    ext_tdesc = MKLDNNPlugin::MKLDNNMemoryDesc{ {1}, ext_tdesc.getDataType(), mkldnn::memory::format_tag::a};
+                }
 
                 MKLDNNPlugin::MKLDNNMemory ext_mem(eng);
                 ext_mem.Create(ext_tdesc, ext_data_ptr, false);

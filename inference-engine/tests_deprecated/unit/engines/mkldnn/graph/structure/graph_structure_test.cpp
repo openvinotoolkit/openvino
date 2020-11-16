@@ -542,7 +542,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersBeforeConcat) {
     compare(*output, *dstOut);
 }
 
-TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersBeforeDWConvolution) {
+TEST_F(MKLDNNGraphStructureTests, DISABLED_TestNoRedundantReordersBeforeDWConvolution) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>
@@ -3004,7 +3004,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersRmnet_SSSSD) {
     ASSERT_EQ(reorders_num, 1);
 }
 
-TEST_F(MKLDNNGraphStructureTests, TestFailedPartDPN92) {
+TEST_F(MKLDNNGraphStructureTests, DISABLED_TestFailedPartDPN92) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>
@@ -5184,7 +5184,7 @@ TEST_F(MKLDNNGraphStructureTests, TestGemmConvolutionWithConcat) {
 }
 
 
-TEST_F(MKLDNNGraphStructureTests, TestRefPoolingWithConcat) {
+TEST_F(MKLDNNGraphStructureTests, DISABLED_TestRefPoolingWithConcat) {
     std::string model = R"V0G0N(
 <net batch="1" name="squeezenet1.1" version="3">
 	<layers>
@@ -5602,7 +5602,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2DepthwiseOpFusing) {
     compare(*output, *dstOut);
 }
 
-TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2EltwiseOpFusing) {
+TEST_F(MKLDNNGraphStructureTests, DISABLED_TestConvolutionWith2EltwiseOpFusing) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>
@@ -6460,7 +6460,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithMultipleData_2) {
     EXPECT_TRUE(out_check(outBlob3, -1));
 }
 
-TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
+TEST_F(MKLDNNGraphStructureTests, DISABLED_TestCreateGraphAllDataToConcat) {
     std::shared_ptr<ngraph::Function> function;
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f32;
@@ -6522,7 +6522,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
     compare(*outputBlobs["concat"], *dstOut);
 }
 
-TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
+TEST_F(MKLDNNGraphStructureTests, DISABLED_TestCreateGraphAllDataFromInputToConcat) {
     std::shared_ptr<ngraph::Function> function;
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f32;
@@ -6624,7 +6624,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCheckIncorrectScaleShift) {
     ASSERT_THROW(graph.CreateGraph(network), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
+TEST_F(MKLDNNGraphStructureTests, DISABLED_TestConcatWithFourInputs) {
     std::shared_ptr<ngraph::Function> function;
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f32;

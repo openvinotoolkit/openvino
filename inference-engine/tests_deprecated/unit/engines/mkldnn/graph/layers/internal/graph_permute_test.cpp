@@ -604,7 +604,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDynBatchPermuteTests, TestsDynBatchPermute) {}
+TEST_P(MKLDNNGraphDynBatchPermuteTests, DISABLED_TestsDynBatchPermute) {}
 
 test_params_t test_cases_dyn_batch[] = {
         test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 1, {2, 3, 4, 5}, {0, 1, 2, 3}, {}, {}, {}, {}),

@@ -300,7 +300,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDynBatchBatchNormTests, TestsDynBatchBatchNorm) {}
+TEST_P(MKLDNNGraphDynBatchBatchNormTests, DISABLED_TestsDynBatchBatchNorm) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchBatchNorm, MKLDNNGraphDynBatchBatchNormTests,

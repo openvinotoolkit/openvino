@@ -291,7 +291,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphSoftMaxTests, TestsSoftMax) {}
+TEST_P(MKLDNNGraphSoftMaxTests, DISABLED_TestsSoftMax) {}
 
 
 INSTANTIATE_TEST_CASE_P(
@@ -390,7 +390,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDynBatchSoftMaxTests, TestsDynBatchSoftMax) {}
+TEST_P(MKLDNNGraphDynBatchSoftMaxTests, DISABLED_TestsDynBatchSoftMax) {}
 
 
 INSTANTIATE_TEST_CASE_P(

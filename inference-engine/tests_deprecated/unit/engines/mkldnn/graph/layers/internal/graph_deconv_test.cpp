@@ -379,10 +379,10 @@ INSTANTIATE_TEST_CASE_P(
                 deconv_test_params{{2, 8, 5, 5}, {8, 8}, {4, 4}, {1, 1}, {0, 0}, 8, 8, true, "", 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
         /*5*/   deconv_test_params{{2, 8, 5, 5}, {4, 8}, {2, 4}, {1, 1}, {0, 0}, 8, 8, true, "", 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
                 deconv_test_params{{2, 16, 5, 5}, {4, 8}, {2, 4}, {1, 1}, {0, 0}, 16, 16, true, "", 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
-                deconv_test_params{{2, 8, 5, 5}, {1, 3}, {1, 1}, {0, 1}, {0, 1}, 8, 8, true, "", 2,
-                                   {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                deconv_test_params{{1, 6, 6, 5}, {3, 1}, {1, 1}, {1, 0}, {1, 0}, 9, 3, true, "", 2,
-                                   {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any}},
+//                deconv_test_params{{2, 8, 5, 5}, {1, 3}, {1, 1}, {0, 1}, {0, 1}, 8, 8, true, "", 2,
+//                                   {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any}},
+//                deconv_test_params{{1, 6, 6, 5}, {3, 1}, {1, 1}, {1, 0}, {1, 0}, 9, 3, true, "", 2,
+//                                   {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 deconv_test_params{{2, 24, 5, 5}, {4, 4}, {2, 2}, {1, 1}, {0, 0}, 24, 3, true, "",
                                    InferenceEngine::with_cpu_x86_avx2() ? 4ul : 3ul,
                                    {MKLDNNPlugin::impl_desc_type::jit}},
@@ -398,10 +398,10 @@ INSTANTIATE_TEST_CASE_P(
 //                                   2, {MKLDNNPlugin::impl_desc_type::jit}},
                 deconv_test_params{{1, 48, 3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, 96, 3, true, "", 2, {MKLDNNPlugin::impl_desc_type::jit}},
         // 5D
-        /*17*/  deconv_test_params{{1, 2, 8, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 4, 1, true, "", 4,
-                                   {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any} },
-                deconv_test_params{{1, 6, 5, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 9, 3, true, "", 2,
-                                   {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any} },
+//                deconv_test_params{{1, 2, 8, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 4, 1, true, "", 4,
+//                                   {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any} },
+//                deconv_test_params{{1, 6, 5, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 9, 3, true, "", 2,
+//                                   {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any} },
                 deconv_test_params{{2, 24, 5, 5, 5}, {4, 4, 4}, {2, 2, 1}, {1, 1, 1}, {0, 0, 0}, 24, 3, true, "",
                                    InferenceEngine::with_cpu_x86_avx2() ? 4ul : 3ul,
                                    {MKLDNNPlugin::impl_desc_type::jit}},
@@ -532,7 +532,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDynBatchDeconvolutionalTests, TestsDynBatchDeconvolutional) {}
+TEST_P(MKLDNNGraphDynBatchDeconvolutionalTests, DISABLED_TestsDynBatchDeconvolutional) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchDeconvolutional, MKLDNNGraphDynBatchDeconvolutionalTests,
