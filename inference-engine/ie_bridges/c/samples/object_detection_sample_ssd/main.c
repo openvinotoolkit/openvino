@@ -68,12 +68,12 @@ int ParseAndCheckCommandLine(int argc, char *argv[]) {
 
     if (help)
         return -1;
-    if (img_msg == NULL) {
-        printf("Parameter -i is not set\n");
+    if (input_model == NULL) {
+        printf("Model is required but not set. Please set -m option. \n");
         return -1;
     }
-    if (input_model == NULL) {
-        printf("Parameter -m is not set \n");
+    if (img_msg == NULL) {
+        printf("Input is required but not set.Please set - i option.\n");
         return -1;
     }
 

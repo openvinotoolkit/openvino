@@ -15,11 +15,11 @@
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
 
-/// @brief message for images argument
-static const char image_message[] = "Required. Path to an .bmp image.";
-
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model.";
+
+/// @brief message for images argument
+static const char image_message[] = "Required. Path to an .bmp image.";
 
 /// @brief message for plugin argument
 static const char plugin_message[] = "Plugin name. For example MKLDNNPlugin. If this parameter is pointed, " \
@@ -78,8 +78,8 @@ static void showUsage() {
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
     std::cout << "    -h                      " << help_message << std::endl;
-    std::cout << "    -i \"<path>\"             " << image_message << std::endl;
     std::cout << "    -m \"<path>\"             " << model_message << std::endl;
+    std::cout << "    -i \"<path>\"             " << image_message << std::endl;
     std::cout << "      -l \"<absolute_path>\"  " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "      -c \"<absolute_path>\"  " << custom_cldnn_message << std::endl;

@@ -16,7 +16,7 @@ static const char help_message[] = "Print a usage message.";
 static const char input_message[] = "Required. Path to image or folder with images";
 
 /// @brief message for model argument
-static const char model_message[] = "Path to a .bin file with weights for the trained model.";
+static const char model_message[] = "Required. Path to a .bin file with weights for the trained model.";
 
 /// @brief message for assigning cnn calculation to device
 static const char target_device_message[] = "Specify the target device to infer on it . See the list of available devices below. " \

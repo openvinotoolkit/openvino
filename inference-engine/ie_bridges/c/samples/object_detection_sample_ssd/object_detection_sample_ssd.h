@@ -9,11 +9,11 @@
 /// @brief message for help argument
 static const char *help_message = "Print a usage message.";
 
+/// @brief message for model argument
+static const char* model_message = "Required. Path to an .xml file with a trained model.";
+
 /// @brief message for images argument
 static const char *image_message = "Required. Path to an .bmp image.";
-
-/// @brief message for model argument
-static const char *model_message = "Required. Path to an .xml file with a trained model.";
 
 /// @brief message for plugin argument
 static const char *plugin_message = "Plugin name. For example MKLDNNPlugin. If this parameter is pointed, " \
@@ -41,8 +41,8 @@ static void showUsage() {
     printf("\nobject_detection_sample_ssd [OPTION]\n");
     printf("Options:\n\n");
     printf("    -h                      %s\n", help_message);
-    printf("    -i \"<path>\"             %s\n", image_message);
     printf("    -m \"<path>\"             %s\n", model_message);
+    printf("    -i \"<path>\"             %s\n", image_message);
     printf("      -l \"<absolute_path>\"  %s\n", custom_cpu_library_message);
     printf("          Or\n");
     printf("      -c \"<absolute_path>\"  %s\n", custom_cldnn_message);
@@ -77,6 +77,7 @@ static int getopt(int argc, char **argv, char *opts) {
         optopt = c = argv[optind][sp];
         if(c == ':' || (cp = strchr(opts, c)) == 0) {
             ERR(": unrecognized option -- ", c);
+            showUsage();
             if(argv[optind][++sp] == '\0') {
                 optind++;
                 sp = 1;

@@ -35,7 +35,7 @@ ngraph_function_creation_sample [OPTION]
 Options:
 
     -h                      Print a usage message.
-    -m "<path>"             Path to a .bin file with weights for the trained model
+    -m "<path>"             Required. Path to a .bin file with weights for the trained model
     -i "<path>"             Required. Path to an image or folder with images
     -d "<device>"           Specify the target device to infer on it. See the list of available devices below. The sample looks for a suitable plugin for the specified device. The default value is CPU.
     -nt "<integer>"         Number of top results. The default value is 10.
@@ -46,7 +46,7 @@ Available target devices: <devices>
 
 For example, to do inference of an UByte image on a GPU run the following command:
 ```sh
-./ngraph_function_creation_sample -i <path_to_image> -m <path_to_weights_file> -d GPU
+./ngraph_function_creation_sample -m <path_to_weights_file> -i <path_to_image> -d GPU
 ```
 
 ## Sample Output

@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     try {
         // ------------------------------ Parsing and validation of input args ---------------------------------
         if (argc != 5) {
-            std::cout << "Usage : ./hello_reshape_ssd <path_to_model> <path_to_image> <device> <batch>"
+            std::cout << "Usage : "<< argv[0] <<" <path_to_model> <path_to_image> <device> <batch>"
                       << std::endl;
             return EXIT_FAILURE;
         }

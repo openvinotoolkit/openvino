@@ -33,12 +33,12 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         return false;
     }
 
-    if (FLAGS_i.empty()) {
-        throw std::logic_error("Parameter -i is not set");
+    if (FLAGS_m.empty()) {
+        throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
-    if (FLAGS_m.empty()) {
-        throw std::logic_error("Parameter -m is not set");
+    if (FLAGS_i.empty()) {
+        throw std::logic_error("Input is required but not set. Please set -i option.");
     }
 
     return true;
