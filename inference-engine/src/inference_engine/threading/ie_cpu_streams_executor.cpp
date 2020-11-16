@@ -80,7 +80,7 @@ struct CPUStreamsExecutor::Impl {
                     auto big_cores = core_types.back(); // latency default is runing on Big cores only
                     // TODO: recognize (and not just assume) HT on Big cores
                     auto concurrency = _impl->_config._threadsPerStream; // oneapi::tbb::info::default_concurrency(big_cores) / 2; // latency default not using HT
-                    printf("%s, LATENCY CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY <halved>: %d) \n",
+                    printf("%s, LATENCY CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
                         _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, big_cores, concurrency);
                     _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{big_cores, concurrency}});
                 } else {
@@ -107,11 +107,11 @@ struct CPUStreamsExecutor::Impl {
                 auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
                 if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                     printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
-                    #if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
-                    _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{_numaNodeId, concurrency} });
-                    #else
+                    //#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
+                    //_taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{_numaNodeId, concurrency} });
+                    //#else
                     _taskArena.reset(new tbb::task_arena{ concurrency });
-                    #endif
+                    //#endif
                 }
                 else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                     _taskArena.reset(new tbb::task_arena{ concurrency });
