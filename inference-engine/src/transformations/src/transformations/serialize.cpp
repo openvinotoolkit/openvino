@@ -8,6 +8,7 @@
 #include <unordered_set>
 
 #include <ngraph/variant.hpp>
+#include <assert.h>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "pugixml.hpp"
@@ -298,6 +299,47 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
+void resolve_dynamic_shapes(const ngraph::Function& f) {
+    auto f_clone = ngraph::clone_function(f);
+
+    auto f_ops = f.get_ordered_ops();
+    auto f_clone_ops = f_clone->get_ordered_ops();
+    assert(f_ops.size() == f_clone_ops.size());
+
+    for (size_t id = 0; id < f_ops.size(); ++id) {
+        auto & op = f_ops[id];
+        auto & clone_op = f_clone_ops[id];
+
+        if (auto op_subgraph = std::dynamic_pointer_cast<op::util::SubGraphOp>(op)) {
+            resolve_dynamic_shapes(*op_subgraph->get_function());
+        }
+
+        op->validate_and_infer_types();
+        clone_op->validate_and_infer_types();
+
+        OutputVector replacements(clone_op->get_output_size());
+        if (!clone_op->constant_fold(replacements, clone_op->input_values())) {
+            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
+                op->set_output_type(output_id, clone_op->output(output_id).get_element_type(),
+                                               clone_op->output(output_id).get_partial_shape());
+            }
+        } else {
+            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
+                op->set_output_type(output_id, replacements[output_id].get_element_type(),
+                                               replacements[output_id].get_partial_shape());
+            }
+
+            for (size_t i = 0; i < replacements.size(); ++i) {
+                auto node_output = clone_op->output(i);
+                auto replacement = replacements.at(i);
+                if (replacement.get_node_shared_ptr() && (node_output != replacement)) {
+                    node_output.replace(replacement);
+                }
+            }
+        }
+    }
+}
+
 void ngfunction_2_irv10(
     pugi::xml_document& doc, std::vector<uint8_t>& bin,
     const ngraph::Function& f,
@@ -312,6 +354,9 @@ void ngfunction_2_irv10(
     const std::unordered_map<ngraph::Node*, int> layer_ids =
         create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
+
+    // Dynamic to Static
+    resolve_dynamic_shapes(f);
 
     for (const auto& n : f.get_ordered_ops()) {
         ngraph::Node* node = n.get();
@@ -330,7 +375,7 @@ void ngfunction_2_irv10(
         // <layers/data>
         pugi::xml_node data = layer.append_child("data");
 
-        // <layers/data> general atributes
+        // <layers/data> general attributes
         std::string node_type_name{node->get_type_name()};
         if (exec_graph) {
             visit_exec_graph_node(data, node_type_name, node);
