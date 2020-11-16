@@ -104,4 +104,16 @@ TEST(file_util, santize_path)
         string path = "..";
         EXPECT_STREQ("", file_util::sanitize_path(path).c_str());
     }
+    {
+        string path = "workspace/data/tensor.data";
+        EXPECT_STREQ("workspace/data/tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "..\\..\\tensor.data";
+        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "C:\\workspace\\tensor.data";
+        EXPECT_STREQ("workspace\\tensor.data", file_util::sanitize_path(path).c_str());
+    }
 }

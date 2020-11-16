@@ -292,9 +292,12 @@ std::wstring file_util::multi_byte_char_to_wstring(const char* str)
 #endif
 }
 
-std::string file_util::sanitize_path(const std::string& path, const std::string& to_erase)
+std::string file_util::sanitize_path(const std::string& path)
 {
-    const auto start = path.find_first_not_of(to_erase);
-    return (start == std::string::npos) ? "" : path.substr(start);
+    const auto colon_pos = path.find(":");
+    const auto sanitized_path = path.substr(colon_pos == std::string::npos ? 0 : colon_pos + 1);
+    const std::string to_erase = "/.\\";
+    const auto start = sanitized_path.find_first_not_of(to_erase);
+    return (start == std::string::npos) ? "" : sanitized_path.substr(start);
 }
 #endif // ENABLE_UNICODE_PATH_SUPPORT

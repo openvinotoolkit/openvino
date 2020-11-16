@@ -78,11 +78,9 @@ namespace ngraph
         /// \return A wide-char string
         NGRAPH_API std::wstring multi_byte_char_to_wstring(const char* str);
 
-        /// \brief Remove path components which would allow traversing up a directory tree
-        ///        from a base path.
-        /// \param path A path which will be santized
-        /// \return Path components to remove
-        NGRAPH_API std::string sanitize_path(const std::string& path,
-                                             const std::string& to_erase = "/.");
+        /// \brief Remove path components which would allow traversing up a directory tree.
+        /// \param path A path to file
+        /// \return A sanitiazed path
+        NGRAPH_API std::string sanitize_path(const std::string& path);
     }
 }
