@@ -19,9 +19,9 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         // TODO: Issue:27391
-        // InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP32,
         // TODO: Issue:28036
-        // InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::I16,
         InferenceEngine::Precision::U8
 };

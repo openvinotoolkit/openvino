@@ -179,6 +179,10 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             result = (quantizedParams->_dst_quant.GetLevels() - 1) / (maxValue - minValue);
         }
 
+        double reducer = static_cast<double>(result * quantizedParams->_src_quant.GetScale()) / std::numeric_limits<int32_t>::max();
+        if (reducer > 1) {
+            THROW_IE_EXCEPTION << "Error: " << reducer;
+        }
         //result = result > activation_scale_factor ? activation_scale_factor : result;
 
         /*
@@ -1116,7 +1120,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 quant->_bias_quant.SetScale(ScaleFactorForQuantization(wl->_biases->buffer().as<float *>(),
                                                                       MAX_VAL_4B_BIAS,
                                                                       wl->_biases->size()));
-                if (quant->_bias_quant.GetScale() != -1.0f) {
+                if (!fp32eq(quant->_bias_quant.GetScale(), -1.0f)) {
                     quant->_weights_quant.SetScale(MAX_VAL_4B_BIAS);
                     quant->_weights_quant.SetMinValues({ -MAX_VAL_4B_BIAS / quant->_bias_quant.GetScale() });
                     quant->_weights_quant.SetMaxValues({ MAX_VAL_4B_BIAS / quant->_bias_quant.GetScale() });
@@ -1126,8 +1130,9 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 }
             }
 
-            // TODO: findout why ???
             if (weightsSize == 1) {
+                // Per channel scale multiplier is used to extend precision for 8bit weights.
+                // However there is only 1 output scale factor and maximum muliplier must be used.
                 quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * MAX_OUT_MULTIPLIER);
             }
 
@@ -1166,6 +1171,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
         quant->_dst_quant.SetScale(quant->_weights_quant.GetScale() * quant->_src_quant.GetScale());
 
         if (quant->_dst_quant.GetMaxValues().empty()) {
+            // needs to estimate minimum and maximum values out of weightable layer
             if (quant->_src_quant.GetMinValues().size() != 1 ||
                 quant->_src_quant.GetMaxValues().size() != 1) {
                 THROW_GNA_EXCEPTION << "Incorrect number of maximum values for " << wl->name << " layer. "
@@ -1190,8 +1196,8 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 return res;
             };
 
-            auto inputMinValue = quantDataForInputLayer->_dst_quant.GetMinValues().front();
-            auto inputMaxValue = quantDataForInputLayer->_dst_quant.GetMaxValues().front();
+            auto inputMinValue = quant->_src_quant.GetMinValues().front();
+            auto inputMaxValue = quant->_src_quant.GetMaxValues().front();
             auto minOutputValue = inputMinValue * quant->_weights_quant.GetMaxValues().front();
             auto maxOutputValue = std::abs(inputMaxValue) * std::abs(quant->_weights_quant.GetMaxValues().front());
             if (!quant->_bias_quant.GetMaxValues().empty()) {
@@ -1199,38 +1205,38 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             }
 
             if (LayerInfo(wl).isFullyConnected()) {
-                //calculate a maximum value from layer by simulating GNA affine layer
+                // calculate a maximum value from layer by simulating GNA affine layer
                 auto inputs = wl->insData.begin()->lock();
                 auto outputs = *wl->outData.begin();
                 auto num_rows_in = FROM_IR_DIM(inputs, 1);
                 auto num_columns_in = FROM_IR_DIM(inputs, 2);
                 auto num_rows_out = FROM_IR_DIM(outputs, 1);
 
-                //generate random input
+                // generate random input
                 std::vector<float> input = generateFloatNumbers(num_rows_in * num_columns_in, -inputMaxValue, inputMaxValue);
 
-                //get weights and convert them to float
+                // get weights and convert them to float
                 auto weights = std::vector<float>(wl->_weights->size());
                 memcpy(&weights[0], wl->_weights->buffer().as<float*>(), weights.size());
 
-                //get biases and convert them to float
+                // get biases and convert them to float
                 auto biases = std::vector<float>();
                 if (wl->_biases) {
                     biases.resize(wl->_biases->size());
                     memcpy(&biases[0], wl->_biases->buffer().as<float*>(), wl->_biases->size());
                 }
 
-                //simulate GNA affine layer
+                // simulate GNA affine layer
                 auto result = simulateAffine(weights, input, biases,
                     num_rows_out, num_rows_in, quant->_weights_quant.GetScale(),
                     num_rows_in, num_columns_in, quant->_src_quant.GetScale());
 
-                //find minimum and maximum values
+                // find minimum and maximum values
                 auto outputValue = findMinMaxValues(result);
                 minOutputValue = outputValue.first;
                 maxOutputValue = outputValue.second;
             } else if (LayerInfo(wl).isConvolution()) {
-                //calculate a maxium value from layer by simulating GNA convolution layer
+                // calculate a maxium value from layer by simulating GNA convolution layer
                 auto convLayer = dynamic_cast<InferenceEngine::ConvolutionLayer*>(wl);
                 if (!convLayer) {
                     THROW_GNA_EXCEPTION << "Incorrect Convolution Layer pointer  \n";
@@ -1262,7 +1268,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 auto out_width = FROM_IR_DIM(outputs, out_order[3]);
 
                 if (in_batch != 1 || out_batch != 1) {
-                    //If this check is removed, the convolution calculations needs to be corrected.
+                    // If this check is removed, the convolution calculations needs to be corrected.
                     THROW_GNA_EXCEPTION << convLayer->name << " layer with batch size not equals 1 is not supported";
                 }
                 if ((in_channels > 1) && (in_height > 1) && (in_width > 1)) {
