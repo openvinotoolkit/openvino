@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     try {
         // ------------------------------ Parsing and validation of input args ---------------------------------
         if (argc != 4) {
-            tcout << "Usage : ./hello_classification <path_to_model> <path_to_image> <device_name>" << std::endl;
+            tcout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << std::endl;
             return EXIT_FAILURE;
         }
 
