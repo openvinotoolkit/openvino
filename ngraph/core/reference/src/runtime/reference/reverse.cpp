@@ -29,6 +29,14 @@ void runtime::reference::reverse(const char* arg,
                                  const AxisSet& reversed_axes,
                                  size_t elem_size)
 {
+    ///
+    /// FIX:
+    /// 1) if reversed_axes is empty is possible to memcpy whole memory?
+    /// 2) odes reversed_axes shouldn't have index of of range of out_shape?
+    /// 3) consider flat_set or vector instead AxisSet to iterate over it.
+    ///
+
+
     // In fact arg_shape == out_shape, but we'll use both for stylistic consistency with
     // other kernels.
     CoordinateTransform arg_transform(arg_shape);
@@ -38,12 +46,9 @@ void runtime::reference::reverse(const char* arg,
     {
         Coordinate arg_coord = out_coord;
 
-        for (size_t i = 0; i < arg_coord.size(); i++)
+        for (auto i : reversed_axes)
         {
-            if (reversed_axes.count(i) != 0)
-            {
-                arg_coord[i] = arg_shape[i] - arg_coord[i] - 1;
-            }
+            arg_coord[i] = arg_shape[i] - arg_coord[i] - 1;
         }
 
         memcpy(out + output_transform.index(out_coord) * elem_size,
