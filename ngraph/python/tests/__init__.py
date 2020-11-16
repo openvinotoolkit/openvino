@@ -98,8 +98,6 @@ xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input ima
                                "not supported yet...")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
-xfail_issue_36483 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
-                               "Ceiling name: <value>")
 xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
                                "/openvino/ngraph/core/src/op/shuffle_channels.cpp:77:")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
@@ -237,3 +235,4 @@ xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of ty
 xfail_issue_41815 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::NonMaxSuppression casted "
                                       "(yolo_evaluation_layer_1/concat_6:0_btc[0]:f32{1,2535,4},")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
+xfail_issue_42818 = xfail_test(reason="AssertionError: This model has no test data")

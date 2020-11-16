@@ -13,7 +13,7 @@ namespace builder {
 
 std::shared_ptr<Node> makeProposal(const ngraph::Output<Node> &class_probs,
                                    const ngraph::Output<Node> &class_logits,
-                                   const ngraph::Output<Node> &image_shape,
+                                   const std::vector<float>& image_info,
                                    const element::Type &type,
                                    size_t base_size,
                                    size_t pre_nms_topn,
@@ -44,6 +44,8 @@ std::shared_ptr<Node> makeProposal(const ngraph::Output<Node> &class_probs,
     attrs.box_size_scale = box_size_scale;
     attrs.box_coordinate_scale = box_coordinate_scale;
     attrs.framework = framework;
+
+    auto image_shape = makeConstant(ngraph::element::Type_t::f32, {3}, image_info);
 
     return std::make_shared<opset1::Proposal>(class_probs, class_logits, image_shape, attrs);
 }
