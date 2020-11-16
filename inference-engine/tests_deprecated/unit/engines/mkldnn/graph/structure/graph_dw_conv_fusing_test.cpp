@@ -325,7 +325,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDWConvFusingTests, TestsDwConvFusing) {}
+TEST_P(MKLDNNGraphDWConvFusingTests, DISABLED_TestsDwConvFusing) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestsDwConvFusing, MKLDNNGraphDWConvFusingTests,

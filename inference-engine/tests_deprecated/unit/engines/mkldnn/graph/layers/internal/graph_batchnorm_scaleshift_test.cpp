@@ -332,7 +332,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDynBatchBatchNormScaleShiftTests, TestsDynBatchBatchNormWithScaleShift) {}
+TEST_P(MKLDNNGraphDynBatchBatchNormScaleShiftTests, DISABLED_TestsDynBatchBatchNormWithScaleShift) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchBatchNormWithScaleShift, MKLDNNGraphDynBatchBatchNormScaleShiftTests,
