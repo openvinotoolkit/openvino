@@ -130,11 +130,11 @@ NeedCopyDesc isInputCopyRequired(
     return needCopyDesc;
 }
 
-Data insertCopyOfInput(const Model &model,
-                       const Stage &stage,
-                       const StageInput &edge,
-                       const StageBuilder::Ptr &_stageBuilder,
-                       const NeedCopyDesc &desc) {
+Data insertCopyOfInput(const Model& model,
+                       const Stage& stage,
+                       const StageInput& edge,
+                       const StageBuilder::Ptr& _stageBuilder,
+                       const NeedCopyDesc& desc) {
     auto data = edge->input();
 
     Data copy;
@@ -171,10 +171,10 @@ Data insertCopyOfInput(const Model &model,
     return copy;
 }
 
-Data insertCopyOfOutput(const Model &model,
-                        const Stage &stage,
-                        const StageOutput &edge,
-                        const StageBuilder::Ptr &_stageBuilder) {
+Data insertCopyOfOutput(const Model& model,
+                        const Stage& stage,
+                        const StageOutput& edge,
+                        const StageBuilder::Ptr& _stageBuilder) {
     auto data = edge->output();
     auto copy = model->duplicateData(data, "@copy");
     copy->resetRequiredStrides();
@@ -300,11 +300,8 @@ void SpecialStageProcessor::processReshape(
     IE_ASSERT(output->checkStrides(StridesRequirement::compact()));
 
     NeedCopyDesc desc;
-    if (input->usage() != DataUsage::Intermediate &&
-        output->usage() != DataUsage::Intermediate)
-        desc.isCopyNeed = true;
-    if (input->parentDataToDataEdge() != nullptr &&
-        output->parentDataToDataEdge() != nullptr)
+    if ((input->usage() != DataUsage::Intermediate || input->parentDataToDataEdge() != nullptr) &&
+        (output->usage() != DataUsage::Intermediate || output->parentDataToDataEdge() != nullptr))
         desc.isCopyNeed = true;
     if (desc.isCopyNeed) {
         input = insertCopyOfInput(model, stage, stage->inputEdge(0), _stageBuilder, desc);
