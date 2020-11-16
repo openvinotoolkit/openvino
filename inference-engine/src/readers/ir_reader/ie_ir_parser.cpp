@@ -431,7 +431,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo"),
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
         std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
-        std::make_shared<LayerCreator<ngraph::op::ROIPooling>>("ROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit"),
         std::make_shared<LayerCreator<ngraph::op::TensorIterator>>("TensorIterator"),
@@ -485,6 +484,11 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     // Try to create operation from loaded opsets
     if (!ngraphNode && opsets.count(params.version)) {
         auto opset = opsets.at(params.version);
+
+        // ROIPooling was missing in opset1 and was added in opset2
+        if (params.type == "ROIPooling" && params.version == "opset1") {
+            opset = opsets.at("opset2");
+        }
 
         if (!opset.contains_type_insensitive(params.type)) {
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
@@ -1483,25 +1487,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::MaxPool>::
 
     return std::make_shared<ngraph::op::v1::MaxPool>(inputs[0], strides, pads_begin, pads_end, kernel, rounding_type,
                                                      pad_type);
-}
-
-// ROIPooling layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ROIPooling>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto pooled_h = GetUIntAttr(dn, "pooled_h");
-    auto pooled_w = GetUIntAttr(dn, "pooled_w");
-    auto spatial_scale = GetFloatAttr(dn, "spatial_scale");
-    auto method = GetStrAttr(dn, "method", "max");
-    return std::make_shared<ngraph::op::ROIPooling>(inputs[0], inputs[1],
-                                                    ngraph::Shape {pooled_h, pooled_w}, spatial_scale, method);
 }
 
 // PSROIPooling layer

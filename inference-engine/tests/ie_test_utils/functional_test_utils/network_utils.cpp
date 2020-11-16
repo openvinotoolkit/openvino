@@ -159,6 +159,8 @@ namespace FuncTestUtils {
                 }
             } else {
                 if (item.first == "originalLayersNames") continue;
+                // pooled_h and pooled_w are output_size for ROIPooling
+                if (item.first == "output_size" && layer->type == "ROIPooling") continue;
                 // autob is a WA for nGraph ops
                 if ((item.first != "auto_broadcast" && item.first != "autob") || item.second != "numpy") {
                     success = false;

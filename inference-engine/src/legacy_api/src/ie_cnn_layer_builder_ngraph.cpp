@@ -950,22 +950,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::MaxPool>::createLayer(const std::sha
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::ROIPooling>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ROIPooling",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::ROIPooling>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["pooled_h"] = asString(castedLayer->get_output_size()[0]);
-    res->params["pooled_w"] = asString(castedLayer->get_output_size()[1]);
-    res->params["spatial_scale"] = asString(castedLayer->get_spatial_scale());
-    res->params["method"] = castedLayer->get_method();
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::PSROIPooling>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "PSROIPooling",
                           details::convertPrecision(layer->get_output_element_type(0))};
