@@ -16,6 +16,7 @@
 
 import logging as log
 from copy import deepcopy
+from typing import Callable
 
 import numpy as np
 
@@ -28,6 +29,73 @@ from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
+
+
+def group_by_with_binary_predicate(xs: list, predicate: Callable) -> list:
+    """
+    It is an analogue of the function groupby from itertools, but with a binary predicate.
+    In other words, group_by_with_binary_predicate generates a break or new group every time
+    the value of the predicate function is False.
+    :param xs: list of grouped value
+    :param predicate: criterion of equality
+    :return: grouped list
+    """
+    if not xs:
+        return []
+    prev = xs[0]
+    sequence = [prev]
+    result = []
+    for x in xs[1:]:
+        if predicate(prev, x):
+            sequence.append(x)
+            prev = x
+        else:
+            result.append(sequence)
+            prev = x
+            sequence = [prev]
+    result.append(sequence)
+    return result
+
+
+def unique_by(xs: list, predicate: Callable) -> list:
+    """
+    This function groups elements of the list xs using 'predicate', and then takes one element from each group.
+    :param xs: input list
+    :param predicate: grouping criterion which is some binary predicate
+    :return: list with unique elements
+    """
+    groups = group_by_with_binary_predicate(xs, predicate)
+    result = []
+    for group in groups:
+        result.append(group[0])
+    return result
+
+
+default_attrs_of_strided_slice = {
+    'begin_mask' : int64_array([1]),
+    'end_mask': int64_array([1]),
+    'shrink_axis_mask': int64_array([0]),
+    'new_axis_mask': int64_array([0]),
+    'ellipsis_mask': int64_array([0])
+}
+
+
+def strided_slices_equality(lhs: Node, rhs: Node) -> bool:
+    """
+    Equality criterion for StridedSlice layers.
+    :param lhs: the first StridedSlice layer
+    :param rhs: the second StridedSlice layer
+    :return: True, if lhs and rhs have identical attributes 'slices', 'begin_mask', 'end_mask', 'ellipsis_mask',
+             'new_axis_mask', 'shrink_axis_mask', and False otherwise.
+    """
+    if not np.array_equal(lhs.slices, rhs.slices):
+        return False
+    for attr in ['begin_mask', 'end_mask', 'ellipsis_mask', 'new_axis_mask', 'shrink_axis_mask']:
+        lhs_attr = lhs.soft_get(attr, default_attrs_of_strided_slice[attr])
+        rhs_attr = rhs.soft_get(attr, default_attrs_of_strided_slice[attr])
+        if not np.array_equal(lhs_attr, rhs_attr):
+            return False
+    return True
 
 
 class ConvertGroupedStridedSlice(MiddleReplacementPattern):
@@ -68,8 +136,10 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
 
             input_shape = np.array(input_data.shape)
 
-            # Get all StridedSlice consumers
+            # Get all unique StridedSlice consumers
             out_nodes = [node for node in input_data.out_nodes() if node.op == 'StridedSlice' and node.in_node(0).name == input_data.name]
+            sorted_out_nodes = sorted(out_nodes, key=lambda n: list(n.slices))
+            out_nodes = unique_by(sorted_out_nodes, strided_slices_equality)
             if len(out_nodes) <= 1:
                 continue
 
