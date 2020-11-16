@@ -355,6 +355,15 @@ class TestingMeanScaleGetter(unittest.TestCase):
         mean_values = parse_tuple_pairs("input_not_present(255),input2(255)")
         self.assertRaises(Error, get_mean_scale_dictionary, mean_values, scale_values, "input1,input2")
 
+    def test_values_match_input_name(self):
+        # before fix cli_parser was confused when input had a substring that matches scale/mean values
+        values = parse_tuple_pairs("input255(255),input255.0(255.0)")
+        exp_res = {'input255': 255.0, 'input255.0': 255.0}
+        self.assertEqual(exp_res, values)
+
+    def test_input_without_values(self):
+        self.assertRaises(Error, parse_tuple_pairs, "input1,input2")
+
 class TestSingleTupleParsing(unittest.TestCase):
     def test_get_values_ideal(self):
         values = "(1.11, 22.22, 333.333)"

@@ -917,43 +917,28 @@ def parse_tuple_pairs(argv_values: str):
     if not argv_values:
         return res
 
-    data_str = argv_values
-    while True:
-        tuples_matches = re.findall(r'[(\[]([0-9., -]+)[)\]]', data_str, re.IGNORECASE)
-        if not tuples_matches :
-            raise Error(
-                "Mean/scale values should be in format: data(1,2,3),info(2,3,4)" +
-                " or just plain set of them without naming any inputs: (1,2,3),(2,3,4). " +
-                refer_to_faq_msg(101), argv_values)
-        tuple_value = tuples_matches[0]
-        matches = data_str.split(tuple_value)
+    matches = [m for m in re.finditer(r'[(\[]([0-9., -]+)[)\]]', argv_values, re.IGNORECASE)]
 
-        input_name = matches[0][:-1]
+    error_msg = "Mean/scale values should be in format: data(1,2,3),info(2,3,4)" \
+                " or just plain set of them without naming any inputs: (1,2,3),(2,3,4). " + \
+                refer_to_faq_msg(101)
+    if not matches:
+        raise Error(error_msg, argv_values)
+
+    name_start_idx = 0
+    for m in matches:
+        input_name = argv_values[name_start_idx:m.start(0)]
+        name_start_idx = m.end(0) + 1
+        tuple_value = m.groups()[0]
+
         if not input_name:
-            res = []
-            # check that other values are specified w/o names
-            words_reg = r'([a-zA-Z]+)'
-            for i in range(0, len(matches)):
-                if re.search(words_reg, matches[i]) is not None:
-                    # error - tuple with name is also specified
-                    raise Error(
-                        "Mean/scale values should either contain names of input layers: data(1,2,3),info(2,3,4)" +
-                        " or just plain set of them without naming any inputs: (1,2,3),(2,3,4)." +
-                        refer_to_faq_msg(101), argv_values)
-            for match in tuples_matches:
-                res.append(np.fromstring(match, dtype=float, sep=','))
-            break
+            # check that other values are specified without names
+            if re.search(r'([a-zA-Z]+)', argv_values[m.start(0):]) is None:
+                return [np.fromstring(m.groups()[0], dtype=float, sep=',') for m in matches]
+            else:
+                raise Error(error_msg, argv_values)
 
         res[input_name] = np.fromstring(tuple_value, dtype=float, sep=',')
-
-        parenthesis = matches[0][-1]
-        sibling = ')' if parenthesis == '(' else ']'
-        pair = '{}{}{}{}'.format(input_name, parenthesis, tuple_value, sibling)
-        idx_substr = data_str.index(pair)
-        data_str = data_str[idx_substr + len(pair) + 1:]
-
-        if not data_str:
-            break
 
     return res
 
@@ -1183,4 +1168,3 @@ def get_meta_info(argv: argparse.Namespace):
         if key in meta_data:
             meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
     return meta_data
-
