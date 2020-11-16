@@ -310,14 +310,14 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, millisTimeout);
-    if (status == Gna2StatusDriverQoSTimeoutExceeded) {
-        return GNA_REQUEST_ABORTED;
-    }
     if (status == Gna2StatusWarningDeviceBusy) {
         return GNA_REQUEST_PENDING;
     }
-    checkGna2Status(status);
     unwaitedRequestIds.erase(std::remove(unwaitedRequestIds.begin(), unwaitedRequestIds.end(), reqId));
+    if (status == Gna2StatusDriverQoSTimeoutExceeded) {
+        return GNA_REQUEST_ABORTED;
+    }
+    checkGna2Status(status);
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
