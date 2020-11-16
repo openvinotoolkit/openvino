@@ -53,6 +53,13 @@ namespace ngraph
             ///             (height, width, depth).
             Strides get_dilations(const Node& node, const std::size_t kernel_rank = 0UL);
 
+            /// \brief      Gets the 'ceil_mode' (rounding type) attribute value.
+            ///
+            /// \param[in]  node  The ONNX node we query for attribute.
+            ///
+            /// \return     The nGraph RoundingType object representing 'ceil_mode' attribute value.
+            ngraph::op::RoundingType get_rounding_type(const Node& node);
+
             /// \brief Get padding values for the operation described by an ONNX node.
             /// \details Values are taken from the `pads` attribute.
             ///
