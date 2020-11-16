@@ -598,45 +598,37 @@ void Core::AddExtension(const IExtensionPtr& extension) {
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::LoadNetwork");
-    std::map<std::string, std::string> config_ = config;
 
     if (context == nullptr) {
         THROW_IE_EXCEPTION << "Remote context is null";
     }
 
-    std::string deviceName_ = context->getDeviceName();
-    DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
-
-    return _impl->GetCPPPluginByName(deviceName).LoadNetwork(network, config_, context);
+    auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
+    return _impl->GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config, context);
 }
 
-RemoteContext::Ptr Core::CreateContext(const std::string& deviceName_, const ParamMap& params) {
-    if (deviceName_.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support remote contexts";
+RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
+    if (deviceName.find("HETERO") == 0) {
+        THROW_IE_EXCEPTION << "HETERO device does not support remote context";
     }
-    if (deviceName_.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support remote contexts";
+    if (deviceName.find("MULTI") == 0) {
+        THROW_IE_EXCEPTION << "MULTI device does not support remote context";
     }
 
-    DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
-
-    return _impl->GetCPPPluginByName(deviceName).CreateContext(params);
+    auto parsed = parseDeviceNameIntoConfig(deviceName, params);
+    return _impl->GetCPPPluginByName(parsed._deviceName).CreateContext(parsed._config);
 }
 
-RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName_) {
-    if (deviceName_.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support remote contexts";
+RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
+    if (deviceName.find("HETERO") == 0) {
+        THROW_IE_EXCEPTION << "HETERO device does not support remote context";
     }
-    if (deviceName_.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support remote contexts";
+    if (deviceName.find("MULTI") == 0) {
+        THROW_IE_EXCEPTION << "MULTI device does not support remote context";
     }
 
-    DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
-
-    return _impl->GetCPPPluginByName(deviceName).GetDefaultContext();
+    auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
+    return _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
