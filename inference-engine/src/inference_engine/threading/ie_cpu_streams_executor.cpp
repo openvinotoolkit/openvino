@@ -79,15 +79,20 @@ struct CPUStreamsExecutor::Impl {
                 if (_impl->_config._streams == 1) {
                     auto big_cores = core_types.back(); // latency default is runing on Big cores only
                     // TODO: recognize (and not just assume) HT on Big cores
-                    auto concurrency = oneapi::tbb::info::default_concurrency(big_cores)/2; // latency default not using HT
-                    printf("%s, LATENCY CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
+                    auto concurrency = _impl->_config._threadsPerStream; // oneapi::tbb::info::default_concurrency(big_cores) / 2; // latency default not using HT
+                    printf("%s, LATENCY CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY <halved>: %d) \n",
                         _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, big_cores, concurrency);
                     _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{big_cores, concurrency}});
                 } else {
-                    size_t threads_needed = _streamId*_impl->_config._threadsPerStream;
+                    // TODO: wrap #streams over core types
+                    size_t threads_needed = (_streamId+1)*_impl->_config._threadsPerStream;
+                    size_t sum = 0;
                     for (auto type : core_types) {
                         auto concurrency = oneapi::tbb::info::default_concurrency(type);
-                        if (threads_needed <= concurrency) {
+                        sum += concurrency;
+                        printf("%s THROUGHPUT CASE, StreamId: %d max thread id needed: %d, current sum: %d) \n",
+                            _impl->_config._name.c_str(), _streamId, threads_needed, sum);
+                        if (threads_needed <= sum) {
                             printf("%s THROUGHPUT CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
                                 _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, type, concurrency);
                             _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{type, _impl->_config._threadsPerStream} });
