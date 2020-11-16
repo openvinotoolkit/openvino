@@ -845,7 +845,7 @@ int main(int argc, char *argv[]) {
             ptrUtterances.resize(inputArkFiles.size());
 
             // initialize memory state before starting
-            for (auto &&state : executableNet.QueryState()) {
+            for (auto &&state : inferRequests.begin()->inferRequest.QueryState()) {
                 state.Reset();
             }
 
@@ -1080,7 +1080,7 @@ int main(int argc, char *argv[]) {
                 totalTime += d.count();
 
                 // resetting state between utterances
-                for (auto &&state : executableNet.QueryState()) {
+                for (auto &&state : inferRequests.begin()->inferRequest.QueryState()) {
                     state.Reset();
                 }
 
