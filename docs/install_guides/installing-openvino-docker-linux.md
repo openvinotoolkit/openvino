@@ -18,7 +18,7 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 
 ## Prebuilt images
 
-Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
+Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino).
 
 ## Use Docker* Image for CPU
 
@@ -28,7 +28,7 @@ Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
 
 ### <a name="building-for-cpu"></a>Build a Docker* Image for CPU
 
-You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. 
+You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. 
 The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
 
 ### Run the Docker* Image for CPU
@@ -100,9 +100,9 @@ docker run -it --rm --device /dev/dri <image_name>
 - UDEV events are not forwarded to the container by default it does not know about device reconnection.
 - Only one device per host is supported.
 
-Use one of the following options to run **Possible solutions for Intel® Neural Compute Stick 2:**
+Use one of the following options as **Possible solutions for Intel® Neural Compute Stick 2:**
 
-- **Solution #1**:
+#### Option #1
 1. Get rid of UDEV by rebuilding `libusb` without UDEV support in the Docker* image (add the following commands to the `Dockerfile` example for CPU above):<br>
 **Ubuntu 18.04/20.04:**
 ```sh
@@ -174,22 +174,19 @@ RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
     cp /opt/intel/openvino/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
-
-2. Run the Docker* image:<br>
+2. Run the Docker* image:
 ```sh
 docker run -it --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 ```
-<br>
 
-- **Solution #2**:
-   Run container in privileged mode, enable Docker network configuration as host, and mount all devices to container:<br>
+#### Option #2
+Run container in the privileged mode, enable the Docker network configuration as host, and mount all devices to the container:
 ```sh
 docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 ```
-
-> **Notes**:
-> - It is not secure
-> - Conflicts with Kubernetes* and other tools that use orchestration and private networks
+> **NOTES**:
+> - It is not secure.
+> - Conflicts with Kubernetes* and other tools that use orchestration and private networks may occur.
 
 ## Use a Docker* Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
@@ -261,14 +258,31 @@ docker run -it --rm --net=host -v /var/tmp:/var/tmp –ipc=host <image_name>
 > - Run the application in the docker with this user.
 > - Alternatively, you can start hddldaemon with the root user on host, but this approach is not recommended.
 
-### Run demos in the Docker* Image 
+### Run Demos in the Docker* Image 
 
-If you want to try some demos then run image with the root privileges (some additional 3-rd party dependencies will be installed):
+To run the Security Barrier Camera Demo on a specific inference device, run the following commands with the root privileges (additional third-party dependencies will be installed):
+
+**CPU**:
 ```sh
 docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
+```
+
+**GPU**:
+```sh
+docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d Myriad -sample-options -no_show"
+```
+
+**MYRIAD**:
+```sh
+docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
+```
+
+**HDDL**:
+```sh
+docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
 ```
 
@@ -282,7 +296,7 @@ For instructions for previous releases with FPGA Support, see documentation for 
 
 ## Troubleshooting
 
-If you got a proxy issues, please setup proxy settings for Docker. See the Proxy section in [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
+If you got a proxy issues, please setup proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
 
 ## Additional Resources
 
