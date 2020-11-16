@@ -94,9 +94,6 @@ INTERPRETER.onnx_model_conv_integer
 INTERPRETER.onnx_model_conv_integer_zero_point_zero
 INTERPRETER.onnx_model_conv_integer_no_zero_point
 INTERPRETER.onnx_model_conv_integer_pads
-INTERPRETER.onnx_model_gatherND_int32
-INTERPRETER.onnx_model_gatherND_float
-
 
 # GRU/RNN/LSTM Sequence: Output values mismatch - seq_lengths not supported
 onnx_model_lstm_fwd_mixed_seq_const
