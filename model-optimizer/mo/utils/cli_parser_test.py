@@ -357,9 +357,14 @@ class TestingMeanScaleGetter(unittest.TestCase):
 
     def test_values_match_input_name(self):
         # before fix cli_parser was confused when input had a substring that matches scale/mean values
-        values = parse_tuple_pairs("input255(255),input255.0(255.0)")
-        exp_res = {'input255': 255.0, 'input255.0': 255.0}
-        self.assertEqual(exp_res, values)
+        res_values = parse_tuple_pairs("input255(255),input255.0(255.0),multi-dotted.input.3.(255,128,64)")
+        exp_res = {'input255': np.array([255.0, 254.]),
+                   'input255.0': np.array([255.0]),
+                   'multi-dotted.input.3.': np.array([255., 128., 128.])}
+        self.assertEqual(len(exp_res), len(res_values))
+        for i, j in zip(exp_res, res_values):
+            self.assertEqual(i, j)
+            np.array_equal(exp_res[i], res_values[j])
 
     def test_input_without_values(self):
         self.assertRaises(Error, parse_tuple_pairs, "input1,input2")
