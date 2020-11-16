@@ -14,6 +14,7 @@
 #include "nodes/mkldnn_bin_conv_node.h"
 #include "nodes/mkldnn_quantize_node.h"
 #include "nodes/mkldnn_mvn_node.h"
+#include "nodes/mkldnn_resample_node.h"
 #include "nodes/mkldnn_interpolate_node.h"
 #include "nodes/mkldnn_input_node.h"
 
@@ -119,6 +120,9 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     graph.RemoveDroppedNodes();
 
     FuseMVNAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
+    FuseResampleAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
     FuseInterpolateAndSimpleOperation(graph);
@@ -1464,7 +1468,73 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     }
 }
 
+void MKLDNNGraphOptimizer::FuseResampleAndSimpleOperation(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
 
+    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+        bool isSutableResample = (node->getType() == Resample) && (node->inDims[0].ndims() == 4 || node->inDims[0].ndims() == 5);
+
+        if (isSutableResample) {
+            auto *resampleLayer = node->getCnnLayer().get();
+            if (resampleLayer == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get Resample layer " << node->getName();
+
+            return node->getChildEdges().size() == 1 && resampleLayer->GetParamAsString("type") == "caffe.ResampleParameter.NEAREST";
+        } else {
+            return false;
+        }
+    };
+
+    auto isSutableChildNode = [](MKLDNNNodePtr node) {
+        if (!node->getCnnLayer())
+            return false;
+
+        if (node->getType() == Quantize) {
+            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
+            if (quantizeNode == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
+            return !quantizeNode->isBinarization();
+        } else if (node->getType() == Eltwise) {
+            auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+            if (eltwiseNode == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get Eltwise node " << node->getName();
+            return eltwiseNode->getOpType() == Relu ||
+                   eltwiseNode->getOpType() == MulAdd;
+        }
+
+        return false;
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSutableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (!isSutableChildNode(childNode)) {
+            parent++;
+            continue;
+        }
+
+        parentNode->fuseWith(childNode);
+
+        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getType() == Resample)
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+        }
+
+        graph.DropNode(childNode);
+    }
+}
 
 void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();

@@ -64,6 +64,7 @@ MKLDNN_EXTENSION_NODE(TopKImpl, TopK);
 MKLDNN_EXTENSION_NODE(ShuffleChannelsImpl, ShuffleChannels);
 MKLDNN_EXTENSION_NODE(SpaceToDepthImpl, SpaceToDepth);
 MKLDNN_EXTENSION_NODE(PowerFileImpl, PowerFile);
+MKLDNN_EXTENSION_NODE(InterpImpl, Interp);
 MKLDNN_EXTENSION_NODE(BatchToSpaceImpl, BatchToSpace);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronPriorGridGeneratorImpl, ExperimentalDetectronPriorGridGenerator);
 MKLDNN_EXTENSION_NODE(SimplerNMSImpl, SimplerNMS);

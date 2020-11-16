@@ -36,6 +36,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tensoriterator_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tile_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_resample_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_scatter_update_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_interpolate_node.cpp
@@ -92,6 +93,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/emitter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/interp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_eltwise_emitters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_mkldnn_emitters.cpp
 

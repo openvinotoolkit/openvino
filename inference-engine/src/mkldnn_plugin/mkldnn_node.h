@@ -66,6 +66,7 @@ enum Type {
     TensorIterator,
     Convert,
     MVN,
+    Resample,
     Normalize,
     ScatterUpdate,
     ScatterElementsUpdate,
@@ -161,6 +162,8 @@ static std::string NameFromType(Type type) {
             return "TensorIterator";
         case Convert:
             return "Convert";
+        case Resample:
+            return "Resample";
         case Normalize:
             return "Normalize";
         case ScatterUpdate:
