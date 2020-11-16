@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -161,6 +161,30 @@ struct data_type_traits {
                 return std::string("invalid data type: " + std::to_string(static_cast<int>(data_type)));
         }
     }
+
+    static data_types max_type(data_types dt1, data_types dt2) {
+        if (dt1 == data_types::bin)
+            return dt2;
+
+        if (dt2 == data_types::bin)
+            return dt1;
+
+        if (size_of(dt1) < size_of(dt2))
+            return dt2;
+
+        if (size_of(dt1) > size_of(dt2))
+            return dt1;
+
+        if (is_floating_point(dt2))
+            return dt2;
+
+        return dt1;
+    }
+
+    static bool is_quantized(data_types dt) {
+        return dt == data_types::u8 || dt == data_types::i8;
+    }
+
     template <typename T>
     static T max(data_types data_type) {
         switch (data_type) {
@@ -406,6 +430,26 @@ struct layout {
             sizes[1] = align_to(sizes[1], 32);
         } else if (this->format == cldnn::format::image_2d_rgba) {
             sizes[1] = 4;
+        } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||
+                   this->format == cldnn::format::gs_oi_yxs_gsv16_yxsv4 ||
+                   this->format == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
+            sizes[3] = align_to(sizes[2] * sizes[3], 4);
+            sizes[2] = 1;
+        } else if (this->format == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(sizes[1], 32)) {
+            sizes[1] = align_to(sizes[1], 32);
+        } else if ((this->format == cldnn::format::iy_xs_os_xsv2_osv8__ao32 ||
+                    this->format == cldnn::format::iy_xs_os_xsv2_osv16__ao32 ||
+                    this->format == cldnn::format::giy_xs_os_xsv2_osv8__ao32 ||
+                    this->format == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(sizes[0], 32))  {
+            sizes[0] = align_to(sizes[0], 32);
+            sizes[3] = align_to(sizes[2] * sizes[3], 2);
+            sizes[2] = 1;
+        } else if (this->format == cldnn::format::i_yxs_os_yxsv2_osv16 || this->format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
+            sizes[3] = align_to(sizes[2] * sizes[3], 2);
+            sizes[2] = 1;
+        } else if (this->format == cldnn::format::os_i_yxs_osv4_yxsv4) {
+            sizes[3] = align_to(sizes[2] * sizes[3], 4);
+            sizes[2] = 1;
         }
         size_t total = std::accumulate(
             sizes.begin(),

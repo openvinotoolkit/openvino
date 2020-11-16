@@ -21,13 +21,15 @@ namespace LayerTestsDefinitions {
 
 std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj) {
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout;
     bool keepDims;
     ngraph::helpers::ReductionType reductionType;
     std::vector<size_t> inputShape;
     std::vector<int> axes;
     CommonTestUtils::OpType opType;
     std::string targetDevice;
-    std::tie(axes, opType, keepDims, reductionType, netPrecision, inputShape, targetDevice) = obj.param;
+    std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
@@ -35,7 +37,10 @@ std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMea
     result << "type=" << reductionType << "_";
     if (keepDims) result << "KeepDims_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "trgDev=" << targetDevice;
     return result.str();
 }
 
@@ -49,7 +54,7 @@ void ReduceOpsLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     std::vector<int> axes;
     CommonTestUtils::OpType opType;
-    std::tie(axes, opType, keepDims, reductionType, netPrecision, inputShape, targetDevice) = GetParam();
+    std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -80,6 +85,28 @@ void ReduceOpsLayerTest::SetUp() {
 
 TEST_P(ReduceOpsLayerTest, CompareWithRefs) {
     Run();
-};
+}
+
+InferenceEngine::Blob::Ptr ReduceOpsLayerWithSpecificInputTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    auto axis_vec = std::get<0>(GetParam());
+    IE_ASSERT(axis_vec.size() == 1);
+
+    auto axis = axis_vec[0];
+    auto td = info.getTensorDesc();
+    auto dims = td.getDims();
+
+    // Slice of tensor through axis is {1, 0, 0, ....}, the mean value is 1/slice_size
+    auto raw_values = std::vector<float>(dims[axis], 0);
+    raw_values[0] = 1;
+
+    auto blob = make_blob_with_precision(td);
+    blob->allocate();
+    CommonTestUtils::fill_data_with_broadcast(blob, axis, raw_values);
+    return blob;
+}
+
+TEST_P(ReduceOpsLayerWithSpecificInputTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

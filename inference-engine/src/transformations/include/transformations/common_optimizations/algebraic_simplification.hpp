@@ -31,5 +31,6 @@ class TRANSFORMATIONS_API AlgebraicSimplification;
 
 class ngraph::pass::AlgebraicSimplification : public FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

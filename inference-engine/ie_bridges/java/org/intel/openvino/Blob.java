@@ -11,7 +11,7 @@ public class Blob extends IEWrapper {
     }
 
     public Blob(TensorDesc tensorDesc, byte[] data) {
-        super(BlobByte(tensorDesc.getNativeObjAddr(), data)) ;
+        super(BlobByte(tensorDesc.getNativeObjAddr(), data));
     }
 
     public Blob(TensorDesc tensorDesc, float[] data) {
@@ -22,7 +22,7 @@ public class Blob extends IEWrapper {
         super(BlobCArray(tensorDesc.nativeObj, cArray));
     }
 
-    public TensorDesc getTensorDesc(){
+    public TensorDesc getTensorDesc() {
         return new TensorDesc(GetTensorDesc(nativeObj));
     }
 

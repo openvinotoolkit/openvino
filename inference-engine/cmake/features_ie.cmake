@@ -29,7 +29,7 @@ if (ENABLE_MKL_DNN)
 endif()
 
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if(ARM)
+if(ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
     set(THREADING_DEFAULT "TBB")
@@ -60,7 +60,7 @@ if (ENABLE_GNA)
     endif()
 endif()
 
-ie_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON)
+ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_VPU" OFF)
 
@@ -106,6 +106,8 @@ ie_dependent_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of faili
 
 ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON)
 
-set(IE_EXTRA_PLUGINS "" CACHE STRING "Extra paths for plugins to include into DLDT build tree")
+set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
+
+ie_option (USE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)

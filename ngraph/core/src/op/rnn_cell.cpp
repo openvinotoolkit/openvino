@@ -83,6 +83,14 @@ bool op::v0::RNNCell::visit_attributes(AttributeVisitor& visitor)
 
 void op::v0::RNNCell::validate_and_infer_types()
 {
+    for (const auto& input : inputs())
+    {
+        if (input.get_partial_shape().rank().is_dynamic())
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+            return;
+        }
+    }
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto result_et = element::dynamic;

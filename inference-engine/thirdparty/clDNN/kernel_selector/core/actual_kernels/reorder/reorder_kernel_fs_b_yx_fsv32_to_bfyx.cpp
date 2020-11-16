@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,19 +68,19 @@ JitConstants ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetJitConstants(const reorder_
 }
 
 ReorderKernelBase::DispatchData ReorderKernel_fs_b_yx_fsv32_to_bfyx::SetDefault(const reorder_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     auto x_aligned = Align(params.output.X().v, x_block_align);
 
-    kd.gws0 = params.output.Batch().v;
-    kd.gws1 = Align(params.output.Feature().v, fsv);
-    kd.gws2 = params.output.Y().v * x_aligned / GetOptimalSize(x_aligned, optimal_x_sizes);
+    dispatchData.gws[0] = params.output.Batch().v;
+    dispatchData.gws[1] = Align(params.output.Feature().v, fsv);
+    dispatchData.gws[2] = params.output.Y().v * x_aligned / GetOptimalSize(x_aligned, optimal_x_sizes);
 
-    kd.lws0 = 1;
-    kd.lws1 = GetOptimalSize(kd.gws1, optimal_feature_sizes);
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = GetOptimalSize(dispatchData.gws[1], optimal_feature_sizes);
+    dispatchData.lws[2] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsData(const Params& params, const optional_params& options) const {

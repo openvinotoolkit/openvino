@@ -32,6 +32,21 @@ static void fill_data_sine(float *data, size_t size, float center, float ampl, f
 }
 
 /**
+ * @brief Create vector of floats with length of vec_len, with values ranging from min to max, 
+ * with initial seed equal to variable seed with default of 0
+ */
+static inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min, float max, int seed = 0) {
+    std::vector<float> res;
+    std::mt19937 gen(static_cast<float>(seed));
+
+    std::uniform_real_distribution<float> dist(min, max);
+    for (int i = 0; i < vec_len; i++)
+        res.emplace_back(static_cast<float>(dist(gen)));
+
+    return res;
+}
+
+/**
  * Fill blob with value data blob. Broadcast semantic is included.
  * Broadcasting with alignment through last dimension.
  *
@@ -72,6 +87,14 @@ InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr &b
  */
 void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val);
 
+
+/**
+ * Calculate size of buffer required for provided tensor descriptor.
+ * @param tdesc provided tensor descriptor
+ * @return size in bytes
+ */
+size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
+
 static void fill_data_bbox(float *data, size_t size, int height, int width, float omega) {
     float center_h = (height - 1.0f) / 2;
     float center_w = (width - 1.0f) / 2;
@@ -110,7 +133,7 @@ static void fill_data_bbox(float *data, size_t size, int height, int width, floa
  * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
  */
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1) {
+void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1, const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     testing::internal::Random random(1);
     random.Generate(range);
@@ -144,8 +167,7 @@ void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint3
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k,
-                                   const int seed = 1) {
+void inline fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k, const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     std::default_random_engine random(seed);
     // 1/k is the resolution of the floating point numbers
@@ -199,13 +221,20 @@ void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const float 
 }
 
 template<>
-void inline fill_data_random<InferenceEngine::Precision::FP32>(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k) {
-    fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, start_from, k);
+void inline fill_data_random<InferenceEngine::Precision::FP32>(InferenceEngine::Blob::Ptr &blob,
+                                                               const uint32_t range,
+                                                               int32_t start_from,
+                                                               const int32_t k,
+                                                               const int seed) {
+    fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, start_from, k, seed);
 }
 
 template<>
-void inline fill_data_random<InferenceEngine::Precision::FP16>(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k) {
-    fill_data_random_float<InferenceEngine::Precision::FP16>(blob, range, start_from, k);
+void inline fill_data_random<InferenceEngine::Precision::FP16>(InferenceEngine::Blob::Ptr &blob,
+                                                               const uint32_t range,
+                                                               int32_t start_from,
+                                                               const int32_t k, const int seed) {
+    fill_data_random_float<InferenceEngine::Precision::FP16>(blob, range, start_from, k, seed);
 }
 
 }  // namespace CommonTestUtils

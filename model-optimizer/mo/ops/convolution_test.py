@@ -21,6 +21,7 @@ import numpy as np
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.convolution import Convolution
+from mo.utils.error import Error
 from mo.utils.unittest.extractors import FakeValue
 from mo.utils.unittest.graph import build_graph
 
@@ -378,3 +379,31 @@ class TestConvolutionPartialInfer(unittest.TestCase):
         self.assertTrue(np.array_equal(int64_array([[0, 0], [0, 0], [0, 0]]), conv_node.pad_spatial_shape))
         # Check resulting output shape
         self.assertTrue(np.array_equal(int64_array([1, 64, 16, 218, 218]), conv_output.shape))
+
+    def test_caffe_conv2d_infer_wrong_input_shape(self):
+        graph = build_graph(nodes_attributes,
+                            [('conv_input', 'conv_node'),
+                             ('conv_weights', 'conv_node'),
+                             ('conv_node', 'conv_output'),
+                             ('conv_output', 'op_output')
+                             ],
+                            {'conv_output': {'shape': None},
+                             'conv_input': {'shape': np.array([1, 3, 1, 1])},
+                             'conv_weights': {'shape': np.array([64, 3, 3, 3]),
+                                              'dim_attrs': ['spatial_dims', 'channel_dims', 'batch_dims', 'axis']},
+                             'conv_node': {'pad_spatial_shape': np.array([[0, 0], [0, 0]]),
+                                           'conv_pad': np.array([[0, 0], [0, 0], [0, 0], [0, 0]]),
+                                           'dilation': np.array([1, 1, 1, 1]), 'bias_addable': True, 'bias_term': False,
+                                           'output_spatial_shape': None, 'output_shape': None,
+                                           'stride': np.array([1, 1, 1, 1]), 'group': 1,
+                                           'kernel_spatial_idx': np.array([2, 3]),
+                                           'input_feature_channel': 1,
+                                           'output_feature_channel': 0,
+                                           'output': 64, 'kernel_spatial': np.array([3, 3]),
+                                           'spatial_dims': np.array([2, 3]), 'channel_dims': np.array([1]),
+                                           'batch_dims': np.array([0])}
+                             })
+
+        conv_node = Node(graph, 'conv_node')
+        with self.assertRaises(Error):
+            Convolution.infer(conv_node)

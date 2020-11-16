@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GBACKEND_HPP
@@ -14,7 +14,6 @@
 #include <ade/node.hpp>
 
 #include "opencv2/gapi/garg.hpp"
-#include "opencv2/gapi/own/mat.hpp"
 
 #include "opencv2/gapi/util/optional.hpp"
 
@@ -45,9 +44,9 @@ namespace magazine {
 
 } // namespace magazine
 #if !defined(GAPI_STANDALONE)
-using Mag = magazine::Class<cv::gapi::own::Mat, cv::UMat, cv::Scalar, cv::detail::VectorRef, cv::detail::OpaqueRef>;
+using Mag = magazine::Class<cv::Mat, cv::UMat, cv::Scalar, cv::detail::VectorRef, cv::detail::OpaqueRef>;
 #else
-using Mag = magazine::Class<cv::gapi::own::Mat, cv::Scalar, cv::detail::VectorRef, cv::detail::OpaqueRef>;
+using Mag = magazine::Class<cv::Mat, cv::Scalar, cv::detail::VectorRef, cv::detail::OpaqueRef>;
 #endif
 
 namespace magazine
@@ -88,20 +87,10 @@ struct GRuntimeArgs
 template<typename T>
 inline cv::util::optional<T> getCompileArg(const cv::GCompileArgs &args)
 {
-    for (auto &compile_arg : args)
-    {
-        if (compile_arg.tag == cv::detail::CompileArgTag<T>::tag())
-        {
-            return cv::util::optional<T>(compile_arg.get<T>());
-        }
-    }
-    return cv::util::optional<T>();
+    return cv::gapi::getCompileArg<T>(args);
 }
 
-void createMat(const cv::GMatDesc& desc, cv::gapi::own::Mat& mat);
-#if !defined(GAPI_STANDALONE)
 void createMat(const cv::GMatDesc& desc, cv::Mat& mat);
-#endif
 
 }} // cv::gimpl
 

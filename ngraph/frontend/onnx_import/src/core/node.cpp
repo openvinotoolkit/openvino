@@ -33,6 +33,8 @@ namespace ngraph
 
             Impl(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
                 : m_node_proto{&node_proto}
+                , m_name{node_proto.has_name() ? node_proto.name() : ""}
+                , m_domain{get_node_domain(node_proto)}
                 , m_graph{&graph}
                 , m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())}
                 , m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())}
@@ -65,6 +67,8 @@ namespace ngraph
 
         private:
             const ONNX_NAMESPACE::NodeProto* m_node_proto;
+            std::string m_name;
+            std::string m_domain;
             const Graph* m_graph;
             std::vector<Attribute> m_attributes;
             std::vector<std::reference_wrapper<const std::string>> m_output_names;
@@ -74,9 +78,9 @@ namespace ngraph
         const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const { return *m_node_proto; }
         const Graph& Node::Impl::graph() const { return *m_graph; }
         const std::vector<Attribute>& Node::Impl::attributes() const { return m_attributes; }
-        const std::string& Node::Impl::domain() const { return m_node_proto->domain(); }
+        const std::string& Node::Impl::domain() const { return m_domain; }
         const std::string& Node::Impl::op_type() const { return m_node_proto->op_type(); }
-        const std::string& Node::Impl::name() const { return m_node_proto->name(); }
+        const std::string& Node::Impl::name() const { return m_name; }
         const std::vector<std::reference_wrapper<const std::string>>&
             Node::Impl::get_output_names() const
         {

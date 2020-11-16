@@ -26,15 +26,9 @@ from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_34323,
-                   xfail_issue_35929,
-                   xfail_issue_35926,
+from tests import (xfail_issue_35929,
                    xfail_issue_36476,
-                   xfail_issue_36478,
-                   xfail_issue_36479,
                    xfail_issue_36480)
-
-from openvino.inference_engine import IENetwork
 
 
 def test_ngraph_function_api():
@@ -66,14 +60,14 @@ def test_ngraph_function_api():
     [
         np.float32,
         pytest.param(np.float64, marks=xfail_issue_35929),
-        pytest.param(np.int8, marks=xfail_issue_36479),
+        np.int8,
         np.int16,
         np.int32,
-        pytest.param(np.int64, marks=xfail_issue_35926),
-        pytest.param(np.uint8, marks=xfail_issue_36479),
-        pytest.param(np.uint16, marks=xfail_issue_36479),
+        np.int64,
+        np.uint8,
+        np.uint16,
         pytest.param(np.uint32, marks=xfail_issue_36476),
-        pytest.param(np.uint64, marks=xfail_issue_36478),
+        np.uint64,
     ],
 )
 def test_simple_computation_on_ndarrays(dtype):
@@ -146,7 +140,6 @@ def test_broadcast_3():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="AssertionError: assert dtype('float32') == <class 'bool'")
 @pytest.mark.parametrize(
     "destination_type, input_data",
     [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
@@ -285,7 +278,6 @@ def test_backend_config():
     runtime.set_config(dummy_config)
 
 
-@xfail_issue_34323
 def test_result():
     node = np.array([[11, 10], [1, 8], [3, 4]])
     result = run_op_node([node], ng.result)
@@ -417,14 +409,3 @@ def test_runtime_info():
     runtime_info_after = relu_node.get_rt_info()
 
     assert runtime_info_after["affinity"] == "test_affinity"
-
-    params = [test_param]
-    results = [relu_node]
-
-    ng_function = Function(results, params, "testFunc")
-
-    capsule = Function.to_capsule(ng_function)
-    cnn_network = IENetwork(capsule)
-    cnn_layer = cnn_network.layers["testReLU"]
-    assert cnn_layer is not None
-    assert cnn_layer.affinity == "test_affinity"

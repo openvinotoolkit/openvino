@@ -101,7 +101,7 @@ static inline std::vector<std::string> GetOrder(size_t size) {
     } else if (size == 6) {
         idx_order = {"b", "f", "w", "z", "y", "x"};
     }
-    
+
     return idx_order;
 }
 
@@ -120,7 +120,7 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
 
     for (size_t i = dictionary_dims_num; i < idx_order.size(); i++)
         idx_order[i] = zeroVal;
-    
+
     // Fix size to inputs[0] dims size
     for (size_t i = 0; i < params.output.GetDims().size() - params.inputs[0].GetDims().size(); i++)
         idx_order.pop_back();
@@ -152,33 +152,20 @@ static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis) 
 }
 
 CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
     const auto& output = params.output;
 
-    std::vector<size_t> global;
-    std::vector<size_t> local;
-
     if (output.GetLayout() == DataLayout::bfyx) {
-        global = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
     } else if (output.GetLayout() == DataLayout::bfzyx) {
-        global = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
     } else {
-        global = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
     }
 
-    local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-    
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const {
@@ -220,14 +207,14 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
     KernelData kd = KernelData::Default<gather_params>(params);
     gather_params& newParams = *static_cast<gather_params*>(kd.params.get());
 
-    auto runInfo = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams, options);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

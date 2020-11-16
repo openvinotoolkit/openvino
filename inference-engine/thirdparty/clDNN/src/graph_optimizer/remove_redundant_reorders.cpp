@@ -315,26 +315,31 @@ void remove_redundant_reorders::run(program_impl& p) {
         }
     }
 
-    // This pass removed reorder if the next node supports reorder's input format
+    // This pass removed reorder if the next node supports reorder's input format and data type doesn't change
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto& node = *itr++;
-        if (!node->is_type<reorder>() || !node->is_in_data_flow() || node->get_users().size() != 1 || node->get_dependencies().size() != 1)
+        auto& node_ptr = *itr++;
+        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1)
             continue;
 
-        auto& usr = node->get_users().front();
-        auto& dep = node->get_dependency(0);
+        auto& usr = node_ptr->get_users().front();
+        auto& dep = node_ptr->get_dependency(0);
         if (!usr->is_type<quantize>() ||
             (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
              dep.get_output_layout().format != format::fs_b_yx_fsv32 &&
              dep.get_output_layout().format != format::bfyx))
             continue;
 
-        dep.merge_output_padding(node->get_output_layout().data_padding);
-        p.replace_all_usages(*node, dep);
-        p.add_optimized_primitive_info(node->id());
-        p.remove_all_connections(*node);
-        p.remove_if_dangling(*node);
+        auto& node = node_ptr->as<reorder>();
+        auto same_data_type = node.input().get_output_layout().data_type == node.get_output_layout().data_type;
+        if (!same_data_type)
+            continue;
+
+        dep.merge_output_padding(node.get_output_layout().data_padding);
+        p.replace_all_usages(node, dep);
+        p.add_optimized_primitive_info(node.id());
+        p.remove_all_connections(node);
+        p.remove_if_dangling(node);
     }
 
     // This pass removes reorder for Convolution BFYX -> FS_B_YX_FSV32

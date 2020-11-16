@@ -41,8 +41,8 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
     return k;
 }
 
-JitConstants ActivationKernelRef::GetJitConstants(const activation_params& params, DispatchData kd) const {
-    auto jit = ActivationKernelBase::GetJitConstants(params, kd);
+JitConstants ActivationKernelRef::GetJitConstants(const activation_params& params, DispatchData dispatchData) const {
+    auto jit = ActivationKernelBase::GetJitConstants(params, dispatchData);
     auto input_dt = params.inputs[0].GetDType();
 
     if (!params.fused_ops.empty()) {

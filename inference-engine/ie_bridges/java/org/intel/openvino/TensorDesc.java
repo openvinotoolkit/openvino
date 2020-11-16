@@ -1,11 +1,9 @@
 package org.intel.openvino;
 
-import java.util.concurrent.BlockingDeque;
-
 public class TensorDesc extends IEWrapper {
 
-    public TensorDesc(long addr){
-       super(addr);
+    public TensorDesc(long addr) {
+        super(addr);
     }
 
     public TensorDesc(Precision precision, int[] dims, Layout layout) {
@@ -16,11 +14,11 @@ public class TensorDesc extends IEWrapper {
         return GetDims(nativeObj);
     }
 
-    public Layout getLayout(){
+    public Layout getLayout() {
         return Layout.valueOf(getLayout(nativeObj));
     }
 
-    public Precision getPrecision(){
+    public Precision getPrecision() {
         return Precision.valueOf(getPrecision(nativeObj));
     }
 

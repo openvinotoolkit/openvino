@@ -23,13 +23,12 @@ import numpy as np
 import logging as log
 from openvino.inference_engine import IECore
 
-import ngraph as ng
 
 def build_argparser():
     parser = ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
-    args.add_argument("-m", "--model", help="Required. Path to an .xml file with a trained model.", required=True, type=str)
+    args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.", required=True, type=str)
     args.add_argument("-i", "--input", help="Required. Path to a folder with images or path to an image files", required=True,
                       type=str, nargs="+")
     args.add_argument("-l", "--cpu_extension",
@@ -42,13 +41,13 @@ def build_argparser():
                       type=str)
     args.add_argument("-nt", "--number_top", help="Optional. Number of top results", default=10, type=int)
     args.add_argument("--mean_val_r", "-mean_val_r",
-                      help="Optional. Mean value of red chanel for mean value subtraction in postprocessing ", default=0,
+                      help="Optional. Mean value of red channel for mean value subtraction in postprocessing ", default=0,
                       type=float)
     args.add_argument("--mean_val_g", "-mean_val_g",
-                      help="Optional. Mean value of green chanel for mean value subtraction in postprocessing ", default=0,
+                      help="Optional. Mean value of green channel for mean value subtraction in postprocessing ", default=0,
                       type=float)
     args.add_argument("--mean_val_b", "-mean_val_b",
-                      help="Optional. Mean value of blue chanel for mean value subtraction in postprocessing ", default=0,
+                      help="Optional. Mean value of blue channel for mean value subtraction in postprocessing ", default=0,
                       type=float)
     return parser
 
@@ -56,29 +55,17 @@ def build_argparser():
 def main():
     log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
     args = build_argparser().parse_args()
-    model_xml = args.model
-    model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
     # Plugin initialization for specified device and load extensions library if specified
     log.info("Creating Inference Engine")
     ie = IECore()
     if args.cpu_extension and 'CPU' in args.device:
         ie.add_extension(args.cpu_extension, "CPU")
-    # Read IR
-    log.info("Loading network files:\n\t{}\n\t{}".format(model_xml, model_bin))
-    net = ie.read_network(model=model_xml, weights=model_bin)
-    func = ng.function_from_cnn(net)
 
-    if "CPU" in args.device:
-        supported_layers = ie.query_network(net, "CPU")
-        ops = func.get_ordered_ops()
-        not_supported_layers = [op.friendly_name for op in ops if op.friendly_name not in supported_layers]
-        if len(not_supported_layers) != 0:
-            log.error("Following layers are not supported by the plugin for specified device {}:\n {}".
-                      format(args.device, ', '.join(not_supported_layers)))
-            log.error("Please try to specify cpu extensions library path in sample's command line parameters using -l "
-                      "or --cpu_extension command line argument")
-            sys.exit(1)
+    # Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+    model = args.model
+    log.info(f"Loading network:\n\t{model}")
+    net = ie.read_network(model=model)
 
     assert len(net.input_info.keys()) == 1, "Sample supports only single input topologies"
     assert len(net.outputs) == 1, "Sample supports only single output topologies"

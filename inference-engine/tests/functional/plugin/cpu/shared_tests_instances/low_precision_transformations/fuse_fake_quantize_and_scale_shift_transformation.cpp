@@ -9,7 +9,7 @@
 #include "ngraph_functions/low_precision_transformations/fuse_fake_quantize_and_scale_shift_function.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
+using namespace ngraph::pass::low_precision;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -32,7 +32,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnD
     },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, FuseFakeQuantizeAndScaleShiftTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseFakeQuantizeAndScaleShiftTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 9, 9 })),

@@ -54,7 +54,7 @@ public:
     static bool useGAPI();
     static void checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst);
     static int getCorrectBatchSize(int batch_size, const Blob::Ptr& roiBlob);
-    bool preprocessWithGAPI(Blob::Ptr &inBlob, Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm,
+    bool preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm,
         ColorFormat in_fmt, bool omp_serial, int batch_size = -1);
 };
 

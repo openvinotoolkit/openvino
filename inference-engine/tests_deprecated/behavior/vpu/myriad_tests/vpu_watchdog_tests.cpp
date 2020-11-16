@@ -60,10 +60,10 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
         int total() const {return booted + unbooted;}
     };
 
-    DevicesState queryDevices() {
+    DevicesState queryDevices(ncDeviceProtocol_t protocol = NC_ANY_PROTOCOL) {
         DevicesState devicesState;
-        devicesState.booted = getAmountOfBootedDevices(NC_USB);
-        devicesState.unbooted = getAmountOfUnbootedDevices(NC_USB);
+        devicesState.booted = getAmountOfBootedDevices(protocol);
+        devicesState.unbooted = getAmountOfUnbootedDevices(protocol);
         return devicesState;
     }
 
@@ -120,8 +120,11 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 }
 
 TEST_P(MYRIADWatchdog, canDisableWatchdog) {
-
-    auto startup_devices = queryDevices();
+    auto startup_devices = queryDevices(NC_PCIE);
+    if (startup_devices.unbooted >= 1) {
+        GTEST_SKIP();
+    }
+    startup_devices = queryDevices(NC_USB);
     ASSERT_GE(startup_devices.unbooted, 1);
 
     auto ctime = Time::now();
@@ -136,7 +139,7 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
     for (int j = 0; j != 20; j++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;
-        if (queryDevices().booted == startup_devices.booted) {
+        if (queryDevices(NC_USB).booted == startup_devices.booted) {
             SUCCEED() << "All devices gets reset";
             break;
         }
@@ -149,7 +152,11 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
 }
 
 TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
-    auto startup_devices = queryDevices();
+    auto startup_devices = queryDevices(NC_PCIE);
+    if (startup_devices.unbooted >= 1) {
+        GTEST_SKIP();
+    }
+    startup_devices = queryDevices(NC_USB);
     ASSERT_GE(startup_devices.unbooted, 1);
 
     auto ctime = Time::now();
@@ -180,12 +187,13 @@ TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
 
 TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto startup_devices = queryDevices();
+    ASSERT_GE(startup_devices.unbooted, 1);
+
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
         auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
-        ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
         ctime = Time::now();
@@ -212,13 +220,18 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
 }
 
 TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
-    auto startup_devices = queryDevices();
+    auto startup_devices = queryDevices(NC_PCIE);
+    if (startup_devices.unbooted >= 1) {
+        GTEST_SKIP();
+    }
+    startup_devices = queryDevices(NC_USB);
+    ASSERT_GE(startup_devices.unbooted, 1);
+
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
         auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
-        ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
         ctime = Time::now();
@@ -232,7 +245,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
         for (int j = 0; j != 20; j++) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;
-            if (queryDevices().booted == startup_devices.booted) {
+            if (queryDevices(NC_USB).booted == startup_devices.booted) {
                 SUCCEED() << "All devices gets reset";
                 break;
             }

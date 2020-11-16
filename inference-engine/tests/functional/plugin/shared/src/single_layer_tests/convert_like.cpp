@@ -17,22 +17,25 @@ namespace LayerTestsDefinitions {
 
 std::string ConvertLikeLayerTest::getTestCaseName(const testing::TestParamInfo<ConvertLikeParamsTuple> &obj) {
     InferenceEngine::Precision precision, targetPrecision;
+    InferenceEngine::Layout inLayout, outLayout;
     std::vector<std::vector<size_t>> inputShape1, inputShape2;
     std::string targetName;
-    std::tie(inputShape1, precision, inputShape2, targetPrecision, targetName) = obj.param;
+    std::tie(inputShape1, precision, inputShape2, targetPrecision, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
     result << "IS1=" << CommonTestUtils::vec2str(inputShape1) << "_";
     result << "IS2=" << CommonTestUtils::vec2str(inputShape2) << "_";
     result << "PRC1=" << precision.name() << "_";
     result << "PRC2=" << targetPrecision.name() << "_";
-    result << "targetDevice=" << targetName;
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetName;
     return result.str();
 }
 
 void ConvertLikeLayerTest::SetUp() {
     InferenceEngine::Precision inputPrecision, targetPrecision;
     std::vector<std::vector<size_t>> inputShape1, inputShape2;
-    std::tie(inputShape1, inputPrecision, inputShape2, targetPrecision, targetDevice) = GetParam();
+    std::tie(inputShape1, inputPrecision, inputShape2, targetPrecision, inLayout, outLayout, targetDevice) = GetParam();
     auto ngPrc1 = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(targetPrecision);
     auto params = ngraph::builder::makeParams(ngPrc1, inputShape1);

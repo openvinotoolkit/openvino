@@ -64,6 +64,8 @@ namespace ngraph
 
                 for (const Coordinate& in_coord : input_transform)
                 {
+                    if (output_it == output_transform.end())
+                        break;
                     const Coordinate& out_coord = *output_it;
 
                     std::fill(v.begin(), v.end(), 0);
@@ -189,8 +191,8 @@ namespace ngraph
                                 }
                                 else
                                 {
-                                    c[i] = static_cast<size_t>(padding_below[i] + src_dim +
-                                                               padding_above[i] - pos);
+                                    c[i] = static_cast<size_t>(2 * (padding_below[i] + src_dim) -
+                                                               c[i] - 1);
                                 }
                             }
                         }

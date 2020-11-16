@@ -22,6 +22,7 @@
 #include "ngraph/except.hpp"
 #include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/model.hpp"
+#include "onnx_import/core/transform.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/ops_bridge.hpp"
 
@@ -89,7 +90,8 @@ namespace ngraph
             }
         } // namespace detail
 
-        std::shared_ptr<Function> import_onnx_model(std::istream& stream)
+        std::shared_ptr<Function> import_onnx_model(std::istream& stream,
+                                                    const std::string& model_path)
         {
             if (!stream.good())
             {
@@ -119,6 +121,11 @@ namespace ngraph
                 }
 #endif
             }
+
+            transform::expand_onnx_functions(model_proto);
+            transform::fixup_legacy_operators(model_proto);
+            transform::update_external_data_paths(model_proto, model_path);
+
             return detail::convert_to_ng_function(model_proto);
         }
 
@@ -129,7 +136,7 @@ namespace ngraph
             {
                 throw detail::error::file_open{file_path};
             }
-            return import_onnx_model(ifs);
+            return import_onnx_model(ifs, file_path);
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,

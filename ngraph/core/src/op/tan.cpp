@@ -46,7 +46,7 @@ shared_ptr<Node> op::Tan::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Tan>(new_args.at(0));
 }
 
-namespace
+namespace tanop
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
@@ -86,5 +86,5 @@ namespace
 bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Tan::evaluate");
-    return evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return tanop::evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

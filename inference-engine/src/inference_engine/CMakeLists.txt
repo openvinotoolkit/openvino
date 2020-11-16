@@ -4,35 +4,25 @@
 
 set (TARGET_NAME "inference_engine")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/threading/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/ie_built_in_holder.cpp
       )
+
+# TODO: WA for OneHot pass usage in reshape
+set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src/")
+set(LEGACY_LIBRARY_SHARED_SRCS
+    "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
+    "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
-set(IE_BASE_SOURCE_FILES
-      ${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp
-      # will be merged with file_utils.cpp after IE dependency on legacy is removed
-      ${CMAKE_CURRENT_SOURCE_DIR}/ie_unicode.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/generic_ie.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/blob_factory.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/ie_blob_common.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/ie_data.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/ie_layouts.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/ie_memcpy.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/ie_parameter.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/ie_rtti.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/precision_utils.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.hpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.hpp)
+file (GLOB LIBRARY_HEADERS
+       ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+       ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
+      )
 
 if (LINUX)
     file (GLOB LIBRARY_SRC
@@ -41,10 +31,9 @@ if (LINUX)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/*.hpp)
-endif()
-
-if(UNIX)
-    list(APPEND IE_BASE_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/lin_shared_object_loader.cpp)
+elseif (UNIX)
+    list (APPEND LIBRARY_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/lin_shared_object_loader.cpp)
 endif()
 
 if (WIN32)
@@ -54,15 +43,7 @@ if (WIN32)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/os/win/*.hpp)
-    list(APPEND IE_BASE_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/os/win/win_shared_object_loader.cpp)
 endif()
-
-list(REMOVE_ITEM LIBRARY_SRC ${IE_BASE_SOURCE_FILES})
-
-file (GLOB LIBRARY_HEADERS
-       ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-       ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
-      )
 
 if(ENABLE_SSE42)
     file(GLOB SSE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.cpp)
@@ -74,11 +55,6 @@ if(ENABLE_SSE42)
     ie_sse42_optimization_flags(sse4_2_flags)
     set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
-endif()
-
-if(ENABLE_V7_SERIALIZE)
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp"
-        PROPERTIES COMPILE_DEFINITIONS ENABLE_V7_SERIALIZE)
 endif()
 
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
@@ -102,8 +78,6 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
-    "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include"
-    "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include/legacy" # for compatibility
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
@@ -116,26 +90,16 @@ file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
 
 add_cpplint_target(${TARGET_NAME}_plugin_api_cpplint FOR_SOURCES ${plugin_api_src})
 
-# Create common base object library
-
-add_library(${TARGET_NAME}_common_obj OBJECT
-            ${IE_BASE_SOURCE_FILES})
-
-target_compile_definitions(${TARGET_NAME}_common_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
-target_include_directories(${TARGET_NAME}_common_obj PRIVATE
-    $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
-
-target_include_directories(${TARGET_NAME}_common_obj SYSTEM PRIVATE
-    $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
-
 # Create object library
 
 add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
+
+ie_faster_build(${TARGET_NAME}_obj
+    UNITY
+)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
@@ -144,10 +108,11 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:n
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader" # for ie_ir_version.hpp
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_reader_api,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api)
 
 if(ENABLE_MKL_DNN)
     target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak")
@@ -161,16 +126,21 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 add_library(${TARGET_NAME} SHARED
             ${IE_STATIC_DEPENDENT_FILES}
+            ${LEGACY_LIBRARY_SHARED_SRCS}
+            ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Core Runtime library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} Threads::Threads pugixml openvino::itt
-                                             ${NGRAPH_LIBRARIES} inference_engine_transformations
-                                     PUBLIC ${TARGET_NAME}_legacy)
+target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
+                                             ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
-target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR} PRIVATE
-                                                $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR}
+    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
@@ -181,12 +151,13 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>
-            $<TARGET_OBJECTS:${TARGET_NAME}_common_obj>
             $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>
+            $<TARGET_OBJECTS:${TARGET_NAME}_obj>
             ${IE_STATIC_DEPENDENT_FILES})
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
@@ -199,11 +170,16 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_transformations openvino::itt
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
+                                               inference_engine_transformations
                                        PUBLIC pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+
+# LTO
+
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # export targets
 
@@ -230,7 +206,7 @@ ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api xbyak)
 
 list(APPEND core_components ngraph)
 
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 

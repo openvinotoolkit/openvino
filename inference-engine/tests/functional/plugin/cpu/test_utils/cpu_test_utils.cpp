@@ -15,6 +15,7 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
     if (v == nCdhw8c) return "nCdhw8c";
     if (v == nCdhw16c) return "nCdhw16c";
     if (v == ndhwc) return "ndhwc";
+    if (v == x) return "x";
     assert(!"unknown fmt");
     return "undef";
 }
@@ -33,6 +34,7 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(nCdhw8c);
     CASE(nCdhw16c);
     CASE(ndhwc);
+    CASE(x);
 #undef CASE
     assert(!"unknown memory format");
     return undef;
@@ -85,14 +87,12 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
             ASSERT_LE(inputMemoryFormats.size(), node->get_input_size());
             ASSERT_LE(outputMemoryFormats.size(), node->get_output_size());
             for (int i = 0; i < inputMemoryFormats.size(); i++) {
-                for (const auto & parentPort : node->input_values()) {
-                    for (const auto & port : node->inputs()) {
-                        if (port.get_tensor_ptr() == parentPort.get_tensor_ptr()) {
-                            auto parentNode = parentPort.get_node_shared_ptr();
-                            auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
-                            ASSERT_EQ(inputMemoryFormats[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
-                        }
-                    }
+                const auto parentPort = node->input_values()[i];
+                const auto port = node->inputs()[i];
+                if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
+                    auto parentNode = parentPort.get_node_shared_ptr();
+                    auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
+                    ASSERT_EQ(inputMemoryFormats[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
                 }
             }
             for (int i = 0; i < outputMemoryFormats.size(); i++) {

@@ -8,6 +8,7 @@ Upon start-up, the application reads command-line parameters and loads a network
 
 ## Build
 Create an environment variable with Inference Engine installation path:
+```bash
 export IE_PATH=/path/to/openvino/bin/intel64/Release/lib
 ```
 
@@ -41,7 +42,7 @@ The application outputs the number of executed iterations, total duration of exe
 Below is fragment of application output for CPU device: 
 
 ```
-[Step 10/11] Measuring performance (Start inference asyncronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
 [Step 11/11] Dumping statistics report
 Count:      8904 iterations
 Duration:   60045.87 ms
@@ -61,10 +62,7 @@ https://download.01.org/opencv/2019/open_model_zoo/R1/models_bin/face-detection-
 
 ## Build and run
 
-Build and run steps are similar to ```benchmark_app```, but you need to add OpenCV path.
-
-### Build
-Add an environment variable with OpenCV installation or build path:
+Build and run steps are similar to ```benchmark_app```, but you need to add an environment variable with OpenCV installation or build path before building:
 ```bash
 export OpenCV_DIR=/path/to/opencv/
 ```

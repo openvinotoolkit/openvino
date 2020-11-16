@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,18 @@ size_t getOperationNumber(const arg_max_min_params& params) {
         case ArgMaxMinAxis::Z: return params.output.Batch().v * params.output.Feature().v * params.output.Y().v * params.output.X().v;
         case ArgMaxMinAxis::Y: return params.output.Batch().v * params.output.Feature().v * params.output.Z().v * params.output.X().v;
         case ArgMaxMinAxis::X: return params.output.Batch().v * params.output.Feature().v * params.output.Z().v * params.output.Y().v;
+        default:
+            throw std::invalid_argument("Unsupported axis");
+    }
+}
+
+size_t getSortSize(const arg_max_min_params& params) {
+    switch (params.argMaxMinAxis) {
+        case ArgMaxMinAxis::BATCH: return params.inputs[0].Batch().v;
+        case ArgMaxMinAxis::FEATURE: return params.inputs[0].Feature().v;
+        case ArgMaxMinAxis::Z: return params.inputs[0].Z().v;
+        case ArgMaxMinAxis::Y: return params.inputs[0].Y().v;
+        case ArgMaxMinAxis::X: return params.inputs[0].X().v;
         default:
             throw std::invalid_argument("Unsupported axis");
     }
@@ -72,19 +84,13 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     if (!Validate(params, options)) {
         return {};
     }
-
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
 
-    DispatchData runInfo;
-    runInfo.fp16UnitUsed = orgParams.inputs[0].GetDType() == Datatype::F16;
+    size_t sort_size = orgParams.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(orgParams) : 1;
 
-    runInfo.gws0 = Align(getOperationNumber(orgParams), 32);
-    runInfo.gws1 = 1;
-    runInfo.gws2 = 1;
-
-    runInfo.lws0 = 32;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    DispatchData dispatchData;
+    dispatchData.gws = { Align(getOperationNumber(orgParams), 32), sort_size, 1 };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
 
@@ -93,7 +99,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     if (orgParams.outputs_num == 2) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});

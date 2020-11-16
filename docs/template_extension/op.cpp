@@ -36,3 +36,52 @@ bool Operation::visit_attributes(ngraph::AttributeVisitor &visitor) {
     return true;
 }
 //! [op:visit_attributes]
+
+//! [op:evaluate]
+namespace
+{
+
+template <class T>
+void implementation(const T* input,
+                    T* output,
+                    int64_t add,
+                    size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        output[i] = input[i] + add;
+    }
+}
+
+template <ngraph::element::Type_t ET>
+bool evaluate_op(const ngraph::HostTensorPtr& arg0,
+                 const ngraph::HostTensorPtr& out, int64_t add)
+{
+    size_t size = ngraph::shape_size(arg0->get_shape());
+    implementation(arg0->get_data_ptr<ET>(),
+                   out->get_data_ptr<ET>(),
+                   add,
+                   size);
+    return true;
+}
+
+}  // namespace
+
+bool Operation::evaluate(const ngraph::HostTensorVector& outputs,
+                         const ngraph::HostTensorVector& inputs) const {
+    switch (inputs[0]->get_element_type())
+    {
+    case ngraph::element::Type_t::i8: return evaluate_op<ngraph::element::Type_t::i8>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::i16: return evaluate_op<ngraph::element::Type_t::i16>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::i32: return evaluate_op<ngraph::element::Type_t::i32>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::i64: return evaluate_op<ngraph::element::Type_t::i64>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::u8: return evaluate_op<ngraph::element::Type_t::u8>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::u16: return evaluate_op<ngraph::element::Type_t::u16>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::u32: return evaluate_op<ngraph::element::Type_t::u32>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::u64: return evaluate_op<ngraph::element::Type_t::u8>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::bf16: return evaluate_op<ngraph::element::Type_t::bf16>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::f16: return evaluate_op<ngraph::element::Type_t::f16>(inputs[0], outputs[0], getAddAttr());
+    case ngraph::element::Type_t::f32: return evaluate_op<ngraph::element::Type_t::f32>(inputs[0], outputs[0], getAddAttr());
+    default: break;
+    }
+    return false;
+}
+//! [op:evaluate]

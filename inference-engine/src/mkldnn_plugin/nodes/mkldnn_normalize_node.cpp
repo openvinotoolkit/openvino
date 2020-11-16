@@ -3,8 +3,7 @@
 //
 
 #include "mkldnn_quantize_node.h"
-#include "mkldnn_depthwise_node.h"
-#include "mkldnn_activation_node.h"
+#include "mkldnn_eltwise_node.h"
 #include <mkldnn_extension_utils.h>
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
@@ -633,9 +632,15 @@ private:
         for (int i = 0; i < p.len_; i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
+                if (eltwise_injectors.size() <= eltwise_inj_idx
+                        || eltwise_injectors[eltwise_inj_idx] == nullptr)
+                    assert(!"Invalid eltwise injectors.");
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
+                if (depthwise_injectors.size() <= depthwise_inj_idx
+                        || depthwise_injectors[depthwise_inj_idx] == nullptr)
+                    assert(!"Invalid depthwise injectors.");
                 mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
                 mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
                 add(reg_d_weights, reg_oc_off);
@@ -644,6 +649,9 @@ private:
                 depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
+                if (quantization_injectors.size() <= quantization_inj_idx
+                        || quantization_injectors[quantization_inj_idx] == nullptr)
+                    assert(!"Invalid quantization injectors.");
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
 
@@ -799,70 +807,9 @@ void MKLDNNNormalizeNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeig
             continue;
         }
 
-        auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
-        if (depthwiseNode) {
-            if (initWeights) {
-                auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
-                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(getParentEdgeAt(0)->getDims()[1], 16))});
-
-                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
-                PostOpsIntBlobMemory[blob_idx]->FillZero();
-
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
-                                                        depthwiseLayer->_weights->buffer(),
-                                                        depthwiseLayer->_weights->size() *
-                                                        MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                if (depthwiseNode->isBroadcast()) {
-                    float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
-                    for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                        static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
-                    }
-                }
-
-                if (depthwiseNode->getAlgorithm() == depthwise_scale_shift) {
-                    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
-                                                               memory::format::x);
-                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
-                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
-                                                                depthwiseLayer->_biases->buffer(),
-                                                                depthwiseLayer->_biases->size() *
-                                                                MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                    if (depthwiseNode->isBroadcast()) {
-                        float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
-                        for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                            static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
-                        }
-                    }
-
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
-
-                    blob_idx += 2;
-                } else {
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         nullptr);
-
-                    blob_idx += 1;
-                }
-            } else {
-                ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                     nullptr,
-                                     nullptr);
-            }
-
-            continue;
-        }
-
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-        if (activationNode) {
-            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(), activationNode->getBeta());
-
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode) {
+            eltwiseNode->appendPostOps(ops);
             continue;
         }
 

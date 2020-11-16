@@ -29,22 +29,22 @@ TEST(type_prop, split)
 
     try
     {
-        const std::vector<size_t> splits = {1, 6}; // should sum up to 6
         const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-        const auto split = make_shared<op::Split>(data, axis, splits);
+        const auto split = make_shared<op::v1::Split>(data, axis, 7);
         FAIL() << "Split node was created with incorrect data.";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("has to be equal to the sum of splits passed to the op: 7"));
+            error.what(),
+            std::string("The input tensor's dimension pointed by the 'axis' parameter: 6 has to be "
+                        "a multiple of the 'num_splits' attribute value: 7"));
     }
 
     try
     {
-        const std::vector<size_t> splits = {4, 2};
         const auto axis = op::Constant::create(element::i64, Shape{}, {-5});
-        const auto split = make_shared<op::Split>(data, axis, splits); // invalid axis
+        const auto split = make_shared<op::v1::Split>(data, axis, 4); // invalid axis
         FAIL() << "Split node was created with incorrect data.";
     }
     catch (const ngraph_error& error)
@@ -53,7 +53,7 @@ TEST(type_prop, split)
     }
 
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    const auto split = make_shared<op::Split>(data, axis, 2);
+    const auto split = make_shared<op::v1::Split>(data, axis, 2);
     EXPECT_EQ(split->outputs().size(), 2);
     EXPECT_EQ(split->get_output_shape(0), (Shape{2, 3}));
     EXPECT_EQ(split->get_output_shape(1), (Shape{2, 3}));
@@ -64,17 +64,17 @@ TEST(type_prop, split)
 TEST(type_prop, split_axis_must_be_scalar)
 {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    const std::vector<size_t> splits = {1, 6};
     const auto axis = op::Constant::create(element::i64, Shape{2}, {0, 1});
 
     try
     {
-        const auto split = make_shared<op::Split>(data, axis, splits);
+        const auto split = make_shared<op::v1::Split>(data, axis, 1);
         FAIL() << "Incorrect axis of Split not detected.";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("The 'axis' input node must be scalar"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("The 'axis' input is expected to be a scalar"));
     }
     catch (...)
     {
@@ -82,23 +82,134 @@ TEST(type_prop, split_axis_must_be_scalar)
     }
 }
 
-TEST(type_prop, split_axis_must_be_constant)
+TEST(type_prop, split_v1)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    const std::vector<size_t> splits = {1, 6};
-    const auto axis = make_shared<op::Parameter>(element::i32, Shape{});
+    const auto data = make_shared<op::Parameter>(element::f16, Shape{2, 3, 4});
+    const auto axis = op::Constant::create(element::i64, {}, {1});
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
-    try
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
     {
-        const auto split = make_shared<op::Split>(data, axis, splits);
-        FAIL() << "Not constant axis of Split not detected.";
+        EXPECT_EQ(split->get_output_element_type(i), element::f16);
+        EXPECT_EQ(split->get_output_shape(i), (Shape{2, 1, 4}));
     }
-    catch (const NodeValidationFailure& error)
+}
+
+TEST(type_prop, split_v1_axis_const_data_axis_dim_known)
+{
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{2, 3, Dimension::dynamic()});
+    const auto axis = op::Constant::create(element::i32, {}, {1});
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("The 'axis' input node must be constant"));
+        EXPECT_EQ(split->get_output_partial_shape(i), (PartialShape{2, 1, Dimension::dynamic()}));
     }
-    catch (...)
+}
+
+TEST(type_prop, split_v1_axis_const_only_data_axis_dim_known)
+{
+    const auto data = make_shared<op::Parameter>(
+        element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
+    const auto axis = op::Constant::create(element::i16, {}, {0});
+    const size_t num_splits = 2;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
     {
-        FAIL() << "Deduced type check failed for unexpected reason.";
+        EXPECT_EQ(split->get_output_partial_shape(i),
+                  (PartialShape{1, Dimension::dynamic(), Dimension::dynamic()}));
+    }
+}
+
+TEST(type_prop, split_v1_axis_const_data_axis_dim_unknown)
+{
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension::dynamic(), 3, 5});
+    const auto axis = op::Constant::create(element::i8, {}, {1});
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(split->get_output_partial_shape(i),
+                  (PartialShape{4, Dimension::dynamic(), 3, 5}));
+    }
+}
+
+TEST(type_prop, split_v1_axis_const_only_data_rank_known)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto axis = op::Constant::create(element::u64, {}, {1});
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic(4));
+    }
+}
+
+TEST(type_prop, split_v1_axis_not_const_only_data_rank_known)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto axis = make_shared<op::Parameter>(element::u32, PartialShape{});
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic(4));
+    }
+}
+
+TEST(type_prop, split_v1_axis_const_data_rank_unknown)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = op::Constant::create(element::u16, {}, {2});
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic());
+    }
+}
+
+TEST(type_prop, split_v1_axis_not_const_data_rank_unknown)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = make_shared<op::Parameter>(element::u8, PartialShape{});
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic());
+    }
+}
+
+TEST(type_prop, split_v1_axis_dynamic_rank)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = make_shared<op::Parameter>(element::u8, PartialShape::dynamic());
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic());
     }
 }

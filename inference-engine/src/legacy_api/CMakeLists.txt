@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "inference_engine_legacy")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
 
@@ -30,13 +26,18 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
+ie_faster_build(${TARGET_NAME}_obj
+    PCH PRIVATE "src/precomp.hpp"
+)
+
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
-    ${PUBLIC_HEADERS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${IE_MAIN_SOURCE_DIR}/src/inference_engine                                          # For CNNNetworkNGraphImpl
+    ${PUBLIC_HEADERS_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${IE_MAIN_SOURCE_DIR}/src/inference_engine # For CNNNetworkNGraphImpl
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
@@ -44,22 +45,27 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 
 # Create shared library
 
-file(TOUCH ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
+add_library(${TARGET_NAME} SHARED $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-add_library(${TARGET_NAME} SHARED
-            # according to https://cmake.org/cmake/help/latest/command/add_library.html#id4
-            # Some native build systems (such as Xcode) may not like targets that have only
-            # object files, so consider adding at least one real source file to any target that
-            # references $<TARGET_OBJECTS:objlib>.
-            ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>
-            $<TARGET_OBJECTS:inference_engine_common_obj>)
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Legacy library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES} inference_engine_transformations pugixml openvino::itt)
+target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
+                                     PRIVATE pugixml openvino::itt
+                                             ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} EXCLUDE_PATTERNS ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
+target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
+
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+# LTO
+
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # export targets
 

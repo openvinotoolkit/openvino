@@ -2,10 +2,29 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+cmake_minimum_required(VERSION 3.13)
+
+# Detect target
+include(target_flags)
+
+string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
+if(X86_64)
+    set(ARCH_FOLDER intel64)
+elseif(X86)
+    set(ARCH_FOLDER ia32)
+elseif(MSVC AND ARM)
+    set(ARCH_FOLDER arm)
+elseif(MSVC AND AARCH64)
+    set(ARCH_FOLDER arm64)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download"
-        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile"
-        )
+        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile")
+
+#
+# CPack
+#
 
 include(CPackComponent)
 unset(IE_CPACK_COMPONENTS_ALL CACHE)
@@ -31,21 +50,14 @@ endif()
 # Set library directory for cpack
 #
 function(ie_cpack_set_library_dir)
-    string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
-    if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
-        set(ARCH intel64)
-    elseif(ARCH STREQUAL "i386")
-        set(ARCH ia32)
-    endif()
-
     if(WIN32)
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/bin/${ARCH}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/bin/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
     else()
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -107,35 +119,27 @@ function(set_temp_directory temp_variable source_tree_dir)
     endif()
 endfunction()
 
+#
+# Common scripts
+#
+
 include(coverage/coverage)
+include(shellcheck/shellcheck)
 
 # External dependencies
 find_package(Threads)
 
-# Detect target
-include(target_flags)
-
 # printing debug messages
 include(debug)
 
-# linking libraries without discarding symbols
-include(whole_archive)
-
-string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
-if(X86_64)
-    set(ARCH_FOLDER intel64)
-elseif(X86)
-    set(ARCH_FOLDER ia32)
-endif()
-
 if(OS_FOLDER)
-	message ("**** OS FOLDER IS: [${OS_FOLDER}]")
-	if("${OS_FOLDER}" STREQUAL "ON")
-		message ("**** USING OS FOLDER: [${CMAKE_SYSTEM_NAME}]")
-		set(BIN_FOLDER "bin/${CMAKE_SYSTEM_NAME}/${ARCH_FOLDER}")
-	else()
-		set(BIN_FOLDER "bin/${OS_FOLDER}/${ARCH_FOLDER}")
-	endif()
+    message ("**** OS FOLDER IS: [${OS_FOLDER}]")
+    if("${OS_FOLDER}" STREQUAL "ON")
+        message ("**** USING OS FOLDER: [${CMAKE_SYSTEM_NAME}]")
+        set(BIN_FOLDER "bin/${CMAKE_SYSTEM_NAME}/${ARCH_FOLDER}")
+    else()
+        set(BIN_FOLDER "bin/${OS_FOLDER}/${ARCH_FOLDER}")
+    endif()
 else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
@@ -213,10 +217,29 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
 
+# LTO
+
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+include(CheckIPOSupported)
+
+check_ipo_supported(RESULT IPO_SUPPORTED
+                    OUTPUT OUTPUT_MESSAGE
+                    LANGUAGES C CXX)
+
+if(NOT IPO_SUPPORTED)
+    set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optmization" FORCE)
+    message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
+endif()
+
+# General flags
+
 include(sdl)
 include(os_flags)
 include(sanitizer)
 include(cross_compiled_func)
+include(faster_build)
+include(whole_archive)
+include(api_validator/api_validator)
 
 function(set_ci_build_number)
     set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_SOURCE_DIR}")
@@ -224,3 +247,5 @@ function(set_ci_build_number)
     set(CI_BUILD_NUMBER "${CI_BUILD_NUMBER}" PARENT_SCOPE)
 endfunction()
 set_ci_build_number()
+
+include(vs_version/vs_version)

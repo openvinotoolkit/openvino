@@ -31,6 +31,10 @@ NGRAPH_PYTHON_DEBUG = os.environ.get("NGRAPH_PYTHON_DEBUG")
 # Change current working dircectory to ngraph/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
+debug_optimization_flags = [
+    "O1", "O2", "O3", "O4", "Ofast", "Os", "Oz", "Og", "O", "DNDEBUG"
+]
+
 
 def find_ngraph_dist_dir():
     """Return location of compiled ngraph library home."""
@@ -100,6 +104,19 @@ if len([fn for fn in os.listdir(NGRAPH_CPP_LIBRARY_DIR) if re.search("onnx_impor
     ONNX_IMPORTER_CPP_LIBRARY_NAME = "onnx_importerd"
 
 
+def _remove_compiler_flags(obj):
+    """Make pybind11 more verbose in debug builds."""
+    for flag in debug_optimization_flags:
+        try:
+            if sys.platform == "win32":
+                obj.compiler.compile_options.remove("/{}".format(flag))
+            else:
+                obj.compiler.compiler_so.remove("-{}".format(flag))
+                obj.compiler.compiler.remove("-{}".format(flag))
+        except (AttributeError, ValueError):
+            pass
+
+
 def parallelCCompile(
     self,
     sources,
@@ -123,15 +140,6 @@ def parallelCCompile(
     )
     cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
 
-    if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-        try:
-            # pybind11 is much more verbose without -DNDEBUG
-            self.compiler.remove("-DNDEBUG")
-            self.compiler.remove("-O2")
-            self.compiler_so.remove("-DNDEBUG")
-            self.compiler_so.remove("-O2")
-        except (AttributeError, ValueError):
-            pass
     # parallel code
     import multiprocessing.pool
 
@@ -221,6 +229,7 @@ packages = [
     "ngraph.opset2",
     "ngraph.opset3",
     "ngraph.opset4",
+    "ngraph.opset5",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",
@@ -248,14 +257,6 @@ data_files = [
             if os.path.isfile(os.path.join(NGRAPH_CPP_LIBRARY_DIR, library))
         ],
     ),
-    (
-        "licenses",
-        [
-            os.path.join(NGRAPH_CPP_DIST_DIR, "licenses", license)
-            for license in os.listdir(os.path.join(NGRAPH_CPP_DIST_DIR, "licenses"))
-        ],
-    ),
-    ("", [os.path.join(NGRAPH_CPP_DIST_DIR, "LICENSE")],),
 ]
 
 ext_modules = [
@@ -329,16 +330,14 @@ class BuildExt(build_ext):
         try:
             # -Wstrict-prototypes is not a valid option for c++
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
-            if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-                # pybind11 is much more verbose without -DNDEBUG
-                self.compiler.compiler_so.remove("-DNDEBUG")
-                self.compiler.compiler_so.remove("-O2")
+
         except (AttributeError, ValueError):
             pass
 
     def build_extensions(self):
         """Build extension providing extra compiler flags."""
         self._customize_compiler_flags()
+
         for ext in self.extensions:
             ext.extra_compile_args += [cpp_flag(self.compiler)]
 
@@ -353,6 +352,9 @@ class BuildExt(build_ext):
 
             if sys.platform == "darwin":
                 ext.extra_compile_args += ["-stdlib=libc++"]
+
+        if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
+            _remove_compiler_flags(self)
 
         build_ext.build_extensions(self)
 

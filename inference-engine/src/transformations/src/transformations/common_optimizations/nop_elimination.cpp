@@ -45,14 +45,6 @@ static bool eliminate_nop(const std::shared_ptr<Node>& node) {
     return false;
 }
 
-static bool eliminate_sum(const std::shared_ptr<Node>& node) {
-    auto sum = as_type_ptr<op::v0::Sum>(node);
-    if (sum->get_reduction_axes().empty()) {
-        return replace_output_update_name(node->output(0), node->input_value(0));
-    }
-    return false;
-}
-
 static bool eliminate_convert(const std::shared_ptr<Node>& node) {
     bool is_out_type_agnostic = false;
     static const std::set<NodeTypeInfo> type_agnostic{TI(opset3::NonZero)};
@@ -165,7 +157,7 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
 static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
                                                const PartialShape& out_shape) {
     std::vector<int64_t> axes;
-    size_t i = 0;
+    int64_t i = 0;
     for (auto o = 0; o < out_shape.rank().get_length(); o++) {
         if (i < data_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[o])) {
             i += 1;
@@ -181,7 +173,7 @@ static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
 static std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape,
                                              const PartialShape& out_shape) {
     std::vector<int64_t> axes;
-    size_t out_i = 0;
+    int64_t out_i = 0;
     for (auto i = 0; i < data_shape.rank().get_length(); i++) {
         if (out_i < out_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[out_i])) {
             out_i += 1;
@@ -332,32 +324,31 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
     return false;
 }
 
-static bool eliminate_stop_gradient(const std::shared_ptr<Node>& node) {
-    replace_output_update_name(node->output(0), node->input_value(0));
-    return true;
-}
+NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
 
 bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
     static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
         dispatcher{{TI(opset3::Pad), &eliminate_nop},
-                   {TI(op::v0::Sum), &eliminate_sum},
                    {TI(opset3::Convert), &eliminate_convert},
-                   {TI(op::v0::Slice), &eliminate_nop},
-                   {TI(op::v0::StopGradient), &eliminate_stop_gradient},
+                   {TI(op::v1::StridedSlice), &eliminate_nop},
                    {TI(opset3::Reshape), &eliminate_reshape_v1},
                    {TI(opset3::Concat), &eliminate_concat},
                    {TI(opset3::Squeeze), &eliminate_squeeze},
-                   {TI(opset3::Unsqueeze), &eliminate_unsqueeze},
-                   {TI(op::v0::Broadcast), &eliminate_nop}};
+                   {TI(op::v1::Broadcast), &eliminate_nop},
+                   {TI(opset3::Unsqueeze), &eliminate_unsqueeze}};
 
     bool clobbered = false;
 
-    for (const auto& n : function->get_ops()) {
-        // Work around a warning [-Wpotentially-evaluated-expression]
-        const Node& node = *n;
-        auto handler = dispatcher.find(node.get_type_info());
+    for (const auto& node : function->get_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                clobbered |= run_on_function(sub_graph);
+            }
+        }
+        auto handler = dispatcher.find(node->get_type_info());
         if (handler != dispatcher.end()) {
-            clobbered = handler->second(n) || clobbered;
+            clobbered |= handler->second(node);
         }
     }
 

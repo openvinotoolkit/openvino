@@ -117,7 +117,6 @@ gpu_toolkit::gpu_toolkit(const device_impl& device_impl, const configuration& co
                    << "    profiling: " << std::boolalpha << _configuration.enable_profiling << "\n"
                    << "    meaningful names: " << std::boolalpha << _configuration.meaningful_kernels_names << "\n"
                    << "    dump custom program: " << std::boolalpha << _configuration.dump_custom_program << "\n"
-                   << "    device type: " << std::to_string(device_info.dev_type) << "\n"
                    << "    vendor type: " << std::hex << std::setfill('0') << std::setw(4) << std::right
                    << std::to_string(device_info.vendor_id) << "\n"
                    << std::dec << std::setfill(' ') << std::right
@@ -230,9 +229,10 @@ void gpu_toolkit::release_pending_memory(uint32_t queue_id) { get_command_queue(
 
 void gpu_toolkit::wait_for_events(std::vector<event_impl::ptr> const& events) {
     std::vector<cl::Event> clevents;
-    for (auto& ev : events)
-        if (auto ocl_ev = dynamic_cast<base_event*>(ev.get()))
-            clevents.push_back(ocl_ev->get());
+    for (auto& ev : events) {
+        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get()))
+            clevents.push_back(ocl_base_ev->get());
+    }
 
     try {
         cl::WaitForEvents(clevents);

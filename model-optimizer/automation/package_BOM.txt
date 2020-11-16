@@ -19,6 +19,7 @@ extensions/back/CropToStridedSlice.py
 extensions/back/CutMemory.py
 extensions/back/disable_unsupported_ND_operations.py
 extensions/back/EnableConstantStridedSlice.py
+extensions/back/FakeOutputResolver.py
 extensions/back/ForceStrictPrecision.py
 extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
@@ -27,6 +28,7 @@ extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/insert_compatibility_l2normalization.py
 extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
+extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LRNToNorm.py
 extensions/back/MatMulNormalizer.py
@@ -120,13 +122,13 @@ extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
-extensions/front/FakeOutputResolver.py
 extensions/front/FillToBroadcast.py
 extensions/front/flatten_to_reshape.py
 extensions/front/freeze_placeholder_value.py
 extensions/front/GeLUMerger_Erf.py
 extensions/front/GeLUMerger_Tanh.py
 extensions/front/global_pooling_to_reduce.py
+extensions/front/HSigmoid_fusion.py
 extensions/front/HSwish_fusion.py
 extensions/front/image_scaler.py
 extensions/front/input_cut.py
@@ -145,11 +147,11 @@ extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
 extensions/front/kaldi/set_ports.py
 extensions/front/kaldi/sigmoid_ext.py
-extensions/front/kaldi/split_memoryoffsets.py
+extensions/front/kaldi/split_recurrent_memoryoffset.py
 extensions/front/kaldi/tanh_component_ext.py
+extensions/front/kaldi/tdnn_component_replacer.py
 extensions/front/LayerNorm.py
 extensions/front/Log1p.py
-extensions/front/LogSoftmax.py
 extensions/front/MatMul_normalizer.py
 extensions/front/Mish_fusion.py
 extensions/front/MoveEmbeddedInputsToInputs.py
@@ -229,6 +231,7 @@ extensions/front/mxnet/where_ext.py
 extensions/front/mxnet/yolo_v3_mobilenet1_voc.json
 extensions/front/mxnet/zeros_ext.py
 extensions/front/no_op_eraser.py
+extensions/front/non_max_suppression_normalize.py
 extensions/front/OneHotDepthNormalizer.py
 extensions/front/onnx/__init__.py
 extensions/front/onnx/activation_ext.py
@@ -257,6 +260,7 @@ extensions/front/onnx/expand_ext.py
 extensions/front/onnx/flatten_ext.py
 extensions/front/onnx/flattenONNX_to_reshape.py
 extensions/front/onnx/gather_ext.py
+extensions/front/onnx/gathernd_ext.py
 extensions/front/onnx/gemm_ext.py
 extensions/front/onnx/group_norm_ext.py
 extensions/front/onnx/gru_ext.py
@@ -264,6 +268,8 @@ extensions/front/onnx/hard_sigmoid_ext.py
 extensions/front/onnx/image_scaler_ext.py
 extensions/front/onnx/instance_normalization_ext.py
 extensions/front/onnx/logsoftmaxONNX_to_logsoftmax.py
+extensions/front/onnx/loop_ext.py
+extensions/front/onnx/LoopNormalize.py
 extensions/front/onnx/lp_normalization_ext.py
 extensions/front/onnx/lrn_ext.py
 extensions/front/onnx/lstm_ext.py
@@ -272,7 +278,6 @@ extensions/front/onnx/mask_rcnn_conversion.py
 extensions/front/onnx/matmul_ext.py
 extensions/front/onnx/mean_variance_normalization_ext.py
 extensions/front/onnx/non_max_suppression_ext.py
-extensions/front/onnx/non_max_suppression_normalize.py
 extensions/front/onnx/non_zero_ext.py
 extensions/front/onnx/normalize_ext.py
 extensions/front/onnx/normalize_l2_normalize.py
@@ -339,6 +344,8 @@ extensions/front/tf/__init__.py
 extensions/front/tf/activation_ext.py
 extensions/front/tf/argmax_ext.py
 extensions/front/tf/assign_elimination.py
+extensions/front/tf/automl_efficientdet.json
+extensions/front/tf/AutomlEfficientDet.py
 extensions/front/tf/basic_lstm_cell.py
 extensions/front/tf/batch_to_space_ext.py
 extensions/front/tf/BatchMatMul_ext.py
@@ -381,12 +388,15 @@ extensions/front/tf/FlattenToReshape.py
 extensions/front/tf/floor_div_decomposition.py
 extensions/front/tf/floor_ext.py
 extensions/front/tf/gather_ext.py
+extensions/front/tf/gathernd_ext.py
 extensions/front/tf/GatherTree_ext.py
 extensions/front/tf/GNMT_DynamicSequenceLengths.py
 extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
+extensions/front/tf/log_softmax_ext.py
+extensions/front/tf/LookupTableInsert_ext.py
 extensions/front/tf/LoopCond_ext.py
 extensions/front/tf/lrn_ext.py
 extensions/front/tf/mask_rcnn_support.json
@@ -471,6 +481,7 @@ extensions/front/tf/yolo_v2_voc.json
 extensions/front/tf/yolo_v3.json
 extensions/front/tf/yolo_v3_tiny.json
 extensions/front/tf/yolo_v3_voc.json
+extensions/front/ThresholdedReluDecomposition.py
 extensions/front/TopKNormalize.py
 extensions/front/transformations_config.py
 extensions/front/TransposeOrderNormalizer.py
@@ -515,7 +526,6 @@ extensions/middle/DeleteControlFlowEdges.py
 extensions/middle/DeleteNotExecutable.py
 extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
-extensions/middle/EltwiseInputNormalization.py
 extensions/middle/EltwiseInputReshape.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
@@ -538,6 +548,7 @@ extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
 extensions/middle/MXTileReplacer.py
+extensions/middle/ONNXResize11ToInterpolateV4.py
 extensions/middle/ONNXRNNSequenceNormalize.py
 extensions/middle/PartialInfer.py
 extensions/middle/pass_separator.py
@@ -566,6 +577,7 @@ extensions/middle/SharedWeightsDuplication.py
 extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/sparse_reshape.py
+extensions/middle/split_tdnn_memoryoffset.py
 extensions/middle/SplitConcatPairToInterpolate.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
@@ -581,7 +593,6 @@ extensions/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
 extensions/middle/UselessSplitEraser.py
-extensions/middle/wights_permute_normalizer.py
 extensions/ops/__init__.py
 extensions/ops/accum.py
 extensions/ops/activation_ops.py
@@ -615,7 +626,7 @@ extensions/ops/ExtractImagePatches.py
 extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
-extensions/ops/GatherNd.py
+extensions/ops/gathernd.py
 extensions/ops/GatherTree.py
 extensions/ops/gelu.py
 extensions/ops/grn.py
@@ -626,6 +637,8 @@ extensions/ops/identity.py
 extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
+extensions/ops/LookupTableInsert.py
+extensions/ops/loop.py
 extensions/ops/LSTM.py
 extensions/ops/lstm_cell.py
 extensions/ops/lstm_sequence.py
@@ -640,6 +653,7 @@ extensions/ops/non_zero.py
 extensions/ops/normalize.py
 extensions/ops/normalize_l2.py
 extensions/ops/one_hot.py
+extensions/ops/ONNXResize11.py
 extensions/ops/pack.py
 extensions/ops/parameter.py
 extensions/ops/pnorm.py
@@ -780,17 +794,20 @@ mo/front/kaldi/extractors/batchnorm_component_ext.py
 mo/front/kaldi/extractors/bias_component_ext.py
 mo/front/kaldi/extractors/clip_ext.py
 mo/front/kaldi/extractors/concat_ext.py
+mo/front/kaldi/extractors/const_ext.py
 mo/front/kaldi/extractors/convolutional_1d_component_ext.py
 mo/front/kaldi/extractors/convolutional_component_ext.py
 mo/front/kaldi/extractors/copy_ext.py
 mo/front/kaldi/extractors/crop_ext.py
 mo/front/kaldi/extractors/elementwise_component_ext.py
 mo/front/kaldi/extractors/fixed_affine_component_ext.py
+mo/front/kaldi/extractors/generaldropout_ext.py
 mo/front/kaldi/extractors/linear_component_ext.py
 mo/front/kaldi/extractors/lstm_nonlinearity_ext.py
 mo/front/kaldi/extractors/lstm_projected_streams_ext.py
 mo/front/kaldi/extractors/max_pooling_ext.py
 mo/front/kaldi/extractors/memoryoffset_ext.py
+mo/front/kaldi/extractors/mul_ext.py
 mo/front/kaldi/extractors/naturalgradient_affine_component_ext.py
 mo/front/kaldi/extractors/noop_ext.py
 mo/front/kaldi/extractors/normalize_component_ext.py
@@ -799,7 +816,9 @@ mo/front/kaldi/extractors/rectified_linear_component_ext.py
 mo/front/kaldi/extractors/rescale_ext.py
 mo/front/kaldi/extractors/scale_component_ext.py
 mo/front/kaldi/extractors/softmax_ext.py
+mo/front/kaldi/extractors/specaugment_component_ext.py
 mo/front/kaldi/extractors/splice_component_ext.py
+mo/front/kaldi/extractors/tdnncomponent_ext.py
 mo/front/kaldi/loader/__init__.py
 mo/front/kaldi/loader/loader.py
 mo/front/kaldi/loader/utils.py
@@ -871,8 +890,6 @@ mo/middle/passes/fusing/helpers.py
 mo/middle/passes/fusing/mark_unfused_nodes.py
 mo/middle/passes/fusing/resnet_optimization.py
 mo/middle/passes/infer.py
-mo/middle/passes/leaky_relu.py
-mo/middle/passes/mean_scale_values.py
 mo/middle/passes/tensor_names.py
 mo/middle/pattern_match.py
 mo/middle/replacement.py
@@ -895,6 +912,7 @@ mo/ops/expand_dims.py
 mo/ops/fill.py
 mo/ops/flatten.py
 mo/ops/group_norm.py
+mo/ops/log_softmax.py
 mo/ops/lrn.py
 mo/ops/lstmnonlinearity.py
 mo/ops/memory.py
@@ -915,6 +933,7 @@ mo/ops/softmax.py
 mo/ops/space_to_batch.py
 mo/ops/squeeze.py
 mo/ops/strided_slice.py
+mo/ops/tdnncomponent.py
 mo/ops/tile.py
 mo/ops/unsqueeze.py
 mo/pipeline/__init__.py
@@ -948,6 +967,7 @@ mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
+mo/utils/ir_reader/extenders/loop_extender.py
 mo/utils/ir_reader/extenders/LSTMCell_extender.py
 mo/utils/ir_reader/extenders/non_max_suppression_extender.py
 mo/utils/ir_reader/extenders/non_zero_extender.py

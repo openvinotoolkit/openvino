@@ -46,11 +46,6 @@ namespace ngraph
                 return result;
             }
 
-            static std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto)
-            {
-                return (node_proto.domain().empty() ? "" : node_proto.domain());
-            }
-
             /// \brief      Gets the operator represented by provided node unique identificator.
             ///
             /// \param[in]  node_proto  The node protobuf representation object.
@@ -92,6 +87,11 @@ namespace ngraph
                     try
                     {
                         ng_constant = tensor.get_ng_constant();
+                    }
+                    catch (const error::invalid_external_data&)
+                    {
+                        // invalid external data makes initializers creation impossible
+                        throw;
                     }
                     catch (const ngraph::ngraph_error& exc)
                     {
@@ -142,7 +142,7 @@ namespace ngraph
                                               node_proto);
                     // If a node from an unregistered domain is detected, try registering that
                     // domain
-                    m_model->enable_opset_domain(detail::get_node_domain(node_proto));
+                    m_model->enable_opset_domain(get_node_domain(node_proto));
                 }
             }
 
@@ -294,6 +294,11 @@ namespace ngraph
                 as_node_vector(ng_node_vector),
                 [&tag](std::shared_ptr<ngraph::Node> ng_node) { ng_node->add_provenance_tag(tag); },
                 as_node_vector(ng_inputs));
+        }
+
+        const OpsetImports& Graph::get_opset_imports() const
+        {
+            return m_model->get_opset_imports();
         }
 
         Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto,

@@ -10,7 +10,7 @@ public class IECore extends IEWrapper {
     }
 
     public IECore(String xmlConfigFile) {
-        super(GetCore_1(xmlConfigFile));
+        super(GetCore1(xmlConfigFile));
     }
 
     public CNNNetwork ReadNetwork(final String modelPath, final String weightPath) {
@@ -25,8 +25,10 @@ public class IECore extends IEWrapper {
         return new ExecutableNetwork(LoadNetwork(nativeObj, net.getNativeObjAddr(), device));
     }
 
-    public ExecutableNetwork LoadNetwork(CNNNetwork net, final String device, final Map<String, String> config) {
-        return new ExecutableNetwork(LoadNetwork1(nativeObj, net.getNativeObjAddr(), device, config));
+    public ExecutableNetwork LoadNetwork(
+            CNNNetwork net, final String device, final Map<String, String> config) {
+        long network = LoadNetwork1(nativeObj, net.getNativeObjAddr(), device, config);
+        return new ExecutableNetwork(network);
     }
 
     public void RegisterPlugin(String pluginName, String deviceName) {
@@ -64,11 +66,13 @@ public class IECore extends IEWrapper {
     /*----------------------------------- native methods -----------------------------------*/
     private static native long ReadNetwork(long core, final String modelFileName);
 
-    private static native long ReadNetwork1(long core, final String modelPath, final String weightPath);
+    private static native long ReadNetwork1(
+            long core, final String modelPath, final String weightPath);
 
     private static native long LoadNetwork(long core, long net, final String device);
 
-    private static native long LoadNetwork1(long core, long net, final String device, final Map<String, String> config);
+    private static native long LoadNetwork1(
+            long core, long net, final String device, final Map<String, String> config);
 
     private static native void RegisterPlugin(long core, String pluginName, String deviceName);
 
@@ -88,7 +92,7 @@ public class IECore extends IEWrapper {
 
     private static native long GetCore();
 
-    private static native long GetCore_1(String xmlConfigFile);
+    private static native long GetCore1(String xmlConfigFile);
 
     @Override
     protected native void delete(long nativeObj);

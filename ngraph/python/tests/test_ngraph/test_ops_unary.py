@@ -19,7 +19,7 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35929, xfail_issue_36483
+from tests import xfail_issue_35929
 
 
 @xfail_issue_35929
@@ -59,7 +59,6 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
     assert np.allclose(result, expected, rtol=0.001)
 
 
-@pytest.mark.skip(reason="Segmentation fault")
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, input_data",
     [
@@ -68,8 +67,8 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
         pytest.param(ng.acos, np.arccos, np.float32(-0.5)),
         pytest.param(ng.asin, np.arcsin, np.float32(-0.5)),
         pytest.param(ng.atan, np.arctan, np.float32(-0.5)),
-        pytest.param(ng.ceiling, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
-        pytest.param(ng.ceil, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
+        pytest.param(ng.ceiling, np.ceil, np.float32(1.5)),
+        pytest.param(ng.ceil, np.ceil, np.float32(1.5)),
         pytest.param(ng.cos, np.cos, np.float32(np.pi / 4.0)),
         pytest.param(ng.cosh, np.cosh, np.float32(np.pi / 4.0)),
         pytest.param(ng.exp, np.exp, np.float32(1.5)),
@@ -139,6 +138,51 @@ def test_hswish():
 
     node = ng.hswish(data)
     assert node.get_type_name() == "HSwish"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 10]
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_round_even():
+    float_dtype = np.float32
+    data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+
+    node = ng.round(data, "HALF_TO_EVEN")
+    assert node.get_type_name() == "Round"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 10]
+    assert node.get_output_element_type(0) == Type.f32
+
+    input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
+    expected = [-2.0, -2.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0, 4.0]
+
+    result = run_op_node([input_tensor], ng.round, "HALF_TO_EVEN")
+    assert np.allclose(result, expected)
+
+
+def test_round_away():
+    float_dtype = np.float32
+    data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+
+    node = ng.round(data, "HALF_AWAY_FROM_ZERO")
+    assert node.get_type_name() == "Round"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 10]
+    assert node.get_output_element_type(0) == Type.f32
+
+    input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
+    expected = [-3.0, -2.0, -1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 4.0]
+
+    result = run_op_node([input_tensor], ng.round, "HALF_AWAY_FROM_ZERO")
+    assert np.allclose(result, expected)
+
+
+def test_hsigmoid():
+    float_dtype = np.float32
+    data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+
+    node = ng.hsigmoid(data)
+    assert node.get_type_name() == "HSigmoid"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32

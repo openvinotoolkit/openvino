@@ -24,15 +24,19 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
@@ -41,8 +45,11 @@
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
 
+#include <low_precision/transformer.hpp>
+#include <low_precision/mat_mul.hpp>
+
 #ifdef __linux__
-#include <dlfcn.h>
+# include <dlfcn.h>
 #endif
 
 using InferenceEngine::DescriptionBuffer;
@@ -71,8 +78,10 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
     return device_info;
 }
 
-InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network) const {
+InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network, CLDNNPlugin::Config config) const {
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    bool baselineIsFP16 = false;
+
     if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
             // Reshape->Permute->Reshape pattern in theory can change output rank, so this check is added to be sure
@@ -88,52 +97,101 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             }
 
             // Reduce node implementation with reduce along features performs better with Reshape->Pooling->Reshape pattern
+            // Reshape->Pooling->Reshape scenario is also more optimal in case when batch > 1 and network precission is FP16
             if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMean>(node)) {
                 auto reduction_axes = redOp->get_reduction_axes().to_vector();
                 bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
-                return !reduce_along_f;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
             }
             if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMax>(node)) {
                 auto reduction_axes = redOp->get_reduction_axes().to_vector();
                 bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
-                return !reduce_along_f;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
             }
             if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceSum>(node)) {
                 auto reduction_axes = redOp->get_reduction_axes().to_vector();
                 bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
-                return !reduce_along_f;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
+            }
+
+            if (auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(node)) {
+                return ngraph::is_type<ngraph::opset1::Convolution>(add_op->get_input_node_shared_ptr(0)) ||
+                       ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
+                       ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
             }
 
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset3::ExtractImagePatches>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset5::HSigmoid>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::HSwish>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL1>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL2>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node);
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset5::LogSoftmax>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-        // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-        manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        bool enableInt8;
+        {
+            // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::InitNodeInfo>();
+            // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+            manager.register_pass<ngraph::pass::ConvertPriorBox>();
+            manager.register_pass<ngraph::pass::CommonOptimizations>();
+            manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+            manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-        manager.set_callback(transformations_callback);
-        manager.run_passes(nGraphFunc);
+            manager.set_callback(transformations_callback);
+            manager.run_passes(nGraphFunc);
 
-        ngraph::pass::Manager ti_manager;
-        // Apply all transformations to TensorIterator body
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-        // Unroll will be called after all conversions
-        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-        ti_manager.run_passes(nGraphFunc);
+            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+            if (enableInt8) {
+                const auto fp16_callback = [&baselineIsFP16](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+                    if (!baselineIsFP16 && node->get_output_element_type(0) == ngraph::element::f16) {
+                        baselineIsFP16 = true;
+                    }
+
+                    return true;
+                };
+
+                ngraph::pass::Manager conversion_manager;
+                // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
+                conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+                conversion_manager.set_callback(fp16_callback);
+                conversion_manager.run_passes(nGraphFunc);
+            }
+        }
+
+        using namespace ngraph::pass::low_precision;
+        if (enableInt8) {
+            auto params = LayerTransformation::Params(
+                true,  // updatePrecisions
+                LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+                LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+                true);  // supportAsymmetricQuantization
+            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
+                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
+
+            transformer.transform(nGraphFunc);
+        }
+
+        {
+            ngraph::pass::Manager manager = ngraph::pass::Manager();
+            manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+            manager.set_callback(transformations_callback);
+            manager.run_passes(nGraphFunc);
+        }
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }
@@ -143,6 +201,17 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
+    }
+
+    if (baselineIsFP16) {
+        // [WA part1] Store 'lpt_back_to_fp16' flag to convert FP32 operations to original FP16 after LPT
+        InputsDataMap inputsMap;
+        clonedNetwork->getInputsInfo(inputsMap);
+
+        if (!inputsMap.empty()) {
+            auto input0 = getInputTo(inputsMap.begin()->second->getInputData());
+            input0.begin()->second->params["lpt_back_to_fp16"];
+        }
     }
 
     return clonedNetwork;
@@ -186,10 +255,15 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     for (auto ii : _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
-        if (input_precision != InferenceEngine::Precision::FP16 && input_precision != InferenceEngine::Precision::I16
-            && input_precision != InferenceEngine::Precision::FP32 && input_precision != InferenceEngine::Precision::U8
-            && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::I64
-            && input_precision != InferenceEngine::Precision::I8 && input_precision != InferenceEngine::Precision::BOOL) {
+        if (input_precision != InferenceEngine::Precision::FP16 &&
+            input_precision != InferenceEngine::Precision::FP32 &&
+            input_precision != InferenceEngine::Precision::U8 &&
+            input_precision != InferenceEngine::Precision::I8 &&
+            input_precision != InferenceEngine::Precision::I16 &&
+            input_precision != InferenceEngine::Precision::U16 &&
+            input_precision != InferenceEngine::Precision::I32 &&
+            input_precision != InferenceEngine::Precision::I64 &&
+            input_precision != InferenceEngine::Precision::BOOL) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                 << "Input image format " << input_precision << " is not supported yet...";
         }
@@ -230,6 +304,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.sources_dumps_dir == current_config.sources_dumps_dir &&
                context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
+               context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
                context_config.device_id == current_config.device_id;
     };
 
@@ -242,7 +317,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     context = m_defaultContext;
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network), context, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network, conf), context, conf);
 }
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
@@ -266,7 +341,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network), casted, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network, conf), casted, conf);
 }
 
 RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
@@ -288,9 +363,9 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     }
 }
 
-RemoteContext::Ptr clDNNEngine::GetDefaultContext() {
+RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
-        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), _impl->m_config));
+        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
     }
     return std::dynamic_pointer_cast<RemoteContext>(m_defaultContext);
 }
@@ -299,10 +374,9 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     _impl->m_config.UpdateFromMap(config);
 }
 
-void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
-                               const std::map<std::string,
-                               std::string>& config,
-                               QueryNetworkResult& res) const {
+QueryNetworkResult clDNNEngine::QueryNetwork(const ICNNNetwork& network,
+                                             const std::map<std::string, std::string>& config) const {
+    QueryNetworkResult res;
     GetDeviceInfo(config);      // Verify device id
     auto function = network.getFunction();
     if (function != nullptr) {
@@ -310,7 +384,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
         for (auto&& node : function->get_ops()) {
             originalOps.emplace(node->get_friendly_name());
         }
-        auto clonedNetwork = CloneAndTransformNetwork(network);
+        auto clonedNetwork = CloneAndTransformNetwork(network, _impl->m_config);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
 
@@ -515,6 +589,8 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
             }
         }
     }
+
+    return res;
 }
 
 Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
@@ -571,7 +647,9 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
             availableDevices.push_back(dev.first);
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, StringRightTrim(device_info.dev_name, "NEO", false));
+        auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
+        deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, deviceName);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto opt : _impl->m_config.key_config_map)

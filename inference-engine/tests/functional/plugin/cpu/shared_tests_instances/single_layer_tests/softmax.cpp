@@ -31,7 +31,10 @@ const std::vector<size_t> axis2D = {
 
 const auto params2D = testing::Combine(
     testing::ValuesIn(netPrecisions),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::ValuesIn(inputLayouts2D),
+    testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes2D),
     testing::ValuesIn(axis2D),
     testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -39,7 +42,7 @@ const auto params2D = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        SoftMax2D,
+        smoke_SoftMax2D,
         SoftMaxLayerTest,
         params2D,
         SoftMaxLayerTest::getTestCaseName
@@ -55,7 +58,10 @@ const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4D = testing::Combine(
     testing::ValuesIn(netPrecisions),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::Values(InferenceEngine::Layout::NCHW),
+    testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes4D),
     testing::ValuesIn(axis4D),
     testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -63,7 +69,7 @@ const auto params4D = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        SoftMax4D,
+        smoke_SoftMax4D,
         SoftMaxLayerTest,
         params4D,
         SoftMaxLayerTest::getTestCaseName
