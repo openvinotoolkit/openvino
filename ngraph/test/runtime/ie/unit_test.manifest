@@ -41,10 +41,6 @@ onnx_model_matmul_integer_4d_no_zero_point
 onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
-# The indices input type i64 is not supported by the CPU plugin
-onnx_model_gatherND_int32
-onnx_model_gatherND_float
-
 # Result mismatch
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
@@ -779,22 +775,6 @@ prelu
 prelu_shared_slope
 prelu_negative_slope
 convolution_simple_padding
-
-# Cannot cast ngraph node GatherND to CNNLayer!
-gather_nd_single_indices
-gather_nd_scalar_from_2d
-gather_nd_1d_from_2d
-gather_nd_scalar_from_3d
-gather_nd_1d_from_3d
-gather_nd_2d_from_3d
-gather_nd_batch_scalar_from_2d
-gather_nd_batch_1d_from_2d
-gather_nd_batch_scalar_from_3d
-gather_nd_batch_1d_from_3d
-gather_nd_batch_2d_from_3d
-gather_nd_batch_dims1
-gather_nd_batch_dims2
-gather_nd_batch_dims2_lead_dims
 
 # Cannot cast ngraph node Stack to CNNLayer!
 stack_matrix_rowise
