@@ -72,28 +72,58 @@ struct CPUStreamsExecutor::Impl {
                     ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1)/_impl->_usedNumaNodes.size()))
                 : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
-            if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
-                _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
-#else
-                _taskArena.reset(new tbb::task_arena{concurrency});
-#endif
-            } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
-                _taskArena.reset(new tbb::task_arena{concurrency});
-                if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
-                    CpuSet processMask;
-                    int    ncpus = 0;
-                    std::tie(processMask, ncpus) = GetProcessMask();
-                    if (nullptr != processMask) {
-                        _observer.reset(new Observer{*_taskArena,
-                                                     std::move(processMask),
-                                                     ncpus,
-                                                     _streamId,
-                                                     _impl->_config._threadsPerStream,
-                                                     _impl->_config._threadBindingStep,
-                                                     _impl->_config._threadBindingOffset});
-                        _observer->observe(true);
+            #if TBB_INTERFACE_VERSION >= 12010// TBB has hybrid CPU aware task_arena api
+            std::vector<oneapi::tbb::core_type_id> core_types = oneapi::tbb::info::core_types();
+            const size_t core_types_size = core_types.size();
+            if (core_types_size > 1) /*Hybrid CPU*/ {
+                if (_impl->_config._streams == 1) {
+                    auto big_cores = core_types.back(); // latency default is runing on Big cores only
+                    // TODO: recognize (and not just assume) HT on Big cores
+                    auto concurrency = oneapi::tbb::info::default_concurrency(big_cores)/2; // latency default not using HT
+                    printf("%s, LATENCY CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
+                        _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, big_cores, concurrency);
+                    _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{big_cores, concurrency}});
+                } else {
+                    size_t threads_needed = _streamId*_impl->_config._threadsPerStream;
+                    for (auto type : core_types) {
+                        auto concurrency = oneapi::tbb::info::default_concurrency(type);
+                        if (threads_needed <= concurrency) {
+                            printf("%s THROUGHPUT CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
+                                _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, type, concurrency);
+                            _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{type, _impl->_config._threadsPerStream} });
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            #endif
+             {
+                auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
+                if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+                    printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
+                    #if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
+                    _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{_numaNodeId, concurrency} });
+                    #else
+                    _taskArena.reset(new tbb::task_arena{ concurrency });
+                    #endif
+                }
+                else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
+                    _taskArena.reset(new tbb::task_arena{ concurrency });
+                    if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
+                        CpuSet processMask;
+                        int    ncpus = 0;
+                        std::tie(processMask, ncpus) = GetProcessMask();
+                        if (nullptr != processMask) {
+                            _observer.reset(new Observer{*_taskArena,
+                                                         std::move(processMask),
+                                                         ncpus,
+                                                         _streamId,
+                                                         _impl->_config._threadsPerStream,
+                                                         _impl->_config._threadBindingStep,
+                                                         _impl->_config._threadBindingOffset});
+                            _observer->observe(true);
+                        }
                     }
                 }
             }
@@ -151,6 +181,7 @@ struct CPUStreamsExecutor::Impl {
         _streams([this] {
             return std::make_shared<Impl::Stream>(this);
         }) {
+        printf("INIT (%s), STREAMS: %d, THREADS_PER_STREAM: %d \n", _config._name.c_str(), _config._streams, _config._threadsPerStream);
         auto numaNodes = getAvailableNUMANodes();
         if (_config._streams != 0) {
             std::copy_n(std::begin(numaNodes),

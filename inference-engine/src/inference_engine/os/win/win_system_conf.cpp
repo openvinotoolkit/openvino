@@ -28,6 +28,7 @@ int getNumberOfCPUCores() {
         offset += reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(ptr.get() + offset)->Size;
         phys_cores++;
     } while (offset < sz);
+    printf("getNumberOfCPUCores: %d \n", phys_cores);
     return phys_cores;
 }
 
