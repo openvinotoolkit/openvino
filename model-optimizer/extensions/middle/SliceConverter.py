@@ -17,6 +17,7 @@
 import numpy as np
 
 from extensions.ops.Cast import Cast
+from extensions.ops.gather import Gather
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -28,17 +29,24 @@ from mo.ops.const import Const
 from mo.ops.strided_slice import StridedSlice
 
 
-def create_ss_interval_border(graph: Graph, shape, axes, port_to_connect: Port, node_name):
-    shape_mask = np.zeros(len(shape), dtype=np.int64)
-    first_part = shape_mask[:axes[0]]
-    last_part = shape_mask[axes[-1] + 1:]
+def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape, axes, node_name):
 
-    cast = Cast(graph, dict(name=node_name + '/CastToI64', dst_type=np.int64)).create_node()
-    port_to_connect.get_connection().set_destination(cast.in_port(0))
-    concat = create_op_with_const_inputs(graph, Concat, port_value_dict={0: first_part, 2: last_part},
-                                         op_attrs={'name': node_name + '/Concat', 'axis': 0,
-                                                   'in_ports_count': 3})
-    cast.out_port(0).connect(concat.in_port(1))
+    concat = Concat(graph, dict(name=node_name + '/Concat', axis=0)).create_node()
+    for value_idx, port_idx in enumerate(axes):
+        concat.add_input_port(port_idx)
+        value = create_op_with_const_inputs(graph, Gather, port_value_dict={1: int64_array([value_idx]),
+                                                                            2: 0},
+                                            op_attrs={'name': node_name + '/Gather'})
+        cast = Cast(graph, dict(name=node_name + '/CastToI64', dst_type=np.int64)).create_node()
+        slice_border_port.connect(value.in_port(0))
+        value.out_port(0).connect(cast.in_port(0))
+        cast.out_port(0).connect(concat.in_port(port_idx))
+    for port_idx in range(len(shape)):
+        if not concat.is_in_port_connected(port_idx):
+            concat.add_input_port(port_idx)
+            const = Const(graph, dict(name=node_name + '/Const', value=int64_array([0]))).create_node()
+            const.out_port(0).connect(concat.in_port(port_idx))
+
     return concat
 
 
@@ -68,8 +76,10 @@ class ConvertSlice(MiddleReplacementPattern):
             else:
                 axes = int64_array(range(len(input_shape)))
 
-            ss_begin = create_ss_interval_border(graph, input_shape, axes, node.in_port(1).get_source(), node_name)
-            ss_end = create_ss_interval_border(graph, input_shape, axes, node.in_port(2).get_source(), node_name)
+            ss_begin = create_ss_interval_border(graph, node.in_port(1).get_source(), input_shape, axes, node_name)
+            ss_end = create_ss_interval_border(graph, node.in_port(2).get_source(), input_shape, axes, node_name)
+            node.in_port(1).disconnect()
+            node.in_port(2).disconnect()
             rename_nodes([(ss_begin, node_name + '/Begin'), (ss_end, node_name + '/End')])
 
             if node.is_in_port_connected(4):
@@ -93,7 +103,7 @@ class ConvertSlice(MiddleReplacementPattern):
                                           shrink_axis_mask=np.zeros(len(input_shape), dtype=np.int64),
                                           ellipsis_mask=np.zeros(len(input_shape), dtype=np.int64),
                                           begin_mask=ss_begin_mask,
-                                          end_mask=ss_end_mask, override_output_shape=True)).create_node()
+                                          end_mask=ss_end_mask)).create_node()
 
             node.in_port(0).get_connection().set_destination(ss.in_port(0))
             ss.in_port(1).connect(ss_begin.out_port(0))
