@@ -142,6 +142,11 @@ DECL_PASS(InsertCopyLayer);
 DECL_PASS(InsertSplitAligningFilter);
 
 /**
+* @brief Pass that changes 4D concat to 2D concat in cases that would have to use ConcatAlignFilter
+*/
+DECL_PASS(Concat4Dto2D);
+
+/**
  * @brief concat-aligning filter layer insertion required in cases when concat inputs size are not 64-aligned
  */
 DECL_PASS(InsertConcatAligningFilter);
