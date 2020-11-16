@@ -256,7 +256,8 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         net = ie.read_network(model=orig_model_name + ".xml", weights=orig_model_name + ".bin")
         net.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
 
-        print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
+        print('\n[ SUCCESS ] Serialize-Read-Serialize')
+        print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
         print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))
 
