@@ -42,8 +42,6 @@ def serialize_constants(graph: Graph, bin_file_name:str, data_type=np.float32):
     bin_hashes = {}
     with open(bin_file_name, 'wb') as bin_file:
         serialize_constants_recursively(graph, bin_file, data_type, bin_hashes)
-    from shutil import copyfile
-    copyfile(bin_file_name, bin_file_name + "2")
 
 
 def update_offset_size_in_const_node(node: Node):
@@ -434,8 +432,6 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
         raise Error('Part of the nodes was not converted to IR. Stopped. ' +
                     refer_to_faq_msg(24))
     with open(file_name, 'wb') as file:
-        file.write(bytes(pretty_xml_as_string, "UTF-8"))
-    with open(file_name + "2", 'wb') as file:
         file.write(bytes(pretty_xml_as_string, "UTF-8"))
 
 

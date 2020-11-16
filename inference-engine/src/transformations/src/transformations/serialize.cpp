@@ -8,6 +8,7 @@
 #include <unordered_set>
 
 #include <ngraph/variant.hpp>
+#include <assert.h>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "pugixml.hpp"

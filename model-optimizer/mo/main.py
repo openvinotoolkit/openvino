@@ -254,7 +254,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         from openvino.inference_engine import IECore
         ie = IECore()
         net = ie.read_network(model=orig_model_name + ".xml", weights=orig_model_name + ".bin")
-        # net.serialize(orig_model_name + "_s.xml", orig_model_name + "_s.bin")
+        net.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
 
         print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
