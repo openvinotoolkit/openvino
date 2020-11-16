@@ -1008,6 +1008,9 @@ class Graph(nx.MultiDiGraph):
         # Add Const op for constant data nodes
         add_constant_operations(self)
 
+    def get_node_by_name(self, node_name):
+        return Node(self, node_name)
+
 
 def fill_graph_with_nodes(graph, src_nodes, get_id: callable, get_attrs: callable):
     """

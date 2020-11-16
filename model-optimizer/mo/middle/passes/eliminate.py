@@ -127,6 +127,10 @@ def mark_const_producer_nodes(graph):
 def eliminate_dead_nodes(graph):
     nodes_to_remove = set()
     for node_name, node_attrs in graph.nodes(data=True):
+        # WA for Const op deletion during clean_up
+        if node_attrs.get('type', None) == 'Const' and node_attrs.get('nchw_layout', False):
+            graph.get_node_by_name(node_name).out_node()['nchw_layout'] = True
+
         if not node_attrs['is_output_reachable'] or \
                 (node_attrs['is_const_producer'] and (not node_attrs['is_undead'] or
                                                       node_attrs.get('force_dead_node', False))):
@@ -154,7 +158,6 @@ def add_constant_operations(graph):
 
 
 def remove_const_ops(graph):
-
     for node in graph.get_op_nodes(type='Const'):
         graph.remove_edge(node.id, node.out_node().id)
         graph.remove_node(node.id)
@@ -252,5 +255,3 @@ def remove_edges_for_nodes(graph, node_attrs: dict, edge_attrs: dict):
                 src_node, edge = nodes_edges[port]
                 if all([attr in edge and edge[attr] == edge_attrs[attr] for attr in edge_attrs]):
                     graph.remove_edge(src_node.id, node.id)
-
-
