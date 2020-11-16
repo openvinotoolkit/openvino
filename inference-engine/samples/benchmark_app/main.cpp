@@ -408,7 +408,6 @@ int main(int argc, char *argv[]) {
                 batchSize = 1;
             }
         }
-        throw std::runtime_error{"the end"};
         // ----------------- 8. Setting optimal runtime parameters -----------------------------------------------------
         next_step();
 
