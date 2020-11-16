@@ -526,7 +526,6 @@ extensions/middle/DeleteControlFlowEdges.py
 extensions/middle/DeleteNotExecutable.py
 extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
-extensions/middle/EltwiseInputNormalization.py
 extensions/middle/EltwiseInputReshape.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
