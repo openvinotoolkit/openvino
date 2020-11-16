@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -151,12 +151,12 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     __attribute__((opencl_unroll_hint))
     for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
         #ifdef SHOULD_USE_DATA_ZP
-            input_x[os] = out_x_shuffle[os] * STRIDE_SIZE_X - INPUT0_PAD_BEFORE_SIZE_X;
-            input_y[os] = out_y_shuffle[os] * STRIDE_SIZE_Y - INPUT0_PAD_BEFORE_SIZE_Y;
+            input_x[os] = out_x_shuffle[os] * STRIDE_SIZE_X - PADDING_SIZE_X;
+            input_y[os] = out_y_shuffle[os] * STRIDE_SIZE_Y - PADDING_SIZE_Y;
             input_idx[os] = INPUT0_GET_INDEX(out_b, feature_offset, input_y[os], input_x[os]);
         #else
-            uint input_x = out_x_shuffle[os] * STRIDE_SIZE_X - INPUT0_PAD_BEFORE_SIZE_X;
-            uint input_y = out_y_shuffle[os] * STRIDE_SIZE_Y - INPUT0_PAD_BEFORE_SIZE_Y;
+            uint input_x = out_x_shuffle[os] * STRIDE_SIZE_X - PADDING_SIZE_X;
+            uint input_y = out_y_shuffle[os] * STRIDE_SIZE_Y - PADDING_SIZE_Y;
             input_idx[os] = INPUT0_GET_INDEX(out_b, feature_offset, input_y, input_x);
         #endif
     }
