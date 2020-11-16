@@ -15,16 +15,16 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or later) editions
 - Windows Server* 2016 or higher 
 
-## Prebuilt images
+## Prebuilt Images
 
-Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
+Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino).
 
 ## Build a Docker* Image for CPU
 
 You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. 
 The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. 
 
-## Install additional dependencies
+## Install Additional Dependencies
 ### Install CMake
 To add CMake to the image, add the following commands to a Dockerfile:
 ~~~
@@ -48,7 +48,7 @@ to use online installer for Build Tools (follow [Instruction for the online inst
 Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license. 
 Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
 
-To add MSBuild 2019 to the image, add the following commands to a Dockerfile:
+To add MSBuild 2019 to the image, add the following commands to the Dockerfile:
 ~~~
 RUN powershell.exe -Command Invoke-WebRequest -URI https://aka.ms/vs/16/release/vs_buildtools.exe -OutFile %TMP%\\vs_buildtools.exe
 
@@ -78,7 +78,7 @@ docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deploymen
 
 ## Troubleshooting
 
-If you got a proxy issues, please setup proxy settings for Docker. See the Proxy section in [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
+If you got proxy issues, please setup proxy settings for Docker. See the Proxy section in [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
 
 ## Additional Resources
 
