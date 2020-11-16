@@ -36,49 +36,23 @@ namespace ngraph
     {
         namespace reduction
         {
-            namespace detail
-            {
-                AxisSet get_reduction_axes(const Node& node);
-
-            } // namespace  detail
-
-            // An overload for reduction operators that take reduction axes as input
-            using RuntimeReductionFunction = std::function<std::shared_ptr<ngraph::Node>(
+            // An alias for a function that produces reduction operator (typically make_shared<...>)
+            using ReductionOpProvider = std::function<std::shared_ptr<ngraph::Node>(
                 const Output<ngraph::Node>&, const std::shared_ptr<ngraph::Node>&, bool)>;
 
-            // An overload for reduction operators that take reduction axes as an attribute
-            using ReductionFunction = std::function<std::shared_ptr<ngraph::Node>(
-                const Output<ngraph::Node>&, const ngraph::AxisSet&)>;
-
             ///
             /// \brief      Create an nGraph version of an ONNX reduction operation.
             ///
-            /// \param[in]  node                The node representing incoming ONNX operation.
-            /// \param[in]  ng_input            The input (nGraph) Tensor.
-            /// \param[in]  reduction_function  The reduction function defining arithmetic reduction
-            ///                                 operation (e.g. Min, Max, Sum, Product).
+            /// \param[in]  node                   The node representing incoming ONNX operation.
+            /// \param[in]  ng_input               The input (nGraph) Tensor.
+            /// \param[in]  reduction_op_provider  A function producing a reduction operation node
             ///
             /// \return     nGraph node equivalent of the ONNX operation.
             ///
             std::shared_ptr<ngraph::Node>
                 make_ng_reduction_op(const Node& node,
                                      const Output<ngraph::Node>& ng_input,
-                                     ReductionFunction reduction_function);
-
-            ///
-            /// \brief      Create an nGraph version of an ONNX reduction operation.
-            ///
-            /// \param[in]  node                The node representing incoming ONNX operation.
-            /// \param[in]  ng_input            The input (nGraph) Tensor.
-            /// \param[in]  reduction_function  The reduction function defining arithmetic dynamic
-            ///                                 reduction operation (e.g. ReduceProd, ReduceSum).
-            ///
-            /// \return     nGraph node equivalent of the ONNX operation.
-            ///
-            std::shared_ptr<ngraph::Node>
-                make_ng_reduction_op(const Node& node,
-                                     const Output<ngraph::Node>& ng_input,
-                                     RuntimeReductionFunction reduction_function);
+                                     ReductionOpProvider reduction_op_provider);
 
         } // namespace  reduction
     }     // namespace onnx_import
