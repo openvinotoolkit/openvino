@@ -189,7 +189,7 @@ TEST(constant_folding, constant_unsqueeze)
     auto constant = make_shared<op::Constant>(element::f32, shape_in, values_in);
     vector<int64_t> values_axes{2, 3};
     auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
-    auto unsqueeze = make_shared<op::Unsqueeze>(constant, constant_axes);
+    auto unsqueeze = make_shared<op::v0::Unsqueeze>(constant, constant_axes);
     unsqueeze->set_friendly_name("test");
     auto f = make_shared<Function>(unsqueeze, ParameterVector{});
 
@@ -197,7 +197,7 @@ TEST(constant_folding, constant_unsqueeze)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Unsqueeze>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =

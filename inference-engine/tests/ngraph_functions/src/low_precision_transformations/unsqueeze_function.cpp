@@ -67,7 +67,7 @@ std::shared_ptr<ngraph::Function> UnsqueezeFunction::getReference(
 
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto unsqueeze = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Unsqueeze>>(
-        op::Unsqueeze(dequantizationOpBefore, std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)),
+        op::v0::Unsqueeze(dequantizationOpBefore, std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)),
         precisionAfterOperation);
     const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(unsqueeze, dequantizationAfter);
     dequantizationOpAfter->set_friendly_name("output");
