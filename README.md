@@ -6,7 +6,7 @@
 This toolkit allows developers to deploy pre-trained deep learning models
 through a high-level C++ Inference Engine API integrated with application logic.
 
-This open source version includes two components: namely [Model Optimizer] and
+This open source version includes several components: namely [Model Optimizer], [ngraph] and
 [Inference Engine], as well as CPU, GPU, MYRIAD, multi device and heterogeneous plugins to accelerate deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
 It supports pre-trained models from the [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as Caffe\*, TensorFlow\*,
@@ -22,13 +22,13 @@ Deep Learning Deployment Toolkit is licensed under [Apache License Version 2.0](
 By contributing to the project, you agree to the license and copyright terms therein
 and release your contribution under these terms.
 
-## Documentation
-* [OpenVINO™ Github Wiki](https://github.com/openvinotoolkit/openvino/wiki)
+## Resources:
+* Docs: https://docs.openvinotoolkit.org/
+* Wiki: https://github.com/openvinotoolkit/openvino/wiki
+* Issue tracking: https://github.com/openvinotoolkit/openvino/issues
+* Additional OpenVINO modules: https://github.com/openvinotoolkit/openvino_contrib
+* [HomePage](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
 * [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-* [Introduction to Deep Learning Deployment Toolkit](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Introduction.html)
-* [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
-* [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-* [Get Started with DockerHub CI for OpenVINO™ toolkit](https://github.com/openvinotoolkit/docker_ci/blob/master/README.md)
 
 ## Support
 Please report questions, issues and suggestions using:
