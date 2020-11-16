@@ -127,8 +127,8 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Differen
         ngraph::helpers::EltwiseTypes::POWER,
         // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
 };
-// Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
+
+std::map<std::string, std::string> additional_config;
 
 std::vector<Precision> bf16InpOutPrc = {Precision::BF16, Precision::FP32};
 

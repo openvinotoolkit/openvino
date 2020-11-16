@@ -51,9 +51,6 @@ protected:
         std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = basicParamsSet;
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 
-        // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-        configuration.insert({PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO});
-
         activationType = activationDecl.first;
         auto constantsValue = activationDecl.second;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

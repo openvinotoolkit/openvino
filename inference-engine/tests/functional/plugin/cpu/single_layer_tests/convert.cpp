@@ -18,15 +18,13 @@ TEST_P(ConvertCPULayerTest, CompareWithRefs) {
     inPrc = std::get<1>(params);
     outPrc = std::get<2>(params);
 
-    // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    configuration.insert({PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO});
-
     Run();
 }
 
 namespace {
 const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 
+// List of precisions natively supported by mkldnn.
 const std::vector<Precision> precisions = {
         Precision::U8,
         Precision::I8,

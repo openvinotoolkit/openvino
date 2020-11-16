@@ -68,9 +68,6 @@ protected:
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-        configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
-
         ngraph::op::ResampleIEAttrs resampleAttrs;
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision  netPrecision;

@@ -80,8 +80,7 @@ TEST_P(PermuteLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-// Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
+std::map<std::string, std::string> additional_config;
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         Precision::BF16,
