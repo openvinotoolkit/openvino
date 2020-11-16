@@ -46,7 +46,7 @@ public:
                                                      const std::map<std::string, std::string>& config) const override;
 
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override;
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext() override;
+    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const ParamMap& params) override;
 };
 
 };  // namespace CLDNNPlugin
