@@ -26,14 +26,11 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void hard_sigmoid(const T* arg, const T* alpha, const T* beta, T* out, size_t count)
+            void hard_sigmoid(const T* arg, const T alpha, const T beta, T* out, size_t count)
             {
-                T alpha_value = alpha[0];
-                T beta_value = beta[0];
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] =
-                        std::max<T>(0.0f, std::min<T>(1.0f, alpha_value * arg[i] + beta_value));
+                    out[i] = std::max<T>(0.0f, std::min<T>(1.0f, alpha * arg[i] + beta));
                 }
             }
         }

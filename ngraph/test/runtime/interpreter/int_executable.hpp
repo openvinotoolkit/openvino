@@ -822,9 +822,11 @@ protected:
         case OP_TYPEID::HardSigmoid:
         {
             size_t element_cout = shape_size(node.get_output_shape(0));
+            const T alpha = args[1]->get_data_ptr<const T>()[0];
+            const T beta = args[2]->get_data_ptr<const T>()[0];
             runtime::reference::hard_sigmoid<T>(args[0]->get_data_ptr<const T>(),
-                                                args[1]->get_data_ptr<const T>(),
-                                                args[2]->get_data_ptr<const T>(),
+                                                alpha,
+                                                beta,
                                                 out[0]->get_data_ptr<T>(),
                                                 element_cout);
             break;
