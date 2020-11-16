@@ -47,7 +47,8 @@ docker run -it --rm <image_name>
 - In the container, user must be in the `video` group.
 
 Before building a Docker* image on GPU, add the following commands to a Dockerfile:
-**Ubuntu 18.04/20.04:**
+
+**Ubuntu 18.04/20.04**:
 ```sh
 WORKDIR /tmp/opencl
 RUN usermod -aG video openvino
@@ -63,7 +64,7 @@ RUN apt-get update && \
     ldconfig && \
     rm /tmp/opencl
 ```
-**CentOS 7.6:**
+**CentOS 7.6**:
 ```sh
 WORKDIR /tmp/opencl
 RUN groupmod -g 44 video
@@ -104,7 +105,7 @@ Use one of the following options as **Possible solutions for Intel® Neural Comp
 
 #### Option #1
 1. Get rid of UDEV by rebuilding `libusb` without UDEV support in the Docker* image (add the following commands to the `Dockerfile` example for CPU above):<br>
-**Ubuntu 18.04/20.04:**
+**Ubuntu 18.04/20.04**:
 ```sh
 ARG BUILD_DEPENDENCIES="autoconf \
                         automake \
@@ -139,7 +140,7 @@ RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
     cp /opt/intel/openvino/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
-**CentOS 7.6:**
+**CentOS 7.6**:
 ```sh
 ARG BUILD_DEPENDENCIES="autoconf \
                         automake \
@@ -196,8 +197,8 @@ To use the Docker container for inference on Intel® Vision Accelerator Design w
 1. Set up the environment on the host machine, that is going to be used for running Docker*. 
 It is required to execute `hddldaemon`, which is responsible for communication between the HDDL plugin and the board. 
 To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configuration Guide for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](installing-openvino-linux-ivad-vpu.md).
-2. Prepare the Docker* image. As a base image, you can use the image from the section [Building Docker Image for CPU](#building-for-cpu). To use it for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs you need to rebuild the image with adding the following dependencies:
-**Ubuntu 18.04:**
+2. Prepare the Docker* image. As a base image, you can use the image from the section [Building Docker Image for CPU](#building-for-cpu). To use it for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs you need to rebuild the image with adding the following dependencies:<br>
+**Ubuntu 18.04**:
 ```sh
 WORKDIR /tmp
 RUN apt-get update && \
@@ -207,7 +208,7 @@ RUN apt-get update && \
         libjson-c3 libxxf86vm-dev && \
     rm -rf /var/lib/apt/lists/* && rm -rf /tmp/*
 ```
-**Ubuntu 20.04:**
+**Ubuntu 20.04**:
 ```sh
 WORKDIR /tmp
 RUN apt-get update && \
@@ -218,7 +219,7 @@ RUN apt-get update && \
         libxxf86vm-dev && \
     rm -rf /var/lib/apt/lists/* && rm -rf /tmp/*
 ```
-**CentOS 7.6:**
+**CentOS 7.6**:
 ```sh
 WORKDIR /tmp
 RUN yum update -y && yum install -y \
@@ -245,7 +246,7 @@ To run the built Docker* image for Intel® Vision Accelerator Design with Intel�
 docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
 ```
 
-> **NOTE**:
+> **NOTES**:
 > - The device `/dev/ion` need to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
 > - Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
 
@@ -253,7 +254,7 @@ In some cases, the ion driver is not enabled (for example, due to a newer kernel
 ```sh
 docker run -it --rm --net=host -v /var/tmp:/var/tmp –ipc=host <image_name>
 ```
-> **NOTE**:
+> **NOTES**:
 > - When building docker images, create a user in the docker file that has the same UID and GID as the user which runs hddldaemon on the host.
 > - Run the application in the docker with this user.
 > - Alternatively, you can start hddldaemon with the root user on host, but this approach is not recommended.
