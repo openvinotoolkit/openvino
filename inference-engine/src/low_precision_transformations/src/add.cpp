@@ -90,7 +90,7 @@ void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCont
 
 bool AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Add> op = as_type_ptr<opset1::Add>(m.get_match_root());
-    if (!canBeTransformed(context, op)) {
+    if ((op == nullptr) || (!canBeTransformed(context, op))) {
         return false;
     }
 
