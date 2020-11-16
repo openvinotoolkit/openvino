@@ -7,6 +7,7 @@
 #include <vector>
 #include <unordered_set>
 #include <regex>
+#include <sstream>
 
 #include <cnn_network_ngraph_impl.hpp>
 #include "ngraph_ops/convolution_ie.hpp"
@@ -105,7 +106,10 @@ public:
     }
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<double>& adapter) override {
-        params[name] = std::to_string(adapter.get());
+        std::ostringstream stream;
+        stream.precision(8);
+        stream << std::fixed << adapter.get();
+        params[name] = stream.str();
     }
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<int64_t>& adapter) override {
@@ -601,6 +605,58 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
+    addSpecificCreator({"PriorBoxIE"},
+                       [](const std::shared_ptr<::ngraph::Node>& node,
+                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "PriorBox",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto parseBoolStrToIntStr = [](const std::string &param) -> const std::string {
+            if (param == "true") {
+                return "1";
+            }
+            else if (param == "false") {
+                return "0";
+            }
+            return param;
+        };
+        auto res = std::make_shared<CNNLayer>(attrs);
+        res->params = params;
+        res->params["clip"] = parseBoolStrToIntStr(res->params["clip"]);
+        res->params["flip"] = parseBoolStrToIntStr(res->params["flip"]);
+        res->params["scale_all_sizes"] = parseBoolStrToIntStr(res->params["scale_all_sizes"]);
+
+        auto data_pshape = node->get_input_partial_shape(0);
+        if (data_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 0-port input of PriorBox is not supported";
+        auto data_shape = data_pshape.to_shape();
+        if (data_shape.size() != 4) THROW_IE_EXCEPTION << "PriorBox has " << data_shape.size() << " items in 0-port input, 4 expected";
+
+        auto img_pshape = node->get_input_partial_shape(1);
+        if (img_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 1-port input of PriorBox is not supported";
+        auto img_shape = img_pshape.to_shape();
+        if (img_shape.size() != 4) THROW_IE_EXCEPTION << "PriorBox has " << data_shape.size() << " items in 1-port input, 4 expected";
+
+        auto scale_all_sizes = std::stoi(res->params["scale_all_sizes"]);
+        if (!scale_all_sizes) {
+            // mxnet-like PriorBox
+            auto img_H = img_shape[2];
+            auto data_H = data_shape[2];
+
+            auto step = std::stof(res->params["step"]);
+            if (step == -1)
+                step = static_cast<float>(1. * img_H / data_H);
+            else
+                step *= 1. * img_H;
+            res->params["step"] = Builder::asString(step);
+
+            auto min_size = details::split(res->params["min_size"], ",");
+            for (auto &size : min_size) {
+                size = Builder::asString(std::stof(size) * img_H);
+            }
+            res->params["min_size"] = details::joinVec(min_size);
+        }
+        return res;
+    });
+
     addSpecificCreator({"ProposalIE"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
@@ -1007,7 +1063,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClusteredIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::RegionYolo>>(),

@@ -791,34 +791,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PriorBoxCluste
     return std::make_shared<ngraph::op::PriorBoxClustered>(inputs[0], inputs[1], attr);
 }
 
-// PriorBox layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PriorBox>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::PriorBoxAttrs attr;
-    attr.min_size = getParameters<float>(dn, "min_size", {});
-    attr.max_size = getParameters<float>(dn, "max_size", {});
-    attr.density = getParameters<float>(dn, "density", {});
-    attr.fixed_size = getParameters<float>(dn, "fixed_size", {});
-    attr.fixed_ratio = getParameters<float>(dn, "fixed_ratio", {});
-    attr.aspect_ratio = getParameters<float>(dn, "aspect_ratio", {});
-    attr.variance = getParameters<float>(dn, "variance", {});
-    attr.step = GetFloatAttr(dn, "step", 0);
-    attr.offset = GetFloatAttr(dn, "offset");
-    attr.clip = (GetIntAttr(dn, "clip") != 0);
-    attr.flip = (GetIntAttr(dn, "flip") != 0);
-    attr.scale_all_sizes = (GetIntAttr(dn, "scale_all_sizes", 1) != 0);
-
-    return std::make_shared<ngraph::op::PriorBox>(inputs[0], inputs[1], attr);
-}
-
 // FakeQuantize layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::FakeQuantize>::createLayer(
