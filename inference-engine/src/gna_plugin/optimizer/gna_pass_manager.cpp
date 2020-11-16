@@ -781,7 +781,7 @@ void InsertIdentityLayerPass::run() {
 void InsertCopyLayerPass::run() {
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
-        for (auto output: l->outData) {
+        for (auto output : l->outData) {
             std::vector<std::pair<CNNLayerPtr, size_t>> MemoryLayers;
             std::vector<std::pair<CNNLayerPtr, size_t>> ConcatLayers;
             auto& inputTo = getInputTo(output);
