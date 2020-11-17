@@ -77,7 +77,7 @@ OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &node
 }
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           std::vector<ngraph::element::Type_t> convertType) {
+                                                           const std::vector<ngraph::element::Type_t> convertType) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 

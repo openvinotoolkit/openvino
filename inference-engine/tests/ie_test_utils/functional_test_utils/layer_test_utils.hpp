@@ -190,7 +190,7 @@ protected:
         return core;
     }
 
-    void ConfigureNetwork() const;
+    virtual void ConfigureNetwork();
 
     void LoadNetwork();
 

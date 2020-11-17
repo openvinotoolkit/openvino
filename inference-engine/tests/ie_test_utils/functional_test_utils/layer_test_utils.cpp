@@ -268,7 +268,7 @@ void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const
     }
 }
 
-void LayerTestsCommon::ConfigureNetwork() const {
+void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
         if (inLayout != InferenceEngine::Layout::ANY) {
             in.second->setLayout(inLayout);
