@@ -1112,7 +1112,11 @@ class AddReshapeAfterStridedSliceTests(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'sslice_2_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-    # test case with 2 strided slices with the same parameters
+    # test case when
+    # 1) There are 3 StridedSlice operations;
+    # 2) 2 of StridedSlice have the same attributes;
+    # 3) other StridedSlice have different attributes;
+    # 4) pair (some StridedSlice from the item 2, StridedSlice from the item 3) can be replaced by VariadicSplit.
     def test_1(self):
         graph = build_graph(nodes_attributes,
                             [
