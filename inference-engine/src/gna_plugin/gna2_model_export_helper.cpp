@@ -19,12 +19,12 @@ void * ExportSueLegacyUsingGnaApi2(
 
     uint32_t exportConfig;
     auto status = Gna2ModelExportConfigCreate(gnaUserAllocatorAlignedPage, &exportConfig);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigCreate");
 
     status = Gna2ModelExportConfigSetSource(exportConfig, 0, modelId);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetSource");
     status = Gna2ModelExportConfigSetTarget(exportConfig, Gna2DeviceVersionEmbedded1_0);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetTarget");
 
     void * bufferSueCreekHeader;
     uint32_t bufferSueCreekHeaderSize;
@@ -32,7 +32,7 @@ void * ExportSueLegacyUsingGnaApi2(
     status = Gna2ModelExport(exportConfig,
         Gna2ModelExportComponentLegacySueCreekHeader,
         &bufferSueCreekHeader, &bufferSueCreekHeaderSize);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(LegacySueCreekHeader)");
 
     (*modelHeader) = *(reinterpret_cast<Gna2ModelSueCreekHeader*>(bufferSueCreekHeader));
 
@@ -42,10 +42,10 @@ void * ExportSueLegacyUsingGnaApi2(
         Gna2ModelExportComponentLegacySueCreekDump,
         &bufferDump,
         &bufferDumpSize);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(LegacySueCreekDump)");
 
     status = Gna2ModelExportConfigRelease(exportConfig);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigRelease");
 
     gnaUserFree(bufferSueCreekHeader);
     return bufferDump;
@@ -59,12 +59,12 @@ void ExportLdForDeviceVersion(
 
     uint32_t exportConfig;
     auto status = Gna2ModelExportConfigCreate(gnaUserAllocatorAlignedPage, &exportConfig);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigCreate");
 
     status = Gna2ModelExportConfigSetSource(exportConfig, 0, modelId);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetSource");
     status = Gna2ModelExportConfigSetTarget(exportConfig, deviceVersionToExport);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetTarget");
 
     void * ldDump;
     uint32_t ldDumpSize;
@@ -72,12 +72,12 @@ void ExportLdForDeviceVersion(
     status = Gna2ModelExport(exportConfig,
         Gna2ModelExportComponentLayerDescriptors,
         &ldDump, &ldDumpSize);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(LayerDescriptors)");
 
     outStream.write(static_cast<char*>(ldDump), ldDumpSize);
 
     status = Gna2ModelExportConfigRelease(exportConfig);
-    GNADeviceHelper::checkGna2Status(status);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigRelease");
 
     gnaUserFree(ldDump);
 }

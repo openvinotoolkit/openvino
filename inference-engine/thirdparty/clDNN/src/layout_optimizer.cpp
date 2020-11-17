@@ -375,8 +375,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
                  out_features_per_group >= 16 &&
                  // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
                  (in_features_per_group % 4 == 0) &&
-                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16 &&
-                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()))
+                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16)
                 return true;
         // Check for fsv16 imad kernel
         else if ((input_layout.format.dimension() == 4) &&
