@@ -6,42 +6,26 @@ graph {
     input: "data_b"
     input: "data_c"
     output: "result"
-    op_type: "Max"
+    op_type: "Mean"
   }
   name: "test_mean_example"
   initializer {
-    dims: 3
-    data_type: 6
+    dims: 1
+    data_type: 1
     name: "data_a"
     external_data {
         key: "location",
-        value: "../../files/onnx/external_data/multiple_tensors.data"
-    }
-    external_data {
-        key: "offset",
-        value: "0"
-    }
-    external_data {
-        key: "length",
-        value: "12"
+        value: "tensors_data/a/tensor_a.data"
     }
     data_location: 1
   }
   initializer {
     dims: 3
-    data_type: 6
+    data_type: 1
     name: "data_b"
     external_data {
         key: "location",
-        value: "../../files/onnx/external_data/multiple_tensors.data"
-    }
-    external_data {
-        key: "offset",
-        value: "4096"
-    }
-    external_data {
-        key: "length",
-        value: "12"
+        value: "tensors_data/b/tensor_b.data"
     }
     data_location: 1
   }
@@ -49,10 +33,10 @@ graph {
     name: "data_a"
     type {
       tensor_type {
-        elem_type: 6
+        elem_type: 1
         shape {
           dim {
-            dim_value: 3
+            dim_value: 1
           }
         }
       }
@@ -62,7 +46,7 @@ graph {
     name: "data_b"
     type {
       tensor_type {
-        elem_type: 6
+        elem_type: 1
         shape {
           dim {
             dim_value: 3
@@ -75,7 +59,7 @@ graph {
     name: "data_c"
     type {
       tensor_type {
-        elem_type: 6
+        elem_type: 1
         shape {
           dim {
             dim_value: 3
@@ -88,7 +72,7 @@ graph {
     name: "result"
     type {
       tensor_type {
-        elem_type: 6
+        elem_type: 1
         shape {
           dim {
             dim_value: 3
