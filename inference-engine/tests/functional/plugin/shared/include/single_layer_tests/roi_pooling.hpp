@@ -30,9 +30,14 @@ class ROIPoolingLayerTest : public testing::WithParamInterface<roiPoolingParamsT
                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj);
+    void Infer() override;
 
 protected:
     void SetUp() override;
+
+private:
+    ngraph::op::ROIPooling::ROIPoolingMethod pool_method;
+    float spatial_scale;
 };
 
 }  // namespace LayerTestsDefinitions
