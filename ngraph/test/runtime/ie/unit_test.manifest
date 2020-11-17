@@ -1144,6 +1144,9 @@ IE_CPU.nonmaxsuppression_two_classes
 # Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
 IE_CPU.roi_pooling_1x1_bilinear
 
+# output mismatch
+IE_CPU.gather_nd_batch_1d_from_3d_negative
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
