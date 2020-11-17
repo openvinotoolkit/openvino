@@ -66,27 +66,20 @@ struct CPUStreamsExecutor::Impl {
                     _impl->_streamIdQueue.pop();
                 }
             }
-            _numaNodeId = _impl->_config._streams
-                ? _impl->_usedNumaNodes.at(
-                    (_streamId % _impl->_config._streams)/
-                    ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1)/_impl->_usedNumaNodes.size()))
-                : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            #if TBB_INTERFACE_VERSION >= 12010// TBB has hybrid CPU aware task_arena api
-            std::vector<oneapi::tbb::core_type_id> core_types = oneapi::tbb::info::core_types();
-            const size_t core_types_size = core_types.size();
-            if (core_types_size > 1) /*Hybrid CPU*/ {
+            #if TBB_INTERFACE_VERSION >= 12010// TBB with hybrid CPU aware task_arena api
+            auto core_types = oneapi::tbb::info::core_types();
+            if (core_types.size() > 1) /*Hybrid CPU*/ {
                 if (_impl->_config._streams == 1) {
                     auto big_cores = core_types.back(); // latency default is runing on Big cores only
-                    // TODO: recognize (and not just assume) HT on Big cores
-                    auto concurrency = _impl->_config._threadsPerStream; // oneapi::tbb::info::default_concurrency(big_cores) / 2; // latency default not using HT
+                    auto concurrency = _impl->_config._threadsPerStream;
                     printf("%s, LATENCY CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
-                        _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, big_cores, concurrency);
+                        _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, (int)big_cores, concurrency);
                     _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{big_cores, concurrency}});
                 } else {
                     // TODO: wrap #streams over core types
-                    size_t threads_needed = (_streamId+1)*_impl->_config._threadsPerStream;
-                    size_t sum = 0;
+                    int threads_needed = (_streamId+1)*_impl->_config._threadsPerStream;
+                    int sum = 0;
                     for (auto type : core_types) {
                         auto concurrency = oneapi::tbb::info::default_concurrency(type);
                         sum += concurrency;
@@ -94,7 +87,7 @@ struct CPUStreamsExecutor::Impl {
                             _impl->_config._name.c_str(), _streamId, threads_needed, sum);
                         if (threads_needed <= sum) {
                             printf("%s THROUGHPUT CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
-                                _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, type, concurrency);
+                                _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, (int)type, concurrency);
                             _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{type, _impl->_config._threadsPerStream} });
                             break;
                         }
@@ -104,6 +97,11 @@ struct CPUStreamsExecutor::Impl {
             else
             #endif
              {
+                _numaNodeId = _impl->_config._streams
+                    ? _impl->_usedNumaNodes.at(
+                        (_streamId % _impl->_config._streams) /
+                        ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1) / _impl->_usedNumaNodes.size()))
+                    : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
                 auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
                 if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                     printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
