@@ -5459,7 +5459,7 @@ TEST_F(MKLDNNGraphStructureTests, DISABLED_TestRefPoolingWithConcat) {
     compare(*outputBlobs1.begin()->second, *outputBlobs2.begin()->second);
 }
 
-TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2DepthwiseOpFusing) {
+TEST_F(MKLDNNGraphStructureTests, DISABLED_TestConvolutionWith2DepthwiseOpFusing) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>

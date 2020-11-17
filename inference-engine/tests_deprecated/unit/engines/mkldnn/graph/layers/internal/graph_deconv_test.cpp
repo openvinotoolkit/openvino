@@ -349,7 +349,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDeconvolutionalTests, TestsDeconvolution) {}
+TEST_P(MKLDNNGraphDeconvolutionalTests, DISABLED_TestsDeconvolution) {}
 
 //  deconv_test_params(dims, kernel, strides, pads_begin, pads_end, out_c, grp_c, with_bias, auto_pad, num_prim_desc,
 //                     selectedTypes, preferTypes, comp)
