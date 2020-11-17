@@ -9,7 +9,7 @@
 #include "ie_parallel.hpp"
 
 namespace InferenceEngine {
-int getNumberOfCPUCores() {
+int getNumberOfCPUCores(bool bigCoresOnly) {
     const int fallback_val = parallel_get_max_threads();
     DWORD sz = 0;
     // querying the size of the resulting structure, passing the nullptr for the buffer
@@ -28,7 +28,17 @@ int getNumberOfCPUCores() {
         offset += reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(ptr.get() + offset)->Size;
         phys_cores++;
     } while (offset < sz);
-    printf("getNumberOfCPUCores: %d \n", phys_cores);
+
+    printf("original getNumberOfCPUCores: %d \n", phys_cores);
+    #if TBB_INTERFACE_VERSION >= 12010// TBB has hybrid CPU aware task_arena api
+    auto core_types = oneapi::tbb::info::core_types();
+    if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
+        const auto little_cores = *core_types.begin();
+        // assuming the Little cores feature no hyper-threading
+        phys_cores -= oneapi::tbb::info::default_concurrency(little_cores);
+        printf("patched getNumberOfCPUCores: %d \n", phys_cores);
+    }
+    #endif
     return phys_cores;
 }
 

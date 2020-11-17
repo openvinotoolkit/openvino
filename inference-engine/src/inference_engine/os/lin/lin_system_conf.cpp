@@ -61,7 +61,7 @@ std::vector<int> getAvailableNUMANodes() {
     return nodes;
 }
 #endif
-int getNumberOfCPUCores() {
+int getNumberOfCPUCores(bool bigCoresOnly) {
     unsigned numberOfProcessors = cpu._processors;
     unsigned totalNumberOfCpuCores = cpu._cores;
     IE_ASSERT(totalNumberOfCpuCores != 0);
@@ -81,7 +81,16 @@ int getNumberOfCPUCores() {
             }
         }
     }
-    return CPU_COUNT(&currentCoreSet);
+    int phys_cores = CPU_COUNT(&currentCoreSet);
+    #if TBB_INTERFACE_VERSION >= 12010// TBB has hybrid CPU aware task_arena api
+    auto core_types = oneapi::tbb::info::core_types();
+    if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
+        const auto little_cores = *core_types.begin();
+        // assuming the Little cores feature no hyper-threading
+        phys_cores -= oneapi::tbb::info::default_concurrency(little_cores);
+    }
+    #endif
+    return phys_cores;
 }
 
 }  // namespace InferenceEngine

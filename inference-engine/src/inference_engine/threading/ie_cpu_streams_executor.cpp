@@ -99,20 +99,19 @@ struct CPUStreamsExecutor::Impl {
              {
                 _numaNodeId = _impl->_config._streams
                     ? _impl->_usedNumaNodes.at(
-                        (_streamId % _impl->_config._streams) /
-                        ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1) / _impl->_usedNumaNodes.size()))
+                        (_streamId % _impl->_config._streams)/
+                        ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1)/_impl->_usedNumaNodes.size()))
                     : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
                 auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
                 if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                     printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
-                    //#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
-                    //_taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{_numaNodeId, concurrency} });
-                    //#else
-                    _taskArena.reset(new tbb::task_arena{ concurrency });
-                    //#endif
-                }
-                else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
-                    _taskArena.reset(new tbb::task_arena{ concurrency });
+//#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
+                    //_taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
+//#else
+                    _taskArena.reset(new tbb::task_arena{concurrency});
+//#endif
+                } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
+                    _taskArena.reset(new tbb::task_arena{concurrency});
                     if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
                         CpuSet processMask;
                         int    ncpus = 0;

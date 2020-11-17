@@ -141,7 +141,12 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     const auto& numaNodes = getAvailableNUMANodes();
     const auto numaNodesNum = numaNodes.size();
     auto streamExecutorConfig = initial;
-    const auto hwCores = streamExecutorConfig._streams > 1 && numaNodesNum == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
+    const auto hwCores = streamExecutorConfig._streams > 1 && numaNodesNum == 1
+        // throughput case on a single-NUMA node machine uses all available cores
+        ? parallel_get_max_threads()
+        // on multi-NUMA node do not use hyper-threading (to reduce memory pressure)
+        // additionally, any latency case (stream per node, or less) runs on the Big cores only
+        : getNumberOfCPUCores(streamExecutorConfig._streams <= numaNodesNum); 
     const auto threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream = streamExecutorConfig._streams
                                             ? std::max(1, threads/streamExecutorConfig._streams)
