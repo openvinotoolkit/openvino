@@ -24,8 +24,11 @@ ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Transformations library")
+
 target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
-                                     PRIVATE openvino::itt ngraph::builder)
+                                     PRIVATE openvino::itt ngraph::builder pugixml)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,32 +35,32 @@ JitConstants MaxUnpoolingKernelBase::GetJitConstants(const max_unpooling_params&
 MaxUnpoolingKernelBase::DispatchData MaxUnpoolingKernelBase::SetDefault(const max_unpooling_params& params) const {
     const auto& input = params.inputs[0];
 
-    DispatchData kd;
+    DispatchData dispatchData;
 
     if (input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::byxf) {
         // Determine global work sizes.
-        kd.gws2 = input.Batch().v * input.Feature().v;  // B, F
-        kd.gws0 = Align(input.X().v, 32);               // X
-        kd.gws1 = input.Y().v;                          // Y
+        dispatchData.gws[2] = input.Batch().v * input.Feature().v;  // B, F
+        dispatchData.gws[0] = Align(input.X().v, 32);               // X
+        dispatchData.gws[1] = input.Y().v;                          // Y
 
-        kd.lws0 = 32;
-        kd.lws1 = 1;
-        kd.lws2 = 1;
+        dispatchData.lws[0] = 32;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     } else {
         // Determine global work sizes.
-        kd.gws0 = input.Batch().v * input.Feature().v;  // B, F
-        kd.gws1 = input.X().v;                          // X
-        kd.gws2 = input.Y().v;                          // Y
+        dispatchData.gws[0] = input.Batch().v * input.Feature().v;  // B, F
+        dispatchData.gws[1] = input.X().v;                          // X
+        dispatchData.gws[2] = input.Y().v;                          // Y
 
-        kd.lws0 = std::min(std::max(kd.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
-        while (kd.gws0 % kd.lws0 != 0) {
-            --kd.lws0;
+        dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
+        while (dispatchData.gws[0] % dispatchData.lws[0] != 0) {
+            --dispatchData.lws[0];
         }
-        kd.lws1 = 1;
-        kd.lws2 = 1;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
 
-    return kd;
+    return dispatchData;
 }
 
 KernelsData MaxUnpoolingKernelBase::GetCommonKernelsData(const Params& params,
@@ -72,7 +72,7 @@ KernelsData MaxUnpoolingKernelBase::GetCommonKernelsData(const Params& params,
 
     const max_unpooling_params& orgParams = static_cast<const max_unpooling_params&>(params);
 
-    DispatchData runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
 
     KernelData kd = KernelData::Default<max_unpooling_params>(params);
 
@@ -81,7 +81,7 @@ KernelsData MaxUnpoolingKernelBase::GetCommonKernelsData(const Params& params,
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
     kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
 
     kd.estimatedTime = estimatedTime;

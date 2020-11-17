@@ -70,6 +70,7 @@ Standard MXNet\* symbols:
 | repeat | No |
 | rnn | No |
 | rnn_param_concat | No |
+| round | No |
 | sigmoid | No |
 | slice | No |
 | slice_axis | No |
@@ -356,9 +357,11 @@ Standard ONNX\* operators:
 | LogicalAnd | No |
 | LogicalOr | No |
 | LogSoftmax | No |
+| Loop | No |
 | MatMul | No |
 | MaxPool | No |
 | MeanVarianceNormalization | Reduction over the batch dimension is not supported, reduction over all dimensions except batch and channel ones is obligatory |
+| Min | No |
 | Mul | No |
 | Neg | No |
 | NonMaxSuppression | No |
@@ -385,6 +388,7 @@ Standard ONNX\* operators:
 | Reshape | No |
 | Resize | Coordinate transformation mode `tf_crop_and_resize` is not supported, `nearest` mode is not supported for 5D+ inputs. |
 | ReverseSequence | No |
+| Round | No |
 | Scatter | Supported if fuse-able to ScatterUpdate. MYRIAD only |
 | ScatterND | No |
 | ScatterElements | Supported if fuse-able to ScatterUpdate. MYRIAD only |
@@ -404,6 +408,7 @@ Standard ONNX\* operators:
 | Sum | No |
 | Tan | No |
 | Tanh | No |
+| ThresholdedRelu | No |
 | TopK | No |
 | Transpose | No |
 | Unsqueeze | No |

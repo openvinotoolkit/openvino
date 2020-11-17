@@ -49,7 +49,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder)
 {
     const int T = 3;
     const int N = 1;
-    const int C = 2;
+    const int C = 3;
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
@@ -59,7 +59,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder)
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({0.1f, 0.2f, 0.4f, 0.3f, 0.5f, 0.6f});
+    test_case.add_input<float>({0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f});
     test_case.add_input<float>({1.0f, 1.0f, 1.0f});
     test_case.add_expected_output(Shape{N, T, 1, 1}, vector<float>{1.0f, 0.0f, 1.0f});
 
@@ -70,7 +70,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_f16)
 {
     const int T = 3;
     const int N = 1;
-    const int C = 2;
+    const int C = 3;
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
@@ -80,7 +80,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_f16)
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float16>({0.1f, 0.2f, 0.4f, 0.3f, 0.5f, 0.6f});
+    test_case.add_input<float16>({0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f});
     test_case.add_input<float16>({1.0f, 1.0f, 1.0f});
     test_case.add_expected_output(Shape{N, T, 1, 1}, vector<float16>{1.0f, 0.0f, 1.0f});
 
@@ -91,7 +91,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_multiple_batches)
 {
     const int T = 3;
     const int N = 2;
-    const int C = 2;
+    const int C = 3;
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
@@ -101,8 +101,24 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_multiple_batches)
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>(
-        {0.1f, 0.2f, 0.15f, 0.25f, 0.4f, 0.3f, 0.45f, 0.35f, 0.5f, 0.6f, 0.55f, 0.65f});
+    test_case.add_input<float>({0.1f,
+                                0.2f,
+                                0.f,
+                                0.15f,
+                                0.25f,
+                                0.f,
+                                0.4f,
+                                0.3f,
+                                0.f,
+                                0.45f,
+                                0.35f,
+                                0.f,
+                                0.5f,
+                                0.6f,
+                                0.f,
+                                0.55f,
+                                0.65f,
+                                0.f});
 
     test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
@@ -116,7 +132,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_single_batch_short_sequence)
 {
     const int T = 3;
     const int N = 1;
-    const int C = 2;
+    const int C = 3;
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
@@ -126,7 +142,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_single_batch_short_sequence)
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({0.1f, 0.2f, 0.4f, 0.3f, 0.5f, 0.6f});
+    test_case.add_input<float>({0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f});
     test_case.add_input<float>({1.0f, 1.0f, 0.0f});
     test_case.add_expected_output(Shape{N, T, 1, 1}, vector<float>{1.0f, 0.0f, -1.0f});
 
@@ -137,7 +153,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_merge)
 {
     const int T = 3;
     const int N = 1;
-    const int C = 2;
+    const int C = 3;
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
@@ -147,7 +163,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_merge)
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({0.1f, 0.2f, 0.3f, 0.4f, 0.6f, 0.5f});
+    test_case.add_input<float>({0.1f, 0.2f, 0.f, 0.3f, 0.4f, 0.f, 0.6f, 0.5f, 0.f});
     test_case.add_input<float>({1.0f, 1.0f, 1.0f});
     test_case.add_expected_output(Shape{N, T, 1, 1}, vector<float>{1.0f, 0.0f, -1.0f});
 
@@ -158,7 +174,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_single_no_merge)
 {
     const int T = 3;
     const int N = 1;
-    const int C = 2;
+    const int C = 3;
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
@@ -168,7 +184,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_single_no_merge)
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({0.1f, 0.2f, 0.3f, 0.4f, 0.6f, 0.5f});
+    test_case.add_input<float>({0.1f, 0.2f, 0.f, 0.3f, 0.4f, 0.f, 0.6f, 0.5f, 0.f});
     test_case.add_input<float>({1.0f, 1.0f, 1.0f});
     test_case.add_expected_output(Shape{N, T, 1, 1}, vector<float>{1.0f, 1.0f, 0.0f});
 
@@ -179,7 +195,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_multiple_sequences)
 {
     const int T = 2;
     const int N = 2;
-    const int C = 2;
+    const int C = 3;
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
@@ -189,7 +205,8 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_multiple_sequences)
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({0.1f, 0.2f, 0.4f, 0.3f, 0.5f, 0.6f, 0.7f, 0.8f});
+    test_case.add_input<float>(
+        {0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f, 0.7f, 0.8f, 0.f});
     test_case.add_input<float>({1.0f, 1.0f, 1.0f, 0.0f});
     test_case.add_expected_output(Shape{N, T, 1, 1}, vector<float>{1.0f, 1.0f, 0.0f, -1.0f});
 

@@ -2,12 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_policy(SET CMP0054 NEW)
-
-# TODO: for make instal / package we need to use 3.13.3 version because
-# it allows to install targets created outside of current projects
-# See https://blog.kitware.com/cmake-3-13-0-available-for-download/
-
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 project(OpenVINO)
@@ -132,6 +126,7 @@ build_ngraph()
 
 add_subdirectory(inference-engine)
 
+add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 
 #
