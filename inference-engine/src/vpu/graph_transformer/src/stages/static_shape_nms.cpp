@@ -153,10 +153,10 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
     const auto perm = DimsOrder::fromNumDims(inputDims0.size()).toPermutation();
     const auto spatDim = inputDims0[perm[1]];
 
-    const int ddrBufferSize0 = sizeof(int16_t) * 4 * spatDim;
-    const int ddrBufferSize1 = sizeof(int16_t) * spatDim;
-    const int ddrBufferSize2 = sizeof(int32_t) * spatDim;
-    const int ddrBufferSize = 2 * (ddrBufferSize0 + ddrBufferSize1 + ddrBufferSize2) + 2 * vpu::DATA_ALIGNMENT;
+    const int ddrBufferSize0 = 2 * sizeof(int16_t) * 4 * spatDim;
+    const int ddrBufferSize1 = 2 * sizeof(int16_t) * spatDim;
+    const int ddrBufferSize2 = 2 * sizeof(int32_t) * spatDim;
+    const int ddrBufferSize = (ddrBufferSize0 + ddrBufferSize1 + ddrBufferSize2) + 2 * vpu::DATA_ALIGNMENT;
 
     const auto& env = CompileEnv::get();
 
@@ -164,8 +164,7 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
 
     const int cmxTempBufferSize = 4 * sizeof(int32_t) * 256;
 
-    if (!isCMXEnough(CMX_SHAVE_BUFFER_SIZE, numSlices, {ddrBufferSize0, ddrBufferSize1, ddrBufferSize2,
-                                                        ddrBufferSize0, ddrBufferSize1, ddrBufferSize2, cmxTempBufferSize})) {
+    if (!isCMXEnough(CMX_SHAVE_BUFFER_SIZE, numSlices, {ddrBufferSize0, ddrBufferSize1, ddrBufferSize2, cmxTempBufferSize})) {
         model->addTempBuffer(stage, DataDesc({ddrBufferSize}));
     }
 }
