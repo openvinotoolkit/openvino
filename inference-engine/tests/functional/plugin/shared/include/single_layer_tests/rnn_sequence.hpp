@@ -16,7 +16,7 @@
 namespace LayerTestsDefinitions {
 
 using RNNSequenceParams = typename std::tuple<
-        // bool,                                  // using decompose to sub-ops transformation
+        ngraph::helpers::SequenceTestsMode,       // pure Sequence or TensorIterator
         size_t,                                   // seq_lengths
         size_t,                                   // batch
         size_t,                                   // hidden size
@@ -34,6 +34,11 @@ public:
 
 protected:
     void SetUp() override;
+    void Infer() override;
+
+private:
+    ngraph::helpers::SequenceTestsMode m_mode;
+    int64_t m_max_seq_len = 0;
 };
 
 }  // namespace LayerTestsDefinitions

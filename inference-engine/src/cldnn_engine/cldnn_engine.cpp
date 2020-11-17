@@ -31,6 +31,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -149,6 +150,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
             manager.register_pass<ngraph::pass::ConvertPriorBox>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
+            manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+            manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+            manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 

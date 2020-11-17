@@ -16,11 +16,12 @@
 namespace LayerTestsDefinitions {
 
 using GRUSequenceParams = typename std::tuple<
-        // bool,                                  // using decompose to sub-ops transformation
+        ngraph::helpers::SequenceTestsMode,       // pure Sequence or TensorIterator
         size_t,                                   // seq_lengths
         size_t,                                   // batch
         size_t,                                   // hidden size
-        size_t,                                   // input size
+        // todo: fix. input size hardcoded to 10 due to limitation (10 args) of gtests Combine() func.
+        //size_t,                                 // input size
         std::vector<std::string>,                 // activations
         float,                                    // clip
         bool,                                     // linear_before_reset
@@ -35,6 +36,11 @@ public:
 
 protected:
     void SetUp() override;
+    void Infer() override;
+
+private:
+    ngraph::helpers::SequenceTestsMode m_mode;
+    int64_t m_max_seq_len = 0;
 };
 
 }  // namespace LayerTestsDefinitions

@@ -124,7 +124,7 @@ namespace LayerTestsDefinitions {
                     NGRAPH_CHECK(false, "Bidirectional case is not supported.");
                 }
 
-                tensor_iterator->set_invariant_input(body_params[1], outer_params[1]);
+                tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[1]);
                 tensor_iterator->set_invariant_input(body_params[2], outer_params[2]);
                 tensor_iterator->get_iter_value(results[1]);
                 tensor_iterator->get_iter_value(results[2]);
@@ -166,7 +166,7 @@ namespace LayerTestsDefinitions {
                     NGRAPH_CHECK(false, "Bidirectional case is not supported.");
                 }
 
-                tensor_iterator->set_invariant_input(body_params[1], outer_params[1]);
+                tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[0]);
                 tensor_iterator->get_iter_value(results[0]);
 
                 // 3. Outer function
@@ -205,7 +205,7 @@ namespace LayerTestsDefinitions {
                     NGRAPH_CHECK(false, "Bidirectional case is not supported.");
                 }
 
-                tensor_iterator->set_invariant_input(body_params[1], outer_params[1]);
+                tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[0]);
                 tensor_iterator->get_iter_value(results[0]);
 
                 // 3. Outer function

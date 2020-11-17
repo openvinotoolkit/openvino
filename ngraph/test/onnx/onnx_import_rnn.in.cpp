@@ -1689,7 +1689,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len_c
                                              -0.18203181f,
                                              0.9996245f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 4);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len)

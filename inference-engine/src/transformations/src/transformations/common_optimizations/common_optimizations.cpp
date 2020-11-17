@@ -73,11 +73,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::HSigmoidFusion>();
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
-    manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-    manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
-    manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+    decomp->add_matcher<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+    decomp->add_matcher<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
     decomp->add_matcher<ngraph::pass::HSwishDecomposition>();

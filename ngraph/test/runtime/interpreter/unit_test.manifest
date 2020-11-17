@@ -96,17 +96,6 @@ INTERPRETER.onnx_model_conv_integer_zero_point_zero
 INTERPRETER.onnx_model_conv_integer_no_zero_point
 INTERPRETER.onnx_model_conv_integer_pads
 
-# GRU/RNN/LSTM Sequence: Output values mismatch - seq_lengths not supported
-onnx_model_lstm_fwd_mixed_seq_const
-onnx_model_lstm_reverse_mixed_seq_const
-onnx_model_lstm_fwd_mixed_seq
-onnx_model_lstm_mixed_seq_reverse
-onnx_model_gru_fwd_mixed_seq_len
-onnx_model_gru_fwd_mixed_seq_len_const
-onnx_model_rnn_fwd_mixed_seq_len
-onnx_model_rnn_fwd_mixed_seq_len_const
-
-
 # Activation function hardsigmoid is not supported.
 gru_cell_activation_function
 lstm_cell_activaction_functions
