@@ -43,13 +43,18 @@ public:
 
     void SetBatch(int batch = -1) override;
 
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
+
 private:
-    template <typename T> void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob);
+    void PushInputData();
+
+    void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 
     void changeDefaultPtr();
     std::shared_ptr<MKLDNNExecNetwork>  execNetwork;
     MKLDNNGraph*                        graph = nullptr;
     std::map<std::string, void*>        externalPtr;
     openvino::itt::handle_t             profilingTask;
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
 };
 }  // namespace MKLDNNPlugin

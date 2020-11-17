@@ -24,6 +24,8 @@ import yaml
 import hashlib
 import shutil
 import logging
+import tempfile
+from jsonschema import validate, ValidationError
 
 from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
@@ -108,6 +110,16 @@ def niter(request):
 
 
 @pytest.fixture(scope="function")
+def temp_dir(pytestconfig):
+    """Create temporary directory for test purposes.
+    It will be cleaned up after every test run.
+    """
+    temp_dir = tempfile.TemporaryDirectory()
+    yield Path(temp_dir.name)
+    temp_dir.cleanup()
+
+
+@pytest.fixture(scope="function")
 def cl_cache_dir(pytestconfig):
     """Generate directory to save OpenCL cache before test run and clean up after run.
 
@@ -142,6 +154,45 @@ def test_info(request, pytestconfig):
     yield request.node._request.test_info
 
     pytestconfig.session_info.append(request.node._request.test_info)
+
+
+@pytest.fixture(scope="function")
+def validate_test_case(request, test_info):
+    """Fixture for validating test case on correctness.
+
+    Fixture checks current test case contains all fields required for
+    a correct work. To submit results to a database test case have
+    contain several additional properties.
+    """
+    schema = {
+        "type": "object",
+        "properties": {
+            "device": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"}
+                }},
+            "model": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"}
+                }},
+        },
+    }
+    if request.config.getoption("db_submit"):
+        # For submission data to a database some additional fields are required
+        schema["properties"]["model"]["properties"].update({
+            "name": {"type": "string"},
+            "precision": {"type": "string"},
+            "framework": {"type": "string"}
+        })
+    test_info["submit_to_db"] = True
+    try:
+        validate(instance=request.node.funcargs["instance"], schema=schema)
+    except ValidationError:
+        test_info["submit_to_db"] = False
+        raise
+    yield
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -207,6 +258,10 @@ def pytest_runtest_makereport(item, call):
     db_url = item.config.getoption("db_url")
     db_collection = item.config.getoption("db_collection")
     if not (run_id and db_url and db_collection):
+        yield
+        return
+    if not item._request.test_info["submit_to_db"]:
+        logging.error("Data won't be uploaded to a database on '{}' step".format(call.when))
         yield
         return
 

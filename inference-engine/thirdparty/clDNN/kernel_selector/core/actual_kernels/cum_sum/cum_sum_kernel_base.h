@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 
@@ -40,9 +40,9 @@ struct cum_sum_optional_params : optional_params {
     cum_sum_optional_params() : optional_params(KernelType::CUM_SUM) {}
 };
 
-class CumSumKernelBase : public common_kernel_base {
+class CumSumKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~CumSumKernelBase() = default;
 
     struct DispatchData : public CommonDispatchData {
@@ -56,7 +56,7 @@ protected:
     int32_t GetCumSumAxisIndex(const cum_sum_params& params) const;
     size_t GetRealAxisIndex(const cum_sum_params& params) const;
     ParamsKey GetSupportedKey() const override;
-    virtual JitConstants GetJitConstants(const cum_sum_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const cum_sum_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
     bool Validate(const Params&, const optional_params&) const override;

@@ -35,7 +35,7 @@ std::vector<StridedSliceSpecificParams> testCases = {
     { { 1, 3, 4, 5, 6 }, { 0, 1, 0, 0, 0 }, { 1, 3, 4, 5, 6 }, { 1, 1, 1, 1, 1 }, {1, 0, 1, 1, 1}, {1, 0, 1, 1, 1},  {},  {},  {} },
 };
 
-std::vector<InferenceEngine::Precision> precisions = {
+std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::I32
 };
@@ -51,7 +51,11 @@ Config getConfig() {
 INSTANTIATE_TEST_CASE_P(smoke_StridedSlice_tests, StridedSliceLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(testCases),
-                            ::testing::ValuesIn(precisions),
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                             ::testing::Values(getConfig())),
                         StridedSliceLayerTest::getTestCaseName);

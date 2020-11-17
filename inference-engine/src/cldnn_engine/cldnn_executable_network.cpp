@@ -91,58 +91,52 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
     return ptr;
 }
 
-void CLDNNExecNetwork::CreateInferRequest(IInferRequest::Ptr &asyncRequest) {
-    auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-
-    auto asyncTreadSafeImpl = std::make_shared<CLDNNAsyncInferRequest>(syncRequestImpl, _taskExecutor, _callbackExecutor);
-
-    asyncRequest.reset(new InferRequestBase<CLDNNAsyncInferRequest>(asyncTreadSafeImpl), [](IInferRequest *p) { p->Release(); });
-    asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+IInferRequest::Ptr CLDNNExecNetwork::CreateInferRequest() {
+    return CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>();
 }
 
-void CLDNNExecNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
+InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
     if (m_graphs.empty())
         THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
 
-    m_graphs.front()->GetExecGraphInfo(graphPtr);
+    return m_graphs.front()->GetExecGraphInfo();
 }
 
-void CLDNNExecNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const {
-    auto option = m_config.key_config_map.find(name);
-    if (option != m_config.key_config_map.end()) {
-        result = option->second;
+InferenceEngine::Parameter CLDNNExecNetwork::GetConfig(const std::string &name) const {
+    auto it = m_config.key_config_map.find(name);
+    if (it != m_config.key_config_map.end()) {
+        return it->second;
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
     }
 }
 
-void CLDNNExecNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const {
+InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_ASSERT(!m_graphs.empty());
-        result = IE_SET_METRIC(NETWORK_NAME, m_graphs[0]->getName());
+        IE_SET_METRIC_RETURN(NETWORK_NAME, m_graphs[0]->getName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        result = IE_SET_METRIC(SUPPORTED_METRICS, metrics);
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto && value : m_config.key_config_map)
             configKeys.push_back(value.first);
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         unsigned int nr = m_config.throughput_streams * 2u;
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }
 }
 
-void CLDNNExecNetwork::GetContext(RemoteContext::Ptr &pContext, ResponseDesc *resp) const {
-    pContext = m_context;
+RemoteContext::Ptr CLDNNExecNetwork::GetContext() const {
+    return m_context;
 }
 
 };  // namespace CLDNNPlugin

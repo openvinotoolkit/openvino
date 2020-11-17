@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from mo.ops.softmax import LogSoftmax
+from mo.ops.log_softmax import LogSoftmax
 from mo.front.extractor import FrontExtractorOp
 
 

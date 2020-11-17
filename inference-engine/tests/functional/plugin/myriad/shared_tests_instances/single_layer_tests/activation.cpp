@@ -24,7 +24,9 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Gelu,     {}},
         {Mish,     {}},
         {SoftPlus, {}},
-        {Swish,    {{0.05f}, {0.8f}, {1.0f}, {15.0f}}}
+        {Swish,    {{0.05f}, {0.8f}, {1.0f}, {15.0f}}},
+        {HSwish,   {}},
+        {Ceiling,  {}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -35,6 +37,10 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );

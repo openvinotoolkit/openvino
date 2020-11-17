@@ -10,7 +10,7 @@ public class IECore extends IEWrapper {
     }
 
     public IECore(String xmlConfigFile) {
-        super(GetCore_1(xmlConfigFile));
+        super(GetCore1(xmlConfigFile));
     }
 
     public CNNNetwork ReadNetwork(final String modelPath, final String weightPath) {
@@ -92,7 +92,7 @@ public class IECore extends IEWrapper {
 
     private static native long GetCore();
 
-    private static native long GetCore_1(String xmlConfigFile);
+    private static native long GetCore1(String xmlConfigFile);
 
     @Override
     protected native void delete(long nativeObj);

@@ -67,7 +67,7 @@ bool OutShapeOfReshape::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
-namespace {
+namespace out_shape {
 
 template<element::Type_t ET>
 bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
@@ -98,7 +98,7 @@ bool setShapeToHostTensorData(const HostTensorPtr& data, const Shape& shape) {
     }
 
     for (int i = 0; i < outputRank; i++) {
-        dataPtr[i] = shape[i];
+        dataPtr[i] = static_cast<T>(shape[i]);
     }
     return true;
 }
@@ -189,9 +189,9 @@ bool evaluateOutShapeOfReshape(
         return false;
     }
 
-    int zeroDimsCount = std::count_if(outputShape.begin(), outputShape.end(),
+    int64_t zeroDimsCount = std::count_if(outputShape.begin(), outputShape.end(),
                                       [](int64_t value) { return value == 0; });
-    int negativeDimsCount = std::count_if(outputShape.begin(), outputShape.end(),
+    int64_t negativeDimsCount = std::count_if(outputShape.begin(), outputShape.end(),
                                           [](int64_t value) { return value == -1; });
     if (negativeDimsCount > 1) {
         return false;
@@ -220,7 +220,7 @@ bool evaluateOutShapeOfReshape(
                 outputShape[i] = inputShape[i];
                 outputTotalDimCount *= inputShape[i];
             } else if (outputShape[i] == -1) {
-                negativeDimIdx = i;
+                negativeDimIdx = static_cast<int>(i);
             } else {
                 outputTotalDimCount *= outputShape[i];
             }
@@ -250,11 +250,11 @@ bool evaluateOutShapeOfReshape(
     return true;
 }
 
-}  // namespace
+}  // namespace out_shape
 
 bool OutShapeOfReshape::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const {
-    return evaluateOutShapeOfReshape(inputs[0], inputs[1], m_specialZero, outputs[0]);
+    return out_shape::evaluateOutShapeOfReshape(inputs[0], inputs[1], m_specialZero, outputs[0]);
 }
 
 

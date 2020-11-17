@@ -109,7 +109,7 @@ When specifying key values as raw strings (that is, when using Python API), omit
 
 | Parameter Name                    | Parameter Values                                          | Default Value     | Description                                                              |
 | :---------------------------------| :---------------------------------------------------------| :-----------| :------------------------------------------------------------------------|
-| `KEY_GNA_COMPACT_MODE`            | `YES`/`NO`                                                | `YES`       | Reuse I/O buffers to save space (makes debugging harder)                 |
+| `KEY_GNA_COMPACT_MODE`            | `YES`/`NO`                                                | `NO`       | Reuse I/O buffers to save space (makes debugging harder)                 |
 | `KEY_GNA_SCALE_FACTOR`            | `FP32` number                                             | 1.0         | Scale factor to use for input quantization                               |
 | `KEY_GNA_DEVICE_MODE`             | `GNA_AUTO`/`GNA_HW`/`GNA_SW_EXACT`/`GNA_SW_FP32` | `GNA_AUTO`  | One of the modes described <a name="execution-models">Execution Models</a> |
 | `KEY_GNA_FIRMWARE_MODEL_IMAGE`    | `std::string`                                             | `""`        | Name for embedded model binary dump file                                 |
@@ -160,7 +160,7 @@ input blob using `InferenceEngine::ICNNNetwork::setBatchSize`. Increasing batch 
 
 Heterogeneous plugin was tested with the Intel&reg; GNA as a primary device and CPU as a secondary device. To run inference of networks with layers unsupported by the GNA plugin (for example, Softmax), use the Heterogeneous plugin with the `HETERO:GNA,CPU` configuration. For the list of supported networks, see the [Supported Frameworks](#supported-frameworks).
 
-> **NOTE:** Due to limitation of the Intel&reg; GNA backend library, heterogenous support is limited to cases where in the resulted sliced graph, only one subgraph is scheduled to run on GNA\_HW or GNA\_SW devices.
+> **NOTE:** Due to limitation of the Intel&reg; GNA backend library, heterogeneous support is limited to cases where in the resulted sliced graph, only one subgraph is scheduled to run on GNA\_HW or GNA\_SW devices.
 
 ## Recovery from interruption by high-priority Windows audio processes\*
 

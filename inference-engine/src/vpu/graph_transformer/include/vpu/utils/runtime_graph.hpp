@@ -5,16 +5,16 @@
 #pragma once
 
 #include <vpu/utils/perf_report.hpp>
-#include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 
 #include <vector>
 
 namespace vpu {
 
-InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraphAsIeNet(
+InferenceEngine::CNNNetwork buildRuntimeGraphAsIeNet(
         GraphMetaInfo& graphMetaInfo,
         const std::vector<float>& perfInfo);
-InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(
+InferenceEngine::CNNNetwork buildRuntimeGraph(
         GraphMetaInfo& graphMetaInfo,
         const std::vector<float>& perfInfo);
 

@@ -26,8 +26,8 @@ object_detection_sample_ssd [OPTION]
 Options:
 
     -h                      Print a usage message.
-    -i "<path>"             Required. Path to an .bmp image.
     -m "<path>"             Required. Path to an .xml file with a trained model.
+    -i "<path>"             Required. Path to an .bmp image.
       -l "<absolute_path>"  Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
       -c "<absolute_path>"  Required for GPU custom kernels. Absolute path to the .xml file with the kernels descriptions.
@@ -45,11 +45,11 @@ To run the sample, you can use public or pre-trained models. To download the pre
 For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
 
 ```sh
-./object_detection_sample_ssd -i <path_to_image>/inputImage.bmp -m <path_to_model>person-detection-retail-0013.xml -d CPU
+./object_detection_sample_ssd -m <path_to_model>person-detection-retail-0013.xml -i <path_to_image>/inputImage.bmp -d CPU
 ```
 or
 ```sh
-./object_detection_sample_ssd -i <path_to_image>/inputImage.jpg -m <path_to_model>person-detection-retail-0002.xml -d CPU
+./object_detection_sample_ssd -m <path_to_model>person-detection-retail-0002.xml -i <path_to_image>/inputImage.jpg -d CPU
 ```
 
 ## Sample Output

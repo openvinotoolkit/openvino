@@ -1,19 +1,20 @@
 #include <inference_engine.hpp>
 
 int main() {
-using namespace InferenceEngine;
 const std::string output_name = "output_name";
 const std::string input_name = "input_name";
 //! [part0]
 InferenceEngine::Core core;
+InferenceEngine::CNNNetwork network;
+InferenceEngine::ExecutableNetwork executable_network;
 //! [part0]
 
 //! [part1]
-auto network = core.ReadNetwork("Model.xml");
+network = core.ReadNetwork("Model.xml");
 //! [part1]
 
 //! [part2]
-auto network = core.ReadNetwork("model.onnx");
+network = core.ReadNetwork("model.onnx");
 //! [part2]
 
 //! [part3]
@@ -27,27 +28,27 @@ InferenceEngine::OutputsDataMap output_info = network.getOutputsInfo();
 /** Iterate over all input info**/
 for (auto &item : input_info) {
     auto input_data = item.second;
-    input_data->setPrecision(Precision::U8);
-    input_data->setLayout(Layout::NCHW);
-    input_data->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-    input_data->getPreProcess().setColorFormat(ColorFormat::RGB);
+    input_data->setPrecision(InferenceEngine::Precision::U8);
+    input_data->setLayout(InferenceEngine::Layout::NCHW);
+    input_data->getPreProcess().setResizeAlgorithm(InferenceEngine::RESIZE_BILINEAR);
+    input_data->getPreProcess().setColorFormat(InferenceEngine::ColorFormat::RGB);
 }
 /** Iterate over all output info**/
 for (auto &item : output_info) {
     auto output_data = item.second;
-    output_data->setPrecision(Precision::FP32);
-    output_data->setLayout(Layout::NC);
+    output_data->setPrecision(InferenceEngine::Precision::FP32);
+    output_data->setLayout(InferenceEngine::Layout::NC);
 }
 //! [part4]
 
 //! [part5]
-auto executable_network = core.LoadNetwork(network, "CPU");
+executable_network = core.LoadNetwork(network, "CPU");
 //! [part5]
 
 //! [part6]
 /** Optional config. E.g. this enables profiling of performance counters. **/
-std::map<std::string, std::string> config = {{ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES }};
-auto executable_network = core.LoadNetwork(network, "CPU", config);
+std::map<std::string, std::string> config = {{ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES }};
+executable_network = core.LoadNetwork(network, "CPU", config);
 //! [part6]
 
 //! [part7]
@@ -93,7 +94,9 @@ for (auto & item : input_info) {
     /** Create input blob **/
     InferenceEngine::TBlob<unsigned char>::Ptr input;
     // assuming input precision was asked to be U8 in prev step
-    input = InferenceEngine::make_shared_blob<unsigned char, InferenceEngine::SizeVector>(InferenceEngine::Precision::U8, input_data->getDims());
+    input = InferenceEngine::make_shared_blob<unsigned char>(
+        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, input_data->getTensorDesc().getDims(),
+        input_data->getTensorDesc().getLayout()));
     input->allocate();
     infer_request.SetBlob(item.first, input);
 
@@ -104,7 +107,7 @@ for (auto & item : input_info) {
 
 //! [part12]
 infer_request.StartAsync();
-infer_request.Wait(IInferRequest::WaitMode::RESULT_READY);
+infer_request.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
 //! [part12]
 
 auto sync_infer_request = executable_network.CreateInferRequest();

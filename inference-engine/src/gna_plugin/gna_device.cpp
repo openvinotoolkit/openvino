@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <cstring>
+#include <mutex>
 #include <vector>
 
 #if GNA_LIB_VER == 2
@@ -23,6 +24,8 @@
 
 #include "details/ie_exception.hpp"
 #include "gna_plugin_log.hpp"
+
+std::mutex GNADeviceHelper::acrossPluginsSync{};
 
 uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
     void * memPtr = nullptr;
@@ -62,6 +65,7 @@ uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
     return reqId;
 }
 #else
+
 void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices) {
     const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
     checkGna2Status(status);
@@ -71,7 +75,7 @@ void GNADeviceHelper::propagateSync(const uint32_t requestConfigId, Gna2Accelera
 }
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
-    uint32_t reqId;
+    uint32_t reqId{};
     if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
@@ -86,8 +90,22 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     return reqId;
 }
 
-uint32_t GNADeviceHelper::createModel(const Gna2Model& gnaModel) const {
+void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
+    for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
+        if (gnaModel.Operations->Type == Gna2OperationTypeConvolution) {
+            snprintf(
+                const_cast<char*>(gnaModel.Operations[i].Operands[1]->Layout),
+                sizeof(gnaModel.Operations[i].Operands[1]->Layout) / sizeof(char),
+                "GNA1");
+        }
+    }
+}
+
+uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     uint32_t modelId;
+    if (isUpTo20GnaDevice()) {
+        enforceLegacyCnns(gnaModel);
+    }
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
 
     checkGna2Status(status, gnaModel);
@@ -104,13 +122,30 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
     checkGna2Status(status);
     if (gna2HwConsistency != Gna2DeviceVersionSoftwareEmulation) {
-        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, gna2HwConsistency);
+        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId,
+            isUpTo20GnaDevice() ? gna2HwConsistency : detectedGnaDevVersion);
         checkGna2Status(status);
     }
     status = Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, reqConfId);
     checkGna2Status(status);
 
     return reqConfId;
+}
+
+uint32_t GNADeviceHelper::getNumberOfGnaDevices() {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    uint32_t numberOfGnaDevices = 0;
+    auto status = Gna2DeviceGetCount(&numberOfGnaDevices);
+    checkGna2Status(status);
+    return numberOfGnaDevices;
+}
+
+uint32_t GNADeviceHelper::selectGnaDevice() {
+    const auto deviceCount = getNumberOfGnaDevices();
+    if (deviceCount != 1) {
+        THROW_GNA_EXCEPTION << "Unsupported number of GNA devices detected = " << deviceCount;
+    }
+    return 0;
 }
 
 void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel) {
@@ -363,6 +398,7 @@ void GNADeviceHelper::checkStatus() const {
 #endif
 
 void GNADeviceHelper::open(uint8_t n_threads) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     nGNAHandle = GNADeviceOpenSetThreads(&nGNAStatus, n_threads);
     checkStatus();
@@ -379,6 +415,7 @@ void GNADeviceHelper::open(uint8_t n_threads) {
 }
 
 void GNADeviceHelper::close() {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     GNADeviceClose(nGNAHandle);
     nGNAHandle = 0;
@@ -398,6 +435,7 @@ void GNADeviceHelper::close() {
 }
 
 void GNADeviceHelper::setOMPThreads(uint8_t const n_threads) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     gmmSetThreads(n_threads);
 #else

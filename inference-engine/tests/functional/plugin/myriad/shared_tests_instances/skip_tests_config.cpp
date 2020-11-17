@@ -23,5 +23,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIWithHETERONoThrow_V10|QueryNetworkHETEROWithMULTINoThrow_V10).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
+        // TODO: Issue: 40473
+        R"(.*TopKLayerTest.*mode=min.*sort=index.*)",
+        // TODO: Issue: 40961
+        R"(.*(ConstantResultSubgraphTest).*)",
+        // TODO: Issue: 42828
+        R"(.*DSR_NonMaxSuppression.*NBoxes=(5|20|200).*)",
+        // TODO: Issue: 42721
+        R"(.*(DSR_GatherND).*)",
     };
 }

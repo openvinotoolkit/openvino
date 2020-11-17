@@ -59,8 +59,8 @@ KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params, const 
     return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
 }
 
-JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    JitConstants jit = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    JitConstants jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
