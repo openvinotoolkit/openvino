@@ -16,7 +16,7 @@ class BF16Transformer {
         { "convolution", "fullyconnected", "innerproduct", "gemm" };
     const InferenceEngine::details::caseless_set<std::string> _complementbf16 =
         { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "logistic",
-          "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "memory" };
+          "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "memory", "psroipooling" };
     const InferenceEngine::details::caseless_set<std::string> _multiinput =
         { "concat", "eltwise" };
     //  prevent fallback to fp32 without considering both input and output nodes

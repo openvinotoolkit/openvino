@@ -7,7 +7,11 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <mkldnn_types.h>
 #include "ie_parallel.hpp"
+#include "utils/bfloat16.hpp"
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -46,22 +50,36 @@ public:
             part_size_ = layer->GetParamAsInt("part_size", 1);
             trans_std_ = layer->GetParamAsFloat("trans_std", 1);
 
+            bool isBf16Input = layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16;
+
             if (no_trans_) {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN)},
+                          {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
+
+                addConfig(layer, {DataConfigurator(ConfLayout::BLK16, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN)},
+                          {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
             } else {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN),
+                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
+
+                addConfig(layer, {DataConfigurator(ConfLayout::BLK16, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN),
+                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
             }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }
 
-    StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
-                       ResponseDesc *resp) noexcept override {
-        float* dst_data = outputs[0]->buffer();
-        const float *bottom_data_beginning = inputs[0]->buffer();
+    template <typename inputType, typename outputType>
+    StatusCode executeSpecified(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
+                                ResponseDesc *resp) {
         const float *bottom_rois_beginning = inputs[1]->buffer();
+        const auto *src_data = inputs[0]->cbuffer().as<const inputType*>();
+        auto *dst_data = outputs[0]->buffer().as<outputType*>();
+
+        const int block_size = inputs[0]->getTensorDesc().getLayout() == Layout::BLOCKED ?
+                         inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[4] : 1;
+        const int blockOffset = width * block_size;
 
         int real_rois = 0;
         for (; real_rois < nn; real_rois++) {
@@ -85,7 +103,7 @@ public:
         size_t num_bins = spatial_bins_x_*spatial_bins_y_;
 
         parallel_for(real_rois, [&](int n) {
-            const float* bottom_rois = bottom_rois_beginning + n * 5;
+            const float *bottom_rois = bottom_rois_beginning + n * 5;
             int roi_batch_ind = static_cast<int>(bottom_rois[0]);
             float roi_start_w = 0.0f;
             float roi_start_h = 0.0f;
@@ -118,14 +136,12 @@ public:
                 roi_width  = std::max<float>(roi_end_w - roi_start_w, 0.1f);  // avoid 0
                 roi_height = std::max<float>(roi_end_h - roi_start_h, 0.1f);
             }
-
-            for (int c = 0; c < nc; c++) {
-                for (int h = 0; h < nh; h++) {
-                    for (int w = 0; w < nw; w++) {
-                        size_t index = n*nc*nh*nw + c*nh*nw + h*nw + w;
-                        dst_data[index] = 0.0f;
-
-                        if (mode_ == "average") {
+            if (mode_ == "average") {
+                for (int c = 0; c < nc; c++) {
+                    for (int h = 0; h < nh; h++) {
+                        for (int w = 0; w < nw; w++) {
+                            size_t index = n*nc*nh*nw + c*nh*nw + h*nw + w;
+                            dst_data[index] = 0.0f;
                             float bin_size_h = roi_height / static_cast<float>(pooled_height_);
                             float bin_size_w = roi_width  / static_cast<float>(pooled_width_);
 
@@ -142,18 +158,30 @@ public:
 
                             float bin_area = static_cast<float>((hend - hstart) * (wend - wstart));
                             if (bin_area) {
-                                int gc = (c * group_size_ + h) * group_size_ + w;
-                                const float *bottom_data =
-                                        bottom_data_beginning + ((roi_batch_ind * channels + gc) * height * width);
-
+                                const int gc = (c * group_size_ + h) * group_size_ + w;
+                                const int blockResidual = gc % block_size;
+                                const auto *bottom_data =
+                                        src_data + ((roi_batch_ind * channels + (gc / block_size) * block_size) * height * width);
                                 float out_sum = 0.0f;
-                                for (int hh = hstart; hh < hend; ++hh)
-                                    for (int ww = wstart; ww < wend; ++ww)
-                                        out_sum += bottom_data[hh * width + ww];
-
+                                const int heightIndexBound = hend * blockOffset;
+                                const int weightIndexBound = wend * block_size;
+                                for (int hh = hstart * width * block_size; hh < heightIndexBound; hh += blockOffset) {
+                                    for (int ww = wstart * block_size; ww < weightIndexBound; ww += block_size) {
+                                        out_sum += bottom_data[hh + ww + blockResidual];
+                                    }
+                                }
                                 dst_data[index] = out_sum / bin_area;
                             }
-                        } else if (mode_ == "bilinear") {
+                        }
+                    }
+                }
+            } else if (mode_ == "bilinear") {
+                for (int c = 0; c < nc; c++) {
+                    for (int h = 0; h < nh; h++) {
+                        for (int w = 0; w < nw; w++) {
+                            size_t index = n*nc*nh*nw + c*nh*nw + h*nw + w;
+                            dst_data[index] = 0.0f;
+                            float accum = 0.0f;
                             for (size_t bin_y = 0; bin_y < spatial_bins_y_; bin_y++) {
                                 for (size_t bin_x = 0; bin_x < spatial_bins_x_; bin_x++) {
                                     float box_xmin = roi_start_w + (bin_x + 0) * (roi_width / spatial_bins_x_);
@@ -162,8 +190,9 @@ public:
                                     float box_ymax = roi_start_h + (bin_y + 1) * (roi_height / spatial_bins_y_);
 
                                     size_t gc = c + (bin_y*spatial_bins_x_ + bin_x)*nc;
-                                    size_t src_idx = (roi_batch_ind * channels + gc) * height * width;
-                                    const float *bottom_data = bottom_data_beginning + src_idx;
+                                    const int blockResidual = gc % block_size;
+                                    size_t src_idx = (roi_batch_ind * channels + (gc / block_size) * block_size) * height * width;
+                                    const auto *bottom_data = src_data + src_idx;
 
                                     float height_scale = nh > 1 ? (box_ymax - box_ymin) * (height - 1) / (pooled_height_ - 1)
                                                                 : 0.0f;
@@ -187,20 +216,34 @@ public:
                                         if (bottom_y_index > height - 1)
                                             bottom_y_index = height - 1;
 
-                                        const float top_left = bottom_data[top_y_index * width + left_x_index];
-                                        const float top_right = bottom_data[top_y_index * width + right_x_index];
-                                        const float bottom_left = bottom_data[bottom_y_index * width + left_x_index];
-                                        const float bottom_right = bottom_data[bottom_y_index * width + right_x_index];
+                                        auto top_left_index = (top_y_index * width + left_x_index) * block_size + blockResidual;
+                                        auto top_right_index = (top_y_index * width + right_x_index) * block_size + blockResidual;
+                                        auto bottom_left_index = (bottom_y_index * width + left_x_index) * block_size + blockResidual;
+                                        auto bottom_right_index = (bottom_y_index * width + right_x_index) * block_size + blockResidual;
+
+                                        const float top_left = bottom_data[top_left_index];
+                                        const float top_right = bottom_data[top_right_index];
+                                        const float bottom_left = bottom_data[bottom_left_index];
+                                        const float bottom_right = bottom_data[bottom_right_index];
 
                                         const float top = top_left + (top_right - top_left) * (in_x - left_x_index);
                                         const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
 
-                                        dst_data[index] += top + (bottom - top) * (in_y - top_y_index);
+                                        accum += top + (bottom - top) * (in_y - top_y_index);
                                     }
                                 }
                             }
-                            dst_data[index] /= num_bins;
-                        } else if (mode_ == "bilinear_deformable") {
+                            accum /= num_bins;
+                            dst_data[index] = accum;
+                        }
+                    }
+                }
+            } else if (mode_ == "bilinear_deformable") {
+                for (int c = 0; c < nc; c++) {
+                    for (int h = 0; h < nh; h++) {
+                        for (int w = 0; w < nw; w++) {
+                            size_t index = n*nc*nh*nw + c*nh*nw + h*nw + w;
+                            dst_data[index] = 0.0f;
                             // Compute w and h at bottom
                             float bin_size_h = roi_height / static_cast<float>(pooled_height_);
                             float bin_size_w = roi_width  / static_cast<float>(pooled_width_);
@@ -212,8 +255,8 @@ public:
                             int part_w = w * part_size_ / pooled_width_;
                             int class_id = c / channels_each_class;
                             float trans_x = no_trans_ ? 0 :
-                                    bottom_trans[(((n * num_classes + class_id) * 2) * part_size_ + part_h)
-                                                                                      * part_size_ + part_w] * trans_std_;
+                                            bottom_trans[(((n * num_classes + class_id) * 2) * part_size_ + part_h)
+                                                         * part_size_ + part_w] * trans_std_;
                             float trans_y = no_trans_ ? 0 :
                                             bottom_trans[(((n * num_classes + class_id) * 2 + 1) * part_size_ + part_h)
                                                          * part_size_ + part_w] * trans_std_;
@@ -228,7 +271,7 @@ public:
                             gw = (std::min)((std::max)(gw, 0), static_cast<int>(group_size_ - 1));
                             gh = (std::min)((std::max)(gh, 0), static_cast<int>(group_size_ - 1));
 
-                            const float* offset_bottom_data = bottom_data_beginning + (roi_batch_ind * channels) * height * width;
+                            const inputType* offset_bottom_data = src_data + (roi_batch_ind * channels) * height * width;
                             for (size_t ih = 0; ih < spatial_bins_y_; ih++) {
                                 for (size_t iw = 0; iw < spatial_bins_x_; iw++) {
                                     float w1 = wstart + iw * sub_bin_size_w;
@@ -239,12 +282,14 @@ public:
                                     w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
                                     h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
                                     int c1 = static_cast<int>((c * group_size_ + gh) * group_size_ + gw);
-                                    float val = bilinear_interp(offset_bottom_data + c1 * height * width, w1, h1, width);
+                                    float val = bilinear_interp<inputType>(offset_bottom_data +
+                                        c1 * height * width, w1, h1, width, block_size, c1 % block_size);
+
                                     sum += val;
                                     count++;
                                 }
                             }
-                            dst_data[index] = count == 0 ? 0 : sum / count;
+                            dst_data[index] = count == 0 ? 0.0f : sum / count;
                         }
                     }
                 }
@@ -261,17 +306,33 @@ public:
         return OK;
     }
 
-    inline float bilinear_interp(const float* data, const float x, const float y, const int width) {
+    StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
+                       ResponseDesc *resp) noexcept override {
+        auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
+        auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
+        if (inputPrec == Precision::BF16 && outputPrec == Precision::BF16) {
+            return executeSpecified<bfloat16, bfloat16>(inputs, outputs, resp);
+        } else if (inputPrec == Precision::FP32 && outputPrec == Precision::FP32) {
+            return executeSpecified<float, float>(inputs, outputs, resp);
+        } else {
+            return NOT_IMPLEMENTED;
+        }
+    }
+
+    template <typename inputType>
+    inline float bilinear_interp(const inputType* data, const float x, const float y, const int width,
+                                 const int block_size = 1, const int blockResidual = 0) {
         int x1 = static_cast<int>(std::floor(x));
         int x2 = static_cast<int>(std::ceil(x));
         int y1 = static_cast<int>(std::floor(y));
         int y2 = static_cast<int>(std::ceil(y));
         float dist_x = x - x1;
         float dist_y = y - y1;
-        float value11 = data[y1 * width + x1];
-        float value12 = data[y2 * width + x1];
-        float value21 = data[y1 * width + x2];
-        float value22 = data[y2 * width + x2];
+
+        float value11 = data[(y1 * width + x1) * block_size + blockResidual];
+        float value12 = data[(y2 * width + x1) * block_size + blockResidual];
+        float value21 = data[(y1 * width + x2) * block_size + blockResidual];
+        float value22 = data[(y2 * width + x2) * block_size + blockResidual];
         float value = (1 - dist_x) * (1 - dist_y) * value11 + (1 - dist_x) * dist_y * value12
                       + dist_x * (1 - dist_y) * value21 + dist_x * dist_y * value22;
         return value;
