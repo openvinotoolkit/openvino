@@ -34,7 +34,6 @@ using NmsParams = std::tuple<InputShapeParams,                                  
 class NmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<NmsParams> obj);
-    void ConfigureNetwork() override;
     void Infer() override;
     void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) override;
 

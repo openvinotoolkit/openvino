@@ -37,19 +37,6 @@ std::string NmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsParams> obj)
     return result.str();
 }
 
-void NmsLayerTest::ConfigureNetwork() {
-    const OutputsDataMap &outputMap = cnnNetwork.getOutputsInfo();
-    auto out = outputMap.begin();
-    for (size_t i = 0; i < outputMap.size(); i++) {
-        if (i < 2) {
-            TensorDesc desc(out->second->getTensorDesc().getPrecision(), SizeVector{numOfSelectedBoxes, 3},
-                            TensorDesc::getLayoutByDims(SizeVector{numOfSelectedBoxes, 3}));
-            *(out->second) = *std::make_shared<Data>(out->first, desc);
-        }
-        out++;
-    }
-}
-
 void NmsLayerTest::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
@@ -130,7 +117,10 @@ void NmsLayerTest::SetUp() {
 
     auto nms = builder::makeNms(paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec), convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr,
                                 scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType);
-    function = std::make_shared<Function>(nms, params, "NMS");
+    auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(outType, Shape{1}, {1}));
+    auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(ngPrc, Shape{1}, {1}));
+    auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));
+    function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
 }
 
 TEST_P(NmsLayerTest, CompareWithRefs) {
