@@ -104,7 +104,7 @@ public:
                 inConfig.inPlace = -1;
                 inConfig.constant = false;
 
-                Precision inPrecision = i == 0 ? layer->insData[i].lock()->getTensorDesc().getPrecision() : inputPrecision;
+                Precision inPrecision = i == CONDITION ? conditionPrecision : inputPrecision;
                 const SizeVector& inDims = layer->insData[i].lock()->getTensorDesc().getDims();
                 inConfig.desc = TensorDesc(inPrecision, inDims, InferenceEngine::TensorDesc::getLayoutByDims(inDims));
 

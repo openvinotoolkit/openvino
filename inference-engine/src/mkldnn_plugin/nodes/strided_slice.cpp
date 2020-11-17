@@ -224,20 +224,15 @@ public:
         const size_t inputsPrecSize = inputs[STRIDEDSLICE_DATA]->getTensorDesc().getPrecision().size();
         if (static_cast<int>(src_dims.size()) == max_dims && shrink_axis == 0 &&
                 stride_dms[stride_dms.size()-1] == 1 && stride_dms.size() > 1) {
-            switch (inputsPrecSize) {
-                case 1: { strided_slice_vp<uint8_t>(inputs[STRIDEDSLICE_DATA], outputs[0]); break; }
-                case 2: { strided_slice_vp<uint16_t>(inputs[STRIDEDSLICE_DATA], outputs[0]); break; }
-                case 4: { strided_slice_vp<uint32_t>(inputs[STRIDEDSLICE_DATA], outputs[0]); break; }
-                case 8: { strided_slice_vp<uint64_t>(inputs[STRIDEDSLICE_DATA], outputs[0]); break; }
-                default: {
-                    if (resp) {
-                        std::string errorMsg = "StridedSlice layer doesn't support 'Data' input precision: "
-                            + std::string(inputs[STRIDEDSLICE_DATA]->getTensorDesc().getPrecision().name());
-                            errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-                    }
-                    return GENERAL_ERROR;
+            if (inputsPrecSize != outputs[0]->getTensorDesc().getPrecision().size()) {
+                if (resp) {
+                    std::string errorMsg = "StridedSlice layer doesn't support 'Data' input precision: "
+                        + std::string(inputs[STRIDEDSLICE_DATA]->getTensorDesc().getPrecision().name());
+                        errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
                 }
+                return GENERAL_ERROR;
             }
+            strided_slice_vp(inputs[STRIDEDSLICE_DATA], outputs[0]);
         } else if (static_cast<int>(src_dims.size()) == max_dims && shrink_axis == 0) {
             switch (inputsPrecSize) {
                 case 1: { strided_slice_p<uint8_t>(inputs[STRIDEDSLICE_DATA], outputs[0]); break; }
@@ -281,7 +276,6 @@ private:
 
     template <typename T>
     void strided_slice(Blob::Ptr&, Blob::Ptr& dst_data, std::vector<size_t> &dims);
-    template <typename T>
     void strided_slice_vp(Blob::Ptr&, Blob::Ptr& dst_data);
     template <typename T>
     void strided_slice_p(Blob::Ptr&, Blob::Ptr& dst_data);
@@ -346,16 +340,16 @@ void StridedSliceImpl::strided_slice(Blob::Ptr& input, Blob::Ptr& output, std::v
     });
 }
 
-template <typename T>
 void StridedSliceImpl::strided_slice_vp(Blob::Ptr& input, Blob::Ptr& output) {
-    auto* src_data = input->cbuffer().as<const T*>() + input->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    auto* dst_data = output->buffer().as<T*>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    size_t dataSize = input->getTensorDesc().getPrecision().size();
+    const uint8_t* src_data = input->cbuffer().as<const uint8_t*>() + input->getTensorDesc().getBlockingDesc().getOffsetPadding() * dataSize;
+    uint8_t* dst_data = output->buffer().as<uint8_t*>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding() * dataSize;
     auto dst_size = output->byteSize();
     memset(dst_data, 0, dst_size);
 
     //  Vectorized copy
     size_t dims_size_1 = dst_dims.size() - 1;
-    size_t dataLength = dst_dims[dims_size_1];
+    size_t len = dst_dims[dims_size_1] * dataSize;
     size_t work_amount_dst = dstStrides[0] * dst_dims[0] / dst_dims[dims_size_1];
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -369,8 +363,8 @@ void StridedSliceImpl::strided_slice_vp(Blob::Ptr& input, Blob::Ptr& output) {
             i /= dst_dims[j];
         }
 
-        for (size_t iwork = start, dst_idx = start * dataLength, i = 1; iwork < end; ++iwork, dst_idx += dataLength) {
-            cpu_memcpy(&dst_data[dst_idx], &src_data[src_idx], sizeof(T) * dataLength);
+        for (size_t iwork = start, dst_idx = start * len, i = 1; iwork < end; ++iwork, dst_idx += len) {
+            cpu_memcpy(&dst_data[dst_idx], &src_data[src_idx * dataSize], len);
             for (int j = dims_size_1 - 1; j >= 0; j--) {
                 counters[j]++;
                 if (counters[j] < dst_dims[j]) {
