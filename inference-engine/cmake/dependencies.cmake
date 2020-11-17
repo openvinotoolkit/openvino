@@ -136,7 +136,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (WIN32 AND X86_64)
             #TODO: add target_path to be platform specific as well, to avoid following if
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_WIN "tbb2020_20200415_win.zip"
+                    ARCHIVE_WIN "oneapi-tbb-2021.1-hybrid-cpu-v01.zip"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
                     SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
