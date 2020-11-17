@@ -65,19 +65,7 @@ def unique_by(xs: list, predicate: Callable) -> list:
     :return: list with unique elements
     """
     groups = group_by_with_binary_predicate(xs, predicate)
-    result = []
-    for group in groups:
-        result.append(group[0])
-    return result
-
-
-default_attrs_of_strided_slice = {
-    'begin_mask' : int64_array([1]),
-    'end_mask': int64_array([1]),
-    'shrink_axis_mask': int64_array([0]),
-    'new_axis_mask': int64_array([0]),
-    'ellipsis_mask': int64_array([0])
-}
+    return [group[0] for group in groups]
 
 
 def strided_slices_equality(lhs: Node, rhs: Node) -> bool:
@@ -88,6 +76,14 @@ def strided_slices_equality(lhs: Node, rhs: Node) -> bool:
     :return: True, if lhs and rhs have identical attributes 'slices', 'begin_mask', 'end_mask', 'ellipsis_mask',
              'new_axis_mask', 'shrink_axis_mask', and False otherwise.
     """
+    default_attrs_of_strided_slice = {
+        'begin_mask': int64_array([1]),
+        'end_mask': int64_array([1]),
+        'shrink_axis_mask': int64_array([0]),
+        'new_axis_mask': int64_array([0]),
+        'ellipsis_mask': int64_array([0])
+    }
+
     if not np.array_equal(lhs.slices, rhs.slices):
         return False
     for attr in ['begin_mask', 'end_mask', 'ellipsis_mask', 'new_axis_mask', 'shrink_axis_mask']:
