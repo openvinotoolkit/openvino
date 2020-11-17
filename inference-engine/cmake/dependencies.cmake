@@ -308,22 +308,22 @@ if (ENABLE_SPEECH_DEMO)
     if(DEFINED IE_PATH_TO_DEPS)
         if (WIN32 AND X86_64)
             RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_WIN "speech_demo_1.0.0.751_windows.zip"
+                    ARCHIVE_WIN "speech_demo_1.0.0.754_windows.zip"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.746")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754")
             debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
         elseif (LINUX AND X86_64)
             if (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.751_centos.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.754_centos.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.746")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             else()
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.751_linux.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.754_linux.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.746")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             endif()
         else()
