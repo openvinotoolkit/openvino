@@ -391,7 +391,7 @@ void SubstituteSoftSignPass::run() {
         // pattern matched - lets substitute
         gnalog() << "SoftSign subgraph found consits of: \n"
                  << "\t" << abs->name << "\n";
-        if (addition == nullptr) gnalog() << "\t" << addition->name << "\n";
+        if (addition != nullptr) gnalog() << "\t" << addition->name << "\n";
         gnalog() << "\t" << mul->name << "\n"
                  << std::endl;
 
@@ -402,6 +402,7 @@ void SubstituteSoftSignPass::run() {
 
         CNNLayerPtr activationLayer =
                 std::make_shared<GenericLayer>(LayerParams({layerName, "SoftSign", Precision::FP32}));
+        IE_ASSERT(activationLayer != nullptr);
         auto activationLayerWithQuant = quantized ?
                                         InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) :
                                         activationLayer;
@@ -483,6 +484,7 @@ void SubstitutePReluPass::run() {
 
         // sum
         auto sum = getNext(negate);
+        IE_ASSERT(sum != nullptr);
         if (!LayerInfo(sum).isEltwiseSum()) continue;
         if (sum->insData.size() != 2
                 || sum->insData[0].lock() == nullptr
@@ -922,6 +924,7 @@ void InsertConcatAligningFilterPass::run() {
         if (!info.isConcat()) continue;
         size_t offset = 0;
         auto concatLayer = info.as<ConcatLayer*>();
+        IE_ASSERT(concatLayer != nullptr);
 
         for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
             auto getLayerByIndex = [&concatLayer](int idx) {
@@ -1237,6 +1240,8 @@ void EltwiseSplitOverChannelsPass::run() {
             continue;
         }
         auto masterEltwise = std::dynamic_pointer_cast<EltwiseLayer>(l);
+        IE_ASSERT(masterEltwise != nullptr);
+
         if (l->outData.size() != 1) {
             THROW_GNA_LAYER_EXCEPTION(l) << "number of outputs expected to be 1";
         }
@@ -1339,6 +1344,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
         }
 
         auto scaleShift = layerInfo.as<ScaleShiftLayer*>();
+        IE_ASSERT(scaleShift != nullptr);
 
         auto insData = scaleShift->insData.front().lock();
         if (!insData) {
