@@ -7,23 +7,24 @@
 #include <memory>
 
 #include "cpp_interfaces/exception2status.hpp"
+#include "cpp_interfaces/impl/ie_memory_state_internal.hpp"
 #include "ie_imemory_state.hpp"
 
 namespace InferenceEngine {
 
 /**
- * @brief default implementation for IMemoryState
+ * @brief default implementation for IVariableState
  * @ingroup ie_dev_api_mem_state_api
  */
 template <class T>
-class MemoryStateBase : public IMemoryState {
+class VariableStateBase : public IVariableState {
 protected:
     std::shared_ptr<T> impl;
 
 public:
-    explicit MemoryStateBase(std::shared_ptr<T> impl): impl(impl) {
+    explicit VariableStateBase(std::shared_ptr<T> impl): impl(impl) {
         if (impl == nullptr) {
-            THROW_IE_EXCEPTION << "MemoryStateBase implementation not defined";
+            THROW_IE_EXCEPTION << "VariableStateBase implementation not defined";
         }
     }
 
@@ -44,8 +45,8 @@ public:
         TO_STATUS(impl->SetState(newState));
     }
 
-    StatusCode GetLastState(Blob::CPtr& lastState, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(lastState = impl->GetLastState());
+    StatusCode GetState(Blob::CPtr& state, ResponseDesc* resp) const noexcept override {
+        TO_STATUS(state = impl->GetState());
     }
 };
 

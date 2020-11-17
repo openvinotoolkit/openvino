@@ -231,3 +231,9 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
     return graph_rewritten;
 }
 
+bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    bool rewritten = UselessStridedSliceEraser().run_on_function(f);
+    rewritten |= SharedStridedSliceEraser().run_on_function(f);
+    rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
+    return rewritten;
+}

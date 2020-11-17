@@ -565,7 +565,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile)
 
     auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     test_case.add_input<std::int16_t>({0, 1, 2, 3, 4, 5}); // input
-    test_case.add_input<std::int16_t>({2, 1});             // repeats
+    test_case.add_input<std::int64_t>({2, 1});             // repeats
     test_case.add_expected_output<std::int16_t>(Shape{4, 3}, {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5});
     test_case.run();
 }

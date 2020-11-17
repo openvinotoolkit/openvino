@@ -88,12 +88,6 @@
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
 
-#ifdef USE_CNNNETWORK_LPT
-#include "low_precision_transformations/transformer.hpp"
-#include "low_precision_transformations/fully_connected.hpp"
-#include "low_precision_transformations/gemm.hpp"
-#endif
-
 #include <iostream>
 #include <iomanip>
 #include "cldnn_common_utils.h"
@@ -412,54 +406,6 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         }
     }
 
-#ifdef USE_CNNNETWORK_LPT
-    bool allFQareSupported = true;
-    if (config.enableInt8) {
-        auto it = details::CNNNetworkIterator(&network);
-        auto end = details::CNNNetworkIterator();
-        while (it != end) {
-            auto& layer = *it;
-            if (layer->precision == Precision::FP16) {
-                baselineIsFP16 = true;
-            }
-
-            if (CaselessEq<std::string>()(layer->type, "FakeQuantize")) {
-                fqFound = true;
-                auto levels = layer->GetParamAsUInt("levels");
-                if (levels != 255 && levels != 256) {
-                    allFQareSupported = false;
-                }
-            }
-            it++;
-        }
-    }
-
-    if (config.enableInt8) {
-        auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                  true,  // quantizeOutputs
-                                                  true,  // weightsToConst
-                                                  LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                  LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                  true,  // roundQuantizedValues
-                                                  true,  // updateBiases
-                                                  true,   // supportAsymmetricQuantization
-                                                  {Precision::U8, Precision::I8},  // Precision on activations
-                                                  {Precision::I8});  // Precision on weights
-
-        auto transforms = LowPrecisionTransformer::getAllTransformations(params)
-                .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
-                .add<GemmTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
-
-        // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-        if (fqFound && allFQareSupported) {
-            NetPass::ConvertPrecision(network, Precision::FP16, Precision::FP32);
-        }
-
-        LowPrecisionTransformer transformer(transforms);
-        transformer.transform(network);
-    }
-#endif
-
     // [WA part2] Try to find non-quantized layers and convert them back to FP16
     if (config.enableInt8) {
         if (fqFound && baselineIsFP16 && config.enable_fp16_for_quantized_models) {
@@ -527,24 +473,6 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                 }
             }
         }
-    }
-
-    NetPass::CombineRNNSeq(network);
-    for (int i = 0; i < 2; i++) {
-        NetPass::UnrollTI(network);
-        NetPass::UnrollRNN_if(network, [](const RNNCellBase &rnn) -> bool {
-            if (rnn.clip != 0.0f)
-                return true;
-            if (rnn.type == "GRUCell" ||
-                rnn.type == "GRUSequence" ||
-                rnn.type == "RNNCell" ||
-                rnn.type == "RNNSequence")
-                return true;
-            if (!(rnn.type == "LSTMCell" || rnn.type == "LSTMSequence") ||
-                rnn.activations == std::vector<std::string>{"sigmoid", "tanh", "tanh"})
-                return false;
-            return true;
-        });
     }
 
     if (m_config.max_dynamic_batch > 1) {

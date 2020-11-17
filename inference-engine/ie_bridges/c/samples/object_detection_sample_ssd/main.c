@@ -68,12 +68,12 @@ int ParseAndCheckCommandLine(int argc, char *argv[]) {
 
     if (help)
         return -1;
-    if (img_msg == NULL) {
-        printf("Parameter -i is not set\n");
+    if (input_model == NULL) {
+        printf("Model is required but not set. Please set -m option. \n");
         return -1;
     }
-    if (input_model == NULL) {
-        printf("Parameter -m is not set \n");
+    if (img_msg == NULL) {
+        printf("Input is required but not set.Please set - i option.\n");
         return -1;
     }
 
@@ -245,7 +245,7 @@ void config_free(ie_config_t *config) {
 
 /**
 * @brief Convert the numbers to char *;
-* @param str A pointer to the convered string .
+* @param str A pointer to the converted string.
 * @param num The number to convert.
 * @return none.
 */
