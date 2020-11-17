@@ -53,7 +53,7 @@ namespace ngraph
                            const Output<Node>& coords,
                            const Shape& output_size,
                            const float spatial_scale,
-                           ROIPoolingMethod method = ROIPoolingMethod::Max);
+                           ROIPoolingMethod method);
 
                 void validate_and_infer_types() override;
 

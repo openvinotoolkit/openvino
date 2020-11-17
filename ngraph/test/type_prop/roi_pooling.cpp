@@ -24,7 +24,8 @@ TEST(type_prop, roi_pooling_basic_shape_inference)
 {
     const auto feat_maps = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6, 6});
     const auto rois = make_shared<op::Parameter>(element::f32, Shape{4, 5});
-    const auto op = make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "max");
+    const auto op = make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f);
+    ASSERT_EQ(op->get_method(), op::ROIPooling::ROIPoolingMethod::Max);
     ASSERT_EQ(op->get_shape(), (Shape{4, 3, 2, 2}));
 }
 
@@ -70,7 +71,7 @@ TEST(type_prop, roi_pooling_incompatible_rois_element_type)
     const auto feat_maps = make_shared<op::Parameter>(element::f32, Shape{3, 2, 6, 6});
     const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
     // rois element type must be equal to feat_maps element type (floating point type)
-    ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "max"),
+    ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "bilinear"),
                  ngraph::NodeValidationFailure);
 }
 
