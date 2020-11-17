@@ -73,7 +73,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                 }
             } else if (const auto& merged_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::MergedInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
-                const auto& in_data = ti->input_values()[merged_desc->m_input_index].get_node_shared_ptr();
+                auto in_data = ti->input_values()[merged_desc->m_input_index];
                 const auto& param = body_functions[0]->get_parameters()[merged_desc->m_body_parameter_index];
                 for (auto &output : param->outputs()) {
                     output.replace(in_data);
@@ -89,7 +89,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                 }
             } else if (const auto& invariant_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::InvariantInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
-                auto in_data = ti->input_values()[invariant_desc->m_input_index].get_node_shared_ptr();
+                auto in_data = ti->input_values()[invariant_desc->m_input_index];
                 for (int64_t j = 0; j < num_iter; j++) {
                     auto param = body_functions[j]->get_parameters()[invariant_desc->m_body_parameter_index];
                     for (auto &output : param->outputs()) {

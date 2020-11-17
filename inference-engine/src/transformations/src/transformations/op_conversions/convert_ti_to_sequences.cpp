@@ -11,6 +11,7 @@
 #include <ngraph/node.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/specialize_function.hpp>
@@ -40,7 +41,6 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
 
         auto cell = std::make_shared<ngraph::opset5::LSTMCell>(squeeze, input_H_state, input_C_state,
                                                                input_W, input_R, input_B, 1);
-
         auto pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
         auto unsqueeze = std::make_shared<ngraph::opset5::Reshape>(cell, pattern_2, false);
         ngraph::pattern::Matcher matcher(unsqueeze);
@@ -53,11 +53,28 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
                 break;
         }
 
+        // support for opset1::LSTMCell
+        auto cell_v1 = std::make_shared<ngraph::opset1::LSTMCell>(squeeze, input_H_state, input_C_state,
+                                                                 input_W, input_R, input_B, 1);
+        if (!match) {
+            unsqueeze = std::make_shared<ngraph::opset5::Reshape>(cell_v1, pattern_2, false);
+            matcher.clear_state();
+            matcher.m_pattern_node = unsqueeze;
+            for (const auto& res : func->get_results()) {
+                match = matcher.match((res->get_input_source_output(0)));
+                if (match)
+                    break;
+            }
+        }
+
         // All nodes are in the TI body should be matched in pattern
         if (!match || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
             return false;
 
         auto pattern_map = matcher.get_pattern_map();
+        std::shared_ptr<Node>& found_cell = pattern_map[cell];
+        if (!found_cell)
+            found_cell = pattern_map[cell_v1];
 
         auto params = func->get_parameters();
         std::vector<std::shared_ptr<ngraph::opset5::TensorIterator::InputDescription>> ordered_in_descs(3);
@@ -104,9 +121,9 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
 
                 stride = concat_output->m_stride;
                 ordered_out_descs[0] = output_desc;
-            } else if (res->get_input_source_output(0) == pattern_map[cell]->output(0)) {
+            } else if (res->get_input_source_output(0) == found_cell->output(0)) {
                 ordered_out_descs[1] = output_desc;
-            } else if (res->get_input_source_output(0) == pattern_map[cell]->output(1)) {
+            } else if (res->get_input_source_output(0) == found_cell->output(1)) {
                 ordered_out_descs[2] = output_desc;
             } else {
                 return false;
@@ -114,7 +131,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         }
 
         auto seq_lengths = ngraph::opset5::Constant::create(element::i32, Shape{batch_size}, {ti->get_num_iterations()});
-        const auto& lstm_cell = std::dynamic_pointer_cast<ngraph::opset5::LSTMCell>(pattern_map[cell]);
+        const auto& lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(found_cell);
         auto in_0 = ti->input_values()[ordered_in_descs[0]->m_input_index];
         if (slice_axis == 0) {
             auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 0, 2});

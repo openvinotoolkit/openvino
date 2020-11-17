@@ -180,6 +180,10 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                         node)) {
                     return lstm_cell->get_clip() == 0.0f &&
                            lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
+                        node)) {
+                    return lstm_cell_v1->get_clip() == 0.0f &&
+                           lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
                 }
                 return false;
             };
