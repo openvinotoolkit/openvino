@@ -35,7 +35,7 @@ RUN powershell.exe -Command `
 
 RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
 ~~~
-In case of proxy issues, please add the `ARG HTTPS_PROXY` and <code>-Proxy %HTTPS_PROXY%</code> settings to the `powershell.exe` command to the Dockerfile. Then build a docker image:
+In case of proxy issues, please add the `ARG HTTPS_PROXY` and <code>-Proxy &#37;HTTPS_PROXY&#37;</code> settings to the `powershell.exe` command to the Dockerfile. Then build a docker image:
 ~~~
 docker build . -t <image_name> `
 --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
