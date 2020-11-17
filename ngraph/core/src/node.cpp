@@ -797,9 +797,12 @@ ResultVector ngraph::as_result_vector(const OutputVector& values)
     for (auto value : values)
     {
         shared_ptr<Node> node = value.get_node_shared_ptr();
-        if (is_type<op::Result>(node)) {
+        if (is_type<op::Result>(node))
+        {
             result.emplace_back(as_type_ptr<op::Result>(node));
-        } else {
+        }
+        else
+        {
             auto res = make_shared<op::Result>(value);
             res->set_friendly_name(node->get_friendly_name());
             result.emplace_back(res);
