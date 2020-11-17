@@ -55,6 +55,10 @@ public:
         return false;
     }
 
+    const InferenceEngine::SizeVector& getOrder() const {
+        return order;
+    }
+
 private:
     InferenceEngine::SizeVector order;
     InferenceEngine::Precision prec;

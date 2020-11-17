@@ -463,18 +463,6 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
 void MKLDNNGraph::InitEdges() {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::InitEdges");
 
-    auto reorderArgs = [](const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc) {
-        std::string inArgs, outArgs;
-        if (parentDesc.getPrecision() != childDesc.getPrecision()) {
-            inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
-            outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().name());
-        }
-        if (MKLDNNMemoryDesc(parentDesc).getFormat() != MKLDNNMemoryDesc(childDesc).getFormat()) {
-            inArgs += (inArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(parentDesc).getFormat());
-            outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(childDesc).getFormat());
-        }
-        return inArgs + "_" + outArgs;
-    };
     size_t numberOfEdges = graphEdges.size();
 
     std::unordered_set<std::string> uniqueLayerNames;
@@ -487,8 +475,8 @@ void MKLDNNGraph::InitEdges() {
 #if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
             auto &edge = graphEdges[i];
             std::string basicLayerName = edge->getParent()->getName() + "_" +
-                                         reorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
-                                         edge->getChild()->getName();
+                    MKLDNNExtensionUtils::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
+                    edge->getChild()->getName();
             std::string layerName = basicLayerName;
             int idx = 0;
             while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
@@ -496,43 +484,7 @@ void MKLDNNGraph::InitEdges() {
                 layerName = basicLayerName + "_" + std::to_string(idx);
             }
             uniqueLayerNames.insert(layerName);
-            CNNLayerPtr layer(new CNNLayer({layerName,
-                                            "Reorder",
-                                            edge->getInputDesc().getPrecision()}));
-            MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, getEngine(), weightsCache));
-            auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
-            if (reorderPtr) {
-                reorderPtr->setDescs(edge->getInputDesc(), edge->getOutputDesc());
-            }
-
-            auto oIndex = edge->getOutputNum();
-            auto iIndex = edge->getInputNum();
-            if (iIndex < 0 || oIndex < 0)
-                THROW_IE_EXCEPTION << "Cannot create reorder for nodes: "
-                                   << edge->getParent()->getName() << " and "
-                                   << edge->getChild()->getName() << ".";
-
-            edge->drop();
-
-            MKLDNNEdgePtr beforeNode(new MKLDNNEdge(edge->getParent(), newReorder, iIndex, 0));
-            MKLDNNEdgePtr afterNode(new MKLDNNEdge(newReorder, edge->getChild(), 0, oIndex));
-
-            // Add edge for beforeNode
-            beforeNode->getChild()->parentEdges.push_back(beforeNode);
-            edge->getParent()->childEdges.push_back(beforeNode);
-
-            // Add edge for afterNode
-            afterNode->getParent()->childEdges.push_back(afterNode);
-            edge->getChild()->parentEdges.push_back(afterNode);
-
-            newReorder->getSupportedDescriptors();
-            newReorder->initSupportedPrimitiveDescriptors();
-            newReorder->selectOptimalPrimitiveDescriptor();
-
-            graphEdges.push_back(beforeNode);
-            graphEdges.push_back(afterNode);
-
-            graphNodes.push_back(newReorder);
+            InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc());
             graphEdges.erase(graphEdges.begin() + i);
             i--;
             numberOfEdges--;
@@ -1129,6 +1081,57 @@ void MKLDNNGraph::RemoveDroppedEdges() {
             it++;
         }
     }
+}
+
+void MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const TensorDesc& inDesc, const TensorDesc& outDesc,
+                                bool isOptimized, InferenceEngine::Blob::Ptr scales) {
+    CNNLayerPtr layer(new CNNLayer({layerName,
+                                    "Reorder",
+                                    inDesc.getPrecision()}));
+    MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, getEngine(), weightsCache));
+    auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
+    if (reorderPtr) {
+        reorderPtr->setDescs(inDesc, outDesc);
+        reorderPtr->_scales = scales;
+    }
+
+    auto oIndex = edge->getOutputNum();
+    auto iIndex = edge->getInputNum();
+    if (iIndex < 0 || oIndex < 0)
+        THROW_IE_EXCEPTION << "Cannot create reorder for nodes: "
+                           << edge->getParent()->getName() << " and "
+                           << edge->getChild()->getName() << ".";
+
+    edge->drop();
+
+    MKLDNNEdgePtr beforeNode(new MKLDNNEdge(edge->getParent(), newReorder, iIndex, 0));
+    MKLDNNEdgePtr afterNode(new MKLDNNEdge(newReorder, edge->getChild(), 0, oIndex));
+
+    // Add edge for beforeNode
+    beforeNode->getChild()->parentEdges.push_back(beforeNode);
+    edge->getParent()->childEdges.push_back(beforeNode);
+
+    // Add edge for afterNode
+    afterNode->getParent()->childEdges.push_back(afterNode);
+    edge->getChild()->parentEdges.push_back(afterNode);
+
+    reorderPtr->setOptimized(isOptimized);
+
+    newReorder->getSupportedDescriptors();
+    newReorder->initSupportedPrimitiveDescriptors();
+    newReorder->selectOptimalPrimitiveDescriptor();
+
+    graphEdges.push_back(beforeNode);
+    graphEdges.push_back(afterNode);
+
+    // Using the method MKLDNNEdge::getDesc() we can check that input and output tensor descriptors are equal.
+    // Due to the specificity of MKLDNNGraphOptimizer::MergePermuteAndReorder() that isOptimized flag uses, we shouldn't do these checks.
+    if (!isOptimized) {
+        beforeNode->getDesc();
+        afterNode->getDesc();
+    }
+
+    graphNodes.push_back(newReorder);
 }
 
 void MKLDNNGraph::dumpToDotFile(std::string file) const {

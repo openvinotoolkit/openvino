@@ -124,3 +124,16 @@ bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc
     return !(in1Block.getOffsetPadding() != in2Block.getOffsetPadding() &&
         in1Block.getOffsetPadding() != uninitNum && in2Block.getOffsetPadding() != uninitNum);
 }
+
+std::string MKLDNNExtensionUtils::getReorderArgs(const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc) {
+    std::string inArgs, outArgs;
+    if (parentDesc.getPrecision() != childDesc.getPrecision()) {
+        inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
+        outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().name());
+    }
+    if (MKLDNNMemoryDesc(parentDesc).getFormat() != MKLDNNMemoryDesc(childDesc).getFormat()) {
+        inArgs += (inArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(parentDesc).getFormat());
+        outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(childDesc).getFormat());
+    }
+    return inArgs + "_" + outArgs;
+}
