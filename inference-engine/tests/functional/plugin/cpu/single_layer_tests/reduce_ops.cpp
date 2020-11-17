@@ -39,7 +39,6 @@ protected:
 
         InferenceEngine::Precision netPrecision;
         bool keepDims;
-        ngraph::helpers::ReductionType reductionType;
         std::vector<size_t> inputShape;
         std::vector<int> axes;
         CommonTestUtils::OpType opType;
@@ -76,6 +75,29 @@ protected:
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
         function = std::make_shared<ngraph::Function>(results, params, "Reduce");
     }
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
+        if (ngraph::helpers::ReductionType::Prod == reductionType) {
+            // We change the range of random values to avoid possible floating point overflow
+            auto blob = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 10, 5);
+            if (Precision::FP32 == info.getTensorDesc().getPrecision()) {
+                auto *rawBlobDataPtr = blob->buffer().as<float *>();
+                for (size_t i = 0; i < blob->size(); ++i) {
+                    rawBlobDataPtr[i] /= 10.f;
+                }
+            } else if (Precision::BF16 == info.getTensorDesc().getPrecision()) {
+                auto *rawBlobDataPtr = blob->buffer().as<ngraph::bfloat16 *>();
+                for (size_t i = 0; i < blob->size(); ++i) {
+                    rawBlobDataPtr[i] /= 10.f;
+                }
+            }
+            return blob;
+        } else {
+            return LayerTestsCommon::GenerateInput(info);
+        }
+    }
+
+private:
+    ngraph::helpers::ReductionType reductionType;
 };
 
 TEST_P(ReduceCPULayerTest, CompareWithRefs) {

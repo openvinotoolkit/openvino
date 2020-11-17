@@ -248,4 +248,19 @@ void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::
     fill_data_random_float<InferenceEngine::Precision::BF16>(blob, range, start_from, k, seed);
 }
 
+template<typename T>
+typename std::enable_if<std::is_signed<T>::value, T>::type
+static ie_abs(const T &val) {
+    return std::abs(val);
+}
+
+template<typename T>
+typename std::enable_if<std::is_unsigned<T>::value, T>::type
+static ie_abs(const T &val) {
+    return val;
+}
+
+static ngraph::bfloat16 ie_abs(const ngraph::bfloat16& val) {
+    return ngraph::bfloat16::from_bits(val.to_bits() ^ 0x8000);
+}
 }  // namespace CommonTestUtils

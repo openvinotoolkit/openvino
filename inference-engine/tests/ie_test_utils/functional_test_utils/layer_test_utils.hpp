@@ -153,34 +153,17 @@ public:
 protected:
     LayerTestsCommon();
 
-    template<typename T>
-    typename std::enable_if<std::is_signed<T>::value, T>::type
-    static ie_abs(const T &val) {
-        return std::abs(val);
-    }
-
-    template<typename T>
-    typename std::enable_if<std::is_unsigned<T>::value, T>::type
-    static ie_abs(const T &val) {
-        return val;
-    }
-
-    static ngraph::bfloat16 ie_abs(const ngraph::bfloat16& val) {
-        static const uint16_t mask = 0x8000;
-        return ngraph::bfloat16::from_bits(val.to_bits() ^ 0x8000);
-    }
-
     template<class T>
     static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
         for (std::size_t i = 0; i < size; ++i) {
             const auto &ref = expected[i];
             const auto &res = actual[i];
-            const auto absoluteDifference = ie_abs(res - ref);
+            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
             if (absoluteDifference <= threshold) {
                 continue;
             }
 
-            const auto max = std::max(ie_abs(res), ie_abs(ref));
+            const auto max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(ref));
             ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= threshold))
                                         << "Relative comparison of values expected: " << ref << " and actual: " << res
                                         << " at index " << i << " with threshold " << threshold
