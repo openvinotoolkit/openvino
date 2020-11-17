@@ -27,7 +27,8 @@ _CI_START_THRESHOLD = datetime.timedelta(minutes=30)
 _AWAITING_JENKINS_THRESHOLD = datetime.timedelta(minutes=5)
 _WATCHDOG_DIR = os.path.expanduser('~')
 _PR_REPORTS_CONFIG_KEY = 'pr_reports'
-_CI_BUILD_FAIL_MESSAGE = 'ERROR:   py3: commands failed'
+_CI_BUILD_FAIL_MESSAGE = ['ERROR:   py3: commands failed',
+                          "The command '/bin/sh -c make -j $(nproc) install' returned a non-zero code"]
 _CI_BUILD_SUCCESS_MESSAGE = 'py3: commands succeeded'
 _GITHUB_CI_CHECK_NAME = 'OpenVINO-ONNX'
 
@@ -430,7 +431,7 @@ class Watchdog:
         # Check if FINISH was valid FAIL / SUCCESS
         project_name_full = self._ci_job_name + '/PR-' + pr_number
         build_output = self._jenkins.get_build_console_output(project_name_full, build_number)
-        if _CI_BUILD_FAIL_MESSAGE not in build_output \
+        if all(message not in build_output for message in _CI_BUILD_FAIL_MESSAGE) \
                 and _CI_BUILD_SUCCESS_MESSAGE not in build_output:
             message = ('ONNX CI job for PR #{}: finished but no tests success or fail '
                        'confirmation is present in console output!'.format(pr_number))
