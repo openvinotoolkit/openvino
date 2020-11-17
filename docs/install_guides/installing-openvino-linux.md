@@ -116,6 +116,15 @@ sudo ./install_GUI.sh
 ```sh
 sudo ./install.sh
 ```
+   - **Option 3:** Command-Line Silent Instructions:
+```sh
+sudo sed -i 's/decline/accept/g' silent.cfg
+sudo ./install.sh -s silent.cfg
+```   
+You can select which OpenVINO components will be installed by modifying the `COMPONENTS` parameter in the `silent.cfg` file. For example, to install only CPU runtime for the Inference Engine, set 
+`COMPONENTS=intel-openvino-ie-rt-cpu__x86_64` in `silent.cfg`.
+To get a full list of available components for installation, run the `./install.sh --list_components` command from the unpacked OpenVINO™ toolkit package.
+
 6. Follow the instructions on your screen. Watch for informational
 messages such as the following in case you must complete additional
 steps:
