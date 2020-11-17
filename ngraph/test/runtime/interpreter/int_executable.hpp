@@ -725,6 +725,7 @@ protected:
                                          gru_cell->get_linear_before_reset());
             break;
         }
+        case OP_TYPEID::LSTMCell_v0:
         case OP_TYPEID::LSTMCell_v4:
         {
             const op::v4::LSTMCell* lstm_cell = static_cast<const op::v4::LSTMCell*>(&node);

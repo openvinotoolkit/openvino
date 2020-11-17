@@ -46,6 +46,10 @@
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
+#include <transformations/op_conversions/rnn_cell_decomposition.hpp>
+#include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
@@ -102,17 +106,23 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+    manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+    manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+    manager.register_pass<ngraph::pass::RNNCellDecomposition>();
 
-    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
-            {ngraph::element::i64, ngraph::element::i32},
-            {ngraph::element::u64, ngraph::element::i32},
-            {ngraph::element::u16, ngraph::element::i32},
-            {ngraph::element::u32, ngraph::element::i32},
-            {ngraph::element::f16, ngraph::element::f32},
+    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
+            {ngraph::element::i64,     ngraph::element::i32},
+            {ngraph::element::u64,     ngraph::element::i32},
+            {ngraph::element::u16,     ngraph::element::i32},
+            {ngraph::element::u32,     ngraph::element::i32},
+            {ngraph::element::f16,     ngraph::element::f32},
             {ngraph::element::boolean, ngraph::element::u8},
     };
 
-    for (auto & precision : convert_precision_list) {
+    for (auto &precision : convert_precision_list) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
     }
 
@@ -122,7 +132,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
-                              ngraph::pass::ConvertDepthToSpace>(
+            ngraph::pass::ConvertDepthToSpace>(
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_shape().size() <= 5lu &&
                        node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
@@ -139,6 +149,44 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
             [](const_node_ptr &node) -> bool {
                 const auto & rank = node->input(0).get_partial_shape().rank().get_length();
                 return rank == 4lu || rank == 5lu;
+            });
+
+    auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+        if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
+            return rnn_cell->get_clip() == 0.0f;
+        } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
+                node)) {
+            return gru_cell->get_clip() == 0.0f
+                   && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+        } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+                node)) {
+            return lstm_cell->get_clip() == 0.0f &&
+                   lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+        } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
+                node)) {
+            return lstm_cell_v1->get_clip() == 0.0f &&
+                   lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+        }
+        return false;
+    };
+
+    pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
+            ngraph::pass::LSTMCellDecomposition>(
+            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                return isCellPrimitiveSupported(node);
+            });
+
+    pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
+                              ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                              ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                    size_t count_rnn = 0;
+                    for (const auto &op : ti_op->get_body()->get_ops())
+                        count_rnn += isCellPrimitiveSupported(op);
+                    return count_rnn != 1;
+                }
+                return true;
             });
 
     // List of enabled/disabled transformations

@@ -26,13 +26,14 @@ namespace LayerTestsDefinitions {
         size_t seq_lenghts;
         size_t batch;
         size_t hidden_size;
-        size_t input_size;
+        size_t input_size = 10;
+        size_t sequence_axis;
         ngraph::helpers::TensorIteratorBody ti_body;
         float clip;
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
-        std::tie(should_decompose, seq_lenghts, batch, hidden_size, input_size, clip, ti_body, direction, netPrecision,
+        std::tie(should_decompose, seq_lenghts, batch, hidden_size, sequence_axis, clip, ti_body, direction, netPrecision,
                  targetDevice) = obj.param;
         std::vector<std::vector<size_t>> inputShapes = {};
 
@@ -57,7 +58,8 @@ namespace LayerTestsDefinitions {
 
         std::ostringstream result;
         result << "unrolling=" << should_decompose << "_";
-        result << "seq_lenghts=" << seq_lenghts << "_";
+        result << "seq_len=" << seq_lenghts << "_";
+        result << "seq_len_axis=" << sequence_axis << "_";
         result << "batch=" << batch << "_";
         result << "hidden_size=" << hidden_size << "_";
         result << "input_size=" << input_size << "_";
@@ -75,12 +77,13 @@ namespace LayerTestsDefinitions {
         bool should_decompose;
         size_t batch;
         size_t hidden_size;
-        size_t input_size;
+        size_t input_size = 10;
+        size_t sequence_axis;
         ngraph::helpers::TensorIteratorBody ti_body;
         float clip;
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
-        std::tie(should_decompose, seq_lenghts, batch, hidden_size, input_size, clip, ti_body, direction, netPrecision,
+        std::tie(should_decompose, seq_lenghts, batch, hidden_size, sequence_axis, clip, ti_body, direction, netPrecision,
                  targetDevice) = this->GetParam();
         std::vector<std::vector<size_t>> inputShapes;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -90,17 +93,22 @@ namespace LayerTestsDefinitions {
         // 1. Create TensorIterator body.
         // 2. Set PortMap
         // 3. Create outer function
-        auto axis = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{1});
+        auto axis = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1},
+                                                               std::vector<int64_t>{static_cast<int64_t>(sequence_axis)});
         switch (ti_body) {
             case ngraph::helpers::TensorIteratorBody::LSTM: {
                 inputShapes = {
                         {{batch, seq_lenghts, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                                 {4 * hidden_size, hidden_size}, {4 * hidden_size}},
                 };
+                if (sequence_axis == 0) {
+                    // swap batch and seq_lengths
+                    std::swap(inputShapes[0][0], inputShapes[0][1]);
+                }
                 auto outer_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
 
                 // 1. Create TensorIterator body.
-                inputShapes[0][1] = 1; // sliced dimension
+                inputShapes[0][sequence_axis] = 1; // sliced dimension
                 auto body_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
@@ -115,17 +123,17 @@ namespace LayerTestsDefinitions {
 
                 // 2. Set PortMap
                 if (direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
-                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, 1);
-                    tensor_iterator->get_concatenated_slices(results[0], 0, 1, 1, -1, 1);
+                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, sequence_axis);
+                    tensor_iterator->get_concatenated_slices(results[0], 0, 1, 1, -1, sequence_axis);
                 } else if (direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
-                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, 1);
-                    tensor_iterator->get_concatenated_slices(results[0], -1, -1, 1, 0, 1);
+                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
+                    tensor_iterator->get_concatenated_slices(results[0], -1, -1, 1, 0, sequence_axis);
                 } else {
                     NGRAPH_CHECK(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[1]);
-                tensor_iterator->set_invariant_input(body_params[2], outer_params[2]);
+                tensor_iterator->set_merged_input(body_params[2], outer_params[2], results[2]);
                 tensor_iterator->get_iter_value(results[1]);
                 tensor_iterator->get_iter_value(results[2]);
 
@@ -139,10 +147,14 @@ namespace LayerTestsDefinitions {
                         {{batch, seq_lenghts, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                                 {3 * hidden_size, hidden_size}, {3 * hidden_size}},
                 };
+                if (sequence_axis == 0) {
+                    // swap batch and seq_lengths
+                    std::swap(inputShapes[0][0], inputShapes[0][1]);
+                }
                 auto outer_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
 
                 // 1. Create TensorIterator body.
-                inputShapes[0][1] = 1; // sliced dimension
+                inputShapes[0][sequence_axis] = 1; // sliced dimension
                 auto body_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
@@ -157,11 +169,11 @@ namespace LayerTestsDefinitions {
 
                 // 2. Set PortMap
                 if (direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
-                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, 1);
-                    tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, 1);
+                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, sequence_axis);
+                    tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, sequence_axis);
                 } else if (direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
-                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, 1);
-                    tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, 1);
+                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
+                    tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, sequence_axis);
                 } else {
                     NGRAPH_CHECK(false, "Bidirectional case is not supported.");
                 }
@@ -179,10 +191,14 @@ namespace LayerTestsDefinitions {
                                {hidden_size, input_size},
                                {hidden_size, hidden_size},
                                {hidden_size}};
+                if (sequence_axis == 0) {
+                    // swap batch and seq_lengths
+                    std::swap(inputShapes[0][0], inputShapes[0][1]);
+                }
                 auto outer_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
 
                 // 1. Create TensorIterator body.
-                inputShapes[0][1] = 1; // sliced dimension
+                inputShapes[0][sequence_axis] = 1; // sliced dimension
                 auto body_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
@@ -196,11 +212,11 @@ namespace LayerTestsDefinitions {
 
                 // 2. Set PortMap
                 if (direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
-                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, 1);
-                    tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, 1);
+                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, sequence_axis);
+                    tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, sequence_axis);
                 } else if (direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
-                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, 1);
-                    tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, 1);
+                    tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
+                    tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, sequence_axis);
                 } else {
                     NGRAPH_CHECK(false, "Bidirectional case is not supported.");
                 }

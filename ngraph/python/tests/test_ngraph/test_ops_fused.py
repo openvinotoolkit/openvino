@@ -23,7 +23,6 @@ from tests import (xfail_issue_40957,
                    xfail_issue_34327,
                    xfail_issue_36485,
                    xfail_issue_36486,
-                   xfail_issue_34314,
                    xfail_issue_36487)
 
 
@@ -536,7 +535,6 @@ def test_mvn_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34314
 def test_space_to_depth_operator():
     runtime = get_runtime()
 
