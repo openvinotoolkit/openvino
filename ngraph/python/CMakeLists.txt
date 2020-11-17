@@ -16,26 +16,27 @@
 
 cmake_minimum_required (VERSION 3.13)
 
-project (_pyngraph)
+project (pyngraph)
+
+if(NOT DEFINED IE_MAIN_SOURCE_DIR)
+    find_package(InferenceEngineDeveloperPackage REQUIRED)
+    find_package(ngraph REQUIRED)
+endif()
 
 include(FetchContent)
 
 FetchContent_Declare(
-  pybind11
-  GIT_REPOSITORY "https://github.com/pybind/pybind11.git"
-  GIT_TAG        "v2.5.0"
+    pybind11
+    GIT_REPOSITORY "https://github.com/pybind/pybind11.git"
+    GIT_TAG        "v2.5.0"
 )
 
 FetchContent_GetProperties(pybind11)
 if(NOT pybind11_POPULATED)
-  FetchContent_Populate(pybind11)
-  add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
+    FetchContent_Populate(pybind11)
+    add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
 endif()
 
-find_package(ngraph REQUIRED)
-if(ngraph_FOUND)
-    message("ngraph version = {${ngraph_VERSION}}")
-endif()
 
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
 
@@ -47,40 +48,32 @@ else()
 endif()
 
 if(UNIX)
-    add_compile_options(
-            -fPIC
-            -Wformat
-            -Wformat-security)
-            
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.8.5)
-        add_compile_options(-fstack-protector-strong)
-    else()
-        add_compile_options(-fstack-protector)
-    endif()
-
-    add_link_options(-z noexecstack)
-
+    add_compile_options(-fPIC)
 endif()
 
 if (APPLE)
-     add_link_options(-stdlib=libc++)
+    add_link_options(-stdlib=libc++)
 endif()
 
 if (MSVC)
-     add_compile_options(/wd4996)
+    #disable warning: This operator was deprecated and will be removed with v0 operation.
+    add_compile_options(/wd4996) 
 endif()
 
 file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
-pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
-target_include_directories(${PROJECT_NAME} PRIVATE src)
-target_link_libraries(${PROJECT_NAME} PRIVATE ngraph::ngraph)
+pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
+target_include_directories(_${PROJECT_NAME} PRIVATE src)
+target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
 
-ie_cpack_add_component(pyngraph REQUIRED)
+ie_cpack_add_component(pyngraph_${PYTHON_VERSION} DEPENDS ngraph)
 
-install(TARGETS ${PROJECT_NAME} 
+install(TARGETS _${PROJECT_NAME} 
         DESTINATION python/${PYTHON_VERSION}
-        COMPONENT pyngraph)
+        COMPONENT pyngraph_${PYTHON_VERSION})
         
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/src/ngraph
         DESTINATION python/${PYTHON_VERSION}
-        COMPONENT pyngraph)
+        COMPONENT pyngraph_${PYTHON_VERSION})
+
+ie_cpack(pyngraph_${PYTHON_VERSION})
+
