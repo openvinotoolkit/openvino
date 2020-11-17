@@ -52,6 +52,7 @@ private:
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);
     void FuseScaleShiftAndQuantize(MKLDNNGraph &graph);
     void FuseClampAndQuantize(MKLDNNGraph &graph);
+    void MergePermuteAndReorder(MKLDNNGraph &graph);
 
     bool IsOneOf(Type type, std::vector<Type> types);
     bool IsOneOf(EltwiseOpType alg, std::vector<EltwiseOpType> algs);
