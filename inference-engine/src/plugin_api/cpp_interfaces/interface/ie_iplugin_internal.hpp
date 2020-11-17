@@ -214,9 +214,10 @@ public:
 
     /**
      * @brief      Provides a default remote context instance if supported by a plugin
+     * @param[in]  params  The map of parameters
      * @return     The default context.
      */
-    virtual RemoteContext::Ptr GetDefaultContext() = 0;
+    virtual RemoteContext::Ptr GetDefaultContext(const ParamMap& params) = 0;
 
     /**
      * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
