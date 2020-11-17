@@ -1275,15 +1275,16 @@ class topk_backend : public ::testing::Test
 };
 TYPED_TEST_CASE_P(topk_backend);
 
+template<typename Mode, typename SortType>
 struct TopkSortTestOutputs
 {
-    op::v1::TopK::Mode mode;
-    op::v1::TopK::SortType sort_type;
+    Mode mode;
+    SortType sort_type;
     std::vector<float> output0;
     std::vector<int32_t> output1;
 
-    TopkSortTestOutputs(op::v1::TopK::Mode mode,
-                        op::v1::TopK::SortType sort_type,
+    TopkSortTestOutputs(Mode mode,
+                        SortType sort_type,
                         std::vector<float>&& output0,
                         std::vector<int32_t>&& output1)
         : mode(mode)
@@ -1303,14 +1304,14 @@ TYPED_TEST_P(topk_backend, topk_mode_sort_order)
     const int64_t axis = 0;
 
     // helpers to reduce code verbosity
-    using m = op::v1::TopK::Mode;
-    using st = op::v1::TopK::SortType;
+    using m = typename TypeParam::Mode;
+    using st = typename TypeParam::SortType;
     using v_f = std::vector<float>;
     using v_i = std::vector<int32_t>;
 
     const std::vector<float> input{3, 1, 2, 5, 4};
 
-    std::vector<TopkSortTestOutputs> valid_outputs;
+    std::vector<TopkSortTestOutputs<m, st>> valid_outputs;
     valid_outputs.emplace_back(m::MAX, st::SORT_VALUES, v_f{5, 4, 3}, v_i{3, 4, 0});
     valid_outputs.emplace_back(m::MAX, st::SORT_INDICES, v_f{3, 5, 4}, v_i{0, 3, 4});
     valid_outputs.emplace_back(m::MIN, st::SORT_VALUES, v_f{1, 2, 3}, v_i{1, 2, 0});
@@ -1318,7 +1319,7 @@ TYPED_TEST_P(topk_backend, topk_mode_sort_order)
 
     for (const auto& v : valid_outputs)
     {
-        auto topk = make_shared<op::v1::TopK>(data, k, axis, v.mode, v.sort_type);
+        auto topk = make_shared<TypeParam>(data, k, axis, v.mode, v.sort_type);
         auto f0 = make_shared<Function>(OutputVector{topk->output(0)}, ParameterVector{data});
         auto f1 = make_shared<Function>(OutputVector{topk->output(1)}, ParameterVector{data});
 
