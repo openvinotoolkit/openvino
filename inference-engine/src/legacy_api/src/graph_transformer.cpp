@@ -219,7 +219,6 @@ static std::vector<std::string> skipConstInfer = {
     "Convolution", // Const inference function for Convolution is not implemented
     "Eltwise",  // Const inference function for Eltwise is not implemented
     "FullyConnected",
-    "Reshape",
     "Squeeze"
 };
 
