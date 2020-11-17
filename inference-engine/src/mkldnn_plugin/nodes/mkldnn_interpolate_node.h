@@ -10,6 +10,8 @@
 #include <memory>
 #include <vector>
 
+#define MAX_INPUT_INTERPOLATE 4
+
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
@@ -54,14 +56,8 @@ struct jit_interpolate_config_params {
 };
 
 struct jit_interpolate_call_args {
-    const void *src;
-    const void *srcTR;
-    const void *srcBL;
-    const void *srcBR;
-    const float *weight;
-    const float *weightR;
-    const float *weightT;
-    const float *weightB;
+    const void *src_ptr[MAX_INPUT_INTERPOLATE];
+    const void *weight_ptr[MAX_INPUT_INTERPOLATE];
     const int *index;
     void *dst;
     size_t work_amount;
@@ -110,18 +106,20 @@ private:
     void linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
     void linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
 
+    // cubic
+    std::vector<float> getCubicCoeffs(float mantissa, float a);
+    void cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+    void cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+    void cubicRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+
     // linear
     void linearInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
                                           float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias);
 
-    // cubic
-    std::vector<float> getCubicCoeffs(float mantissa, float a);
-    void cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW, float a);
-
     void buildTblNN(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, InterpolateLayoutType layout);
     void buildTblLinearOnnx(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, InterpolateLayoutType layout);
-    void buidTblLinear(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, int kernel_width, bool antialias);
-    void buidTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, float cubicCoeff);
+    void buildTblLinear(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, int kernel_width, bool antialias);
+    void buildTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, float cubicCoeff, InterpolateLayoutType layout);
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 

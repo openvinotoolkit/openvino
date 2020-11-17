@@ -242,6 +242,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<SqueezeTransformation, opset1::Squeeze>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
+        add<InterpolateTransformation, opset4::Interpolate>(params).
 
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
 
@@ -341,6 +342,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Multiply>(this);
     make_matcher_type_relaxed<op::MVN>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
+    make_matcher_type_relaxed<opset4::Interpolate>(this);
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(const LowPrecisionTransformations& transformations)
