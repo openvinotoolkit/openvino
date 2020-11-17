@@ -1275,7 +1275,7 @@ class topk_backend : public ::testing::Test
 };
 TYPED_TEST_CASE_P(topk_backend);
 
-template<typename Mode, typename SortType>
+template <typename Mode, typename SortType>
 struct TopkSortTestOutputs
 {
     Mode mode;
