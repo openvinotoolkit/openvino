@@ -112,7 +112,6 @@ def main():
     for input_key in net.input_info:
         if len(net.input_info[input_key].layout) == 4:
             input_name = input_key
-            log.info("Batch size is {}".format(net.batch_size))
             net.input_info[input_key].precision = 'U8'
         elif len(net.input_info[input_key].layout) == 2:
             input_info_name = input_key
