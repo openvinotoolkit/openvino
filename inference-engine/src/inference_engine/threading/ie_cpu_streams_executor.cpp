@@ -69,7 +69,8 @@ struct CPUStreamsExecutor::Impl {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             #if TBB_INTERFACE_VERSION >= 12010// TBB with hybrid CPU aware task_arena api
             auto core_types = oneapi::tbb::info::core_types();
-            if (core_types.size() > 1) /*Hybrid CPU*/ {
+             if (core_types.size() > 1 /*Hybrid CPU*/
+                 && oneapi::tbb::info::efficiency(*core_types.begin()) != -1 /* the hwloc recognized the relative cores efficiency */) {
                 if (_impl->_config._streams == 1) {
                     auto big_cores = core_types.back(); // latency default is runing on Big cores only
                     auto concurrency = _impl->_config._threadsPerStream;

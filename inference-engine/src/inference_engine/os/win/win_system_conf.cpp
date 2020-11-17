@@ -34,9 +34,12 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
     auto core_types = oneapi::tbb::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         const auto little_cores = *core_types.begin();
-        // assuming the Little cores feature no hyper-threading
-        phys_cores -= oneapi::tbb::info::default_concurrency(little_cores);
-        printf("patched getNumberOfCPUCores: %d \n", phys_cores);
+        // check that hwloc recognizes the relative cores efficiency
+        if (oneapi::tbb::info::efficiency(little_cores) != -1) {
+            // assuming the Little cores feature no hyper-threading
+            phys_cores -= oneapi::tbb::info::default_concurrency(little_cores);
+            printf("patched getNumberOfCPUCores: %d \n", phys_cores);
+        }
     }
     #endif
     return phys_cores;
