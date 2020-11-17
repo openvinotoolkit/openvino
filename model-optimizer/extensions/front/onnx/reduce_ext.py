@@ -22,7 +22,9 @@ from mo.graph.graph import Node
 
 
 def update_reduce_node_attrs_with(node: Node, c: callable):
-    axis = onnx_attr(node, 'axes', 'ints', default=None, dst_type=lambda x: int64_array(x))
+    axis = onnx_attr(node, 'axes', 'ints', default=None)
+    if axis is not None:
+        axis = int64_array(axis)
     keep_dims = onnx_attr(node, 'keepdims', 'i', default=True)
     c.update_node_stat(node, {'axis': axis, 'keep_dims': keep_dims})
 
