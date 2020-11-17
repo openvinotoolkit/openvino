@@ -88,6 +88,8 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
     const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ actualValues.axes.size() }, actualValues.axes);
     const auto normalizeL2 = std::make_shared<ngraph::opset1::NormalizeL2>(parent, axesNode, 1e-6, epsMode);
     normalizeL2->set_friendly_name("output");
+    auto& rtInfo = normalizeL2->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("normalizeL2");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(normalizeL2) };
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "NormalizeL2Transformation");
@@ -123,6 +125,8 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
         ngraph::op::TemporaryReplaceOutputType(axesNode, element::f32).get(),
         1e-6,
         epsMode);
+    auto& rtInfo = normalizeL2->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("normalizeL2");
     std::shared_ptr<ngraph::Node> output = normalizeL2;
 
     if (!expectedValues.mutliplyValues.empty()) {
@@ -131,6 +135,7 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
             ngraph::op::TemporaryReplaceOutputType(output, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(std::make_shared<ngraph::opset1::Constant>(
                 precision, Shape({ 1, expectedValues.mutliplyValues.size(), 1, 1 }), expectedValues.mutliplyValues), element::f32).get());
+        multiply->get_rt_info()["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("normalizeL2");
         output = multiply;
     }
     output->set_friendly_name("output");

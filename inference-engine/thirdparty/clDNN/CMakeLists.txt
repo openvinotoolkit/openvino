@@ -55,7 +55,6 @@ endif()
 # The section must be after project definition and its supported languages because otherwise
 # used variables are not available yet.
 
-#intel_custom_build_add("<custom config>" "Release") # No custom configuration at the momeent.
 # Populating global property with list of debug configurations.
 set_property(GLOBAL PROPERTY DEBUG_CONFIGURATIONS "Debug")
 # Use solution folders.
@@ -127,9 +126,6 @@ set(CLDNN__CODEGEN_DIR     "${CLDNN__CODEGEN_BASEDIR}/${CLDNN__TARGET_CFG_VAR}")
 # Path which points to automatically included directory with code generated elements
 # (to support "copy-if-different" optimization).
 set(CLDNN__CODEGEN_INCDIR  "${CLDNN__CODEGEN_DIR}/include")
-
-# Version file.
-set(CLDNN__VERSION_FILE_NAME "${CLDNN__MAIN_DIR}/version.json")
 
 # ======================================================================================================
 # ======================================================================================================
@@ -574,70 +570,6 @@ unset(__CLDNN_IOclIcdVersionIdx)
 # ======================================================================================================
 set(CLDNN_UTILS__RAPIDJSON_INCDIRS "utils/rapidjson" CACHE INTERNAL "Paths to interface headers for rapidjson.")
 # ====================================== Version Calculation ===========================================
-
-if(EXISTS "${CLDNN__VERSION_FILE_NAME}")
-  file(READ "${CLDNN__VERSION_FILE_NAME}" __CLDNN_VersionFileContent)
-
-  # Extracting JSON object with version.
-  set(__CLDNN_VersionJsonObject "")
-  if("${__CLDNN_VersionFileContent}" MATCHES "\\\"version\\\"[ \t\n\r]*:[ \t\n\r]*\\{[ \t\n\r]*(.*)[ \t\n\r]*\\}")
-    set(__CLDNN_VersionJsonObject "${CMAKE_MATCH_1}")
-  endif()
-
-  # Extracting field values.
-  set(__CLDNN_VersionJsonMajor   "0")
-  set(__CLDNN_VersionJsonMinor   "-1")
-  set(__CLDNN_VersionJsonBuild   "-1")
-  set(__CLDNN_VersionJsonRevBase "0")
-  set(__CLDNN_VersionJsonRevMin  "-1")
-  if("${__CLDNN_VersionJsonObject}" MATCHES "\\\"major\\\"[ \t\n\r]*:[ \t\n\r]*([-+]?[0-9]+)[ \t\n\r#,}]")
-    set(__CLDNN_VersionJsonMajor "${CMAKE_MATCH_1}")
-  endif()
-  if("${__CLDNN_VersionJsonObject}" MATCHES "\\\"minor\\\"[ \t\n\r]*:[ \t\n\r]*([-+]?[0-9]+)[ \t\n\r#,}]")
-    set(__CLDNN_VersionJsonMinor "${CMAKE_MATCH_1}")
-  endif()
-  if("${__CLDNN_VersionJsonObject}" MATCHES "\\\"build\\\"[ \t\n\r]*:[ \t\n\r]*([-+]?[0-9]+)[ \t\n\r#,}]")
-    set(__CLDNN_VersionJsonBuild "${CMAKE_MATCH_1}")
-  endif()
-  if("${__CLDNN_VersionJsonObject}" MATCHES "\\\"revision_base\\\"[ \t\n\r]*:[ \t\n\r]*([-+]?[0-9]+)[ \t\n\r#,}]")
-    set(__CLDNN_VersionJsonRevBase "${CMAKE_MATCH_1}")
-  endif()
-  if("${__CLDNN_VersionJsonObject}" MATCHES "\\\"revision_min\\\"[ \t\n\r]*:[ \t\n\r]*([-+]?[0-9]+)[ \t\n\r#,}]")
-    set(__CLDNN_VersionJsonRevMin "${CMAKE_MATCH_1}")
-  endif()
-
-  # Fetching revision identifier (first from env. variable, next from CMake variable).
-  if(DEFINED "ENV{CLDNN__REV_ID}")
-    set(__CLDNN_VersionRevId "$ENV{CLDNN__REV_ID}")
-  elseif(DEFINED CLDNN__REV_ID)
-    set(__CLDNN_VersionRevId "${CLDNN__REV_ID}")
-  else()
-    set(__CLDNN_VersionRevId "0")
-  endif()
-
-  # Calculating version components (WA for lack of support for unary operators in CMake math()).
-  math(EXPR CLDNN__VERSION_MAJOR    "(0${__CLDNN_VersionJsonMajor})")
-  math(EXPR CLDNN__VERSION_MINOR    "(0${__CLDNN_VersionJsonMinor})")
-  math(EXPR CLDNN__VERSION_BUILD    "(0${__CLDNN_VersionJsonBuild})")
-  math(EXPR CLDNN__VERSION_REVISION "(0${__CLDNN_VersionRevId})-(0${__CLDNN_VersionJsonRevBase})")
-  math(EXPR __CLDNN_VersionJsonRevMin "(0${__CLDNN_VersionJsonRevMin})")
-  if("${CLDNN__VERSION_REVISION}" LESS "${__CLDNN_VersionJsonRevMin}")
-    set(CLDNN__VERSION_REVISION "${__CLDNN_VersionJsonRevMin}")
-  endif()
-
-  unset(__CLDNN_VersionFileContent)
-  unset(__CLDNN_VersionJsonObject)
-  unset(__CLDNN_VersionJsonMajor)
-  unset(__CLDNN_VersionJsonMinor)
-  unset(__CLDNN_VersionJsonBuild)
-  unset(__CLDNN_VersionJsonRevBase)
-  unset(__CLDNN_VersionJsonRevMin)
-else()
-  set(CLDNN__VERSION_MAJOR    "0")
-  set(CLDNN__VERSION_MINOR    "-1")
-  set(CLDNN__VERSION_BUILD    "-1")
-  set(CLDNN__VERSION_REVISION "-1")
-endif()
 
 # ============================================= Status =================================================
 

@@ -27,7 +27,6 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-
 namespace LayerTestsUtils {
 
 class Summary;
@@ -45,7 +44,34 @@ class TestEnvironment;
 
 class LayerTestsCommon;
 
-struct PassRate;
+struct PassRate {
+    enum Statuses {
+        PASSED,
+        FAILED,
+        SKIPPED
+    };
+    unsigned long passed = 0;
+    unsigned long failed = 0;
+    unsigned long skipped = 0;
+
+    PassRate() = default;
+
+    PassRate(unsigned long p, unsigned long f, unsigned long s) {
+        passed = p;
+        failed = f;
+        skipped = s;
+    }
+
+    float getPassrate() const {
+        if (passed == 0 && failed == 0) {
+            return 0.;
+        } else if (passed != 0 && failed == 0) {
+            return 100.;
+        } else {
+            return (passed / (passed + failed)) * 100.;
+        }
+    }
+};
 
 class Summary {
 private:
@@ -63,7 +89,7 @@ protected:
 
     ~Summary() = default;
 
-    void updateOPsStats(ngraph::NodeTypeInfo op, bool passed);
+    void updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status);
 
     std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
 
@@ -81,37 +107,11 @@ public:
     static Summary &getInstance();
 };
 
-struct PassRate {
-    uint passed;
-    uint failed;
-
-    PassRate() {
-        passed = 0;
-        failed = 0;
-    }
-
-    PassRate(uint p, uint f) {
-        passed = p;
-        failed = f;
-    }
-
-    float getPassrate() const {
-        if (passed == 0 && failed == 0) {
-            return 0.;
-        } else if (passed != 0 && failed == 0) {
-            return 100.;
-        } else {
-            return (passed / (passed + failed)) * 100.;
-        }
-    }
-};
-
 class TestEnvironment : public ::testing::Environment {
 public:
     void TearDown() override;
 
 private:
-    uint opsetVersion = 5;
     std::string reportFileName = "report.xml";
 };
 
@@ -190,7 +190,7 @@ protected:
         return core;
     }
 
-    void ConfigureNetwork() const;
+    virtual void ConfigureNetwork();
 
     void LoadNetwork();
 

@@ -619,43 +619,46 @@ TEST(type_prop, nms_v5_scalar_inputs_check)
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
 
     const auto scalar = make_shared<op::Parameter>(element::f32, Shape{});
-    const auto non_scalar = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto non_0d_or_1d = make_shared<op::Parameter>(element::f32, Shape{2});
 
     try
     {
-        make_shared<op::v5::NonMaxSuppression>(boxes, scores, non_scalar, scalar, scalar);
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores, non_0d_or_1d, scalar, scalar);
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             "Expected a scalar for the 'max_output_boxes_per_class' input");
+                             "Expected 0D or 1D tensor for the 'max_output_boxes_per_class' input");
     }
 
     try
     {
-        make_shared<op::v5::NonMaxSuppression>(boxes, scores, scalar, non_scalar, scalar);
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores, scalar, non_0d_or_1d, scalar);
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Expected a scalar for the 'iou_threshold' input");
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Expected 0D or 1D tensor for the 'iou_threshold' input");
     }
 
     try
     {
-        make_shared<op::v5::NonMaxSuppression>(boxes, scores, scalar, scalar, non_scalar);
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores, scalar, scalar, non_0d_or_1d);
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Expected a scalar for the 'score_threshold' input");
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Expected 0D or 1D tensor for the 'score_threshold' input");
     }
 
     try
     {
-        make_shared<op::v5::NonMaxSuppression>(boxes, scores, scalar, scalar, scalar, non_scalar);
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores, scalar, scalar, scalar, non_0d_or_1d);
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Expected a scalar for the 'soft_nms_sigma' input");
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Expected 0D or 1D tensor for the 'soft_nms_sigma' input");
     }
 }
 

@@ -31,47 +31,51 @@ Summary &Summary::getInstance() {
     return *p_instance;
 }
 
-void Summary::updateOPsStats(ngraph::NodeTypeInfo op, bool passed) {
-    // TODO: Do we need to count skips?
+void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status) {
     auto it = opsStats.find(op);
     if (it != opsStats.end()) {
         auto &passrate = it->second;
-        if (passed) {
-            passrate.passed += 1;
-        } else {
-            passrate.failed += 1;
+        switch (status) {
+            case PassRate::PASSED:
+                passrate.passed += 1;
+                break;
+            case PassRate::FAILED:
+                passrate.failed += 1;
+                break;
+            case PassRate::SKIPPED:
+                passrate.skipped += 1;
+                break;
         }
     } else {
-        opsStats[op] = passed ? PassRate(1, 0) : PassRate(0, 1);
+        switch (status) {
+            case PassRate::PASSED:
+                opsStats[op] = PassRate(1, 0, 0);
+                break;
+            case PassRate::FAILED:
+                opsStats[op] = PassRate(0, 1, 0);
+                break;
+            case PassRate::SKIPPED:
+                opsStats[op] = PassRate(0, 0, 1);
+                break;
+        }
     }
 }
 
 void TestEnvironment::TearDown() {
-    ngraph::OpSet opset;
-    switch (opsetVersion) {
-        case 1:
-            opset = ngraph::get_opset1();
-            break;
-        case 2:
-            opset = ngraph::get_opset2();
-            break;
-        case 3:
-            opset = ngraph::get_opset3();
-            break;
-        case 4:
-            opset = ngraph::get_opset4();
-            break;
-        case 5:
-            opset = ngraph::get_opset5();
-            break;
-        default:
-            throw ngraph::ngraph_error("Unsupported opset");
+    std::vector<ngraph::OpSet> opsets;
+    opsets.push_back(ngraph::get_opset1());
+    opsets.push_back(ngraph::get_opset2());
+    opsets.push_back(ngraph::get_opset3());
+    opsets.push_back(ngraph::get_opset4());
+    opsets.push_back(ngraph::get_opset5());
+    std::set<ngraph::NodeTypeInfo> opsInfo;
+    for (const auto &opset : opsets) {
+        const auto &type_info_set = opset.get_type_info_set();
+        opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
-    std::set<ngraph::NodeTypeInfo> opsInfo = opset.get_type_info_set();
 
     auto &s = Summary::getInstance();
     auto stats = s.getOPsStats();
-
 
     pugi::xml_document doc;
 
@@ -105,21 +109,19 @@ void TestEnvironment::TearDown() {
     }
 
     pugi::xml_node opsNode = root.append_child("ops_list");
-    opsNode.append_attribute("opset_version").set_value(std::to_string(opsetVersion).c_str());
     for (const auto &op : opsInfo) {
-        pugi::xml_node entry = opsNode.append_child("operation");
-        entry.append_attribute("name").set_value(op.name);
-        entry.append_attribute("version").set_value(op.version);
+        std::string name = std::string(op.name) + "-" + std::to_string(op.version);
+        pugi::xml_node entry = opsNode.append_child(name.c_str());
     }
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(s.deviceName.c_str());
     for (const auto &it : stats) {
-        pugi::xml_node entry = currentDeviceNode.append_child("operation");
-        entry.append_attribute("name").set_value(it.first.name);
-        entry.append_attribute("version").set_value(it.first.version);
+        std::string name = std::string(it.first.name) + "-" + std::to_string(it.first.version);
+        pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("passed").set_value(std::to_string(it.second.passed).c_str());
         entry.append_attribute("failed").set_value(std::to_string(it.second.failed).c_str());
+        entry.append_attribute("skipped").set_value(std::to_string(it.second.skipped).c_str());
         entry.append_attribute("passrate").set_value(std::to_string(it.second.getPassrate()).c_str());
     }
     bool result = doc.save_file(reportFileName.c_str());
@@ -133,34 +135,56 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
 }
 
 void LayerTestsCommon::Run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
-    auto reportStatus = [this, &s](bool passed) {
-        for (const auto &op : function->get_ordered_ops()) {
-            if (ngraph::is_type<ngraph::op::Parameter>(op) ||
-                ngraph::is_type<ngraph::op::Constant>(op) ||
-                ngraph::is_type<ngraph::op::Result>(op)) {
-                continue;
-            } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
-                auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
-                auto ti_body = ti->get_body();
-                for (const auto &ti_op : ti_body->get_ordered_ops()) {
-                    s.updateOPsStats(ti_op->get_type_info(), passed);
+    auto reportStatus = [this, &s](PassRate::Statuses status) {
+        if (function){
+            for (const auto &op : function->get_ordered_ops()) {
+                if (ngraph::is_type<ngraph::op::Parameter>(op) ||
+                    ngraph::is_type<ngraph::op::Constant>(op) ||
+                    ngraph::is_type<ngraph::op::Result>(op)) {
+                    continue;
+                } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
+                    s.updateOPsStats(op->get_type_info(), status);
+                    auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+                    auto ti_body = ti->get_function();
+                    for (const auto &ti_op : ti_body->get_ordered_ops()) {
+                        s.updateOPsStats(ti_op->get_type_info(), status);
+                    }
+                } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
+                    s.updateOPsStats(op->get_type_info(), status);
+                    auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
+                    auto loop_body = loop->get_function();
+                    for (const auto &loop_op : loop_body->get_ordered_ops()) {
+                        s.updateOPsStats(loop_op->get_type_info(), status);
+                    }
+                } else {
+                    s.updateOPsStats(op->get_type_info(), status);
                 }
-            } else {
-                s.updateOPsStats(op->get_type_info(), passed);
             }
         }
     };
+
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        reportStatus(PassRate::Statuses::SKIPPED);
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    }
+
     try {
         LoadNetwork();
         Infer();
         Validate();
-        reportStatus(true);
+        reportStatus(PassRate::Statuses::PASSED);
+    }
+    catch (const std::runtime_error &re) {
+        reportStatus(PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_(re.what());
+    } catch (const std::exception &ex) {
+        reportStatus(PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_(ex.what());
     } catch (...) {
-        reportStatus(false);
-        GTEST_FAIL();
+        reportStatus(PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }
 
@@ -181,29 +205,37 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
     const auto &size = actual->size();
     switch (precision) {
         case InferenceEngine::Precision::FP32:
-            Compare<float>(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer), size, threshold);
+            Compare<float>(reinterpret_cast<const float *>(expectedBuffer),
+                           reinterpret_cast<const float *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I32:
-            Compare<int32_t>(reinterpret_cast<const int32_t *>(expectedBuffer), reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+            Compare<int32_t>(reinterpret_cast<const int32_t *>(expectedBuffer),
+                             reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
             break;
         case InferenceEngine::Precision::I64:
-            Compare<int64_t>(reinterpret_cast<const int64_t *>(expectedBuffer), reinterpret_cast<const int64_t *>(actualBuffer), size, 0);
+            Compare<int64_t>(reinterpret_cast<const int64_t *>(expectedBuffer),
+                             reinterpret_cast<const int64_t *>(actualBuffer), size, 0);
             break;
         case InferenceEngine::Precision::I8:
-            Compare<int8_t>(reinterpret_cast<const int8_t *>(expectedBuffer), reinterpret_cast<const int8_t *>(actualBuffer), size, 0);
+            Compare<int8_t>(reinterpret_cast<const int8_t *>(expectedBuffer),
+                            reinterpret_cast<const int8_t *>(actualBuffer), size, 0);
             break;
         case InferenceEngine::Precision::U16:
-            Compare<uint16_t>(reinterpret_cast<const uint16_t *>(expectedBuffer), reinterpret_cast<const uint16_t *>(actualBuffer), size, 0);
+            Compare<uint16_t>(reinterpret_cast<const uint16_t *>(expectedBuffer),
+                              reinterpret_cast<const uint16_t *>(actualBuffer), size, 0);
             break;
         case InferenceEngine::Precision::I16:
-            Compare<int16_t>(reinterpret_cast<const int16_t *>(expectedBuffer), reinterpret_cast<const int16_t *>(actualBuffer), size, 0);
+            Compare<int16_t>(reinterpret_cast<const int16_t *>(expectedBuffer),
+                             reinterpret_cast<const int16_t *>(actualBuffer), size, 0);
             break;
         case InferenceEngine::Precision::BOOL:
         case InferenceEngine::Precision::U8:
-            Compare<uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer), reinterpret_cast<const uint8_t *>(actualBuffer), size, 0);
+            Compare<uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
+                             reinterpret_cast<const uint8_t *>(actualBuffer), size, 0);
             break;
         case InferenceEngine::Precision::U64:
-            Compare<uint64_t>(reinterpret_cast<const uint64_t *>(expectedBuffer), reinterpret_cast<const uint64_t *>(actualBuffer), size, 0);
+            Compare<uint64_t>(reinterpret_cast<const uint64_t *>(expectedBuffer),
+                              reinterpret_cast<const uint64_t *>(actualBuffer), size, 0);
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
@@ -236,7 +268,7 @@ void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const
     }
 }
 
-void LayerTestsCommon::ConfigureNetwork() const {
+void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
         if (inLayout != InferenceEngine::Layout::ANY) {
             in.second->setLayout(inLayout);
@@ -304,10 +336,12 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
 
     auto ieOutPrc = outPrc;
     const auto &actualOutputs = GetOutputs();
-    std::vector<ngraph::element::Type_t> convertType(actualOutputs.size(), FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ieOutPrc));
+    std::vector<ngraph::element::Type_t> convertType(actualOutputs.size(),
+                                                     FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ieOutPrc));
     if (ieOutPrc == InferenceEngine::Precision::UNSPECIFIED) {
         for (size_t i = 0; i < convertType.size(); i++) {
-            convertType[i] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(actualOutputs[i]->getTensorDesc().getPrecision());
+            convertType[i] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
+                    actualOutputs[i]->getTensorDesc().getPrecision());
         }
     }
 
@@ -382,7 +416,7 @@ std::shared_ptr<ngraph::Function> LayerTestsCommon::GetFunction() {
     return function;
 }
 
-std::map<std::string, std::string>& LayerTestsCommon::GetConfiguration() {
+std::map<std::string, std::string> &LayerTestsCommon::GetConfiguration() {
     return configuration;
 }
 }  // namespace LayerTestsUtils

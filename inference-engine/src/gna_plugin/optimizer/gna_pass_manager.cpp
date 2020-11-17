@@ -26,6 +26,7 @@
 #include <layers/gna_copy_layer.hpp>
 
 #include "gna_plugin_log.hpp"
+#include "frontend/quantization.h"
 #include "frontend/quantized_layer_params.hpp"
 #include <layers/gna_copy_layer.hpp>
 #include "gna_graph_tools.hpp"
@@ -268,6 +269,36 @@ void HandleMultipleActivationsForTheLayerPass::run() {
     }
 }
 
+void ForbidActivationFusingPass::run() {
+    for (auto& l : *pLayers) {
+        if (LayerInfo(l).isActivation()) {
+            auto prevLayer = CNNNetPrevLayer(l);
+            if (LayerInfo(prevLayer).has32BOutput()) {
+                // find all layers directly connected to the outputs of the previous layer
+                const auto allUsingPrev = CNNNetGetAllNextLayersSkipCertain(prevLayer, -1,
+                    [&](CNNLayerPtr nextLayer) -> bool {
+                        for (const auto& input : nextLayer->insData) {
+                            for (const auto& output : prevLayer->outData) {
+                                if (areEqualDatas(input.lock(), output) &&
+                                    areEqualDatas(l->insData[0].lock(), output) &&
+                                    (LayerInfo(nextLayer).isEltwiseSum() || nextLayer == l)) {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    });
+                if (allUsingPrev.size() > 1) {
+                    // the weights of MAX_VAL_2B_WEIGHT are used to enforce 1.0 scale factor
+                    // so the scores are more correct
+                    insertDiagonalLayerBetween(prevLayer, l, getPassManager(), MAX_VAL_2B_WEIGHT);
+                }
+                continue;
+            }
+        }
+    }
+}
+
 void ReorderMaxPoolPass::run() {
     // detecting following pattern
     // conv->relu->maxpooling
@@ -291,6 +322,21 @@ void ReorderMaxPoolPass::run() {
 }
 
 void SubstituteSoftSignPass::run() {
+    //detecting following pattern
+    // irv7 model:          irv10 model:
+    // a layer                  a layer
+    // |  \                     |  \
+    // abs  \                   abs  \
+    // |     |                  |     |
+    // |     |                  add   |
+    // |     |                  |     |
+    // power |                  power |
+    //  \   /                    \   /
+    //    mul                      mul
+    auto fp32eq = [](float p1, float p2) {
+        return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+    };
+
     auto hasNChildren = [](CNNLayerPtr l, int N){
         if (l->outData.size() != 1) return false;
         if (getInputTo(l->outData.front()).size() != N) return false;
@@ -319,13 +365,24 @@ void SubstituteSoftSignPass::run() {
         }
         if (cont) continue;
         if (!hasNChildren(abs, 1)) continue;
-        auto power = getNthChild(abs, 0);
+        auto addition = getNthChild(abs, 0);
+        InferenceEngine::CNNLayerPtr power = nullptr;
 
-        if (!LayerInfo(power).isPower()) continue;
-        auto powerLayer = LayerInfo(power).as<PowerLayer*>();
-        if (powerLayer->power != -1) continue;
-        if (powerLayer->offset != 1) continue;
-        if (powerLayer->scale != 1) continue;
+        if (!LayerInfo(addition).isPower()) continue;
+        auto powerLayer = LayerInfo(addition).as<PowerLayer*>();
+
+        // first layer after abs must have scale of 1, offset of 1 and power of either 1 or -1
+        if (!fp32eq(powerLayer->scale, 1.0f) || !fp32eq(powerLayer->offset, 1.0f) || !fp32eq(std::abs(powerLayer->power), 1.0f)) continue;
+        // power == -1, offset = 1, scale = 1
+        if (fp32eq(powerLayer->power, -1.0f)) {
+            std::swap(addition, power);
+        } else { // power = 1, offset = 1, scale - 1
+            power = getNthChild(addition, 0);
+            if (!LayerInfo(power).isPower()) continue;
+            auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
+            // layer after addition must have power of -1, offset of 0 and scale of 1
+            if (!fp32eq(powerLayer_1->power, -1.0f) || !fp32eq(powerLayer_1->offset, 0.0f) || !fp32eq(powerLayer_1->scale, 1.0f)) continue;
+        }
 
         if (!hasNChildren(power, 1)) continue;
         auto mulSame = getNthChild(power, 0);
@@ -333,9 +390,9 @@ void SubstituteSoftSignPass::run() {
 
         // pattern matched - lets substitute
         gnalog() << "SoftSign subgraph found consits of: \n"
-                 << "\t" << abs->name << "\n"
-                 << "\t" << power->name << "\n"
-                 << "\t" << mul->name << "\n"
+                 << "\t" << abs->name << "\n";
+        if (addition == nullptr) gnalog() << "\t" << addition->name << "\n";
+        gnalog() << "\t" << mul->name << "\n"
                  << std::endl;
 
         // creating softsign layer
@@ -577,6 +634,10 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             continue;
         }
 
+        if (l->outData.size() != 1) {
+            continue;
+        }
+
         if (getInputTo(l->outData.front()).empty()) {
             continue;
         }
@@ -604,7 +665,18 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 next->input()->setDims(toRemove->input()->getDims());
                 next->input()->setLayout(Layout::NHWC);
                 auto layerBeforePermute = CNNNetPrevLayer(toRemove);
-                layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
+
+                DataPtr output = nullptr;
+                for (auto before_output : layerBeforePermute->outData) {
+                    if (areEqualDatas(toRemove->input(), before_output)) {
+                        output = before_output;
+                        output->setLayout(Layout::NHWC);
+                        break;
+                    }
+                }
+                if (output == nullptr) {
+                    THROW_GNA_EXCEPTION << "Could not find correct data link between " << toRemove->name << " and " << layerBeforePermute->name;
+                }
 
                 auto* convolution = dynamic_cast<ConvolutionLayer*>(next.get());
                 if (!convolution) {
@@ -631,11 +703,25 @@ void InsertIdentityLayerPass::run() {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     for (auto & l : *pLayers) {
         for (auto && prev : getCandidatesForIdentityInsertion(l)) {
+            // Do an upstream search until Functional layer is found
+            auto original_prev_layer = prev;
+            auto true_layer = l;
+            while (LayerInfo(prev).isNonFunctional()) {
+                if (CNNNetHasPrevLayer(prev.get()) && prev->outData.size() == 1) {
+                    true_layer = prev;
+                    prev = CNNNetPrevLayer(prev);
+                } else {
+                    gnawarn() << "Could not find Functional parent for " << original_prev_layer->name << ", using original layer";
+                    prev = original_prev_layer;
+                    true_layer = l;
+                    break;
+                }
+            }
             int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
             // actual insertion
             auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
 
-            gnalog() << "Inserted "<< activationName << " between: " << prev->name << " and " << l->name << "\n" << std::flush;
+            gnalog() << "Inserted "<< activationName << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
 
             CNNLayerPtr activationLayer =
                 std::make_shared<GenericLayer>(LayerParams({activationName, "identity", Precision::FP32}));
@@ -643,17 +729,17 @@ void InsertIdentityLayerPass::run() {
             // TODO: why index is 0 ? - better use direct indexing in getCandidateFunction
             // detecting ins-data-idx
             size_t insDataIdx = std::numeric_limits<size_t>::max();
-            for (size_t i = 0; i != l->insData.size(); i++) {
-                if (getCreatorLayer(l->insData[i].lock()).lock() == prev) {
+            for (size_t i = 0; i != true_layer->insData.size(); i++) {
+                if (getCreatorLayer(true_layer->insData[i].lock()).lock() == prev) {
                     insDataIdx = i;
                     break;
                 }
             }
             if (insDataIdx == std::numeric_limits<size_t>::max()) {
-                THROW_GNA_EXCEPTION << "cannot insert identity layer after" << prev->name << " and before " << l->name;
+                THROW_GNA_EXCEPTION << "cannot insert identity layer after" << prev->name << " and before " << true_layer->name;
             }
 
-            auto inputData = l->insData[insDataIdx].lock();
+            auto inputData = true_layer->insData[insDataIdx].lock();
 
             auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), inputData->getTensorDesc());
             auto activationLayerWithQuant = quantized ?
@@ -681,7 +767,7 @@ void InsertIdentityLayerPass::run() {
                 activationLayerWithQuant->params["original_num_rows"] = prev->params["original_num_rows"];
             }
 
-            CNNNetworkInsertLayer(prev, notAll ? l : CNNLayerPtr(nullptr), activationLayerWithQuant);
+            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), activationLayerWithQuant);
         }
     }
 }
@@ -732,6 +818,85 @@ void InsertCopyLayerPass::run() {
                 }
                 auto prevLayer = CNNNetPrevLayer(l, i);
                 InsertCopyLayer(prevLayer, l, i, getPassManager(), bInsertDelayed ? DelayedCopyLayerName : CopyLayerName);
+            }
+        }
+    }
+}
+
+void Concat4Dto2DPass::run() {
+    // Find 4D concat layers that will have to use ConcatAlignFilters and can be substituted by 2D concat
+    // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used if sizes before
+    // axis are all ones then concat can be changed to 2D for example, lets say all unputs have same shape equal to:
+    // 1, 1, 5, 3 then for axis 0, 1, 2 the change will be made and inputs will be reshaped to 1, 15,
+    // but for shape 2, 1, 5, 3 only axis 0 is valid and inputs will reshape to 1, 30
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+
+    if (getPassManager()->getPolicy().ConcatConversionPolicy == Policy::Concat4Dto2DConversion::DISABLED) return;
+    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED) return;
+    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED_FOR_FP32 && !quantized) return;
+
+    for (auto & l : *pLayers) {
+        LayerInfo info(l);
+        auto concatLayer = info.as<ConcatLayer*>();
+        if (!concatLayer) continue;
+        if (concatLayer->insData.size() < 1) continue;
+
+        auto dims_size = concatLayer->insData[0].lock()->getDims().size();
+        if (dims_size > 2) {
+            auto axis = concatLayer->_axis;
+            bool skip_layer = false;
+            for (int i = 0; i < axis; i++) {
+                if (concatLayer->insData[0].lock()->getDims()[i] != 1) skip_layer = true;
+            }
+            if (skip_layer) continue;
+            skip_layer = true;
+            std::vector<size_t> total_sizes;
+            for (auto& input : concatLayer->insData) {
+                auto input_dims = input.lock()->getDims();
+                total_sizes.push_back(std::accumulate(input_dims.begin(), input_dims.end(), size_t(1), std::multiplies<size_t>()));
+                if (total_sizes.back() % 64 != 0) skip_layer = false;
+            }
+            if (skip_layer) continue;
+
+            for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+                auto getLayerByIndex = [&concatLayer](int idx) {
+                    auto input = concatLayer->insData[idx];
+                    auto lockedInput = input.lock();
+                    if (!lockedInput) {
+                        THROW_GNA_EXCEPTION << "cannot get insdata : "<< idx << " for layer: " << concatLayer->name;
+                    }
+                    return lockedInput;
+                };
+
+                auto concatInput = getLayerByIndex(input_idx);
+
+                auto tensor = InferenceEngine::TensorDesc(concatInput->getTensorDesc());
+                tensor.reshape(SizeVector({1, total_sizes[input_idx]}), Layout::NC);
+                auto reshapeName = l->name + "_input_"+ std::to_string(input_idx) +"_reshape";
+                auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
+
+                CNNNetworkInsertLayer(getCreatorLayer(concatInput).lock(), l, reshape);
+                gnalog() << "\tInserted " << reshapeName << " between " << getCreatorLayer(concatInput).lock()->name << " and " << l->name << std::endl;
+            }
+
+            for (auto output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
+                auto output = concatLayer->outData[output_idx];
+                auto output_tensor_copy = TensorDesc(output->getTensorDesc());
+
+                auto dims = output_tensor_copy.getDims();
+                auto total_size = std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>());
+
+                auto new_tensor = output->getTensorDesc();
+                new_tensor.reshape(SizeVector({1, total_size}), Layout::NC);
+
+                auto new_output = CNNReplaceDataWithChangedTensorDescription(output, new_tensor);
+                gnalog() << "\tChanged " << output->getName() << " dims to 2D" << std::endl;
+
+                auto reshapeName = l->name + "_output_"+ std::to_string(output_idx) +"_reshape";
+
+                auto reshape = CNNNetworkCreateReshape(output_tensor_copy, reshapeName, quantized);
+                CNNNetworkInsertLayer(l, nullptr, reshape, output_idx);
+                gnalog() << "\tInserted " << reshapeName << " after " << l->name << std::endl;
             }
         }
     }
