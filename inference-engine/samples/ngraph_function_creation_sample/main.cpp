@@ -36,10 +36,12 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     }
 
     if (FLAGS_m.empty()) {
+        showUsage();
         throw std::logic_error("Path to a .bin file with weights for the trained model is required but not set. Please set -m option.");
     }
 
     if (FLAGS_i.empty()) {
+        showUsage();
         throw std::logic_error("Path to an image is required but not set. Please set -i option.");
     }
 
