@@ -33,7 +33,8 @@ def build_argparser() -> ArgumentParser:
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument('-i', '--input', help='Required. Path to a folder with images or path to an image files',
-                      required=True, type=str, nargs="+")
+                      required=True,
+                      type=str, nargs="+")
     args.add_argument('-m', '--model', help='Required. Path to file where weights for the network are located')
     args.add_argument('-d', '--device',
                       help='Optional. Specify the target device to infer on; CPU, GPU, FPGA, HDDL, MYRIAD or HETERO: '
