@@ -21,6 +21,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/utils/common.hpp"
 
 namespace ngraph
 {
