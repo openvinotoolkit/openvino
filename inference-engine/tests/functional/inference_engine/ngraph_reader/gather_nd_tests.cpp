@@ -50,7 +50,7 @@ TEST_F(NGraphReaderTests, ReadGatherNDNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="MyGatherND/sink_port_0" type="Result" version="opset1">
+        <layer id="3" name="MyGatherND" type="Result" version="opset1">
             <input>
                 <port id="0">
                     <dim>10</dim>

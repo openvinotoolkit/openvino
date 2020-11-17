@@ -39,7 +39,7 @@ TEST_F(NGraphReaderTests, ReadReorgYoloNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="2" name="365" type="Result" version="opset1">
+		<layer id="2" name="yolov2/yolov2_feature/lower_features/downsample" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>

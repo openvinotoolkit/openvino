@@ -59,7 +59,7 @@ TEST_F(NGraphReaderTests, ReadSeluNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="4" name="output" type="Result" version="opset1">
+        <layer id="4" name="activation" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

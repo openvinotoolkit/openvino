@@ -132,7 +132,7 @@ TEST_F(NGraphReaderTests, LSTMSeqNetwork) {
                     </port>
                 </output>
             </layer>
-            <layer id="8" name="8" type="Result" version="opset1">
+            <layer id="8" name="7.0" type="Result" version="opset1">
                 <input>
                     <port id="0"  precision="FP32">
                         <dim>10</dim>
@@ -142,7 +142,7 @@ TEST_F(NGraphReaderTests, LSTMSeqNetwork) {
                     </port>
                 </input>
             </layer>
-            <layer id="9" name="9" type="Result" version="opset1">
+            <layer id="9" name="7.1" type="Result" version="opset1">
                 <input>
                     <port id="0" precision="FP32">
                         <dim>10</dim>
@@ -151,7 +151,7 @@ TEST_F(NGraphReaderTests, LSTMSeqNetwork) {
                     </port>
                 </input>
             </layer>
-            <layer id="10" name="10" type="Result" version="opset1">
+            <layer id="10" name="7.2" type="Result" version="opset1">
                 <input>
                     <port id="0"  precision="FP32">
                         <dim>10</dim>
@@ -287,7 +287,7 @@ TEST_F(NGraphReaderTests, GRUSeqNetwork) {
                     </port>
                 </output>
             </layer>
-            <layer id="8" name="8" type="Result" version="opset1">
+            <layer id="8" name="7.0" type="Result" version="opset1">
                 <input>
                     <port id="0"  precision="FP32">
                         <dim>10</dim>
@@ -297,7 +297,7 @@ TEST_F(NGraphReaderTests, GRUSeqNetwork) {
                     </port>
                 </input>
             </layer>
-            <layer id="9" name="9" type="Result" version="opset1">
+            <layer id="9" name="7.1" type="Result" version="opset1">
                 <input>
                     <port id="0" precision="FP32">
                         <dim>10</dim>
@@ -431,7 +431,7 @@ TEST_F(NGraphReaderTests, RNNSeqNetwork) {
                     </port>
                 </output>
             </layer>
-            <layer id="8" name="8" type="Result" version="opset1">
+            <layer id="8" name="7.0" type="Result" version="opset1">
                 <input>
                     <port id="0"  precision="FP32">
                         <dim>10</dim>
@@ -441,7 +441,7 @@ TEST_F(NGraphReaderTests, RNNSeqNetwork) {
                     </port>
                 </input>
             </layer>
-            <layer id="9" name="9" type="Result" version="opset1">
+            <layer id="9" name="7.1" type="Result" version="opset1">
                 <input>
                     <port id="0" precision="FP32">
                         <dim>10</dim>

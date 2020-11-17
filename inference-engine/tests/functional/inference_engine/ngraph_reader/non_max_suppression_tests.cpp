@@ -121,7 +121,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </output>
         </layer>
-        <layer id="8" name="output" type="Result" version="opset1">
+        <layer id="8" name="mul" type="Result" version="opset1">
             <input>
                 <port id="0" precision="I64">
                     <dim>15130</dim>
@@ -144,7 +144,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </output>
         </layer>
-        <layer id="10" name="output2" type="Result" version="opset1">
+        <layer id="10" name="mul2" type="Result" version="opset1">
             <input>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -169,7 +169,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </output>
         </layer>
-        <layer id="12" name="output3" type="Result" version="opset1">
+        <layer id="12" name="mul3" type="Result" version="opset1">
             <input>
                 <port id="0" precision="I64">
                     <dim>15130</dim>
@@ -451,7 +451,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression4) {
                </port>
            </output>
        </layer>
-       <layer id="7" name="output" type="Result" version="opset1">
+       <layer id="7" name="mul" type="Result" version="opset1">
            <input>
                <port id="0" precision="I32">
                    <dim>16000</dim>

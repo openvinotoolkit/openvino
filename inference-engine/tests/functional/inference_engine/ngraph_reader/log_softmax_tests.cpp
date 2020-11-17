@@ -32,7 +32,7 @@ TEST_F(NGraphReaderTests, ReadLogSoftmaxNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="log_softmax" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

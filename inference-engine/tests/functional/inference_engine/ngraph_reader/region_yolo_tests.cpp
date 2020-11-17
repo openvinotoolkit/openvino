@@ -37,7 +37,7 @@ TEST_F(NGraphReaderTests, ReadRegionYoloNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="2" name="364" type="Result" version="opset1">
+		<layer id="2" name="yolo_out_postprocess/YoloRegion" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -126,7 +126,7 @@ TEST_F(NGraphReaderTests, ReadRegionYoloMaskNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="2" name="364" type="Result" version="opset1">
+		<layer id="2" name="yolo_out_postprocess/YoloRegion" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>

@@ -108,7 +108,7 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="output" type="Result" version="opset1">
+        <layer id="6" name="FakeQuantize" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

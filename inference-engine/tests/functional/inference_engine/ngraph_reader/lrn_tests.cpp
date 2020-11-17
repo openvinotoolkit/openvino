@@ -30,7 +30,7 @@ TEST_F(NGraphReaderTests, ReadLrnNetwork) {
             .getLayer();
 
     auto result_layer = ir_builder_v10
-            .AddLayer("output", "Result")
+            .AddLayer("activation", "Result")
             .AddInPort(Precision::ePrecision::FP32, {1, 3, 22, 22})
             .getLayer();
 
@@ -90,7 +90,7 @@ TEST_F(NGraphReaderTests, ReadLrnNetwork2) {
             .getLayer();
 
     auto result_layer = ir_builder_v10
-            .AddLayer("output", "Result")
+            .AddLayer("activation", "Result")
             .AddInPort(Precision::ePrecision::FP32, {1, 3, 22, 22})
             .getLayer();
 

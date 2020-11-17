@@ -51,7 +51,7 @@ TEST_F(NGraphReaderTests, ReadGatherNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="4" name="Identity/sink_port_0" type="Result" version="opset1">
+		<layer id="4" name="PartitionedCall/functional_1/tf_op_layer_GatherV2/GatherV2" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>

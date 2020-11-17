@@ -45,7 +45,7 @@ TEST_F(NGraphReaderTests, ReadReduceMinNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="reduced/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="reduced" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>

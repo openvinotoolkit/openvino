@@ -48,7 +48,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="tile" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -158,7 +158,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork2) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="tile" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>2</dim>

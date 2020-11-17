@@ -48,7 +48,7 @@ TEST_F(NGraphReaderTests, ReadSubtractNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="z/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="z/sub" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>3</dim>

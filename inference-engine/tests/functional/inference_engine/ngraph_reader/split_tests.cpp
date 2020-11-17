@@ -51,7 +51,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output1" type="Result" id="3" version="opset1">
+        <layer name="split.0" type="Result" id="3" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -61,7 +61,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork) {
                 </port>
             </input>
         </layer>
-        <layer name="output2" type="Result" id="4" version="opset1">
+        <layer name="split.1" type="Result" id="4" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -232,7 +232,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork2) {
                 </port>
             </output>
         </layer>
-        <layer name="output1" type="Result" id="5" version="opset1">
+        <layer name="276" type="Result" id="5" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -422,7 +422,7 @@ TEST_F(NGraphReaderTests, ReadVariadicSplitNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output1" type="Result" id="4" version="opset1">
+        <layer name="split.0" type="Result" id="4" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -432,7 +432,7 @@ TEST_F(NGraphReaderTests, ReadVariadicSplitNetwork) {
                 </port>
             </input>
         </layer>
-        <layer name="output2" type="Result" id="5" version="opset1">
+        <layer name="split.1" type="Result" id="5" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

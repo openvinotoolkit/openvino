@@ -72,7 +72,7 @@ TEST_F(NGraphReaderTests, ReadFloorModNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="5" name="Identity/sink_port_0" type="Result" version="opset1">
+		<layer id="5" name="PartitionedCall/functional_1/tf_op_layer_output/output" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>

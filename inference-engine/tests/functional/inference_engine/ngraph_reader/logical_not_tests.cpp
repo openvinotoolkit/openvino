@@ -37,7 +37,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadLogicalNotNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="LogicalNot" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="BOOL">
                     <dim>1</dim>

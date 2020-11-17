@@ -57,7 +57,7 @@ TEST_F(NGraphReaderTests, ReadOneHotFP32) {
                 </port>
             </output>
         </layer>
-        <layer id="5" name="output" type="Result"  version="opset1">
+        <layer id="5" name="onehot" type="Result"  version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -201,7 +201,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadOneHotINT16) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="output" type="Result"  version="opset1">
+        <layer id="6" name="mul" type="Result"  version="opset1">
             <input>
                 <port id="0" precision="I16">
                     <dim>1</dim>

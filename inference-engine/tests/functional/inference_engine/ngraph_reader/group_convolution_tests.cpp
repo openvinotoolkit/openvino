@@ -58,7 +58,7 @@ TEST_F(NGraphReaderTests, ReadGroupConvolutionNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="140/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="GroupConvolutionOp" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>

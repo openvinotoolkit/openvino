@@ -8,7 +8,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetworkWithoutTopologicalOrder) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="activation" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -128,7 +128,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="activation" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -204,7 +204,7 @@ TEST_F(NGraphReaderTests, ReadReLUScalarNetwork) {
                 <port id="2" precision="FP32" />
             </output>
         </layer>
-        <layer name="output" type="Result" id="3" version="opset1">
+        <layer name="prior" type="Result" id="3" version="opset1">
             <input>
                 <port id="0" precision="FP32" />
             </input>

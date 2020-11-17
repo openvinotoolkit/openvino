@@ -50,7 +50,7 @@ TEST_F(NGraphReaderTests, ReadCTCGreedyDecoderNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="CTCGreedyDecoder/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="CTCGreedyDecoder" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>8</dim>
@@ -172,7 +172,7 @@ TEST_F(NGraphReaderTests, ReadCTCGreedyDecoderNoMergeNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="CTCGreedyDecoder/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="CTCGreedyDecoder" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>8</dim>

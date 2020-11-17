@@ -52,7 +52,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadShapeOfNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="activation2" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="I64">
                     <dim>1</dim>

@@ -49,7 +49,7 @@ TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" precision="FP32" version="opset1">
+        <layer name="interpolate" type="Result" id="2" precision="FP32" version="opset1">
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -156,7 +156,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate2Network) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" precision="FP32" version="opset1">
+        <layer name="interpolate" type="Result" id="2" precision="FP32" version="opset1">
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -288,7 +288,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="5" precision="FP32" version="opset1">
+        <layer name="interpolate" type="Result" id="5" precision="FP32" version="opset1">
             <input>
                 <port id="0">
                     <dim>9</dim>

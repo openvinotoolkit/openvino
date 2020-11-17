@@ -44,7 +44,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles1) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="output" type="Result" version="opset1">
+        <layer id="6" name="broadcast_1" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -201,7 +201,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles2) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="output" type="Result" version="opset1">
+        <layer id="6" name="broadcast_1" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -382,7 +382,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles3) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="output" type="Result" version="opset1">
+        <layer id="6" name="broadcast_1" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -499,7 +499,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles4) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="output" type="Result" version="opset1">
+        <layer id="6" name="broadcast_1" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -649,7 +649,7 @@ TEST_F(NGraphReaderTests, DISABLED_ConvertBroadcastToTiles5) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="output" type="Result" version="opset1">
+        <layer id="6" name="broadcast_1" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

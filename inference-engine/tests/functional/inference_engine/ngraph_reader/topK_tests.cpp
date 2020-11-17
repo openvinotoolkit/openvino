@@ -99,7 +99,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadTopKNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output_values" type="Result" id="5" version="opset1">
+        <layer name="mul_values" type="Result" id="5" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -109,7 +109,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadTopKNetwork) {
                 </port>
             </input>
         </layer>
-        <layer name="output_indices" type="Result" id="6">
+        <layer name="mul_indices" type="Result" id="6">
             <input>
                 <port id="0" precision="I32">
                     <dim>1</dim>

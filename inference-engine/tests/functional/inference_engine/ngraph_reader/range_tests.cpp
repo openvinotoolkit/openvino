@@ -77,7 +77,7 @@ TEST_F(NGraphReaderTests, ReadRangeNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="2" name="output" type="Result"  version="opset1">
+        <layer id="2" name="reshape" type="Result"  version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

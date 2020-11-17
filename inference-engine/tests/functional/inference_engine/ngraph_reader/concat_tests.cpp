@@ -56,7 +56,7 @@ TEST_F(NGraphReaderTests, ReadConcatNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="3" version="opset1">
+        <layer name="concat" type="Result" id="3" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

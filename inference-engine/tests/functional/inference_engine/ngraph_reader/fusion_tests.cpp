@@ -88,7 +88,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusion) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -242,7 +242,7 @@ TEST_F(NGraphReaderTests, DISABLED_ConvBiasFusionFP16) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP16">
                     <dim>1</dim>
@@ -379,7 +379,7 @@ TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast) {
                 </port>
             </output>
         </layer>
-        <layer  id="8" name="output" type="Result" version="opset1">
+        <layer  id="8" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -535,7 +535,7 @@ TEST_F(NGraphReaderTests, DISABLED_MatMulBiasFusion) {
                 </port>
             </output>
         </layer>
-        <layer  id="8" name="output" type="Result" version="opset1">
+        <layer  id="8" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

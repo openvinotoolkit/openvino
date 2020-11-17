@@ -1057,7 +1057,7 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="4" version="opset1">
+        <layer name="text_features" type="Result" id="4" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

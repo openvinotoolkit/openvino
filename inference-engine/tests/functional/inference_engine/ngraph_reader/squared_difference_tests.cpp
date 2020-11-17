@@ -54,7 +54,7 @@ TEST_F(NGraphReaderTests, ReadSquaredDifferenceNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="sq_diff" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

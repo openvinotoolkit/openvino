@@ -77,7 +77,7 @@ TEST_F(NGraphReaderTests, ReadNormalizeL2Network) {
                 </port>
             </output>
         </layer>
-        <layer id="5" name="Identity/sink_port_0" type="Result" version="opset1">
+        <layer id="5" name="PartitionedCall/functional_1/lambda/output" type="Result" version="opset1">
             <input>
                 <port id="0">
                     <dim>6</dim>

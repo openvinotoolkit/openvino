@@ -54,7 +54,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadGreaterNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="greater" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -183,7 +183,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadGreaterEqualNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="greater" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

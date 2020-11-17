@@ -53,7 +53,7 @@ TEST_F(NGraphReaderTests, ReadMinimumNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="Identity/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="PartitionedCall/functional_1/output/Minimum" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>

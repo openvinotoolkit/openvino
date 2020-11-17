@@ -72,7 +72,7 @@ TEST_F(NGraphReaderTests, ReadSelectFP32Network) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="4" version="opset1">
+        <layer name="select" type="Result" id="4" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -233,7 +233,7 @@ TEST_F(NGraphReaderTests, ReadSelectI32Network) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="4" version="opset1">
+        <layer name="select" type="Result" id="4" version="opset1">
             <input>
                 <port id="0" precision="I32">
                     <dim>1</dim>

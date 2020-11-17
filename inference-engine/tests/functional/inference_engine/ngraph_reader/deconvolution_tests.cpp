@@ -60,7 +60,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadDeconvolution3DNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="deconv1" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -175,7 +175,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadDeconvolution2DNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="deconv1" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

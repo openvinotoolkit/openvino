@@ -309,7 +309,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="activation" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -380,7 +380,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="activation" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -507,7 +507,7 @@ TEST_F(NGraphReshapeTests, ReshapeWithDefaultGenericOps) {
                 <biases offset="1572864" precision="FP32" size="4096"/>
             </blobs>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="77/GRUCell" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -609,7 +609,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDDetectionOutput) {
 				</port>
 			</output>
 		</layer>
-        <layer name="out_0" type="Result" id="5" version="opset1">
+        <layer name="DO.0" type="Result" id="5" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>100</dim>
@@ -617,14 +617,14 @@ TEST_F(NGraphReshapeTests, ReshapeEDDetectionOutput) {
                 </port>
             </input>
         </layer>
-        <layer name="out_1" type="Result" id="6" version="opset1">
+        <layer name="DO.1" type="Result" id="6" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>100</dim>
                 </port>
             </input>
         </layer>
-        <layer name="out_2" type="Result" id="7" version="opset1">
+        <layer name="DO.2" type="Result" id="7" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>100</dim>
@@ -714,7 +714,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDPriorGridGenerator) {
 				</port>
 			</output>
 		</layer>
-        <layer name="out_0" type="Result" id="4" version="opset1">
+        <layer name="1117" type="Result" id="4" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>201600</dim>
@@ -812,7 +812,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
 				</port>
 			</output>
 		</layer>
-        <layer name="out_0" type="Result" id="5" version="opset1">
+        <layer name="1133.0" type="Result" id="5" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1000</dim>
@@ -820,7 +820,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
                 </port>
             </input>
         </layer>
-        <layer name="out_1" type="Result" id="6" version="opset1">
+        <layer name="1133.1" type="Result" id="6" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1000</dim>
@@ -894,7 +894,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractor) {
 				</port>
 			</output>
 		</layer>
-        <layer name="out_0" type="Result" id="3" version="opset1">
+        <layer name="1190" type="Result" id="3" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1000</dim>

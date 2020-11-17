@@ -37,7 +37,7 @@ TEST_F(NGraphReaderTests, ReadDepthToSpaceNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="2" name="Identity/sink_port_0" type="Result" version="opset1">
+		<layer id="2" name="PartitionedCall/functional_1/tf_op_layer_output/output" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>5</dim>

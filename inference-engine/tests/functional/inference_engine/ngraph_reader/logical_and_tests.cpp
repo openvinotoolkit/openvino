@@ -54,7 +54,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadLogicalAndNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="3" version="opset1">
+        <layer name="LogicalAnd" type="Result" id="3" version="opset1">
             <input>
                 <port id="0" precision="BOOL">
                     <dim>1</dim>

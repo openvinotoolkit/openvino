@@ -43,7 +43,7 @@ TEST_F(NGraphReaderTests, ReadNotEqualNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="Identity/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="PartitionedCall/functional_1/tf_op_layer_output/output" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>

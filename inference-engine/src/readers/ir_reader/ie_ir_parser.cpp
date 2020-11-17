@@ -98,13 +98,15 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::i
     // Read all layers and store their parameters in params map
     FOREACH_CHILD(node, root.child("layers"), "layer") {
         auto node_param = parseGenericParams(node);
-        if (opName.find(node_param.name) != opName.end())
-            THROW_IE_EXCEPTION << "Invalid IR! " << node_param.name << " name is not unique!";
-        opName.insert(node_param.name);
         params[node_param.layerId] = {node, node_param};
         if (node_param.type == "Result" || node_param.type == "Assign") {
             outputs.push_back(node_param.layerId);
+            if (node_param.type == "Result")
+                continue;
         }
+        if (opName.find(node_param.name) != opName.end())
+            THROW_IE_EXCEPTION << "Invalid IR! " << node_param.name << " name is not unique!";
+        opName.insert(node_param.name);
     }
 
     using edge = struct { size_t fromLayerId, fromPortId, toPortId; };

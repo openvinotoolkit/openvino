@@ -65,7 +65,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="4" name="output" type="Result" version="opset1">
+        <layer id="4" name="proposal" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>200</dim>
@@ -216,7 +216,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
                 </port>
             </output>
         </layer>
-        <layer id="4" name="output" type="Result" version="opset1">
+        <layer id="4" name="proposal" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>200</dim>
@@ -370,7 +370,7 @@ TEST_F(NGraphReaderTests, ReadExtensionProposalNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="4" name="output" type="Result" version="opset1">
+        <layer id="4" name="proposal" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>200</dim>

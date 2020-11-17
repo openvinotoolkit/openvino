@@ -49,7 +49,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPool) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="reduce" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -157,7 +157,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolKeepDimsFalse) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="reduce" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -297,7 +297,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatial) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="reduce" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -473,7 +473,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatialHard) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="reduce" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -617,7 +617,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPool) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="reduce" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -726,7 +726,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolKeepDimsFalse) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="reduce" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -866,7 +866,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolNonSpatial) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="reduce" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1042,7 +1042,7 @@ TEST_F(NGraphReaderTests, ReduceSumToAvgPool) {
                 </port>
             </output>
         </layer>
-        <layer  id="5" name="output" type="Result" version="opset1">
+        <layer  id="5" name="reduce" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

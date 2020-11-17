@@ -52,7 +52,7 @@ TEST_F(NGraphReaderTests, ROIPoolingNetwork) {
                     </port>
                 </output>
             </layer>
-            <layer id="3" name="output" type="Result" version="opset1">
+            <layer id="3" name="CropAndResize/CropAndResize" type="Result" version="opset1">
                 <input>
                     <port id="0" precision="FP32">
                         <dim>100</dim>
@@ -173,7 +173,7 @@ TEST_F(NGraphReaderTests, DISABLED_ROIPoolingNetwork_2) {
                   </port>
                </output>
             </layer>
-            <layer id="3" name="output" type="Result" version="opset1">
+            <layer id="3" name="roi_pool5" type="Result" version="opset1">
                 <input>
                     <port id="0" precision="FP16">
                          <dim>300</dim>

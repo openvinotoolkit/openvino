@@ -75,7 +75,7 @@ TEST_F(NGraphReaderTests, ConvertStridedSliceToCrop) {
 				</port>
 			</output>
 		</layer>
-        <layer id="5" name="output" type="Result" version="opset1">
+        <layer id="5" name="Crop_" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>300</dim>
@@ -249,7 +249,7 @@ TEST_F(NGraphReaderTests, DISABLED_ConvertStridedSliceToCropMultipleMasks) {
 				</port>
 			</output>
 		</layer>
-        <layer id="5" name="output" type="Result" version="opset1">
+        <layer id="5" name="Crop_" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
 	                <dim>1</dim>
@@ -508,7 +508,7 @@ TEST_F(NGraphReaderTests, DISABLED_ConvertStridedSliceToCropMultipleMasks_2) {
 				</port>
 			</output>
 		</layer>
-        <layer id="5" name="output" type="Result" version="opset1">
+        <layer id="5" name="Crop_" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
 	                <dim>1</dim>

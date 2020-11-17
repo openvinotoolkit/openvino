@@ -47,7 +47,7 @@ TEST_F(NGraphReaderTests, ReadSqueeze) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="3" version="opset1">
+        <layer name="squeeze" type="Result" id="3" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

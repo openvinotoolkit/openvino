@@ -245,7 +245,7 @@ TEST(Extension, XmlModelWithCustomAbs) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="activation" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>10</dim>
@@ -308,7 +308,7 @@ TEST(Extension, XmlModelWithExtensionFromDSO) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="operation" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>2</dim>

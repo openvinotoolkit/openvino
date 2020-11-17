@@ -21,7 +21,7 @@ TEST_F(NGraphReaderTests, ReadGeluNetwork) {
             .getLayer();
 
     auto result_layer = ir_builder_v10
-            .AddLayer("output", "Result")
+            .AddLayer("activation", "Result")
             .AddInPort(Precision::ePrecision::FP32, {1, 128})
             .getLayer();
 

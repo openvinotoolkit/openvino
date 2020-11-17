@@ -85,7 +85,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToScaleShift) {
                 </port>
             </output>
         </layer>
-        <layer id="5" name="output" type="Result" version="opset1">
+        <layer id="5" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -233,7 +233,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToPower) {
                 </port>
             </output>
         </layer>
-        <layer id="5" name="output" type="Result" version="opset1">
+        <layer id="5" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -350,7 +350,7 @@ TEST_F(NGraphReaderTests, ConvertMulToPower) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="mul" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -460,7 +460,7 @@ TEST_F(NGraphReaderTests, ConvertMulToPower2) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="mul" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -575,7 +575,7 @@ TEST_F(NGraphReaderTests, ConvertAddToPower) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -689,7 +689,7 @@ TEST_F(NGraphReaderTests, ConvertMulToScaleShift) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="mul" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -797,7 +797,7 @@ TEST_F(NGraphReaderTests, ConvertAddToScaleShift) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -903,7 +903,7 @@ TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="mul" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1024,7 +1024,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1149,7 +1149,7 @@ TEST_F(NGraphReaderTests, ReadAddNoBroadcastNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="add" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1278,7 +1278,7 @@ TEST_F(NGraphReaderTests, ReadMultiplyNoBroadcastNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
+        <layer name="mul" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1423,7 +1423,7 @@ TEST_F(NGraphReaderTests, RemoveAdd) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="relu" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1589,7 +1589,7 @@ TEST_F(NGraphReaderTests, RemoveMulAdd) {
                 </port>
             </output>
         </layer>
-        <layer id="5" name="output" type="Result" version="opset1">
+        <layer id="5" name="relu" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1724,7 +1724,7 @@ TEST_F(NGraphReaderTests, RemoveAdd2) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1887,7 +1887,7 @@ TEST_F(NGraphReaderTests, RemoveAdd3) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output1" type="Result" version="opset1">
+        <layer id="3" name="add2" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1897,7 +1897,7 @@ TEST_F(NGraphReaderTests, RemoveAdd3) {
                 </port>
             </input>
         </layer>
-        <layer id="7" name="output2" type="Result" version="opset1">
+        <layer id="7" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -2052,7 +2052,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="output" type="Result" version="opset1">
+        <layer id="3" name="add" type="Result" version="opset1">
             <input>
                 <port id="0" precision="I32">
                     <dim>1</dim>

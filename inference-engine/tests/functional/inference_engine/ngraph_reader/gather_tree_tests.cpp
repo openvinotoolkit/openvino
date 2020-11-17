@@ -69,7 +69,7 @@ TEST_F(NGraphReaderTests, ReadGatherTreeNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="5" name="output1" type="Result" version="opset1">
+        <layer id="5" name="gather_tree" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>100</dim>

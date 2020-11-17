@@ -118,7 +118,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadBatchNormInferenceNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="6" version="opset1">
+        <layer name="bn" type="Result" id="6" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
