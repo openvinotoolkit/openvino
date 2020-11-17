@@ -29,43 +29,7 @@ from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
-
-
-def group_by_with_binary_predicate(xs: list, predicate: Callable) -> list:
-    """
-    It is an analogue of the function groupby from itertools, but with a binary predicate.
-    In other words, group_by_with_binary_predicate generates a break or new group every time
-    the value of the predicate function is False.
-    :param xs: list of grouped value
-    :param predicate: criterion of equality
-    :return: grouped list
-    """
-    if not xs:
-        return []
-    prev = xs[0]
-    sequence = [prev]
-    result = []
-    for x in xs[1:]:
-        if predicate(prev, x):
-            sequence.append(x)
-            prev = x
-        else:
-            result.append(sequence)
-            prev = x
-            sequence = [prev]
-    result.append(sequence)
-    return result
-
-
-def unique_by(xs: list, predicate: Callable) -> list:
-    """
-    This function groups elements of the list xs using 'predicate', and then takes one element from each group.
-    :param xs: input list
-    :param predicate: grouping criterion which is some binary predicate
-    :return: list with unique elements
-    """
-    groups = group_by_with_binary_predicate(xs, predicate)
-    return [group[0] for group in groups]
+from mo.utils.utils import unique_by
 
 
 def strided_slices_equality(lhs: Node, rhs: Node) -> bool:
