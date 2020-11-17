@@ -9,6 +9,8 @@
 #include <ngraph/ngraph.hpp>
 #include "low_precision/layer_transformation.hpp"
 #include "common/fake_quantize_on_data.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
+
 
 namespace ngraph {
 namespace builder {
@@ -27,8 +29,7 @@ public:
         const bool updatePrecisions,
         const FakeQuantizeOnData& fakeQuantizeOnData,
         const ngraph::element::Type fakeQuantizeOutputPrecision,
-        const std::vector<float>& expectedSubtractValues,
-        const std::vector<float>& expectedMultiplyValues);
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 };
 
 }  // namespace subgraph
