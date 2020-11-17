@@ -28,7 +28,29 @@ Install Cython in the Python installation, or virtualenv which you are planning 
 
     pip3 install cython
 
-### Configure, build and install OpenVINO
+### Build nGraph Python wheel
+
+We can build the Python wheel by issuing the following command:
+
+    cd "${MY_OPENVINO_BASEDIR}/openvino/ngraph/python"
+    python3 setup.py bdist_wheel
+
+Once completed, the wheel package should be located under the following path:
+
+    $ ls "${MY_OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
+    ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
+
+You can now install the wheel in your Python environment:
+
+    cd "${MY_OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
+    pip3 install ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
+
+#### What does `python3 setup.py bdist_wheel` do?
+
+The `python3 setup.py bdist_wheel` use CMake to build ngraph python bindings and pack module into a wheel package.
+You can recreate the process manually using OpenVINO build instructions: 
+
+ ### Configure, build and install OpenVINO
 
 The following section will illustrate how to download, build and install OpenVINO in a workspace directory specified
 by the `${MY_OPENVINO_BASEDIR}` variable. Let's start by setting this variable to a directory of your choice: 
@@ -62,34 +84,7 @@ variable. Examples:
 ```
 -DPYTHON_EXECUTABLE=/path/to/venv/bin/python
 -DPYTHON_EXECUTABLE=$(which python3.8)
-```
-
-### Build nGraph Python wheel
-
-When OpenVINO is built and installed, we can build the Python wheel by issuing the following command:
-
-    make python_wheel
-
-Once completed, the wheel package should be located under the following path:
-
-    $ ls "${MY_OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
-    ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
-
-You can now install the wheel in your Python environment:
-
-    cd "${MY_OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
-    pip3 install ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
-
-#### What does `make python_wheel` do?
-
-The `python_wheel` target automates a few steps, required to build the wheel package. You can recreate the process 
-manually by issuing the following commands: 
-
-    cd "${MY_OPENVINO_BASEDIR}/openvino/ngraph/python"
-    git clone --branch v2.5.0 https://github.com/pybind/pybind11.git
-    export NGRAPH_CPP_BUILD_PATH="${MY_OPENVINO_BASEDIR}/openvino_dist"
-    python3 setup.py bdist_wheel
-
+```   
 
 ## Build nGraph Python Wheels on Windows
 
@@ -97,7 +92,18 @@ manually by issuing the following commands:
 
 In order to build OpenVINO and the nGraph Python wheel on Windows, you will need to install Visual Studio and Python. 
 
-Once Python is installed, you will also need to install Cython using `pip install cython`.  
+Once Python is installed, you will also need to install Cython using `pip install cython`.
+
+Build the Python wheel package:
+
+    cd "${MY_OPENVINO_BASEDIR}/openvino/ngraph/python"
+    python setup.py bdist_wheel
+
+The final wheel should be located in `ngraph\python\dist` directory.
+
+    dir openvino\ngraph\python\dist\
+    10/09/2020  04:06 PM         4,010,943 ngraph_core-0.0.0-cp38-cp38-win_amd64.whl
+  
 
 ### Configure, build and install OpenVINO
 
@@ -141,16 +147,6 @@ In order to build and install OpenVINO, build the `install` target:
 
 In this step OpenVINO will be built and installed to the directory specified above. You can
 adjust the number of threads used in the building process to your machine's capabilities.
-
-Build the Python wheel package:
-
-    cmake --build . --target python_wheel --config Release -j 8
-
-The final wheel should be located in `ngraph\python\dist` directory.
-
-    dir openvino\ngraph\python\dist\
-    10/09/2020  04:06 PM         4,010,943 ngraph_core-0.0.0-cp38-cp38-win_amd64.whl
-
 
 ## Run tests
 
