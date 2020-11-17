@@ -232,7 +232,7 @@ inline ngraph::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
                                                            const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           std::vector<ngraph::element::Type_t> convertType = {});
+                                                           const std::vector<ngraph::element::Type_t> convertType = {});
 
 //
 // This function compares two nGraph functions and requires them to have exactly one output
