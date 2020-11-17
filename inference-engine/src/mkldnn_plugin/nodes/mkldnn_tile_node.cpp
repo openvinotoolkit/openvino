@@ -92,16 +92,13 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_inner_dim *= batchToProcess();
     }
 
-    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && ((inDims.size() == 4 && srcMemory.GetFormat() == memory::format_tag::nChw8c) ||
-            (inDims.size() == 5 && srcMemory.GetFormat() == memory::format_tag::nCdhw8c))) {
+    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.GetDesc().isBlockedCFormat(8)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw8c)
          */
         m_inner_dim *= 8;
         m_outer_dim /= 8;
-    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 &&
-            ((inDims.size() == 4 && srcMemory.GetFormat() == memory::format_tag::nChw16c) ||
-            (inDims.size() == 5 && srcMemory.GetFormat() == memory::format_tag::nCdhw16c))) {
+    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.GetDesc().isBlockedCFormat(16)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw16c)
          */
