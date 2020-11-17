@@ -1,0 +1,140 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "single_layer_tests/non_max_suppression.hpp"
+
+namespace LayerTestsDefinitions {
+
+using namespace ngraph;
+using namespace InferenceEngine;
+using namespace FuncTestUtils::PrecisionUtils;
+
+std::string NmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsParams> obj) {
+    InputShapeParams inShapeParams;
+    InputPrecisions inPrecisions;
+    int32_t maxOutBoxesPerClass;
+    float iouThr, scoreThr, softNmsSigma;
+    op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
+    bool sortResDescend;
+    element::Type outType;
+    std::string targetDevice;
+    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType, targetDevice) = obj.param;
+
+    size_t numBatches, numBoxes, numClasses;
+    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
+
+    Precision paramsPrec, maxBoxPrec, thrPrec;
+    std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
+
+    std::ostringstream result;
+    result << "numBatches=" << numBatches << "_numBoxes=" << numBoxes << "_numClasses=" << numClasses << "_";
+    result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
+    result << "maxOutBoxesPerClass=" << maxOutBoxesPerClass << "_";
+    result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_softNmsSigma=" << softNmsSigma << "_";
+    result << "boxEncoding=" << boxEncoding << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
+    result << "TargetDevice=" << targetDevice;
+    return result.str();
+}
+
+void NmsLayerTest::ConfigureNetwork() {
+    const OutputsDataMap &outputMap = cnnNetwork.getOutputsInfo();
+    auto out = outputMap.begin();
+    for (size_t i = 0; i < outputMap.size(); i++) {
+        if (i < 2) {
+            TensorDesc desc(out->second->getTensorDesc().getPrecision(), SizeVector{numOfSelectedBoxes, 3},
+                            TensorDesc::getLayoutByDims(SizeVector{numOfSelectedBoxes, 3}));
+            *(out->second) = *std::make_shared<Data>(out->first, desc);
+        }
+        out++;
+    }
+}
+
+void NmsLayerTest::Infer() {
+    inferRequest = executableNetwork.CreateInferRequest();
+    inputs.clear();
+
+    size_t it = 0;
+    for (const auto &input : cnnNetwork.getInputsInfo()) {
+        const auto &info = input.second;
+        Blob::Ptr blob;
+
+        if (it == 1) {
+            blob = make_blob_with_precision(info->getTensorDesc());
+            blob->allocate();
+            CommonTestUtils::fill_data_random_float<Precision::FP32>(blob, 1, 0, 1000);
+        } else {
+            blob = GenerateInput(*info);
+        }
+        inferRequest.SetBlob(info->name(), blob);
+        inputs.push_back(blob);
+        it++;
+    }
+    inferRequest.Infer();
+}
+
+void NmsLayerTest::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<Blob::Ptr> &actualOutputs) {
+    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >=0 ; outputIndex--) {
+        const auto& expected = expectedOutputs[outputIndex];
+        const auto& actual = actualOutputs[outputIndex];
+
+        const auto &expectedBuffer = expected.data();
+        auto memory = as<MemoryBlob>(actual);
+        IE_ASSERT(memory);
+        const auto lockedMemory = memory->wmap();
+        const auto actualBuffer = lockedMemory.as<const uint8_t *>();
+
+        if (outputIndex == 2) {
+            if (expected.size() != actual->byteSize())
+                throw std::runtime_error("Expected and actual size 3rd output have different size");
+        }
+
+        const auto &precision = actual->getTensorDesc().getPrecision();
+        size_t size = expected.size() / actual->getTensorDesc().getPrecision().size();
+        switch (precision) {
+            case Precision::FP32:
+                LayerTestsCommon::Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer), size, threshold);
+                break;
+            case Precision::I32:
+                LayerTestsCommon::Compare(reinterpret_cast<const int32_t *>(expectedBuffer), reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                break;
+            default:
+                FAIL() << "Comparator for " << precision << " precision isn't supported";
+        }
+    }
+}
+
+void NmsLayerTest::SetUp() {
+    InputShapeParams inShapeParams;
+    InputPrecisions inPrecisions;
+    size_t maxOutBoxesPerClass;
+    float iouThr, scoreThr, softNmsSigma;
+    op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
+    bool sortResDescend;
+    element::Type outType;
+    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType,
+             targetDevice) = this->GetParam();
+
+    size_t numBatches, numBoxes, numClasses;
+    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
+
+    Precision paramsPrec, maxBoxPrec, thrPrec;
+    std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
+
+    numOfSelectedBoxes = std::min(numBoxes, maxOutBoxesPerClass) * numBatches * numClasses;
+
+    const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
+    auto ngPrc = convertIE2nGraphPrc(paramsPrec);
+    auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
+    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+
+    auto nms = builder::makeNms(paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec), convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr,
+                                scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType);
+    function = std::make_shared<Function>(nms, params, "NMS");
+}
+
+TEST_P(NmsLayerTest, CompareWithRefs) {
+    Run();
+};
+
+}  // namespace LayerTestsDefinitions
