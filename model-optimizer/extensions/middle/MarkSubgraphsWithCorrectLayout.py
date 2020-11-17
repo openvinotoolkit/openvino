@@ -139,14 +139,10 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
             else:
                 mark_as_correct_data_layout(node)
             node['nchw_layout'] = True
-            if node.soft_get('type') == 'Const':  # WA for Const op deletion during clean_up
-                node.out_node()['nchw_layout'] = True
 
         for node in self.get_ports_and_nodes_on_shape_subgraphs(graph)[1]:
             mark_as_correct_data_layout(node)
             node['nchw_layout'] = True
-            if node.soft_get('type') == 'Const':  # WA for Const op deletion during clean_up
-                node.out_node()['nchw_layout'] = True
 
     @staticmethod
     def get_weighted_layer_type_to_in_weights_port():
