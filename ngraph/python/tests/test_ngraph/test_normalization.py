@@ -19,10 +19,10 @@ import numpy as np
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_34323, xfail_issue_35929
+from tests import xfail_issue_40957, xfail_issue_35929
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 def test_lrn():
     input_image_shape = (2, 3, 2, 1)
     input_image = np.arange(int(np.prod(input_image_shape))).reshape(input_image_shape).astype("f")

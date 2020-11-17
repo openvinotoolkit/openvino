@@ -20,7 +20,7 @@ import ngraph as ng
 from ngraph.impl import AxisSet, Function, Shape, Type
 from ngraph.impl.op import Constant, Parameter
 from tests.runtime import get_runtime
-from tests import xfail_issue_34323
+from tests import xfail_issue_40957
 
 
 def binary_op(op_str, a, b):
@@ -481,7 +481,7 @@ def test_broadcast():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 def test_constant():
     element_type = Type.f32
     parameter_list = []

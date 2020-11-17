@@ -18,7 +18,7 @@ import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
-from tests import (xfail_issue_34323,
+from tests import (xfail_issue_40957,
                    skip_segfault,
                    xfail_issue_34327,
                    xfail_issue_36485,
@@ -27,7 +27,7 @@ from tests import (xfail_issue_34323,
                    xfail_issue_36487)
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 def test_elu_operator_with_scalar_and_array():
     runtime = get_runtime()
 
@@ -241,7 +241,7 @@ def test_gelu_operator_with_parameters():
     assert np.allclose(result, expected, 0.007, 0.007)
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 def test_gelu_operator_with_array():
     runtime = get_runtime()
 
@@ -274,7 +274,7 @@ def test_clamp_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 def test_clamp_operator_with_array():
     runtime = get_runtime()
 
