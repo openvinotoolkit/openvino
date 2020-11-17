@@ -36,10 +36,18 @@ namespace MKLDNNPlugin {
  */
 class MKLDNNMemoryDesc {
 public:
-    MKLDNNMemoryDesc(): desc({}, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::undef) {}
+    /** Empty constructor - doesn't define any tensor representation */
+    MKLDNNMemoryDesc(): desc() {}
+
+    /** Construct a tensor desc with plain layout format (like ND C array) */
+    MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType);
+
+    /** Construct a tensor desc with specified layout format tag. Any and Undef is not supported */
+    MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
+
     explicit MKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc);
     explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc): desc(desc) {}
-    MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
+
 
     /**
      * Try to define original format tag use on creation
@@ -69,9 +77,13 @@ public:
     operator mkldnn::memory::desc() const;
     operator InferenceEngine::TensorDesc() const;
 
+
     bool isPlainFormat() const;
+    bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;
+    bool isTailCFormat() const;
 
 private:
+    static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();
     mkldnn::memory::desc desc;
 };
 

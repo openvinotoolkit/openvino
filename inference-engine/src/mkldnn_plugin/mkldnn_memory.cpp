@@ -325,6 +325,15 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::da
     MKLDNNMemory::CreateBlockingDesc(desc);
 }
 
+MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType) : desc() {
+    const auto ndims = dims.size();
+    mkldnn::memory::dims plain_strides(ndims, 1);
+    for (size_t i = 1; i < ndims; i++) {
+        plain_strides[ndims - i -1] = plain_strides[ndims - i] * dims[ndims - i];
+    }
+    desc = {dims, dataType, plain_strides};
+}
+
 size_t MKLDNNMemoryDesc::GetElementSize() const {
     const auto type = desc.data_type();
     switch (type) {
@@ -578,6 +587,55 @@ bool MKLDNNMemoryDesc::isPlainFormat() const {
     }
 
     return is_plain_strides;
+}
+
+bool MKLDNNMemoryDesc::isBlockedCFormat(size_t blk_size) const {
+    const auto &blocking = desc.data.format_desc.blocking;
+
+    if (desc.data.format_kind != dnnl_blocked ||
+        blocking.inner_nblks != 1 ||
+        blocking.inner_idxs[0] != 1)
+        return false;
+
+    const auto &ndims = desc.data.ndims;
+    const auto &strides = desc.data.format_desc.blocking.strides;
+    const auto &dims = desc.data.padded_dims;
+
+    if (blk_size == UNREACHABLE_DIM) {
+        blk_size = blocking.inner_blks[0];
+    } else {
+        if (blk_size != blocking.inner_blks[0])
+            return false;
+    }
+
+    bool is_direct_order = (strides[ndims-1] == blocking.inner_blks[0]);
+    for (int i = 0; i < ndims - 1; i++) {
+        auto dim = (i == 0) ? div_up(dims[i+1], blk_size) : dims[i+1];
+        is_direct_order &= (strides[i] >= strides[i+1] * dim);
+    }
+
+    return is_direct_order;
+}
+
+bool MKLDNNMemoryDesc::isTailCFormat() const {
+    const auto &blocking = desc.data.format_desc.blocking;
+
+    if (desc.data.format_kind != dnnl_blocked ||
+        blocking.inner_nblks != 0)
+        return false;
+
+    const auto &ndims = desc.data.ndims;
+    const auto &strides = desc.data.format_desc.blocking.strides;
+    const auto &dims = desc.data.padded_dims;
+    const auto blk_size = blocking.inner_blks[0];
+
+    // dense permutation of acd..b
+    bool is_tailc_strides = (strides[1] == 1 && strides[ndims-1] == dims[1] && strides[0] == dims[2] * strides[2]);
+    for (int i = 2; i < ndims - 1; i++) {
+        is_tailc_strides &= (strides[i] == strides[i+1] * dims[i+1]);
+    }
+
+    return is_tailc_strides;
 }
 
 /**
