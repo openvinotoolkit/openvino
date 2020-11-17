@@ -21,7 +21,7 @@ Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
 
 ## Build a Docker* Image for CPU
 
-You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. 
+You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. 
 The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. 
 
 ## Install Additional Dependencies
@@ -29,13 +29,13 @@ The Framework can generate a Dockerfile, build, test, and deploy an image with t
 To add CMake to the image, add the following commands to a Dockerfile:
 ~~~
 RUN powershell.exe -Command `
-    Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -Proxy %HTTPS_PROXY% -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
+    Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
     Start-Process %TMP%\\cmake-3.14.7-win64-x64.msi -ArgumentList '/quiet /norestart' -Wait ; `
     Remove-Item %TMP%\\cmake-3.14.7-win64-x64.msi -Force
 
 RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
 ~~~
-In case of proxy issues, please add `ARG HTTPS_PROXY` and `-Proxy %HTTPS_PROXY%` settings to powershell.exe to a Dockerfile. Then build a docker image:
+In case of proxy issues, please add `ARG HTTPS_PROXY` and `-Proxy %HTTPS_PROXY%` settings to powershell.exe command to the Dockerfile. Then build a docker image:
 ~~~
 docker build . -t <image_name> `
 --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
@@ -78,7 +78,7 @@ docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deploymen
 
 ## Troubleshooting
 
-If you got proxy issues, please setup proxy settings for Docker. See the Proxy section in [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
+If you got proxy issues, please setup proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
 
 ## Additional Resources
 
