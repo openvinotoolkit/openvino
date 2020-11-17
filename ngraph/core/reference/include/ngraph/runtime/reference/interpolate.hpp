@@ -152,6 +152,10 @@ namespace ngraph
                                  float length_resized,
                                  float length_original) const
                 {
+                    if (x_scale == 1.0f || (length_resized == length_original))
+                    {
+                        return x_resized;
+                    }
                     return m_func(x_resized, x_scale, length_resized, length_original);
                 }
 

@@ -21,6 +21,7 @@
 
 using namespace testing;
 using namespace ngraph::pass;
+using namespace ngraph;
 using namespace ngraph::builder::subgraph;
 
 class interpAttributes {
@@ -32,6 +33,8 @@ public:
     std::vector<size_t> pads_begin;
     std::vector<size_t> pads_end;
 
+    interpAttributes() = default;
+
     interpAttributes(const ngraph::AxisSet& axes,
         const std::string& mode,
         const bool& align_corners,
@@ -40,6 +43,23 @@ public:
         const std::vector<size_t>& pads_end) :
         axes(axes), mode(mode), align_corners(align_corners),
         antialias(antialias), pads_begin(pads_begin), pads_end(pads_end) {}
+};
+
+class interp4Attributes {
+public:
+    op::v4::Interpolate::InterpolateMode mode;
+    op::v4::Interpolate::CoordinateTransformMode coordinate_transformation_mode;
+    std::vector<size_t> pads_begin;
+    std::vector<size_t> pads_end;
+
+    interp4Attributes() = default;
+
+    interp4Attributes(const op::v4::Interpolate::InterpolateMode mode,
+        const op::v4::Interpolate::CoordinateTransformMode coordinate_transformation_mode,
+        const std::vector<size_t>& pads_begin,
+        const std::vector<size_t>& pads_end) :
+        mode(mode), coordinate_transformation_mode(coordinate_transformation_mode),
+        pads_begin(pads_begin), pads_end(pads_end) {}
 };
 
 class InterpolateTransformationTestValues {
@@ -60,9 +80,11 @@ public:
 
     ngraph::Shape inputShape;
     ngraph::Shape outputShape;
+    ngraph::Shape scalesShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    //ngraph::op::InterpolateAttrs interpAttrs;
     interpAttributes interpAttrs;
+    interp4Attributes interp4Attrs;
+    int opset_version;
     Actual actual;
     Expected expected;
 };
@@ -85,60 +107,107 @@ public:
     void SetUp() override {
         const InterpolateTransformationTestValues testValues = GetParam();
 
-        ngraph::op::InterpolateAttrs interpAttrs;
-        interpAttrs.axes = testValues.interpAttrs.axes;
-        interpAttrs.mode = testValues.interpAttrs.mode;
-        interpAttrs.align_corners = testValues.interpAttrs.align_corners;
-        interpAttrs.antialias = testValues.interpAttrs.antialias;
-        interpAttrs.pads_begin = testValues.interpAttrs.pads_begin;
-        interpAttrs.pads_end = testValues.interpAttrs.pads_end;
+        if (testValues.opset_version == 1) {
+            ngraph::op::InterpolateAttrs interpAttrs;
+            interpAttrs.axes = testValues.interpAttrs.axes;
+            interpAttrs.mode = testValues.interpAttrs.mode;
+            interpAttrs.align_corners = testValues.interpAttrs.align_corners;
+            interpAttrs.antialias = testValues.interpAttrs.antialias;
+            interpAttrs.pads_begin = testValues.interpAttrs.pads_begin;
+            interpAttrs.pads_end = testValues.interpAttrs.pads_end;
 
-        actualFunction = ngraph::builder::subgraph::InterpolateFunction::getOriginal(
-            testValues.inputShape,
-            testValues.outputShape,
-            interpAttrs,
-            testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization);
+            actualFunction = ngraph::builder::subgraph::InterpolateFunction::getOriginal(
+                testValues.inputShape,
+                testValues.outputShape,
+                interpAttrs,
+                testValues.actual.precisionBeforeDequantization,
+                testValues.actual.dequantization);
 
-        SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset1::Interpolate>(testValues.params);
-        transformer.transform(actualFunction);
+            SimpleLowPrecisionTransformer transformer;
+            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset1::Interpolate>(testValues.params);
+            transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
-            testValues.inputShape,
-            testValues.outputShape,
-            interpAttrs,
-            testValues.expected.precisionBeforeDequantization,
-            testValues.expected.dequantizationBefore,
-            testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter);
+            referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
+                testValues.inputShape,
+                testValues.outputShape,
+                interpAttrs,
+                testValues.expected.precisionBeforeDequantization,
+                testValues.expected.dequantizationBefore,
+                testValues.expected.precisionAfterOperation,
+                testValues.expected.dequantizationAfter);
+        } else if (testValues.opset_version == 4) {
+            ngraph::op::v4::Interpolate::InterpolateAttrs interp4Attrs;
+            interp4Attrs.mode = testValues.interp4Attrs.mode;
+            interp4Attrs.coordinate_transformation_mode = testValues.interp4Attrs.coordinate_transformation_mode;
+            interp4Attrs.pads_begin = testValues.interp4Attrs.pads_begin;
+            interp4Attrs.pads_end = testValues.interp4Attrs.pads_end;
+
+            actualFunction = ngraph::builder::subgraph::InterpolateFunction::getOriginal(
+                testValues.inputShape,
+                testValues.outputShape,
+                testValues.scalesShape,
+                interp4Attrs,
+                testValues.actual.precisionBeforeDequantization,
+                testValues.actual.dequantization);
+
+            SimpleLowPrecisionTransformer transformer;
+            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset4::Interpolate>(testValues.params);
+            transformer.transform(actualFunction);
+
+            referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
+                testValues.inputShape,
+                testValues.outputShape,
+                testValues.scalesShape,
+                interp4Attrs,
+                testValues.expected.precisionBeforeDequantization,
+                testValues.expected.dequantizationBefore,
+                testValues.expected.precisionAfterOperation,
+                testValues.expected.dequantizationAfter);
+        }
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<InterpolateTransformationTestValues> obj) {
         const InterpolateTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result <<
+        if (testValues.opset_version == 1) {
+            result <<
             testValues.inputShape << "_" <<
             testValues.outputShape << "_" <<
-            testValues.interpAttrs.align_corners <<
-            testValues.interpAttrs.antialias <<
-            testValues.interpAttrs.axes <<
-            testValues.interpAttrs.mode <<
-            testValues.interpAttrs.pads_begin <<
-            testValues.interpAttrs.pads_end <<
+            testValues.opset_version << "_" <<
+            testValues.interpAttrs.align_corners << "_" <<
+            testValues.interpAttrs.antialias << "_" <<
+            testValues.interpAttrs.axes << "_" <<
+            testValues.interpAttrs.mode << "_" <<
+            testValues.interpAttrs.pads_begin << "_" <<
+            testValues.interpAttrs.pads_end << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore;
+        } else if (testValues.opset_version == 4) {
+            result <<
+            testValues.inputShape << "_" <<
+            testValues.outputShape << "_" <<
+            testValues.opset_version << "_" <<
+            testValues.interp4Attrs.mode << "_" <<
+            testValues.interp4Attrs.coordinate_transformation_mode << "_" <<
+            testValues.interp4Attrs.pads_begin << "_" <<
+            testValues.interp4Attrs.pads_end << "_" <<
+            testValues.actual.precisionBeforeDequantization << "_" <<
+            testValues.actual.dequantization << "_" <<
+            testValues.expected.dequantizationBefore;
+        }
         return result.str();
     }
 };
 
 const std::vector<InterpolateTransformationTestValues> testValues {
+    // opset1
     // nearest mode - move dequantization
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -147,6 +216,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             false,
             {0},
             {0}),
+        interp4Attributes(),
+        1,
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -163,6 +234,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -171,6 +243,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             false,
             {0},
             {0}),
+        interp4Attributes(),
+        1,
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -187,6 +261,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 8, 32, 32 },
+        ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{1, 2, 3},
@@ -195,6 +270,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             false,
             {0},
             {0}),
+        interp4Attributes(),
+        1,
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -211,6 +288,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -219,6 +297,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             false,
             {0},
             {0}),
+        interp4Attributes(),
+        1,
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -235,6 +315,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -243,6 +324,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             false,
             {1},
             {1}),
+        interp4Attributes(),
+        1,
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -253,7 +336,108 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             ngraph::element::u8,
             {{}, {}, {}}
         }
-    }
+    },
+
+    // v4::Interpolate
+    // nearest mode - move dequantization
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{ 1, 1, 2, 2 },
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(),
+        interp4Attributes(
+            ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+            ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}),
+        4,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        },
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        }
+    },
+
+    // mode is not nearest - not transformed
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{ 1, 1, 2, 2 },
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(),
+        interp4Attributes(
+            ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
+            ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}),
+        4,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        },
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
+            ngraph::element::i8,
+            {{}, {}, {}}
+        }
+    },
+
+    // align_corners set to true - not transformed
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{ 1, 1, 2, 2 },
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(),
+        interp4Attributes(
+            ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+            ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}),
+        4,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        },
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
+            ngraph::element::i8,
+            {{}, {}, {}}
+        }
+    },
+
+    // have pads - not transformed
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{ 1, 1, 2, 2 },
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(),
+        interp4Attributes(
+            ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+            ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+            {0, 0, 0, 1},
+            {0, 0, 1, 0}),
+        4,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        },
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
+            ngraph::element::i8,
+            {{}, {}, {}}
+        }
+    },
 };
 
 TEST_P(InterpolateTransformation, CompareFunctions) {
