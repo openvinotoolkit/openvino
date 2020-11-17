@@ -128,9 +128,10 @@ def eliminate_dead_nodes(graph):
     from mo.graph.graph import Node
     nodes_to_remove = set()
     for node_name, node_attrs in graph.nodes(data=True):
-        # WA for Const op deletion during clean_up
-        # Setting attribute nchw_layout for const data node
-        # Needed for rejecting permutation of const data nodes
+        # The Const operation node may have set an attribute 'nchw_layout' attribute to prevent shape permutation.
+        # During graph clean-up the operation node is removed and the attribute is lost.
+        # This results in permutation of the Const shape in the IR and wrong inference results.
+        # Here we explicitly save the 'nchw_layout' attribute in the data node to prevent permutation."
         if node_attrs.get('type', None) == 'Const' and node_attrs.get('nchw_layout', False):
             Node(graph, node_name).out_node()['nchw_layout'] = True
 
