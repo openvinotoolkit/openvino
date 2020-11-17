@@ -495,7 +495,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                               details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params["type"] = "not";
-        return res;                                
+        return res;
     });
 
     addSpecificCreator({"LSTMCellIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
@@ -1223,6 +1223,11 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             auto outName = layer->output(i).get_tensor().get_name();
             if (outName.empty()) {
                 outName = ngraph::op::util::create_ie_output_name(layer->output(i));
+                for (const auto& in : layer->output(i).get_target_inputs()) {
+                    if (auto res = dynamic_cast<ngraph::op::Result*>(in.get_node())) {
+                        outName = ngraph::op::util::create_ie_output_name(res->output(0));
+                    }
+                }
             }
 
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
@@ -1273,12 +1278,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             continue;
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
-            const auto &input = layer->input_value(0);
-            auto name = input.get_tensor().get_name();
+            const auto &output = layer->output(0);
+            auto name = output.get_tensor().get_name();
             if (!name.empty())
                 cnnNetworkImpl->addOutput(name);
             else
-                cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(input));
+                cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(output));
             continue;
         }
 

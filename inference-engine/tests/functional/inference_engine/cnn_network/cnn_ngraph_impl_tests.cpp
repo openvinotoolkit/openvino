@@ -270,6 +270,7 @@ TEST(CNNNGraphImplTests, TestAddOutput) {
         auto relu2 = std::make_shared<ngraph::op::Relu>(relu);
         relu2->set_friendly_name("relu2");
         auto result = std::make_shared<ngraph::op::Result>(relu2);
+        result->set_friendly_name("relu2");
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};

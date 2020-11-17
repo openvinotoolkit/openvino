@@ -161,6 +161,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
         auto topK = std::make_shared<ngraph::opset4::TopK>(param, k, 2, ngraph::opset4::TopK::Mode::MAX, ngraph::opset4::TopK::SortType::SORT_VALUES);
         topK->set_friendly_name("topK");
         auto result = std::make_shared<ngraph::op::Result>(topK->output(1));
+        result->set_friendly_name("topK.1");
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param});

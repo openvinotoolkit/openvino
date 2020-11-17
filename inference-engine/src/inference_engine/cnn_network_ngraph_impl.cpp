@@ -145,15 +145,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
 
         keep_input_info(*this, ptr);
     }
-    for (auto& output : _outputData) {
-        // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
-        if (output.second->getPrecision() == Precision::I64) {
-            output.second->setPrecision(Precision::I32);
-        } else if (output.second->getPrecision() != Precision::FP32 &&
-            output.second->getPrecision() != Precision::I32) {
-            output.second->setPrecision(Precision::FP32);
-        }
-    }
 }
 
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
@@ -232,6 +223,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 if (layer->outputs().size() != 1) {
                     outputName += "." + std::to_string(outputIndex);
                 }
+                result->set_friendly_name(outputName);
                 if (_outputData.count(outputName) == 0) {
                     reshape();
                 }
@@ -389,7 +381,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 #endif
         std::unordered_set<std::string> opName;
         for (const auto &result : specialized_ngraph_function->get_results()) {
-            addOutput(result->input_value(0));
+            addOutput(result->output(0));
         }
 
         for (const auto &parameter : specialized_ngraph_function->get_parameters()) {
