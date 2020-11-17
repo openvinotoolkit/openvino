@@ -36,14 +36,25 @@ nodes_attributes = {
 
     # StridedSlice layers
     'sslice_1': {'type': None, 'kind': 'op', 'op': 'StridedSlice', 'slices': None,
-                 'shrink_axis_mask': np.array([0, 0, 0, 0])},
+                 'shrink_axis_mask': np.array([0, 0, 0, 0]), 'begin_mask': int64_array([1, 1, 1, 1]),
+                 'end_mask': int64_array([1, 1, 1, 1]), 'new_axis_mask': int64_array([0, 0, 0, 0]),
+                 'ellipsis_mask': int64_array([0])},
     'sslice_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     'sslice_2': {'type': None, 'kind': 'op', 'op': 'StridedSlice', 'slices': None,
-                 'shrink_axis_mask': np.array([0, 0, 0, 0])},
+                 'shrink_axis_mask': np.array([0, 0, 0, 0]), 'begin_mask': int64_array([1, 1, 1, 1]),
+                 'end_mask': int64_array([1, 1, 1, 1]), 'new_axis_mask': int64_array([0, 0, 0, 0]),
+                 'ellipsis_mask': int64_array([0])},
     'sslice_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     'sslice_3': {'type': None, 'kind': 'op', 'op': 'StridedSlice', 'slices': None,
-                 'shrink_axis_mask': np.array([0, 0, 0, 0])},
+                 'shrink_axis_mask': np.array([0, 0, 0, 0]), 'begin_mask': int64_array([1, 1, 1, 1]),
+                 'end_mask': int64_array([1, 1, 1, 1]), 'new_axis_mask': int64_array([0, 0, 0, 0]),
+                 'ellipsis_mask': int64_array([0])},
     'sslice_3_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'sslice_4': {'type': None, 'kind': 'op', 'op': 'StridedSlice', 'slices': None,
+                 'shrink_axis_mask': np.array([0, 0, 0, 0]), 'begin_mask': int64_array([1, 1, 1, 1]),
+                 'end_mask': int64_array([1, 1, 1, 1]), 'new_axis_mask': int64_array([0, 0, 0, 0]),
+                 'ellipsis_mask': int64_array([0])},
+    'sslice_4_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     # Split layer
     'axis_const': {'kind': 'op'},
@@ -81,6 +92,16 @@ nodes_attributes = {
     'sslice_2/Unsqueeze_new_data': {'value': None, 'shape': None, 'kind': 'data'},
     'sslice_2/unsqueeze_const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': int64_array([2])},
     'sslice_2/unsqueeze_const_data': {'kind': 'data', 'value': None, 'shape': None},
+
+    # Activations
+    'abs': {'type': None, 'value': None, 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'relu': {'type': None, 'value': None, 'kind': 'op', 'op': 'ReLU'},
+    'relu_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'erf': {'type': None, 'value': None, 'kind': 'op', 'op': 'Erf'},
+    'erf_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'gelu': {'type': None, 'value': None, 'kind': 'op', 'op': 'Gelu'},
+    'gelu_data': {'value': None, 'shape': None, 'kind': 'data'},
 }
 
 one_strided_slice_case_node_attributes = {
@@ -652,6 +673,97 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern.find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'op_output', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+    def test_10(self):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'sslice_1'),
+                             ('sslice_1', 'sslice_1_data'),
+                             ('placeholder_1_data', 'sslice_2'),
+                             ('sslice_2', 'sslice_2_data'),
+                             ('placeholder_1_data', 'sslice_3'),
+                             ('sslice_3', 'sslice_3_data'),
+                             ('placeholder_1_data', 'sslice_4'),
+                             ('sslice_4', 'sslice_4_data'),
+                             ('sslice_1_data', 'abs'),
+                             ('abs', 'abs_data'),
+                             ('sslice_2_data', 'relu'),
+                             ('relu', 'relu_data'),
+                             ('sslice_3_data', 'erf'),
+                             ('erf', 'erf_data'),
+                             ('sslice_4_data', 'gelu'),
+                             ('gelu', 'gelu_data'),
+                             ('abs_data', 'concat_1'),
+                             ('relu_data', 'concat_1'),
+                             ('erf_data', 'concat_1'),
+                             ('gelu_data', 'concat_1'),
+                             ('concat_1', 'concat_1_data'),
+                             ('concat_1_data', 'op_output')
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 54, 54, 3])},
+                             'sslice_1': {'slices': np.array(
+                                 [slice(0, 1, 1), slice(0, 27, 1), slice(0, 54, 1), slice(0, 3, 1)])},
+                             'sslice_1_data': {'shape': np.array([1, 27, 54, 3])},
+                             'sslice_2': {'slices': np.array(
+                                 [slice(0, 1, 1), slice(27, 54, 1), slice(0, 54, 1), slice(0, 3, 1)])},
+                             'sslice_2_data': {'shape': np.array([1, 27, 54, 3])},
+                             'sslice_3': {'slices': np.array(
+                                 [slice(0, 1, 1), slice(0, 14, 1), slice(0, 54, 1), slice(0, 3, 1)])},
+                             'sslice_3_data': {'shape': np.array([1, 14, 54, 3])},
+                             'sslice_4': {'slices': np.array(
+                                 [slice(0, 1, 1), slice(12, 18, 1), slice(0, 54, 1), slice(0, 3, 1)])},
+                             'sslice_4_data': {'shape': np.array([1, 6, 54, 3])},
+                             'concat_1_data': {'shape': np.array([1, 74, 54, 3])}
+                             })
+        # graph = build_graph(nodes_attributes,
+        #                     [('placeholder_1', 'placeholder_1_data'),
+        #                      ('placeholder_1_data', 'sslice_1'),
+        #                      ('sslice_1', 'sslice_1_data'),
+        #                      ('placeholder_1_data', 'sslice_2'),
+        #                      ('sslice_2', 'sslice_2_data'),
+        #                      ('sslice_1_data', 'concat_1'),
+        #                      ('sslice_2_data', 'concat_1'),
+        #                      ],
+        #                     {
+        #
+        #
+        #                      'sslice_2_data': {'shape': np.array([1, 18, 54, 3])},
+        #
+        #                      'concat_1_data': {'shape': np.array([1, 54, 54, 3])},
+        #                      })
+        # graph.graph['layout'] = 'NHWC'
+        #
+        # graph_ref = build_graph(nodes_attributes,
+        #                         [('placeholder_1', 'placeholder_1_data'),
+        #                          ('placeholder_1_data', 'split_1'),
+        #                          ('split_1', 'split_1_data'),
+        #                          ('split_1', 'split_2_data'),
+        #                          ('split_1', 'split_3_data'),
+        #                          ('split_1_data', 'concat_1'),
+        #                          ('split_3_data', 'concat_1'),
+        #                          ('concat_1', 'concat_1_data'),
+        #                          ('concat_1_data', 'op_output'),
+        #                          ('split_2_data', 'op_output_1'),
+        #
+        #                          ('axis_const', 'axis_const_data'),
+        #                          ('split_dim_const', 'split_dim_const_data'),
+        #                          ('axis_const_data', 'split_1', {'in': 1}),
+        #                          ('split_dim_const_data', 'split_1', {'in': 2}),
+        #                          ],
+        #                         {'placeholder_1_data': {'shape': np.array([1, 54, 54, 3])},
+        #                          'axis_const': {'value': 1},
+        #                          'split_1_data': {'shape': np.array([1, 18, 54, 3])},
+        #                          'split_2_data': {'shape': np.array([1, 18, 54, 3])},
+        #                          'split_3_data': {'shape': np.array([1, 18, 54, 3])},
+        #                          'concat_1_data': {'shape': np.array([1, 54, 54, 3])},
+        #                          })
+        #
+        # pattern = ConvertGroupedStridedSlice()
+        # pattern.find_and_replace_pattern(graph)
+        #
+        # (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
+        # self.assertTrue(flag, resp)
+        pass
 
 
 class AddReshapeAfterStridedSliceTests(unittest.TestCase):

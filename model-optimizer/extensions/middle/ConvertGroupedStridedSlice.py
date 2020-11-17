@@ -40,20 +40,8 @@ def strided_slices_equality(lhs: Node, rhs: Node) -> bool:
     :return: True, if lhs and rhs have identical attributes 'slices', 'begin_mask', 'end_mask', 'ellipsis_mask',
              'new_axis_mask', 'shrink_axis_mask', and False otherwise.
     """
-    default_attrs_of_strided_slice = {
-        'begin_mask': int64_array([1]),
-        'end_mask': int64_array([1]),
-        'shrink_axis_mask': int64_array([0]),
-        'new_axis_mask': int64_array([0]),
-        'ellipsis_mask': int64_array([0])
-    }
-
-    if not np.array_equal(lhs.slices, rhs.slices):
-        return False
-    for attr in ['begin_mask', 'end_mask', 'ellipsis_mask', 'new_axis_mask', 'shrink_axis_mask']:
-        lhs_attr = lhs.soft_get(attr, default_attrs_of_strided_slice[attr])
-        rhs_attr = rhs.soft_get(attr, default_attrs_of_strided_slice[attr])
-        if not np.array_equal(lhs_attr, rhs_attr):
+    for attr in ['slices', 'new_axis_mask', 'shrink_axis_mask', 'begin_mask', 'end_mask', 'ellipsis_mask']:
+        if not np.array_equal(lhs[attr], rhs[attr]):
             return False
     return True
 
