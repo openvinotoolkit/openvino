@@ -208,6 +208,6 @@ xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
-xfail_issue_41815 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::NonMaxSuppression casted "
-                                      "(yolo_evaluation_layer_1/concat_6:0_btc[0]:f32{1,2535,4},")
+xfail_issue_43380 = xfail_test(reason="RuntimeError: Sorting not possible, due to existed loop")
+xfail_issue_43382 = xfail_test(reason="Testing models which have upper bound output shape is not supported")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")

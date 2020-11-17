@@ -330,7 +330,6 @@ bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
     static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
         dispatcher{{TI(opset3::Pad), &eliminate_nop},
                    {TI(opset3::Convert), &eliminate_convert},
-                   {TI(op::v1::StridedSlice), &eliminate_nop},
                    {TI(opset3::Reshape), &eliminate_reshape_v1},
                    {TI(opset3::Concat), &eliminate_concat},
                    {TI(opset3::Squeeze), &eliminate_squeeze},
