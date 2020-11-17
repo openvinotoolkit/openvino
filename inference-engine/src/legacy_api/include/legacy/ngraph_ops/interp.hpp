@@ -47,7 +47,7 @@ private:
 
 struct ResampleIEAttrs {
     bool antialias = true;
-    float factor = 0;
+    int64_t factor = 0;
     std::string mode = "";
 };
 
@@ -66,7 +66,6 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
     ResampleIEAttrs get_attrs() { return m_attrs; }
 private:
