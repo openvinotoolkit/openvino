@@ -46,6 +46,10 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].constant = false;
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
+    if (isOptimized) {
+        config.inConfs[0].inPlace = 0;
+        config.outConfs[0].inPlace = 0;
+    }
     if (input.getLayout() != InferenceEngine::Layout::ANY && output.getLayout() != InferenceEngine::Layout::ANY) {
         config.inConfs[0].desc = input;
         config.outConfs[0].desc = output;
@@ -71,6 +75,7 @@ void MKLDNNReorderNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 
+    if (!isOptimized)
     createReorderPrimitive(srcMemPtr->GetDescriptor(), srcMemPtr->GetPrimitive().get_data_handle(),
             dstMemPtr->GetDescriptor(), dstMemPtr->GetPrimitive().get_data_handle());
 }
@@ -169,6 +174,9 @@ bool MKLDNNReorderNode::created() const {
 }
 
 void MKLDNNReorderNode::execute(mkldnn::stream strm) {
+    if (isOptimized)
+        return;
+
     src_blocked->GetPrimitivePtr()->set_data_handle(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
     dst_blocked->GetPrimitivePtr()->set_data_handle(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
 

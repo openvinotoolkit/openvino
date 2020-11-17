@@ -10,6 +10,7 @@ reduce_sum_keep_large_1d_to_scalar
 
 # Temporarily disabled:
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
+INTERPRETER.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 INTERPRETER.interpolate_down_scales_const_linear
 INTERPRETER.onnx_resize10_up_scales_const_nearest
 INTERPRETER.onnx_resize10_up_scales_const_linear
@@ -94,20 +95,6 @@ INTERPRETER.onnx_model_conv_integer
 INTERPRETER.onnx_model_conv_integer_zero_point_zero
 INTERPRETER.onnx_model_conv_integer_no_zero_point
 INTERPRETER.onnx_model_conv_integer_pads
-INTERPRETER.onnx_model_gatherND_int32
-INTERPRETER.onnx_model_gatherND_float
-
-
-# GRU/RNN/LSTM Sequence: Output values mismatch - seq_lengths not supported
-onnx_model_lstm_fwd_mixed_seq_const
-onnx_model_lstm_reverse_mixed_seq_const
-onnx_model_lstm_fwd_mixed_seq
-onnx_model_lstm_mixed_seq_reverse
-onnx_model_gru_fwd_mixed_seq_len
-onnx_model_gru_fwd_mixed_seq_len_const
-onnx_model_rnn_fwd_mixed_seq_len
-onnx_model_rnn_fwd_mixed_seq_len_const
-
 
 # Activation function hardsigmoid is not supported.
 gru_cell_activation_function

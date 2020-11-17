@@ -13,6 +13,12 @@ namespace vpu {
 
 namespace {
 
+bool isOneSliceEnough(int maxBoxesNum) {
+    // boxes threshold to use only one slice
+    constexpr int boxesThreshold = 3400;
+    return (maxBoxesNum <= boxesThreshold);
+}
+
 class StaticShapeNMS final : public StageNode {
 private:
     StagePtr cloneImpl() const override {
@@ -32,13 +38,10 @@ private:
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        // Current NMS implementation doesn't allow calculation of `> boxesThreshold` boxes using one SHAVE
-        constexpr int boxesThreshold = 3650;
-
         const auto& inDesc = input(0)->desc();
         const auto& maxBoxesNum = inDesc.dim(Dim::H);
 
-        return maxBoxesNum <= boxesThreshold ? StageSHAVEsRequirements::OnlyOne : StageSHAVEsRequirements::NeedMax;
+        return isOneSliceEnough(maxBoxesNum) ? StageSHAVEsRequirements::OnlyOne : StageSHAVEsRequirements::NeedMax;
     }
 
     void initialCheckImpl() const override {
@@ -89,7 +92,7 @@ bool isCMXEnough(int cmxSize, int numSlices, std::vector<int> bufferSizes) {
     const auto buffer_allocate = [&curOffset, &curSlice, &numSlices, cmxSize](int numBytes) {
         if (curOffset + numBytes < cmxSize) {
             curOffset += numBytes;
-        } else if (curSlice < numSlices && numBytes < cmxSize) {
+        } else if (curSlice + 1 < numSlices && numBytes < cmxSize) {
             curSlice++;
             curOffset = numBytes;
         } else {
@@ -150,17 +153,21 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
     const auto perm = DimsOrder::fromNumDims(inputDims0.size()).toPermutation();
     const auto spatDim = inputDims0[perm[1]];
 
-    const int ddrBufferSize0 = 2 * sizeof(int16_t) * 4 * spatDim;
-    const int ddrBufferSize1 = 2 * sizeof(int16_t) * spatDim;
-    const int ddrBufferSize2 = 2 * sizeof(int32_t) * spatDim;
-    const int ddrBufferSize = ddrBufferSize0 + ddrBufferSize1 + ddrBufferSize2 + 2 * vpu::DATA_ALIGNMENT;
+    const int ddrBufferSize0 = sizeof(int16_t) * 4 * spatDim;
+    const int ddrBufferSize1 = sizeof(int16_t) * spatDim;
+    const int ddrBufferSize2 = sizeof(int32_t) * spatDim;
+    const int ddrBufferSize = 2 * (ddrBufferSize0 + ddrBufferSize1 + ddrBufferSize2) + 2 * vpu::DATA_ALIGNMENT;
 
     const auto& env = CompileEnv::get();
-    const auto numSlices = env.resources.numSHAVEs;
+
+    const auto numSlices = isOneSliceEnough(spatDim) ? 1 : env.resources.numSHAVEs;
 
     const int cmxTempBufferSize = 4 * sizeof(int32_t) * 256;
-    if (!isCMXEnough(CMX_SHAVE_BUFFER_SIZE, numSlices, {ddrBufferSize0, ddrBufferSize1, ddrBufferSize2, cmxTempBufferSize}))
+
+    if (!isCMXEnough(CMX_SHAVE_BUFFER_SIZE, numSlices, {ddrBufferSize0, ddrBufferSize1, ddrBufferSize2,
+                                                        ddrBufferSize0, ddrBufferSize1, ddrBufferSize2, cmxTempBufferSize})) {
         model->addTempBuffer(stage, DataDesc({ddrBufferSize}));
+    }
 }
 
 }  // namespace vpu
