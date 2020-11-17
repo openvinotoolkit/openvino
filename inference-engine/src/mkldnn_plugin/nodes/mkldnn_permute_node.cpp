@@ -222,10 +222,10 @@ void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::ndhwc});
         }
     } else {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::any);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
-                                                   MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims()));
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims())});
+        // general plain case
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
 }
 
