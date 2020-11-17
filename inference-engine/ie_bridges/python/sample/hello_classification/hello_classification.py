@@ -30,9 +30,8 @@ def build_argparser():
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.", required=True,
                       type=str)
-    args.add_argument("-i", "--input", help="Required. Path to a folder with images or path to an image files",
-                      required=True,
-                      type=str, nargs="+")
+    args.add_argument("-i", "--input", help="Required. Path to image file.",
+                      required=True, type=str)
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. "
                            "MKLDNN (CPU)-targeted custom layers. Absolute path to a shared library with the"
@@ -69,7 +68,6 @@ def main():
     log.info("Preparing input blobs")
     input_blob = next(iter(net.input_info))
     out_blob = next(iter(net.outputs))
-    net.batch_size = len(args.input)
 
     # Read and pre-process input images
     n, c, h, w = net.input_info[input_blob].input_data.shape
@@ -81,7 +79,6 @@ def main():
             image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
-    log.info("Batch size is {}".format(n))
 
     # Loading model to the plugin
     log.info("Loading model to the plugin")
