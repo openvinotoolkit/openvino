@@ -26,7 +26,7 @@ The Framework can generate a Dockerfile, build, test, and deploy an image with t
 
 ## Install Additional Dependencies
 ### Install CMake
-To add CMake to the image, add the following commands to a Dockerfile:
+To add CMake to the image, add the following commands to the Dockerfile:
 ~~~
 RUN powershell.exe -Command `
     Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
@@ -35,16 +35,16 @@ RUN powershell.exe -Command `
 
 RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
 ~~~
-In case of proxy issues, please add `ARG HTTPS_PROXY` and `-Proxy %HTTPS_PROXY%` settings to powershell.exe command to the Dockerfile. Then build a docker image:
+In case of proxy issues, please add the `ARG HTTPS_PROXY` and <code>-Proxy %HTTPS_PROXY%</code> settings to the `powershell.exe` command to the Dockerfile. Then build a docker image:
 ~~~
 docker build . -t <image_name> `
 --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
 ~~~
 
 ### Install Microsoft Visual Studio* Build Tools
-You can add Microsoft Visual Studio Build Tools* to Windows* OS Docker image. Available options are to use offline installer for Build Tools 
-(follow [Instruction for the offline installer](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019)) or 
-to use online installer for Build Tools (follow [Instruction for the online installer](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019)).
+You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image. Available options are to use offline installer for Build Tools 
+(follow the [Instruction for the offline installer](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019)) or 
+to use the online installer for Build Tools (follow [Instruction for the online installer](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019)).
 Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license. 
 Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
 
