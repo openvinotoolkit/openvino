@@ -77,5 +77,10 @@ namespace ngraph
         /// \param str A null-terminated string
         /// \return A wide-char string
         NGRAPH_API std::wstring multi_byte_char_to_wstring(const char* str);
+
+        /// \brief Remove path components which would allow traversing up a directory tree.
+        /// \param path A path to file
+        /// \return A sanitiazed path
+        NGRAPH_API std::string sanitize_path(const std::string& path);
     }
 }

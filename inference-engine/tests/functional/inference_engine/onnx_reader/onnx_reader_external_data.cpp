@@ -78,7 +78,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     std::string win_dir_path = ONNX_TEST_MODELS;
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
     const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
-    const std::wstring path = unicode_win_dir_path + L"АБВГДЕЁЖЗИЙ\\ひらがな日本語.prototxt";
+    const std::wstring path = unicode_win_dir_path + L"ひらがな日本語.prototxt";
 
     auto cnnNetwork = ie.ReadNetwork(path, L"");
     auto function = cnnNetwork.getFunction();
