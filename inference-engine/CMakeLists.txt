@@ -16,7 +16,6 @@ include(check_features_ie)
 # resolving dependencies for the project
 include(dependencies)
 
-
 # Fuzz tests also building without ENABLE_FUZZING
 include(fuzzing)
 

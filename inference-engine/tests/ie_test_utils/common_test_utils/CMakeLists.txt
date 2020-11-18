@@ -14,6 +14,7 @@ function(add_gtest_libraries)
         endif()
     endif ()
 
+    set(BUILD_SHARED_LIBS OFF)
     add_subdirectory(gtest)
 
     get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)

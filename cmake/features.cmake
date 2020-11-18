@@ -50,3 +50,7 @@ ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pr
 ie_option (ENABLE_DOCS "build docs using Doxygen" OFF)
 
 ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
+
+# Type of build, we add this as an explicit option to default it to ON
+# FIXME: Ah this moment setting this to OFF will only build ngraph a static library
+ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)

@@ -43,6 +43,8 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
 
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
+
 # Create shared library
 
 add_library(${TARGET_NAME} SHARED $<TARGET_OBJECTS:${TARGET_NAME}_obj>)

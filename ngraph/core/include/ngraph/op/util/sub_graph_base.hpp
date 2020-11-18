@@ -350,6 +350,10 @@ namespace ngraph
     template class NGRAPH_API FactoryRegistry<op::util::SubGraphOp::InputDescription>;
 
     template <>
+    FactoryRegistry<op::util::SubGraphOp::InputDescription>&
+        FactoryRegistry<op::util::SubGraphOp::InputDescription>::get();
+
+    template <>
     class NGRAPH_API AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::InputDescription>>
         : public FactoryAttributeAdapter<op::util::SubGraphOp::InputDescription>
     {
@@ -382,6 +386,10 @@ namespace ngraph
     };
 
     template class NGRAPH_API FactoryRegistry<op::util::SubGraphOp::OutputDescription>;
+
+    template <>
+    FactoryRegistry<op::util::SubGraphOp::OutputDescription>&
+        FactoryRegistry<op::util::SubGraphOp::OutputDescription>::get();
 
     template <>
     class NGRAPH_API AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>
