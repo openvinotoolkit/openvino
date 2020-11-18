@@ -96,13 +96,14 @@ shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector
 
 bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("widths", m_attrs.widths);
-    visitor.on_attribute("heights", m_attrs.heights);
-    visitor.on_attribute("clip", m_attrs.clip);
+    int clip = (m_attrs.clip ? 1 : 0);
+    visitor.on_attribute("width", m_attrs.widths);
+    visitor.on_attribute("height", m_attrs.heights);
+    visitor.on_attribute("clip", clip);
     visitor.on_attribute("step_widths", m_attrs.step_widths);
     visitor.on_attribute("step_heights", m_attrs.step_heights);
     visitor.on_attribute("offset", m_attrs.offset);
-    visitor.on_attribute("variances", m_attrs.variances);
+    visitor.on_attribute("variance", m_attrs.variances);
     return true;
 }
 
