@@ -24,6 +24,7 @@ from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from mo.graph.port import Port
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.clamp import Clamp
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.strided_slice import StridedSlice
@@ -31,6 +32,10 @@ from mo.ops.strided_slice import StridedSlice
 
 def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape, axes, node_name):
 
+    clamp = create_op_with_const_inputs(graph, Clamp, port_value_dict={1: np.iinfo(np.int32).min,
+                                                                       2: np.iinfo(np.int32).max},
+                                        op_attrs=dict(name=node_name + '/Clamp'))
+    clamp.in_port(0).connect(slice_border_port)
     concat = Concat(graph, dict(name=node_name + '/Concat', axis=0)).create_node()
     for value_idx, port_idx in enumerate(axes):
         concat.add_input_port(port_idx)
@@ -38,7 +43,7 @@ def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape, axes
                                                                             2: 0},
                                             op_attrs={'name': node_name + '/Gather'})
         cast = Cast(graph, dict(name=node_name + '/CastToI64', dst_type=np.int64)).create_node()
-        slice_border_port.connect(value.in_port(0))
+        clamp.out_port(0).connect(value.in_port(0))
         value.out_port(0).connect(cast.in_port(0))
         cast.out_port(0).connect(concat.in_port(port_idx))
     for port_idx in range(len(shape)):
