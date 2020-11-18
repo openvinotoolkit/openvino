@@ -91,7 +91,9 @@ namespace ngraph
                         std::vector<char*> pointers_to_data(num_iterations);
                         for (size_t j = 0; j < pointers_to_data.size(); ++j)
                         {
-                            pointers_to_data[j] =
+                            pointers_to_data[slice_desc->m_stride > 0
+                                                 ? j
+                                                 : (pointers_to_data.size() - j - 1)] =
                                 sliced_values[slice_in_idx][j]->get_data_ptr<char>();
                         }
                         reference::split(args[slice_desc->m_input_index]->get_data_ptr<char>(),
@@ -118,6 +120,7 @@ namespace ngraph
                     }
 
                     // Evaluate body
+                    body_outputs.clear();
                     if (!evaluate)
                     {
                         reference::function(func, inputs_to_body, body_outputs);
@@ -164,9 +167,13 @@ namespace ngraph
                     out[concat_desc->m_output_index]->set_shape(shape);
                     std::vector<const char*> pointers_on_values;
                     pointers_on_values.reserve(values_to_concat[i].size());
-                    for (const auto& vec : values_to_concat[i])
+                    for (size_t j = 0; j < values_to_concat[i].size(); ++j)
                     {
-                        pointers_on_values.push_back(vec->get_data_ptr<char>());
+                        pointers_on_values.push_back(
+                            values_to_concat[i][concat_desc->m_stride > 0
+                                                    ? j
+                                                    : (values_to_concat[i].size() - j - 1)]
+                                ->get_data_ptr<char>());
                     }
                     reference::concat(pointers_on_values,
                                       out[concat_desc->m_output_index]->get_data_ptr<char>(),

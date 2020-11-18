@@ -262,7 +262,14 @@ namespace ngraph
                 {
                     std::sort(filteredBoxes.begin(),
                               filteredBoxes.end(),
-                              [](const BoxInfo& l, const BoxInfo& r) { return l.score > r.score; });
+                              [](const BoxInfo& l, const BoxInfo& r) {
+                                  return (l.score > r.score) ||
+                                         (l.score == r.score && l.batch_index < r.batch_index) ||
+                                         (l.score == r.score && l.batch_index == r.batch_index &&
+                                          l.class_index < r.class_index) ||
+                                         (l.score == r.score && l.batch_index == r.batch_index &&
+                                          l.class_index == r.class_index && l.index < r.index);
+                              });
                 }
 
                 size_t max_num_of_selected_indices = selected_indices_shape[0];
