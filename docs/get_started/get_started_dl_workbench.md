@@ -46,7 +46,7 @@ Installation method| From Docker Hub <br> From OpenVINO™ toolkit package|From 
 
 This section provides instructions to run the DL Workbench on Linux from Docker Hub. 
 
-Run the command that pulls the latest Docker image with the application and runs it:
+Use the command below to pull the latest Docker image with the application and run it:
 
 ```bash
 wget https://raw.githubusercontent.com/openvinotoolkit/workbench_aux/master/start_workbench.sh && bash start_workbench.sh
