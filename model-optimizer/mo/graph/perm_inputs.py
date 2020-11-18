@@ -151,7 +151,7 @@ def shape(op_node: Node, port_info: str, input_port: int):
 
     # need to run manually to override output shape value to resolve shape collision for nodes with
     # 'correct_data_layout' output port attrs
-    op_node.infer(op_node)
+    op_node['need_shape_inference'] = True
 
 
 def transpose(op_node: Node, port_info: str, input_port: int):

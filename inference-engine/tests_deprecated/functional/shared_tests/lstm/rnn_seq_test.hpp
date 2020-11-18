@@ -60,7 +60,9 @@ const Named<rnn_param> test_name( [] (const rnn_param &p) {
 
 using RNNSeqTest = PlgTest<rnn_param>;
 
-TEST_P(RNNSeqTest, SingleRNN) {
+// disabled due to transition to ngraph transformation
+// DO NOT DELETE, part of the functionality is still needed
+TEST_P(RNNSeqTest, DISABLED_SingleRNN) {
     auto p = param();
 
     auto cell = std::get<0>(p);
