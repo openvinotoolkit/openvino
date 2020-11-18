@@ -105,45 +105,36 @@ namespace ngraph
                         termination_cond =
                             ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
                     }
-                    else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()))
+                    else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
+                             as_type_ptr<default_opset::Constant>(
+                                 ng_inputs.at(1).get_node_shared_ptr())
+                                     ->cast_vector<bool>()[0] == false)
                     {
-                        const auto term_cond_const = as_type_ptr<default_opset::Constant>(
-                            ng_inputs.at(1).get_node_shared_ptr());
-                        if (term_cond_const->cast_vector<bool>()[0])
+                        // no iteration is performed so initial values are returned
+                        OutputVector node_outputs;
+                        // final values
+                        for (const auto& dep : loop_carried_dependencies)
                         {
-                            termination_cond =
-                                ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                            node_outputs.push_back(dep);
                         }
-                        else
+                        // scan outputs
+                        for (const auto& dep : loop_carried_dependencies)
                         {
-                            // no iteration is performed so initial values are returned
-                            OutputVector node_outputs;
-                            // final values
-                            for (const auto& dep : loop_carried_dependencies)
-                            {
-                                node_outputs.push_back(dep);
-                            }
-                            // scan outputs
-                            for (const auto& dep : loop_carried_dependencies)
-                            {
-                                node_outputs.push_back(dep);
-                            }
-                            return node_outputs;
+                            node_outputs.push_back(dep);
                         }
+                        return node_outputs;
                     }
                     else
                     {
-                        // It is temporary solution caused by not supported termination_cond==false
-                        // (for not consant case) by nG Loop
-                        termination_cond =
-                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                        termination_cond = ng_inputs.at(1);
                     }
 
                     const int64_t concat_axis = 0;
                     const auto concat_axis_const =
                         ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
                     // provide scalar handing for scan outputs
-                    for (int i = loop_carried_dependencies.size() + 1; i < body_outputs.size(); ++i)
+                    for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
+                         ++i)
                     {
                         auto body_output_shape = body_outputs[i].get_partial_shape();
                         if (body_output_shape.is_static() &&
@@ -160,13 +151,6 @@ namespace ngraph
                     {
                         body_outputs[0] =
                             ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
-                    }
-                    else
-                    {
-                        NGRAPH_WARN
-                            << "ONNX Loop: No identity or constant termination condition output "
-                            << "body is not supported in current version\n";
-                        // TODO: It should be removed after introduction fix to nG Loop
                     }
 
                     CHECK_VALID_NODE(node,
@@ -188,7 +172,7 @@ namespace ngraph
 
                     ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
                     body_params.emplace(body_params.begin(),
-                                        body_inputs[0]); // termination condition body input
+                                        body_inputs[0]); // current iteration body input
                     const auto body = std::make_shared<ngraph::Function>(body_outputs, body_params);
                     auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
                     ngraph::opset5::Loop::SpecialBodyPorts spec_ports{0, 0};

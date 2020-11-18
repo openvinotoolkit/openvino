@@ -1487,7 +1487,7 @@ NGRAPH_TEST(${BACKEND_NAME}, unsqueeze)
     auto data_node = make_shared<op::Parameter>(element::f32, Shape{4, 2});
     auto axes_node =
         make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
-    auto squeeze = make_shared<op::Unsqueeze>(data_node, axes_node);
+    auto squeeze = make_shared<op::v0::Unsqueeze>(data_node, axes_node);
 
     auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
     auto test_case = test::TestCase<TestEngine>(function);

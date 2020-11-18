@@ -6,16 +6,7 @@
 #define _XLINKSTREAM_H
 
 #include "XLinkPublicDefines.h"
-
-# if (defined(_WIN32) || defined(_WIN64))
-#  include "win_semaphore.h"
-# else
-#  ifdef __APPLE__
-#   include "pthread_semaphore.h"
-#  else
-#   include <semaphore.h>
-# endif
-# endif
+#include "XLinkSemaphore.h"
 
 /**
  * @brief Streams opened to device
@@ -40,7 +31,7 @@ typedef struct{
 
     uint32_t closeStreamInitiated;
 
-    sem_t sem;
+    XLink_sem_t sem;
 }streamDesc_t;
 
 XLinkError_t XLinkStreamInitialize(

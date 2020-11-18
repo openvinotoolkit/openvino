@@ -28,6 +28,7 @@ extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/insert_compatibility_l2normalization.py
 extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
+extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LRNToNorm.py
 extensions/back/MatMulNormalizer.py
@@ -525,7 +526,6 @@ extensions/middle/DeleteControlFlowEdges.py
 extensions/middle/DeleteNotExecutable.py
 extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
-extensions/middle/EltwiseInputNormalization.py
 extensions/middle/EltwiseInputReshape.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py

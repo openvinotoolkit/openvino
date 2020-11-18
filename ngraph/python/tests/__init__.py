@@ -67,7 +67,7 @@ xfail_issue_34310 = xfail_test(reason="RuntimeError: Error of validate layer: LS
                                       "type: LSTMSequence. Layer is not instance of RNNLayer class")
 xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a form that is not "
                                "supported.RNNCell_<number> should be converted to RNNCellIE operation")
-xfail_issue_34323 = xfail_test(reason="RuntimeError: data [value] doesn't exist")
+xfail_issue_40957 = xfail_test(reason="RuntimeError: MKLDNNGraph::CreateGraph: No inputs for the topology")
 xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
                                       "IN and OUT channels number")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -98,8 +98,6 @@ xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input ima
                                "not supported yet...")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
-xfail_issue_36483 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
-                               "Ceiling name: <value>")
 xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
                                "/openvino/ngraph/core/src/op/shuffle_channels.cpp:77:")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
@@ -137,10 +135,10 @@ xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "While validating node 'v1::<name> (sizes[0]:i64{4},"
                                       "Convert_29306[0]:f32{4}) -> (dynamic?)' with friendly_name '<name>':"
                                       "Argument element types are inconsistent.")
-xfail_issue_41813 = xfail_test(reason="RuntimeError: While validating ONNX node"
-                                      " '<Node(Loop): generic_loop_Loop__69>'"
-                                      "While validating ONNX node '<Node(Resize): Resize__143>':"
-                                      "vector::_M_range_check: __n (which is 2) >= this->size() (which is 2")
+xfail_issue_42297 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Conv): Conv__7398>':"
+                                      "Check 'data.get_partial_shape().rank().is_static()'"
+                                      " failed at ngraph/frontend/onnx_import/src/op/conv.cpp:102:"
+                                      "The input data tensor's rank has to be known (static)")
 xfail_issue_41814 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop):"
                                       " generic_loop_Loop__121>':"
                                       "While validating ONNX node '<Node(TopK):"
@@ -210,6 +208,6 @@ xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
-xfail_issue_41815 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::NonMaxSuppression casted "
-                                      "(yolo_evaluation_layer_1/concat_6:0_btc[0]:f32{1,2535,4},")
+xfail_issue_43380 = xfail_test(reason="RuntimeError: Sorting not possible, due to existed loop")
+xfail_issue_43382 = xfail_test(reason="Testing models which have upper bound output shape is not supported")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")

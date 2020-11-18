@@ -207,8 +207,9 @@ def two_ir_mode(args):
     global_accuracy = []
     global_times, ref_global_times = overall_accuracy_check(model=args.model, ref_model=args.reference_model,
                                                             out_layers=out_layers, ref_out_layers=ref_out_layers,
-                                                            inputs=inputs, ref_inputs=ref_inputs, plugin=core,
-                                                            ref_plugin=ref_core, layers=args.layers,
+                                                            inputs=inputs, ref_inputs=ref_inputs, core=core,
+                                                            device=args.device, ref_core=ref_core,
+                                                            ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
     for out_layer in layers_map:
         ref_out_layer = layers_map[out_layer]

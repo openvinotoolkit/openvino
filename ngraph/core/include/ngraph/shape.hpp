@@ -85,7 +85,7 @@ namespace ngraph
         std::vector<size_t> strides(shape.size());
         size_t s = 1;
         auto st = strides.rbegin();
-        for (auto d = shape.rbegin(); d != shape.rend(); d++, st++)
+        for (auto d = shape.rbegin(); d != shape.rend() && st != strides.rend(); d++, st++)
         {
             *st = s;
             s *= *d;

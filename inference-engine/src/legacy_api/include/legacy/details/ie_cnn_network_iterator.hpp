@@ -32,9 +32,9 @@ class INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Functio
 CNNNetworkIterator {
     IE_SUPPRESS_DEPRECATED_START
 
-    std::unordered_set<CNNLayer*> visited;
-    std::list<CNNLayerPtr> nextLayersToVisit;
-    InferenceEngine::CNNLayerPtr currentLayer;
+    std::unordered_set<CNNLayer*> visited {};
+    std::list<CNNLayerPtr> nextLayersToVisit {};
+    InferenceEngine::CNNLayerPtr currentLayer = nullptr;
     const ICNNNetwork* network = nullptr;
 
     void init(const ICNNNetwork* net) {
