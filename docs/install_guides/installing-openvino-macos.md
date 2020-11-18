@@ -40,7 +40,7 @@ configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit com
 * [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Post-training Optimization Tool](@ref pot_README)
 * [Accuracy Checker](@ref omz_tools_accuracy_checker_README)
-* [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md).
+* [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md)
 
 Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
 
