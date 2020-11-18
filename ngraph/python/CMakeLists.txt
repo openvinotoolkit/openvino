@@ -73,7 +73,8 @@ install(TARGETS _${PROJECT_NAME}
         
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/src/ngraph
         DESTINATION python/${PYTHON_VERSION}
-        COMPONENT pyngraph_${PYTHON_VERSION})
+        COMPONENT pyngraph_${PYTHON_VERSION}
+        USE_SOURCE_PERMISSIONS)
 
 ie_cpack(pyngraph_${PYTHON_VERSION})
 
