@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #pragma once
-#include "subset.h"
+#include "selective_build.h"
 #include <string>
 #include <functional>
 #include <type_traits>
@@ -39,7 +39,7 @@ namespace openvino
             Factory(const std::string & name)
                 : name(name) {}
 
-        #ifdef ENABLE_SUBSET
+        #ifdef SELECTIVE_BUILD
             #define registerNodeIfRequired(Module, Name, key, Impl)       \
                 OV_CC_EXPAND(OV_CC_CAT(registerImpl, OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, Name)))<Impl>(key))
             #define createNodeIfRegistered(Module, key, ...) createImpl(key, __VA_ARGS__)
@@ -63,9 +63,9 @@ namespace openvino
                 }
                 return nullptr;
             }
-        #elif defined(ENABLE_SUBSET_FIND)
-            #define registerNodeIfRequired(Module, Name, key, Impl) registerImpl<OV_CC_CAT(CC2_, Module), Impl>(key, OV_CC_TOSTRING(Name))
-            #define createNodeIfRegistered(Module, key, ...) createImpl<OV_CC_CAT(CC2_, Module)>(key, __VA_ARGS__)
+        #elif defined(SELECTIVE_BUILD_ANALYZER)
+            #define registerNodeIfRequired(Module, Name, key, Impl) registerImpl<OV_CC_CAT(FACTORY_, Module), Impl>(key, OV_CC_TOSTRING(Name))
+            #define createNodeIfRegistered(Module, key, ...) createImpl<OV_CC_CAT(FACTORY_, Module)>(key, __VA_ARGS__)
 
             template<openvino::itt::domain_t(*domain)(), typename Impl>
             void registerImpl(const Key & key, const char *typeName) {

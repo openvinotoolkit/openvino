@@ -55,5 +55,6 @@ ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to 
 # FIXME: Ah this moment setting this to OFF will only build ngraph a static library
 ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
 
-ie_option_enum(ENABLE_SUBSET "Enable the IE subset analysis or usage" OFF
-               ALLOWED_VALUES ON OFF ANALYZE)
+ie_option_enum(SELECTIVE_BUILD "Enable OpenVINO conditional compilation or statistics collection" OFF
+               ALLOWED_VALUES ON OFF COLLECT)
+

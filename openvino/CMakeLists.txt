@@ -15,7 +15,6 @@
 # ******************************************************************************
 
 add_subdirectory(itt)
-add_subdirectory(cc)
+add_subdirectory(conditional_compilation)
 
-openvino_developer_export_targets(openvino::itt)
-openvino_developer_export_targets(openvino::cc)
+openvino_developer_export_targets(openvino::itt openvino::conditional_compilation)

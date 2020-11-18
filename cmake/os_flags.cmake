@@ -168,6 +168,21 @@ macro(ie_add_compiler_flags)
 endmacro()
 
 #
+# Forced includes certain header file to all target source files
+#
+function(ie_force_include target scope header_file)
+    if(MSVC)
+        target_compile_options(${target} ${scope} /FI"${header_file}")
+    else()
+        target_compile_options(${target} ${scope} -include "${header_file}")
+    endif()
+endfunction()
+
+function(ov_force_include target scope header_file)
+    ie_force_include(${target} ${scope} ${header_file})
+endfunction()
+
+#
 # Compilation and linker flags
 #
 

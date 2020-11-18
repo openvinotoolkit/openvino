@@ -1,34 +1,59 @@
 #!/usr/bin/env python3
 
+# Copyright (c) 2020 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#     The main purpose of this script is code generation for conditional compilation.
+# After collecting statistics using IntelSEAPI, several CSV files are generated.
+# This script can read these files and can produce header file which will contain
+# definitions for enabled OpenVINO parts.
+#
+#     Usage: ccheader.py [-h] --stat PATH[PATH...] [PATH[PATH...] ...] --out cc.h
+#
+#     Mandatory arguments:
+#   --stat PATH[ PATH...] [PATH[ PATH...] ...]
+#                         IntelSEAPI statistics files in CSV format
+#   --out cc.h            C++ header file to be generated
+
 import argparse, csv
 from pathlib import Path
+from abc import ABC, abstractmethod
 
-Domain = ['CC0_',
-          'CC1_',
-          'CC2_']
+Domain = ['SIMPLE_',
+          'SWITCH_',
+          'FACTORY_']
 
 FILE_HEADER = "#pragma once\n\n"
-
 FILE_FOOTER = "\n"
 
 ENABLED_SCOPE_FMT = "#define %s_%s 1\n"
 ENABLED_SWITCH_FMT = "#define %s_%s 1\n#define %s_%s_cases %s\n"
 ENABLED_FACTORY_INSTANCE_FMT = "#define %s_%s 1\n"
 
-class Scope:
+class IScope(ABC):
+    @abstractmethod
+    def generate(self, f, module):
+        pass
+
+class Scope(IScope):
     def __init__(self, name):
         self.name = name
-
-    def __eq__(self, other):
-        return self.name == other.name
-
-    def __hash__(self):
-        return hash(self.name)
 
     def generate(self, f, module):
         f.write(ENABLED_SCOPE_FMT % (module, self.name))
 
-class Switch:
+class Switch(IScope):
     def __init__(self, name):
         self.name = name
         self.cases = set()
@@ -39,7 +64,7 @@ class Switch:
     def generate(self, f, module):
         f.write(ENABLED_SWITCH_FMT % (module, self.name, module, self.name, ', '.join(self.cases)))
 
-class Factory:
+class Factory(IScope):
     def __init__(self, name):
         self.name = name
         self.registered = {}
@@ -56,43 +81,31 @@ class Factory:
             r = self.registered.get(id)
             if r:
                 f.write(ENABLED_FACTORY_INSTANCE_FMT % (module, r))
-        if self.created:
-            f.write("\n")
 
 class Module:
     def __init__(self, name):
         self.name = name
-        self.scopes = set()
-        self.switches = {}
-        self.factories = {}
+        self.scopes = {}
 
     def scope(self, name):
-        self.scopes.add(Scope(name))
+        if name not in self.scopes:
+            self.scopes[name] = Scope(name)
+        return self.scopes.get(name)
 
     def factory(self, name):
-        if name not in self.factories:
-            self.factories[name] = Factory(name)
-        return self.factories.get(name)
+        if name not in self.scopes:
+            self.scopes[name] = Factory(name)
+        return self.scopes.get(name)
 
     def switch(self, name):
-        if name not in self.switches:
-            self.switches[name] = Switch(name)
-        return self.switches.get(name)
+        if name not in self.scopes:
+            self.scopes[name] = Switch(name)
+        return self.scopes.get(name)
 
     def generate(self, f):
-        for scope in self.scopes:
+        for _, scope in self.scopes.items():
             scope.generate(f, self.name)
         if self.scopes:
-            f.write("\n")
-
-        for _, switch in self.switches.items():
-            switch.generate(f, self.name)
-        if self.switches:
-            f.write("\n")
-
-        for _, factory in self.factories.items():
-            factory.generate(f, self.name)
-        if self.factories:
             f.write("\n")
 
 class Stat:

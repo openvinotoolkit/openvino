@@ -20,14 +20,16 @@
         This file contains a useful API for analyzing OpenVINO sources
     and enabling or disabling some regions.
         Three working modes are currently supported.
-    * ENABLE_SUBSET_FIND    This macro enables analysis mode for annotated code regions.
-    *                       When the process completes, a new C++ header file is created
-    *                       that contains macros for enabling active regions. This file
-    *                       should be included in all analysed C++ files.
-    * ENABLE_SUBSET         This mode disables inactive areas of the code using the result
-    *                       of the analysis step.
-    * No definitions        The default behavior is keept if no ENABLE_SUBSET * macros are defined,
-    *                       i.e all features of the OpenVINO are enabled.
+    * SELECTIVE_BUILD_ANALYZER  This macro enables analysis mode for annotated code regions.
+    *                           When the process completes, a new C++ header file is created
+    *                           that contains macros for enabling active regions. This file
+    *                           should be included in all analysed C++ files.
+    *
+    * SELECTIVE_BUILD           This mode disables inactive areas of the code using the result
+    *                           of the analysis step.
+    *
+    * No definitions            The default behavior is keept if no SELECTIVE_BUILD* macros are defined,
+    *                           i.e all features of the OpenVINO are enabled.
     *
     * Prerequisites:
     *   Before using macros for code annotation,domains for conditional
@@ -67,7 +69,7 @@
 
 #include <openvino/itt.hpp>
 
-#ifdef ENABLE_SUBSET_FIND
+#ifdef SELECTIVE_BUILD_ANALYZER
 #include <string>
 #endif
 
@@ -78,7 +80,7 @@ namespace openvino
 {
     namespace cc
     {
-#ifndef ENABLE_SUBSET_FIND
+#ifndef SELECTIVE_BUILD_ANALYZER
         namespace internal
         {
             template<typename C, typename T>
@@ -128,12 +130,12 @@ namespace openvino
 #define OV_CC_TOSTRING(...) OV_CC_TOSTRING_(__VA_ARGS__)
 #define OV_CC_TOSTRING_(...) #__VA_ARGS__
 
-#ifdef ENABLE_SUBSET_FIND           // OpenVINO analysis
+#ifdef SELECTIVE_BUILD_ANALYZER      // OpenVINO analysis
 
-#define OV_CC_DOMAINS(Module)                                                                   \
-    OV_ITT_DOMAIN(OV_CC_CAT(CC0_, Module)); /* Domain for simple scope surrounded by ifdefs */  \
-    OV_ITT_DOMAIN(OV_CC_CAT(CC1_, Module)); /* Domain for switch/cases */                       \
-    OV_ITT_DOMAIN(OV_CC_CAT(CC2_, Module)); /* Domain for factories */
+#define OV_CC_DOMAINS(Module)                                                                       \
+    OV_ITT_DOMAIN(OV_CC_CAT(SIMPLE_, Module));  /* Domain for simple scope surrounded by ifdefs */  \
+    OV_ITT_DOMAIN(OV_CC_CAT(SWITCH_, Module));  /* Domain for switch/cases */                       \
+    OV_ITT_DOMAIN(OV_CC_CAT(FACTORY_, Module)); /* Domain for factories */
 
 namespace internal
 {
@@ -183,11 +185,11 @@ namespace internal
 }   // namespace internal
 
 #define OV_SCOPE(Module, region, ...)                                                       \
-    OV_ITT_SCOPED_TASK(OV_CC_CAT(CC0_, Module), OV_CC_TOSTRING(region));                    \
+    OV_ITT_SCOPED_TASK(OV_CC_CAT(SIMPLE_, Module), OV_CC_TOSTRING(region));                 \
     __VA_ARGS__
 
 #define OV_SWITCH(Module, fn, ctx, val, ...)                                                \
-    openvino::cc::internal::match<OV_CC_CAT(CC1_, Module), fn>                              \
+    openvino::cc::internal::match<OV_CC_CAT(SWITCH_, Module), fn>                           \
         (OV_CC_TOSTRING(fn), ctx, val, __VA_ARGS__);
 
 #define OV_CC_LBR (
@@ -201,7 +203,7 @@ namespace internal
         std::make_tuple(Case1, Case2),                                                      \
         OV_CC_TOSTRING(OV_CASE2 OV_CC_LBR Case1, Case2, Type1, Type2 OV_CC_RBR))
 
-#elif defined(ENABLE_SUBSET)        // OpenVINO subset is used
+#elif defined(SELECTIVE_BUILD)       // OpenVINO selective build is enabled
 
 #define OV_CC_DOMAINS(Module)
 

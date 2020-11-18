@@ -14,23 +14,19 @@
 # limitations under the License.
 # ******************************************************************************
 
-set(TARGET_NAME cc)
+set(TARGET_NAME conditional_compilation)
 
 add_library(${TARGET_NAME} INTERFACE)
 
-add_library(openvino::cc ALIAS ${TARGET_NAME})
+add_library(openvino::conditional_compilation ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::itt)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-if(${ENABLE_SUBSET} STREQUAL "ANALYZE")
-    target_compile_definitions(${TARGET_NAME} INTERFACE -DENABLE_SUBSET_FIND)
-elseif(${ENABLE_SUBSET} STREQUAL "ON")
-    target_compile_definitions(${TARGET_NAME} INTERFACE -DENABLE_SUBSET)
-    if(MSVC)
-        target_compile_options(${TARGET_NAME} INTERFACE /FI"${SUBSET_DEFS}")
-    else()
-        target_compile_options(${TARGET_NAME} INTERFACE -include "${SUBSET_DEFS}")
-    endif()
+if(SELECTIVE_BUILD STREQUAL "COLLECT")
+    target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
+elseif(SELECTIVE_BUILD STREQUAL "ON")
+    target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
+    ov_force_include(${TARGET_NAME} INTERFACE ${SELECTIVE_BUILD_DEFS})
 endif()
