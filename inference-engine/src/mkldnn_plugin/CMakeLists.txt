@@ -207,6 +207,8 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
                                               PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
+set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
+
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
