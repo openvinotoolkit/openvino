@@ -67,22 +67,23 @@ struct CPUStreamsExecutor::Impl {
                 }
             }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            #if TBB_INTERFACE_VERSION >= 12010// TBB with hybrid CPU aware task_arena api
+            #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
             auto core_types = oneapi::tbb::info::core_types();
-             if (core_types.size() > 1 /*Hybrid CPU*/
-                 && oneapi::tbb::info::efficiency(*core_types.begin()) != -1 /* the hwloc recognized the relative cores efficiency */) {
+            if (core_types.size() > 1 /*Hybrid CPU*/
+                 && oneapi::tbb::info::efficiency(*core_types.begin()) != -1 /* hwloc recognized relative cores efficiency */) {
                 if (_impl->_config._streams == 1) {
                     auto big_cores = core_types.back(); // latency default is runing on Big cores only
                     auto concurrency = _impl->_config._threadsPerStream;
                     printf("%s, LATENCY CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
-                        _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, (int)big_cores, concurrency);
+                        _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
+                        static_cast<int>(big_cores), concurrency);
                     _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{big_cores, concurrency}});
                 } else {
-                    // TODO: wrap #streams over core types
+                    // TODO: wrap #streams/threads over core types
                     int threads_needed = (_streamId+1)*_impl->_config._threadsPerStream;
                     int sum = 0;
                     // reversed order (so the big cores are populated first)
-                    for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++ ) {
+                    for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
                         const auto type = *iter;
                         const auto concurrency = oneapi::tbb::info::default_concurrency(type);
                         sum += concurrency;
@@ -90,16 +91,15 @@ struct CPUStreamsExecutor::Impl {
                             _impl->_config._name.c_str(), _streamId, threads_needed, sum);
                         if (threads_needed <= sum) {
                             printf("%s THROUGHPUT CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
-                                _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, (int)type, concurrency);
+                                _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
+                                static_cast<int>(type), concurrency);
                             _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{type, _impl->_config._threadsPerStream} });
                             break;
                         }
                     }
                 }
-            }
-            else
+            } else {
             #endif
-             {
                 _numaNodeId = _impl->_config._streams
                     ? _impl->_usedNumaNodes.at(
                         (_streamId % _impl->_config._streams)/
@@ -108,11 +108,11 @@ struct CPUStreamsExecutor::Impl {
                 auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
                 if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                     printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
-#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
+                    #if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
                     _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
-#else
+                    #else
                     _taskArena.reset(new tbb::task_arena{concurrency});
-#endif
+                    #endif
                 } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                     _taskArena.reset(new tbb::task_arena{concurrency});
                     if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
@@ -131,7 +131,9 @@ struct CPUStreamsExecutor::Impl {
                         }
                     }
                 }
-            }
+            #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
+            } // closing the if-clause on the hybrid cores
+            #endif
 #elif IE_THREAD == IE_THREAD_OMP
             omp_set_num_threads(_impl->_config._threadsPerStream);
             if (!checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
