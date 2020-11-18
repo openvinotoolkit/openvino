@@ -79,7 +79,7 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                                                        -1.0f,
                                                        input,
                                                        output);
-            } else if (cmp(interpolateMode, "linear")) {
+            } else if (cmp(interpolateMode, "linear") || cmp(interpolateMode, "linear_onnx")) {
                 // current "Interp" supports modes "align_corners" and "asymmetric" only
                 // other "Interpolate" modes are translated to the default ones
                 const auto coordinateTransformationMode = _layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
