@@ -130,7 +130,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertNMSToNMSIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertGRUSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertRNNSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();

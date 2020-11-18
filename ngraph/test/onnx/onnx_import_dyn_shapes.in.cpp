@@ -1059,6 +1059,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes)
     test_case.add_expected_output<float>(Shape{1, 1, 1}, {9});
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_10_the_same_output_same)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_the_same_out_shape.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    test_case.add_input<float>(std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
+    test_case.add_input<float>(std::vector<float>{1.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{3, 2}, {2.0f, 1.0f, 4.0f, 3.0f, 6.0f, 5.0f});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax)
 {
     auto function = onnx_import::import_onnx_model(
