@@ -31,8 +31,8 @@ def build_argparser():
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.",
                       required=True, type=str)
-    args.add_argument("-i", "--input", help="Required. Path to image file.",
-                      required=True, type=str, nargs="+")
+    args.add_argument("-i", "--input", help="Required. Path to an image file.",
+                      required=True, type=str)
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. "
                            "Absolute path to a shared library with the kernels implementations.",
@@ -88,7 +88,7 @@ def main():
     images = np.ndarray(shape=(n, c, h, w))
     images_hw = []
     for i in range(n):
-        image = cv2.imread(args.input[i])
+        image = cv2.imread(args.input)
         ih, iw = image.shape[:-1]
         images_hw.append((ih, iw))
         log.info("File was added: ")
@@ -112,7 +112,6 @@ def main():
     for input_key in net.input_info:
         if len(net.input_info[input_key].layout) == 4:
             input_name = input_key
-            log.info("Batch size is {}".format(net.batch_size))
             net.input_info[input_key].precision = 'U8'
         elif len(net.input_info[input_key].layout) == 2:
             input_info_name = input_key
