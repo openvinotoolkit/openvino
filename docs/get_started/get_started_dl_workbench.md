@@ -4,12 +4,12 @@ The OpenVINO™ toolkit optimizes and runs Deep Learning Neural Network models o
 
 In this guide, you will:
 * Learn the OpenVINO™ inference workflow.
-* Start DL Workbench on Linux. Links to instructions for other operating are provided as well.
-* Create a project and run a sample baseline inference to illustrate the workflow.     
+* Start DL Workbench on Linux. Links to instructions for other operating systems are provided as well.
+* Create a project and run a baseline inference.     
 
 [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a web-based graphical environment that enables you to easily use various sophisticated
 OpenVINO™ toolkit components:
-* [Model Downloader](@ref omz_tools_downloader_README) to download models from the Intel® [Open Model Zoo](@ref omz_models_intel_index) 
+* [Model Downloader](@ref omz_tools_downloader_README) to download models from the [Intel® Open Model Zoo](@ref omz_models_intel_index) 
 with pretrained models for a range of different tasks
 * [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) to transform models into
 the Intermediate Representation (IR) format
@@ -18,7 +18,7 @@ the Intermediate Representation (IR) format
 * [Accuracy Checker](@ref omz_tools_accuracy_checker_README) to determine the accuracy of a model
 * [Benchmark Tool](@ref openvino_inference_engine_samples_benchmark_app_README) to estimate inference performance on supported devices
 
-![](./dl_workbench_img/problem_statement.png)
+![](./dl_workbench_img/DL_Workbench.jpg)
 
 DL Workbench supports the following scenarios:
 1. [Calibrate the model in INT8 precision](@ref workbench_docs_Workbench_DG_Int_8_Quantization)  
@@ -132,7 +132,6 @@ For detailed instructions to create a new project, visit the links below:
 
 * [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
 * [OpenVINO™ Toolkit Overview](../index.md)
-* [DL Workbench Key Concepts](@ref workbench_docs_Workbench_DG_Key_Concepts)
 * [DL Workbench Installation Guide](@ref workbench_docs_Workbench_DG_Install_Workbench)
 * [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 * [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
