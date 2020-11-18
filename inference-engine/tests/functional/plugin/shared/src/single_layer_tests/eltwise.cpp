@@ -100,6 +100,9 @@ void EltwiseLayerTest::SetUp() {
         std::vector<float> data(ngraph::shape_size(shape_input_secondary));
         data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary), 10, 2);
         secondaryInput = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, data);
+    } else if (eltwiseType == ngraph::helpers::EltwiseTypes::POWER && secondaryInputType == ngraph::helpers::InputLayerType::CONSTANT) {
+        // to avoid floating point overflow on some platforms, let's fill the constant with small numbers.
+        secondaryInput = ngraph::builder::makeConstant<float>(ngPrc, shape_input_secondary, {}, true, 3);
     } else {
         secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
