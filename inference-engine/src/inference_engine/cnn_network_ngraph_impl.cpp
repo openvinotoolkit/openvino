@@ -407,16 +407,26 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (auto extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
+        bool isExecutionGraph = true;
+        for (const auto & op : _ngraph_function->get_ops()) {
+            auto & rtInfo = op->get_rt_info();
+            if (rtInfo.find(ExecGraphInfoSerialization::PERF_COUNTER) == rtInfo.end()) {
+                isExecutionGraph = false;
+                break;
+            }
         }
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(
-            xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
-            custom_opsets);
-        manager.run_passes(_ngraph_function);
+        if (isExecutionGraph) {
+            std::map<std::string, ngraph::OpSet> custom_opsets;
+            for (const auto& extension : _ie_extensions) {
+                auto opset = extension->getOpSets();
+                custom_opsets.insert(begin(opset), end(opset));
+            }
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::Serialize>(xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
+                                                           custom_opsets);
+            manager.run_passes(_ngraph_function);
+            return OK;
+        }
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
@@ -424,7 +434,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
     } catch (...) {
         return DescriptionBuffer(UNEXPECTED, resp);
     }
-    return OK;
+    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The serialize for IR v10 is not implemented";
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {

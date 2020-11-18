@@ -46,7 +46,7 @@ protected:
     }
 };
 
-TEST_F(SerializationDeterministicityTest, BasicModel) {
+TEST_F(SerializationDeterministicityTest, DISABLED_BasicModel) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.prototxt";
 
     InferenceEngine::Core ie;
@@ -63,7 +63,7 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
     ASSERT_TRUE(files_equal(bin_1, bin_2));
 }
 
-TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
+TEST_F(SerializationDeterministicityTest, DISABLED_ModelWithMultipleOutputs) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.xml";
     const std::string weights =
@@ -83,7 +83,7 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
     ASSERT_TRUE(files_equal(bin_1, bin_2));
 }
 
-TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
+TEST_F(SerializationDeterministicityTest, DISABLED_ModelWithMultipleLayers) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "addmul_abc.prototxt";
 
@@ -101,7 +101,7 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
     ASSERT_TRUE(files_equal(bin_1, bin_2));
 }
 
-TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
+TEST_F(SerializationDeterministicityTest, DISABLED_ModelWithConstants) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.xml";
     const std::string weights =

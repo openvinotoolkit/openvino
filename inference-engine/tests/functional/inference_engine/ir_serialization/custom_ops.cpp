@@ -38,7 +38,7 @@ protected:
     }
 };
 
-TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
+TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpUser_MO) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
 
     InferenceEngine::Core ie;
@@ -58,7 +58,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
+TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpUser_ONNXImporter) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.prototxt";
 
     InferenceEngine::Core ie;
@@ -78,7 +78,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
+TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpTransformation) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
 
     InferenceEngine::Core ie;

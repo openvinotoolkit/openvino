@@ -25,7 +25,7 @@ protected:
     }
 };
 
-TEST_F(SerializationTest, BasicModel_MO) {
+TEST_F(SerializationTest, DISABLED_BasicModel_MO) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.xml";
     const std::string weights = IR_SERIALIZATION_MODELS_PATH "add_abc.bin";
 
@@ -42,7 +42,7 @@ TEST_F(SerializationTest, BasicModel_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, BasicModel_ONNXImporter) {
+TEST_F(SerializationTest, DISABLED_BasicModel_ONNXImporter) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.prototxt";
 
     InferenceEngine::Core ie;
@@ -58,7 +58,7 @@ TEST_F(SerializationTest, BasicModel_ONNXImporter) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, ModelWithMultipleOutputs_MO) {
+TEST_F(SerializationTest, DISABLED_ModelWithMultipleOutputs_MO) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.xml";
     const std::string weights =
@@ -78,7 +78,7 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs_MO) {
     ASSERT_FALSE(success) << message;
 }
 
-TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
+TEST_F(SerializationTest, DISABLED_ModelWithMultipleOutputs_ONNXImporter) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.prototxt";
 
@@ -96,7 +96,7 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
     ASSERT_FALSE(success) << message;
 }
 
-TEST_F(SerializationTest, ModelWithMultipleLayers_MO) {
+TEST_F(SerializationTest, DISABLED_ModelWithMultipleLayers_MO) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "addmul_abc.xml";
     const std::string weights = IR_SERIALIZATION_MODELS_PATH "addmul_abc.bin";
 
@@ -113,7 +113,7 @@ TEST_F(SerializationTest, ModelWithMultipleLayers_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, ModelWithMultipleLayers_ONNXImporter) {
+TEST_F(SerializationTest, DISABLED_ModelWithMultipleLayers_ONNXImporter) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "addmul_abc.prototxt";
 
@@ -130,7 +130,7 @@ TEST_F(SerializationTest, ModelWithMultipleLayers_ONNXImporter) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, ModelWithConstants_MO) {
+TEST_F(SerializationTest, DISABLED_ModelWithConstants_MO) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.xml";
     const std::string weights =
@@ -149,7 +149,7 @@ TEST_F(SerializationTest, ModelWithConstants_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, ModelWithConstants_ONNXImporter) {
+TEST_F(SerializationTest, DISABLED_ModelWithConstants_ONNXImporter) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.prototxt";
 
@@ -166,7 +166,7 @@ TEST_F(SerializationTest, ModelWithConstants_ONNXImporter) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, ExperimentalDetectronROIFeatureExtractor_MO) {
+TEST_F(SerializationTest, DISABLED_ExperimentalDetectronROIFeatureExtractor_MO) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH
         "experimental_detectron_roi_feature_extractor.xml";
 
@@ -183,7 +183,7 @@ TEST_F(SerializationTest, ExperimentalDetectronROIFeatureExtractor_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, ExperimentalDetectronDetectionOutput_MO) {
+TEST_F(SerializationTest, DISABLED_ExperimentalDetectronDetectionOutput_MO) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH
         "experimental_detectron_detection_output.xml";
 
