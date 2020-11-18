@@ -81,8 +81,10 @@ struct CPUStreamsExecutor::Impl {
                     // TODO: wrap #streams over core types
                     int threads_needed = (_streamId+1)*_impl->_config._threadsPerStream;
                     int sum = 0;
-                    for (auto type : core_types) {
-                        auto concurrency = oneapi::tbb::info::default_concurrency(type);
+                    // reversed order (so the big cores are populated first)
+                    for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++ ) {
+                        const auto type = *iter;
+                        const auto concurrency = oneapi::tbb::info::default_concurrency(type);
                         sum += concurrency;
                         printf("%s THROUGHPUT CASE, StreamId: %d max thread id needed: %d, current sum: %d) \n",
                             _impl->_config._name.c_str(), _streamId, threads_needed, sum);
