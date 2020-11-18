@@ -19,6 +19,7 @@ BEGIN
   BEGIN
     BLOCK "040904E4"
     BEGIN
+      VALUE "CompanyName", "@IE_VS_VER_COMPANY_NAME_STR@\0"
       VALUE "FileDescription", "@IE_VS_VER_FILEDESCRIPTION_STR@\0"
 #if @IE_VS_VER_HAS_VERSION@
       VALUE "FileVersion", "@IE_VS_VER_FILEVERSION_STR@\0"
