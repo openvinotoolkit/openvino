@@ -31,7 +31,7 @@ def build_argparser():
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.",
                       required=True, type=str)
-    args.add_argument("-i", "--input", help="Required. Path to image file.",
+    args.add_argument("-i", "--input", help="Required. Path to an image file.",
                       required=True, type=str)
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. "
