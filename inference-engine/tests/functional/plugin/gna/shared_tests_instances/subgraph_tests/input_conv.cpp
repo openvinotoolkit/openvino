@@ -25,15 +25,42 @@ const std::vector<std::map<std::string, std::string>> configs = {
     }
 };
 
-std::vector<std::vector<size_t>> input_shapes = {
-    {1, 1, 1, 16},
-    {1, 1, 1, 168},
-    {1, 1, 1, 640}
+std::vector<convParams> params = {
+    {
+        {1, 1, 1, 16},    //InputShape
+        {1, 8},           //KernelShape
+        1                 //Stride
+    },
+    {
+        {1, 1, 1, 16},    //InputShape
+        {1, 9},           //KernelShape
+        1                 //Stride
+    },
+    {
+        {1, 1, 1, 168},   //InputShape
+        {1, 9},           //KernelShape
+        1                 //Stride
+    },
+    {
+        {1, 1, 1, 168},   //InputShape
+        {1, 8},           //KernelShape
+        1                 //Stride
+    },
+    {
+        {1, 1, 1, 640},   //InputShape
+        {1, 512},         //KernelShape
+        128               //Stride
+    },
 };
 
-std::vector<size_t> output_channels = {
+std::vector<size_t> outputChannels = {
     4,
     8
+};
+
+std::vector<bool> addReshape = {
+    true,
+    false
 };
 
 INSTANTIATE_TEST_CASE_P(InputConv, InputConvTest,
@@ -41,7 +68,8 @@ INSTANTIATE_TEST_CASE_P(InputConv, InputConvTest,
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(configs),
-                            ::testing::ValuesIn(input_shapes),
-                            ::testing::ValuesIn(output_channels)),
+                            ::testing::ValuesIn(params),
+                            ::testing::ValuesIn(outputChannels),
+                            ::testing::ValuesIn(addReshape)),
                         InputConvTest::getTestCaseName);
 }  // namespace

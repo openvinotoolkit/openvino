@@ -102,15 +102,20 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
 
     is.seekg(0, is.beg);
     Header2dot1::ModelHeader tempHeader2dot1;
+    Header2dot3::ModelHeader tempHeader2dot3;
     switch (header.version.major) {
         case 2:
             switch (header.version.minor) {
                 case 1:
                     readBits(tempHeader2dot1, is);
-                    header = Header2dot3::ModelHeader(tempHeader2dot1);
+                    header = Header2dot4::ModelHeader(tempHeader2dot1);
                     break;
                 case 2:
                 case 3:
+                    readBits(tempHeader2dot3, is);
+                    header = Header2dot4::ModelHeader(tempHeader2dot3);
+                    break;
+                case 4:
                     readBits(header, is);
                     break;
                 default:
@@ -331,7 +336,9 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     header.nRotateRows = nRotateRows;
     header.nRotateColumns = nRotateColumns;
     header.doRotateInput = doRotateInput;
-
+    header.nRotateOutputRows = nRotateOutputRows;
+    header.nRotateOutputColumns = nRotateOutputColumns;
+    header.doRotateOutput = doRotateOutput;
 
     writeBits(header, os);
 

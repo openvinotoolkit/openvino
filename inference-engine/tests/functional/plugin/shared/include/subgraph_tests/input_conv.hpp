@@ -14,11 +14,18 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 typedef std::tuple<
+    std::vector<size_t>,                 // Input Shapes
+    std::vector<size_t>,                 // Kernel Shape
+    size_t                               // Stride
+> convParams;
+
+typedef std::tuple<
     InferenceEngine::Precision,          // Network Precision
     std::string,                         // Target Device
     std::map<std::string, std::string>,  // Configuration
-    std::vector<size_t>,                 // Input Shapes
-    size_t                               // Output Channels
+    convParams,                          // Convolution Params
+    size_t,                              // Output Channels
+    bool                                 // If Add Reshape at the end of the model to reshape to 2D
 > inputConvParams;
 
 namespace LayerTestsDefinitions {

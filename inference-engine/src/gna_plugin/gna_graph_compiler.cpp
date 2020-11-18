@@ -429,6 +429,21 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
+    // For last layer or when next ones are only non functional, the data can be reordered when exporting scores
+    // For other cases inserting permute is required if data are reordered
+    auto isNonFunctional = [](CNNLayerPtr l) {
+        return LayerInfo(l).isNonFunctional();
+    };
+
+    if (getInputTo(layer->outData.front()).empty() || !CNNNetHasNextLayerSkipCertain(layer, 0, 0, isNonFunctional)) {
+        //if kernel is pow of 2 and heigher than 8, then the issue doesn't appear
+        if (!(convolution._kernel_x > 15 && !(convolution._kernel_x & (convolution._kernel_x - 1)))) {
+            dnn->do_rotate_output = true;
+            dnn->num_rotate_output_rows = out_width;
+            dnn->num_rotate_output_columns = out_channels;
+        }
+    }
+
     std::vector<uint8_t> transposedWeights;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
         uint8_t * ptr_filt_current

@@ -23,15 +23,23 @@ namespace LayerTestsDefinitions {
 
 std::string InputConvTest::getTestCaseName(testing::TestParamInfo<inputConvParams> obj) {
     InferenceEngine::Precision netPrecision;
-    std::vector<size_t> inputShape;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
-    size_t output_channels;
-    std::tie(netPrecision, targetDevice, configuration, inputShape, output_channels) = obj.param;
+    size_t outputChannels;
+    convParams convolutionParams;
+    std::vector<size_t> inputShape;
+    std::vector<size_t> kernelShape;
+    size_t stride;
+    bool addReshape;
+    std::tie(netPrecision, targetDevice, configuration, convolutionParams, outputChannels, addReshape) = obj.param;
+    std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "OC=" << output_channels << "_";
+    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "S=" << stride << "_";
+    result << "OC=" << outputChannels << "_";
+    result << "addReshape=" << addReshape << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : configuration) {
@@ -71,29 +79,36 @@ void InputConvTest::SetUp() {
 
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> tempConfig;
-    std::vector<size_t> inputShape;
-    size_t output_channels;
-    std::tie(netPrecision, targetDevice, tempConfig, inputShape, output_channels) = this->GetParam();
+    convParams convolutionParams;
+    size_t outputChannels;
+    bool addReshape;
+    std::tie(netPrecision, targetDevice, tempConfig, convolutionParams, outputChannels, addReshape) = this->GetParam();
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
+    std::vector<size_t> inputShape;
+    std::vector<size_t> kernelShape;
+    size_t stride;
+    std::tie(inputShape, kernelShape, stride) = convolutionParams;
+
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    size_t kernel_y = 1;
-    size_t kernel_x = inputShape[3] == 640 ? 512 : 9;
-    size_t stride = inputShape[3] == 640 ? 128 : 1;
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
-    auto conv_0 = ngraph::builder::makeConvolution(params[0], ngPrc, { kernel_y, kernel_x }, { stride, stride }, { 0, 0 },
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, output_channels, false,
-        generateWeights(output_channels, kernel_x));
+    auto conv0 = ngraph::builder::makeConvolution(params[0], ngPrc, { kernelShape[0], kernelShape[1] }, { stride, stride }, { 0, 0 },
+        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, true,
+        generateWeights(outputChannels, kernelShape[1]));
 
-    //permute accepts and return 2-byte values. If it's the last operation in the model, that's why the output is incorrect for int16 then
-    size_t num_output_width = (((inputShape[1] * inputShape[2] * inputShape[3] - kernel_x * kernel_y) / (inputShape[1] * stride)) + 1);
-    std::vector<size_t> outFormShapes_0 = { 1, output_channels * num_output_width };
-    auto pattern_0 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes_0);
-    auto reshape_0 = std::make_shared<ngraph::opset1::Reshape>(conv_0, pattern_0, false);
+    if (addReshape) {
+        size_t numOutputWidth = (((inputShape[1] * inputShape[2] * inputShape[3] - kernelShape[1] * kernelShape[0]) / (inputShape[1] * stride)) + 1);
+        std::vector<size_t> outFormShapes0 = { 1, outputChannels * numOutputWidth };
+        auto pattern0 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes0);
+        auto reshape0 = std::make_shared<ngraph::opset1::Reshape>(conv0, pattern0, false);
 
-    ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(reshape_0)};
-    function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(reshape0) };
+        function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");
+    } else {
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(conv0) };
+        function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");
+    }
 }
 
 TEST_P(InputConvTest, CompareWithRefImpl) {
