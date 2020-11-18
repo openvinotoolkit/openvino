@@ -64,7 +64,8 @@ target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOU
 set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
+                                 EXCLUDE_FROM_ALL ON)
 
 # install
 
