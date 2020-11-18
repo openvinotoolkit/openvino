@@ -46,12 +46,12 @@ Installation method| From Docker Hub <br> From OpenVINO™ toolkit package|From 
 
 This section provides instructions to run the DL Workbench on Linux from Docker Hub. 
 
-Follow the steps below:
+Run the command that pulls the latest Docker image with the application and runs it:
 
 ```bash
 wget https://raw.githubusercontent.com/openvinotoolkit/workbench_aux/master/start_workbench.sh && bash start_workbench.sh
 ```
-The command pulls the latest Docker image with the application and runs it. DL Workbench uses [authentication tokens](@ref workbench_docs_Workbench_DG_Authentication) to access the application. A token 
+DL Workbench uses [authentication tokens](@ref workbench_docs_Workbench_DG_Authentication) to access the application. A token 
 is generated automatically and displayed in the console output when you run the container for the first time. Once the command is executed, follow the link with the token. The **Get Started** page opens:
 ![](./dl_workbench_img/Get_Started_Page-b.png)
 
