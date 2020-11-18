@@ -9,15 +9,9 @@
 
 namespace ExecutionGraphTests {
 
-#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
-#endif
-
-using ExecGraphSerializationParam = std::tuple<std::pair<std::string, std::string>, std::string>;
-
-class ExecGraphSerializationTest : public ::testing::Test, public testing::WithParamInterface<ExecGraphSerializationParam> {
+class ExecGraphSerializationTest : public ::testing::Test, public testing::WithParamInterface<std::string> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ExecGraphSerializationParam> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
     void SetUp() override;
     void TearDown() override;
 
@@ -32,6 +26,7 @@ private:
     // compare_docs() helper
     std::pair<bool, std::string> compare_nodes(const pugi::xml_node &node1,
                                                const pugi::xml_node &node2);
+    std::string getTimestamp();
 
 protected:
     // checks if two exec graph xml's are equivalent:
@@ -44,6 +39,5 @@ protected:
 
     std::string deviceName;
     std::string m_out_xml_path, m_out_bin_path;
-    std::string source_model, expected_model;
 };
 } // namespace ExecutionGraphTests

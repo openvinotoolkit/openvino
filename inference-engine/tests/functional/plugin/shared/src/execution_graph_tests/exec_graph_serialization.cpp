@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <common_test_utils/file_utils.hpp>
 #include "execution_graph_tests/exec_graph_serialization.hpp"
+#include "functional_test_utils/test_model/exec_graph_serialization_model.hpp"
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<ExecGraphSerializationParam> obj) {
+std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::ostringstream result;
     std::string model_name, expected_model_name;
-    std::tie(model_name, expected_model_name) = std::get<0>(obj.param);
-    std::string targetDevice = std::get<1>(obj.param);
+    std::string targetDevice = obj.param;
     result << "ModelName=" << model_name << "_";
     result << "ExpectedModelName=" << expected_model_name << "_";
     result << "TargetDevice=" << targetDevice;
@@ -23,23 +24,23 @@ void ExecGraphSerializationTest::SetUp() {
 
     std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     std::remove(test_name.begin(), test_name.end(), '/');
+    test_name += getTimestamp();
 
     m_out_xml_path = test_name + XML_EXT;
     m_out_bin_path = test_name + BIN_EXT;
 
-    deviceName = std::get<1>(this->GetParam());
-
-    std::string model_name, expected_model_name;
-    std::tie(model_name, expected_model_name) = std::get<0>(this->GetParam());
-    model_name += XML_EXT;
-    expected_model_name += XML_EXT;
-    source_model = IR_SERIALIZATION_MODELS_PATH + model_name;
-    expected_model = IR_SERIALIZATION_MODELS_PATH + expected_model_name;
+    deviceName = this->GetParam();
 }
 
 void ExecGraphSerializationTest::TearDown() {
-    std::remove(m_out_xml_path.c_str());
-    std::remove(m_out_bin_path.c_str());
+    CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
+}
+
+std::string ExecGraphSerializationTest::getTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto epoch = now.time_since_epoch();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
+    return std::to_string(ns.count());
 }
 
 bool ExecGraphSerializationTest::exec_graph_walker::for_each(pugi::xml_node &node) {
@@ -114,7 +115,8 @@ std::pair<bool, std::string> ExecGraphSerializationTest::compare_docs(const pugi
 
 TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
     InferenceEngine::Core ie;
-    auto cnnNet = ie.ReadNetwork(source_model);
+    InferenceEngine::Blob::Ptr a;
+    auto cnnNet = ie.ReadNetwork(FuncTestUtils::serialize_test_model, a);
     auto execNet = ie.LoadNetwork(cnnNet, deviceName);
     auto execGraph = execNet.GetExecGraphInfo();
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
@@ -122,7 +124,7 @@ TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
 
     pugi::xml_document expected;
     pugi::xml_document result;
-    ASSERT_TRUE(expected.load_file(expected_model.c_str()));
+    ASSERT_TRUE(expected.load_string(FuncTestUtils::expected_serialized_model));
     ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
     bool status;

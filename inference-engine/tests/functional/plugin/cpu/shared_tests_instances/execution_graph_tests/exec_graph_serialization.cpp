@@ -10,9 +10,7 @@ namespace {
 using namespace ExecutionGraphTests;
 
 INSTANTIATE_TEST_CASE_P(smoke_serialization, ExecGraphSerializationTest,
-                        ::testing::Combine(
-                                ::testing::Values(std::pair<std::string, std::string>("addmul_abc", "addmul_abc_execution")),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
                         ExecGraphSerializationTest::getTestCaseName);
 
 }  // namespace
