@@ -24,7 +24,6 @@ namespace ngraph
     {
         namespace reference
         {
-            using ROIPoolingMethod = op::v0::ROIPooling::ROIPoolingMethod;
             template <typename T>
             void roi_pooling(const T* feature_maps,
                              const T* rois,
@@ -33,7 +32,7 @@ namespace ngraph
                              const Shape& rois_shape,
                              const Shape& output_shape,
                              const float spatial_scale,
-                             const ROIPoolingMethod& pooling_method)
+                             const string& pooling_method)
             {
                 // Feature maps input shape: {N, C, H, W}
                 const int batches = feature_maps_shape[0];
@@ -63,7 +62,7 @@ namespace ngraph
                     NGRAPH_CHECK(0 <= roi_batch_id && roi_batch_id < batches,
                                  "ROI batch id must be in the range of [0, N-1]");
 
-                    if (pooling_method == ROIPoolingMethod::Max)
+                    if (pooling_method == "max")
                     {
                         // ROI coordinates scaled to input feature maps
                         int roi_w_start = std::round(rois[roi_idx + 1] * spatial_scale);
@@ -132,7 +131,7 @@ namespace ngraph
                             batch_data += height * width;
                         }
                     }
-                    else if (pooling_method == ROIPoolingMethod::Bilinear)
+                    else if (pooling_method == "bilinear")
                     {
                         T roi_w_start = rois[roi_idx + 1];
                         T roi_h_start = rois[roi_idx + 2];

@@ -22,7 +22,7 @@ using roiPoolingParamsTuple = std::tuple<
         InferenceEngine::SizeVector,                // Coords shape
         std::vector<size_t>,                        // Pooled shape {pooled_h, pooled_w}
         float,                                      // Spatial scale
-        ngraph::op::ROIPooling::ROIPoolingMethod,   // ROIPooling method, max or bilinear
+        std::string,                                // ROIPooling method
         InferenceEngine::Precision,                 // Net precision
         LayerTestsUtils::TargetDevice>;             // Device name
 
@@ -36,7 +36,7 @@ protected:
     void SetUp() override;
 
 private:
-    ngraph::op::ROIPooling::ROIPoolingMethod pool_method;
+    std::string pool_method;
     float spatial_scale;
 };
 

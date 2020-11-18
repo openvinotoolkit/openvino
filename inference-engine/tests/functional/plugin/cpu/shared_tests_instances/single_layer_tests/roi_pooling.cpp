@@ -34,7 +34,7 @@ const auto test_ROIPooling_max = ::testing::Combine(
     ::testing::ValuesIn(coordShapes),
     ::testing::ValuesIn(pooledShapes),
     ::testing::ValuesIn(spatial_scales),
-    ::testing::Values(ngraph::op::ROIPooling::ROIPoolingMethod::Max),
+    ::testing::Values(std::string("max")),
     ::testing::Values(InferenceEngine::Precision::FP32),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );

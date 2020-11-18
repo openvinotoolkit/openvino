@@ -49,12 +49,6 @@ namespace ngraph
                            const float spatial_scale,
                            const std::string& method = "max");
 
-                ROIPooling(const Output<Node>& input,
-                           const Output<Node>& coords,
-                           const Shape& output_size,
-                           const float spatial_scale,
-                           ROIPoolingMethod method);
-
                 void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
@@ -62,33 +56,15 @@ namespace ngraph
 
                 const Shape& get_output_size() const { return m_output_size; }
                 float get_spatial_scale() const { return m_spatial_scale; }
-                ROIPoolingMethod get_method() const { return m_method; }
+                std::string get_method() const { return m_method; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
             private:
                 Shape m_output_size;
                 float m_spatial_scale;
-                ROIPoolingMethod m_method;
+                std::string m_method;
             };
         } // namespace v0
         using v0::ROIPooling;
     } // namespace op
-
-    NGRAPH_API
-    std::ostream& operator<<(std::ostream& s, const op::ROIPooling::ROIPoolingMethod& mode);
-
-    template <>
-    class NGRAPH_API AttributeAdapter<op::v0::ROIPooling::ROIPoolingMethod>
-        : public EnumAttributeAdapterBase<op::v0::ROIPooling::ROIPoolingMethod>
-    {
-    public:
-        AttributeAdapter(op::v0::ROIPooling::ROIPoolingMethod& value)
-            : EnumAttributeAdapterBase<op::v0::ROIPooling::ROIPoolingMethod>(value)
-        {
-        }
-
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<op::v0::ROIPooling::ROIPoolingMethod>", 0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    };
 }

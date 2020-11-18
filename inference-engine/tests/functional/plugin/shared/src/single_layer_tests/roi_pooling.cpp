@@ -24,7 +24,7 @@ namespace LayerTestsDefinitions {
         std::vector<size_t> coordsShape;
         std::vector<size_t> poolShape;
         float spatial_scale;
-        ngraph::op::ROIPooling::ROIPoolingMethod pool_method;
+        std::string pool_method;
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::tie(inputShape, coordsShape, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = obj.param;
@@ -35,15 +35,7 @@ namespace LayerTestsDefinitions {
         result << "CS=" << CommonTestUtils::vec2str(coordsShape) << "_";
         result << "PS=" << CommonTestUtils::vec2str(poolShape) << "_";
         result << "Scale=" << spatial_scale << "_";
-        switch (pool_method) {
-            case ngraph::op::ROIPooling::ROIPoolingMethod::Max:
-                result << "Max_";
-                break;
-            case ngraph::op::ROIPooling::ROIPoolingMethod::Bilinear:
-                result << "Bilinear_";
-                break;
-        }
-
+        result << pool_method << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "trgDev=" << targetDevice;
         return result.str();
@@ -54,8 +46,8 @@ namespace LayerTestsDefinitions {
         inputs.clear();
 
         auto feat_map_shape = cnnNetwork.getInputShapes().begin()->second;
-        const int height = pool_method == ngraph::op::ROIPooling::ROIPoolingMethod::Max ? feat_map_shape[2] / spatial_scale : 1;
-        const int width = pool_method == ngraph::op::ROIPooling::ROIPoolingMethod::Max ? feat_map_shape[3] / spatial_scale : 1;
+        const int height = pool_method == "max" ? feat_map_shape[2] / spatial_scale : 1;
+        const int width = pool_method == "max" ? feat_map_shape[3] / spatial_scale : 1;
 
         size_t it = 0;
         for (const auto &input : cnnNetwork.getInputsInfo()) {
