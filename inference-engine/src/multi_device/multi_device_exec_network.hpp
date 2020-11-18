@@ -11,8 +11,6 @@
 #include <unordered_map>
 #include <map>
 #include <vector>
-#include <utility>
-#include <memory>
 #include <string>
 
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
@@ -38,21 +36,6 @@ struct DeviceInformation {
 
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
-
-class MultiDeviceInferRequest : public InferenceEngine::InferRequestInternal {
-public:
-    using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
-    explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
-                                     const InferenceEngine::OutputsDataMap& networkOutputs);
-    void GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>&) const override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-    }
-    void InferImpl() override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-    }
-    // Multi-Device impl specific: sets the data (blobs from the device-less requets to the specific device request)
-    void SetBlobsToAnotherRequest(InferenceEngine::InferRequest& req);
-};
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 template <typename T>
@@ -125,50 +108,6 @@ public:
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
-};
-
-class MultiDeviceAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
-public:
-    using Ptr = std::shared_ptr<MultiDeviceAsyncInferRequest>;
-
-    explicit MultiDeviceAsyncInferRequest(const MultiDeviceInferRequest::Ptr&           inferRequest,
-                                          const bool                                    needPerfCounters,
-                                          const MultiDeviceExecutableNetwork::Ptr&      multiDeviceExecutableNetwork,
-                                          const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor);
-    void Infer_ThreadUnsafe() override;
-    void GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo> &_perfMap) const override;
-    ~MultiDeviceAsyncInferRequest() override;
-
-protected:
-    MultiDeviceExecutableNetwork::Ptr                                   _multiDeviceExecutableNetwork;
-    MultiDeviceInferRequest::Ptr                                        _inferRequest;
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
-    bool                                                                _needPerfCounters = false;
-    MultiDeviceExecutableNetwork::WorkerInferRequest*                   _workerInferRequest = nullptr;
-};
-
-class MultiDeviceInferencePlugin : public InferenceEngine::InferencePluginInternal {
-public:
-    MultiDeviceInferencePlugin();
-    ~MultiDeviceInferencePlugin() override = default;
-
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
-                                                                       const std::map<std::string, std::string>& config) override;
-
-    void SetConfig(const std::map<std::string, std::string>& config) override;
-    Parameter GetConfig(const std::string& name,
-                        const std::map<std::string, Parameter> & options) const override;
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork&       network,
-                                                     const std::map<std::string, std::string>& config) const override;
-    InferenceEngine::Parameter GetMetric(const std::string& name,
-                                         const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-
-    std::vector<DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
-                                                  const std::map<std::string, std::string> & config) const;
-
-protected:
-    std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
-                                                          const DeviceName & deviceName) const;
 };
 
 }  // namespace MultiDevicePlugin
