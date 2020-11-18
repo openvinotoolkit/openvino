@@ -6,7 +6,6 @@
 #include <fstream>
 #include <unordered_map>
 #include <unordered_set>
-#include <algorithm>
 
 #include <ngraph/variant.hpp>
 #include "ngraph/ops.hpp"
@@ -53,13 +52,6 @@ class XmlVisitor : public ngraph::AttributeVisitor {
         return joinVec(adapter.get(), std::string(","));
     }
 
-    std::string translate_attribute_value(std::string name) {
-        // IR format expects attribute values in lower case
-        std::transform(name.begin(), name.end(), name.begin(),
-                       [](char c) { return std::tolower(c); });
-        return name;
-    }
-
 public:
     XmlVisitor(pugi::xml_node& data, std::string& node_type_name)
         : m_data(data), m_node_type_name(node_type_name) {}
@@ -83,8 +75,8 @@ public:
             // it is a WA to not introduce dependency on plugin_api library
             m_node_type_name = adapter.get();
         } else {
-            std::string value = translate_attribute_value(adapter.get());
-            m_data.append_attribute(name.c_str()).set_value(value.c_str());
+            m_data.append_attribute(name.c_str())
+                .set_value(adapter.get().c_str());
         }
     }
     void on_adapter(const std::string& name,
