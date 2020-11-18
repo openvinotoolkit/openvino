@@ -1,13 +1,17 @@
+# See help here: https://docs.github.com/en/free-pro-team@latest/github/administering-a-repository/enabling-and-disabling-version-updates
+
 version: 2
 updates:
-- package-ecosystem: pip
-  directory: "/ngraph/python"
-  schedule:
-    interval: weekly
-    day: monday
-    time: "13:00"
-  open-pull-requests-limit: 10
-  reviewers:
-  - postrational
-  labels:
-  - dependencies
+  # Enable version updates for nGraph Python API
+  - package-ecosystem: pip
+    directory: "/ngraph/python"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "13:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - postrational
+    labels:
+      - "category: dependencies"
+      
