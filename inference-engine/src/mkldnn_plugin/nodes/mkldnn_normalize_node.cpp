@@ -682,27 +682,48 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
+    std::string errPrefix = "Normalize node with name '" + getName() + "' ";
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        THROW_IE_EXCEPTION << errPrefix << " has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        THROW_IE_EXCEPTION << errPrefix << " has incorrect number of output edges: " << getChildEdges().size();
 
     if (getParentEdgeAt(0)->getDims().ndims() > 4 || getParentEdgeAt(0)->getDims().ndims() < 2) {
-        THROW_IE_EXCEPTION << "Normalize supports from 2D to 4D blobs!";
+        THROW_IE_EXCEPTION << errPrefix << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
     }
 
     auto *layer = getCnnLayer().get();
     if (layer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot get Normalize layer.";
+        THROW_IE_EXCEPTION << errPrefix << " has nullable CnnLayer.";
     across_spatial = layer->GetParamAsBool("across_spatial", false);
     channel_shared = layer->GetParamAsBool("channel_shared", false);
     eps = layer->GetParamAsFloat("eps");
 
     MemoryBlob::Ptr tweights = as<MemoryBlob>(layer->blobs.at("weights"));
     if (!tweights) {
-        THROW_IE_EXCEPTION << layer->name << "Weights are not initialized or cannot be casted to MemoryBlob for layer Normalize with name '"
-            << layer->name << "'";
+        THROW_IE_EXCEPTION << errPrefix << "has not initialized weights or they cannot be casted to MemoryBlob.";
     }
+
+    auto inData = getCnnLayer()->insData[0].lock();
+    if (inData == nullptr) {
+        THROW_IE_EXCEPTION << errPrefix << "has nullable input data.";
+    }
+    const auto& layout = inData->getLayout();
+    const auto& inDims = inData->getDims();
+    size_t channels = 1lu;
+    if (layout == Layout::NCHW || layout == Layout::NC)
+        channels = inDims[1];
+    else
+        THROW_IE_EXCEPTION << errPrefix << "has unsupported layout: '" << layout << "'.";
+    const auto weightsSize = tweights->size();
+    if (weightsSize != channels) {
+        if (weightsSize == 1) {
+            channel_shared = true;
+        } else {
+            THROW_IE_EXCEPTION << errPrefix << "has unsupported broadcast type. Channels size: " << channels << "; Weights size: " << weightsSize;
+        }
+    }
+
     weights_prec = tweights->getTensorDesc().getPrecision();
 
     if (weights_prec == Precision::FP32) {

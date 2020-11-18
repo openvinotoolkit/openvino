@@ -20,7 +20,7 @@ from _pyngraph import PartialShape
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_34323
+from tests import xfail_issue_40957
 
 
 @pytest.mark.parametrize(
@@ -161,7 +161,7 @@ def test_roi_align():
     assert list(node.get_output_shape(0)) == expected_shape
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 @pytest.mark.parametrize(
     "input_shape, cumsum_axis, reverse",
     [([5, 2], 0, False), ([5, 2], 1, False), ([5, 2, 6], 2, False), ([5, 2], 0, True)],
@@ -181,7 +181,7 @@ def test_cum_sum(input_shape, cumsum_axis, reverse):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 def test_normalize_l2():
     input_shape = [1, 2, 3, 4]
     input_data = np.arange(np.prod(input_shape)).reshape(input_shape).astype(np.float32)
