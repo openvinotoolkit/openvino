@@ -31,12 +31,18 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
+#include <transformations/op_conversions/gru_cell_decomposition.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
+#include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
@@ -145,14 +151,63 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         {
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
             ngraph::pass::Manager manager;
+            using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
+            const auto& pass_config = manager.get_pass_config();
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
             manager.register_pass<ngraph::pass::ConvertPriorBox>();
+            manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
+            manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+            manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+            manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+            manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+            manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+            manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+            manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+            manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+            manager.register_pass<ngraph::pass::RNNCellDecomposition>();
 
             manager.set_callback(transformations_callback);
+
+            auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+                if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
+                    return false;
+                } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
+                        node)) {
+                    return false;
+                } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+                        node)) {
+                    return lstm_cell->get_clip() == 0.0f &&
+                           lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
+                        node)) {
+                    return lstm_cell_v1->get_clip() == 0.0f &&
+                           lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                }
+                return false;
+            };
+
+            pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
+                    ngraph::pass::LSTMCellDecomposition>(
+                    [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                        return isCellPrimitiveSupported(node);
+                    });
+
+            pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
+                    ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                    ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+                    [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                        if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                            size_t count_rnn = 0;
+                            for (const auto &op : ti_op->get_body()->get_ops())
+                                count_rnn += isCellPrimitiveSupported(op);
+                            return count_rnn != 1;
+                        }
+                        return true;
+                    });
             manager.run_passes(nGraphFunc);
 
             enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
@@ -189,6 +244,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         {
             ngraph::pass::Manager manager = ngraph::pass::Manager();
             manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+            manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             manager.set_callback(transformations_callback);
             manager.run_passes(nGraphFunc);
         }
@@ -363,9 +419,9 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     }
 }
 
-RemoteContext::Ptr clDNNEngine::GetDefaultContext() {
+RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
-        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), _impl->m_config));
+        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
     }
     return std::dynamic_pointer_cast<RemoteContext>(m_defaultContext);
 }
