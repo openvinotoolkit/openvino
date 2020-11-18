@@ -49,7 +49,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     endif()
 
     target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
-                                         PRIVATE openvino::itt)
+                                         PRIVATE openvino::itt mvnc)
 
     if(WIN32)
         target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)

@@ -470,7 +470,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
         env.log->trace("Parse custom layers : %s", env.config.customLayers);
         VPU_LOGGER_SECTION(env.log);
 
-        if (env.platform != Platform::MYRIAD_X) {
+        if (env.platform != ncDevicePlatform_t::NC_MYRIAD_X) {
             VPU_THROW_FORMAT("Custom layers are not supported for %v platforms", env.platform);
         }
 

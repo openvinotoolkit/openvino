@@ -132,7 +132,7 @@ bool checkExecutionOrder(const Model& model, const std::vector<int>& execOrder);
 
 class GraphTransformerTest : public ::testing::Test {
 public:
-    Platform platform = Platform::MYRIAD_X;
+    ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
     CompilationConfig config;
 
     StageBuilder::Ptr stageBuilder;

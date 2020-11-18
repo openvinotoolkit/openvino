@@ -23,14 +23,11 @@
 #include <vpu/utils/optional.hpp>
 #include <vpu/configuration/configuration.hpp>
 
+#include "mvnc.h"
+
 namespace vpu {
 
 namespace ie = InferenceEngine;
-
-VPU_DECLARE_ENUM(Platform,
-    MYRIAD_2 = 2450,
-    MYRIAD_X = 2480,
-)
 
 //
 // DataInfo
@@ -74,8 +71,8 @@ struct CompiledGraph final {
 // compileNetwork
 //
 
-CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
-    const ie::ICore* core);
+CompiledGraph::Ptr compileNetwork(const ie::ICNNNetwork& network, ncDevicePlatform_t platform, const CompilationConfig& config, const Logger::Ptr& log,
+                                  const ie::ICore* core);
 
 CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core);
 
@@ -83,8 +80,8 @@ CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const Compil
 // getSupportedLayers
 //
 
-std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
-    const ie::ICore* core);
+std::set<std::string> getSupportedLayers(const ie::ICNNNetwork& network, ncDevicePlatform_t platform, const CompilationConfig& config, const Logger::Ptr& log,
+                                         const ie::ICore* core);
 
 //
 // Blob version and checks

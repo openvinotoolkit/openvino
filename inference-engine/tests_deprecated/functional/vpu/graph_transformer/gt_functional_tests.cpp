@@ -19,7 +19,7 @@ void graphTransformerFunctionalTests::SetUp() {
     vpuLayersTests::SetUp();
 
     _stageBuilder = std::make_shared<StageBuilder>();
-    _platform = CheckMyriadX() ? Platform::MYRIAD_X : Platform::MYRIAD_2;
+    _platform = CheckMyriadX() ? ncDevicePlatform_t::NC_MYRIAD_X : ncDevicePlatform_t::NC_MYRIAD_2;
 }
 
 void graphTransformerFunctionalTests::CreateModel() {

@@ -42,6 +42,7 @@
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/utils/file_system.hpp>
+#include <mvnc.h>
 
 namespace vpu {
 
@@ -55,7 +56,7 @@ thread_local CompileEnv* g_compileEnv = nullptr;
 
 }  // namespace
 
-CompileEnv::CompileEnv(Platform platform) : platform(platform) {}
+CompileEnv::CompileEnv(ncDevicePlatform_t platform) : platform(platform) {}
 
 const CompileEnv& CompileEnv::get() {
     IE_ASSERT(g_compileEnv != nullptr);
@@ -70,7 +71,7 @@ const CompileEnv* CompileEnv::getOrNull() {
     return g_compileEnv;
 }
 
-void CompileEnv::init(Platform platform, const CompilationConfig& config, const Logger::Ptr& log) {
+void CompileEnv::init(ncDevicePlatform_t platform, const CompilationConfig& config, const Logger::Ptr& log) {
     g_compileEnv = new CompileEnv(platform);
     g_compileEnv->config = config;
     g_compileEnv->log = log;
@@ -79,7 +80,7 @@ void CompileEnv::init(Platform platform, const CompilationConfig& config, const 
     g_compileEnv->profile.setLogger(log);
 #endif
 
-    if (platform == Platform::MYRIAD_2) {
+    if (platform == ncDevicePlatform_t::NC_MYRIAD_2) {
         g_compileEnv->config.hwOptimization = false;
     }
 
@@ -191,8 +192,8 @@ CompiledGraph::Ptr compileImpl(const Model& model) {
 
 }  // namespace
 
-CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
-    const ie::ICore* core) {
+CompiledGraph::Ptr compileNetwork(const ie::ICNNNetwork& network, ncDevicePlatform_t platform, const CompilationConfig& config, const Logger::Ptr& log,
+                                  const ie::ICore* core) {
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
@@ -205,7 +206,7 @@ CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, Platform platfo
 
 CompiledGraph::Ptr compileModel(
         const Model& model,
-        Platform platform,
+        ncDevicePlatform_t platform,
         const CompilationConfig& config,
         const Logger::Ptr& log) {
     CompileEnv::init(platform, config, log);
@@ -238,11 +239,11 @@ CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const Compil
 //
 
 std::set<std::string> getSupportedLayers(
-        const ie::CNNNetwork& network,
-        Platform platform,
-        const CompilationConfig& config,
-        const Logger::Ptr& log,
-        const ie::ICore* core) {
+    const ie::ICNNNetwork& network,
+    ncDevicePlatform_t platform,
+    const CompilationConfig& config,
+    const Logger::Ptr& log,
+    const ie::ICore* core) {
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
@@ -255,28 +256,28 @@ std::set<std::string> getSupportedLayers(
     return frontEnd->checkSupportedLayers(network);
 }
 
-int DeviceResources::numShaves(const Platform& platform) {
-    return platform == Platform::MYRIAD_2 ? 12 : 16;
+int DeviceResources::numShaves(const ncDevicePlatform_t& platform) {
+    return platform == ncDevicePlatform_t::NC_MYRIAD_2 ? 12 : 16;
 }
 
-int DeviceResources::numSlices(const Platform& platform) {
-    return platform == Platform::MYRIAD_2 ? 12 : 19;
+int DeviceResources::numSlices(const ncDevicePlatform_t& platform) {
+    return platform == ncDevicePlatform_t::NC_MYRIAD_2 ? 12 : 19;
 }
 
 int DeviceResources::numStreams() {
     return 3;
 }
 
-int DefaultAllocation::numStreams(const Platform& platform, const CompilationConfig& configuration) {
-    return platform == Platform::MYRIAD_X && configuration.hwOptimization ? 2 : 1;
+int DefaultAllocation::numStreams(const ncDevicePlatform_t& platform, const CompilationConfig& configuration) {
+    return platform == ncDevicePlatform_t::NC_MYRIAD_X && configuration.hwOptimization ? 2 : 1;
 }
 
-int DefaultAllocation::numSlices(const Platform& platform, int numStreams) {
+int DefaultAllocation::numSlices(const ncDevicePlatform_t& platform, int numStreams) {
     const auto capabilities = DeviceResources::numSlices(platform);
     return capabilities / numStreams;
 }
 
-int DefaultAllocation::numShaves(const Platform& platform, int numStreams, int numSlices) {
+int DefaultAllocation::numShaves(const ncDevicePlatform_t& platform, int numStreams, int numSlices) {
     const auto numAvailableShaves = DeviceResources::numShaves(platform);
     if (numStreams == 1) {
         return numAvailableShaves;

@@ -70,7 +70,7 @@ ExecutableNetwork::ExecutableNetwork(
         IE_THROW() << "No device was detected";
     auto compiledGraph = compileNetwork(
         network,
-        static_cast<Platform>(_device->_platform),
+        _device->_platform,
         _config.compileConfig(),
         compilerLog,
         _core);

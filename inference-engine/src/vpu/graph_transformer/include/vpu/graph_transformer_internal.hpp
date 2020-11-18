@@ -12,7 +12,7 @@ namespace vpu {
 
 CompiledGraph::Ptr compileModel(
         const Model& model,
-        Platform platform,
+        ncDevicePlatform_t platform,
         const CompilationConfig& config,
         const Logger::Ptr& log);
 

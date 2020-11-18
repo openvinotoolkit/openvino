@@ -178,7 +178,7 @@ void CheckStageTestInds(const StageRange& stageRange, std::initializer_list<int>
 
 class GraphTransformerTest : public TestsCommon {
 public:
-    Platform platform = Platform::MYRIAD_X;
+    ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
     CompilationConfig config;
 
     StageBuilder::Ptr stageBuilder;
