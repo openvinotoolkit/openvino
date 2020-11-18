@@ -601,11 +601,11 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {
         const auto &desc = descs[j];
-        std::shared_ptr<primitive_desc_iterator> itpd;
+        primitive_desc_iterator itpd;
         if (attr == nullptr) {
-            itpd = std::make_shared<primitive_desc_iterator>(desc.createPrimitiveDescriptorIterator(engine));
+            itpd = desc.createPrimitiveDescriptorIterator(engine);
         } else {
-            itpd = std::make_shared<primitive_desc_iterator>(desc.createPrimitiveDescriptorIterator(engine, *(attr.get())));
+            itpd = desc.createPrimitiveDescriptorIterator(engine, *(attr.get()));
         }
         while (static_cast<bool>(itpd)) {
             InferenceEngine::LayerConfig cfg;
@@ -614,7 +614,7 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(*itpd, i);
+                dataConfig.desc = getSrcMemDesc(itpd, i);
                 cfg.inConfs.push_back(dataConfig);
             }
 
@@ -622,10 +622,10 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(*itpd, i);
+                dataConfig.desc = getDstMemDesc(itpd, i);
                 cfg.outConfs.push_back(dataConfig);
             }
-            impl_desc_type impl_type = parse_impl_name(itpd->impl_info_str());
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {
                     THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
@@ -638,7 +638,7 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
                 }
             }
             selected_count++;
-            if (!itpd->next_impl())
+            if (!itpd.next_impl())
                 break;
         }
     }
