@@ -31,21 +31,20 @@ from mo.ops.strided_slice import StridedSlice
 
 
 def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape, axes, node_name):
-
+    cast = Cast(graph, dict(name=node_name + '/CastToI64', dst_type=np.int64)).create_node()
+    cast.in_port(0).connect(slice_border_port)
     clamp = create_op_with_const_inputs(graph, Clamp, port_value_dict={1: np.iinfo(np.int32).min,
                                                                        2: np.iinfo(np.int32).max},
                                         op_attrs=dict(name=node_name + '/Clamp'))
-    clamp.in_port(0).connect(slice_border_port)
+    clamp.in_port(0).connect(cast.out_port(0))
     concat = Concat(graph, dict(name=node_name + '/Concat', axis=0)).create_node()
     for value_idx, port_idx in enumerate(axes):
         concat.add_input_port(port_idx)
         value = create_op_with_const_inputs(graph, Gather, port_value_dict={1: int64_array([value_idx]),
                                                                             2: 0},
                                             op_attrs={'name': node_name + '/Gather'})
-        cast = Cast(graph, dict(name=node_name + '/CastToI64', dst_type=np.int64)).create_node()
         clamp.out_port(0).connect(value.in_port(0))
-        value.out_port(0).connect(cast.in_port(0))
-        cast.out_port(0).connect(concat.in_port(port_idx))
+        value.out_port(0).connect(concat.in_port(port_idx))
     for port_idx in range(len(shape)):
         if not concat.is_in_port_connected(port_idx):
             concat.add_input_port(port_idx)
