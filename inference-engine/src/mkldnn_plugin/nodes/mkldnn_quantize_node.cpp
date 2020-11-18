@@ -1273,7 +1273,7 @@ void MKLDNNQuantizeNode::executeReference() {
     auto d_str = config.outConfs[0].desc.getBlockingDesc().getStrides();
 
     const int N = srcDims[0];
-    const int C = srcDims[1];
+    const int C = srcDims.size() > 1 ? srcDims[1] : 1;
     const int D = srcDims.size() == 5 ? srcDims[2] : 1;
     const int H = srcDims.size() == 3 ? srcDims[2] : srcDims.size() > 3 ? srcDims[srcDims.size() - 2] : 1;
     const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
