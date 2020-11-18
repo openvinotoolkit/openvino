@@ -59,16 +59,9 @@ namespace ngraph
             }
 
             template <typename T, typename U>
-            inline bool sort_indices_descending(const std::tuple<T, U>& a,
-                                                const std::tuple<T, U>& b)
-            {
-                return std::get<1>(a) < std::get<1>(b);
-            }
-
-            template <typename T, typename U>
             inline bool sort_indices_ascending(const std::tuple<T, U>& a, const std::tuple<T, U>& b)
             {
-                return std::get<1>(a) > std::get<1>(b);
+                return std::get<1>(a) < std::get<1>(b);
             }
 
             template <typename T, typename U>
@@ -133,35 +126,18 @@ namespace ngraph
                                     compare_min<T, U>);
                     }
                     // Write temp vector to output
-                    if (compute_max)
+                    switch (sort)
                     {
-                        switch (sort)
-                        {
-                        case op::v1::TopK::SortType::NONE: break;
-                        case op::v1::TopK::SortType::SORT_INDICES:
-                            std::sort(workspace.begin(),
-                                      workspace.begin() + k,
-                                      sort_indices_descending<T, U>);
-                            break;
-                        case op::v1::TopK::SortType::SORT_VALUES:
+                    case op::v1::TopK::SortType::NONE: break;
+                    case op::v1::TopK::SortType::SORT_INDICES:
+                        std::sort(
+                            workspace.begin(), workspace.begin() + k, sort_indices_ascending<T, U>);
+                        break;
+                    case op::v1::TopK::SortType::SORT_VALUES:
+                        if (compute_max)
                             std::sort(workspace.begin(), workspace.begin() + k, compare_max<T, U>);
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        switch (sort)
-                        {
-                        case op::v1::TopK::SortType::NONE: break;
-                        case op::v1::TopK::SortType::SORT_INDICES:
-                            std::sort(workspace.begin(),
-                                      workspace.begin() + k,
-                                      sort_indices_ascending<T, U>);
-                            break;
-                        case op::v1::TopK::SortType::SORT_VALUES:
+                        else
                             std::sort(workspace.begin(), workspace.begin() + k, compare_min<T, U>);
-                            break;
-                        }
                     }
                     for (size_t j = 0; j < k; j++)
                     {
