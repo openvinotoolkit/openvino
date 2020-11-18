@@ -7,7 +7,7 @@
 
 TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
     std::string model = R"V0G0N(
-<net name="PVANet + R-FCN" version="10">
+<net name="DeformablePSROIPooling" version="10">
 	<layers>
 		<layer id="0" name="detector/bbox/ps_roi_pooling/placeholder_port_0" type="Parameter" version="opset1">
 			<data shape="1,3240,38,38" element_type="f32"/>
@@ -71,7 +71,7 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
 </net>
 )V0G0N";
     std::string modelV7 = R"V0G0N(
-<net name="PVANet + R-FCN" version="7">
+<net name="DeformablePSROIPooling" version="7">
 	<layers>
 		<layer id="0" name="detector/bbox/ps_roi_pooling/placeholder_port_0" type="Input" version="opset1">
 			<output>

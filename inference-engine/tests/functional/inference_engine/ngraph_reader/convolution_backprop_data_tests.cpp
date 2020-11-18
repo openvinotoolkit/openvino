@@ -7,7 +7,7 @@
 
 TEST_F(NGraphReaderTests, ReadConvolutionBackpropDataNetwork) {
     std::string model = R"V0G0N(
-<net name="unet-camvid-fp32-onnx-0001" version="10">
+<net name="ConvBackpropData" version="10">
 	<layers>
 		<layer id="0" name="170/placeholder_port_0" type="Parameter" version="opset1">
 			<data shape="1,1024,23,30" element_type="f32"/>
@@ -112,7 +112,7 @@ TEST_F(NGraphReaderTests, ReadConvolutionBackpropDataNetwork) {
 </net>
 )V0G0N";
     std::string modelV7 = R"V0G0N(
-<net name="unet-camvid-fp32-onnx-0001" version="7">
+<net name="ConvBackpropData" version="7">
 	<layers>
 		<layer id="0" name="170/placeholder_port_0" type="Input" version="opset1">
 			<output>

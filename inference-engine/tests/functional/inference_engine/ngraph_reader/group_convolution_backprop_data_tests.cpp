@@ -7,7 +7,7 @@
 
 TEST_F(NGraphReaderTests, ReadGroupConvolutionBackpropDataNetwork) {
     std::string model = R"V0G0N(
-<net name="ctdet_dlav0_512" version="10">
+<net name="GroupConvBackpropData" version="10">
 	<layers>
 		<layer id="0" name="484/placeholder_port_0" type="Parameter" version="opset1">
 			<data shape="1,64,64,64" element_type="f32"/>
@@ -77,7 +77,7 @@ TEST_F(NGraphReaderTests, ReadGroupConvolutionBackpropDataNetwork) {
 </net>
 )V0G0N";
     std::string modelV7 = R"V0G0N(
-<net name="ctdet_dlav0_512" version="7">
+<net name="GroupConvBackpropData" version="7">
 	<layers>
 		<layer id="0" name="484/placeholder_port_0" type="Input" version="opset1">
 			<output>
