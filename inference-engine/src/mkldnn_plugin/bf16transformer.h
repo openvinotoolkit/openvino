@@ -22,7 +22,7 @@ class BF16Transformer {
           "broadcast", "convert", "BatchToSpace", "DepthToSpace", "ExtractImagePatches", "concat", "power", "lrn",
           "permute", "ScatterUpdate", "ScatterElementsUpdate", "ScatterNDUpdate", "depthwise",
           "select", "ShuffleChannels", "SpaceToBatch", "SpaceToDepth", "squeeze", "StridedSlice", "unsqueeze", "eltwise",
-          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin", "psroipooling" };
+          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin" };
 
     const InferenceEngine::details::caseless_set<std::string> _multiinput =
         { "concat", "eltwise" };
@@ -39,6 +39,13 @@ class BF16Transformer {
     * if tensor goes to layer not supporting BF16, this tensor will be marked as FP32
     */
     bool tryToMarkFP32(InferenceEngine::DataPtr data, const std::set<InferenceEngine::DataPtr> &immutable);
+
+    /**
+    * Because of singularity of input node, layer, following input doesn't support bf16 itself.
+    * We fix it by insertion of convert layer, which has to be replaced to reorder in graph optimizer.
+    *
+    */
+    void insertConvertAfterInput(InferenceEngine::CNNNetwork &network);
 
 public:
     /**

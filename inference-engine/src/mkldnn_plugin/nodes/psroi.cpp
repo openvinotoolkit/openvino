@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -8,11 +7,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <mkldnn_types.h>
 #include "ie_parallel.hpp"
-#include "utils/bfloat16.hpp"
-
-using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -51,25 +46,22 @@ public:
             part_size_ = layer->GetParamAsInt("part_size", 1);
             trans_std_ = layer->GetParamAsFloat("trans_std", 1);
 
-            bool isBf16Input = layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16;
             if (no_trans_) {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN)},
-                          {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
             } else {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN),
-                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
+                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
             }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }
 
-    template <typename inputType, typename outputType>
-    StatusCode executeSpecified(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
-                                ResponseDesc *resp) {
+    StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
+                       ResponseDesc *resp) noexcept override {
+        float* dst_data = outputs[0]->buffer();
+        const float *bottom_data_beginning = inputs[0]->buffer();
         const float *bottom_rois_beginning = inputs[1]->buffer();
-        const auto *src_data = inputs[0]->cbuffer().as<const inputType*>();
-        auto *dst_data = outputs[0]->buffer().as<outputType*>();
 
         int real_rois = 0;
         for (; real_rois < nn; real_rois++) {
@@ -93,7 +85,7 @@ public:
         size_t num_bins = spatial_bins_x_*spatial_bins_y_;
 
         parallel_for(real_rois, [&](int n) {
-            const float *bottom_rois = bottom_rois_beginning + n * 5;
+            const float* bottom_rois = bottom_rois_beginning + n * 5;
             int roi_batch_ind = static_cast<int>(bottom_rois[0]);
             float roi_start_w = 0.0f;
             float roi_start_h = 0.0f;
@@ -151,17 +143,17 @@ public:
                             float bin_area = static_cast<float>((hend - hstart) * (wend - wstart));
                             if (bin_area) {
                                 int gc = (c * group_size_ + h) * group_size_ + w;
-                                const auto *bottom_data =
-                                        src_data + ((roi_batch_ind * channels + gc) * height * width);
+                                const float *bottom_data =
+                                        bottom_data_beginning + ((roi_batch_ind * channels + gc) * height * width);
+
                                 float out_sum = 0.0f;
                                 for (int hh = hstart; hh < hend; ++hh)
-                                    for (int ww = wstart; ww < wend; ++ww) {
+                                    for (int ww = wstart; ww < wend; ++ww)
                                         out_sum += bottom_data[hh * width + ww];
-                                    }
+
                                 dst_data[index] = out_sum / bin_area;
                             }
                         } else if (mode_ == "bilinear") {
-                            float accum = 0.0f;
                             for (size_t bin_y = 0; bin_y < spatial_bins_y_; bin_y++) {
                                 for (size_t bin_x = 0; bin_x < spatial_bins_x_; bin_x++) {
                                     float box_xmin = roi_start_w + (bin_x + 0) * (roi_width / spatial_bins_x_);
@@ -171,7 +163,7 @@ public:
 
                                     size_t gc = c + (bin_y*spatial_bins_x_ + bin_x)*nc;
                                     size_t src_idx = (roi_batch_ind * channels + gc) * height * width;
-                                    const auto *bottom_data = src_data + src_idx;
+                                    const float *bottom_data = bottom_data_beginning + src_idx;
 
                                     float height_scale = nh > 1 ? (box_ymax - box_ymin) * (height - 1) / (pooled_height_ - 1)
                                                                 : 0.0f;
@@ -203,12 +195,11 @@ public:
                                         const float top = top_left + (top_right - top_left) * (in_x - left_x_index);
                                         const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
 
-                                        accum += top + (bottom - top) * (in_y - top_y_index);
+                                        dst_data[index] += top + (bottom - top) * (in_y - top_y_index);
                                     }
                                 }
                             }
-                            accum /= num_bins;
-                            dst_data[index] = accum;
+                            dst_data[index] /= num_bins;
                         } else if (mode_ == "bilinear_deformable") {
                             // Compute w and h at bottom
                             float bin_size_h = roi_height / static_cast<float>(pooled_height_);
@@ -237,7 +228,7 @@ public:
                             gw = (std::min)((std::max)(gw, 0), static_cast<int>(group_size_ - 1));
                             gh = (std::min)((std::max)(gh, 0), static_cast<int>(group_size_ - 1));
 
-                            const inputType* offset_bottom_data = src_data + (roi_batch_ind * channels) * height * width;
+                            const float* offset_bottom_data = bottom_data_beginning + (roi_batch_ind * channels) * height * width;
                             for (size_t ih = 0; ih < spatial_bins_y_; ih++) {
                                 for (size_t iw = 0; iw < spatial_bins_x_; iw++) {
                                     float w1 = wstart + iw * sub_bin_size_w;
@@ -248,13 +239,12 @@ public:
                                     w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
                                     h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
                                     int c1 = static_cast<int>((c * group_size_ + gh) * group_size_ + gw);
-                                    float val = bilinear_interp<inputType>(offset_bottom_data +
-                                                                           c1 * height * width, w1, h1, width);
+                                    float val = bilinear_interp(offset_bottom_data + c1 * height * width, w1, h1, width);
                                     sum += val;
                                     count++;
                                 }
                             }
-                            dst_data[index] = count == 0 ? 0.0f : sum / count;
+                            dst_data[index] = count == 0 ? 0 : sum / count;
                         }
                     }
                 }
@@ -271,34 +261,13 @@ public:
         return OK;
     }
 
-    StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
-                       ResponseDesc *resp) noexcept override {
-        auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
-        auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
-        if (inputPrec == Precision::BF16) {
-            if (outputPrec == Precision::BF16) {
-                return executeSpecified<bfloat16_t, bfloat16_t>(inputs, outputs, resp);
-            } else {
-                return executeSpecified<bfloat16_t, float>(inputs, outputs, resp);
-            }
-        } else {
-            if (outputPrec == Precision::BF16) {
-                return executeSpecified<float, bfloat16_t>(inputs, outputs, resp);
-            } else {
-                return executeSpecified<float, float>(inputs, outputs, resp);
-            }
-        }
-    }
-
-    template <typename inputType>
-    inline float bilinear_interp(const inputType* data, const float x, const float y, const int width) {
+    inline float bilinear_interp(const float* data, const float x, const float y, const int width) {
         int x1 = static_cast<int>(std::floor(x));
         int x2 = static_cast<int>(std::ceil(x));
         int y1 = static_cast<int>(std::floor(y));
         int y2 = static_cast<int>(std::ceil(y));
         float dist_x = x - x1;
         float dist_y = y - y1;
-
         float value11 = data[y1 * width + x1];
         float value12 = data[y2 * width + x1];
         float value21 = data[y1 * width + x2];

@@ -66,33 +66,7 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
             iter->insData[0].lock()->getPrecision() == Precision::FP32) {
             iter->insData[0].lock()->setPrecision(Precision::BF16);
         }
-        if (_initbf16.find(iter->type) != _initbf16.end()) {
-            for (size_t o = 0; o < iter->insData.size(); o++) {
-                if (inputs.find(iter->insData[o].lock()->getName()) != inputs.end()) {
-                    std::string iterType = iter->type;
-                    std::transform(iterType.begin(), iterType.end(), iterType.begin(),
-                                   [](unsigned char c){ return std::tolower(c); });
-                    if (iterType == "convolution") {
-                        // TODO: have to be removed after adding suitable implementation for convolution
-                        break;
-                    }
-                    if (iter->insData[o].lock()->getPrecision() != Precision::FP32 &&
-                        iter->insData[o].lock()->getPrecision() != Precision::BF16) {
-                        break;
-                    }
-                    // insert convert
-                    std::string layerName = iter->insData[o].lock()->getName() + "_" + std::to_string(o);
-                    LayerParams cnnLayerParams{ layerName, "Convert", Precision::FP32 };
-                    auto lay = new CNNLayer(cnnLayerParams);
-                    std::map<std::string, std::string> par = {{"name", layerName}, {"type", "Convert"}, {"precision", "FP32"}};
-                    lay->params = par;
-                    CNNLayerPtr convertLayer(lay);
-                    BF16Transformer::addLayerToCNNNetworkAfterData(iter->insData[o].lock(), convertLayer, iter->name, network);
-                    // set conv input as bf
-                    iter->insData[o].lock()->setPrecision(Precision::BF16);
-                }
-            }
-        }
+
         for (size_t o = 0; o < iter->outData.size(); o++) {
             if (inputs.find(iter->outData[o]->getName()) == inputs.end()
                 && outputs.find(iter->outData[o]->getName()) == outputs.end()
@@ -102,6 +76,10 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
             }
         }
     }
+
+    // insert convert after input if necessary
+    insertConvertAfterInput(network);
+
     // convert all edges back to FP32 on demand
     optimizeToFloat(network);
 }
@@ -362,5 +340,37 @@ void BF16Transformer::addLayerToCNNNetworkAfterData(
         }
     } else {
         THROW_IE_EXCEPTION << "Invalid argument";
+    }
+}
+
+void BF16Transformer::insertConvertAfterInput(InferenceEngine::CNNNetwork &network) {
+    std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
+    InputsDataMap inputs = network.getInputsInfo();
+    OutputsDataMap outputs = network.getOutputsInfo();
+    for (auto iter : sortedLayers) {
+        if (_initbf16.find(iter->type) != _initbf16.end()) {
+            for (size_t o = 0; o < iter->insData.size(); o++) {
+                if (inputs.find(iter->insData[o].lock()->getName()) != inputs.end()) {
+                    std::string iterType = iter->type;
+                    if (CaselessEq<std::string>()(iterType, "convolution")) {
+                        // TODO: have to be removed after adding suitable implementation for convolution
+                        break;
+                    }
+                    // insert convert
+                    std::string layerName = iter->insData[o].lock()->getName() + "_" + std::to_string(o);
+                    LayerParams cnnLayerParams{layerName, "Convert", Precision::FP32};
+                    auto lay = std::make_shared<InferenceEngine::CNNLayer>(cnnLayerParams);
+                    std::map<std::string, std::string> par = {{"name",      layerName},
+                                                              {"type",      "Convert"},
+                                                              {"precision", "FP32"}};
+                    lay->params = par;
+                    CNNLayerPtr convertLayer(lay);
+                    BF16Transformer::addLayerToCNNNetworkAfterData(iter->insData[o].lock(), convertLayer, iter->name,
+                                                                   network);
+                    // set conv input as bf
+                    iter->insData[o].lock()->setPrecision(Precision::BF16);
+                }
+            }
+        }
     }
 }
