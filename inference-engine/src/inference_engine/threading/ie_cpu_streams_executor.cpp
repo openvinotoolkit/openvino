@@ -108,11 +108,11 @@ struct CPUStreamsExecutor::Impl {
                 auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
                 if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                     printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
-//#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
-                    //_taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
-//#else
+#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
+                    _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
+#else
                     _taskArena.reset(new tbb::task_arena{concurrency});
-//#endif
+#endif
                 } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                     _taskArena.reset(new tbb::task_arena{concurrency});
                     if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
