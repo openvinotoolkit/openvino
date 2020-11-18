@@ -139,12 +139,10 @@ xfail_issue_42297 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "Check 'data.get_partial_shape().rank().is_static()'"
                                       " failed at ngraph/frontend/onnx_import/src/op/conv.cpp:102:"
                                       "The input data tensor's rank has to be known (static)")
-xfail_issue_41814 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop):"
-                                      " generic_loop_Loop__121>':"
-                                      "While validating ONNX node '<Node(TopK):"
-                                      " map_1/while/select_bboxes/sort_bboxes_10/TopKV2>':"
-                                      "Check 'tensor_rank.is_static()' failed at"
-                                      " ngraph/core/src/validation_util.cpp:882:")
+xfail_issue_43439 = xfail_test(reason="Check 'tensor_rank.is_static()' failed at "
+                                      "ngraph/core/src/validation_util.cpp:884:"
+                                      "map_1/while/select_bboxes/sort_bboxes_10/TopKV2 "
+                                      "Rank must be static in order to normalize negative axis=-1")
 xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
                                       "While validating node 'v1::OneHot OneHot_<number>"
                                       "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
