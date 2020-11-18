@@ -3188,3 +3188,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D)
                                           -0.44018966});
     test_case.run_with_tolerance_as_fp();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_hard_sigmoid)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/hard_sigmoid.prototxt"));
+
+    const auto inf = std::numeric_limits<float>::infinity();
+    const auto neg_inf = -std::numeric_limits<float>::infinity();
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({inf, neg_inf, 0.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{4}, {1.0f, 0.0f, 0.5f, 0.699999988079071f});
+    test_case.run();
+}

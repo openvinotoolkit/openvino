@@ -60,6 +60,7 @@
 #include "ngraph/runtime/reference/gather_nd.hpp"
 #include "ngraph/runtime/reference/gather_tree.hpp"
 #include "ngraph/runtime/reference/gru_cell.hpp"
+#include "ngraph/runtime/reference/hard_sigmoid.hpp"
 #include "ngraph/runtime/reference/log.hpp"
 #include "ngraph/runtime/reference/log_softmax.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
@@ -886,6 +887,19 @@ protected:
             }
             break;
         }
+        case OP_TYPEID::HardSigmoid:
+        {
+            size_t element_cout = shape_size(node.get_output_shape(0));
+            const T alpha = args[1]->get_data_ptr<const T>()[0];
+            const T beta = args[2]->get_data_ptr<const T>()[0];
+            runtime::reference::hard_sigmoid<T>(args[0]->get_data_ptr<const T>(),
+                                                alpha,
+                                                beta,
+                                                out[0]->get_data_ptr<T>(),
+                                                element_cout);
+            break;
+        }
+
         case OP_TYPEID::RNNSequence_v5:
         {
             auto rnn_seq = static_cast<const op::v5::RNNSequence*>(&node);
@@ -1552,7 +1566,6 @@ protected:
         case OP_TYPEID::GRN:
         case OP_TYPEID::GroupConvolution:
         case OP_TYPEID::GroupConvolutionBackpropData:
-        case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
         case OP_TYPEID::MVN:
         case OP_TYPEID::PRelu:
