@@ -14,9 +14,20 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "ocl_types.h"
 #include "include/fetch.cl"
 #include "include/data_types.cl"
+
+#define INPUT_TYPE8  MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
+#define OUTPUT_TYPE8 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
+#define FILTER_TYPE8 MAKE_VECTOR_TYPE(FILTER_TYPE, 8)
+
+#if DT_F16 == 1
+#define FMA_ARG_TYPE  half
+#define FMA_ARG_TYPE8 half8
+#else
+#define FMA_ARG_TYPE  INPUT0_TYPE
+#define FMA_ARG_TYPE8 INPUT_TYPE8
+#endif
 
 #if ID > 1
 #define CASE_3D 1
@@ -76,11 +87,11 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
     diff_dst += input_offset + mb * OC_FULL * G * OD_FULL * OH_FULL * OW_FULL + g * OC * OD_FULL * OH_FULL * OW_FULL * MB_BLOCK;
 
 #if WITH_BIAS
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockC00 = (MAKE_VECTOR_TYPE(INPUT0_TYPE, 8))bias[g * IC + gic * IC_BLOCK + local_id];
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockC01 = (MAKE_VECTOR_TYPE(INPUT0_TYPE, 8))bias[g * IC + gic * IC_BLOCK + local_id];
+    INPUT_TYPE8 blockC00 = (INPUT_TYPE8)bias[g * IC + gic * IC_BLOCK + local_id];
+    INPUT_TYPE8 blockC01 = (INPUT_TYPE8)bias[g * IC + gic * IC_BLOCK + local_id];
 #else
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockC00 = INPUT0_VAL_ZERO;
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockC01 = INPUT0_VAL_ZERO;
+    INPUT_TYPE8 blockC00 = INPUT0_VAL_ZERO;
+    INPUT_TYPE8 blockC01 = INPUT0_VAL_ZERO;
 #endif
 
     wei += gic * KD * KH * KW * OC_BLOCK * IC_BLOCK
@@ -156,36 +167,22 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
             const __global FILTER_TYPE *wei1 = wei;
 #endif
 
-#define LOAD_DIFF_DST(_block, _diff_dst, mb_chunk) \
-    { \
-        (_block) = AS_DATA8_T( \
-                BLOCK_READ8((const __global BLOCK_DATA_T *)((_diff_dst) \
-                        + (mb_chunk)*OC_BLOCK))); \
-    }
-
-#define SAVE_SRC_DIFF(_block, _diff_src, mb_chunk) \
-    { \
-        BLOCK_WRITE8((const __global BLOCK_DATA_T *)(&( \
-                             _diff_src)[(mb_chunk)*IC_BLOCK]), \
-                AS_BLOCK_DATA8_T((_block))); \
-    }
-
 #if DT_F32
 #define TRANSPOSE_8(_block, _col) \
-    (DATA8_T)(intel_sub_group_shuffle(_block, _col))
+    (intel_sub_group_shuffle(_block, _col))
 #else
 #define TRANSPOSE_8(_block, _col) \
-    (DATA8_T)(intel_sub_group_shuffle(_block[0], _col), \
-            intel_sub_group_shuffle(_block[1], _col), \
-            intel_sub_group_shuffle(_block[2], _col), \
-            intel_sub_group_shuffle(_block[3], _col), \
-            intel_sub_group_shuffle(_block[4], _col), \
-            intel_sub_group_shuffle(_block[5], _col), \
-            intel_sub_group_shuffle(_block[6], _col), \
-            intel_sub_group_shuffle(_block[7], _col))
+    (intel_sub_group_shuffle(_block[0], _col), \
+    intel_sub_group_shuffle(_block[1], _col), \
+    intel_sub_group_shuffle(_block[2], _col), \
+    intel_sub_group_shuffle(_block[3], _col), \
+    intel_sub_group_shuffle(_block[4], _col), \
+    intel_sub_group_shuffle(_block[5], _col), \
+    intel_sub_group_shuffle(_block[6], _col), \
+    intel_sub_group_shuffle(_block[7], _col))
 #endif
 
-#define FMA8(a, b, c) fma((DATA8_T)(a), (DATA8_T)b, (DATA8_T)c)
+#define FMA8(a, b, c) fma((FMA_ARG_TYPE8)(a), (FMA_ARG_TYPE8)b, (FMA_ARG_TYPE8)c)
 
 #define MULTIPLY_BLOCKS_8x8(_result, _blockA, _blockB, _blockB1) \
     { \
@@ -207,14 +204,10 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
         _result = FMA8(_blockB1.s7, TRANSPOSE_8(_blockA, 15), _result); \
     }
 
-                    DATA8_T blockA0, blockA1;
-                    LOAD_DIFF_DST(blockA0, diff_dst1, 0);
-                    LOAD_DIFF_DST(blockA1, diff_dst1, 8);
-                    DATA8_T blockB00 = AS_DATA8_T(
-                            BLOCK_READ8((const __global BLOCK_DATA_T *)wei1));
-                    DATA8_T blockB01 = AS_DATA8_T(
-                            BLOCK_READ8((const __global BLOCK_DATA_T *)(wei1
-                                    + 8 * IC_BLOCK)));
+                    INPUT_TYPE8 blockA0 = DT_INPUT_BLOCK_READ(diff_dst1, 0);
+                    INPUT_TYPE8 blockA1 = DT_INPUT_BLOCK_READ(diff_dst1, 8 * OC_BLOCK);
+                    FILTER_TYPE8 blockB00 = DT_FILTER_BLOCK_READ8(wei1, 0);
+                    FILTER_TYPE8 blockB01 = DT_FILTER_BLOCK_READ8(wei1, 8 * IC_BLOCK);
                     MULTIPLY_BLOCKS_8x8(blockC00, blockA0, blockB00, blockB01);
                     MULTIPLY_BLOCKS_8x8(blockC01, blockA1, blockB00, blockB01);
 
@@ -240,20 +233,24 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
 
     blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
     blockC01 = ACTIVATION(blockC01, ACTIVATION_PARAMS);
+    OUTPUT_TYPE8 res0, res1;
 
 #if HAS_FUSED_OPS
     {
         FUSED_OPS_BLOCK_C00;
-        blockC00 = FUSED_OPS_RESULT_BLOCK_C00;
+        res0 = FUSED_OPS_RESULT_BLOCK_C00;
     }
     {
         FUSED_OPS_BLOCK_C01;
-        blockC01 = FUSED_OPS_RESULT_BLOCK_C01;
+        res1 = FUSED_OPS_RESULT_BLOCK_C01;
     }
+#else
+    res0 = blockC00;
+    res1 = blockC01;
 #endif
 
-    SAVE_SRC_DIFF(blockC00, src_write0, 0);
-    SAVE_SRC_DIFF(blockC01, src_write0, 8);
+    DT_OUTPUT_BLOCK_WRITE8(src_write0, 0, res0);
+    DT_OUTPUT_BLOCK_WRITE8(src_write0, 8 * IC_BLOCK, res1);
 
 #endif
 #if VER_8OW16C == 1
@@ -353,9 +350,9 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
                 do {
 
 #define TRANSPOSE_1(_block, _col) \
-    (DATA_T)(intel_sub_group_shuffle(_block, _col))
+    (intel_sub_group_shuffle(_block, _col))
 
-#define FMA1(a, b, c) fma((DATA_T)(a), (DATA_T)b, (DATA_T)c)
+#define FMA1(a, b, c) fma((FMA_ARG_TYPE)(a), (FMA_ARG_TYPE)b, (FMA_ARG_TYPE)c)
 
 #define MULTIPLY_BLOCKS_8x8(_result, _blockA, _blockB, _blockB1) \
     { \
@@ -377,8 +374,8 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
         _result = FMA1(_blockB1.s7, TRANSPOSE_1(_blockA, 15), _result); \
     }
 
-                    MAKE_VECTOR_TYPE(FILTER_TYPE, 8) blockB00 = DT_FILTER_BLOCK_READ8(wei1, 0);
-                    MAKE_VECTOR_TYPE(FILTER_TYPE, 8) blockB01 = DT_FILTER_BLOCK_READ8(wei1, 8 * IC_BLOCK);
+                    FILTER_TYPE8 blockB00 = DT_FILTER_BLOCK_READ8(wei1, 0);
+                    FILTER_TYPE8 blockB01 = DT_FILTER_BLOCK_READ8(wei1, 8 * IC_BLOCK);
                     INPUT0_TYPE blockA[IW_BLOCK];
 
                     __attribute__((
@@ -438,12 +435,14 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
     for (int i = 0; i < IW_BLOCK; i++) {
         blockC00[i] = ACTIVATION(blockC00[i], ACTIVATION_PARAMS);
         if (iw + i >= IW) continue;
-        OUTPUT_TYPE resultC00 = blockC00[i];
+        OUTPUT_TYPE res;
 #if HAS_FUSED_OPS
         FUSED_OPS_BLOCK_CI;
-        resultC00 = FUSED_OPS_RESULT_BLOCK_CI;
+        res = FUSED_OPS_RESULT_BLOCK_CI;
+#else
+        res = blockC00[i];
 #endif
-        DT_OUTPUT_BLOCK_WRITE(src_write0, i * IC_BLOCK, resultC00);
+        DT_OUTPUT_BLOCK_WRITE(src_write0, i * IC_BLOCK, res);
     }
 #endif
 }
