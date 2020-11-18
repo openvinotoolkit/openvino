@@ -44,6 +44,21 @@ public:
     LowPrecisionTransformations& removeTransformations(const std::string& operationType);
     LowPrecisionTransformations& removeCleanupTransformations(const std::string& operationType);
 
+    template <class Transformation, class Operation>
+    LowPrecisionTransformations& removeStandaloneCleanup() {
+        const std::string operationType = getType<Operation>();
+        const std::string transformationType = typeid(Transformation).name();
+
+        for (auto it = standaloneCleanupTransformations.begin(); it != standaloneCleanupTransformations.end(); ++it) {
+            const auto& standaloneCleanup = *it;
+            if ((operationType == standaloneCleanup.typeName) && (transformationType == standaloneCleanup.typeId)) {
+                standaloneCleanupTransformations.erase(it);
+                break;
+            }
+        }
+        return *this;
+    }
+
     /**
      * Add branch specific transformation. Transformation type and operation type are required.
      * Operation type is used to find transformation by operation during precision definition.
