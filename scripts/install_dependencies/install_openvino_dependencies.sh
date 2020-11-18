@@ -82,14 +82,7 @@ if [ -f /etc/lsb-release ]; then
             PKGS+=( gstreamer1.0-plugins-ugly
                     gstreamer1.0-libav
                     libgstreamer-plugins-base1.0-dev
-                    gstreamer1.0-doc
-                    gstreamer1.0-tools
-                    gstreamer1.0-x
                     gstreamer1.0-alsa
-                    gstreamer1.0-gl
-                    gstreamer1.0-gtk3
-                    gstreamer1.0-qt5
-                    gstreamer1.0-pulseaudio
                     libgstrtspserver-1.0-dev
                     python3-gst-1.0
                     libfluidsynth2
@@ -105,19 +98,14 @@ if [ -f /etc/lsb-release ]; then
                     libopenexr22
                     gstreamer1.0-plugins-ugly
                     gstreamer1.0-alsa
-                    gstreamer1.0-gtk3
                     libglib2.0
                 )
         fi
         PKGS+=( flex
-                bison
-                libgsl23
-                gobject-introspection
                 libgl-dev
                 libtag-extras1
                 libusb-1.0-0-dev
                 libfaac0
-                libfdk-aac1
                 python3-gi                
 
         )
@@ -155,10 +143,8 @@ else
         python36-pip
         glib2-devel
         flex
-        bison
         gmp
         gsl
-        gobject-introspection
         libcap
         libcap
         gettext
