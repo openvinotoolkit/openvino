@@ -41,6 +41,16 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for el in exp_res.keys():
             npt.assert_array_equal(result[el], exp_res[el])
 
+    def test_tuple_parser_name_digits_only(self):
+        tuple_values = "0448(1.1,22.22,333.333),0449[2.2,33.33,444.444]"
+        result = parse_tuple_pairs(tuple_values)
+        exp_res = {
+            '0448': np.array([1.1, 22.22, 333.333]),
+            '0449': np.array([2.2, 33.33, 444.444])
+        }
+        for el in exp_res.keys():
+            npt.assert_array_equal(result[el], exp_res[el])
+
     def test_tuple_parser_same_values(self):
         tuple_values = "data(1.1,22.22,333.333),info[1.1,22.22,333.333]"
         result = parse_tuple_pairs(tuple_values)
@@ -59,8 +69,20 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for i in range(0, len(exp_res)):
             npt.assert_array_equal(result[i], exp_res[i])
 
-    def test_tuple_parser_error(self):
+    def test_tuple_parser_error_mixed_with_and_without_name(self):
         tuple_values = "(1.1,22.22,333.333),data[2.2,33.33,444.444]"
+        self.assertRaises(Error, parse_tuple_pairs, tuple_values)
+
+    def test_tuple_parser_error_mixed_with_and_without_name_1(self):
+        tuple_values = "data(1.1,22.22,333.333),[2.2,33.33,444.444]"
+        self.assertRaises(Error, parse_tuple_pairs, tuple_values)
+
+    def test_tuple_parser_error_mixed_with_and_without_name_digits(self):
+        tuple_values = "(0.1,22.22,333.333),0448[2.2,33.33,444.444]"
+        self.assertRaises(Error, parse_tuple_pairs, tuple_values)
+
+    def test_tuple_parser_error_mixed_with_and_without_name_digits_1(self):
+        tuple_values = "447(1.1,22.22,333.333),[2.2,33.33,444.444]"
         self.assertRaises(Error, parse_tuple_pairs, tuple_values)
 
     def test_mean_scale_no_input(self):
@@ -357,7 +379,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         self.assertRaises(Error, get_mean_scale_dictionary, mean_values, scale_values, "input1,input2")
 
     def test_values_match_input_name(self):
-        # before fix cli_parser was confused when input had a substring that matches scale/mean values
+        # to be sure that we correctly processes complex names
         res_values = parse_tuple_pairs("input255(255),input255.0(255.0),multi-dotted.input.3.(255,128,64)")
         exp_res = {'input255': np.array([255.0]),
                    'input255.0': np.array([255.0]),

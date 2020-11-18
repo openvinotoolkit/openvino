@@ -919,27 +919,31 @@ def parse_tuple_pairs(argv_values: str):
 
     matches = [m for m in re.finditer(r'[(\[]([0-9., -]+)[)\]]', argv_values, re.IGNORECASE)]
 
-    error_msg = "Mean/scale values should be in format: data(1,2,3),info(2,3,4)" \
-                " or just plain set of them without naming any inputs: (1,2,3),(2,3,4). " + \
-                refer_to_faq_msg(101)
+    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets' \
+                'separated by comma, e.g. data(1,2,3),info[2,3,4],egg[255] or data(1,2,3). Or just plain set of ' \
+                'values without names: (1,2,3),(2,3,4) or [1,2,3],[2,3,4].' + refer_to_faq_msg(101)
     if not matches:
         raise Error(error_msg, argv_values)
 
     name_start_idx = 0
-    for m in matches:
-        input_name = argv_values[name_start_idx:m.start(0)]
-        name_start_idx = m.end(0) + 1
-        tuple_value = m.groups()[0]
+    name_was_present = False
+    for idx, match in enumerate(matches):
+        input_name = argv_values[name_start_idx:match.start(0)]
+        name_start_idx = match.end(0) + 1
+        tuple_value = np.fromstring(match.groups()[0], dtype=float, sep=',')
 
-        if not input_name:
-            # check that other values are specified without names
-            if re.search(r'([a-zA-Z]+)', argv_values[m.start(0):]) is None:
-                return [np.fromstring(m.groups()[0], dtype=float, sep=',') for m in matches]
-            else:
-                raise Error(error_msg, argv_values)
+        if idx != 0 and name_was_present ^ bool(input_name):
+            # if node name firstly was specified and then subsequently not or vice versa
+            # e.g. (255),input[127] or input(255),[127]
+            raise Error(error_msg, argv_values)
 
-        res[input_name] = np.fromstring(tuple_value, dtype=float, sep=',')
-
+        name_was_present = True if input_name else False
+        if name_was_present:
+            res[input_name] = tuple_value
+        else:
+            res[idx] = tuple_value
+    if not name_was_present:
+        res = sorted(res.values(), key=lambda v: v[0])
     return res
 
 
