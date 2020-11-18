@@ -13,12 +13,9 @@
 #include <vector>
 #include <string>
 
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
-#include "ie_iinfer_request.hpp"
-#include "details/ie_exception_conversion.hpp"
 #include <ie_parallel.hpp>
+#include <threading/ie_itask_executor.hpp>
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 # include <tbb/concurrent_queue.h>
@@ -72,12 +69,12 @@ protected:
 #endif
 
 class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault,
-                                     public ITaskExecutor {
+                                     public InferenceEngine::ITaskExecutor {
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
     struct WorkerInferRequest {
         InferenceEngine::InferRequest   _inferRequest;
-        Task                            _task;
+        InferenceEngine::Task           _task;
         InferenceEngine::StatusCode     _status = InferenceEngine::StatusCode::OK;
     };
     using NotBusyWorkerRequests = ThreadSafeQueue<WorkerInferRequest*>;
@@ -90,7 +87,7 @@ public:
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
-    void run(Task inferTask) override;
+    void run(InferenceEngine::Task inferTask) override;
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
@@ -103,7 +100,7 @@ public:
     std::mutex                                                  _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
-    ThreadSafeQueue<Task>                                       _inferPipelineTasks;
+    ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;

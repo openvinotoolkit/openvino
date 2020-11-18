@@ -5,16 +5,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <string>
 #include <vector>
-#include <iostream>
 #include <memory>
-#include <utility>
 #include <map>
 #include <unordered_map>
 
 #include <ie_metric_helpers.hpp>
 #include <legacy/ie_util_internal.hpp>
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <ie_plugin_config.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include "multi_device_plugin.hpp"
 

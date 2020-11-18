@@ -6,10 +6,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <utility>
 #include <map>
 
-#include <legacy/ie_util_internal.hpp>
 #include "multi_device_async_infer_request.hpp"
 
 namespace MultiDevicePlugin {
