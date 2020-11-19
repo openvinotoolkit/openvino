@@ -39,6 +39,50 @@ public:
         return max_values;
     }
 
+    bool IsEqual(const GNAPluginNS::Quantization& b) {
+        auto fp32eq = [](float p1, float p2) {
+            return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+        };
+
+        if (IsScaleSet() != b.IsScaleSet()) {
+            return false;
+        }
+
+        if (!fp32eq(GetScale(), b.GetScale())) {
+            return false;
+        }
+
+        if (GetLevels() != b.GetLevels()) {
+            return false;
+        }
+
+        auto minA = GetMinValues();
+        auto minB = b.GetMinValues();
+        if (minA.size() != minA.size()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < minA.size(); ++i) {
+            if (!fp32eq(minA[i], minB[i])) {
+                return false;
+            }
+        }
+
+        auto maxA = GetMaxValues();
+        auto maxB = b.GetMaxValues();
+        if (maxB.size() != maxB.size()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < maxA.size(); ++i) {
+            if (!fp32eq(maxA[i], maxB[i])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 private:
     float scale = 1.0f;
     bool scale_set = false;

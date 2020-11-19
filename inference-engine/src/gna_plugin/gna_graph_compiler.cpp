@@ -605,6 +605,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.GetScale() : 1.0f;
 
         if (!gnaFlags->sw_fp32) {
+            auto input_min = quantized ? quantized->_src_quant.GetMinValues().front() : -MAX_VAL_2B_FEAT;
+            auto input_max = quantized ? quantized->_src_quant.GetMaxValues().front() : MAX_VAL_2B_FEAT;
             if (gnaFlags->uniformPwlDesign) {
                 uint32_t num_segments = POW_NUM_SEGMENTS;
                 if (activation_type.args.pow.exponent == 0.0f || activation_type.args.pow.exponent == 1.0f) {
@@ -616,12 +618,16 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                     &*ptr_pwl_segments.begin(),
                     static_cast<uint32_t>(ptr_pwl_segments.size()),
                     input_pwl_scale_factor,
-                    output_pwl_scale_factor);
+                    output_pwl_scale_factor,
+                    input_min,
+                    input_max);
             } else {
                 PwlDesignOpt16(activation_type,
                     ptr_pwl_segments,
                     input_pwl_scale_factor,
-                    output_pwl_scale_factor);
+                    output_pwl_scale_factor,
+                    input_min,
+                    input_max);
             }
         }
 
@@ -1647,6 +1653,9 @@ case name:\
     gna_pwl_segment_t* ptr_pwl_segments_target = nullptr;
 
     if (!gnaFlags->sw_fp32) {
+        auto input_min = quantized ? quantized->_src_quant.GetMinValues().front() : -MAX_VAL_2B_FEAT;
+        auto input_max = quantized ? quantized->_src_quant.GetMaxValues().front() : MAX_VAL_2B_FEAT;
+
         // TODO: generalize activation function code
         // now that scale factors are known, create PWL approximations to activation functions
         if (gnaFlags->uniformPwlDesign) {
@@ -1672,12 +1681,16 @@ case name:\
                 &*ptr_pwl_segments.begin(),
                 static_cast<uint32_t>(ptr_pwl_segments.size()),
                 input_pwl_scale_factor,
-                output_pwl_scale_factor);
+                output_pwl_scale_factor,
+                input_min,
+                input_max);
         } else {
             PwlDesignOpt16(activation_type,
                 ptr_pwl_segments,
                 input_pwl_scale_factor,
-                output_pwl_scale_factor);
+                output_pwl_scale_factor,
+                input_min,
+                input_max);
         }
         ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
     }

@@ -268,7 +268,7 @@ void HandleMultipleActivationsForTheLayerPass::run() {
 
         // insert diagonals one per each activation
         for (auto && activation : activations) {
-            insertDiagonalLayerBetween(l, activation, getPassManager(), 0.0f);
+            insertDiagonalLayerBetween(l, activation, getPassManager(), 1.0f);
         }
     }
 }

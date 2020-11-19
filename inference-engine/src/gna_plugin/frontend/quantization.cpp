@@ -92,7 +92,7 @@ template<>
 void QuantizationCallback<int16_t, int32_t>::runQuantize() const {
     uint32_t num_saturate = 0;
 
-    if (*ptr_weight_scale_factor == 1.0) {
+    if (0 && *ptr_weight_scale_factor == 1.0) {
         // scale factor for weights is not calculated yet
         float mean_weight = 0.0;
         float mean_weight_squared = 0.0;
@@ -311,7 +311,7 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runQuantize() const {
     }
     uint32_t num_saturate = 0;
 
-    if (*ptr_weight_scale_factor == 1.0) {
+    if (0 && *ptr_weight_scale_factor == 1.0) {
         // scale factor for weights is not calculated yet
         float mean_weight = 0.0;
         float mean_weight_squared = 0.0;

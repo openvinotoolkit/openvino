@@ -222,8 +222,22 @@ void make_gna_pwl(const DnnActivation  fun,
                 gnalog() << "=========================== ReLU Segments ===========================\n";
             else
                 gnalog() << "=========================== LeakyReLU Segments ======================\n";
-            int32_t x_lower = INT32_MIN;
-            int16_t y_lower = INT16_MIN;
+            int64_t x_lower_scaled = l_bound * in_scale;
+            int32_t y_lower_scaled = l_bound * out_scale;
+            int32_t x_lower = x_lower_scaled;
+            int16_t y_lower = y_lower_scaled;
+            if (x_lower_scaled < INT32_MIN) {
+                x_lower = INT32_MIN;
+                y_lower_scaled = FLOAT_TO_INT32(INT32_MIN / static_cast<double>(x_lower_scaled) * y_lower_scaled);
+                y_lower = y_lower_scaled;
+            }
+
+            if (y_lower_scaled < INT16_MIN) {
+                y_lower = INT16_MIN;
+                x_lower_scaled = FLOAT_TO_INT32(INT32_MIN / static_cast<double>(y_lower_scaled) * x_lower_scaled);
+                x_lower = x_lower_scaled;
+            }
+
             if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
             if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
             gna_pwl[0].yBase = y_lower * fun.args.lrelu.negative_slope;
@@ -251,8 +265,8 @@ void make_gna_pwl(const DnnActivation  fun,
             gna_pwl.resize(n_segments);
 
             gnalog() << "=========================== Sign Segments ===========================\n";
-            int32_t x_lower = INT32_MIN;
-            int16_t y_lower = static_cast<int16_t>(-1.0 * out_scale);
+            int32_t x_lower = FLOAT_TO_INT32(l_bound * in_scale) & XBASEMASK;
+            int16_t y_lower = FLOAT_TO_INT16(-1.0 * out_scale);
             gna_pwl[0].yBase = y_lower;
             gna_pwl[0].xBase = (x_lower & XBASEMASK);  // zero out the 2 lsb
             gna_pwl[0].slope = 0;
@@ -261,16 +275,15 @@ void make_gna_pwl(const DnnActivation  fun,
                 << " " << gna_pwl[0].yBase / out_scale
                 << " " << (gna_pwl[0].slope * in_scale) / (out_scale*s.slope_scale)
                 << "\n";
-            gna_pwl[1].xBase = -1;
+            gna_pwl[1].xBase = FLOAT_TO_INT32(-1.0f) & XBASEMASK;
             gna_pwl[1].yBase = 0;
             gna_pwl[1].slope = 0;
-            gna_pwl[1].xBase = gna_pwl[1].xBase  & XBASEMASK;
             gnalog() << gna_pwl[1].xBase / in_scale
                 << " " << gna_pwl[1].yBase / out_scale
                 << " " << (gna_pwl[1].slope * in_scale) / (out_scale*s.slope_scale)
                 << "\n";
             gna_pwl[2].xBase = 1 + ~XBASEMASK;  // smallest representable positive number
-            gna_pwl[2].yBase = static_cast<int16_t>(1.0 * out_scale);
+            gna_pwl[2].yBase = FLOAT_TO_INT16(1.0 * out_scale);
             s = gna_slope(1.0, in_scale, out_scale);
             gna_pwl[2].slope = 0;
             gna_pwl[2].xBase = gna_pwl[2].xBase & XBASEMASK;
@@ -281,11 +294,43 @@ void make_gna_pwl(const DnnActivation  fun,
             break;
         }
         case kActIdentity:
-        case kActKaldiLstmClipping: {
-            int32_t x_lower = INT32_MIN;
-            int32_t x_upper = INT32_MAX;
-            int16_t y_lower = INT16_MIN;
-            int16_t y_upper = INT16_MAX;
+        case kActKaldiLstmClipping: {            
+            int64_t x_lower_scaled = l_bound * in_scale;
+            int64_t x_upper_scaled = u_bound * in_scale;
+            int32_t y_lower_scaled = l_bound * out_scale;
+            int32_t y_upper_scaled = u_bound * out_scale;
+            int32_t x_lower = x_lower_scaled;
+            int32_t x_upper = x_upper_scaled;
+            int16_t y_lower = y_lower_scaled;
+            int16_t y_upper = y_upper_scaled;
+            if (x_lower_scaled < INT32_MIN) {
+                x_lower = INT32_MIN;
+                y_lower_scaled = FLOAT_TO_INT32(x_lower / static_cast<double>(x_lower_scaled) * y_lower_scaled);
+                x_lower_scaled = x_lower;
+                y_lower = y_lower_scaled;
+            }
+
+            if (x_upper_scaled > INT32_MAX) {
+                x_upper = INT32_MAX;
+                y_upper_scaled = FLOAT_TO_INT32(x_upper / static_cast<double>(x_upper_scaled) * y_upper_scaled);
+                x_upper_scaled = x_upper;
+                y_upper = y_upper_scaled;
+            }
+
+            if (y_lower_scaled < INT16_MIN) {
+                y_lower = INT16_MIN;
+                x_lower_scaled = FLOAT_TO_INT32(y_lower / static_cast<double>(y_lower_scaled) * x_lower_scaled);
+                y_lower_scaled = y_lower;
+                x_lower = x_lower_scaled;
+            }
+
+            if (y_upper_scaled > INT16_MAX) {
+                y_upper = INT16_MAX;
+                x_upper_scaled = FLOAT_TO_INT32(y_upper / static_cast<double>(y_upper_scaled) * x_upper_scaled);
+                y_upper_scaled = y_upper;
+                x_upper = x_upper_scaled;
+            }
+
             auto n_segments = 2;
             if (fun == kActKaldiLstmClipping) {
                 gnalog()  << "=========================== Clipping Segments ===========================\n";
@@ -307,10 +352,6 @@ void make_gna_pwl(const DnnActivation  fun,
                 }
             } else if (fun == kActIdentity) {
                 gnalog() << "=========================== Identity Segments ===========================\n";
-                if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
-                if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
-                if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
-                if (y_upper > x_upper * out_scale / in_scale) y_upper = FLOAT_TO_INT16(x_upper * out_scale / in_scale);
             }
             gna_pwl.resize(n_segments);
             gna_pwl[0].xBase = INT32_MIN & XBASEMASK;  // zero out the 2 lsb
@@ -344,8 +385,8 @@ void make_gna_pwl(const DnnActivation  fun,
             break;
         }
         case kActAbs: {
-            int32_t x_upper = INT32_MAX;
-            int16_t y_upper = INT16_MAX;
+            int32_t x_upper = u_bound * in_scale;
+            int16_t y_upper = u_bound * out_scale;
             int32_t i = 0;
 
             auto n_segments = 2;

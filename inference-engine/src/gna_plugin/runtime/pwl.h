@@ -53,7 +53,7 @@ double first_deriv_sigmoid(const double x);
 double softsign(const double x);
 double sign(const double x);
 double first_deriv_softsign(const double x);
-double relu(const double x);
+double relu(const double x, const double negative_slope = 0.0);
 double leaky_relu(const double x);
 
 double clipping(const double x, const double lbound, const double ubound);
@@ -102,8 +102,12 @@ void PwlDesign16(const DnnActivation activation_type,
                  gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
-                 const float scale_out);
+                 const float scale_out,
+                 const float input_min,
+                 const float input_max);
 void PwlDesignOpt16(const DnnActivation activation_type,
                 std::vector<gna_pwl_segment_t> &ptr_segment,
                 const float scale_in,
-                const float scale_out);
+                const float scale_out,
+                const float input_min,
+                const float input_max);

@@ -24,6 +24,7 @@
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/common_optimizations/low_latency.hpp"
 #include "subgraph_tests/multiple_LSTMCell.hpp"
+#include "functional_test_utils/plugin_config.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string MultipleLSTMCellTest::getTestCaseName(const testing::TestParamInfo<multipleLSTMCellParams> &obj) {
@@ -442,6 +443,7 @@ void MultipleLSTMCellTest::RunLowLatency(bool regular_api) {
     if (regular_api) {
         cnnNetwork = InferenceEngine::CNNNetwork{function};
         InferenceEngine::LowLatency(cnnNetwork);
+        PreparePluginConfiguration(this);
         ConfigureNetwork();
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
     } else {

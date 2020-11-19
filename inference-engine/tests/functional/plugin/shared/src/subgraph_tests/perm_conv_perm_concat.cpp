@@ -88,32 +88,8 @@ void PermConvPermConcat::SetUp() {
     function = std::make_shared<ngraph::Function>(reshape_out, input_parameter, "perm_conv_perm_concat");
 }
 
-void PermConvPermConcat::Run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    LoadNetwork();
-
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-
-    for (const auto &input : cnnNetwork.getInputsInfo()) {
-        const auto &info = input.second;
-        auto tensorDesc = info->getTensorDesc();
-
-        auto blob = FuncTestUtils::createAndFillBlobFloat(tensorDesc, 2, -1, 100, 111);
-
-        FuncTestUtils::fillInputsBySinValues(blob);
-        inferRequest.SetBlob(info->name(), blob);
-        inputs.push_back(blob);
-    }
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        inferRequest.SetBatch(batchSize);
-    }
-    inferRequest.Infer();
-
-    Validate();
+InferenceEngine::Blob::Ptr PermConvPermConcat::GenerateInput(const InferenceEngine::InputInfo& info) const {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, -1, 100, 111);
 }
 
 TEST_P(PermConvPermConcat, CompareWithRefs) {

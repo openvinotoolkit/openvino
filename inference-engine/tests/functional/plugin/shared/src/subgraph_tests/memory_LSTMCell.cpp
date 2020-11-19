@@ -23,6 +23,7 @@
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/common_optimizations/low_latency.hpp"
 #include "subgraph_tests/memory_LSTMCell.hpp"
+#include "functional_test_utils/plugin_config.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -290,6 +291,7 @@ namespace SubgraphTestsDefinitions {
         if (regular_api) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
             InferenceEngine::LowLatency(cnnNetwork);
+            PreparePluginConfiguration(this);
             ConfigureNetwork();
             executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         } else {

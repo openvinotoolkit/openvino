@@ -28,7 +28,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 std::map<std::string, std::string> additional_config = {
     {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
     {"GNA_COMPACT_MODE", "NO"},
-    {"GNA_SCALE_FACTOR_0", "2048"},
     {"GNA_PRECISION", "I16"},
 };
 

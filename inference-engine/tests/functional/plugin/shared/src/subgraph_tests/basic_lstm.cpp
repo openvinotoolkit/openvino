@@ -21,6 +21,7 @@
 #include "subgraph_tests/basic_lstm.hpp"
 
 #include "ngraph_functions/builders.hpp"
+#include "functional_test_utils/plugin_config.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -204,9 +205,6 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
     }
     function->validate_nodes_and_infer_types();
 
-    // Calculate References for the network before transformation passes
-    auto referenceOutputs = CalculateRefs();
-
     // Apply LowLatency and UnrollTensorIterator transformations
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::LowLatency>(); // LowLatency enables UnrollTI
@@ -232,6 +230,10 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
     // Run and compare
     Infer();
     const auto& actualOutputs = GetOutputs();
+
+    // Calculate References for the network before transformation passes
+    auto referenceOutputs = CalculateRefs();
+
     Compare(referenceOutputs, actualOutputs);
 };
 }  // namespace LayerTestsDefinitions

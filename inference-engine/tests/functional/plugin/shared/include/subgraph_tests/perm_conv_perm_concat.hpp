@@ -28,9 +28,9 @@ class PermConvPermConcat : public testing::WithParamInterface<PermConvPermConcat
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PermConvPermConcatParams> obj);
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:
     void SetUp() override;
-    void Run() override;
 };
 }  // namespace SubgraphTestsDefinitions
