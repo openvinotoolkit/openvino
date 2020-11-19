@@ -31,7 +31,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
     }
 
     if (dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0).size() > 1ul) {
-        auto transposeConstant = [](
+        auto transposeDeqConstant = [](
             std::shared_ptr<Node> dequantizationConstant,
             const Shape& transposeOutputShape,
             const std::shared_ptr<Node>& transposeConstant) -> std::shared_ptr<Node> {
@@ -49,7 +49,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
         };
 
         if (dequantization.subtract != nullptr) {
-            auto constant = transposeConstant(
+            auto constant = transposeDeqConstant(
                 dequantization.subtract->get_input_node_shared_ptr(1),
                 transpose->get_output_shape(0),
                 transpose->get_input_node_shared_ptr(1));
@@ -61,7 +61,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
         }
 
         if (dequantization.multiply != nullptr) {
-            auto constant = transposeConstant(
+            auto constant = transposeDeqConstant(
                 dequantization.multiply->get_input_node_shared_ptr(1),
                 transpose->get_output_shape(0),
                 transpose->get_input_node_shared_ptr(1));
