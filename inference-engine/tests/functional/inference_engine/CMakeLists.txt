@@ -217,6 +217,5 @@ else()
     #                                          PLUGIN_API)
 endif()
 
-
 # ir serialization functional tests variables
 target_compile_definitions(${TARGET_NAME} PRIVATE IR_SERIALIZATION_MODELS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/ir_serialization/models/")
