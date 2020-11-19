@@ -70,6 +70,7 @@ private:
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
+protected:
     char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;

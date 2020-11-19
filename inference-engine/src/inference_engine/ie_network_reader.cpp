@@ -79,7 +79,7 @@ public:
         auto reader = getReaderPtr();
         return reader->read(model, exts);
     }
-    CNNNetwork read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const override {
+    CNNNetwork read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const override {
         auto reader = getReaderPtr();
         return reader->read(model, weights, exts);
     }
@@ -210,8 +210,19 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
                 if (!binStream.is_open())
                     THROW_IE_EXCEPTION << "Weights file " << bPath << " cannot be opened!";
 
+                binStream.seekg(0, std::ios::end);
+                size_t fileSize = binStream.tellg();
+                binStream.seekg(0, std::ios::beg);
+
+                Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, { fileSize }, C });
+                weights->allocate();
+
+                binStream.read(weights->buffer(), fileSize);
+
+                binStream.close();
+
                 // read model with weights
-                auto network = reader->read(modelStream, binStream, exts);
+                auto network = reader->read(modelStream, weights, exts);
                 modelStream.close();
                 return network;
             }
@@ -236,7 +247,7 @@ CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weig
         auto reader = it->second;
         if (reader->supportModel(modelStream)) {
             if (weights)
-                return reader->read(modelStream, binStream, exts);
+                return reader->read(modelStream, weights, exts);
             return reader->read(modelStream, exts);
         }
     }
