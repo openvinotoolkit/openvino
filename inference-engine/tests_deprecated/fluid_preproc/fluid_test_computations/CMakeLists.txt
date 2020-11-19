@@ -5,7 +5,7 @@
 file(GLOB SRC *.cpp)
 file(GLOB HDR *.hpp)
 
-add_library(fluid_test_computations SHARED ${SRC} ${HDR})
+add_library(fluid_test_computations ${SRC} ${HDR})
 
 # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
 if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND

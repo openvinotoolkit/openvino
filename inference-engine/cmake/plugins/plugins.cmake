@@ -52,7 +52,7 @@ function(ie_add_plugin)
         add_cpplint_target(${obj_lib}_cpplint FOR_TARGETS ${obj_lib})
     endforeach()
 
-    add_library(${IE_PLUGIN_NAME} SHARED ${input_files})
+    add_library(${IE_PLUGIN_NAME} ${input_files})
     target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
     ie_add_vs_version_file(NAME ${TARGET_NAME}
@@ -76,10 +76,11 @@ function(ie_add_plugin)
     add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
 
     # append plugin to the list to register
-
-    list(APPEND PLUGIN_FILES "${IE_PLUGIN_DEVICE_NAME}:${IE_PLUGIN_NAME}")
-    list(REMOVE_DUPLICATES PLUGIN_FILES)
-    set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
+    if (BUILD_SHARED_LIBS)
+        list(APPEND PLUGIN_FILES "${IE_PLUGIN_DEVICE_NAME}:${IE_PLUGIN_NAME}")
+        list(REMOVE_DUPLICATES PLUGIN_FILES)
+        set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
+    endif()
 
     add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
     if(TARGET inference_engine_preproc)

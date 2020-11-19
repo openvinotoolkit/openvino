@@ -51,7 +51,7 @@ set (SRC
 
 disable_deprecated_warnings()
 
-add_library(ngraph_backend SHARED ${SRC})
+add_library(ngraph_backend ${SRC})
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ngraph_backend

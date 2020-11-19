@@ -32,10 +32,14 @@
 #else
     #if defined(_WIN32)
         #define INFERENCE_ENGINE_C_API_CALLBACK __cdecl
-        #ifdef inference_engine_c_api_EXPORTS
-            #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN   __declspec(dllexport) __VA_ARGS__ __cdecl
+        #ifdef USE_STATIC_IE
+            #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__ __cdecl
         #else
-            #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN  __declspec(dllimport) __VA_ARGS__ __cdecl
+            #ifdef inference_engine_c_api_EXPORTS
+                #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN   __declspec(dllexport) __VA_ARGS__ __cdecl
+            #else
+                #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN  __declspec(dllimport) __VA_ARGS__ __cdecl
+            #endif
         #endif
         #define IE_NODISCARD
     #else

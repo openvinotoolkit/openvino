@@ -41,8 +41,8 @@ set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
-add_library(onnx_importer SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+# Create shared or static library
+add_library(onnx_importer ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
 if(COMMAND ie_add_vs_version_file)

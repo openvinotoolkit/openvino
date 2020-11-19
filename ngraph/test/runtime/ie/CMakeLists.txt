@@ -24,7 +24,7 @@ set(SRC
     ie_executable.hpp
 )
 
-add_library(ie_backend SHARED ${SRC})
+add_library(ie_backend ${SRC})
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ie_backend

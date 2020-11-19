@@ -11,7 +11,7 @@
     #define OPENCV_C_EXTERN
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ < 4)
+#if defined(__GNUC__) && (__GNUC__ < 4) || defined(USE_STATIC_IE)
     #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __VA_ARGS__
 #else
     #if defined(_WIN32)

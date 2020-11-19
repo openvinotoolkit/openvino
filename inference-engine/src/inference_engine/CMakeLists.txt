@@ -125,9 +125,9 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
-# Create shared library file from object library
+# Create static or shared library file from object library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME}
             ${IE_STATIC_DEPENDENT_FILES}
             ${LEGACY_LIBRARY_SHARED_SRCS}
             ${vs_version_file}
@@ -150,6 +150,10 @@ if(WIN32)
 endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
+
+if (NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PUBLIC USE_STATIC_IE)
+endif()
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)

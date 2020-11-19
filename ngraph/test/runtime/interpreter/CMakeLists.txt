@@ -15,7 +15,7 @@
 # ******************************************************************************
 
 if (NGRAPH_INTERPRETER_ENABLE)
-    add_library(interpreter_backend SHARED int_backend.cpp int_executable.cpp)
+    add_library(interpreter_backend int_backend.cpp int_executable.cpp)
 
     if(COMMAND ie_faster_build)
         ie_faster_build(interpreter_backend

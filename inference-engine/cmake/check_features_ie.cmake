@@ -36,4 +36,8 @@ if (ENABLE_SPEECH_DEMO)
     add_definitions(-DENABLE_SPEECH_DEMO)
 endif()
 
+if (NOT BUILD_SHARED_LIBS)
+    add_definitions(-DUSE_STATIC_IE)
+endif()
+
 print_enabled_features()
