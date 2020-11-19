@@ -11,6 +11,7 @@
 #include <utility>
 
 #include <inference_engine.hpp>
+#include <details/ie_mmap_allocator.hpp>
 #include <vpu/vpu_plugin_config.hpp>
 #include <cldnn/cldnn_config.hpp>
 #include <gna/gna_config.hpp>
@@ -325,7 +326,26 @@ int main(int argc, char *argv[]) {
             slog::info << "Loading network files" << slog::endl;
 
             auto startTime = Time::now();
-            CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
+
+            // Read XML file content into a string
+            std::ifstream xml_file(FLAGS_m);
+            std::string xml_content((std::istreambuf_iterator<char>(xml_file)), std::istreambuf_iterator<char>());
+
+            std::string bin_file = FLAGS_m.substr(0, FLAGS_m.find_last_of('.')) + ".bin";
+
+            // Get file size, size is needed to create a tensor descriptor
+            std::ifstream bin_stream(bin_file, std::ios::in);
+            bin_stream.seekg(0, std::ios::end);
+            size_t bin_size = bin_stream.tellg();
+            bin_stream.close();
+
+            // Create allocator and blob with model data
+            std::shared_ptr<IAllocator> mmap = details::make_mmap_allocator(bin_file);
+            TensorDesc bin_td(Precision::U8, { bin_size }, Layout::C);
+            Blob::Ptr bin_blob = make_shared_blob<uint8_t>(bin_td, mmap);
+            bin_blob->allocate();
+
+            CNNNetwork cnnNetwork = ie.ReadNetwork(xml_content, bin_blob);
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)

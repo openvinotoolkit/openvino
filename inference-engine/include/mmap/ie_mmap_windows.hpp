@@ -11,6 +11,7 @@
 
 #include "ie_immap.hpp"
 
+#ifdef _WIN32
 #include <windows.h>
 
 namespace InferenceEngine {
@@ -130,4 +131,17 @@ private:
     HANDLE _mapping = INVALID_HANDLE_VALUE;
 };
 
+/**
+ * @brief Creates a memory mapped file
+ * @param path Path to a file
+ * @param size Size to map, 0 to entire file size
+ * @param offset Offset from beggining of file to map
+ * @param lock Map mode
+ * @return A new Mmap
+ */
+
+std::shared_ptr<IMmap> make_mmap(const path_type& path, size_t size = 0, size_t offset = 0, LockOp lock = LOCK_FOR_READ) {
+    return shared_from_irelease(new MmapWindows(path, size, offset, lock));
+}
 }  // namespace InferenceEngine
+#endif

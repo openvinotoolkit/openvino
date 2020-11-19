@@ -11,6 +11,8 @@
 
 #include "ie_immap.hpp"
 
+#if defined(LINUX) || defined(__APPLE__)
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -125,3 +127,5 @@ std::shared_ptr<IMmap> make_mmap(const path_type& path, size_t size = 0, size_t 
     return shared_from_irelease(new MmapLinux(path, size, offset, lock));
 }
 }  // namespace InferenceEngine
+
+#endif
