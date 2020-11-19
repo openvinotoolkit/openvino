@@ -64,6 +64,8 @@ class UpsampleToResample(MiddleReplacementPattern):
             return
 
         depth_scale = None
+        layout = graph.graph['layout']
+
         if len(upsample.in_nodes()) == 2:
             if upsample.in_node(1).value is None:
                 return
@@ -72,10 +74,10 @@ class UpsampleToResample(MiddleReplacementPattern):
                 len(scales), upsample_name)
             if not (math.isclose(scales[0], 1, rel_tol=1e-5) and math.isclose(scales[1], 1, rel_tol=1e-5)):
                 return
-            height_scale = scales[2]
-            width_scale = scales[3]
+            height_scale = scales[get_height_dim(layout, input_shape_rank)]
+            width_scale = scales[get_width_dim(layout, input_shape_rank)]
             if len(scales) == 5:
-                depth_scale = scales[4]
+                depth_scale = scales[get_depth_dim(layout, input_shape_rank)]
         else:
             height_scale = upsample['height_scale']
             width_scale = upsample['width_scale']
