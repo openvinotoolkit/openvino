@@ -625,18 +625,17 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["flip"] = parseBoolStrToIntStr(res->params["flip"]);
         res->params["scale_all_sizes"] = parseBoolStrToIntStr(res->params["scale_all_sizes"]);
 
-        auto data_pshape = node->get_input_partial_shape(0);
-        if (data_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 0-port input of PriorBox is not supported";
-        auto data_shape = data_pshape.to_shape();
-        if (data_shape.size() != 4) THROW_IE_EXCEPTION << "PriorBox has " << data_shape.size() << " items in 0-port input, 4 expected";
-
-        auto img_pshape = node->get_input_partial_shape(1);
-        if (img_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 1-port input of PriorBox is not supported";
-        auto img_shape = img_pshape.to_shape();
-        if (img_shape.size() != 4) THROW_IE_EXCEPTION << "PriorBox has " << data_shape.size() << " items in 1-port input, 4 expected";
-
         auto scale_all_sizes = std::stoi(res->params["scale_all_sizes"]);
         if (!scale_all_sizes) {
+            auto data_pshape = node->get_input_partial_shape(0);
+            if (data_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 0-port input of PriorBox is not supported";
+            auto data_shape = data_pshape.to_shape();
+            if (data_shape.size() != 4) THROW_IE_EXCEPTION << "PriorBox has " << data_shape.size() << " items in 0-port input, 4 expected";
+            auto img_pshape = node->get_input_partial_shape(1);
+            if (img_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 1-port input of PriorBox is not supported";
+            auto img_shape = img_pshape.to_shape();
+            if (img_shape.size() != 4) THROW_IE_EXCEPTION << "PriorBox has " << data_shape.size() << " items in 1-port input, 4 expected";
+
             // mxnet-like PriorBox
             auto img_H = img_shape[2];
             auto data_H = data_shape[2];
@@ -653,6 +652,27 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 size = Builder::asString(std::stof(size) * img_H);
             }
             res->params["min_size"] = details::joinVec(min_size);
+        }
+        return res;
+    });
+
+    addSpecificCreator({"PriorBoxClusteredIE"},
+                       [](const std::shared_ptr<::ngraph::Node>& node,
+                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "PriorBoxClustered",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<CNNLayer>(attrs);
+        res->params = params;
+        if (res->params["clip"] == "true") {
+            res->params["clip"] = "1";
+        }
+        else if (res->params["clip"] == "false") {
+            res->params["clip"] = "0";
+        }
+        auto step_h = std::stof(res->params["step_h"]);
+        auto step_w = std::stof(res->params["step_w"]);
+        if (std::abs(step_h - step_w) < 1e-5) {
+            res->params["step"] = res->params["step_w"];
         }
         return res;
     });
@@ -1072,7 +1092,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::OneHotIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClusteredIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::RegionYolo>>(),

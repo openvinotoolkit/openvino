@@ -1173,50 +1173,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std:
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxClusteredIE>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "PriorBoxClustered",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::PriorBoxClusteredIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto attr = castedLayer->get_attrs();
-    std::string param;
-    for (const auto& val : attr.widths) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["width"] = param;
-
-    param.clear();
-    for (const auto& val : attr.heights) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["height"] = param;
-
-    param.clear();
-    for (const auto& val : attr.variances) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["variance"] = param;
-
-    if (std::abs(attr.step_heights - attr.step_widths) < 1e-5) {
-        res->params["step"] = asString(attr.step_widths);
-    } else {
-        res->params["step_w"] = asString(attr.step_widths);
-        res->params["step_h"] = asString(attr.step_heights);
-    }
-    res->params["offset"] = asString(attr.offset);
-    res->params["clip"] = asString(attr.clip ? 1 : 0);
-    res->params["flip"] = "1";
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::PowerIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Power",
                           details::convertPrecision(layer->get_output_element_type(0))};

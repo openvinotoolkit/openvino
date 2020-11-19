@@ -427,7 +427,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::NormalizeL2>>("NormalizeL2"),
         std::make_shared<LayerCreator<ngraph::op::v1::OneHot>>("OneHot"),
         std::make_shared<LayerCreator<ngraph::op::v1::Pad>>("Pad"),
-        std::make_shared<LayerCreator<ngraph::op::PriorBoxClustered>>("PriorBoxClustered"),
         std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo"),
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
         std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
@@ -765,34 +764,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::opset5::Loop>::cre
         const GenericLayerParams& layerParsePrms) {
     auto loop = std::make_shared<ngraph::opset5::Loop>(inputs[0], inputs[1]);
     return fillSubGraphLayer(inputs, node, binStream, layerParsePrms, loop);
-}
-
-// PriorBoxClustered layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PriorBoxClustered>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::PriorBoxClusteredAttrs attr;
-    attr.widths = getParameters<float>(dn, "width");
-    attr.heights = getParameters<float>(dn, "height");
-    attr.variances = getParameters<float>(dn, "variance");
-    attr.offset = GetFloatAttr(dn, "offset");
-    float step = GetFloatAttr(dn, "step", 0);
-    attr.step_heights = GetFloatAttr(dn, "step_h", step);
-    attr.step_widths = GetFloatAttr(dn, "step_w", step);
-    if (step != 0) {
-        attr.step_heights = step;
-        attr.step_widths = step;
-    }
-    attr.clip = (GetIntAttr(dn, "clip") != 0);
-
-    return std::make_shared<ngraph::op::PriorBoxClustered>(inputs[0], inputs[1], attr);
 }
 
 // FakeQuantize layer
