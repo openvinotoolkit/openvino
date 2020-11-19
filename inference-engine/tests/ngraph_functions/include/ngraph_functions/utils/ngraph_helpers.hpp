@@ -189,8 +189,18 @@ enum class TensorIteratorBody {
     // CNN todo: implement
 };
 
+enum class SequenceTestsMode {
+    PURE_SEQ,
+    CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
+    CONVERT_TO_TI_MAX_SEQ_LEN_PARAM,
+    CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
+    CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
+};
+
 std::ostream &operator<<(std::ostream &os, const ReductionType &m);
 std::ostream &operator<<(std::ostream &os, const PadMode &m);
+
+bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func);
 
 inline std::string quantizationGranularityToString(const QuantizationGranularity &granularity) {
     static std::map<QuantizationGranularity, std::string> names = {
@@ -222,7 +232,7 @@ inline ngraph::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
                                                            const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           std::vector<ngraph::element::Type_t> convertType = {});
+                                                           const std::vector<ngraph::element::Type_t> convertType = {});
 
 //
 // This function compares two nGraph functions and requires them to have exactly one output
@@ -266,6 +276,8 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Nearest
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCalcMode type);
 
 std::ostream& operator<<(std::ostream & os, TensorIteratorBody type);
+
+std::ostream& operator<<(std::ostream & os, SequenceTestsMode type);
 
 }  // namespace helpers
 }  // namespace ngraph

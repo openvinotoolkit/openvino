@@ -9,6 +9,7 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/specialize_function.hpp>
 
@@ -76,7 +77,7 @@ OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &node
 }
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           std::vector<ngraph::element::Type_t> convertType) {
+                                                           const std::vector<ngraph::element::Type_t> convertType) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -253,6 +254,17 @@ std::vector<std::uint8_t> convertPrecision(std::vector<std::uint8_t> &buffer, co
     for (size_t i = 0; i < elementsCount; i++)
         dst[i] = static_cast<toPrec>(src[i]);
     return convertedData;
+}
+
+bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func) {
+    const auto& ops = func->get_ops();
+    for (const auto& node : ops) {
+        const auto& ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(node);
+        if (ti) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &output, const element::Type_t &fromPrecision, const element::Type_t &toPrecision,
@@ -742,6 +754,29 @@ std::ostream& operator<<(std::ostream & os, TensorIteratorBody type) {
             break;
         case TensorIteratorBody::GRU:
             os << "GRU";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, SequenceTestsMode type) {
+    switch (type) {
+        case SequenceTestsMode::PURE_SEQ:
+            os << "PURE_SEQ";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM:
+            os << "CONVERT_TO_TI_RAND_SEQ_LEN_PARAM";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST:
+            os << "CONVERT_TO_TI_RAND_SEQ_LEN_CONST";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM:
+            os << "CONVERT_TO_TI_MAX_SEQ_LEN_PARAM";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST:
+            os << "CONVERT_TO_TI_MAX_SEQ_LEN_CONST";
             break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");

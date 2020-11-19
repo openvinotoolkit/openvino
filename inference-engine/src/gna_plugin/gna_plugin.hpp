@@ -84,7 +84,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
-    std::vector<InferenceEngine::MemoryStateInternal::Ptr> memoryStates;
+    std::vector<InferenceEngine::VariableStateInternal::Ptr> memoryStates;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);
@@ -123,7 +123,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext() override { THROW_GNA_EXCEPTION << "Not implemented"; }
+    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const InferenceEngine::ParamMap&) override { THROW_GNA_EXCEPTION << "Not implemented"; }
 
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
@@ -159,7 +159,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      * QueryState API
      * @return
      */
-     std::vector<InferenceEngine::IMemoryStateInternal::Ptr>  QueryState();
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState();
 
      /**
       * test-wise API
