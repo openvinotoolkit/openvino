@@ -80,24 +80,28 @@ struct CPUStreamsExecutor::Impl {
                     _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{big_cores, concurrency}});
                 } else {
                     // throughput case on a single-NUMA node machine uses all available cores
-                    const int total_concurrency = std::accumulate(core_types.begin(), core_types.end(),
-                        0, [](int sum, const auto& type) {return sum + oneapi::tbb::info::default_concurrency(type); });
-                    printf("total_concurrency reported by TBB %d \n", total_concurrency);
-                    // wrap around total_concurrency
-                    const int max_thread_id = (_streamId + 1)* _impl->_config._threadsPerStream;
-                    const int max_thread_id_wrapped = ((max_thread_id -1) % total_concurrency) + 1;
+                    std::map<oneapi::tbb::core_type_id, int> streams_per_core_types;
+                    for (auto iter = core_types.begin(); iter < core_types.end(); iter++) {
+                        const auto& type = *iter;
+                        streams_per_core_types[type] = std::max(1, oneapi::tbb::info::default_concurrency(type) / _impl->_config._threadsPerStream);
+                    }
+                    const int total_streams = std::accumulate(streams_per_core_types.begin(), streams_per_core_types.end(),
+                        0, [](int sum, const auto& type) {return sum + type.second; });
+                    printf("total_concurrency (in streams) %d \n", total_streams);
+
+                    // wrap around total_streams
+                    const int _streamId_wrapped = _streamId % total_streams;
                     int sum = 0;
                     // reversed order (so the big cores are populated first)
                     for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
                         const auto type = *iter;
-                        const auto concurrency = oneapi::tbb::info::default_concurrency(type);
-                        sum += concurrency;
-                        printf("%s THROUGHPUT CASE, StreamId: %d max thread id needed: %d (wrapped %d), current sum: %d) \n",
-                            _impl->_config._name.c_str(), _streamId, max_thread_id, max_thread_id_wrapped, sum);
-                        if (max_thread_id_wrapped <= sum) {
-                            printf("%s THROUGHPUT CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
-                                _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
-                                static_cast<int>(type), concurrency);
+                        const int concurrency_in_streams = streams_per_core_types[type];
+                        sum += concurrency_in_streams;
+                        printf("%s THROUGHPUT CASE, StreamId: %d (wrapped %d), current sum: %d) \n",
+                            _impl->_config._name.c_str(), _streamId, _streamId_wrapped, sum);
+                        if (_streamId_wrapped < sum) {
+                            printf("%s THROUGHPUT CASE, StreamId: %d assigned CORE TYPE : %d (CONCURRENCY in streams: %d) \n",
+                                _impl->_config._name.c_str(), _streamId, static_cast<int>(type), concurrency_in_streams);
                             _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{type, _impl->_config._threadsPerStream} });
                             break;
                         }
