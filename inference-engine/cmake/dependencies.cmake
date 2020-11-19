@@ -133,9 +133,17 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT)
 
     if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
+        ## pre-production package for hybrid support (windows only)
         if (WIN32 AND X86_64)
-            #TODO: add target_path to be platform specific as well, to avoid following if
-            RESOLVE_DEPENDENCY(TBB
+            if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+                set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+            elseif(DEFINED THIRDPARTY_SERVER_PATH)
+                set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+            else()
+                message(FATAL_ERROR "THIRDPARTY_SERVER_PATH is not set (env or cmake cmd-line define). Pre-production TBB cannot be loaded. Aborting...")
+            endif()
+            message(STATUS "THIRDPARTY_SERVER_PATH=${IE_PATH_TO_DEPS}")
+     	RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_WIN "oneapi-tbb-2021.1-hybrid-cpu-v01.zip"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
