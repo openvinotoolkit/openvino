@@ -74,6 +74,11 @@ file (GLOB_RECURSE PUBLIC_HEADERS
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
+if(ENABLE_V10_SERIALIZE)
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp"
+        PROPERTIES COMPILE_DEFINITIONS ENABLE_V10_SERIALIZE)
+endif()
+
 # Plugin API library
 
 add_library(${TARGET_NAME}_plugin_api INTERFACE)

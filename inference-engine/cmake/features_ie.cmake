@@ -98,6 +98,8 @@ ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
 
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 
+ie_option (ENABLE_V10_SERIALIZE "enables experimental serialization to IR v10" OFF)
+
 ie_option (ENABLE_JAVA "enables ie java bridge build" OFF)
 
 ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)

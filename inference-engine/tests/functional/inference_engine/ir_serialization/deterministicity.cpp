@@ -5,6 +5,7 @@
 #include <fstream>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include <functional_test_utils/skip_tests_config.hpp>
 #include "gtest/gtest.h"
 #include "ie_core.hpp"
 
@@ -47,6 +48,7 @@ protected:
 };
 
 TEST_F(SerializationDeterministicityTest, BasicModel) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.prototxt";
 
     InferenceEngine::Core ie;
@@ -64,6 +66,7 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.xml";
     const std::string weights =
@@ -84,6 +87,7 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "addmul_abc.prototxt";
 
@@ -102,6 +106,7 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.xml";
     const std::string weights =
