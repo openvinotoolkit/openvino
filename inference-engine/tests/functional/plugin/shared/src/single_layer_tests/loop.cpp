@@ -458,4 +458,77 @@ namespace LayerTestsDefinitions {
 
         Run();
     }
+
+    TEST_P(TrivialLoopTest, AutoSlicingInputWithDynCondition) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        InferenceEngine::Precision iePrc;
+        InferenceEngine::SizeVector ieShape;
+        std::tie(iePrc, ieShape, targetDevice) = GetParam();
+
+        // auto slicing size : 5
+        // trip count limit  : 4
+        // dyn exit on iter  : 3
+        // ---------------------
+        //   should exit on  : 3
+        const size_t batch_size = 5;
+        const size_t trip_count = 5;
+        const size_t num_iteration = 3;
+
+        ieShape[0] = 1;
+        auto ieShape_to_slice = ieShape;
+        ieShape_to_slice[0] = batch_size;
+
+        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
+        const auto scalarShape = ngraph::Shape{};
+
+        auto shape = ngraph::Shape{ieShape};
+        auto to_slice_shape = ngraph::Shape{ieShape};
+        to_slice_shape[0] = batch_size;
+
+        auto to_slice = std::make_shared<ngraph::op::Parameter>(prc, to_slice_shape);
+        auto start = std::make_shared<ngraph::op::Constant>(prc, shape, 0);
+        auto exit_on = std::make_shared<ngraph::op::Constant>(prc, shape, num_iteration);
+        auto count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, scalarShape, trip_count);
+        auto icond = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, scalarShape, true);
+
+        // Loop body
+        auto b_data = std::make_shared<ngraph::op::Parameter>(prc, shape);
+        auto b_recu = std::make_shared<ngraph::op::Parameter>(prc, shape);
+        auto b_add  = std::make_shared<ngraph::op::Add>(b_data, b_recu);
+        auto b_iter = std::make_shared<ngraph::op::Parameter>(ngraph::element::i64, scalarShape);
+        auto b_exit_on = std::make_shared<ngraph::op::Parameter>(prc, shape);
+        auto b_cond = std::make_shared<ngraph::op::Less>(b_iter, b_exit_on);
+
+        auto body = std::make_shared<ngraph::Function>(
+                ngraph::OutputVector    {b_cond, b_add},
+                ngraph::ParameterVector {b_data, b_recu, b_iter});
+
+        auto loop = std::make_shared<ngraph::opset5::Loop>(count, icond);
+        loop->set_function(body);
+        loop->set_special_body_ports({2, 0});
+        loop->set_sliced_input(b_data, to_slice, 0, 1, 1, -1, 0);
+        loop->set_invariant_input(b_exit_on, exit_on);
+        loop->set_merged_input(b_recu, start, b_add);
+        loop->get_iter_value(b_add, -1);
+
+        function = std::make_shared<ngraph::Function>(
+                ngraph::OutputVector    {loop},
+                ngraph::ParameterVector {to_slice});
+
+        // Precalculated ref blobs
+        auto blob = make_blob_with_precision({iePrc, ieShape_to_slice, InferenceEngine::TensorDesc::getLayoutByDims(ieShape_to_slice)});
+        blob->allocate();
+        std::vector<float> seq_raw_data(batch_size);
+        std::iota(seq_raw_data.begin(), seq_raw_data.end(), 1);
+        CommonTestUtils::fill_data_with_broadcast(blob, 0, seq_raw_data);
+
+        auto blob_ref = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
+        blob_ref->allocate();
+        CommonTestUtils::fill_data_with_broadcast(blob_ref, 0, { num_iteration * (num_iteration + 1) / 2});
+
+        inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
+        outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob_ref; };
+
+        Run();
+    }
 }  // namespace LayerTestsDefinitions
