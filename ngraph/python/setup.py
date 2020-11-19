@@ -98,7 +98,7 @@ class BuildCMakeExt(build_ext):
         self.announce("Configuring cmake project", level=3)
 
         self.spawn(["cmake", "-H" + OPENVINO_ROOT_DIR, "-B" + self.build_temp,
-                    "-DCMAKE_BUILD_TYPE=Release",
+                    "-DCMAKE_BUILD_TYPE={}".format(self.config),
                     "-DENABLE_CLDNN=OFF",
                     "-DENABLE_OPENCV=OFF",
                     "-DENABLE_VPU=OFF",
@@ -142,7 +142,7 @@ class InstallCMakeLibs(install_lib):
         libs = []
         for ngraph_lib in NGRAPH_LIBS:
             libs.extend([name for name in
-                         glob.iglob('{0}/**/*{1}{2}'.format(bin_dir, ngraph_lib, lib_ext), recursive=True)])
+                         glob.iglob('{0}/**/*{1}*{2}'.format(bin_dir, ngraph_lib, lib_ext), recursive=True)])
         self.distribution.data_files.extend([("lib", [os.path.normpath(os.path.join(bin_dir, lib)) for lib in libs])])
         self.distribution.run_command("install_data")
         super().run()

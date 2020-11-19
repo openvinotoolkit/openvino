@@ -47,7 +47,7 @@ else()
     message(FATAL_ERROR "Python was not found!")
 endif()
 
-if(UNIX)
+if(CMAKE_COMPILER_IS_GNUCXX)
     add_compile_options(-fPIC)
 endif()
 
@@ -55,7 +55,7 @@ if (APPLE)
     add_link_options(-stdlib=libc++)
 endif()
 
-if (MSVC)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     #disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996) 
 endif()
