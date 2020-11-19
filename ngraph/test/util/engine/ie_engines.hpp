@@ -104,12 +104,7 @@ namespace ngraph
 
                     // determine output name in IE convention
                     // (based on name of node which produces the result)
-                    const auto& prev_layer = function_output->input_value(0);
-                    network_out_name = prev_layer.get_node_shared_ptr()->get_friendly_name();
-                    if (prev_layer.get_node_shared_ptr()->get_output_size() != 1)
-                    {
-                        network_out_name += "." + std::to_string(prev_layer.get_index());
-                    }
+                    network_out_name = function_output->get_friendly_name();
 
                     NGRAPH_CHECK(
                         m_network_outputs.count(network_out_name) == 1,

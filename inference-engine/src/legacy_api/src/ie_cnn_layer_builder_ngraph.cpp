@@ -170,19 +170,9 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
             temp_body.inputs[counter++] = info->getInputData();
         }
 
-        auto map_ng_result_to_ie_name = [] (std::shared_ptr<ngraph::op::v0::Result> res_op) {
-            auto result = res_op->input(0).get_source_output();
-
-            std::string name = result.get_node()->get_friendly_name();
-            if (result.get_node()->get_output_size() > 1) {
-                name += "." + std::to_string(result.get_index());
-            }
-            return name;
-        };
-
         counter = 0;
         for (const auto& result : results) {
-            auto data = out_info_map.at(map_ng_result_to_ie_name(result));
+            auto data = out_info_map.at(result->get_friendly_name());
             temp_body.outputs[counter++] = data;
         }
 
