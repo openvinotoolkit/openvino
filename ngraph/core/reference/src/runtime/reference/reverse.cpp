@@ -39,8 +39,14 @@ namespace ngraph
             {
                 NGRAPH_CHECK(shape_size(arg_shape) == shape_size(out_shape));
 
-                auto dst_mem = out;
+                const bool nothing_to_revers = reversed_axes.empty();
+                if (nothing_to_revers)
+                {
+                    std::memcpy(out, arg, shape_size(arg_shape) * elem_size);
+                    return;
+                }
 
+                auto dst_mem = out;
                 for (const auto& in_coord : coordinates::reverse(arg_shape, reversed_axes))
                 {
                     const auto src_index = in_coord.index();
