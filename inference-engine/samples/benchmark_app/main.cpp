@@ -48,6 +48,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     }
 
     if (FLAGS_m.empty()) {
+        showUsage();
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
