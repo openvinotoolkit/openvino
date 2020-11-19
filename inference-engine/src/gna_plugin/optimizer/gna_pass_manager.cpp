@@ -823,7 +823,7 @@ void InsertCopyLayerPass::run() {
                 // Crop -> Concat case
                 InsertCopyLayer(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), this->getPassManager(), CopyLayerName);
             }
-        } 
+        }
 
         // Layer -> multiple concat/memory case
         for (auto output : l->outData) {
