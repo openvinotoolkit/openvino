@@ -56,19 +56,28 @@ namespace ngraph
                 const Shape batch_shape(begin(params_shape), next(begin(params_shape), batch_dims));
                 const auto batch_size = shape_size(batch_shape);
 
-                // out_shape should have on first dim multiplication of batch number of first
-                // dimensions of shape
-                assert(!batch_dims || batch_size == out_shape.front());
+                if (batch_dims && batch_size != out_shape.front())
+                {
+                    throw std::domain_error{
+                        "out_shape should have on first dim multiplication of batch number of first"
+                        "dimensions of shape "};
+                }
 
-                // dimensions in params and indices have to be equal on batch dimensions
-                assert(std::equal(begin(params_shape),
-                                  next(begin(params_shape), batch_dims),
-                                  begin(indices_shape)));
+                if (!std::equal(begin(params_shape),
+                                next(begin(params_shape), batch_dims),
+                                begin(indices_shape)))
+                {
+                    throw std::domain_error{
+                        "dimensions in params and indices have to be equal on batch dimensions"};
+                }
 
                 const auto first_slice_index_in_params = batch_dims + indices_shape.back();
 
-                // params_shape should have enough rank to be index by indices
-                assert(first_slice_index_in_params <= params_shape.size());
+                if (!(first_slice_index_in_params <= params_shape.size()))
+                {
+                    throw std::domain_error{
+                        "params_shape should have enough rank to be index by indices"};
+                }
 
                 const auto slice_shape = Shape(
                     next(begin(params_shape), first_slice_index_in_params), end(params_shape));
@@ -88,6 +97,7 @@ namespace ngraph
                     return offsets;
                 }();
 
+                // algo sanity check - we need element offset in params for each axes
                 assert(indices_shape.back() == indices_offsets.size());
 
                 const auto batch_offset = indices_offsets.front() * params_shape[batch_dims];
@@ -102,28 +112,29 @@ namespace ngraph
 
                 const auto coordinates_size = indices_shape.back();
 
-                for (size_t b = 0; b != batch_size; ++b)
+                for (size_t batch = 0; batch != batch_size; ++batch)
                 {
-                    const auto input_batch_offset = b * batch_offset;
+                    const auto input_batch_offset = batch * batch_offset;
                     const auto output_batch_offset =
-                        b * number_of_slices_to_copy_in_one_batch * slice_size;
+                        batch * number_of_slices_to_copy_in_one_batch * slice_size;
                     const auto coordinates_batch_offset =
-                        b * number_of_slices_to_copy_in_one_batch * coordinates_size;
-                    for (size_t i = 0; i != number_of_slices_to_copy_in_one_batch; ++i)
+                        batch * number_of_slices_to_copy_in_one_batch * coordinates_size;
+                    for (size_t slice = 0; slice != number_of_slices_to_copy_in_one_batch; ++slice)
                     {
-                        const auto coordinates =
-                            indices + coordinates_batch_offset + i * coordinates_size;
+                        const auto slice_coordinates =
+                            next(indices, coordinates_batch_offset + slice * coordinates_size);
 
-                        size_t mem = input_batch_offset;
+                        size_t input_slice_offset = input_batch_offset;
                         for (size_t c = 0; c != coordinates_size; ++c)
                         {
-                            const auto i_c = coordinates[c];
+                            const auto i_c = slice_coordinates[c];
                             const auto index = i_c < 0 ? k_1_params[c] + i_c : i_c;
-                            mem += index * indices_offsets[c];
+                            input_slice_offset += index * indices_offsets[c];
                         }
-                        std::copy(next(params, mem),
-                                  next(params, mem + slice_size),
-                                  next(out, output_batch_offset + i * slice_size));
+                        const auto output_slice_offset = output_batch_offset + slice * slice_size;
+                        std::copy(next(params, input_slice_offset),
+                                  next(params, input_slice_offset + slice_size),
+                                  next(out, output_slice_offset));
                     }
                 }
             }

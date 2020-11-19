@@ -396,14 +396,6 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d_negative)
     EXPECT_TRUE(test::all_close_f((vector<float>{1.2f, 1.3f, 2.0f, 2.1f, 1.0f, 1.1f, 2.2f, 2.3f}),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
-
-    auto G5 = make_shared<op::v5::GatherND>(P, I);
-    auto f5 = make_shared<Function>(G5, ParameterVector{P, I});
-    auto c5 = backend->compile(f5);
-    c5->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1.2f, 1.3f, 2.0f, 2.1f, 1.0f, 1.1f, 2.2f, 2.3f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_2d_from_3d)
