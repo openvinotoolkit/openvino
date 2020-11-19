@@ -1487,7 +1487,7 @@ NGRAPH_TEST(${BACKEND_NAME}, unsqueeze)
     auto data_node = make_shared<op::Parameter>(element::f32, Shape{4, 2});
     auto axes_node =
         make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
-    auto squeeze = make_shared<op::Unsqueeze>(data_node, axes_node);
+    auto squeeze = make_shared<op::v0::Unsqueeze>(data_node, axes_node);
 
     auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
     auto test_case = test::TestCase<TestEngine>(function);
@@ -1625,42 +1625,6 @@ NGRAPH_TEST(${BACKEND_NAME}, squared_difference_broadcast)
     test_case.add_input<int32_t>({1});
 
     test_case.add_expected_output<int32_t>(Shape{2, 2}, {0, 0, 0, 0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, split_3_equal_parts)
-{
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{6});
-    const auto axis = op::Constant::create(element::i64, Shape{}, {0});
-
-    const auto tested_op = make_shared<op::Split>(data, axis, 3);
-    const auto function = make_shared<Function>(tested_op->decompose_op(), ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<int32_t>({1, 2, 3, 4, 5, 6});
-
-    test_case.add_expected_output<int32_t>(Shape{2}, {1, 2});
-    test_case.add_expected_output<int32_t>(Shape{2}, {3, 4});
-    test_case.add_expected_output<int32_t>(Shape{2}, {5, 6});
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, split_var_len_parts)
-{
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-
-    const std::vector<size_t> splits = {2, 4};
-    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    const auto tested_op = make_shared<op::Split>(data, axis, splits);
-    const auto function = make_shared<Function>(tested_op->decompose_op(), ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<int32_t>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
-
-    test_case.add_expected_output<int32_t>(Shape{2, 2}, {0, 1, 6, 7});
-    test_case.add_expected_output<int32_t>(Shape{2, 4}, {2, 3, 4, 5, 8, 9, 10, 11});
-
     test_case.run();
 }
 

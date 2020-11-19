@@ -18,6 +18,7 @@
 #include <set>
 
 #include "itt.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/unsqueeze.hpp"
@@ -28,17 +29,15 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 NGRAPH_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
 
-op::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
-    : FusedOp({data, axes})
+op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
+    : Op({data, axes})
 {
     constructor_validate_and_infer_types();
 }
 
-void op::Unsqueeze::pre_validate_and_infer_types()
+void op::v0::Unsqueeze::validate_and_infer_types()
 {
     const auto data = input_value(0);
     auto data_partial_shape = data.get_partial_shape();
@@ -78,25 +77,12 @@ void op::Unsqueeze::pre_validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
 }
 
-OutputVector op::Unsqueeze::decompose_op() const
-{
-    NODE_VALIDATION_CHECK(
-        this,
-        (get_output_partial_shape(0).is_static()),
-        "output shape was not calculated during pre_validate_and_infer_types. Can not decompose.");
-    auto data = input_value(0);
-    auto data_shape = data.get_shape();
-    auto output_shape = get_output_shape(0);
-    AxisVector input_order{ngraph::get_default_order(data_shape.size())};
-    return {make_shared<ngraph::op::Reshape>(data, input_order, output_shape)};
-}
-
-bool ngraph::op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
 {
     return true;
 }
 
-shared_ptr<Node> op::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
 {
     if (new_args.size() != 2)
     {

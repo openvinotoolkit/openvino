@@ -14,8 +14,6 @@
 # limitations under the License.
 # ******************************************************************************
 
-set(LIBRARY_TYPE SHARED)
-
 set(SRC
     ie_backend.cpp
     ie_backend.hpp
@@ -26,12 +24,17 @@ set(SRC
     ie_executable.hpp
 )
 
-add_library(ie_backend ${LIBRARY_TYPE} ${SRC})
+add_library(ie_backend SHARED ${SRC})
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ie_backend
         UNITY
     )
+endif()
+
+if(COMMAND ie_add_vs_version_file)
+    ie_add_vs_version_file(NAME ie_backend
+                           FILEDESCRIPTION "nGraph IE backend library")
 endif()
 
 add_dependencies(ie_backend inference_engine)
