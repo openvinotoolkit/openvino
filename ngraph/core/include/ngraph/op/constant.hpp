@@ -24,6 +24,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/shared_buffer.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
@@ -232,6 +233,22 @@ namespace ngraph
                 /// \param shape The shape of the tensor constant.
                 /// \param data A void* to constant data.
                 Constant(const element::Type& type, const Shape& shape, const void* data);
+
+                /// \brief Constructs a tensor constant with the supplied data
+                ///
+                /// \param type The element type of the tensor constant.
+                /// \param shape The shape of the tensor constant.
+                /// \param data A pointer to pre-allocated shared data.
+                template <typename T>
+                Constant(const element::Type& type,
+                         const Shape& shape,
+                         std::shared_ptr<runtime::SharedBuffer<T>> data)
+                    : m_element_type(type)
+                    , m_shape(shape)
+                {
+                    m_data = data;
+                    constructor_validate_and_infer_types();
+                }
 
                 Constant(const Constant& other);
                 Constant& operator=(const Constant&) = delete;
