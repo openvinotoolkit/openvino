@@ -932,17 +932,19 @@ def parse_tuple_pairs(argv_values: str):
         name_start_idx = match.end(0) + 1
         tuple_value = np.fromstring(match.groups()[0], dtype=float, sep=',')
 
-        if idx != 0 and name_was_present ^ bool(input_name):
+        if idx != 0 and (name_was_present ^ bool(input_name)):
             # if node name firstly was specified and then subsequently not or vice versa
             # e.g. (255),input[127] or input(255),[127]
             raise Error(error_msg, argv_values)
 
-        name_was_present = True if input_name else False
+        name_was_present = True if input_name != "" else False
         if name_was_present:
             res[input_name] = tuple_value
         else:
             res[idx] = tuple_value
+
     if not name_was_present:
+        # return a list instead of a dictionary
         res = sorted(res.values(), key=lambda v: v[0])
     return res
 
