@@ -10,7 +10,7 @@ file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "MULTI"
               SOURCES ${SOURCES} ${HEADERS}
-              VERSION_DEFINES_FOR multi_device.cpp)
+              VERSION_DEFINES_FOR multi_device_plugin.cpp)
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy inference_engine)
 
