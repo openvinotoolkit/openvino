@@ -182,7 +182,7 @@ private:
 
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
-        explicit XmlDeserializer(const pugi::xml_node& node, std::istream& binData): node(node), binData(binData) {}
+        explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights): node(node), weights(weights) {}
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -279,8 +279,7 @@ private:
 
                 ngraph::element::Type el_type = details::convertPrecision(el_type_str);
 
-                binData.seekg(0, std::ios::end);
-                std::streampos length = binData.tellg();
+                size_t length = weights->byteSize();
                 if (!length)
                     THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
                 if (length < offset + size)
@@ -289,8 +288,9 @@ private:
                     THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
 
                 auto data = static_cast<char*>(adapter.get_ptr());
-                binData.seekg(offset, std::ios::beg);
-                binData.read(data, size);
+                char* weights_data = weights->cbuffer().as<char*>() + offset;
+
+                std::memcpy(data, weights_data, size);
             }
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
@@ -322,7 +322,7 @@ private:
 
     private:
         const pugi::xml_node node;
-        std::istream& binData;
+        const Blob::CPtr& weights;
 
         bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
             if (!node) return false;
