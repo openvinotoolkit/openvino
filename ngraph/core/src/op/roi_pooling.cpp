@@ -54,18 +54,24 @@ void op::ROIPooling::validate_and_infer_types()
         " and: ",
         coords_et);
 
+    NODE_VALIDATION_CHECK(
+        this,
+        m_spatial_scale > 0,
+        "The spatial scale attribute should be a positive floating point number. Got: ",
+        m_spatial_scale);
+
     if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
     {
         Shape input_shape = get_input_partial_shape(0).to_shape();
         Shape coords_shape = get_input_partial_shape(1).to_shape();
         NODE_VALIDATION_CHECK(this,
                               input_shape.size() == 4,
-                              "ROIPooling expects 4 dimensions for feature maps input. Got ",
+                              "ROIPooling expects 4 dimensions for feature maps input. Got: ",
                               input_shape.size());
 
         NODE_VALIDATION_CHECK(this,
                               coords_shape.size() == 2,
-                              "ROIPooling expects 2 dimensions for box coordinates. Got ",
+                              "ROIPooling expects 2 dimensions for box coordinates. Got: ",
                               coords_shape.size());
 
         const auto coords_second_dim = coords_shape[1];
@@ -82,6 +88,15 @@ void op::ROIPooling::validate_and_infer_types()
                               input_shape.size() - 2,
                               " doesn't match dimensions on requested output_size: ",
                               m_output_size.size());
+
+        NODE_VALIDATION_CHECK(this,
+                              coords_shape[0] > 0 && coords_shape[1] > 0,
+                              "Pooled size attributes pooled_h and pooled_w should should be "
+                              "non-negative integers. Got: ",
+                              coords_shape[0],
+                              " and: ",
+                              coords_shape[1],
+                              "respectively");
 
         Shape output_shape{coords_shape[0], input_shape[1]};
         output_shape.insert(output_shape.end(), m_output_size.begin(), m_output_size.end());
