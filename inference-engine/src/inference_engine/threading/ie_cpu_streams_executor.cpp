@@ -85,7 +85,7 @@ struct CPUStreamsExecutor::Impl {
                     printf("total_concurrency reported by TBB %d \n", total_concurrency);
                     // wrap around total_concurrency
                     const int max_thread_id = (_streamId + 1)* _impl->_config._threadsPerStream;
-                    const int max_thread_id_wrapped = max_thread_id > total_concurrency ? max_thread_id % total_concurrency : max_thread_id;
+                    const int max_thread_id_wrapped = ((max_thread_id -1) % total_concurrency) + 1;
                     int sum = 0;
                     // reversed order (so the big cores are populated first)
                     for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
