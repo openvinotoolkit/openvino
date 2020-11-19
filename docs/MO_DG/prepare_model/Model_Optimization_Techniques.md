@@ -40,7 +40,7 @@ On the picture below, you can see the original and optimized parts of a Caffe Re
 
 ![ResNet50 blocks (original and optimized) from Netscope*](../img/optimizations/resnet_optimization.png)
 
-In this example, the stride from the res3a_branch1 and `res3a_branch2a` Convolution layers moves to the `res2c_branch2b` Convolution layer. Also to align the input shape for `res2c` Eltwise, the optimization inserts the Pooling layer with kernel size = 1 and stride = 2.
+In this example, the stride from the `res3a_branch1` and `res3a_branch2a` Convolution layers moves to the `res2c_branch2b` Convolution layer. Also to align the input shape for `res2c` Eltwise, the optimization inserts the Pooling layer with kernel size = 1 and stride = 2.
 
 * * *
 
