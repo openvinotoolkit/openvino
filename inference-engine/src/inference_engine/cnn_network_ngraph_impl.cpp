@@ -408,6 +408,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            ResponseDesc* resp) const noexcept {
     try {
         bool isExecutionGraph = true;
+#if !defined(ENABLE_V10_SERIALIZE)
         for (const auto & op : _ngraph_function->get_ops()) {
             auto & rtInfo = op->get_rt_info();
             if (rtInfo.find(ExecGraphInfoSerialization::PERF_COUNTER) == rtInfo.end()) {
@@ -415,6 +416,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                 break;
             }
         }
+#endif
         if (isExecutionGraph) {
             std::map<std::string, ngraph::OpSet> custom_opsets;
             for (const auto& extension : _ie_extensions) {

@@ -11,6 +11,7 @@
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
+#include <functional_test_utils/skip_tests_config.hpp>
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
 #define IR_SERIALIZATION_MODELS_PATH ""
@@ -38,7 +39,8 @@ protected:
     }
 };
 
-TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpUser_MO) {
+TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
 
     InferenceEngine::Core ie;
@@ -58,7 +60,8 @@ TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpUser_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpUser_ONNXImporter) {
+TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.prototxt";
 
     InferenceEngine::Core ie;
@@ -78,7 +81,8 @@ TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpUser_ONNXImporter) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpTransformation) {
+TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
 
     InferenceEngine::Core ie;
