@@ -54,7 +54,6 @@
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
-#include <low_precision/multiply.hpp>
 
 #ifdef __linux__
 # include <dlfcn.h>
