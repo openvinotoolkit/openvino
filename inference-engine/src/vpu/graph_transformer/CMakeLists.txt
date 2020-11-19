@@ -22,6 +22,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
         target_compile_definitions(${TARGET_NAME}
             PUBLIC
                 USE_STATIC_IE)
+        set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
     endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
@@ -56,7 +57,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
         ie_developer_export_targets(${TARGET_NAME})
     endif()
 
-    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endfunction()
 
 add_graph_transformer_target("vpu_graph_transformer" FALSE)

@@ -71,7 +71,6 @@ namespace ngraph
                                         const std::pair<bool, AxisSet> pair_broadcast_axes,
                                         const Shape output_shape) const;
 
-                template <element::Type_t ET>
                 bool evaluate(const HostTensorPtr& arg0,
                               const HostTensorPtr& out,
                               const AxisSet& broadcast_axes) const;

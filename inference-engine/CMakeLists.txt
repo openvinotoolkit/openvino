@@ -16,7 +16,6 @@ include(check_features_ie)
 # resolving dependencies for the project
 include(dependencies)
 
-
 # Fuzz tests also building without ENABLE_FUZZING
 include(fuzzing)
 
@@ -100,10 +99,6 @@ if (ENABLE_PYTHON)
 endif()
 
 add_subdirectory(ie_bridges/c)
-
-if (ENABLE_JAVA)
-    add_subdirectory(ie_bridges/java)
-endif()
 
 add_cpplint_report_target()
 
@@ -250,8 +245,12 @@ function(register_extra_modules)
     foreach(module_path IN LISTS extra_modules local_extra_modules)
         if(module_path)
             get_filename_component(module_name "${module_path}" NAME)
+            set(build_module ON)
+            if(NOT EXISTS "${module_path}/CMakeLists.txt") # if module is built not using cmake
+                set(build_module OFF)
+            endif()
             if(NOT DEFINED BUILD_${module_name})
-                set(BUILD_${module_name} ON CACHE BOOL "Build ${module_name} extra module" FORCE)
+                set(BUILD_${module_name} ${build_module} CACHE BOOL "Build ${module_name} extra module" FORCE)
             endif()
             if(BUILD_${module_name})
                 message(STATUS "Register ${module_name} to be built in build-modules/${module_name}")

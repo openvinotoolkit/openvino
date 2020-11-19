@@ -42,14 +42,15 @@ public:
 
     InferenceEngine::CNNNetwork GetExecGraphInfo() override;
 
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState() override;
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
 
     InferenceEngine::ThreadLocal<MKLDNNGraph::Ptr>  _graphs;
 
 protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> memoryStates;
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     InferenceEngine::details::CNNNetworkImplPtr _clonedNetwork;
     std::mutex                                  _cfgMutex;
     Config                                      _cfg;

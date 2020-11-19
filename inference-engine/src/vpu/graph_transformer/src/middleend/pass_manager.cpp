@@ -88,12 +88,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("initial");
 
     //
-    // Decompose swish layer to Sigmoid + Multiply
-    //
-    ADD_PASS(decomposeSwish);
-    ADD_DUMP_PASS("decomposeSwish");
-
-    //
     // Convert shape notation
     //
     ADD_PASS(convertShapeNotation);
@@ -255,6 +249,9 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(mergeReLUAndBias);
     ADD_DUMP_PASS("mergeReLUAndBias");
 
+    ADD_PASS(mergeEltwiseAndReLUDynamic);
+    ADD_DUMP_PASS("mergeEltwiseAndReLUDynamic");
+
     //
     // Data layout adjustment
     //
@@ -277,8 +274,8 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // Model SW-specific optimizations after data layout adjustment
     //
 
-    ADD_PASS(mergeEltwiseAndReLU);
-    ADD_DUMP_PASS("mergeEltwiseAndReLU");
+    ADD_PASS(mergeEltwiseAndReLUStatic);
+    ADD_DUMP_PASS("mergeEltwiseAndReLUStatic");
 
     //
     // Model special stages processing

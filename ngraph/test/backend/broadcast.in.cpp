@@ -195,7 +195,8 @@ NGRAPH_TEST(${BACKEND_NAME}, broadcast_vector_rowwise_reversed)
         A,
         op::Constant::create(element::u64, Shape{shape_r.size()}, shape_r),
         op::Constant::create(element::i64, Shape{1}, {1}));
-    auto reverse = make_shared<op::Reverse>(broadcast, AxisSet{1});
+    auto reverse = make_shared<op::v1::Reverse>(
+        broadcast, op::Constant::create(element::i64, {1}, {1}), op::v1::Reverse::Mode::INDEX);
     auto f = make_shared<Function>(reverse, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
