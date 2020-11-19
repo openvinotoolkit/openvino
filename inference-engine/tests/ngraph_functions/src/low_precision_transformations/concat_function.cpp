@@ -539,12 +539,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
         "ConcatTransformation");
 
     if (fqOnData1.outputPrecision != fqOnData2.outputPrecision) {
-        THROW_IE_EXCEPTION << "FakeQuantize expected precisions are different";
+        throw std::runtime_error("FakeQuantize expected precisions are different");
     }
     const ngraph::element::Type fqOnDataPrecision = fqOnData1.outputPrecision;
     if (fqOnDataPrecision != ngraph::element::undefined) {
         if (fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) {
-            THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
+            throw std::runtime_error("FakeQuantize operation precisions are different");
         }
         const ngraph::element::Type fakeQuantizePrecision = fakeQuantize1->get_output_element_type(0);
 
@@ -589,12 +589,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
         "ConcatTransformation");
 
     if (fqOnData1.outputPrecision != fqOnData2.outputPrecision) {
-        THROW_IE_EXCEPTION << "FakeQuantize expected precisions are different";
+        throw std::runtime_error("FakeQuantize expected precisions are different");
     }
     const ngraph::element::Type fqOnDataPrecision = fqOnData1.outputPrecision;
     if (fqOnDataPrecision != ngraph::element::undefined) {
         if (fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) {
-            THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
+            throw std::runtime_error("FakeQuantize operation precisions are different");
         }
         const ngraph::element::Type fakeQuantizePrecision = fakeQuantize1->get_output_element_type(0);
 
@@ -664,13 +664,13 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
         "ConcatWithNeighborsTransformation");
 
     if ((fqOnData1.outputPrecision != fqOnData2.outputPrecision) || (fqOnData2.outputPrecision != fqOnData3.outputPrecision)) {
-        THROW_IE_EXCEPTION << "FakeQuantize expected precisions are different";
+        throw std::runtime_error("FakeQuantize expected precisions are different");
     }
     const ngraph::element::Type fqOnDataPrecision = fqOnData1.outputPrecision;
     if (fqOnDataPrecision != ngraph::element::undefined) {
         if ((fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) ||
             (fakeQuantize2->get_output_element_type(0) != fakeQuantize3->get_output_element_type(0))) {
-            THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
+            throw std::runtime_error("FakeQuantize operation precisions are different");
         }
         const ngraph::element::Type fakeQuantizePrecision = fakeQuantize1->get_output_element_type(0);
 
@@ -771,12 +771,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
         "ConcatWithIntermediateTransformation");
 
     if ((fqOnData1.outputPrecision != fqOnData2.outputPrecision)) {
-        THROW_IE_EXCEPTION << "FakeQuantize expected precisions are different";
+        throw std::runtime_error("FakeQuantize expected precisions are different");
     }
     const ngraph::element::Type fqOnDataPrecision = fqOnData1.outputPrecision;
     if (fqOnDataPrecision != ngraph::element::undefined) {
         if (fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) {
-            THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
+            throw std::runtime_error("FakeQuantize operation precisions are different");
         }
         const ngraph::element::Type fakeQuantizePrecision = fakeQuantize1->get_output_element_type(0);
 
@@ -881,11 +881,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
         "ConcatWithIntermediateTransformation");
 
     if ((fqOnData1.outputPrecision != fqOnData2.outputPrecision)) {
-        THROW_IE_EXCEPTION << "FakeQuantize expected precisions are different";
+        throw std::runtime_error("FakeQuantize expected precisions are different");
     }
     if (fqOnDataPrecision != ngraph::element::undefined) {
         if (fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) {
-            THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
+            throw std::runtime_error("FakeQuantize operation precisions are different");
         }
     }
 
@@ -977,12 +977,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceSelectionWithInter
         "ConcatWithIntermediateTransformation");
 
     if ((fqOnData1.outputPrecision != fqOnData2.outputPrecision)) {
-        THROW_IE_EXCEPTION << "FakeQuantize expected precisions are different";
+        throw std::runtime_error("FakeQuantize expected precisions are different");
     }
     const ngraph::element::Type fqOnDataPrecision = fqOnData1.outputPrecision;
     if (fqOnDataPrecision != ngraph::element::undefined) {
         if (fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) {
-            THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
+            throw std::runtime_error("FakeQuantize operation precisions are different");
         }
         const ngraph::element::Type fakeQuantizePrecision = fakeQuantize1->get_output_element_type(0);
 
@@ -1076,11 +1076,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPreci
         "ConcatWithDifferentChildsTransformation");
 
     if ((fqOnData1.outputPrecision != fqOnData2.outputPrecision)) {
-        THROW_IE_EXCEPTION << "FakeQuantize expected precisions are different";
+        throw std::runtime_error("FakeQuantize expected precisions are different");
     }
     if (fqOnDataPrecision != ngraph::element::undefined) {
         if (fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) {
-            THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
+            throw std::runtime_error("FakeQuantize operation precisions are different");
         }
     }
 

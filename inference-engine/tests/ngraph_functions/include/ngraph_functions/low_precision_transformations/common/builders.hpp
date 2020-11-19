@@ -6,6 +6,8 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/ops.hpp>
+#include <ngraph/op/constant.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 
 #include "low_precision/network_helper.hpp"

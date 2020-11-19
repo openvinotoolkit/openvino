@@ -103,7 +103,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     } else if (constInput == 1) {
         parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1) };
     } else {
-        THROW_IE_EXCEPTION << "Unexpected constant input index";
+        throw std::runtime_error("Unexpected constant input index");
     }
     return std::make_shared<ngraph::Function>(results, parameters, "AddTransformation");
 }
@@ -213,7 +213,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     } else if (constInputIndex == 1) {
         parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1) };
     } else {
-        THROW_IE_EXCEPTION << "Unexpected constant input index";
+        throw std::runtime_error("Unexpected constant input index");
     }
     return std::make_shared<ngraph::Function>(results, parameters, "AddTransformation");
 }

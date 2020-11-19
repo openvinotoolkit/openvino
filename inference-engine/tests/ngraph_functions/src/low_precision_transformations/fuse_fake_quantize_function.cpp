@@ -81,7 +81,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
             lastNode = makeDequantization(lastNode, {{element::f32}, {}, {0.01f}});
 
         } else {
-            THROW_IE_EXCEPTION << "Unknown parameter on output intervals!";
+            throw std::runtime_error("Unknown parameter on output intervals!");
         }
         lastNode->set_friendly_name("output");
 
@@ -95,11 +95,11 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
     const ngraph::element::Type precisionFqOnData,
     const FakeQuantizeOnData& fqOnData) {
     if (branches.size() != 2ul) {
-        THROW_IE_EXCEPTION << "unsupported branches count";
+        throw std::runtime_error("unsupported branches count");
     }
 
     if (branches[0].dequantization.multiply.outPrecision != branches[1].dequantization.multiply.outPrecision) {
-        THROW_IE_EXCEPTION << "branch precisions are not equal";
+        throw std::runtime_error("branch precisions are not equal");
     }
 
     ngraph::ParameterVector inputs;

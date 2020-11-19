@@ -53,11 +53,11 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precisionBeforeDequantization2,
     const DequantizationOperations& dequantization2) {
     if (!dequantization1.convert.empty() && (precisionBeforeDequantization1 == dequantization1.convert.outPrecision)) {
-        THROW_IE_EXCEPTION << "unexpected input arguments for branch 1";
+        throw std::runtime_error("unexpected input arguments for branch 1");
     }
 
     if (!dequantization2.convert.empty() && (precisionBeforeDequantization2 == dequantization2.convert.outPrecision)) {
-        THROW_IE_EXCEPTION << "unexpected input arguments for branch 2";
+        throw std::runtime_error("unexpected input arguments for branch 2");
     }
 
     const std::shared_ptr<ngraph::opset1::Parameter> input1 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization1, inputShape1);
@@ -137,11 +137,11 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     const DequantizationOperations& dequantization2,
     const DequantizationOperations& resultDequantizationOperations) {
     if (!dequantization1.convert.empty() && (precisionBeforeDequantization1 == dequantization1.convert.outPrecision)) {
-        THROW_IE_EXCEPTION << "unexpected input arguments for branch 1";
+        throw std::runtime_error("unexpected input arguments for branch 1");
     }
 
     if (!dequantization2.convert.empty() && (precisionBeforeDequantization2 == dequantization2.convert.outPrecision)) {
-        THROW_IE_EXCEPTION << "unexpected input arguments for branch 2";
+        throw std::runtime_error("unexpected input arguments for branch 2");
     }
 
     const std::shared_ptr<ngraph::opset1::Parameter> input1 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization1, inputShape1);

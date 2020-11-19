@@ -4,16 +4,13 @@
 
 #pragma once
 
-#include <ie_precision.hpp>
-#include <functional_test_utils/precision_utils.hpp>
 #include "ngraph_functions/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 namespace subgraph {
 static std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> inputShape = {1, 1, 32, 32},
-                                                      InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+                                                          ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
     auto const1 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{1, 32, 1, 32});
@@ -40,8 +37,7 @@ static std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
 }
 
 static std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
-                                                            InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+                                                            ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
@@ -61,8 +57,7 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t>
 }
 
 static std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inputShape = {1, 4, 20, 20},
-                                                         InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+                                                         ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     auto shapeOf = std::make_shared<ngraph::opset4::ShapeOf>(params[0]);
@@ -81,7 +76,7 @@ static std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inp
 }
 
 static std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20}) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP32);
+    auto ngPrc = ngraph::element::Type_t::f32;
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
@@ -124,8 +119,7 @@ static std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<si
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
-    auto ngPRC = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
+static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(ngraph::element::Type_t ngPRC = ngraph::element::Type_t::f32) {
     // That which we iterate over
     const size_t N = 32; // Batch size
     const size_t L = 10; // Sequence length
@@ -184,8 +178,7 @@ static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(InferenceEngine::Pre
 }
 
 static std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24},
-                                                        InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
-    ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
+                                                        ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
 
     auto conv1 = ngraph::builder::makeConvolution(param0, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
@@ -197,7 +190,7 @@ static std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inpu
 }
 
 static std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24}) {
-    ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP32);
+    ngraph::element::Type type = ngraph::element::Type_t::f32;
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
     auto conv1 = ngraph::builder::makeConvolution(param0, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
@@ -226,8 +219,7 @@ static std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t>
 }
 
 static std::shared_ptr<ngraph::Function> make2InputSubtract(std::vector<size_t> inputShape = {1, 3, 24, 24},
-                                                            InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
-    ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
+                                                            ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
     auto param1 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
     auto subtract = std::make_shared<ngraph::opset1::Subtract>(param0, param1);
@@ -238,8 +230,7 @@ static std::shared_ptr<ngraph::Function> make2InputSubtract(std::vector<size_t> 
 }
 
 static std::shared_ptr<ngraph::Function> makeNestedSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
-                                                                   InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+                                                                   ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
@@ -271,8 +262,7 @@ static std::shared_ptr<ngraph::Function> makeNestedSplitConvConcat(std::vector<s
 }
 
 static std::shared_ptr<ngraph::Function> makeSplitConvConcatInputInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
-                                                                          InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+                                                                          ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
@@ -302,8 +292,7 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcatInputInBranch(std::v
 }
 
 static std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
-                                                                           InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+                                                                           ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
     int localId = 0;
     #define SET_NAME(node) node->set_friendly_name(#node + std::to_string(localId++));
@@ -364,9 +353,8 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranch(std::
 }
 
 static std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranchNestedOut(
-    std::vector<size_t> inputShape = {1, 4, 20, 20},
-    InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        std::vector<size_t> inputShape = {1, 4, 20, 20},
+        ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
     int localId = 0;
     #define SET_NAME(node) node->set_friendly_name(#node + std::to_string(localId++));
@@ -467,8 +455,7 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranchNested
 }
 
 static std::shared_ptr<ngraph::Function> makeConvBias(std::vector<size_t> inputShape = {1, 3, 24, 24},
-                                                      InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
-    ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
+                                                      ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto parameter =  ngraph::builder::makeParams(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
     auto weights = ngraph::opset1::Constant::create(type, ngraph::Shape{6, 3, 1, 1}, {1});
@@ -486,8 +473,7 @@ static std::shared_ptr<ngraph::Function> makeConvBias(std::vector<size_t> inputS
 }
 
 static std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<size_t> inputShape = {1, 1, 2, 4},
-                                                                   InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
-    ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
+                                                                   ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto parameter =  ngraph::builder::makeParams(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
     auto init_const = ngraph::op::Constant::create(element::f32, Shape{1, 1, 2, 2}, {0, 0, 0, 0});

@@ -35,7 +35,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     const size_t outputChannelsCount = 2 * inputShape[1];
 
     if ((weights->cast_vector<float>().size() != 1ul) && (weights->cast_vector<float>().size() != (inputChannelsCount * outputChannelsCount))) {
-        THROW_IE_EXCEPTION << "unexpected actual weights values size";
+        throw std::runtime_error("unexpected actual weights values size");
     }
 
     if (weights->cast_vector<float>().size() == 1ul) {
@@ -147,7 +147,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
     const size_t outputChannelsCount = 2 * inputShape[1];
 
     if ((weightsValues.size() != 1ul) && (weightsValues.size() != (inputChannelsCount * outputChannelsCount))) {
-        THROW_IE_EXCEPTION << "unexpected actual weights values size";
+        throw std::runtime_error("unexpected actual weights values size");
     }
 
     const std::shared_ptr<ngraph::Node> weights = ngraph::opset1::Constant::create(
@@ -228,7 +228,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const size_t outputChannelsCount = 2 * inputShape[1];
 
     if ((weights->cast_vector<float>().size() != 1ul) && (weights->cast_vector<float>().size() != (inputChannelsCount * outputChannelsCount))) {
-        THROW_IE_EXCEPTION << "unexpected actual weights values size";
+        throw std::runtime_error("unexpected actual weights values size");
     }
 
     if (weights->cast_vector<float>().size() == 1ul) {
@@ -295,7 +295,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
     const size_t inputChannelsCount = inputShape[1];
     const size_t outputChannelsCount = 2 * inputShape[1];
     if ((weightsValues.size() != 1ul) && (weightsValues.size() != (inputChannelsCount * outputChannelsCount))) {
-        THROW_IE_EXCEPTION << "unexpected actual weights values size";
+        throw std::runtime_error("unexpected actual weights values size");
     }
 
     const std::shared_ptr<ngraph::Node> parentOnData = fakeQuantizeOnData.empty() ? std::dynamic_pointer_cast<ngraph::Node>(input) : fqOnData;

@@ -6,6 +6,9 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/op/constant.hpp>
+#include <ngraph/opsets/opset1.hpp>
+
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
 namespace ngraph {

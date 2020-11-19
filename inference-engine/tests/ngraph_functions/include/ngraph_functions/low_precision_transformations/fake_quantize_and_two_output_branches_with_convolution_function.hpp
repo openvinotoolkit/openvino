@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include <low_precision/layer_transformation.hpp>
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
 

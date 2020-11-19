@@ -89,7 +89,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
 
     const size_t weightsSize = weightsConst->cast_vector<float>().size();
     if ((weightsSize != 1ul) && (weightsSize != (inputChannelsCount * outputChannelsCount))) {
-        THROW_IE_EXCEPTION << "unexpected actual weights values size";
+        throw std::runtime_error("unexpected actual weights values size");
     }
 
     std::shared_ptr<ngraph::Node> weights = createWeightsOriginal(
@@ -189,7 +189,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
 
     const size_t weightsSize = weightsConst->cast_vector<float>().size();
     if ((weightsSize != 1ul) && (weightsSize != (inputChannelsCount * outputChannelsCount))) {
-        THROW_IE_EXCEPTION << "unexpected actual weights values size";
+        throw std::runtime_error("unexpected actual weights values size");
     }
 
     std::shared_ptr<ngraph::Node> weights;

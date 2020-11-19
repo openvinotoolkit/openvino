@@ -6,6 +6,8 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset1.hpp>
+
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"

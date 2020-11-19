@@ -27,11 +27,15 @@ struct BranchNodes {
 BranchNodes getBranch(const MultiplyBranch& branch) {
     if (!branch.constant.empty()) {
         if (branch.inputShape != branch.constant.shape) {
-            THROW_IE_EXCEPTION << "shapes are not equals: " << branch.inputShape << " & " << branch.constant.shape;
+            std::ostringstream message;
+            message << "shapes are not equals: " << branch.inputShape << " & " << branch.constant.shape;
+            throw std::runtime_error(message.str());
         }
 
         if (branch.precisionBeforeDequantization != branch.constant.outPrecision) {
-            THROW_IE_EXCEPTION << "precisions are not equals: " << branch.precisionBeforeDequantization << " & " << branch.constant.outPrecision;
+            std::ostringstream message;
+            message << "precisions are not equals: " << branch.precisionBeforeDequantization << " & " << branch.constant.outPrecision;
+            throw std::runtime_error(message.str());
         }
     }
 

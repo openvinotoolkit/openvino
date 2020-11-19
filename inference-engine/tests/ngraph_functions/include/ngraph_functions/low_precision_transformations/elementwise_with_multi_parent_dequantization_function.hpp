@@ -6,8 +6,8 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include <low_precision/layer_transformation.hpp>
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"

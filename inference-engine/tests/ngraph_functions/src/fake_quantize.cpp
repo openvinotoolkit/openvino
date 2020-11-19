@@ -5,7 +5,6 @@
 
 #include <vector>
 #include <memory>
-#include <ngraph_ops/type_relaxed.hpp>
 #include "ngraph_functions/builders.hpp"
 
 namespace ngraph {
