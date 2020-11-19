@@ -136,7 +136,7 @@ const std::vector<NormalizeL2TransformationTestValues> normalizeL2Transformation
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     NormalizeL2Transformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

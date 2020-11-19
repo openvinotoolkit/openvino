@@ -160,7 +160,7 @@ const std::vector<FakeQuantizeWithDynamicIntervalsTransformationTestValues> fake
 const std::vector<ngraph::Shape> shapes = { { 1, 32, 72, 48 } };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     FakeQuantizeWithDynamicIntervalsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

@@ -274,7 +274,7 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     SubtractMultiplyToMultiplyAddTransformation,
     ::testing::ValuesIn(testValues),
     SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);

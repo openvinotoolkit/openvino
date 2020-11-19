@@ -66,7 +66,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, FuseFakeQuantizeTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),

@@ -144,7 +144,7 @@ const std::vector<ngraph::Shape> shapes = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

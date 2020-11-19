@@ -155,7 +155,7 @@ const std::vector<ElementwiseWithMultiParentDequantizationTransformationTestValu
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ElementwiseWithMultiParentDequantizationTransformation,
     ::testing::ValuesIn(addTransformationTestValues),
     ElementwiseWithMultiParentDequantizationTransformation::getTestCaseName);

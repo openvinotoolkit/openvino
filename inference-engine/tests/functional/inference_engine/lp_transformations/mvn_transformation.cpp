@@ -273,7 +273,7 @@ TEST_P(MVNTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     MVNTransformation,
     ::testing::ValuesIn(testValues),
     MVNTransformation::getTestCaseName);

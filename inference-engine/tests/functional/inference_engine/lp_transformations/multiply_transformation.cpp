@@ -448,7 +448,7 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     MultiplyTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

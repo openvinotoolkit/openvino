@@ -224,7 +224,7 @@ const std::vector<UnsqueezeTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     UnsqueezeTransformation,
     ::testing::ValuesIn(testValues),
     UnsqueezeTransformation::getTestCaseName);

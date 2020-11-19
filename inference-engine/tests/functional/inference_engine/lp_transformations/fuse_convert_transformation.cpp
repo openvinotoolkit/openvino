@@ -167,7 +167,7 @@ TEST_P(FuseConvertTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-        LPT,
-        FuseConvertTransformation,
-        ::testing::ValuesIn(testValues),
-        FuseConvertTransformation::getTestCaseName);
+    smoke_LPT,
+    FuseConvertTransformation,
+    ::testing::ValuesIn(testValues),
+    FuseConvertTransformation::getTestCaseName);

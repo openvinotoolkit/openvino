@@ -311,7 +311,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

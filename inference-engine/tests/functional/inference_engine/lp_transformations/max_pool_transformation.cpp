@@ -193,7 +193,7 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     MaxPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(shapes),

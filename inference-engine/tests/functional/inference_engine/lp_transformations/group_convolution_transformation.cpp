@@ -484,7 +484,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     GroupConvolutionTransformation,
     ::testing::ValuesIn(testValues),
     GroupConvolutionTransformation::getTestCaseName);

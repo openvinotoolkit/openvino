@@ -447,7 +447,7 @@ TEST_P(InterpolateTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     InterpolateTransformation,
     ::testing::ValuesIn(testValues),
     InterpolateTransformation::getTestCaseName);

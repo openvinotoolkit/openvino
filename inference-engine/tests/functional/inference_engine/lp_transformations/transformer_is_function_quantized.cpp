@@ -82,7 +82,7 @@ const std::vector<TestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     TransformerIsFunctionQuantized,
     ::testing::ValuesIn(testValues),
     TransformerIsFunctionQuantized::getTestCaseName);

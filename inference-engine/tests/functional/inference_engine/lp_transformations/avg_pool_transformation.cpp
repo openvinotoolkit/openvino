@@ -120,7 +120,7 @@ const std::vector<AvgPoolTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     AvgPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

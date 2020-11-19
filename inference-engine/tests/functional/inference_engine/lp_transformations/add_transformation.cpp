@@ -509,7 +509,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     AddTransformation,
     ::testing::ValuesIn(addTransformationTestValues),
     AddTransformation::getTestCaseName);

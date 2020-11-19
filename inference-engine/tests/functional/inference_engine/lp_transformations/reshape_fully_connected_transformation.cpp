@@ -100,7 +100,7 @@ std::vector<ReshapeFullyConnectedTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ReshapeFullyConnectedTransformation,
     ::testing::ValuesIn(testValues),
     ReshapeFullyConnectedTransformation::getTestCaseName);
