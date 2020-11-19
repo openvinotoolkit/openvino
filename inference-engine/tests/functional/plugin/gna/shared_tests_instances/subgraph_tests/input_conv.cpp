@@ -26,31 +26,14 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 std::vector<convParams> params = {
-    {
-        {1, 1, 1, 16},    //InputShape
-        {1, 8},           //KernelShape
-        1                 //Stride
-    },
-    {
-        {1, 1, 1, 16},    //InputShape
-        {1, 9},           //KernelShape
-        1                 //Stride
-    },
-    {
-        {1, 1, 1, 168},   //InputShape
-        {1, 9},           //KernelShape
-        1                 //Stride
-    },
-    {
-        {1, 1, 1, 168},   //InputShape
-        {1, 8},           //KernelShape
-        1                 //Stride
-    },
-    {
-        {1, 1, 1, 640},   //InputShape
-        {1, 512},         //KernelShape
-        128               //Stride
-    },
+    std::make_tuple(
+         std::vector<size_t>{1, 1, 1, 16},    //InputShape
+         std::vector<size_t>{1, 8},           //KernelShape
+         1),                                  //Stride
+    std::make_tuple(std::vector<size_t>{1, 1, 1, 16}, std::vector<size_t>{1, 9}, 1),
+    std::make_tuple(std::vector<size_t>{1, 1, 1, 168}, std::vector<size_t>{1, 9}, 1),
+    std::make_tuple(std::vector<size_t>{1, 1, 1, 168}, std::vector<size_t>{1, 8}, 1),
+    std::make_tuple(std::vector<size_t>{1, 1, 1, 640}, std::vector<size_t>{1, 512}, 128)
 };
 
 std::vector<size_t> outputChannels = {
@@ -63,7 +46,7 @@ std::vector<bool> addReshape = {
     false
 };
 
-INSTANTIATE_TEST_CASE_P(InputConv, InputConvTest,
+INSTANTIATE_TEST_CASE_P(smoke_InputConv, InputConvTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
