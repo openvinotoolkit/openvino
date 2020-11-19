@@ -32,16 +32,10 @@ namespace ngraph
             SliceRange(const Shape& source_shape,
                        const Coordinate& source_start_corner,
                        const Coordinate& source_end_corner,
-                       const Strides& strides)
-                : m_source_shape{source_shape}
-                , m_bounds{source_start_corner, source_end_corner}
-                , m_strides{strides}
-                , m_coordinate{source_start_corner}
-            {
-            }
+                       const Strides& strides);
 
             size_t index() const;
-
+            const Coordinate& coodinate() const { return m_coordinate; }
             class Iterator
             {
             public:
@@ -51,10 +45,7 @@ namespace ngraph
                 using pointer = SliceRange*;
                 using difference_type = void;
 
-                Iterator(SliceRange* r)
-                    : m_r{r}
-                {
-                }
+                Iterator(SliceRange* r);
 
                 const SliceRange& operator*() const { return *m_r; }
                 const SliceRange* operator->() const { return m_r; }
@@ -85,7 +76,7 @@ namespace ngraph
             };
             const Shape m_source_shape;
             const CoordinateBounds m_bounds;
-            const Strides m_strides;
+            const Strides m_source_strides;
             Coordinate m_coordinate;
         };
 
@@ -96,19 +87,28 @@ namespace ngraph
         {
             return SliceRange{source_shape, source_start_corner, source_end_corner, strides};
         }
+        inline SliceRange slice(const Shape& source_shape,
+                                const Coordinate& source_start_corner,
+                                const Coordinate& source_end_corner)
+        {
+            return slice(source_shape,
+                         source_start_corner,
+                         source_end_corner,
+                         Strides(source_shape.size(), 1));
+        }
 
         class ReverseRange
         {
         public:
-            ReverseRange(const Shape& source_shape, const AxisSet& reversed_axes)
-                : m_source_shape{source_shape}
-                , m_reversed_axes{reversed_axes}
-                , m_coordinate(source_shape.size(), 0)
-                , m_reversed_coordinate(source_shape.size(), 0)
-            {
-            }
+            ReverseRange(const Shape& source_shape, const AxisSet& reversed_axes);
 
             size_t index() const;
+
+            const Coordinate& coodinate() const
+            {
+                do_reverse();
+                return m_reversed_coordinate;
+            }
 
             class Iterator
             {
@@ -119,10 +119,7 @@ namespace ngraph
                 using pointer = ReverseRange*;
                 using difference_type = void;
 
-                Iterator(ReverseRange* r)
-                    : m_r{r}
-                {
-                }
+                Iterator(ReverseRange* r);
 
                 const ReverseRange& operator*() const { return *m_r; }
                 const ReverseRange* operator->() const { return m_r; }
