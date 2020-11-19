@@ -19,8 +19,18 @@ INTERPRETER.onnx_resize10_down_scales_const_nearest
 # Failed in MacOS:
 INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
 
-# Disabled tests for disabled reference implementations
+# nGraph does not support the following ONNX operations
+INTERPRETER.onnx_model_qlinear_matmul
 INTERPRETER.onnx_model_qlinear_matmul_3d
+INTERPRETER.onnx_model_matmul_integer
+INTERPRETER.onnx_model_matmul_integer_zero_point_zero
+INTERPRETER.onnx_model_matmul_integer_no_zero_point
+INTERPRETER.onnx_model_matmul_integer_scalar
+INTERPRETER.onnx_model_matmul_integer_4d
+INTERPRETER.onnx_model_matmul_integer_4d_zero_point
+INTERPRETER.onnx_model_matmul_integer_4d_no_zero_point
+
+# Disabled tests for disabled reference implementations
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
 INTERPRETER.sum_2d_to_scalar_int8
 INTERPRETER.sum_trivial_in_double
