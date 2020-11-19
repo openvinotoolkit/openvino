@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <tuple>
 #include <vector>
 #include <string>
@@ -642,12 +643,32 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::ResponseDesc response;
     InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
-    const auto probablyTooSmallTimeoutToComplete = 1; // 1ms
+    std::chrono::system_clock::time_point callbackTimeStamp;
+    volatile bool callbackTimeStampSet = false;
+    std::condition_variable callbackCompleted;
+    std::mutex m;
+    // add a callback to the request and capture the timestamp
+    req.SetCompletionCallback([&]() {
+        std::unique_lock<std::mutex> lock(m);
+        callbackTimeStamp = std::chrono::system_clock::now();
+        callbackTimeStampSet = true;
+        lock.unlock();
+        callbackCompleted.notify_one();
+        });
     req.StartAsync();
-    ASSERT_NO_THROW(sts = req.Wait(probablyTooSmallTimeoutToComplete));
-    if (sts == InferenceEngine::StatusCode::RESULT_NOT_READY) {
-        ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
+    ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY));
+    // get timestamp taken AFTER return from the Wait(STATUS_ONLY)
+    const auto afterWaitTimeStamp = std::chrono::system_clock::now();
+    {
+        // wait for callback to complete
+        std::unique_lock<std::mutex> lock(m);
+        callbackCompleted.wait(lock, [&] {return callbackTimeStampSet; });
     }
-    ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK);
+    // IF the callback timestamp is larger than the AFTER Wait(STATUS_ONLY) timestamp
+    // then we should observe RESULT_NOT_READY
+    if (afterWaitTimeStamp < callbackTimeStamp) {
+        ASSERT_TRUE(sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
+    }
+    ASSERT_NO_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
 }
 }  // namespace BehaviorTestsDefinitions
