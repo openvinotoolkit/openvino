@@ -51,7 +51,7 @@ void ConvolutionTransformation::SetUp() {
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
 
-    validateNGraph();
+    validate();
 }
 
 void ConvolutionTransformation::Run() {
@@ -62,7 +62,7 @@ void ConvolutionTransformation::Run() {
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
-void ConvolutionTransformation::validateNGraph() {
+void ConvolutionTransformation::validate() {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     std::string targetDevice;
@@ -70,14 +70,14 @@ void ConvolutionTransformation::validateNGraph() {
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
-    auto transformed = transformNGraph(params);
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
     EXPECT_EQ(1ul, transformed->get_output_size());
-    std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
 
-    std::shared_ptr<ngraph::Node> parent = output->get_input_node_shared_ptr(0);
+    const auto output = transformed->get_output_op(0);
+    const auto parent = output->get_input_node_shared_ptr(0);
     ASSERT_FALSE(parent == nullptr);
-    const std::string typeName = parent->get_type_name();
 
+    const std::string typeName = parent->get_type_name();
     if (param.fakeQuantizeOnData.empty() || param.fakeQuantizeOnWeights.empty()) {
         ASSERT_EQ("ConvolutionIE", typeName);
     } else {

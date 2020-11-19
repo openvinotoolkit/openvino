@@ -6,7 +6,7 @@
 #include <ngraph_ops/type_relaxed.hpp>
 
 #include "low_precision/network_helper.hpp"
-#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 
 #include "lpt_ngraph_functions/avg_pool_function.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"

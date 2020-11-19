@@ -9,7 +9,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
-#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 
 
 using namespace ngraph::pass::low_precision;
@@ -79,7 +79,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
         }
         deq = makeDequantization(fakeQuantize, updateDequantization);
     }
-    
+
     deq->set_friendly_name("fakeQuantize");
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(deq) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");

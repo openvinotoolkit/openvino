@@ -31,7 +31,9 @@ public:
 
 protected:
     void SetUp() override;
-    void validateNGraph();
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

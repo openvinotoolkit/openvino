@@ -147,8 +147,8 @@ const std::vector<TestValues> testValues = {
             {{}, {}, {}},
             {{}, {}, {}},
             ngraph::element::u8,
-            { ngraph::element::f32, {}, { {0.01f, 0.01f, 0.01f, 0.1f, 0.1f, 0.1f} } },
-            { ngraph::element::f32, {}, { {0.1f} } }
+            { {ngraph::element::f32}, {}, { {0.01f, 0.01f, 0.01f, 0.1f, 0.1f, 0.1f} } },
+            { {ngraph::element::f32}, {}, { 0.1f } }
         }
     },
     // not update precisions
@@ -168,7 +168,7 @@ const std::vector<TestValues> testValues = {
             {{}, {}, {}},
             ngraph::element::f32,
             { {}, {}, { {0.01f, 0.01f, 0.01f, 0.1f, 0.1f, 0.1f} } },
-            { {}, {}, { {0.1f} } }
+            { {}, {}, { 0.1f } }
         }
     }
 };
