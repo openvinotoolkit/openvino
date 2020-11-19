@@ -146,7 +146,7 @@ def parse_nstreams_value_per_device(devices, values_string):
 
 
 def process_help_inference_string(benchmark_app):
-    output_string = 'Start inference {}ronously'.format(benchmark_app.api_type)
+    output_string = 'Start inference {}hronously'.format(benchmark_app.api_type)
     if benchmark_app.api_type == 'async':
         output_string += ', {} inference requests'.format(benchmark_app.nireq)
 
