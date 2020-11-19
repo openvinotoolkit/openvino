@@ -81,7 +81,7 @@
 #include "onnx_import/op/lrn.hpp"
 #include "onnx_import/op/lstm.hpp"
 #include "onnx_import/op/matmul.hpp"
-#include "onnx_import/op/matmul_integer.hpp"
+//#include "onnx_import/op/matmul_integer.hpp"
 #include "onnx_import/op/max.hpp"
 #include "onnx_import/op/max_pool.hpp"
 #include "onnx_import/op/mean.hpp"
@@ -98,7 +98,7 @@
 #include "onnx_import/op/pad.hpp"
 #include "onnx_import/op/pow.hpp"
 #include "onnx_import/op/prelu.hpp"
-#include "onnx_import/op/qlinear_matmul.hpp"
+//#include "onnx_import/op/qlinear_matmul.hpp"
 // #include "onnx_import/op/quant_conv.hpp"
 #include "onnx_import/op/quantize_linear.hpp"
 #include "onnx_import/op/range.hpp"
@@ -366,7 +366,7 @@ namespace ngraph
             REGISTER_OPERATOR("LRN", 1, lrn);
             REGISTER_OPERATOR("LSTM", 1, lstm);
             REGISTER_OPERATOR("MatMul", 1, matmul);
-            REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
+            // REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
             REGISTER_OPERATOR("MaxPool", 1, max_pool);
             REGISTER_OPERATOR("Max", 1, max);
             REGISTER_OPERATOR("Max", 8, max);
@@ -389,7 +389,7 @@ namespace ngraph
             REGISTER_OPERATOR("Pow", 1, pow);
             REGISTER_OPERATOR("PRelu", 1, prelu);
             // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
-            REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
+            // REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
             REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
             REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
             REGISTER_OPERATOR("Range", 1, range);

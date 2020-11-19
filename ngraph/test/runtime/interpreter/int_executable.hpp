@@ -47,7 +47,6 @@
 #include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/detection_output.hpp"
-#include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/runtime/reference/elu.hpp"
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
 #include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
@@ -491,19 +490,6 @@ protected:
                                               cumsum->is_exclusive(),
                                               cumsum->is_reverse());
             }
-            break;
-        }
-        case OP_TYPEID::Dot:
-        {
-            const op::Dot* dot = static_cast<const op::Dot*>(&node);
-
-            reference::dot(args[0]->get_data_ptr<const T>(),
-                           args[1]->get_data_ptr<const T>(),
-                           out[0]->get_data_ptr<T>(),
-                           node.get_input_shape(0),
-                           node.get_input_shape(1),
-                           node.get_output_shape(0),
-                           dot->get_reduction_axes_count());
             break;
         }
         case OP_TYPEID::EmbeddingBagOffsetsSum_v3:
@@ -1156,95 +1142,6 @@ protected:
             {
                 std::stringstream ss;
                 ss << "unsupported element type " << type << " op Quantize";
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        }
-        case OP_TYPEID::QuantizedDot:
-        {
-            const op::QuantizedDot* qd = static_cast<const op::QuantizedDot*>(&node);
-
-            auto input0_element_type = qd->get_input_element_type(0);
-            auto input1_element_type = qd->get_input_element_type(1);
-            auto output_element_type = qd->get_output_element_type(0);
-
-            if (input0_element_type == element::u8 && input1_element_type == element::i8 &&
-                output_element_type == element::i8)
-            {
-                reference::dot<uint8_t, int8_t, int8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    1,
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int8_t>());
-            }
-            else if (input0_element_type == element::u8 && input1_element_type == element::u8 &&
-                     output_element_type == element::u8)
-            {
-                reference::dot<uint8_t, uint8_t, uint8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<uint8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    1,
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const uint8_t>());
-            }
-            else if (input0_element_type == element::u8 && input1_element_type == element::u8 &&
-                     output_element_type == element::i32)
-            {
-                reference::dot<uint8_t, uint8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    1,
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else if (input0_element_type == element::u8 && input1_element_type == element::i8 &&
-                     output_element_type == element::i32)
-            {
-                reference::dot<uint8_t, int8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    1,
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else
-            {
-                std::stringstream ss;
-                ss << "unsupported element type";
                 throw std::runtime_error(ss.str());
             }
 
