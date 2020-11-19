@@ -39,6 +39,10 @@ enum GnaWaitStatus : int {
  */
 class GNADeviceHelper {
     static std::mutex acrossPluginsSync;
+    static std::string decoratedGnaLibVersion() {
+        static std::string gnaLibraryVersion{ ", GNA library version: " + GNADeviceHelper::getGnaLibraryVersion() };
+        return gnaLibraryVersion;
+    }
 #if GNA_LIB_VER == 1
     intel_gna_status_t nGNAStatus = GNA_NOERROR;
     intel_gna_handle_t nGNAHandle = 0;
@@ -165,6 +169,7 @@ public:
     void open(uint8_t const n_threads);
 
     void close();
+    static std::string getGnaLibraryVersion();
 #if GNA_LIB_VER == 1
     void checkStatus() const;
 #else
