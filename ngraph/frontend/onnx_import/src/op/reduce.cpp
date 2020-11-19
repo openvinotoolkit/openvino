@@ -33,16 +33,12 @@ namespace ngraph
             {
                 std::shared_ptr<default_opset::Constant> get_reduction_axes(const Node& node)
                 {
-                    std::vector<std::int64_t> reduction_axes;
+                    auto reduction_axes =
+                        node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
                     const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
 
-                    if (node.has_attribute("axes"))
-                    {
-                        reduction_axes =
-                            node.get_attribute_value<std::vector<std::int64_t>>("axes");
-                    }
-                    else
+                    if (reduction_axes.empty())
                     {
                         NGRAPH_CHECK(input_rank.is_static(),
                                      "The input tensor's rank needs to be known(static) when the "
