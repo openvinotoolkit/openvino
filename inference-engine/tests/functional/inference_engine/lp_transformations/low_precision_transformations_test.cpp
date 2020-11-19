@@ -4,13 +4,14 @@
 
 #include <gtest/gtest.h>
 #include "low_precision/transformer.hpp"
+#include "low_precision/multiply_to_group_convolution.hpp"
 
 using namespace ::testing;
 using namespace ngraph::pass::low_precision;
 
-class LowPrecisionTransformationsTests : public Test {};
+class smoke_LPTLowPrecisionTransformationsTests : public Test {};
 
-TEST_F(LowPrecisionTransformationsTests, remove) {
+TEST_F(smoke_LPTLowPrecisionTransformationsTests, remove) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
     auto transformation = transformations.find("Convolution");
     ASSERT_NE(0, transformation.size());
@@ -20,7 +21,7 @@ TEST_F(LowPrecisionTransformationsTests, remove) {
     ASSERT_EQ(0, transformation.size());
 }
 
-TEST_F(LowPrecisionTransformationsTests, removeBranchSpecificTransformations) {
+TEST_F(smoke_LPTLowPrecisionTransformationsTests, removeBranchSpecificTransformations) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
     auto transformation = transformations.find("Concat");
     ASSERT_NE(0, transformation.size());
@@ -30,7 +31,7 @@ TEST_F(LowPrecisionTransformationsTests, removeBranchSpecificTransformations) {
     ASSERT_EQ(0, transformation.size());
 }
 
-TEST_F(LowPrecisionTransformationsTests, removeTransformations) {
+TEST_F(smoke_LPTLowPrecisionTransformationsTests, removeTransformations) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
     auto transformation = transformations.find("MatMul");
     ASSERT_NE(0, transformation.size());
@@ -40,7 +41,7 @@ TEST_F(LowPrecisionTransformationsTests, removeTransformations) {
     ASSERT_EQ(0, transformation.size());
 }
 
-TEST_F(LowPrecisionTransformationsTests, removeCleanupTransformations) {
+TEST_F(smoke_LPTLowPrecisionTransformationsTests, removeCleanupTransformations) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
     auto transformation = transformations.find("Multiply");
     ASSERT_NE(0, transformation.size());
@@ -49,4 +50,14 @@ TEST_F(LowPrecisionTransformationsTests, removeCleanupTransformations) {
     transformations.removeCleanupTransformations("Multiply");
     transformation = transformations.find("Multiply");
     ASSERT_EQ(originalSize - 1, transformation.size());
+}
+
+TEST_F(smoke_LPTLowPrecisionTransformationsTests, removeStandaloneCleanupTransformations) {
+    LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
+    auto transformation = transformations.find("MultiplyToGroupConvolutionTransformation");
+    ASSERT_NE(1, transformation.size());
+
+    transformations.removeStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>();
+    transformation = transformations.find("MultiplyToGroupConvolutionTransformation");
+    ASSERT_EQ(0, transformation.size());
 }
