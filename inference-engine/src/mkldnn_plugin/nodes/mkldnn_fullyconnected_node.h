@@ -45,7 +45,6 @@ protected:
 private:
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
-    mkldnn::memory::format_tag weightsFormatForSrcFormat(mkldnn::memory::format_tag sourceFormat);
 
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);

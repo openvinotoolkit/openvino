@@ -1083,6 +1083,7 @@ void MKLDNNQuantizeNode::init() {
     }
 }
 
+
 std::vector<mkldnn::memory::format_tag> MKLDNNQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
     if (getParentEdgesAtPort(0)[0]->getDims()[getAxis()] == 3) {
@@ -1200,8 +1201,14 @@ void MKLDNNQuantizeNode::createPrimitive() {
     jqp.wei_prc = Precision::FP32;
     jqp.dst_prc = config.outConfs[0].desc.getPrecision();
 
+    jqp.src_format = mkldnn::memory::format_tag::undef;
     MKLDNNMemoryDesc inDesc(config.inConfs[0].desc);
-    jqp.src_format = inDesc.getFormat();
+    for (const auto fmt : getDataFormats()) {
+        if (inDesc.isSame(fmt)) {
+            jqp.src_format = fmt;
+        }
+    }
+    IE_ASSERT(jqp.src_format != mkldnn::memory::format_tag::undef);
 
     jqp.op_type = quantizeOpType;
 

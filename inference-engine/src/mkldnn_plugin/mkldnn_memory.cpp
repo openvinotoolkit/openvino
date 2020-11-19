@@ -551,26 +551,27 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
 mkldnn::memory::format_tag MKLDNNMemoryDesc::getFormat() const {
     // TODO [OneDNN]: Previously it was a field of tdesc, but now the brute
     //                force search here. Please avoid of using this method.
-    const auto dims = desc.dims();
-    const auto type = desc.data_type();
-    const auto ndims = dims.size();
+    const auto ndims = desc.dims().size();
 
     // There are no suitable format_tag for this
     if (ndims == 0 || ndims > 6)
         return mkldnn::memory::format_tag::undef;
 
-    for (const auto &fmt : form_tags_by_ndims.at(dims.size())) {
-        // Try to create with format and compare result with existing desc
-        memory::desc tmp_desc(dims, type, fmt);
-
-        // Format doesn't depend on offset exclude it from check
-        tmp_desc.data.offset0 = desc.data.offset0;
-
-        if (tmp_desc == desc)
+    for (const auto fmt : form_tags_by_ndims.at(ndims)) {
+        if (this->isSame(fmt))
             return fmt;
     }
 
     return mkldnn::memory::format_tag::undef;
+}
+
+bool MKLDNNMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
+    memory::desc tmp_desc(desc.dims(), desc.data_type(), fmt);
+
+    // Format doesn't depend on offset, so exclude it from check
+    tmp_desc.data.offset0 = desc.data.offset0;
+
+    return (tmp_desc == desc);
 }
 
 bool MKLDNNMemoryDesc::isPlainFormat() const {

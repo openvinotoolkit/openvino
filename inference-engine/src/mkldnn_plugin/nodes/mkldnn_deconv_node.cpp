@@ -167,14 +167,12 @@ void MKLDNNDeconvolutionNode::filterSupportedDescriptors() {
         while (itd != descs.end()) {
             bool isSuitableDesc = true;
             if (!inputMemoryFormatsFilter.empty()) {
-                auto src_fmt = MKLDNNMemoryDesc(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.src_desc).getFormat();
-                if (src_fmt != inputMemoryFormatsFilter[0])
-                    isSuitableDesc = false;
+                auto src_tdesc = MKLDNNMemoryDesc(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.src_desc);
+                isSuitableDesc &= src_tdesc.isSame(inputMemoryFormatsFilter[0]);
             }
             if (!outputMemoryFormatsFilter.empty()) {
-                auto dst_fmt = MKLDNNMemoryDesc(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.dst_desc).getFormat();
-                if (dst_fmt != outputMemoryFormatsFilter[0])
-                    isSuitableDesc = false;
+                auto dst_tdesc = MKLDNNMemoryDesc(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.dst_desc);
+                isSuitableDesc &= dst_tdesc.isSame(outputMemoryFormatsFilter[0]);
             }
             if (!isSuitableDesc) {
                 itd = descs.erase(itd);

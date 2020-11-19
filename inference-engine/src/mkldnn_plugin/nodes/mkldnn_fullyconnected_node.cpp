@@ -278,31 +278,6 @@ bool MKLDNNFullyConnectedNode::created() const {
     return getType() == FullyConnected;
 }
 
-memory::format_tag MKLDNNFullyConnectedNode::weightsFormatForSrcFormat(memory::format_tag sourceFormat) {
-    switch (sourceFormat) {
-        case memory::format_tag::x:
-            return memory::format_tag::x;
-        case memory::format_tag::nc:
-        case memory::format_tag::tnc:
-        case memory::format_tag::ntc:
-            return memory::format_tag::oi;
-        case memory::format_tag::nchw:
-            return memory::format_tag::oihw;
-        case memory::format_tag::ncdhw:
-            return memory::format_tag::oidhw;
-        case memory::format_tag::nChw8c:
-            return memory::format_tag::aBcd8b;   // ex oIhw8i
-        case memory::format_tag::nCdhw8c:
-            return memory::format_tag::aBcde8b;  //  ex oIdhw8i;
-        case memory::format_tag::nChw16c:
-            return memory::format_tag::aBcd16b;  // ex oIhw16i;
-        case memory::format_tag::nCdhw16c:
-            return memory::format_tag::aBcde16b; // ex oIdhw16i
-        default:
-            THROW_IE_EXCEPTION << "Unsupported source format for node " << getName();
-    }
-}
-
 const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
@@ -404,9 +379,7 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<InferenceEngin
     MKLDNNMemoryDesc in_candidate(inDesc);
     MKLDNNMemoryDesc out_candidate(outDesc);
 
-    auto weights_fmt = weightsFormatForSrcFormat(in_candidate.getFormat());
-
-    MKLDNNMemoryDesc wgh_candidate(MKLDNNDims(weightsDims), wdt, weights_fmt);
+    MKLDNNMemoryDesc wgh_candidate(MKLDNNDims(weightsDims), wdt, mkldnn::memory::format_tag::any);
 
     if (withBiases) {
         MKLDNNMemoryDesc bias_candidate(MKLDNNDims(biasesDims), bdt, memory::format_tag::any);
