@@ -79,17 +79,22 @@ struct CPUStreamsExecutor::Impl {
                         static_cast<int>(big_cores), concurrency);
                     _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{big_cores, concurrency}});
                 } else {
-                    // TODO: wrap #streams/threads over core types
-                    int threads_needed = (_streamId+1)*_impl->_config._threadsPerStream;
+                    // throughput case on a single-NUMA node machine uses all available cores
+                    const int total_concurrency = std::accumulate(core_types.begin(), core_types.end(),
+                        0, [](int sum, const auto& type) {return sum + oneapi::tbb::info::default_concurrency(type); });
+                    printf("total_concurrency reported by TBB %d \n", total_concurrency);
+                    // wrap around total_concurrency
+                    const int max_thread_id = (_streamId + 1)* _impl->_config._threadsPerStream;
+                    const int max_thread_id_wrapped = max_thread_id > total_concurrency ? max_thread_id % total_concurrency : max_thread_id;
                     int sum = 0;
                     // reversed order (so the big cores are populated first)
                     for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
                         const auto type = *iter;
                         const auto concurrency = oneapi::tbb::info::default_concurrency(type);
                         sum += concurrency;
-                        printf("%s THROUGHPUT CASE, StreamId: %d max thread id needed: %d, current sum: %d) \n",
-                            _impl->_config._name.c_str(), _streamId, threads_needed, sum);
-                        if (threads_needed <= sum) {
+                        printf("%s THROUGHPUT CASE, StreamId: %d max thread id needed: %d (wrapped %d), current sum: %d) \n",
+                            _impl->_config._name.c_str(), _streamId, max_thread_id, max_thread_id_wrapped, sum);
+                        if (max_thread_id_wrapped <= sum) {
                             printf("%s THROUGHPUT CASE, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
                                 _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
                                 static_cast<int>(type), concurrency);
