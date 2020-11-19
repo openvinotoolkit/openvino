@@ -27,4 +27,17 @@ constexpr bool one_of(T val, P item, Args... item_others) {
     return val == item || one_of(val, item_others...);
 }
 
+template <typename T, typename P>
+constexpr bool everyone_is(T val, P item) { return val == item; }
+
+template <typename T, typename P, typename... Args>
+constexpr bool everyone_is(T val, P item, Args... item_others) {
+    return val == item && everyone_is(val, item_others...);
+}
+
+constexpr inline bool implication(bool cause, bool cond) {
+    return !cause || !!cond;
+}
+
+
 }  // namespace MKLDNNPlugin

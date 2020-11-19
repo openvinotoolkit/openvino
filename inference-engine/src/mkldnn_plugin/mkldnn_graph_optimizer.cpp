@@ -22,6 +22,7 @@
 
 #include <blob_factory.hpp>
 #include <legacy/ie_layers_internal.hpp>
+#include "utils/general_utils.h"
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -897,10 +898,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
             if (!parentConvolutionNode->weightsZeroPoints.empty())
                 return false;
 
-            bool isSupportedParams =
-                    layer->_group == 1 &&
-                    ((is1x1Convolution(layer) && layer->_stride[X_AXIS] == 1 && layer->_stride[Y_AXIS] == 1) || !is1x1Convolution(layer)) &&
-                    (layer->outData[0].get()->getPrecision() == Precision::FP32 || layer->outData[0].get()->getPrecision() == Precision::U8) &&
+            // TODO [oneDNN]: is it still valide constrain on conv to fuse in?
+            bool isSupportedParams = layer->_group == 1 &&
+                    is1x1Convolution(layer) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
+                    everyone_is(1, layer->_stride[X_AXIS], layer->_stride[Y_AXIS]) &&
+                    one_of(layer->outData[0].get()->getPrecision(), Precision::FP32, Precision::U8) &&
                     node->getChildEdgeAt(0)->getDims().ndims() == 4;
             if (!isSupportedParams) return false;
         }
@@ -947,42 +949,18 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
                         childConvolutionNode->getBaseIntputsNumber() == 3;
 
         auto allPads = getPaddings(*childLayer);
+
         bool isSupportedParams = childLayer->_out_depth == childLayer->_group &&
                                  childLayer->_out_depth != 1 &&
-                                 childLayer->_kernel[X_AXIS] == 3 && childLayer->_kernel[Y_AXIS] == 3 &&
-                                 allPads.begin[X_AXIS] == 1 && allPads.begin[Y_AXIS] == 1 &&
-                                 childLayer->_dilation[X_AXIS] == 1 && childLayer->_dilation[Y_AXIS] == 1 &&
-                                 withBias &&
+                                 everyone_is(3, childLayer->_kernel[X_AXIS], childLayer->_kernel[Y_AXIS]) &&
+                                 everyone_is(1, allPads.begin[X_AXIS], allPads.begin[Y_AXIS]) &&
+                                 everyone_is(1, allPads.end[X_AXIS], allPads.end[Y_AXIS]) &&
+                                 everyone_is(1, childLayer->_dilation[X_AXIS], childLayer->_dilation[Y_AXIS]) &&
+                                 childLayer->_stride[X_AXIS] == childLayer->_stride[Y_AXIS] &&
+                                 one_of(childLayer->_stride[X_AXIS], 1 /*, 2*/) &&  // TODO [oneDNN]: stride 2 should also be supported
                                  childNode->getChildEdgeAt(0)->getDims().ndims() == 4;
 
         return isSupportedParams;
-    };
-
-    auto isFusingWorthwhile = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
-        if (isBinaryConvolutionNode(parentNode)) {
-            return true;
-        }
-
-        auto* layer = dynamic_cast<ConvolutionLayer*>(childNode->getCnnLayer().get());
-        if (layer == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get convolution layer " << childNode->getName();
-
-        auto inDims = childNode->inDims[0];
-        auto outDims = childNode->outDims[0];
-        int elemSize = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(layer->precision));
-
-        int L3_cache_size = mkldnn::utils::get_cache_size(3, false);
-        int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
-        int dw_conv_output_size = outDims[0] * outDims[1]* outDims[2] * outDims[3] * elemSize;
-
-        auto* parentConvolutionNode = dynamic_cast<MKLDNNConvolutionNode*>(parentNode.get());
-        if (parentConvolutionNode == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get convolution node " << parentNode->getName();
-
-        bool isInt8 = parentConvolutionNode->canBeExecutedInInt8();
-        bool isAVX512NotSupported = !mkldnn::impl::cpu::x64::mayiuse(mkldnn::impl::cpu::x64::cpu_isa_t::avx512_common);
-
-        return isInt8 ? isAVX512NotSupported : (dw_conv_input_size + dw_conv_output_size > L3_cache_size / 2);
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
@@ -993,8 +971,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
 
         auto childConvNode = parentConvNode->getChildEdgeAt(0)->getChild();
         if (!isSutableChildConvolution(parentConvNode, childConvNode)) continue;
-
-        if (!isFusingWorthwhile(parentConvNode, childConvNode)) continue;
 
         parentConvNode->fuseWith(childConvNode);
 

@@ -1079,6 +1079,7 @@ void MKLDNNNode::setDynamicBatchLim(int lim) {
     dynBatchLim = lim;
     // default behaviour is to set only output tensor with new batch values.
     // Assume that batched data is placed at port 0.
+    // TODO [oneDNN] : dyn batch is not ported
 //    auto output_edges = getChildEdgesAtPort(0);
 //    if (output_edges.empty())
 //        return;
