@@ -727,7 +727,12 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
     weights_prec = tweights->getTensorDesc().getPrecision();
 
     if (weights_prec == Precision::FP32) {
-        weights_blob = tweights;
+        TensorDesc td(Precision::FP32, tweights->getTensorDesc().getDims(), tweights->getTensorDesc().getLayout());
+        weights_blob = make_shared_blob<float>(td);
+        weights_blob->allocate();
+        float* src = layer->blobs.at("weights")->buffer();
+        float* dst = weights_blob->wmap();
+        memcpy(dst, src, layer->blobs.at("weights")->byteSize());
     } else if (weights_prec == Precision::BF16) {
         MKLDNNPlugin::BF16Transformer transformer;
         weights_blob = transformer.convertBF16ToFloat(tweights);

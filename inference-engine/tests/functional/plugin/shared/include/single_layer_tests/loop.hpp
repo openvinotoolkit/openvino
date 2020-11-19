@@ -100,7 +100,7 @@ protected:
         return LayerTestsCommon::GenerateInput(info);
     }
 
-    std::vector<std::vector<std::uint8_t>> PredefinedRefs() {
+    std::vector<std::vector<std::uint8_t>> CalculateRefs() override {
         if (outputGens.empty())
             return LayerTestsCommon::CalculateRefs();
 
