@@ -116,7 +116,6 @@ set(SRC
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
-    type_prop/dot.cpp
     type_prop/dyn_reshape.cpp
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
@@ -154,7 +153,6 @@ set(SRC
     type_prop/prelu.cpp
     type_prop/proposal.cpp
     type_prop/quantize.cpp
-    type_prop/quantized_dot.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -280,7 +278,6 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder.in.cpp
     backend/cum_sum.in.cpp
     backend/divide.in.cpp
-    backend/dot.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
@@ -293,6 +290,7 @@ set(MULTI_TEST_SRC
     backend/gather_nd.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
+    backend/hard_sigmoid.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
@@ -318,7 +316,6 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/quantize_dequantize.in.cpp
-    backend/quantized_dot.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
