@@ -779,8 +779,53 @@ void InsertIdentityLayerPass::run() {
 }
 
 void InsertCopyLayerPass::run() {
+    // Copy layer insertion happens in few cases:
+    // Crop output goes to concat layer -> copy layer insertion
+    // Concat layer goes to memory layer -> delayed copy layer insertion
+    // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
+    // and copies before concay layers (one less copy than outputs)
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
+        // Crop -> Concat and Concat -> Memory cases
+        if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat()) {
+            std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> copy_insertion_tuples;
+            std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> delayed_copy_insertion_tuples;
+
+            for (auto output : l->outData) {
+                auto& inputTo = getInputTo(output);
+                for (auto& childLayer : inputTo) {
+                    auto original_child = childLayer.second;
+                    auto original_parent = l;
+                    auto current_layer = original_child;
+                    size_t input_idx = CNNLayerFindInsDataIdxes(output, original_child)[0];
+
+                    while (LayerInfo(current_layer).isNonFunctional() || LayerInfo(current_layer).isSplit()) {
+                        if (current_layer->outData.size() == 0) break;
+                        if (getInputTo(current_layer->outData[0]).size() == 0) break;
+                        current_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
+                    }
+
+                    if (LayerInfo(l).isConcat() && LayerInfo(current_layer).isMemory()) {
+                        // Concat -> Memory case
+                        delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
+                    } else if (LayerInfo(l).isCrop() && LayerInfo(current_layer).isConcat()) {
+                        // Crop -> Concat case
+                        copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
+                    }
+                }
+            }
+
+            for (auto& tuple : delayed_copy_insertion_tuples) {
+                // Concat -> Memory case
+                InsertCopyLayer(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), this->getPassManager(), DelayedCopyLayerName);
+            }
+            for (auto& tuple : copy_insertion_tuples) {
+                // Crop -> Concat case
+                InsertCopyLayer(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), this->getPassManager(), CopyLayerName);
+            }
+        } 
+
+        // Layer -> multiple concat/memory case
         for (auto output : l->outData) {
             std::vector<std::pair<CNNLayerPtr, size_t>> MemoryLayers;
             std::vector<std::pair<CNNLayerPtr, size_t>> ConcatLayers;
@@ -798,19 +843,13 @@ void InsertCopyLayerPass::run() {
                     previous_layer = current_layer;
                     current_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
                 }
-                if (LayerInfo(current_layer).isCrop() && !LayerInfo(current_layer).isCropAffined()) {
-                    auto next_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
-                    if (LayerInfo(next_layer).isConcat()) {
-                        auto idx = CNNLayerFindInsDataIdxes(current_layer->outData[0], next_layer)[0];
-                        InsertCopyLayer(current_layer, next_layer, idx, this->getPassManager(), CopyLayerName);
-                    }
-                } else if (LayerInfo(current_layer).isConcat()) {
+                if (LayerInfo(current_layer).isConcat()) {
                     ConcatLayers.push_back(make_pair(layer_to_insert, input_idx));
                 } else if (LayerInfo(current_layer).isMemory()) {
                     MemoryLayers.push_back(make_pair(layer_to_insert, input_idx));
                 }
             }
-            if (MemoryLayers.size() == 0 && ConcatLayers.size() == 0) continue;
+            if (MemoryLayers.empty() && ConcatLayers.empty()) continue;
             auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - 1;
             size_t currentCopyIdx = 0;
             while (currentCopyIdx < toCopyCount) {
