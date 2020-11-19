@@ -39,7 +39,7 @@ const auto numpyBroadcastParams1 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        TestNumpyBroadcast1,
+        smoke_TestNumpyBroadcast1,
         BroadcastLayerTest,
         numpyBroadcastParams1,
         BroadcastLayerTest::getTestCaseName
@@ -55,7 +55,7 @@ const auto numpyBroadcastParams2 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        TestNumpyBroadcast2,
+        smoke_TestNumpyBroadcast2,
         BroadcastLayerTest,
         numpyBroadcastParams2,
         BroadcastLayerTest::getTestCaseName
@@ -85,7 +85,7 @@ const auto bidirectionalBroadcastParams1 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        TestBidirectionalBroadcast1,
+        smoke_TestBidirectionalBroadcast1,
         BroadcastLayerTest,
         bidirectionalBroadcastParams1,
         BroadcastLayerTest::getTestCaseName
@@ -101,7 +101,7 @@ const auto bidirectionalBroadcastParams2 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        TestBidirectionalBroadcast2,
+        smoke_TestBidirectionalBroadcast2,
         BroadcastLayerTest,
         bidirectionalBroadcastParams2,
         BroadcastLayerTest::getTestCaseName
@@ -117,7 +117,7 @@ const auto bidirectionalBroadcastParams3 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        TestBidirectionalBroadcast3,
+        smoke_TestBidirectionalBroadcast3,
         BroadcastLayerTest,
         bidirectionalBroadcastParams3,
         BroadcastLayerTest::getTestCaseName
@@ -150,7 +150,7 @@ const auto explicitBroadcastParams1 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        TestExplicitBroadcast1,
+        smoke_TestExplicitBroadcast1,
         BroadcastLayerTest,
         explicitBroadcastParams1,
         BroadcastLayerTest::getTestCaseName
@@ -166,7 +166,7 @@ const auto explicitBroadcastParams2 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        TestExplicitBroadcast2,
+        smoke_TestExplicitBroadcast2,
         BroadcastLayerTest,
         explicitBroadcastParams2,
         BroadcastLayerTest::getTestCaseName

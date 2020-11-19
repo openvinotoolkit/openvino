@@ -407,7 +407,8 @@ std::shared_ptr<ngraph::Node> makeLSTM(const OutputVector& in,
                                            const std::vector<float>& activations_beta = {},
                                            float clip = 0.f,
                                            bool make_sequence = false,
-                                           ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD);
+                                           ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                           ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
 
 std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                       const std::vector<ngraph::Shape>& constants,
@@ -419,7 +420,8 @@ std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                       float clip = 0.f,
                                       bool linear_before_reset = false,
                                       bool make_sequence = false,
-                                      ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD);
+                                      ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                      ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
 
 std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                       const std::vector<ngraph::Shape>& constants,
@@ -429,7 +431,8 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                       const std::vector<float>& activations_beta = {},
                                       float clip = 0.f,
                                       bool make_sequence = false,
-                                      ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD);
+                                      ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                      ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
 
 std::shared_ptr<ngraph::Node> makeGatherND(
                                       const ngraph::Output<Node>& dataNode,
@@ -444,6 +447,18 @@ std::shared_ptr<ngraph::Node> makeNormalizeL2(const ngraph::Output<Node>& data,
                                               const std::vector<int64_t>& axes,
                                               float eps,
                                               ngraph::op::EpsMode epsMode);
+
+std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
+                                      const ngraph::Output<Node> &scores,
+                                      const element::Type& maxBoxesPrec,
+                                      const element::Type& thrPrec,
+                                      const int32_t &maxOutBoxesPerClass,
+                                      const float &iouThr,
+                                      const float &scoreThr,
+                                      const float &softNmsSigma,
+                                      const ngraph::op::v5::NonMaxSuppression::BoxEncodingType &boxEncoding,
+                                      const bool &sortResDescend,
+                                      const ngraph::element::Type& outType);
 
 }  // namespace builder
 }  // namespace ngraph

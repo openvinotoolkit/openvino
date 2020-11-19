@@ -58,26 +58,13 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        const int seed = 0;
-        std::mt19937 gen(static_cast<float>(seed));
-
-        auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
-            std::vector<float> res;
-
-            std::uniform_real_distribution<float> dist(min, max);
-            for (int i = 0; i < vec_len; i++)
-                res.emplace_back(static_cast<float>(dist(gen)));
-
-            return res;
-        };
-
-        input_bias = generateFloatNumbers(inputSize, -0.25f, 0.0f);
-        input_weights = generateFloatNumbers(inputSize, 0.0f, 0.15f);
-        hidden_memory_init = generateFloatNumbers(hiddenSize, -0.2f, 0.2f);
-        cell_memory_init = generateFloatNumbers(hiddenSize, -0.2f, 0.2f);
-        weights_vals = generateFloatNumbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
-        reccurrenceWeights_vals = generateFloatNumbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
-        bias_vals = generateFloatNumbers(4 * hiddenSize, -0.25f, 0.15f);
+        input_bias = CommonTestUtils::generate_float_numbers(inputSize, -0.2f, 0.0f);
+        input_weights = CommonTestUtils::generate_float_numbers(inputSize, 0.0f, 0.1f);
+        hidden_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+        cell_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+        weights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
+        reccurrenceWeights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
+        bias_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize, -0.2f, 0.1f);
 
         auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
 
@@ -88,7 +75,7 @@ namespace SubgraphTestsDefinitions {
         auto mul = ngraph::builder::makeEltwise(add, input_mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
         auto unsqueeze_input_const = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze_input = std::make_shared<ngraph::op::Unsqueeze>(mul, unsqueeze_input_const);
+        auto unsqueeze_input = std::make_shared<ngraph::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
 
         auto permute_in_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{3}, ngraph::Shape{{1, 0, 2}});
         auto permute_in = std::make_shared<ngraph::opset1::Transpose>(unsqueeze_input, permute_in_params);
@@ -113,7 +100,7 @@ namespace SubgraphTestsDefinitions {
         auto lstm = std::make_shared<ngraph::opset4::LSTMCell>(squeeze, H_t, C_t, weightsNode, reccurrenceWeightsNode, biasNode, hiddenSize);
 
         auto unsqueeze_const = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze = std::make_shared<ngraph::op::Unsqueeze>(lstm->output(0), unsqueeze_const);
+        auto unsqueeze = std::make_shared<ngraph::op::v0::Unsqueeze>(lstm->output(0), unsqueeze_const);
         // body - outputs
         auto H_o = lstm->output(0);
         auto C_o = lstm->output(1);
@@ -171,7 +158,7 @@ namespace SubgraphTestsDefinitions {
         auto mul = ngraph::builder::makeEltwise(add, input_mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
         auto unsqueeze_input_const = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze_input = std::make_shared<ngraph::op::Unsqueeze>(mul, unsqueeze_input_const);
+        auto unsqueeze_input = std::make_shared<ngraph::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
 
         auto cell_memory_constant = ngraph::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
 
@@ -188,7 +175,7 @@ namespace SubgraphTestsDefinitions {
                                                                reccurrenceWeightsNode, biasNode, hiddenSize);
 
         auto unsqueeze_const = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze = std::make_shared<ngraph::op::Unsqueeze>(lstm->output(0), unsqueeze_const);
+        auto unsqueeze = std::make_shared<ngraph::op::v0::Unsqueeze>(lstm->output(0), unsqueeze_const);
 
         auto final_reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
                                                                             ngraph::Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
@@ -273,6 +260,7 @@ namespace SubgraphTestsDefinitions {
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+        IE_SUPPRESS_DEPRECATED_START
         LoadNetwork();
         auto states = executableNetwork.QueryState();
         for (auto& state : states) {
@@ -289,6 +277,7 @@ namespace SubgraphTestsDefinitions {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
+        IE_SUPPRESS_DEPRECATED_END
         Infer();
         switchToNgraphFriendlyModel();
         Validate();
@@ -310,6 +299,7 @@ namespace SubgraphTestsDefinitions {
             manager.run_passes(function);
             LoadNetwork();
         }
+        IE_SUPPRESS_DEPRECATED_START
         auto states = executableNetwork.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
@@ -325,6 +315,7 @@ namespace SubgraphTestsDefinitions {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
+        IE_SUPPRESS_DEPRECATED_END
         Infer();
 
         CreatePureTensorIteratorModel();
