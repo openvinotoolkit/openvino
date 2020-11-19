@@ -386,7 +386,7 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
 
     dynBatchLim = lim;
     if (prim) {
-        prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
+//        prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
     }
 }
 

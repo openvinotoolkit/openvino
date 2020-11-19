@@ -82,6 +82,8 @@ public:
     bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;
     bool isTailCFormat() const;
 
+    bool isSame(mkldnn::memory::format_tag fmt) const;
+
 private:
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();
     mkldnn::memory::desc desc;
@@ -108,6 +110,10 @@ public:
         return MKLDNNMemoryDesc {prim->get_desc()};
     }
 
+    /**
+     * Return handler of buffer. Real data may starts from some other offset
+     * @return
+     */
     void* GetData() const {
         void* data = prim->get_data_handle();
         if (data == nullptr)
@@ -135,10 +141,10 @@ public:
     size_t GetElementsCount() const;
 
 
-    mkldnn::memory::format_tag GetFormat() const {
-        MKLDNNMemoryDesc desc(prim->get_desc());
-        return desc.getFormat();
-    }
+//    mkldnn::memory::format_tag GetFormat() const {
+//        MKLDNNMemoryDesc desc(prim->get_desc());
+//        return desc.getFormat();
+//    }
 
     mkldnn::memory::dims GetDims() const {
         auto data = GetDescriptor().data;

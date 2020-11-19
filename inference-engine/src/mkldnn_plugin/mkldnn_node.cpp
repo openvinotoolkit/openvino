@@ -749,16 +749,9 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
 
         auto create = [&] () {
             auto newDesc = MKLDNNMemoryDesc(internalBlob->getTensorDesc());
-            auto newFormat = newDesc.getFormat();
-            if (newFormat == mkldnn::memory::format_tag::ncdhw) {
-                newFormat = mkldnn::memory::format_tag::goihw;
-            }
-            if (newFormat == mkldnn::memory::format_tag::nchw) {
-                newFormat = mkldnn::memory::format_tag::oihw;
-            }
 
             MKLDNNMemory memory{ engine };
-            memory.Create(MKLDNNMemoryDesc(newDesc.getDims(), newDesc.getDataType(), newFormat), internalBlob->buffer());
+            memory.Create(newDesc, internalBlob->buffer());
 
             MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(engine));
             _ptr->Create(intDescs[i]);
@@ -1093,9 +1086,14 @@ int MKLDNNNode::getMaxBatch() {
 
 void MKLDNNNode::setDynamicBatchLim(int lim) {
     dynBatchLim = lim;
-    if (prim) {
-        prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
-    }
+    // default behaviour is to set only output tensor with new batch values.
+    // Assume that batched data is placed at port 0.
+//    auto output_edges = getChildEdgesAtPort(0);
+//    if (output_edges.empty())
+//        return;
+//
+//    auto mem = output_edges[0]->getMemoryPtr();
+//    mem->GetDescriptor();
 }
 
 bool MKLDNNNode::isFusedWith(Type fusedNodeType) const {

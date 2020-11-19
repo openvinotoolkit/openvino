@@ -1732,7 +1732,7 @@ void MKLDNNInterpolateNode::createPrimitive() {
 
     if (getChildEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
         jcp.layout = InterpolateLayoutType::planar;
-    } else if (one_of(getChildEdgeAt(0)->getMemory().GetDesc().getFormat(), format_tag::nChw8c, format_tag::nChw16c)) {
+    } else if (getChildEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
         jcp.layout = InterpolateLayoutType::block;
     } else {
         jcp.layout = InterpolateLayoutType::by_channel;
