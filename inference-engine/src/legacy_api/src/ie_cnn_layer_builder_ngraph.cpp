@@ -651,11 +651,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Squeeze>::createLayer(const std::shared_
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Unsqueeze>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+CNNLayer::Ptr NodeConverter<ngraph::op::v0::Unsqueeze>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Unsqueeze",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::Unsqueeze>(layer);
+    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v0::Unsqueeze>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
     return res;
@@ -1144,14 +1144,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ReverseSequence>::createLayer(const std:
     res->params["batch_axis"] = asString(castedLayer->get_batch_axis());
     res->params["seq_axis"] = asString(castedLayer->get_sequence_axis());
 
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Reshape>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Reshape",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReshapeLayer>(params);
     return res;
 }
 

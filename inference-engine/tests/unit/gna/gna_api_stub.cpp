@@ -60,6 +60,14 @@ GNA2_API Gna2Status Gna2DeviceClose(
     return Gna2StatusSuccess;
 }
 
+GNA2_API Gna2Status Gna2DeviceGetCount(
+    uint32_t* numberOfDevices) {
+    if (numberOfDevices != nullptr) {
+        *numberOfDevices = 1;
+    }
+    return Gna2StatusSuccess;
+}
+
 GNA2_API enum Gna2Status Gna2MemoryFree(
     void * memory) {
     return Gna2StatusSuccess;
@@ -121,6 +129,9 @@ GNA2_API enum Gna2Status Gna2RequestEnqueue(
 GNA2_API enum Gna2Status Gna2RequestWait(
     uint32_t requestId,
     uint32_t timeoutMilliseconds) {
+    if (current != nullptr) {
+        return current->Gna2RequestWait(requestId, timeoutMilliseconds);
+    }
     return Gna2StatusSuccess;
 }
 

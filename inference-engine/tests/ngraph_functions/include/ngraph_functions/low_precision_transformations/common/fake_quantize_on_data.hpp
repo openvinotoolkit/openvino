@@ -58,6 +58,25 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& dat
         (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
 }
 
+class FakeQuantizeOnDataWithConstant {
+public:
+    size_t quantizationLevel;
+    std::vector<ngraph::Shape> constantShapes;
+    std::vector<float> inputLowValues;
+    std::vector<float> inputHighValues;
+    std::vector<float> outputLowValues;
+    std::vector<float> outputHighValues;
+    ngraph::element::Type outputPrecision;
+};
+
+inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithConstant& data) {
+    return out <<  "_" << data.quantizationLevel <<
+        (data.constantShapes.empty() ? ngraph::Shape{} : data.constantShapes[0]) << "_" <<
+        data.inputLowValues << "_" << data.inputHighValues << "_" <<
+        data.outputLowValues << "_" << data.outputHighValues << "_" <<
+        (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph

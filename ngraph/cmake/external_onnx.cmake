@@ -20,7 +20,7 @@ include(FetchContent)
 # ONNX.proto definition version
 #------------------------------------------------------------------------------
 
-set(ONNX_VERSION 1.6.0)
+set(ONNX_VERSION 1.7.0)
 
 #------------------------------------------------------------------------------
 # Download and install libonnx ...
@@ -63,15 +63,8 @@ if(NOT ext_onnx_POPULATED)
         set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
     endif()
 
-    function(AddOnnxSubDirectory)
-        # In order to force this library to always be static
-        # We change the global BUILD_SHARED_LIBS inside this function scope only
-        set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(${ext_onnx_SOURCE_DIR} ${ext_onnx_BINARY_DIR} EXCLUDE_FROM_ALL)
-        onnx_set_target_properties()
-    endfunction()
-
-    AddOnnxSubDirectory()
+    add_subdirectory(${ext_onnx_SOURCE_DIR} ${ext_onnx_BINARY_DIR} EXCLUDE_FROM_ALL)
+    onnx_set_target_properties()
 else()
     onnx_set_target_properties()
 endif()

@@ -43,6 +43,8 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
 
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
+
 # Create shared library
 
 add_library(${TARGET_NAME} SHARED $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
@@ -65,7 +67,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # export targets
 

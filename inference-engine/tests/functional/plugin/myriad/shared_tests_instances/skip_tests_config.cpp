@@ -30,5 +30,9 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Fix scale pre processing
         R"(.*(PreprocessTest).*(SetMeanValuePreProcess).*)",
         R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
+        // TODO: Issue: 42828
+        R"(.*DSR_NonMaxSuppression.*NBoxes=(5|20|200).*)",
+        // TODO: Issue: 42721
+        R"(.*(DSR_GatherND).*)",
     };
 }

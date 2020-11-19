@@ -60,6 +60,7 @@
 #include "ngraph/runtime/reference/gather_nd.hpp"
 #include "ngraph/runtime/reference/gather_tree.hpp"
 #include "ngraph/runtime/reference/gru_cell.hpp"
+#include "ngraph/runtime/reference/hard_sigmoid.hpp"
 #include "ngraph/runtime/reference/log.hpp"
 #include "ngraph/runtime/reference/log_softmax.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
@@ -69,6 +70,7 @@
 #include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
@@ -97,6 +99,7 @@
 #include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/runtime/reference/tan.hpp"
 #include "ngraph/runtime/reference/tanh.hpp"
+#include "ngraph/runtime/reference/tensor_iterator.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "op/avg_pool.hpp"
@@ -176,6 +179,25 @@ protected:
                                 const Node& op,
                                 const std::vector<std::shared_ptr<HostTensor>>& outputs,
                                 const std::vector<std::shared_ptr<HostTensor>>& inputs);
+
+    struct InfoForNMS5
+    {
+        int64_t max_output_boxes_per_class;
+        float iou_threshold;
+        float score_threshold;
+        float soft_nms_sigma;
+        Shape out_shape;
+        Shape boxes_shape;
+        Shape scores_shape;
+        std::vector<float> boxes_data;
+        std::vector<float> scores_data;
+        size_t out_shape_size;
+        bool sort_result_descending;
+        ngraph::element::Type output_type;
+    };
+
+    InfoForNMS5 get_info_for_nms5_eval(const op::v5::NonMaxSuppression* nms5,
+                                       const std::vector<std::shared_ptr<HostTensor>>& inputs);
 
     template <typename T>
     void op_engine(const Node& node,
@@ -704,6 +726,7 @@ protected:
                                          gru_cell->get_linear_before_reset());
             break;
         }
+        case OP_TYPEID::LSTMCell_v0:
         case OP_TYPEID::LSTMCell_v4:
         {
             const op::v4::LSTMCell* lstm_cell = static_cast<const op::v4::LSTMCell*>(&node);
@@ -749,74 +772,184 @@ protected:
         case OP_TYPEID::LSTMSequence_v5:
         {
             auto lstm_seq = static_cast<const op::v5::LSTMSequence*>(&node);
-            runtime::reference::lstm_sequence<T>(args[0]->get_data_ptr<char>(),
-                                                 args[0]->get_shape(),
-                                                 args[1]->get_data_ptr<char>(),
-                                                 args[1]->get_shape(),
-                                                 args[2]->get_data_ptr<char>(),
-                                                 args[2]->get_shape(),
-                                                 args[3]->get_data_ptr<char>(),
-                                                 args[3]->get_shape(),
-                                                 args[4]->get_data_ptr<char>(),
-                                                 args[4]->get_shape(),
-                                                 args[5]->get_data_ptr<char>(),
-                                                 args[5]->get_shape(),
-                                                 args[6]->get_data_ptr<char>(),
-                                                 args[6]->get_shape(),
-                                                 out[0]->get_data_ptr<char>(),
-                                                 out[1]->get_data_ptr<char>(),
-                                                 out[2]->get_data_ptr<char>(),
-                                                 lstm_seq->get_activations()[0],
-                                                 lstm_seq->get_activations()[1],
-                                                 lstm_seq->get_activations()[2],
-                                                 lstm_seq->get_clip(),
-                                                 lstm_seq->get_direction());
+            auto type = args[3]->get_element_type();
+            if (type == element::i64 || type == element::u64)
+            {
+                runtime::reference::lstm_sequence<T, int64_t>(args[0]->get_data_ptr<char>(),
+                                                              args[0]->get_shape(),
+                                                              args[1]->get_data_ptr<char>(),
+                                                              args[1]->get_shape(),
+                                                              args[2]->get_data_ptr<char>(),
+                                                              args[2]->get_shape(),
+                                                              args[3]->get_data_ptr<char>(),
+                                                              args[3]->get_shape(),
+                                                              args[4]->get_data_ptr<char>(),
+                                                              args[4]->get_shape(),
+                                                              args[5]->get_data_ptr<char>(),
+                                                              args[5]->get_shape(),
+                                                              args[6]->get_data_ptr<char>(),
+                                                              args[6]->get_shape(),
+                                                              out[0]->get_data_ptr<char>(),
+                                                              out[1]->get_data_ptr<char>(),
+                                                              out[2]->get_data_ptr<char>(),
+                                                              lstm_seq->get_activations()[0],
+                                                              lstm_seq->get_activations()[1],
+                                                              lstm_seq->get_activations()[2],
+                                                              lstm_seq->get_clip(),
+                                                              lstm_seq->get_direction());
+            }
+            else if (type == element::i32 || type == element::u32)
+            {
+                runtime::reference::lstm_sequence<T, int32_t>(args[0]->get_data_ptr<char>(),
+                                                              args[0]->get_shape(),
+                                                              args[1]->get_data_ptr<char>(),
+                                                              args[1]->get_shape(),
+                                                              args[2]->get_data_ptr<char>(),
+                                                              args[2]->get_shape(),
+                                                              args[3]->get_data_ptr<char>(),
+                                                              args[3]->get_shape(),
+                                                              args[4]->get_data_ptr<char>(),
+                                                              args[4]->get_shape(),
+                                                              args[5]->get_data_ptr<char>(),
+                                                              args[5]->get_shape(),
+                                                              args[6]->get_data_ptr<char>(),
+                                                              args[6]->get_shape(),
+                                                              out[0]->get_data_ptr<char>(),
+                                                              out[1]->get_data_ptr<char>(),
+                                                              out[2]->get_data_ptr<char>(),
+                                                              lstm_seq->get_activations()[0],
+                                                              lstm_seq->get_activations()[1],
+                                                              lstm_seq->get_activations()[2],
+                                                              lstm_seq->get_clip(),
+                                                              lstm_seq->get_direction());
+            }
+            else
+            {
+                std::stringstream ss;
+                ss << "unsupported element type " << type << " op LSTMSequence";
+                throw std::runtime_error(ss.str());
+            }
             break;
         }
         case OP_TYPEID::GRUSequence_v5:
         {
             auto gru_seq = static_cast<const op::v5::GRUSequence*>(&node);
-            runtime::reference::gru_sequence<T>(args[0]->get_data_ptr<char>(),
-                                                args[0]->get_shape(),
-                                                args[1]->get_data_ptr<char>(),
-                                                args[1]->get_shape(),
-                                                args[2]->get_data_ptr<char>(),
-                                                args[2]->get_shape(),
-                                                args[3]->get_data_ptr<char>(),
-                                                args[3]->get_shape(),
-                                                args[4]->get_data_ptr<char>(),
-                                                args[4]->get_shape(),
-                                                args[5]->get_data_ptr<char>(),
-                                                args[5]->get_shape(),
-                                                out[0]->get_data_ptr<char>(),
-                                                out[1]->get_data_ptr<char>(),
-                                                gru_seq->get_activations()[0],
-                                                gru_seq->get_activations()[1],
-                                                gru_seq->get_clip(),
-                                                gru_seq->get_direction(),
-                                                gru_seq->get_linear_before_reset());
+            auto type = args[2]->get_element_type();
+            if (type == element::i64 || type == element::u64)
+            {
+                runtime::reference::gru_sequence<T, int64_t>(args[0]->get_data_ptr<char>(),
+                                                             args[0]->get_shape(),
+                                                             args[1]->get_data_ptr<char>(),
+                                                             args[1]->get_shape(),
+                                                             args[2]->get_data_ptr<char>(),
+                                                             args[2]->get_shape(),
+                                                             args[3]->get_data_ptr<char>(),
+                                                             args[3]->get_shape(),
+                                                             args[4]->get_data_ptr<char>(),
+                                                             args[4]->get_shape(),
+                                                             args[5]->get_data_ptr<char>(),
+                                                             args[5]->get_shape(),
+                                                             out[0]->get_data_ptr<char>(),
+                                                             out[1]->get_data_ptr<char>(),
+                                                             gru_seq->get_activations()[0],
+                                                             gru_seq->get_activations()[1],
+                                                             gru_seq->get_clip(),
+                                                             gru_seq->get_direction(),
+                                                             gru_seq->get_linear_before_reset());
+            }
+            else if (type == element::i32 || type == element::u32)
+            {
+                runtime::reference::gru_sequence<T, int32_t>(args[0]->get_data_ptr<char>(),
+                                                             args[0]->get_shape(),
+                                                             args[1]->get_data_ptr<char>(),
+                                                             args[1]->get_shape(),
+                                                             args[2]->get_data_ptr<char>(),
+                                                             args[2]->get_shape(),
+                                                             args[3]->get_data_ptr<char>(),
+                                                             args[3]->get_shape(),
+                                                             args[4]->get_data_ptr<char>(),
+                                                             args[4]->get_shape(),
+                                                             args[5]->get_data_ptr<char>(),
+                                                             args[5]->get_shape(),
+                                                             out[0]->get_data_ptr<char>(),
+                                                             out[1]->get_data_ptr<char>(),
+                                                             gru_seq->get_activations()[0],
+                                                             gru_seq->get_activations()[1],
+                                                             gru_seq->get_clip(),
+                                                             gru_seq->get_direction(),
+                                                             gru_seq->get_linear_before_reset());
+            }
+            else
+            {
+                std::stringstream ss;
+                ss << "unsupported element type " << type << " op GRUSequence";
+                throw std::runtime_error(ss.str());
+            }
             break;
         }
+        case OP_TYPEID::HardSigmoid:
+        {
+            size_t element_cout = shape_size(node.get_output_shape(0));
+            const T alpha = args[1]->get_data_ptr<const T>()[0];
+            const T beta = args[2]->get_data_ptr<const T>()[0];
+            runtime::reference::hard_sigmoid<T>(args[0]->get_data_ptr<const T>(),
+                                                alpha,
+                                                beta,
+                                                out[0]->get_data_ptr<T>(),
+                                                element_cout);
+            break;
+        }
+
         case OP_TYPEID::RNNSequence_v5:
         {
             auto rnn_seq = static_cast<const op::v5::RNNSequence*>(&node);
-            runtime::reference::rnn_sequence<T>(args[0]->get_data_ptr<char>(),
-                                                args[0]->get_shape(),
-                                                args[1]->get_data_ptr<char>(),
-                                                args[1]->get_shape(),
-                                                args[2]->get_data_ptr<char>(),
-                                                args[2]->get_shape(),
-                                                args[3]->get_data_ptr<char>(),
-                                                args[3]->get_shape(),
-                                                args[4]->get_data_ptr<char>(),
-                                                args[4]->get_shape(),
-                                                args[5]->get_data_ptr<char>(),
-                                                args[5]->get_shape(),
-                                                out[0]->get_data_ptr<char>(),
-                                                out[1]->get_data_ptr<char>(),
-                                                rnn_seq->get_activations()[0],
-                                                rnn_seq->get_clip(),
-                                                rnn_seq->get_direction());
+            auto type = args[2]->get_element_type();
+            if (type == element::i64 || type == element::u64)
+            {
+                runtime::reference::rnn_sequence<T, int64_t>(args[0]->get_data_ptr<char>(),
+                                                             args[0]->get_shape(),
+                                                             args[1]->get_data_ptr<char>(),
+                                                             args[1]->get_shape(),
+                                                             args[2]->get_data_ptr<char>(),
+                                                             args[2]->get_shape(),
+                                                             args[3]->get_data_ptr<char>(),
+                                                             args[3]->get_shape(),
+                                                             args[4]->get_data_ptr<char>(),
+                                                             args[4]->get_shape(),
+                                                             args[5]->get_data_ptr<char>(),
+                                                             args[5]->get_shape(),
+                                                             out[0]->get_data_ptr<char>(),
+                                                             out[1]->get_data_ptr<char>(),
+                                                             rnn_seq->get_activations()[0],
+                                                             rnn_seq->get_clip(),
+                                                             rnn_seq->get_direction());
+            }
+            else if (type == element::i32 || type == element::u32)
+            {
+                runtime::reference::rnn_sequence<T, int32_t>(args[0]->get_data_ptr<char>(),
+                                                             args[0]->get_shape(),
+                                                             args[1]->get_data_ptr<char>(),
+                                                             args[1]->get_shape(),
+                                                             args[2]->get_data_ptr<char>(),
+                                                             args[2]->get_shape(),
+                                                             args[3]->get_data_ptr<char>(),
+                                                             args[3]->get_shape(),
+                                                             args[4]->get_data_ptr<char>(),
+                                                             args[4]->get_shape(),
+                                                             args[5]->get_data_ptr<char>(),
+                                                             args[5]->get_shape(),
+                                                             out[0]->get_data_ptr<char>(),
+                                                             out[1]->get_data_ptr<char>(),
+                                                             rnn_seq->get_activations()[0],
+                                                             rnn_seq->get_clip(),
+                                                             rnn_seq->get_direction());
+            }
+            else
+            {
+                std::stringstream ss;
+                ss << "unsupported element type " << type << " op RNNSequence";
+                throw std::runtime_error(ss.str());
+            }
             break;
         }
         case OP_TYPEID::Log:
@@ -1028,114 +1161,6 @@ protected:
 
             break;
         }
-
-        case OP_TYPEID::QuantizedConvolution:
-        {
-            const op::QuantizedConvolution* qc =
-                static_cast<const op::QuantizedConvolution*>(&node);
-
-            auto input_element_type = qc->get_input_element_type(0);
-            auto filter_element_type = qc->get_input_element_type(1);
-            auto output_element_type = qc->get_output_element_type(0);
-
-            if (input_element_type == element::u8 && filter_element_type == element::i8 &&
-                output_element_type == element::i8)
-            {
-                reference::convolution<uint8_t, int8_t, int8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int8_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::u8 &&
-                     output_element_type == element::u8)
-            {
-                reference::convolution<uint8_t, uint8_t, uint8_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<uint8_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const uint8_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::i8 &&
-                     output_element_type == element::i32)
-            {
-                reference::convolution<uint8_t, int8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const int8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const int8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else if (input_element_type == element::u8 && filter_element_type == element::u8 &&
-                     output_element_type == element::i32)
-            {
-                reference::convolution<uint8_t, uint8_t, int32_t, int32_t>(
-                    args[0]->get_data_ptr<const uint8_t>(),
-                    args[1]->get_data_ptr<const uint8_t>(),
-                    out[0]->get_data_ptr<int32_t>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_output_shape(0),
-                    qc->get_window_movement_strides(),
-                    qc->get_window_dilation_strides(),
-                    qc->get_padding_below(),
-                    qc->get_padding_above(),
-                    qc->get_data_dilation_strides(),
-                    args[2]->get_data_ptr<const float>(),
-                    args[3]->get_data_ptr<const uint8_t>(),
-                    args[4]->get_data_ptr<const float>(),
-                    args[5]->get_data_ptr<const uint8_t>(),
-                    args[6]->get_data_ptr<const float>(),
-                    args[7]->get_data_ptr<const int32_t>());
-            }
-            else
-            {
-                std::stringstream ss;
-                ss << "unsupported element type";
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        }
-
         case OP_TYPEID::QuantizedDot:
         {
             const op::QuantizedDot* qd = static_cast<const op::QuantizedDot*>(&node);
@@ -1258,6 +1283,15 @@ protected:
                                                         reverse->get_sequence_axis(),
                                                         args[1]->get_data_ptr<const int32_t>());
             }
+            else if (node.get_input_element_type(1) == element::i64)
+            {
+                reference::reverse_sequence<T, int64_t>(args[0]->get_data_ptr<const T>(),
+                                                        out[0]->get_data_ptr<T>(),
+                                                        node.get_input_shape(0),
+                                                        reverse->get_batch_axis(),
+                                                        reverse->get_sequence_axis(),
+                                                        args[1]->get_data_ptr<const int64_t>());
+            }
             else
             {
                 throw ngraph_error("only int32 indices are supported");
@@ -1323,37 +1357,79 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::TopK:
+        case OP_TYPEID::TensorIterator:
         {
-            const op::TopK* topk = static_cast<const op::TopK*>(&node);
-            if (node.get_output_element_type(0) == element::i64)
-            {
-                reference::topk<T, int64_t>(args[0]->get_data_ptr<const T>(),
-                                            out[0]->get_data_ptr<int64_t>(),
-                                            out[1]->get_data_ptr<T>(),
-                                            node.get_input_shape(0),
-                                            node.get_output_shape(0),
-                                            topk->get_top_k_axis(),
-                                            topk->get_k(),
-                                            topk->get_compute_max(),
-                                            topk->get_sort());
-            }
-            else if (node.get_output_element_type(0) == element::i32)
-            {
-                reference::topk<T, int32_t>(args[0]->get_data_ptr<const T>(),
-                                            out[0]->get_data_ptr<int32_t>(),
-                                            out[1]->get_data_ptr<T>(),
-                                            node.get_input_shape(0),
-                                            node.get_output_shape(0),
-                                            topk->get_top_k_axis(),
-                                            topk->get_k(),
-                                            topk->get_compute_max(),
-                                            topk->get_sort());
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
+            auto ti = dynamic_cast<const op::v0::TensorIterator&>(node);
+
+            reference::custom_evaluate_function evaluate =
+                [](const std::shared_ptr<ngraph::Function>& function,
+                   const HostTensorVector& inputs,
+                   HostTensorVector& outputs) -> void {
+                const auto& parameters = function->get_parameters();
+                const auto& parametersNumber = parameters.size();
+                const auto& inputsNumber = inputs.size();
+                NGRAPH_CHECK(parametersNumber == inputsNumber,
+                             "Got function (",
+                             function->get_friendly_name(),
+                             ") with ",
+                             parametersNumber,
+                             " parameters, but ",
+                             inputsNumber,
+                             " input blobs");
+
+                auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+                for (const auto& parameter : parameters)
+                {
+                    const auto& parameterIndex = function->get_parameter_index(parameter);
+                    const auto& parameterShape = parameter->get_shape();
+                    const auto& parameterType = parameter->get_element_type();
+                    const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
+
+                    const auto& input = inputs[parameterIndex];
+                    const auto& inputSize = input->get_size_in_bytes();
+                    NGRAPH_CHECK(parameterSize == inputSize,
+                                 "Got parameter (",
+                                 parameter->get_friendly_name(),
+                                 ") of size ",
+                                 parameterSize,
+                                 " bytes, but corresponding input with index ",
+                                 parameterIndex,
+                                 " has ",
+                                 inputSize,
+                                 " bytes");
+
+                    auto tensor =
+                        std::make_shared<runtime::HostTensor>(parameterType, parameterShape);
+                    tensor->write(input->get_data_ptr(), parameterSize);
+                    inputTensors.push_back(tensor);
+                }
+
+                const auto& results = function->get_results();
+                std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
+                outputTensors.reserve(results.size());
+                for (size_t i = 0; i < results.size(); ++i)
+                {
+                    outputTensors.push_back(std::make_shared<HostTensor>());
+                }
+                runtime::Backend::set_backend_shared_library_search_directory("");
+                auto backend = runtime::Backend::create("INTERPRETER");
+                auto handle = backend->compile(function);
+                handle->call_with_validate(outputTensors, inputTensors);
+
+                outputs.reserve(outputTensors.size());
+                for (const auto& tensor : outputTensors)
+                {
+                    auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
+                    outputs.push_back(host_tensor);
+                }
+            };
+            reference::tensor_iterator(ti.get_num_iterations(),
+                                       ti.get_function(),
+                                       ti.get_output_descriptions(),
+                                       ti.get_input_descriptions(),
+                                       out,
+                                       args,
+                                       evaluate);
             break;
         }
         case OP_TYPEID::DetectionOutput_v0:
@@ -1444,6 +1520,43 @@ protected:
                                        norm->get_eps_mode());
             break;
         }
+        case OP_TYPEID::NonMaxSuppression_v5:
+        {
+            const op::v5::NonMaxSuppression* nms =
+                static_cast<const op::v5::NonMaxSuppression*>(&node);
+
+            auto info = get_info_for_nms5_eval(nms, args);
+
+            std::vector<int64_t> selected_indices(info.out_shape_size);
+            std::vector<float> selected_scores(info.out_shape_size);
+            int64_t valid_outputs = 0;
+
+            reference::non_max_suppression(info.boxes_data.data(),
+                                           info.boxes_shape,
+                                           info.scores_data.data(),
+                                           info.scores_shape,
+                                           info.max_output_boxes_per_class,
+                                           info.iou_threshold,
+                                           info.score_threshold,
+                                           info.soft_nms_sigma,
+                                           selected_indices.data(),
+                                           info.out_shape,
+                                           selected_scores.data(),
+                                           info.out_shape,
+                                           &valid_outputs,
+                                           info.sort_result_descending);
+
+            auto selected_scores_type =
+                (args.size() < 4) ? element::f32 : args[3]->get_element_type();
+
+            reference::nms5_postprocessing(out,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
+            break;
+        }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::DepthToSpace:
@@ -1453,7 +1566,6 @@ protected:
         case OP_TYPEID::GRN:
         case OP_TYPEID::GroupConvolution:
         case OP_TYPEID::GroupConvolutionBackpropData:
-        case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
         case OP_TYPEID::MVN:
         case OP_TYPEID::PRelu:
@@ -1461,9 +1573,7 @@ protected:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SpaceToDepth:
-        case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
-        case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:
         case OP_TYPEID::UnknownOp:
             throw unsupported_op("Unsupported op '" + node.description() + "'");
@@ -1482,6 +1592,7 @@ protected:
         case OP_TYPEID::LogicalAnd_v1:
         case OP_TYPEID::LogicalOr_v1:
         case OP_TYPEID::LogicalXor_v1:
+        case OP_TYPEID::Loop_v5:
         case OP_TYPEID::MatMul:
         case OP_TYPEID::Maximum:
         case OP_TYPEID::Minimum:
@@ -1490,19 +1601,18 @@ protected:
         case OP_TYPEID::NotEqual:
         case OP_TYPEID::Power:
         case OP_TYPEID::Range:
-        case OP_TYPEID::Reshape:
+        case OP_TYPEID::Reshape_v1:
         case OP_TYPEID::Result:
         case OP_TYPEID::Reverse_v1:
         case OP_TYPEID::Round_v5:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
-        case OP_TYPEID::Softmax:
+        case OP_TYPEID::Softmax_v1:
+        case OP_TYPEID::Split_v1:
         case OP_TYPEID::Squeeze:
-        case OP_TYPEID::Sum:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
-        case OP_TYPEID::Slice:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
