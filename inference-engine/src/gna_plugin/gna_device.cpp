@@ -12,6 +12,7 @@
 
 #if GNA_LIB_VER == 2
 #include "gna_api_wrapper.hpp"
+#include "gna2-capability-api.h"
 #include "gna2-device-api.h"
 #include "gna2-inference-api.h"
 #include "gna2-instrumentation-api.h"
@@ -101,6 +102,19 @@ void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
     }
 }
 
+std::string GNADeviceHelper::getGnaLibraryVersion() {
+#if GNA_LIB_VER == 1
+    return "1.X";
+#else
+    char buffer[64] = {};
+    const auto status = Gna2GetLibraryVersion(buffer, sizeof(buffer));
+    if (status != Gna2StatusSuccess) {
+        return "Gna2GetLibraryVersionReturned[" + std::to_string(status) + "]";
+    }
+    return buffer;
+#endif
+}
+
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     uint32_t modelId;
     if (isUpTo20GnaDevice()) {
@@ -157,7 +171,9 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
                 static_cast<int>(status), static_cast<int>(s));
         if (status == Gna2StatusDeviceIngoingCommunicationError ||
             status == Gna2StatusDeviceOutgoingCommunicationError) {
-            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ", consider updating the GNA driver";
+            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " <<
+                gna2StatusBuffer.data() << ", consider updating the GNA driver" <<
+                decoratedGnaLibVersion();
         }
 
         Gna2ModelError error;
@@ -197,7 +213,9 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
         ss << "   Reason (" << std::to_string(reason) << "): " << errorReason << "\n";
         ss << "   Value (0x" << std::hex << std::to_string(error.Value) << ")";
 
-        THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ss.str();
+        THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " <<
+            gna2StatusBuffer.data() << ss.str() <<
+            decoratedGnaLibVersion();
     }
 }
 
@@ -214,7 +232,8 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const std::string& from
             status == Gna2StatusDeviceOutgoingCommunicationError) {
             suffix = ", consider updating the GNA driver";
         }
-        THROW_GNA_EXCEPTION << prefix << status << ") " << gna2StatusBuffer.data() << suffix;
+        THROW_GNA_EXCEPTION << prefix << status << ") " << gna2StatusBuffer.data() << suffix <<
+            decoratedGnaLibVersion();
     }
 }
 

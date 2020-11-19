@@ -188,6 +188,16 @@ GNA2_API enum Gna2Status Gna2InstrumentationConfigAssignToRequestConfig(
     return Gna2StatusSuccess;
 }
 
+GNA2_API enum Gna2Status Gna2GetLibraryVersion(
+    char* versionBuffer,
+    uint32_t versionBufferSize) {
+    if (versionBuffer != nullptr && versionBufferSize > 0) {
+        versionBuffer[0] = '\0';
+        return Gna2StatusSuccess;
+    }
+    return Gna2StatusNullArgumentNotAllowed;
+}
+
 #elif GNA_LIB_VER == 1
 
 /**
