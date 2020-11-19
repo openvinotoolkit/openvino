@@ -13,13 +13,13 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
 import unittest
 from argparse import Namespace
 
 import numpy as np
 
 from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
+from extensions.middle.ScaleInput import ScaleInput
 from mo.utils.cli_parser import get_mean_scale_dictionary, parse_tuple_pairs
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, result, connect, connect_data, \
@@ -209,4 +209,30 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+
+class ScaleInputTests(unittest.TestCase):
+    def test_scale_input(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ], {'scale': {'shape': [1, 1, 1, 1], 'value': np.array(1/255)},
+            'scale_d': {'shape': [1, 1, 1, 1], 'value': np.array(1/255)}})
+
+        graph = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True, cli=Namespace(scale=255))
+        graph.graph['layout'] = 'NCHW'
+
+        ScaleInput().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result')
+        self.assertTrue(flag, resp)
+
+    def test_scale_input_2(self):
+        graph_ref = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True)
+        graph = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True, cli=Namespace(scale=1))
+        graph.graph['layout'] = 'NCHW'
+
+        ScaleInput().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
