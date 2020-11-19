@@ -72,7 +72,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
             </output>
         </layer>
         <layer id="6" name="nms" type="NonMaxSuppression" version="opset5">
-            <data box_encoding="corner" sort_result_descending="0"/>
+            <data box_encoding="corner" sort_result_descending="0" output_type="i32"/>
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -248,8 +248,8 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 <custom offset="12" precision="FP32" size="4"/>
             </blobs>
         </layer>
-        <layer id="5" name="nms" type="NonMaxSuppression" precision="I64">
-            <data center_point_box="false" output_type="I64" sort_result_descending="false"/>
+        <layer id="5" name="nms" type="NonMaxSuppression" precision="I32">
+            <data center_point_box="false" output_type="I32" sort_result_descending="false"/>
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -272,7 +272,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </input>
             <output>
-                <port id="5" precision="I64">
+                <port id="5" precision="I32">
                     <dim>16000</dim>
                     <dim>3</dim>
                 </port>
@@ -280,12 +280,12 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                     <dim>16000</dim>
                     <dim>3</dim>
                 </port>
-                <port id="7" precision="I64">
+                <port id="7" precision="I32">
                     <dim>1</dim>
                 </port>
             </output>
         </layer>
-        <layer id="6" name="mul" type="Eltwise" precision="I64">
+        <layer id="6" name="mul" type="Eltwise" precision="I32">
             <data operation="prod"/>
             <input>
                 <port id="0">
@@ -298,13 +298,13 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </input>
             <output>
-                <port id="2" precision="I64">
+                <port id="2" precision="I32">
                     <dim>16000</dim>
                     <dim>3</dim>
                 </port>
             </output>
         </layer>
-        <layer id="7" name="mul2" type="Eltwise" precision="I64">
+        <layer id="7" name="mul2" type="Eltwise" precision="I32">
             <data operation="prod"/>
             <input>
                 <port id="0">
@@ -315,7 +315,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </input>
             <output>
-                <port id="2" precision="I64">
+                <port id="2" precision="I32">
                     <dim>1</dim>
                 </port>
             </output>

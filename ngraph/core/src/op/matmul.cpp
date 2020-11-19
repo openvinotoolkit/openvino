@@ -19,15 +19,11 @@
 #include "itt.hpp"
 #include "matmul.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/builder/matmul_factory.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 
@@ -35,7 +31,7 @@ op::MatMul::MatMul(const Output<Node>& A,
                    const Output<Node>& B,
                    const bool& transpose_a,
                    const bool& transpose_b)
-    : FusedOp(OutputVector{A, B})
+    : Op(OutputVector{A, B})
     , m_transpose_a{transpose_a}
     , m_transpose_b{transpose_b}
 {
@@ -49,62 +45,6 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::MatMul::pre_validate_and_infer_types()
-{
-    element::Type result_et;
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
-        "Arguments do not have the same element type (arg0 element type: ",
-        get_input_element_type(0),
-        ", arg1 element type: ",
-        get_input_element_type(1),
-        ").");
-
-    const Rank& A_rank = get_input_partial_shape(0).rank();
-    const Rank& B_rank = get_input_partial_shape(1).rank();
-
-    if (A_rank.is_static() && B_rank.is_static())
-    {
-        Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
-        set_output_type(0, result_et, PartialShape::dynamic(max_rank));
-    }
-    else
-    {
-        set_output_type(0, result_et, PartialShape::dynamic());
-    }
-}
-
-OutputVector op::MatMul::decompose_op() const
-{
-    auto A = input_value(0);
-    auto B = input_value(1);
-
-    const auto a_rank = A.get_shape().size();
-    const auto b_rank = B.get_shape().size();
-
-    if (m_transpose_a && a_rank >= 2)
-    {
-        vector<size_t> axes_order(a_rank);
-        // generate default axes_order.
-        iota(axes_order.begin(), axes_order.end(), 0);
-        // transpose the last 2 spatial dims
-        swap(axes_order[a_rank - 1], axes_order[a_rank - 2]);
-        A = builder::opset1::reorder_axes(A, axes_order);
-    }
-
-    if (m_transpose_b && b_rank >= 2)
-    {
-        vector<size_t> axes_order(b_rank);
-        iota(axes_order.begin(), axes_order.end(), 0);
-        swap(axes_order[b_rank - 1], axes_order[b_rank - 2]);
-        B = builder::opset1::reorder_axes(B, axes_order);
-    }
-
-    builder::MatmulFactory factory({A, B});
-    return factory.make_matmul_op();
-}
-
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
@@ -113,68 +53,157 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
 
 namespace matmul
 {
-    Shape evaluate_matmul_output_shape(const Shape& arg0_shape,
-                                       const Shape& arg1_shape,
-                                       bool transpose_a,
-                                       bool transpose_b)
+    PartialShape validate_matmul_output_shape(const PartialShape& arg0_shape,
+                                              const PartialShape& arg1_shape,
+                                              bool transpose_a,
+                                              bool transpose_b)
     {
-        Shape output_shape;
-        Shape arg0_shape_update = arg0_shape;
-        Shape arg1_shape_update = arg1_shape;
+        auto arg0_rank = arg0_shape.rank().get_length();
+        auto arg1_rank = arg1_shape.rank().get_length();
 
-        size_t arg0_rank = arg0_shape.size();
-        size_t arg1_rank = arg1_shape.size();
+        NGRAPH_CHECK((arg0_rank != 0 && arg1_rank != 0),
+                     "Scalars are not supported as MatMul inputs.");
 
+        // Temporary Dimension vectors to calculate output shape
+        std::vector<Dimension> arg0_shape_tmp(arg0_shape);
+        std::vector<Dimension> arg1_shape_tmp(arg1_shape);
+
+        // 1. Applying transpositions specified by optional `transpose_a` and `transpose_b`
+        // Only two right-most dimensions are swapped, other dimensions remain the same.
+        // Transpose attributes are ignored for 1D tensors.
         if (transpose_a && arg0_rank > 1)
         {
-            swap(arg0_shape_update[arg0_rank - 2], arg0_shape_update[arg0_rank - 1]);
+            swap(arg0_shape_tmp[arg0_rank - 2], arg0_shape_tmp[arg0_rank - 1]);
         }
         if (transpose_b && arg1_rank > 1)
         {
-            swap(arg1_shape_update[arg1_rank - 2], arg1_shape_update[arg1_rank - 1]);
+            swap(arg1_shape_tmp[arg1_rank - 2], arg1_shape_tmp[arg1_rank - 1]);
         }
 
-        if (arg0_rank == 1 && arg1_rank == 1)
+        // 2. One-dimensional tensors unsqueezing is applied to each input independently.
+        if (arg0_rank == 1)
         {
-            NGRAPH_CHECK(arg0_shape_update == arg1_shape_update, "Incompatible arg shapes");
-            output_shape = Shape{};
+            // If the first input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
+            // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
+            // For example {S} will be reshaped to {1, S}.
+            arg0_shape_tmp.insert(arg0_shape_tmp.begin(), 1);
+            arg0_rank = arg0_shape_tmp.size();
         }
-        else if (arg0_rank == 1)
+        if (arg1_rank == 1)
         {
-            // i.e., arg0 shape {3}, arg1 shape{2, 3, 2}, output shape {2, 2}
-            NGRAPH_CHECK(arg0_shape_update[0] == arg1_shape_update[arg1_rank - 2],
-                         "Incompatible arg shapes");
-            arg1_shape_update.erase(arg1_shape_update.begin() + arg1_rank - 2);
-            output_shape = arg1_shape_update;
-        }
-        else if (arg1_rank == 1)
-        {
-            // i.e., arg0 shape {2, 2, 3}, arg1 shape{3}, output shape {2, 2}
-            NGRAPH_CHECK(arg1_shape_update[0] == arg0_shape_update[arg0_rank - 1],
-                         "Incompatible arg shapes");
-            arg0_shape_update.erase(arg0_shape_update.begin() + arg0_rank - 1);
-            output_shape = arg0_shape_update;
-        }
-        else if (arg0_rank == 2 && arg1_rank == 2)
-        {
-            NGRAPH_CHECK(arg0_shape_update[1] == arg1_shape_update[0], "Incompatible arg shapes");
-            output_shape = Shape{arg0_shape_update[0], arg1_shape_update[1]};
-        }
-        else
-        {
-            NGRAPH_CHECK(arg0_shape_update[arg0_rank - 1] == arg1_shape_update[arg1_rank - 2],
-                         "Incompatible arg shapes");
-
-            const auto& broadcast_shapes = builder::get_numpy_broadcast_shapes(
-                {Shape{begin(arg0_shape_update), next(end(arg0_shape_update), -2)},
-                 Shape{begin(arg1_shape_update), next(end(arg1_shape_update), -2)}});
-
-            output_shape = broadcast_shapes.first;
-            output_shape.insert(output_shape.end(), arg0_shape_update[arg0_rank - 2]);
-            output_shape.insert(output_shape.end(), arg1_shape_update[arg1_rank - 1]);
+            // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
+            // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
+            // For example {S} will be reshaped to {S, 1}.
+            arg1_shape_tmp.insert(arg1_shape_tmp.end(), 1);
+            arg1_rank = arg1_shape_tmp.size();
         }
 
-        return output_shape;
+        // Check matrices dimensions compatibility,
+        // COL_INDEX_DIM of the first matrix has to match ROW_INDEX_DIM of the second matrix.
+        // Error is not thrown for dynamic dimensions bounds without intersection
+        // to ensure MatMul backward compatibility.
+        auto merged_dimension = Dimension::dynamic();
+        auto arg0_col_dim = arg0_shape_tmp[arg0_rank - 1];
+        auto arg1_row_dim = arg1_shape_tmp[arg1_rank - 2];
+        NGRAPH_CHECK(Dimension::merge(merged_dimension, arg0_col_dim, arg1_row_dim) ||
+                         arg0_col_dim.is_dynamic() || arg1_row_dim.is_dynamic(),
+                     "Incompatible MatMul matrix dimension. ",
+                     "First input dimension=",
+                     arg0_col_dim,
+                     " at COL_INDEX_DIM=",
+                     (arg0_rank - 1),
+                     " doesn't match the second input dimension=",
+                     arg1_row_dim,
+                     " at ROW_INDEX_DIM=",
+                     (arg1_rank - 2));
+
+        // 3. If ranks of input arguments are different after steps 1 and 2,
+        // the smaller tensor is unsqueezed from the left side of the shape
+        // by necessary number of axes to make both shapes of the same rank.
+        if (arg0_rank < arg1_rank)
+            arg0_shape_tmp.insert(arg0_shape_tmp.begin(), arg1_rank - arg0_rank, 1);
+        else if (arg0_rank > arg1_rank)
+            arg1_shape_tmp.insert(arg1_shape_tmp.begin(), arg0_rank - arg1_rank, 1);
+        // Both arg0_shape_tmp and arg1_shape_tmp have identical size now
+        auto max_rank = arg0_shape_tmp.size();
+        std::vector<Dimension> output_shape(max_rank);
+
+        // 4. Usual rules of the broadcasting are applied for batch dimensions.
+        // Broadcast all batches (last two dimensions represent matrix),
+        // expand dim with value 1 to bigger dim if dimensions are not equal.
+        for (auto i = 0; i < max_rank - 2; i++)
+        {
+            auto min_dim_val =
+                std::min(arg0_shape_tmp[i].get_min_length(), arg1_shape_tmp[i].get_min_length());
+
+            // If both dimensions don't have 1 in range, usual merge is enough.
+            if (min_dim_val > 1)
+            {
+                // Error is not thrown for dynamic dimensions bounds without intersection
+                // to ensure MatMul backward compatibility.
+                // Instead fully dynamic dimension is set as default for such a case.
+                auto merged_dimension = Dimension::dynamic();
+                NGRAPH_CHECK(
+                    Dimension::merge(merged_dimension, arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
+                        arg0_shape_tmp[i].is_dynamic() || arg1_shape_tmp[i].is_dynamic(),
+                    "Incompatible MatMul batch dimension. ",
+                    "Can't merge first input dimension=",
+                    arg0_shape_tmp[i],
+                    " with second input dimension=",
+                    arg1_shape_tmp[i],
+                    " at index=",
+                    i);
+
+                output_shape[i] = merged_dimension;
+            }
+            else
+            {
+                // Dimension with value 1 can be expanded to any bigger.
+                Dimension::value_type lower_bound; // The lowest possible value of output dimension
+                Dimension::value_type upper_bound; // The highest possible value of output dimension
+
+                // Output dimension lower_bound is a maximum of
+                // corresponding input dimensions lower bounds.
+                lower_bound = std::max(arg0_shape_tmp[i].get_min_length(),
+                                       arg1_shape_tmp[i].get_min_length());
+                if (lower_bound <= 1)
+                {
+                    // If both of the dimensions have 1 in range, output dimension upper_bound
+                    // is a maximum of corresponding input dimensions upper bounds.
+                    upper_bound = std::max(arg0_shape_tmp[i].get_interval().get_max_val(),
+                                           arg1_shape_tmp[i].get_interval().get_max_val());
+                }
+                else
+                {
+                    // Otherwise output dimension upper_bound is same as upper bound of
+                    // the dimension without 1 in range.
+                    upper_bound = arg0_shape_tmp[i].get_min_length() <= 1
+                                      ? arg1_shape_tmp[i].get_max_length()
+                                      : arg0_shape_tmp[i].get_max_length();
+                }
+                output_shape[i] = Dimension(lower_bound, upper_bound);
+            }
+        }
+
+        // In output_shape replace 2 last axes with ROW_INDEX_DIM from arg0 matrix
+        // and COL_INDEX_DIM from arg1 matrix.
+        output_shape.at(output_shape.size() - 2) = arg0_shape_tmp.at(arg0_shape_tmp.size() - 2);
+        output_shape.at(output_shape.size() - 1) = arg1_shape_tmp.at(arg1_shape_tmp.size() - 1);
+
+        // 5. Removing the temporary axes from originally 1D tensors.
+        // Output shape of two 1D tensors multiplication will be a 0D tensor (scalar).
+        if (arg0_shape.rank().get_length() == 1)
+        {
+            // arg0 input temporary axis inserted at ROW_INDEX_DIM is removed
+            output_shape.erase(output_shape.begin() + output_shape.size() - 2);
+        }
+        if (arg1_shape.rank().get_length() == 1)
+        {
+            // arg1 input temporary axis inserted at COL_INDEX_DIM is removed
+            output_shape.erase(output_shape.begin() + output_shape.size() - 1);
+        }
+
+        return PartialShape(output_shape);
     }
 
     template <element::Type_t ET>
@@ -189,8 +218,9 @@ namespace matmul
         Shape arg0_shape = arg0->get_shape();
         Shape arg1_shape = arg1->get_shape();
 
-        Shape output_shape =
-            evaluate_matmul_output_shape(arg0_shape, arg1_shape, transpose_a, transpose_b);
+        PartialShape output_partial_shape = validate_matmul_output_shape(
+            PartialShape(arg0_shape), PartialShape(arg1_shape), transpose_a, transpose_b);
+        Shape output_shape = output_partial_shape.to_shape();
         output->set_element_type(arg0->get_element_type());
         output->set_shape(output_shape);
 
@@ -231,11 +261,45 @@ namespace matmul
         }
         return rc;
     }
-}
+} // namespace
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::MatMul::evaluate");
     return matmul::evaluate_matmul(
         inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
+}
+
+void ngraph::op::v0::MatMul::validate_and_infer_types()
+{
+    element::Type result_et;
+
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
+        "Arguments do not have the same element type (arg0 element type: ",
+        get_input_element_type(0),
+        ", arg1 element type: ",
+        get_input_element_type(1),
+        ").");
+
+    const auto& A_partial_shape = get_input_partial_shape(0);
+    const auto& B_partial_shape = get_input_partial_shape(1);
+
+    if (A_partial_shape.rank().is_static() && B_partial_shape.rank().is_static())
+    {
+        PartialShape output_shape;
+
+        const bool transpose_a = get_transpose_a();
+        const bool transpose_b = get_transpose_b();
+
+        output_shape = matmul::validate_matmul_output_shape(
+            A_partial_shape, B_partial_shape, transpose_a, transpose_b);
+
+        set_output_type(0, result_et, output_shape);
+    }
+    else
+    {
+        set_output_type(0, result_et, PartialShape::dynamic());
+    }
 }
