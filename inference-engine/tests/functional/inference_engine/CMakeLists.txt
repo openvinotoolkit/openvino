@@ -10,6 +10,7 @@ set(LINK_LIBRARIES
     gmock
     funcTestUtils
     ngraphFunctions
+    lptNgraphFunctions
     inference_engine_transformations
     openvino::itt
     openvino::conditional_compilation

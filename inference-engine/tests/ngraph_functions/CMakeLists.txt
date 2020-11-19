@@ -8,8 +8,6 @@ list(APPEND EXPORT_DEPENDENCIES
         ${NGRAPH_LIBRARIES}
         ngraph_backend
         interpreter_backend
-        inference_engine_lp_transformations
-        inference_engine_legacy
         )
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
