@@ -182,7 +182,54 @@ void op::v5::Loop::validate_and_infer_types()
         NODE_VALIDATION_CHECK(this, index == index_it, "Input_index not in order");
         index_it++;
 
-        if (auto merged_input_description = as_type_ptr<MergedInputDescription>(input_description))
+        auto make_positive = [](int64_t value, uint64_t dim_size) -> int64_t {
+            if (value < 0)
+            {
+                value = dim_size + value;
+            }
+            return value;
+        };
+
+        if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
+        {
+            auto body_parameter =
+                    m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
+            auto body_param_partial_shape = body_parameter->get_partial_shape();
+            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            if (input_partial_shape.is_static())
+            {
+                auto input_shape = input_partial_shape.to_shape();
+                auto axis = slice_input_description->m_axis;
+                auto part_size = slice_input_description->m_part_size;
+
+                auto dim_size = input_shape[axis];
+                auto start = make_positive(slice_input_description->m_start, dim_size);
+                auto end = make_positive(slice_input_description->m_end, dim_size);
+
+                if (body_param_partial_shape.is_static())
+                {
+                    // validate
+                    auto body_param_shape = body_param_partial_shape.to_shape();
+                    for (auto i = 0; i < input_shape.size(); i++)
+                    {
+                        if (i != axis)
+                        {
+                            NODE_VALIDATION_CHECK(
+                                    this,
+                                    input_shape[i] == body_param_shape[i],
+                                    "Iterator input is not compatible with body param");
+                        }
+                    }
+                }
+                else
+                {
+                    // infer type for m_body_parameter
+                    Shape out_shape{input_shape};
+                    out_shape[axis] = part_size;
+                    body_parameter->set_partial_shape(out_shape);
+                }
+            }
+        } else if (auto merged_input_description = as_type_ptr<MergedInputDescription>(input_description))
         {
             auto body_value =
                 m_body->get_results().at(merged_input_description->m_body_value_index);
@@ -334,6 +381,17 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
                     new_args[input_index].get_element_type();
                 new_shapes[input_description->m_body_parameter_index] =
                     new_args[input_index].get_partial_shape();
+
+                if (new_shapes[input_description->m_body_parameter_index].is_static())
+                {
+                    if (auto slice_in = ::ngraph::as_type_ptr<
+                            ngraph::op::v0::TensorIterator::SliceInputDescription>(
+                            input_description))
+                    {
+                        new_shapes[slice_in->m_body_parameter_index][slice_in->m_axis] =
+                                slice_in->m_part_size;
+                    }
+                }
             }
         }
     }
