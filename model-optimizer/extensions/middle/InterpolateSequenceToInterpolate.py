@@ -24,6 +24,7 @@ from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
+from mo.utils.utils import group_by_with_binary_predicate
 
 
 def node_has_one_consumer(node: Node) -> bool:
@@ -148,34 +149,6 @@ class CanBeFused:
         return False
 
 
-def collect_sequences(xs: List[Node]) -> List[List[Node]]:
-    """
-    This function receive a list of Interpolate layers, and returns a list of sequences
-    of Interpolate layers. Two Interpolate layers, 'first' and 'second' are called to be
-    a consecutive, if an output of 'first' is an input of 'second', and number of destinations
-    of 'first' is equal to 1.
-    :param xs: list of Interpolate layers
-    :return: list of sequences of consecutive Interpolate layers
-    """
-    fuser = CanBeFused()
-    if not xs:
-        return []
-
-    prev = xs[0]
-    sequence = [prev]
-    result = []
-    for x in xs[1:]:
-        if is_next(prev, x) and fuser(prev, x):
-            sequence.append(x)
-            prev = x
-        else:
-            result.append(sequence)
-            prev = x
-            sequence = [prev]
-    result.append(sequence)
-    return result
-
-
 def get_interpolate_attributes(node: Node) -> dict:
     opset_to_default_values = {
         'opset1': {
@@ -293,6 +266,7 @@ class InterpolateSequenceToInterpolate(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         log.debug('Enabled replacement of a sequence of Interpolate layers with one Interpolate layer.')
         interps = [n for n in graph.pseudo_topological_sort() if n.kind == 'op' and n.op == 'Interpolate']
-        sequences = collect_sequences(interps)
+        fuser = CanBeFused()
+        sequences = group_by_with_binary_predicate(interps, lambda prev, x: is_next(prev, x) and fuser(prev, x))
         for seq in sequences:
             replace_sequence(seq, graph)
