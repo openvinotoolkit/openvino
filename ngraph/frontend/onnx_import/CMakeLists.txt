@@ -22,10 +22,14 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 # Remove disabled ops
 list(REMOVE_ITEM LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/matmul_integer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/qlinear_matmul.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
     )
 list(REMOVE_ITEM PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/conv_integer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/matmul_integer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/qlinear_matmul.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/quant_conv.hpp
     )
 
@@ -40,6 +44,11 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
+
+if(COMMAND ie_add_vs_version_file)
+    ie_add_vs_version_file(NAME onnx_importer
+                           FILEDESCRIPTION "nGraph ONNX importer library")
+endif()
 
 if(COMMAND ie_faster_build)
     ie_faster_build(onnx_importer

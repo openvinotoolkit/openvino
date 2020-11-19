@@ -16,24 +16,28 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcastToTiles, "ConvertBroadcastT
 ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {
             return false;
         }
 
-        auto data_node = broadcast->input_value(0).get_node_shared_ptr();
+        auto data_node = broadcast->input_value(0);
+        if (data_node.get_partial_shape().is_dynamic()) {
+            return false;
+        }
+
         auto shape_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(broadcast->input_value(1).get_node_shared_ptr());
         auto axes_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
-        if (!data_node || !shape_node || !axes_node) return false;
+        if (!shape_node || !axes_node) return false;
 
         auto output_shape = shape_node->cast_vector<int64_t>();
-        auto input_shape = data_node->get_shape();
+        auto input_shape = data_node.get_shape();
         int64_t cur_dim_id = output_shape.size() - 1;
         size_t dims_count = output_shape.size();
 
-        auto last_node = std::dynamic_pointer_cast<ngraph::Node>(data_node);
+        auto last_node = data_node;
 
         NodeVector new_ops;
 
@@ -61,7 +65,7 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             auto shape_const = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape {shape.size()}, shape);
             auto reshape = std::make_shared<ngraph::opset1::Reshape>(data_node, shape_const, true);
             new_ops.push_back(reshape);
-            last_node = std::dynamic_pointer_cast<ngraph::Node>(reshape);
+            last_node = reshape;
             input_shape = shape;
         }
 
@@ -87,9 +91,8 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         new_ops.push_back(tile);
         tile->set_friendly_name(broadcast->get_friendly_name());
 
-        last_node = std::dynamic_pointer_cast<ngraph::Node>(tile);
         ngraph::copy_runtime_info(broadcast, new_ops);
-        ngraph::replace_node(broadcast, last_node);
+        ngraph::replace_node(broadcast, tile);
         return true;
     };
 

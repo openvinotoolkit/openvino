@@ -17,7 +17,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include <transformations/low_precision/add.hpp>
+#include <low_precision/add.hpp>
 #include "ngraph_functions/low_precision_transformations/add_function.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
@@ -115,7 +115,7 @@ public:
             testValues.expected.dequantization2,
             testValues.expected.dequantizationAfter,
             // Constant operations after transformations are on 1 input only
-            testValues.constInput == 0 ? 1 : -1,
+            testValues.constInput == -1 ? -1 : 1,
             testValues.expected.constValues,
             testValues.additionalLayer,
             testValues.expected.operationType);

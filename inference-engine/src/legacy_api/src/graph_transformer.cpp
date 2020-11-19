@@ -218,6 +218,8 @@ static std::vector<std::string> skipConstInfer = {
     "CumSum",     // Const inference function for CumSum is not implemented
     "Convolution", // Const inference function for Convolution is not implemented
     "Eltwise",  // Const inference function for Eltwise is not implemented
+    "FullyConnected",
+    "Squeeze"
 };
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {
@@ -372,7 +374,10 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
     //       tensor statistic for particular reshape.
     auto reshape = std::make_shared<ReshapeLayer>(
             LayerParams{layer->name, "Reshape", precision});
-    reshape->shape = std::vector<int>(shape.begin(), shape.end());
+
+    reshape->shape.resize(shape.size());
+    for (size_t p = 0; p < shape.size(); ++p)
+        reshape->shape[p] = static_cast<int>(shape[p]);
 
     // replacement
     auto &input_to_map = getInputTo(in_data);

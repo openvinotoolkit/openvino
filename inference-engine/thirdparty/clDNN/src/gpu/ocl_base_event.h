@@ -55,7 +55,7 @@ public:
     }
 
     std::shared_ptr<gpu_toolkit> get_context() const { return _ctx; }
-    cl::Event get() { return _event; }
+    cl::Event get() override { return _event; }
 
 private:
     std::shared_ptr<gpu_toolkit> _ctx;
@@ -91,8 +91,13 @@ public:
         _attached = true;
     }
 
-    cl::Event get() { return _last_ocl_event; }
+    cl::Event get() override { return _last_ocl_event; }
     std::shared_ptr<gpu_toolkit> get_context() const { return _ctx; }
+
+    void reset() override {
+        ocl_base_event::reset();
+        _events.clear();
+    }
 
 private:
     void wait_impl() override;

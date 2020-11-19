@@ -7,8 +7,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "transformations/low_precision/common/dequantization_op.hpp"
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/common/dequantization_op.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
@@ -64,7 +64,8 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::get(
         multiplyOriginal,
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{});
-
+    auto& rtInfo = multiply->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("multiply");
     multiply->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };

@@ -15,10 +15,13 @@
 //*****************************************************************************
 
 #include "ngraph/op/loop.hpp"
+#include "itt.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/specialize_function.hpp"
+
+#include "ngraph/runtime/reference/loop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -109,6 +112,36 @@ void op::v5::Loop::validate_and_infer_types()
         else
         {
             m_num_iterations = 1; // condition_always_false, do_while mode
+        }
+    }
+    else if (const auto& cond_param = std::dynamic_pointer_cast<const ngraph::opset5::Parameter>(
+                 body_execution_condition.get_node_shared_ptr()))
+    {
+        // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
+        for (const auto& desc : get_input_descriptions())
+        {
+            if (m_body->get_parameters().at(desc->m_body_parameter_index) == cond_param)
+            {
+                if (const auto& cond_value =
+                        std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
+                            input_value(desc->m_input_index).get_node_shared_ptr()))
+                {
+                    auto val = cond_value->cast_vector<bool>();
+                    NODE_VALIDATION_CHECK(
+                        this,
+                        val.size() == 1,
+                        "The number of values in the Condition constant is greater than 1");
+
+                    if (val[0])
+                    {
+                        condition_always_true = true;
+                    }
+                    else
+                    {
+                        m_num_iterations = 1; // condition_always_false, do_while mode
+                    }
+                }
+            }
         }
     }
 
@@ -319,10 +352,12 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
     }
     op->m_num_iterations = m_num_iterations;
     op->m_special_body_ports = m_special_body_ports;
-    auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
+    auto func = std::make_shared<Function>(
+        m_body->get_results(), m_body->get_sinks(), m_body->get_parameters());
     auto spec_func = specialize_function(
         func, types, new_shapes, std::vector<void*>(body_params_args.size(), nullptr));
-    op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_parameters());
+    op->m_body = std::make_shared<Function>(
+        spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions)
     {
@@ -347,4 +382,12 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
                  "Supported values for start {0}, for stride and part_size {1}, for end "
                  "{-1}");
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
+}
+
+bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v5::Loop::evaluate");
+    runtime::reference::loop(
+        m_body, m_output_descriptions, m_input_descriptions, m_special_body_ports, outputs, inputs);
+    return true;
 }

@@ -8,7 +8,8 @@
 #include <ngraph/ngraph.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/common/dequantization_op.hpp"
 
 #include "ngraph_functions/low_precision_transformations/common/add.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
@@ -70,6 +71,18 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
+
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
+    const Output<Node>& input,
+    const ngraph::element::Type precision,
+    const FakeQuantizeOnDataWithConstant& fqOnData);
+
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
+    const std::shared_ptr<ngraph::Node>& input,
+    const ngraph::element::Type precision,
+    const FakeQuantizeOnDataWithConstant& fqOnData);
+
+std::shared_ptr<Node> addDequantizationAttribute(const std::shared_ptr<Node>& op);
 
 } // namespace subgraph
 } // namespace builder
