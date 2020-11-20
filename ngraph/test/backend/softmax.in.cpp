@@ -241,7 +241,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_overflow)
 
 NGRAPH_TEST(${BACKEND_NAME}, softmax_default_axis)
 {
-        Shape shape{2, 3};
+    Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A), ParameterVector{A});
 
