@@ -51,6 +51,9 @@ inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& out
     std::string out_name = prev_layer->get_friendly_name();
     if (prev_layer->get_output_size() != 1)
         out_name += "." + std::to_string(output.get_index());
+    // Add prefix for internal data, it is needed in order to avoid collisions with parameter, result data
+    if (!std::dynamic_pointer_cast<ngraph::op::Result>(prev_layer) && !std::dynamic_pointer_cast<ngraph::op::Parameter>(prev_layer))
+        out_name = "_int_ie_data_" + out_name;
     return out_name;
 }
 
