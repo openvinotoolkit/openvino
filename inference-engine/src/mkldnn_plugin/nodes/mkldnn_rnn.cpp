@@ -539,8 +539,11 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
             args[state_o_tags[s]] = getChildEdgesAtPort(s)[0]->getMemoryPtr()->GetPrimitive();
         }
     } else {
-        for (size_t s = 0; s < S; s++) {
-            args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->GetPrimitive();
+        ptrdiff_t n_ports_with_init_states = outDims.size() - 1; // first is a sequence data
+        for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
+            if (s < inDims.size()) {
+                args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->GetPrimitive();
+            }
         }
     }
 
