@@ -32,7 +32,7 @@ namespace ngraph
                              const Shape& rois_shape,
                              const Shape& output_shape,
                              const float spatial_scale,
-                             const string& pooling_method)
+                             const std::string& pooling_method)
             {
                 // Feature maps input shape: {N, C, H, W}
                 const int batches = feature_maps_shape[0];
@@ -105,7 +105,7 @@ namespace ngraph
                                     h_end = std::min(std::max(h_end + roi_h_start, 0), height);
                                     w_end = std::min(std::max(w_end + roi_w_start, 0), width);
 
-                                    const int pool_index =
+                                    const size_t pool_index =
                                         roi_num * channels * pooled_h * pooled_w +
                                         c * pooled_h * pooled_w + ph * pooled_w + pw;
 
@@ -120,7 +120,7 @@ namespace ngraph
                                     {
                                         for (unsigned int w = w_start; w < w_end; w++)
                                         {
-                                            const int index = h * width + w;
+                                            const size_t index = h * width + w;
                                             output[pool_index] =
                                                 std::max(batch_data[index], output[pool_index]);
                                         }
@@ -133,10 +133,18 @@ namespace ngraph
                     }
                     else if (pooling_method == "bilinear")
                     {
+                        // ROI coordinates, normalized
                         T roi_w_start = rois[roi_idx + 1];
                         T roi_h_start = rois[roi_idx + 2];
                         T roi_w_end = rois[roi_idx + 3];
                         T roi_h_end = rois[roi_idx + 4];
+
+                        T roi_height = (roi_h_end - roi_h_start) * (height - 1);
+                        T roi_width = (roi_w_end - roi_w_start) * (width - 1);
+
+                        // Divide ROIs into sub-regions
+                        T bin_size_h = roi_height / (pooled_h - 1);
+                        T bin_size_w = roi_width / (pooled_w - 1);
 
                         for (unsigned int c = 0; c < channels; c++)
                         {
@@ -144,54 +152,52 @@ namespace ngraph
                             {
                                 for (unsigned int pw = 0; pw < pooled_w; pw++)
                                 {
-                                    T height_scale =
-                                        (roi_h_end - roi_h_start) * (height - 1) / (pooled_h - 1);
-                                    T width_scale =
-                                        (roi_w_end - roi_w_start) * (width - 1) / (pooled_w - 1);
+                                    T in_y = (ph * bin_size_h + roi_h_start * (height - 1));
+                                    T in_x = (pw * bin_size_w + roi_w_start * (width - 1));
 
-                                    T in_y = (ph * height_scale + roi_h_start * (width - 1));
-                                    T in_x = (pw * width_scale + roi_w_start * (width - 1));
-
-                                    size_t output_idx = roi_idx * channels * pooled_h * pooled_w +
-                                                        c * pooled_h * pooled_w + ph * pooled_w +
-                                                        pw;
+                                    const size_t pool_index =
+                                        roi_num * channels * pooled_h * pooled_w +
+                                        c * pooled_h * pooled_w + ph * pooled_w + pw;
+                                    // Define invalid pooling region to be zero
                                     if (in_y < 0 || in_y > height - 1 || in_x < 0 ||
                                         in_x > width - 1)
                                     {
-                                        output[output_idx] = 0;
+                                        output[pool_index] = 0;
                                     }
                                     else
                                     {
-                                        int top_y_index = static_cast<int>(floorf(in_y));
-                                        int bottom_y_index = static_cast<int>(ceilf(in_y));
-                                        int left_x_index = static_cast<int>(floorf(in_x));
-                                        int right_x_index = static_cast<int>(ceilf(in_x));
+                                        int top_y_index = static_cast<int>(std::floor(in_y));
+                                        int bottom_y_index = static_cast<int>(std::ceil(in_y));
+                                        int left_x_index = static_cast<int>(std::floor(in_x));
+                                        int right_x_index = static_cast<int>(std::ceil(in_x));
 
+                                        // Clip to input width boundaries
                                         if (right_x_index > width - 1)
                                         {
                                             right_x_index = width - 1;
                                         }
 
+                                        // Clip to input height boundaries
                                         if (bottom_y_index > height - 1)
                                         {
                                             bottom_y_index = height - 1;
                                         }
 
-                                        int top_left_idx =
+                                        size_t top_left_idx =
                                             roi_batch_id * channels * height * width +
                                             c * height * width + top_y_index * width + left_x_index;
 
-                                        int top_right_idx =
+                                        size_t top_right_idx =
                                             roi_batch_id * channels * height * width +
                                             c * height * width + top_y_index * width +
                                             right_x_index;
 
-                                        int bottom_left_idx =
+                                        size_t bottom_left_idx =
                                             roi_batch_id * channels * height * width +
                                             c * height * width + bottom_y_index * width +
                                             left_x_index;
 
-                                        int bottom_right_idx =
+                                        size_t bottom_right_idx =
                                             roi_batch_id * channels * height * width +
                                             c * height * width + bottom_y_index * width +
                                             right_x_index;
@@ -208,7 +214,7 @@ namespace ngraph
                                             bottom_left +
                                             (bottom_right - bottom_left) * (in_x - left_x_index);
 
-                                        output[output_idx] =
+                                        output[pool_index] =
                                             top + (bottom - top) * (in_y - top_y_index);
                                     }
                                 }
