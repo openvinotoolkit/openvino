@@ -152,6 +152,7 @@ set(SRC
     type_prop/parameter.cpp
     type_prop/prelu.cpp
     type_prop/proposal.cpp
+    type_prop/psroi_pooling.cpp
     type_prop/quantize.cpp
     type_prop/quantized_dot.cpp
     type_prop/range.cpp
@@ -315,6 +316,7 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
+    backend/psroi_pooling.in.cpp
     backend/quantize_dequantize.in.cpp
     backend/quantized_dot.in.cpp
     backend/range.in.cpp

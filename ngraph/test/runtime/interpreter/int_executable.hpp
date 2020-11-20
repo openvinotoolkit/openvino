@@ -76,6 +76,7 @@
 #include "ngraph/runtime/reference/pad.hpp"
 #include "ngraph/runtime/reference/prior_box.hpp"
 #include "ngraph/runtime/reference/product.hpp"
+#include "ngraph/runtime/reference/psroi_pooling.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
 #include "ngraph/runtime/reference/region_yolo.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
@@ -1090,6 +1091,22 @@ protected:
                                              pbox->get_attrs());
             break;
         }
+        case OP_TYPEID::PSROIPooling_v0:
+        {
+            const op::PSROIPooling* p = static_cast<const op::PSROIPooling*>(&node);
+            runtime::reference::psroi_pooling<T>(args[0]->get_data_ptr<T>(),
+                                                 args[0]->get_shape(),
+                                                 args[1]->get_data_ptr<T>(),
+                                                 args[1]->get_shape(),
+                                                 out[0]->get_data_ptr<T>(),
+                                                 out[0]->get_shape(),
+                                                 p->get_mode(),
+                                                 p->get_spatial_scale(),
+                                                 p->get_spatial_bins_x(),
+                                                 p->get_spatial_bins_y());
+            break;
+        }
+
         case OP_TYPEID::ReorgYolo_v0:
         {
             const op::v0::ReorgYolo* reorg_yolo = static_cast<const op::v0::ReorgYolo*>(&node);
