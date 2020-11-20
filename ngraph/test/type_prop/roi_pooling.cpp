@@ -81,7 +81,7 @@ TEST(type_prop, roi_pooling_invalid_pooling_method)
     const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
     // ROIPooling method is invalid: not max nor bilinear
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "invalid"),
-                 ngraph::CheckFailure);
+                 ngraph::NodeValidationFailure);
 }
 
 TEST(type_prop, roi_pooling_invalid_spatial_scale)
@@ -90,7 +90,7 @@ TEST(type_prop, roi_pooling_invalid_spatial_scale)
     const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
     // ROIPooling spatial scale attribute must be a positive floating point number
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, -0.625f, "max"),
-                 ngraph::CheckFailure);
+                 ngraph::NodeValidationFailure);
 }
 
 TEST(type_prop, roi_pooling_invalid_pooled_size)
@@ -99,5 +99,5 @@ TEST(type_prop, roi_pooling_invalid_pooled_size)
     const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
     // ROIPooling pooled_h and pooled_w must be non-negative integers
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{1, 0}, 0.625f, "max"),
-                 ngraph::CheckFailure);
+                 ngraph::NodeValidationFailure);
 }

@@ -60,6 +60,12 @@ void op::ROIPooling::validate_and_infer_types()
         "The spatial scale attribute should be a positive floating point number. Got: ",
         m_spatial_scale);
 
+    NODE_VALIDATION_CHECK(
+        this,
+        m_method == "max" || m_method == "bilinear",
+        "Pooling method attribute should be either \'max\' or \'bilinear\'. Got: ",
+        m_method);
+
     if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
     {
         Shape input_shape = get_input_partial_shape(0).to_shape();
