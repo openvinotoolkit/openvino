@@ -22,10 +22,16 @@ namespace ngraph
 {
     namespace pass
     {
+        /**
+         * @brief Constant folding iterates over the function and tries to evaluate nodes
+         *        with constant inputs. Such nodes are then replaced with new Constants containing
+         *        the result of a folded operation.
+         */
         class NGRAPH_API ConstantFolding : public FunctionPass
         {
         public:
-            virtual bool run_on_function(std::shared_ptr<ngraph::Function> graph) override;
+            NGRAPH_RTTI_DECLARATION;
+            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
         private:
             void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,

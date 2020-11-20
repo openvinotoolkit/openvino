@@ -21,11 +21,11 @@
 using namespace std;
 using namespace ngraph;
 
-bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> graph)
+bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
-    int modified_nodes = 0;
+    bool rewritten = false;
 
-    for (auto&& node : graph->get_ordered_ops())
+    for (auto&& node : f->get_ordered_ops())
     {
         node->revalidate_and_infer_types();
 
@@ -34,7 +34,7 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
         {
             if (auto sub_graph = sub_graph_node->get_function())
             {
-                run_on_function(sub_graph);
+                rewritten |= run_on_function(sub_graph);
                 continue;
             }
         }
@@ -66,13 +66,13 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
                     // Propagate runtime info attributes to replacement consumer nodes
                     copy_runtime_info_to_target_inputs(node, replacement);
 
-                    ++modified_nodes;
+                    rewritten = true;
                 }
             }
         }
     }
 
-    return modified_nodes > 0;
+    return rewritten;
 }
 
 void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
