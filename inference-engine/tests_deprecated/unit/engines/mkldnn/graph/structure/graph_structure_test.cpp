@@ -5949,7 +5949,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithSplit) {
     }
 
     const InferenceEngine::TBlob<uint8_t>::Ptr weightsPtr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weightsPtr));
@@ -6094,7 +6094,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithFakeOutput) {
         }
 
         const InferenceEngine::TBlob<uint8_t>::Ptr weightsPtr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-        
+
         InferenceEngine::Core core;
         InferenceEngine::CNNNetwork network;
         ASSERT_NO_THROW(network = core.ReadNetwork(&model[0], weightsPtr));
@@ -6265,7 +6265,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithMultipleData) {
     }
 
     const InferenceEngine::TBlob<uint8_t>::Ptr weightsPtr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-        
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weightsPtr));
@@ -6482,6 +6482,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
         auto concat = std::make_shared<ngraph::op::Concat>(ngraph::OutputVector { input, conv1, conv2 }, 1);
         concat->set_friendly_name("concat");
         auto result = std::make_shared<ngraph::op::Result>(concat);
+        result->set_friendly_name("concat");
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };
@@ -6530,6 +6531,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
         auto concat = std::make_shared<ngraph::op::Concat>(ngraph::OutputVector { input, input, input }, 1);
         concat->set_friendly_name("concat");
         auto result = std::make_shared<ngraph::op::Result>(concat);
+        result->set_friendly_name("concat");
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };
@@ -6652,6 +6654,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
         auto concat = std::make_shared<ngraph::op::Concat>(ngraph::OutputVector { input, conv1, conv2, conv3 }, 1);
         concat->set_friendly_name("concat");
         auto result = std::make_shared<ngraph::op::Result>(concat);
+        result->set_friendly_name("concat");
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };
