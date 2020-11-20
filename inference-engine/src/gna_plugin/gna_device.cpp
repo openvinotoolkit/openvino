@@ -12,6 +12,7 @@
 
 #if GNA_LIB_VER == 2
 #include "gna_api_wrapper.hpp"
+#include "gna2-capability-api.h"
 #include "gna2-device-api.h"
 #include "gna2-inference-api.h"
 #include "gna2-instrumentation-api.h"
@@ -85,7 +86,7 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
     checkGna2Status(status2, "Gna2RequestEnqueue");
 
-    unwaitedRequestIds.push_back(reqId);
+    unwaitedRequestIds.insert(reqId);
 
     return reqId;
 }
@@ -99,6 +100,19 @@ void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
                 "GNA1");
         }
     }
+}
+
+std::string GNADeviceHelper::getGnaLibraryVersion() {
+#if GNA_LIB_VER == 1
+    return "1.X";
+#else
+    char buffer[64] = {};
+    const auto status = Gna2GetLibraryVersion(buffer, sizeof(buffer));
+    if (status != Gna2StatusSuccess) {
+        return "Gna2GetLibraryVersionReturned[" + std::to_string(status) + "]";
+    }
+    return buffer;
+#endif
 }
 
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
@@ -157,7 +171,9 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
                 static_cast<int>(status), static_cast<int>(s));
         if (status == Gna2StatusDeviceIngoingCommunicationError ||
             status == Gna2StatusDeviceOutgoingCommunicationError) {
-            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ", consider updating the GNA driver";
+            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " <<
+                gna2StatusBuffer.data() << ", consider updating the GNA driver" <<
+                decoratedGnaLibVersion();
         }
 
         Gna2ModelError error;
@@ -197,7 +213,9 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
         ss << "   Reason (" << std::to_string(reason) << "): " << errorReason << "\n";
         ss << "   Value (0x" << std::hex << std::to_string(error.Value) << ")";
 
-        THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ss.str();
+        THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " <<
+            gna2StatusBuffer.data() << ss.str() <<
+            decoratedGnaLibVersion();
     }
 }
 
@@ -214,7 +232,8 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const std::string& from
             status == Gna2StatusDeviceOutgoingCommunicationError) {
             suffix = ", consider updating the GNA driver";
         }
-        THROW_GNA_EXCEPTION << prefix << status << ") " << gna2StatusBuffer.data() << suffix;
+        THROW_GNA_EXCEPTION << prefix << status << ") " << gna2StatusBuffer.data() << suffix <<
+            decoratedGnaLibVersion();
     }
 }
 
@@ -310,14 +329,14 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, millisTimeout);
-    if (status == Gna2StatusDriverQoSTimeoutExceeded) {
-        return GNA_REQUEST_ABORTED;
-    }
     if (status == Gna2StatusWarningDeviceBusy) {
         return GNA_REQUEST_PENDING;
     }
+    unwaitedRequestIds.erase(reqId);
+    if (status == Gna2StatusDriverQoSTimeoutExceeded) {
+        return GNA_REQUEST_ABORTED;
+    }
     checkGna2Status(status, "Gna2RequestWait");
-    unwaitedRequestIds.erase(std::remove(unwaitedRequestIds.begin(), unwaitedRequestIds.end(), reqId));
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
