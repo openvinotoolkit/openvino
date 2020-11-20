@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include "backend/dnn_types.h"
-#include "serial/headers/2dot1/gna_model_header.hpp"
 #include "serial/headers/2dot3/gna_model_header.hpp"
 
 #pragma pack(push, 1)
@@ -60,15 +59,16 @@ struct ModelHeader {
     uint32_t nRotateRows = 0u;
     uint32_t nRotateColumns = 0u;
     bool doRotateInput = false;
+
+    uint32_t nInputs = 0u;
+    uint32_t nOutputs = 0u;
+
     /**
      * Convolution related setting - they are affecting output transformation
      */
     uint32_t nRotateOutputRows = 0u;
     uint32_t nRotateOutputColumns = 0u;
     bool doRotateOutput = false;
-
-    uint32_t nInputs = 0u;
-    uint32_t nOutputs = 0u;
 
     /**
      * Reserved Data might be here
@@ -82,17 +82,6 @@ struct ModelHeader {
         nRotateColumns = old.nRotateColumns;
         nInputs = old.nInputs;
         nOutputs = old.nOutputs;
-    }
-
-    ModelHeader(GNAPluginNS::Header2dot3::ModelHeader const& old) {
-        gnaMemSize = old.gnaMemSize;
-        layersCount = old.layersCount;
-        nGroup = old.nGroup;
-        nInputs = old.nInputs;
-        nOutputs = old.nOutputs;
-        nRotateRows = old.nRotateRows;
-        nRotateColumns = old.nRotateColumns;
-        doRotateInput = old.doRotateInput;
     }
 };
 #pragma pack(pop)
@@ -133,8 +122,7 @@ struct RuntimeEndPoint {
                                                            descriptor_ptr(descriptor_ptr),
                                                            element_size(element_size),
                                                            elements_count(elements_count),
-                                                           orientation(orientation) {
-    }
+                                                           orientation(orientation) { }
 };
 } // namespace Header2dot4
 } // namespace GNAPluginNS

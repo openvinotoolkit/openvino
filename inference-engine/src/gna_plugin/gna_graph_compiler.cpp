@@ -430,7 +430,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     // When there's a NCHW convolution as a last layer, the output needs to be transposed back to NCHW
-    // TODO: the issue also appears when after conv there's an eltwise or activation
+    // TODO: Jira: 43659 - the issue also appears when after conv there's an eltwise or activation
     // For last layer or when next ones are only non functional, the data can be reordered when exporting scores
     // For other cases inserting permute is required if data are reordered
     auto isNonFunctional = [](CNNLayerPtr l) {

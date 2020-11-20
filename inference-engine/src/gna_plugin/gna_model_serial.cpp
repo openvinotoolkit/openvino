@@ -102,24 +102,22 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
 
     is.seekg(0, is.beg);
     Header2dot1::ModelHeader tempHeader2dot1;
-    Header2dot3::ModelHeader tempHeader2dot3;
     switch (header.version.major) {
         case 2:
             switch (header.version.minor) {
                 case 1:
                     readBits(tempHeader2dot1, is);
-                    header = Header2dot4::ModelHeader(tempHeader2dot1);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot1);
                     break;
                 case 2:
                 case 3:
-                    readBits(tempHeader2dot3, is);
-                    header = Header2dot4::ModelHeader(tempHeader2dot3);
+                    readNBytes(&header, sizeof(Header2dot3::ModelHeader), is);
                     break;
                 case 4:
-                    readBits(header, is);
+                    readNBytes(&header, sizeof(Header2dot4::ModelHeader), is);
                     break;
                 default:
-                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should be equal to 1 or 2 and is: " << header.version.minor;
+                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 4 and is: " << header.version.minor;
             }
             break;
         default:
