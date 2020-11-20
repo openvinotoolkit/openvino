@@ -27,6 +27,19 @@ target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/
 if(SELECTIVE_BUILD STREQUAL "COLLECT")
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
 elseif(SELECTIVE_BUILD STREQUAL "ON")
+    if(NOT DEFINED SELECTIVE_BUILD_STAT)
+        message(FATAL_ERROR "The collected IntelSEAPI statistics must be provided in the SELECTIVE_BUILD_STAT variable.")
+    endif()
+
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
-    ov_force_include(${TARGET_NAME} INTERFACE ${SELECTIVE_BUILD_DEFS})
+
+    set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h)
+    set(GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ccheader.py)
+
+    add_custom_command(OUTPUT ${GENERATED_HEADER}
+                       COMMAND python3 ${GENERATOR} --stat ${SELECTIVE_BUILD_STAT} --out ${GENERATED_HEADER})
+    add_custom_target(conditional_compilation_gen DEPENDS ${GENERATED_HEADER})
+    add_dependencies(${TARGET_NAME} conditional_compilation_gen)
+
+    ov_force_include(${TARGET_NAME} INTERFACE ${GENERATED_HEADER})
 endif()
