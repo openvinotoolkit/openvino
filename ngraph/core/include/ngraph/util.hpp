@@ -230,15 +230,6 @@ namespace ngraph
     NGRAPH_API
     AxisVector get_default_order(const Shape& shape);
 
-    // NodeExecutors are used in compiler optimization passes like ConstantFolding to execute a node
-    // using the supplied input and output memory locations.
-    // A BuildNodeExecutor returns a backend-specific NodeExecutor for a given Node type
-    using NodeExecutorTy =
-        std::function<void(const std::vector<void*>& inputs, std::vector<void*>& outputs)>;
-    using BuildNodeExecutor = std::function<NodeExecutorTy(const ngraph::Node*)>;
-
-    using BuildNodeExecutorMap = std::unordered_map<std::type_index, BuildNodeExecutor>;
-
     //
     // EnumMask is intended to work with a scoped enum type. It's used to store
     // a combination of enum values and provides easy access and manipulation

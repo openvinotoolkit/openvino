@@ -16,31 +16,38 @@
 
 #include "constant_folding.hpp"
 #include <ngraph/rt_info.hpp>
+#include "ngraph/op/util/sub_graph_base.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConstantFolding, "ConstantFolding", 0);
 
-ngraph::pass::ConstantFolding::ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap)
-    : GraphRewrite()
-    , m_cfmap{cfmap}
+bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
-    m_enable_shape_inference = true;
+    bool rewritten = false;
 
-    m_matchers.push_back(std::make_shared<MatcherPass>(
-        "Constant folding defaults",
-        nullptr,
-        [=](const std::shared_ptr<Node>& node) -> bool {
-            OutputVector replacements(node->get_output_size());
-            if (!node->constant_fold(replacements, node->input_values()))
+    for (auto&& node : f->get_ordered_ops())
+    {
+        node->revalidate_and_infer_types();
+
+        // recursively constant fold operators containing subgraphs (ie: TensorIterator)
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
+        {
+            if (auto sub_graph = sub_graph_node->get_function())
             {
-                return false;
+                rewritten |= run_on_function(sub_graph);
+                continue;
             }
+        }
+
+        OutputVector replacements(node->get_output_size());
+        if (node->constant_fold(replacements, node->input_values()))
+        {
             NGRAPH_CHECK(replacements.size() == node->get_output_size(),
                          "constant_fold_default returned incorrect number of replacements for ",
                          node);
-            bool result{false};
+
             for (size_t i = 0; i < replacements.size(); ++i)
             {
                 auto node_output = node->output(i);
@@ -60,25 +67,14 @@ ngraph::pass::ConstantFolding::ConstantFolding(const ngraph::BuildNodeExecutorMa
                     node_output.replace(replacement);
                     // Propagate runtime info attributes to replacement consumer nodes
                     copy_runtime_info_to_target_inputs(node, replacement);
-                    result = true;
+
+                    rewritten = true;
                 }
             }
-            return result;
-        },
-        PassProperty::CHANGE_DYNAMIC_STATE));
-}
-
-bool ngraph::pass::revalidate_and_ensure_static(shared_ptr<Node> n)
-{
-    n->revalidate_and_infer_types();
-    for (auto& o : n->outputs())
-    {
-        if (o.get_partial_shape().is_dynamic() || o.get_element_type().is_dynamic())
-        {
-            return false;
         }
     }
-    return true;
+
+    return rewritten;
 }
 
 void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(

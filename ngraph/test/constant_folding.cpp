@@ -1991,8 +1991,8 @@ TEST(constant_folding, constant_dyn_reshape_shape_not_originally_constant)
     auto constant_in = make_shared<op::Constant>(element::f32, shape_in, values_in);
     auto constant_shape_a = make_shared<op::Constant>(element::i64, shape_shape, values_shape_a);
     auto constant_shape_b = make_shared<op::Constant>(element::i64, shape_shape, values_shape_b);
-    auto dyn_reshape =
-        make_shared<op::v1::Reshape>(constant_in, constant_shape_a + constant_shape_b, false);
+    auto dyn_reshape = make_shared<op::v1::Reshape>(
+        constant_in, std::make_shared<op::v1::Add>(constant_shape_a, constant_shape_b), false);
     dyn_reshape->set_friendly_name("test");
     auto f = make_shared<Function>(dyn_reshape, ParameterVector{});
 
