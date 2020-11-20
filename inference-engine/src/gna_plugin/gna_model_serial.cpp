@@ -291,8 +291,12 @@ void GNAModelSerial::Import(void *basePointer,
         readOffset(pSegment, basePointer, is);
         uint32_t segmentSz;
         readBits(segmentSz, is);
+        uint32_t nameSize = 0;
+        readNBits<32>(nameSize, is);
+        std::string inName("", nameSize);
+        readNBytes(&inName[0], nameSize, is);
         if (pstates) {
-            (*pstates)[i] = { pSegment, segmentSz };
+            (*pstates)[i] = { pSegment, segmentSz, inName};
         }
     }
 
@@ -424,8 +428,15 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     // writing memory information
     writeBits(static_cast<uint32_t>(states.size()), os);
     for (auto && state : states) {
-        writeBits(offsetFromBase(state.first), os);
-        writeBits(state.second, os);
+        void* gna_ptr = nullptr;
+        uint32_t reserved_size;
+        std::string name;
+        std::tie(gna_ptr, reserved_size, name) = state;
+        writeBits(offsetFromBase(gna_ptr), os);
+        writeBits(reserved_size, os);
+        const auto nameSize = strlen(name.c_str()) + 1;
+        writeBits(static_cast<uint32_t>(nameSize), os);
+        writeNBytes(name.c_str(), nameSize, os);
     }
 
     // once structure has been written lets push gna graph
@@ -567,8 +578,12 @@ void GNAModelSerial::Import(void *basePointer,
         readOffset(pSegment, basePointer, is);
         uint32_t segmentSz;
         readBits(segmentSz, is);
+        uint32_t nameSize = 0;
+        readNBits<32>(nameSize, is);
+        std::string inName("", nameSize);
+        readNBytes(&inName[0], nameSize, is);
         if (pstates) {
-            (*pstates)[i] = { pSegment, segmentSz };
+            (*pstates)[i] = std::make_tuple(pSegment, segmentSz, inName);
         }
     }
 
@@ -715,8 +730,15 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     // writing memory information
     writeBits(static_cast<uint32_t>(states.size()), os);
     for (auto && state : states) {
-        writeBits(offsetFromBase(state.first), os);
-        writeBits(state.second, os);
+        void* gna_ptr = nullptr;
+        uint32_t reserved_size;
+        std::string name;
+        std::tie(gna_ptr, reserved_size, name) = state;
+        writeBits(offsetFromBase(gna_ptr), os);
+        writeBits(reserved_size, os);
+        const auto nameSize = strlen(name.c_str()) + 1;
+        writeBits(static_cast<uint32_t>(nameSize), os);
+        writeNBytes(name.c_str(), nameSize, os);
     }
 
     // once structure has been written lets push gna graph
