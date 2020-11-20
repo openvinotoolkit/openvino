@@ -98,7 +98,7 @@ namespace openvino
                 return case_wrapper<C, T>(std::forward<C>(val));
             }
 
-            template<template<typename...> typename Fn, typename Ctx, typename T, typename Case>
+            template<template<typename...> class Fn, typename Ctx, typename T, typename Case>
             bool match(Ctx && ctx, T && val, Case && cs) {
                 const bool is_matched = val == cs.value;
                 if (is_matched)
@@ -106,7 +106,7 @@ namespace openvino
                 return is_matched;
             }
 
-            template<template<typename...> typename Fn, typename Ctx, typename T, typename Case, typename ...Cases>
+            template<template<typename...> class Fn, typename Ctx, typename T, typename Case, typename ...Cases>
             bool match(Ctx && ctx, T && val, Case && cs, Cases&&... cases) {
                 if (match<Fn>(std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Case>(cs)))
                     return true;
@@ -157,7 +157,7 @@ namespace internal
     }
 
     template<openvino::itt::domain_t(*domain)(),
-            template<typename...> typename Fn,
+            template<typename...> class Fn,
             typename Ctx,
             typename T,
             typename Case>
@@ -173,7 +173,7 @@ namespace internal
     }
 
     template<openvino::itt::domain_t(*domain)(),
-            template<typename...> typename Fn,
+            template<typename...> class Fn,
             typename Ctx,
             typename T,
             typename Case, typename ...Cases>
@@ -211,13 +211,15 @@ namespace internal
 #define OV_CC_SCOPE_ARG_PLACEHOLDER_1 0,
 
 // This macro returns second argument, first argument is ignored
-#define OV_CC_SCOPE_SECOND_ARG(ignored, val, ...) val
+#define OV_CC_SCOPE_SECOND_ARG(...) OV_CC_EXPAND(OV_CC_SCOPE_SECOND_ARG_(__VA_ARGS__, 0))
+#define OV_CC_SCOPE_SECOND_ARG_(...) OV_CC_EXPAND(OV_CC_SCOPE_SECOND_ARG_GET(__VA_ARGS__))
+#define OV_CC_SCOPE_SECOND_ARG_GET(ignored, val, ...) val
 
 // Return macro argument value
 #define OV_CC_SCOPE_IS_ENABLED(x) OV_CC_SCOPE_IS_ENABLED1(x)
 
 // Generate junk macro or {0, } sequence if val is 1
-#define OV_CC_SCOPE_IS_ENABLED1(val) OV_CC_SCOPE_IS_ENABLED2(OV_CC_SCOPE_ARG_PLACEHOLDER_##val)
+#define OV_CC_SCOPE_IS_ENABLED1(val) OV_CC_SCOPE_IS_ENABLED2(OV_CC_CAT(OV_CC_SCOPE_ARG_PLACEHOLDER_, val))
 
 // Return second argument from possible sequences {1, 0}, {0, 1, 0}
 #define OV_CC_SCOPE_IS_ENABLED2(arg1_or_junk) OV_CC_SCOPE_SECOND_ARG(arg1_or_junk 1, 0)
