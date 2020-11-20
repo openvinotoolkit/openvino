@@ -16,8 +16,8 @@
 
 #include "runtime/reference/loop.hpp"
 #include "runtime/reference/concat.hpp"
-#include "runtime/reference/split.hpp"
 #include "runtime/reference/function.hpp"
+#include "runtime/reference/split.hpp"
 
 namespace ngraph
 {
@@ -127,7 +127,7 @@ namespace ngraph
 
                     // Slicing
                     std::vector<std::shared_ptr<opset5::TensorIterator::SliceInputDescription>>
-                            slice_inputs;
+                        slice_inputs;
                     std::vector<HostTensorVector> sliced_values;
                     int slice_in_idx = 0;
                     for (const auto& desc : input_descs)
@@ -136,7 +136,7 @@ namespace ngraph
                                 opset5::TensorIterator::SliceInputDescription>(desc))
                         {
                             const auto el_size =
-                                    args[slice_desc->m_input_index]->get_element_type().size();
+                                args[slice_desc->m_input_index]->get_element_type().size();
                             slice_inputs.push_back(slice_desc);
                             auto shape = args[slice_desc->m_input_index]->get_shape();
                             uint64_t num_iterations = shape.at(slice_desc->m_axis);
@@ -145,15 +145,15 @@ namespace ngraph
                             for (int i = 0; i < num_iterations; ++i)
                             {
                                 sliced_values.back().emplace_back(std::make_shared<HostTensor>(
-                                        args[slice_desc->m_input_index]->get_element_type(), shape));
+                                    args[slice_desc->m_input_index]->get_element_type(), shape));
                             }
                             std::vector<char*> pointers_to_data(num_iterations);
                             for (size_t j = 0; j < pointers_to_data.size(); ++j)
                             {
                                 pointers_to_data[slice_desc->m_stride > 0
-                                                 ? j
-                                                 : (pointers_to_data.size() - j - 1)] =
-                                        sliced_values[slice_in_idx][j]->get_data_ptr<char>();
+                                                     ? j
+                                                     : (pointers_to_data.size() - j - 1)] =
+                                    sliced_values[slice_in_idx][j]->get_data_ptr<char>();
                             }
                             reference::split(args[slice_desc->m_input_index]->get_data_ptr<char>(),
                                              args[slice_desc->m_input_index]->get_shape(),
@@ -177,7 +177,7 @@ namespace ngraph
                         for (size_t i = 0; i < slice_inputs.size(); ++i)
                         {
                             inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
-                                    sliced_values[i][cur_iter];
+                                sliced_values[i][cur_iter];
                         }
 
                         // Evaluate body

@@ -65,7 +65,6 @@ namespace ngraph
                 Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition);
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
-
                 Output<Node> get_concatenated_slices(const Output<Node>& value,
                                                      int64_t start,
                                                      int64_t stride,

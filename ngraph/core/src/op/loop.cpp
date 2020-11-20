@@ -193,7 +193,7 @@ void op::v5::Loop::validate_and_infer_types()
         if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
         {
             auto body_parameter =
-                    m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
+                m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.is_static())
@@ -215,9 +215,9 @@ void op::v5::Loop::validate_and_infer_types()
                         if (i != axis)
                         {
                             NODE_VALIDATION_CHECK(
-                                    this,
-                                    input_shape[i] == body_param_shape[i],
-                                    "Iterator input is not compatible with body param");
+                                this,
+                                input_shape[i] == body_param_shape[i],
+                                "Iterator input is not compatible with body param");
                         }
                     }
                 }
@@ -229,7 +229,9 @@ void op::v5::Loop::validate_and_infer_types()
                     body_parameter->set_partial_shape(out_shape);
                 }
             }
-        } else if (auto merged_input_description = as_type_ptr<MergedInputDescription>(input_description))
+        }
+        else if (auto merged_input_description =
+                     as_type_ptr<MergedInputDescription>(input_description))
         {
             auto body_value =
                 m_body->get_results().at(merged_input_description->m_body_value_index);
@@ -389,7 +391,7 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
                             input_description))
                     {
                         new_shapes[slice_in->m_body_parameter_index][slice_in->m_axis] =
-                                slice_in->m_part_size;
+                            slice_in->m_part_size;
                     }
                 }
             }
