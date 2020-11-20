@@ -16,6 +16,7 @@
 
 #include "constant_folding.hpp"
 #include <ngraph/rt_info.hpp>
+#include "ngraph/op/util/sub_graph_base.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -26,9 +27,16 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
 
     for (auto&& node : graph->get_ordered_ops())
     {
-        if (node->get_output_partial_shape(0).is_dynamic())
+        node->revalidate_and_infer_types();
+
+        // recursively constant fold operators containing subgraphs (ie: TensorIterator)
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
         {
-            node->revalidate_and_infer_types();
+            if (auto sub_graph = sub_graph_node->get_function())
+            {
+                run_on_function(sub_graph);
+                continue;
+            }
         }
 
         OutputVector replacements(node->get_output_size());

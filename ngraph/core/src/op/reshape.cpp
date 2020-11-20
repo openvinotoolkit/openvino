@@ -54,7 +54,7 @@ namespace
             output_shape.push_back(shape_pattern_ptr[i]);
         }
     }
-} // namespace
+}
 
 NGRAPH_RTTI_DEFINITION(op::v1::Reshape, "Reshape", 1);
 
