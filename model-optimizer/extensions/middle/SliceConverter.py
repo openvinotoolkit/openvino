@@ -31,6 +31,9 @@ from mo.ops.strided_slice import StridedSlice
 
 
 def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape, axes, node_name):
+    # the value for 'ends' might be maximum/minimum possible value of int64. This
+    # value must be converted to maximum/minimum of int32 because such big values do not fit into the int32 which is
+    # supported by the StridedSlice layer
     clamp = create_op_with_const_inputs(graph, Clamp, port_value_dict={1: np.iinfo(np.int32).min,
                                                                        2: np.iinfo(np.int32).max},
                                         op_attrs=dict(name=node_name + '/Clamp'))
