@@ -5,13 +5,13 @@
 /**
  * @brief The header file defines utility Mmap class
  * 
- * @file ie_mmap.hpp
+ * @file ie_mmap_linux.hpp
  */
 #pragma once
 
 #include "ie_immap.hpp"
 
-#if defined(LINUX) || defined(__APPLE__)
+#ifndef _WIN32
 
 #include <unistd.h>
 #include <fcntl.h>

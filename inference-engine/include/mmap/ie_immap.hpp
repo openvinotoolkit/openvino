@@ -10,6 +10,8 @@
 #pragma once
 
 #include <details/ie_irelease.hpp>
+#include <details/ie_exception.hpp>
+#include "ie_allocator.hpp"
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     using path_type = std::wstring;

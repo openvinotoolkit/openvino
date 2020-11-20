@@ -5,7 +5,7 @@
 /**
  * @brief The header file defines utility Mmap class
  * 
- * @file ie_mmap.hpp
+ * @file ie_mmap_windows.hpp
  */
 #pragma once
 
