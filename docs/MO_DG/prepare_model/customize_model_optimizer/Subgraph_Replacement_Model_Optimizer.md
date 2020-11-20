@@ -360,4 +360,4 @@ matched sub-graph produce _constant_ values because they do not depend on input 
 to specify, for example, convolution node as input because it has two inputs: data tensor and tensor with weights.
 
 For example of replacement with points, please refer to the case-study of the 
-[conversion for the SSD models, created with TensorFlow Object Detection API](TensorFlow_SSD_ObjectDetection_API.md).
+[Converting TensorFlow* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md)

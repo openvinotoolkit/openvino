@@ -9,7 +9,6 @@ The following examples are the situations when model cutting is useful or even r
 *   model has pre- or post-processing parts that cannot be translated to existing Inference Engine layers.
 *   model has a training part that is convenient to be kept in the model, but not used during inference.
 *   model is too complex (contains lots of unsupported operations that cannot be easily implemented as custom layers), so the complete model cannot be converted in one shot.
-*   model is one of the supported [SSD models](../customize_model_optimizer/TensorFlow_SSD_ObjectDetection_API.md). In this case, you need to cut a post-processing part off.
 *   problem with model conversion in the Model Optimizer or inference in the Inference Engine occurred. To localize the issue, limit the scope for conversion by iteratively searching for problematic places in the model.
 *   single custom layer or a combination of custom layers is isolated for debugging purposes.
 
