@@ -223,7 +223,8 @@ void op::v0::TensorIterator::validate_and_infer_types()
             else
             {
                 set_output_type(
-                    index, body_value.get_element_type(), PartialShape::dynamic(body_value.get_partial_shape().rank()));
+                    index, body_value.get_element_type(),
+                    PartialShape::dynamic(body_value.get_partial_shape().rank()));
             }
         }
         else if (auto body_output_description =
