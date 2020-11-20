@@ -44,11 +44,6 @@ addIeTargetTest(
         IE
 )
 
-if(ENABLE_V10_SERIALIZE)
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/skip_tests_config.cpp"
-        PROPERTIES COMPILE_DEFINITIONS ENABLE_V10_SERIALIZE)
-endif()
-
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "precomp.hpp"
 )
