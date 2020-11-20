@@ -31,7 +31,7 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
 		</layer>
 		<layer id="2" name="DeformablePSROIPooling" type="DeformablePSROIPooling" type="PSROIPooling" version="opset2">
 			<data group_size="6" mode="bilinear" no_trans="1" output_dim="360" spatial_bins_x="3" spatial_bins_y="3" spatial_scale="1"/>
-			<input>                
+			<input>
 				<port id="0">
 					<dim>1</dim>
 					<dim>3240</dim>
@@ -52,7 +52,7 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="detector/bbox/ps_roi_pooling/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="DeformablePSROIPooling" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>100</dim>
@@ -93,7 +93,7 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
 		</layer>
 		<layer id="2" name="DeformablePSROIPooling" type="PSROIPooling" version="opset2">
 			<data group_size="6" mode="bilinear" no_trans="1" part_size="1" pooled_height="6" pooled_width="6" trans_std="1" output_dim="360" spatial_bins_x="3" spatial_bins_y="3" spatial_scale="1"/>
-			<input>                
+			<input>
 				<port id="0">
 					<dim>1</dim>
 					<dim>3240</dim>

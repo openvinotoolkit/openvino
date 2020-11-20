@@ -232,7 +232,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork2) {
                 </port>
             </output>
         </layer>
-        <layer name="276" type="Result" id="5" version="opset1">
+        <layer name="res5c_bone_length_sqr/sum_2" type="Result" id="5" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

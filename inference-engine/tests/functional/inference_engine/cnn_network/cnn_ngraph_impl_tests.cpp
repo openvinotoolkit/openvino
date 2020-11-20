@@ -291,40 +291,6 @@ TEST(CNNNGraphImplTests, TestAddOutput) {
     ASSERT_TRUE(outputs.find(testLayerName) != outputs.end());
 }
 
-TEST(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
-    const std::string testLayerName = "testReLU";
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        relu->set_friendly_name(testLayerName);
-        auto relu2 = std::make_shared<ngraph::op::Relu>(relu);
-        relu2->set_friendly_name("relu2");
-        auto result = std::make_shared<ngraph::op::Result>(relu2);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    InferenceEngine::CNNNetwork cnnNet(ngraph);
-    ASSERT_NE(nullptr, cnnNet.getFunction());
-    ASSERT_EQ(4, cnnNet.layerCount());
-
-    cnnNet.addOutput(testLayerName);
-    ASSERT_NE(nullptr, cnnNet.getFunction());
-    ASSERT_EQ(5, cnnNet.layerCount());
-    // convert to old representation
-    InferenceEngine::CNNNetwork convertedNetwork(std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
-    auto outputs = convertedNetwork.getOutputsInfo();
-    ASSERT_EQ(2, outputs.size());
-    ASSERT_TRUE(outputs.find("relu2") != outputs.end());
-    ASSERT_TRUE(outputs.find(testLayerName) != outputs.end());
-}
-
 TEST(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -694,8 +660,8 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
         auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
         param->set_friendly_name("input");
         auto relu = std::make_shared<ngraph::op::Relu>(param);
-        relu->set_friendly_name("output");
         auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("output");
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
         ngraph = std::make_shared<ngraph::Function>(results, params);
@@ -707,7 +673,7 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
 
         const auto outputsInfo = cnnNet.getOutputsInfo();
 
-        ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP32)
+        ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP16)
                 << "FP32 is default presision";
     }
     {
@@ -715,7 +681,7 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
 
         const auto outputsInfo = cnnNet.getOutputsInfo();
 
-        outputsInfo.at("output")->setPrecision(Precision::FP16);
+        outputsInfo.at("output")->setPrecision(Precision::FP32);
     }
     InferenceEngine::CNNNetwork convertedNetwork;
     {
@@ -730,7 +696,7 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
 
         const auto outputsInfo = convertedNetwork.getOutputsInfo();
 
-        ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP16)
+        ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP32)
                 << "Manually set presision should be left unchanged";
     }
 }
@@ -745,6 +711,7 @@ TEST(CNNNGraphImplTests, CanChangeOutputLayout) {
         auto relu = std::make_shared<ngraph::op::Relu>(param);
         relu->set_friendly_name("output");
         auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("output");
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
         ngraph = std::make_shared<ngraph::Function>(results, params);
@@ -836,6 +803,7 @@ TEST(CNNNGraphImplTests, addSameOutput) {
         auto reshape = std::make_shared<ngraph::opset3::Reshape>(relu, shapeof, true);
         reshape->set_friendly_name("reshape");
         auto result = std::make_shared<ngraph::op::Result>(reshape);
+        result->set_friendly_name("reshape");
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};

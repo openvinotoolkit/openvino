@@ -73,7 +73,7 @@ TEST_F(NGraphReaderTests, ReadDeformableConvolutionNetwork) {
                 </port>
             </output>
 		</layer>
-		<layer id="4" name="output" type="Result" version="opset1">
+		<layer id="4" name="1090" type="Result" version="opset1">
 			<input>
 				<port id="0">
                     <dim>1</dim>

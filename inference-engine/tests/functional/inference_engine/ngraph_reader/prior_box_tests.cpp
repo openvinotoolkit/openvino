@@ -436,7 +436,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="10" name="output" type="Result" version="opset1">
+        <layer id="10" name="ExpandDims" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

@@ -58,7 +58,7 @@ TEST_F(NGraphReaderTests, ReadGroupConvolutionBackpropDataNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="485/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="485" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>
