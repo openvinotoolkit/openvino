@@ -65,7 +65,7 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 target_include_directories(_${PROJECT_NAME} PRIVATE src)
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
 
-ie_cpack_add_component(pyngraph_${PYTHON_VERSION} DEPENDS ngraph)
+ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
 
 install(TARGETS _${PROJECT_NAME} 
         DESTINATION python/${PYTHON_VERSION}
