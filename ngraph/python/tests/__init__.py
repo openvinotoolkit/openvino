@@ -210,8 +210,8 @@ xfail_issue_43382 = xfail_test(reason="Testing models which have upper bound out
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
 
 
-xfail_issue_39704 = xfail_test(reason="AssertionError: zoo models results mismatch")
-xfail_issue_43208 = xfail_test(reason="AssertionError: zoo models results mismatch")
-xfail_issue_43209 = xfail_test(reason="AssertionError: zoo models results mismatch")
-xfail_issue_43213 = xfail_test(reason="AssertionError: zoo models results mismatch")
-xfail_issue_37973 = xfail_test(reason="AssertionError: zoo models results mismatch")
+xfail_issue_39704 = xfail_test(reason="ResNet101_DUC_HDC - AssertionError: zoo models results mismatch")
+xfail_issue_43208 = xfail_test(reason="GPT-2 - AssertionError: zoo models results mismatch")
+xfail_issue_43209 = xfail_test(reason="GPT-2-LM-HEAD - AssertionError: zoo models results mismatch")
+xfail_issue_43213 = xfail_test(reason="RetinaNet Resnet101 - AssertionError: zoo models results mismatch")
+xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
