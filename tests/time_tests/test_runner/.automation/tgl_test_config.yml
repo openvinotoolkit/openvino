@@ -169,28 +169,28 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-ava-0001.xml
+    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml
     name: yolo-v2-tiny-ava-0001
     precision: FP16
     framework: tf
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-ava-0001.xml
+    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml
     name: yolo-v2-tiny-ava-0001
     precision: FP16
     framework: tf
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml
+    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml
     name: yolo-v2-tiny-ava-0001
     precision: FP16-INT8
     framework: tf
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml
+    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml
     name: yolo-v2-tiny-ava-0001
     precision: FP16-INT8
     framework: tf
