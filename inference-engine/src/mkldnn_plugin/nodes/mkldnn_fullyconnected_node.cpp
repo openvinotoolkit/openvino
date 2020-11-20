@@ -79,7 +79,7 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[1].lock()->getPrecision());
 
         // TODO (amalyse) what are the cases when we have non i8 weights and have to overide the precisions?
-        if ((one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8) &&
+        if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8) &&
                 inputDataType != memory::data_type::bf16) {
             inputDataType = memory::data_type::f32;
             outputDataType = memory::data_type::f32;
