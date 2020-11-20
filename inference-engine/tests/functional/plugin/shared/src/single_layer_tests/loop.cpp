@@ -396,19 +396,8 @@ namespace LayerTestsDefinitions {
         Run();
     }
 
-    TEST_P(TrivialLoopTest, AutoSlicingInput) {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        InferenceEngine::Precision iePrc;
-        InferenceEngine::SizeVector ieShape;
-        std::tie(iePrc, ieShape, targetDevice) = GetParam();
-
-        const size_t batch_size = 5;
-        const size_t num_iteration = 3;
-
-        ieShape[0] = 1;
-        auto ieShape_to_slice = ieShape;
-        ieShape_to_slice[0] = batch_size;
-
+    void TrivialLoopTest::CreateSlicedLoop(size_t batch_size, size_t num_iteration, InferenceEngine::Precision iePrc,
+                                           InferenceEngine::SizeVector& ieShape) {
         const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
         const auto scalarShape = ngraph::Shape{};
 
@@ -441,49 +430,16 @@ namespace LayerTestsDefinitions {
         function = std::make_shared<ngraph::Function>(
                 ngraph::OutputVector    {loop},
                 ngraph::ParameterVector {to_slice});
-
-        // Precalculated ref blobs
-        auto blob = make_blob_with_precision({iePrc, ieShape_to_slice, InferenceEngine::TensorDesc::getLayoutByDims(ieShape_to_slice)});
-        blob->allocate();
-        std::vector<float> seq_raw_data(batch_size);
-        std::iota(seq_raw_data.begin(), seq_raw_data.end(), 1);
-        CommonTestUtils::fill_data_with_broadcast(blob, 0, seq_raw_data);
-
-        auto blob_ref = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
-        blob_ref->allocate();
-        CommonTestUtils::fill_data_with_broadcast(blob_ref, 0, { num_iteration * (num_iteration + 1) / 2});
-
-        inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
-        outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob_ref; };
-
-        Run();
     }
 
-    TEST_P(TrivialLoopTest, AutoSlicingInputWithDynCondition) {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        InferenceEngine::Precision iePrc;
-        InferenceEngine::SizeVector ieShape;
-        std::tie(iePrc, ieShape, targetDevice) = GetParam();
-
-        // auto slicing size : 5
-        // trip count limit  : 4
-        // dyn exit after iter  : 3
-        // ---------------------
-        //   should exit after 4 iterations
-        const size_t batch_size = 5;
-        const size_t trip_count = 5;
-        const size_t num_iteration = 3;
-
-        ieShape[0] = 1;
-        auto ieShape_to_slice = ieShape;
-        ieShape_to_slice[0] = batch_size;
-
-        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
-        const auto scalarShape = ngraph::Shape{};
-
+    void TrivialLoopTest::CreateSlicedLoopDynCondition(size_t batch_size, size_t num_iteration, InferenceEngine::Precision iePrc,
+                                           InferenceEngine::SizeVector& ieShape, size_t trip_count) {
         auto shape = ngraph::Shape{ieShape};
         auto to_slice_shape = ngraph::Shape{ieShape};
         to_slice_shape[0] = batch_size;
+
+        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
+        const auto scalarShape = ngraph::Shape{};
 
         auto to_slice = std::make_shared<ngraph::opset5::Parameter>(prc, to_slice_shape);
         auto start = std::make_shared<ngraph::opset5::Constant>(prc, shape, 0);
@@ -514,7 +470,55 @@ namespace LayerTestsDefinitions {
         function = std::make_shared<ngraph::Function>(
                 ngraph::OutputVector    {loop},
                 ngraph::ParameterVector {to_slice});
+    }
 
+    TEST_P(TrivialLoopTest, AutoSlicingInput_CheckPredefinedValues) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        InferenceEngine::Precision iePrc;
+        InferenceEngine::SizeVector ieShape;
+        std::tie(iePrc, ieShape, targetDevice) = GetParam();
+        const size_t batch_size = 5;
+        const size_t num_iteration = 3;
+        ieShape[0] = 1;
+        auto ieShape_to_slice = ieShape;
+        ieShape_to_slice[0] = batch_size;
+        CreateSlicedLoop(batch_size, num_iteration, iePrc, ieShape);
+        Run();
+        // Precalculated ref blobs
+        auto blob = make_blob_with_precision({iePrc, ieShape_to_slice, InferenceEngine::TensorDesc::getLayoutByDims(ieShape_to_slice)});
+        blob->allocate();
+        std::vector<float> seq_raw_data(batch_size);
+        std::iota(seq_raw_data.begin(), seq_raw_data.end(), 1);
+        CommonTestUtils::fill_data_with_broadcast(blob, 0, seq_raw_data);
+
+        auto blob_ref = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
+        blob_ref->allocate();
+        CommonTestUtils::fill_data_with_broadcast(blob_ref, 0, { num_iteration * (num_iteration + 1) / 2});
+
+        inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
+        outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob_ref; };
+    }
+
+    TEST_P(TrivialLoopTest, AutoSlicingInputWithDynCondition_CheckPredefinedValues) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        InferenceEngine::Precision iePrc;
+        InferenceEngine::SizeVector ieShape;
+        std::tie(iePrc, ieShape, targetDevice) = GetParam();
+
+        // auto slicing size : 5
+        // trip count limit  : 4
+        // dyn exit after iter  : 3
+        // ---------------------
+        //   should exit after 4 iterations
+        const size_t batch_size = 5;
+        const size_t trip_count = 5;
+        const size_t num_iteration = 3;
+
+        ieShape[0] = 1;
+        auto ieShape_to_slice = ieShape;
+        ieShape_to_slice[0] = batch_size;
+
+        CreateSlicedLoopDynCondition(batch_size, num_iteration, iePrc, ieShape, trip_count);
         // Precalculated ref blobs
         auto blob = make_blob_with_precision({iePrc, ieShape_to_slice, InferenceEngine::TensorDesc::getLayoutByDims(ieShape_to_slice)});
         blob->allocate();
@@ -530,6 +534,43 @@ namespace LayerTestsDefinitions {
         inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
         outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob_ref; };
 
+        Run();
+    }
+
+    TEST_P(TrivialLoopTest, AutoSlicingInput_CheckReference) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        InferenceEngine::Precision iePrc;
+        InferenceEngine::SizeVector ieShape;
+        std::tie(iePrc, ieShape, targetDevice) = GetParam();
+        const size_t batch_size = 5;
+        const size_t num_iteration = 3;
+        ieShape[0] = 1;
+        auto ieShape_to_slice = ieShape;
+        ieShape_to_slice[0] = batch_size;
+        CreateSlicedLoop(batch_size, num_iteration, iePrc, ieShape);
+        Run();
+    }
+
+    TEST_P(TrivialLoopTest, AutoSlicingInputWithDynCondition_CheckReference) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        InferenceEngine::Precision iePrc;
+        InferenceEngine::SizeVector ieShape;
+        std::tie(iePrc, ieShape, targetDevice) = GetParam();
+
+        // auto slicing size : 5
+        // trip count limit  : 4
+        // dyn exit after iter  : 3
+        // ---------------------
+        //   should exit after 4 iterations
+        const size_t batch_size = 5;
+        const size_t trip_count = 5;
+        const size_t num_iteration = 3;
+
+        ieShape[0] = 1;
+        auto ieShape_to_slice = ieShape;
+        ieShape_to_slice[0] = batch_size;
+
+        CreateSlicedLoopDynCondition(batch_size, num_iteration, iePrc, ieShape, trip_count);
         Run();
     }
 }  // namespace LayerTestsDefinitions

@@ -165,12 +165,12 @@ void op::v0::TensorIterator::validate_and_infer_types()
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            NODE_VALIDATION_CHECK(this,
+/*            NODE_VALIDATION_CHECK(this,
                                   body_value_partial_shape.compatible(body_param_partial_shape),
                                   "Iterator successive value is not compatible with body param");
             NODE_VALIDATION_CHECK(this,
                                   input_partial_shape.compatible(body_param_partial_shape),
-                                  "Iterator initial value is not compatible with body param");
+                                  "Iterator initial value is not compatible with body param");*/
 
             if (input_partial_shape.is_static())
             {
