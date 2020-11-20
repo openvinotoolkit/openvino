@@ -143,7 +143,7 @@ const std::vector<ConvolutionWIthIncorrectWeightsTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ConvolutionWIthIncorrectWeightsTransformation,
     ::testing::ValuesIn(testValues),
     ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
