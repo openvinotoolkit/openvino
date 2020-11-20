@@ -158,10 +158,11 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     }
     jit.AddConstant(MakeJitConstant("OC_BLOCK", 16));
 
-    if (output.GetDType() == Datatype::F32)
+    if (input.GetDType() == Datatype::F32) {
         jit.AddConstant(MakeJitConstant("DT_F32", 1));
-    else
+    } else {
         jit.AddConstant(MakeJitConstant("DT_F16", 1));
+    }
 
     auto mb_block = 1;
     auto ic_block = 16;

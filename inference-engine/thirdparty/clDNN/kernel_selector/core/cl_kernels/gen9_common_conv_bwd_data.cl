@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2019 Intel Corporation
+* Copyright 2019-2020 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -275,7 +275,7 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
     const int iw = (ihw % IWB) * IW_BLOCK;
 
     diff_dst += input_offset + mb * OC_FULL * G * OD_FULL * OH_FULL * OW_FULL + g * OC * OD_FULL * OH_FULL * OW_FULL * MB_BLOCK;
-    ACCUMULATOR_TYPE blockC00[IW_BLOCK] = {0.0f};
+    INPUT0_TYPE blockC00[IW_BLOCK] = {INPUT0_VAL_ZERO};
 
 #if WITH_BIAS
     for (int i = 0; i < IW_BLOCK; i++)
