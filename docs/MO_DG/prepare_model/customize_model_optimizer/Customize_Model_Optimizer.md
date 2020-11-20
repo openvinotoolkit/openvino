@@ -161,7 +161,7 @@ file.
 > using shapes of [Parameter](../../../ops/infrastructure/Parameter_1.md) and
 > [Const](../../../ops/infrastructure/Constant_1.md) operations.
 
-Model Optimizer inserts so "data" nodes to the computation graph. These data nodes correspond to tensors produced with
+Model Optimizer inserts "data" nodes to the computation graph. These data nodes correspond to tensors produced with
 operations. Each data node contains two attributes: `shape` containing the shape of the tensor and `value` which
 may contain the actual value of this tensor. The value for the `value` attribute is equal to `None` if this tensor value
 cannot be calculated. This happens in two cases: when the tensor value depends on the values passed to the
