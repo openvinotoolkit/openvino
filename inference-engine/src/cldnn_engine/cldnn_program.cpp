@@ -4981,7 +4981,7 @@ void Program::CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, Infere
     auto centerPointBox = nonMaxSupression->center_point_box;
     auto outputIndices = nonMaxSupression->outData[0]->getTensorDesc().getDims()[0];
 
-    auto name = layer_type_name_ID(layer);
+    auto name = layer->outData.size() > 1 ? (layer_type_lower(layer) + ":" + layer->outData[0]->getName()) : layer_type_name_ID(layer);
     auto prim = cldnn::non_max_suppression(
         name,
         reorderedInputs[0],
