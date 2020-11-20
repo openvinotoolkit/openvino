@@ -137,250 +137,258 @@ TEST_P(MatMulTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
-};
+static std::vector<ngraph::element::Type> getPrecisions() {
+    return {
+        ngraph::element::f32,
+        // ngraph::element::f16
+    };
+}
 
-const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
-    { { 1, 16, 384, 64 }, { 1, 16, 64, 384 } },
-    { { 4, 16, 384, 64 }, { 4, 16, 64, 384 } }
-};
+static std::vector<std::pair<ngraph::Shape, ngraph::Shape>> getShapes() {
+    return {
+        { { 1, 16, 384, 64 }, { 1, 16, 64, 384 } },
+        { { 4, 16, 384, 64 }, { 4, 16, 64, 384 } }
+    };
+}
 
-const std::vector<bool> updatePrecisions = { true, false };
+static std::vector<bool> getUpdatePrecisions() {
+    return { true, false };
+}
 
-std::vector<MatMullTransformationTestValues> testValues = {
-    // U8 + I8: Constant on dequantization operations on 0 branch
-    // {
-    //    LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
-    //    {
-    //        ngraph::element::u8,
-    //        { ngraph::element::f32, { 127.f }, { {0.02f}, ngraph::element::f32, {}, true, 0 } },
-    //        ngraph::element::i8,
-    //        { ngraph::element::f32, {}, { 0.03f } },
-    //    },
-    //    {
-    //        ngraph::element::u8,
-    //        { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
-    //        ngraph::element::i8,
-    //        { },
-    //        ngraph::element::f32,
-    //        ngraph::element::f32,
-    //        { {}, {}, { 0.0006f } },
-    //    }
-    // },
-    // U8 + I8
-    {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+static std::vector<MatMullTransformationTestValues> getTestValues() {
+    return {
+        // U8 + I8: Constant on dequantization operations on 0 branch
+        // {
+        //    LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+        //    {
+        //        ngraph::element::u8,
+        //        { ngraph::element::f32, { 127.f }, { {0.02f}, ngraph::element::f32, {}, true, 0 } },
+        //        ngraph::element::i8,
+        //        { ngraph::element::f32, {}, { 0.03f } },
+        //    },
+        //    {
+        //        ngraph::element::u8,
+        //        { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
+        //        ngraph::element::i8,
+        //        { },
+        //        ngraph::element::f32,
+        //        ngraph::element::f32,
+        //        { {}, {}, { 0.0006f } },
+        //    }
+        // },
+        // U8 + I8
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, { 127.f }, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::u8,
+                { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
+                ngraph::element::i8,
+                { },
+                ngraph::element::f32,
+                ngraph::element::f32,
+                { {}, {}, { 0.0006f } },
+            }
+        },
+        // I8 + I8
+        {
+            LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+            {
+                ngraph::element::i8,
+                { ngraph::element::f32, { 127.f }, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::i8,
+                { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
+                ngraph::element::i8,
+                { },
+                ngraph::element::f32,
+                ngraph::element::f32,
+                { {}, {}, { 0.0006f } },
+            }
+        },
+        // U8 + I8, Subtract with not int
+        {
+            LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, { 127.5f }, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, { 127.5f }, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+                ngraph::element::f32,
+                ngraph::element::f32,
+                {},
+            }
+        },
+        // U8 + FP32
+        {
+            LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, { 127.f }, { 0.02f } },
+                ngraph::element::f32,
+                { {}, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, { 127.f }, { 0.02f } },
+                ngraph::element::f32,
+                { {}, {}, { 0.03f } },
+                ngraph::element::f32,
+                ngraph::element::f32,
+                { },
+            }
+        },
+        // FP32 + I8
+        {
+            LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+            {
+                ngraph::element::f32,
+                { {}, { 127.f }, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::f32,
+                { {}, { 127.f }, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+                ngraph::element::f32,
+                ngraph::element::f32,
+                { },
+            }
         },
         {
-            ngraph::element::u8,
-            { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
-            ngraph::element::i8,
-            { },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { {}, {}, { 0.0006f } },
-        }
-    },
-    // I8 + I8
-    {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
-        {
-            ngraph::element::i8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, { 127.f }, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, { 127.f }, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+                ngraph::element::f32,
+                ngraph::element::f32,
+                { },
+            }
         },
         {
-            ngraph::element::i8,
-            { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
-            ngraph::element::i8,
-            { },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { {}, {}, { 0.0006f } },
-        }
-    },
-    // U8 + I8, Subtract with not int
-    {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.5f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::u8,
+                { {}, {}, {} },
+                ngraph::element::i8,
+                { {}, {}, {} },
+                ngraph::element::u8,
+                ngraph::element::i8,
+                { {}, {}, { 0.02f * 0.03f } },
+            }
         },
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.5f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            {},
-        }
-    },
-    // U8 + FP32
-    {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::f32,
-            { {}, {}, { 0.03f } },
+            LayerTransformation::createParamsU8U8(),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::u8,
+                { {}, {}, {} },
+                ngraph::element::i8,
+                { {}, {}, {} },
+                ngraph::element::u8,
+                ngraph::element::i8,
+                { {}, {}, { 0.02f * 0.03f } },
+            }
         },
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::f32,
-            { {}, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { },
-        }
-    },
-    // FP32 + I8
-    {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
-        {
-            ngraph::element::f32,
-            { {}, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            LayerTransformation::createParamsU8U8(),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.02f } },
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::u8,
+                { {}, {}, {} },
+                ngraph::element::u8,
+                { {}, {}, {} },
+                ngraph::element::u8,
+                ngraph::element::u8,
+                { {}, {}, { 0.02f * 0.03f } },
+            }
         },
         {
-            ngraph::element::f32,
-            { {}, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { },
-        }
-    },
-    {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            LayerTransformation::createParamsI8I8().setUpdatePrecisions(true),
+            {
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.02f } },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::i8,
+                { {}, {}, {} },
+                ngraph::element::i8,
+                { {}, {}, {} },
+                ngraph::element::i8,
+                ngraph::element::i8,
+                { {}, {}, { 0.02f * 0.03f } },
+            }
         },
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { },
+            LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
+            {
+                ngraph::element::f32,
+                { {}, {}, { 0.02f } },
+                ngraph::element::f32,
+                { {}, {}, { 0.03f } },
+            },
+            {
+                ngraph::element::f32,
+                { {}, {}, {} },
+                ngraph::element::f32,
+                { {}, {}, {} },
+                ngraph::element::f32,
+                ngraph::element::f32,
+                { {}, {}, { 0.02f * 0.03f } },
+            }
         }
-    },
-    {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-        },
-        {
-            ngraph::element::u8,
-            { {}, {}, {} },
-            ngraph::element::i8,
-            { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::i8,
-            { {}, {}, { 0.02f * 0.03f } },
-        }
-    },
-    {
-        LayerTransformation::createParamsU8U8(),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-        },
-        {
-            ngraph::element::u8,
-            { {}, {}, {} },
-            ngraph::element::i8,
-            { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::i8,
-            { {}, {}, { 0.02f * 0.03f } },
-        }
-    },
-    {
-        LayerTransformation::createParamsU8U8(),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.03f } },
-        },
-        {
-            ngraph::element::u8,
-            { {}, {}, {} },
-            ngraph::element::u8,
-            { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::u8,
-            { {}, {}, { 0.02f * 0.03f } },
-        }
-    },
-    {
-        LayerTransformation::createParamsI8I8().setUpdatePrecisions(true),
-        {
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-        },
-        {
-            ngraph::element::i8,
-            { {}, {}, {} },
-            ngraph::element::i8,
-            { {}, {}, {} },
-            ngraph::element::i8,
-            ngraph::element::i8,
-            { {}, {}, { 0.02f * 0.03f } },
-        }
-    },
-    {
-        LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
-        {
-            ngraph::element::f32,
-            { {}, {}, { 0.02f } },
-            ngraph::element::f32,
-            { {}, {}, { 0.03f } },
-        },
-        {
-            ngraph::element::f32,
-            { {}, {}, {} },
-            ngraph::element::f32,
-            { {}, {}, {} },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { {}, {}, { 0.02f * 0.03f } },
-        }
-    }
-};
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MatMulTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(getPrecisions()),
+        ::testing::ValuesIn(getShapes()),
+        ::testing::ValuesIn(getTestValues())),
     MatMulTransformation::getTestCaseName);
 
 } // namespace

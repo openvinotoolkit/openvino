@@ -91,152 +91,156 @@ TEST_P(ReluTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 3, 16, 16 }
-};
+static std::vector<ngraph::Shape> getShapes() {
+    return {
+        { 1, 3, 16, 16 }
+    };
+}
 
-const std::vector<ReluTransformationTestValues> testValues = {
-    // U8: no subtract
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
+static std::vector<ReluTransformationTestValues> getTestValues() {
+    return {
+        // U8: no subtract
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::Shape({ 1, 3, 16, 16 }),
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {}, {0.1f}}
+            },
+            {
+                ngraph::element::u8,
+                {{}, {}, {}},
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {}, {0.1f}}
+            }
         },
+        // U8: no subtract
         {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
-        }
-    },
-    // U8: no subtract
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+            ngraph::Shape({ 1, 3, 16, 16 }),
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+            },
+            {
+                ngraph::element::u8,
+                {{}, {}, {}},
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+            }
         },
+        // U8: no subtract
         {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
-        }
-    },
-    // U8: no subtract
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}}
+            ngraph::Shape({ 1, 3, 16, 16 }),
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}}
+            },
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}},
+                ngraph::element::f32,
+                {{}, {}, {}}
+            }
         },
+        // I8: no subtract
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}},
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-    // I8: no subtract
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::Shape({ 1, 3, 16, 16 }),
+            LayerTransformation::createParamsI8I8(),
+            {
+                ngraph::element::i8,
+                {{ngraph::element::f32}, {}, {0.1f}}
+            },
+            {
+                ngraph::element::i8,
+                {{}, {}, {}},
+                ngraph::element::i8,
+                {{ngraph::element::f32}, {}, {0.1f}}
+            }
         },
+        // U8: with subtract value
         {
-            ngraph::element::i8,
-            {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {0.1f}}
-        }
-    },
-    // U8: with subtract value
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128 }, {0.1f}}
+            ngraph::Shape({ 1, 3, 16, 16 }),
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, { 128 }, {0.1f}}
+            },
+            {
+                ngraph::element::u8,
+                {{}, { {128}, ngraph::element::f32, {}, false }, {}},
+                ngraph::element::f32,
+                {{}, {}, {0.1f}}
+            }
         },
+        // I8: with subtract value
         {
-            ngraph::element::u8,
-            {{}, { {128}, ngraph::element::f32, {}, false }, {}},
-            ngraph::element::f32,
-            {{}, {}, {0.1f}}
-        }
-    },
-    // I8: with subtract value
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(true),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}}
+            ngraph::Shape({ 1, 3, 16, 16 }),
+            LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(true),
+            {
+                ngraph::element::i8,
+                {{ngraph::element::f32}, { 127 }, {0.1f}}
+            },
+            {
+                ngraph::element::i8,
+                {{}, { {127}, ngraph::element::f32, {}, false }, {}},
+                ngraph::element::f32,
+                {{}, {}, {0.1f}}
+            }
         },
+        // I8: with subtract value
         {
-            ngraph::element::i8,
-            {{}, { {127}, ngraph::element::f32, {}, false }, {}},
-            ngraph::element::f32,
-            {{}, {}, {0.1f}}
-        }
-    },
-    // I8: with subtract value
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(false),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}}
+            ngraph::Shape({ 1, 3, 16, 16 }),
+            LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(false),
+            {
+                ngraph::element::i8,
+                {{ngraph::element::f32}, { 127 }, {0.1f}}
+            },
+            {
+                ngraph::element::i8,
+                {{ngraph::element::f32}, { 127 }, {0.1f}},
+                ngraph::element::f32,
+                {{}, {}, {}}
+            }
         },
+        // U8: empty
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}},
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-    // U8: empty
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {}
+            ngraph::Shape({ 1, 3, 16, 16 }),
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {}
+            },
+            {
+                ngraph::element::u8,
+                {},
+                ngraph::element::u8,
+                {}
+            }
         },
+        // FP32: empty
         {
-            ngraph::element::u8,
-            {},
-            ngraph::element::u8,
-            {}
+            ngraph::Shape({ 1, 3, 16, 16 }),
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::f32,
+                {}
+            },
+            {
+                ngraph::element::f32,
+                {},
+                ngraph::element::f32,
+                {}
+            }
         }
-    },
-    // FP32: empty
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::f32,
-            {}
-        },
-        {
-            ngraph::element::f32,
-            {},
-            ngraph::element::f32,
-            {}
-        }
-    }
-};
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ReluTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     ReluTransformation::getTestCaseName);
 
 } // namespace

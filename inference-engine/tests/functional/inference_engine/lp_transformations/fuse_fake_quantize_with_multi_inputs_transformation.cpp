@@ -95,50 +95,52 @@ TEST_P(FuseFakeQuantizeWithMultiInputsTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
-    // Multiply
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
+static std::vector<FuseFakeQuantizeTransformationTestValues> getTestValues() {
+    return {
+        // Multiply
         {
+            Shape{1, 3, 16, 16},
+            LayerTransformation::createParamsU8I8(),
             {
                 {
-                    element::f32,
-                    { {}, {}, { 0.01f } },
-                    element::f32
+                    {
+                        element::f32,
+                        { {}, {}, { 0.01f } },
+                        element::f32
+                    },
+                    {
+                        element::f32,
+                        { {}, {}, { 0.01f } },
+                        element::f32
+                    }
                 },
-                {
-                    element::f32,
-                    { {}, {}, { 0.01f } },
-                    element::f32
-                }
+                element::f32,
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
             },
-            element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        },
-        {
             {
                 {
-                    element::f32,
-                    { {}, {}, { 0.01f } },
-                    element::f32
+                    {
+                        element::f32,
+                        { {}, {}, { 0.01f } },
+                        element::f32
+                    },
+                    {
+                        element::f32,
+                        { {}, {}, { 0.01f } },
+                        element::f32
+                    }
                 },
-                {
-                    element::f32,
-                    { {}, {}, { 0.01f } },
-                    element::f32
-                }
-            },
-            element::f32,
-            { 256ul, {}, { 0.f }, { 255.f }, { 0.f }, { 2.55f } }
+                element::f32,
+                { 256ul, {}, { 0.f }, { 255.f }, { 0.f }, { 2.55f } }
+            }
         }
-    }
-};
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FuseFakeQuantizeWithMultiInputsTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     FuseFakeQuantizeWithMultiInputsTransformation::getTestCaseName);
 
 } // namespace

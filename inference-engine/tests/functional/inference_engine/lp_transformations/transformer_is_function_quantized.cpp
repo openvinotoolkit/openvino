@@ -65,26 +65,28 @@ TEST_P(TransformerIsFunctionQuantized, isFunctionQuantized) {
     ASSERT_EQ(expected, isFunctionQuantized);
 }
 
-const std::vector<TestValues> testValues = {
-    {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-    },
-    {
-        {},
-        { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-    },
-    {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        {},
-    },
-    { {}, {} }
-};
+static std::vector<TestValues> getTestValues() {
+    return {
+        {
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+        },
+        {
+            {},
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+        },
+        {
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+            {},
+        },
+        { {}, {} }
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     TransformerIsFunctionQuantized,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     TransformerIsFunctionQuantized::getTestCaseName);
 
 } // namespace

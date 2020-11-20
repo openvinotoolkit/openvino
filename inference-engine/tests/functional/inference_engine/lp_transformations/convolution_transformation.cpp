@@ -102,274 +102,278 @@ TEST_P(ConvolutionTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> shapes = {
-    ngraph::Shape({ 1, 3, 72, 48 }),
-    ngraph::Shape({ 4, 3, 72, 48 })
-};
+static std::vector<ngraph::Shape> getShapes() {
+    return {
+        ngraph::Shape({ 1, 3, 72, 48 }),
+        ngraph::Shape({ 4, 3, 72, 48 })
+    };
+}
 
-const std::vector<ConvolutionTransformationTestValues> testValues = {
-    // with zero point
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
+static std::vector<ConvolutionTransformationTestValues> getTestValues() {
+    return {
+        // with zero point
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128.f }, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            {{}, { { 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {}},
-            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
-            {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
-        }
-    },
-    // with zero point
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
-        // ActualValues
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128.f }, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            {{ ngraph::element::f32 }, { 128.f }, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-            ngraph::element::f32,
-            {}
-        }
-    },
-    // with zero point, not update precisions
-    {
-        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-        // ActualValues
-        {
-            ngraph::element::f32,
-            {{ngraph::element::f32}, { 128.f }, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::f32,
-            {{}, { { 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {}},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
-            {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
-        }
-    },
-    // without zero point
-    {
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            {},
-            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
-            {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
-        }
-    },
-    // without zero point
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
-        // ActualValues
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            {},
-            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
-            {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
-        }
-    },
-    // without zero point, not update precisions
-    {
-        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-        // ActualValues
-        {
-            ngraph::element::f32,
-            {{ngraph::element::f32}, {}, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::f32,
-            {},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
-            {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
-        }
-    },
-    // with zero point, per-channel quantization with the same values
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { { 128.f }, ngraph::element::f32, {1, 3, 1, 1} }, { { 0.02f },  ngraph::element::f32, {1, 3, 1, 1} }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            {{}, { { 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {}},
-            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
-            {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
-        }
-    },
-    // with zero point, per-channel quantization with different values
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ngraph::element::u8,
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+            // ActualValues
             {
-                {ngraph::element::f32},
-                {{ 128.f, 0.f, 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }},
-                {{ 0.02f, 0.01f, 0.03f }, ngraph::element::f32, {1, 3, 1, 1}}
+                ngraph::element::u8,
+                {{ngraph::element::f32}, { 128.f }, { 0.02f }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
             },
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
+            // ExpectedValues
             {
-                {ngraph::element::f32},
-                {{ 128.f, 0.f, 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }},
-                {{ 0.02f, 0.01f, 0.03f }, ngraph::element::f32, {1, 3, 1, 1}}
-            },
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-            ngraph::element::f32,
-            {}
-        }
-    },
-    // dequantization in second dimension
-    {
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
+                ngraph::element::u8,
+                {{}, { { 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {}},
+                op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+                {},
+                ngraph::element::f32,
+                {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            }
+        },
+        // with zero point
         {
-            ngraph::element::f32,
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+            // ActualValues
             {
-                {ngraph::element::f32},
-                {{ 128.f }, ngraph::element::f32, { 1, 1, 1, 1 }},
-                {{ 0.02f }, ngraph::element::f32, {1, 1, 1, 1}}
+                ngraph::element::u8,
+                {{ngraph::element::f32}, { 128.f }, { 0.02f }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
             },
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::f32,
+            // ExpectedValues
             {
-                {ngraph::element::f32},
-                {{ 128.f }, ngraph::element::f32, { 1, 1, 1, 1 }},
-                {{ 0.02f }, ngraph::element::f32, {1, 1, 1, 1}}
+                ngraph::element::u8,
+                {{ ngraph::element::f32 }, { 128.f }, { 0.02f }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+                ngraph::element::f32,
+                {}
+            }
+        },
+        // with zero point, not update precisions
+        {
+            LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+            // ActualValues
+            {
+                ngraph::element::f32,
+                {{ngraph::element::f32}, { 128.f }, { 0.02f }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
             },
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-            ngraph::element::f32,
-            {}
-        }
-    },
-    // without dequantization operations
-    {
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
-        {
-            ngraph::element::f32,
-            {},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            // ExpectedValues
+            {
+                ngraph::element::f32,
+                {{}, { { 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {}},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
+                {},
+                ngraph::element::f32,
+                {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            }
         },
-        // ExpectedValues
+        // without zero point
         {
-            ngraph::element::f32,
-            {},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-            ngraph::element::f32,
-            {}
-        }
-    },
-    // without zero point, without convert
-    {
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
-        {
-            ngraph::element::f32,
-            {{}, {}, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            LayerTransformation::createParamsU8I8(),
+            // ActualValues
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {}, { 0.02f }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            // ExpectedValues
+            {
+                ngraph::element::u8,
+                {},
+                op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+                {},
+                ngraph::element::f32,
+                {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            }
         },
-        // ExpectedValues
+        // without zero point
         {
-            ngraph::element::f32,
-            {{}, {}, { {0.02f}, element::f32 }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-            ngraph::element::f32,
-            {}
-        }
-    },
-    // without zero point
-    {
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
-        {
-            ngraph::element::u8,
-            {{element::f32}, {}, { {0.02f}, element::f32 }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+            // ActualValues
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {}, { 0.02f }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            // ExpectedValues
+            {
+                ngraph::element::u8,
+                {},
+                op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+                {},
+                ngraph::element::f32,
+                {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            }
         },
-        // ExpectedValues
+        // without zero point, not update precisions
         {
-            ngraph::element::u8,
-            {},
-            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
-            {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
-        }
-    },
-};
+            LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+            // ActualValues
+            {
+                ngraph::element::f32,
+                {{ngraph::element::f32}, {}, { 0.02f }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            // ExpectedValues
+            {
+                ngraph::element::f32,
+                {},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
+                {},
+                ngraph::element::f32,
+                {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            }
+        },
+        // with zero point, per-channel quantization with the same values
+        {
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+            // ActualValues
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, { { 128.f }, ngraph::element::f32, {1, 3, 1, 1} }, { { 0.02f },  ngraph::element::f32, {1, 3, 1, 1} }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            // ExpectedValues
+            {
+                ngraph::element::u8,
+                {{}, { { 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {}},
+                op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+                {},
+                ngraph::element::f32,
+                {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            }
+        },
+        // with zero point, per-channel quantization with different values
+        {
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+            // ActualValues
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{ 128.f, 0.f, 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }},
+                    {{ 0.02f, 0.01f, 0.03f }, ngraph::element::f32, {1, 3, 1, 1}}
+                },
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            // ExpectedValues
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{ 128.f, 0.f, 128.f }, ngraph::element::f32, { 1, 3, 1, 1 }},
+                    {{ 0.02f, 0.01f, 0.03f }, ngraph::element::f32, {1, 3, 1, 1}}
+                },
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+                ngraph::element::f32,
+                {}
+            }
+        },
+        // dequantization in second dimension
+        {
+            LayerTransformation::createParamsU8I8(),
+            // ActualValues
+            {
+                ngraph::element::f32,
+                {
+                    {ngraph::element::f32},
+                    {{ 128.f }, ngraph::element::f32, { 1, 1, 1, 1 }},
+                    {{ 0.02f }, ngraph::element::f32, {1, 1, 1, 1}}
+                },
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            // ExpectedValues
+            {
+                ngraph::element::f32,
+                {
+                    {ngraph::element::f32},
+                    {{ 128.f }, ngraph::element::f32, { 1, 1, 1, 1 }},
+                    {{ 0.02f }, ngraph::element::f32, {1, 1, 1, 1}}
+                },
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+                ngraph::element::f32,
+                {}
+            }
+        },
+        // without dequantization operations
+        {
+            LayerTransformation::createParamsU8I8(),
+            // ActualValues
+            {
+                ngraph::element::f32,
+                {},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            // ExpectedValues
+            {
+                ngraph::element::f32,
+                {},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+                ngraph::element::f32,
+                {}
+            }
+        },
+        // without zero point, without convert
+        {
+            LayerTransformation::createParamsU8I8(),
+            // ActualValues
+            {
+                ngraph::element::f32,
+                {{}, {}, { 0.02f }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            // ExpectedValues
+            {
+                ngraph::element::f32,
+                {{}, {}, { {0.02f}, element::f32 }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+                ngraph::element::f32,
+                {}
+            }
+        },
+        // without zero point
+        {
+            LayerTransformation::createParamsU8I8(),
+            // ActualValues
+            {
+                ngraph::element::u8,
+                {{element::f32}, {}, { {0.02f}, element::f32 }},
+                op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+                { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            // ExpectedValues
+            {
+                ngraph::element::u8,
+                {},
+                op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+                {},
+                ngraph::element::f32,
+                {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            }
+        },
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ConvolutionTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(getShapes()),
+        ::testing::ValuesIn(getTestValues())),
     ConvolutionTransformation::getTestCaseName);

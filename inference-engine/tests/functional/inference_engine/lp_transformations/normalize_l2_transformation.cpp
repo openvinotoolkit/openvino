@@ -87,60 +87,68 @@ TEST_P(NormalizeL2Transformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
-};
+static std::vector<ngraph::element::Type> getPrecisions() {
+    return {
+        ngraph::element::f32,
+        // ngraph::element::f16
+    };
+}
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 4, 16, 16 }
-};
+static std::vector<ngraph::Shape> getShapes() {
+    return {
+        { 1, 4, 16, 16 }
+    };
+}
 
-std::vector<ngraph::op::EpsMode> epsMode = {
-    ngraph::op::EpsMode::ADD,
-    ngraph::op::EpsMode::MAX
-};
+static std::vector<ngraph::op::EpsMode> getEpsMode() {
+    return {
+        ngraph::op::EpsMode::ADD,
+        ngraph::op::EpsMode::MAX
+    };
+}
 
-const std::vector<NormalizeL2TransformationTestValues> normalizeL2TransformationTestValues = {
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
-        { ngraph::element::u8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
-        { ngraph::element::u8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
-    },
-
-    // U8
-    {
-        LayerTransformation::createParamsU8I8(),
-        { ngraph::element::u8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
-        { ngraph::element::u8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
-    },
-
-    {
-        LayerTransformation::createParamsU8I8(),
-        { ngraph::element::u8, { 1, 2, 3 }, { }, { 12.3f }},
-        { ngraph::element::u8, { 1, 2, 3 }, { }, { 1.f }}
-    },
-
-    // I8
-    {
-        LayerTransformation::createParamsI8I8(),
-        { ngraph::element::i8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
-        { ngraph::element::i8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
-    },
-
-    {
-        LayerTransformation::createParamsI8I8(),
-        { ngraph::element::i8, { 1, 2, 3 }, { }, { 12.3f }},
-        { ngraph::element::i8, { 1, 2, 3 }, { }, { 1.f }}
-    },
-};
+static std::vector<NormalizeL2TransformationTestValues> getNormalizeL2TransformationTestValues() {
+    return {
+        {
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+            { ngraph::element::u8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
+            { ngraph::element::u8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
+        },
+    
+        // U8
+        {
+            LayerTransformation::createParamsU8I8(),
+            { ngraph::element::u8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
+            { ngraph::element::u8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
+        },
+    
+        {
+            LayerTransformation::createParamsU8I8(),
+            { ngraph::element::u8, { 1, 2, 3 }, { }, { 12.3f }},
+            { ngraph::element::u8, { 1, 2, 3 }, { }, { 1.f }}
+        },
+    
+        // I8
+        {
+            LayerTransformation::createParamsI8I8(),
+            { ngraph::element::i8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
+            { ngraph::element::i8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
+        },
+    
+        {
+            LayerTransformation::createParamsI8I8(),
+            { ngraph::element::i8, { 1, 2, 3 }, { }, { 12.3f }},
+            { ngraph::element::i8, { 1, 2, 3 }, { }, { 1.f }}
+        },
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     NormalizeL2Transformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(epsMode),
-        ::testing::ValuesIn(normalizeL2TransformationTestValues)),
+        ::testing::ValuesIn(getPrecisions()),
+        ::testing::ValuesIn(getShapes()),
+        ::testing::ValuesIn(getEpsMode()),
+        ::testing::ValuesIn(getNormalizeL2TransformationTestValues())),
     NormalizeL2Transformation::getTestCaseName);

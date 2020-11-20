@@ -86,306 +86,308 @@ TEST_P(ClampTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ClampTransformationTestValues> testValues = {
-    // U8 per tensor quantization
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
+static std::vector<ClampTransformationTestValues> getTestValues() {
+    return {
+        // U8 per tensor quantization
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {3.f}}
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {128.f}, {3.f}}
-        }
-    },
-    // I8 per tensor quantization
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {128.f}, {-5.f}}
-        },
-        {
-            ngraph::element::i8,
-            {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {128.f}, {-5.f}}
-        }
-    },
-    // U8 without convert
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::f32,
-            {{}, {128.f}, {3.f}}
-        },
-        {
-            ngraph::element::f32,
-            {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {128.f}, {3.f}}
-        }
-    },
-    // I8 without convert
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::f32,
-            {{}, {128.f}, {3.f}}
-        },
-        {
-            ngraph::element::f32,
-            {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {128.f}, {3.f}}
-        }
-},
-    // U8 without subtract
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {3.f}}
-        },
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {}, {3.f}}
-        }
-    },
-    // I8 without subtract
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}}
-        },
-        {
-            ngraph::element::i8,
-            {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {}, {3.f}}
-        }
-    },
-    // U8 per channel quantization with different values
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsU8I8(),
+            // ActualValues
             {
-                {ngraph::element::f32},
-                {{128.f, 0.f, 128.f / 2}},
-                {{3.f, 1.f, 2.f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{128.f, 0.f, 128.f / 2}},
-                {{3.f, 1.f, 2.f}}
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {128.f}, {3.f}}
             },
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-    // I8 per channel quantization with different values
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
+            // ExpectedValues
             {
-                {ngraph::element::f32},
-                {{128.f, 0.f, 128.f / 2}},
-                {{3.f, 1.f, 2.f}}
+                ngraph::element::u8,
+                {{}, {}, {}},
+                ngraph::element::f32,
+                {{}, {128.f}, {3.f}}
             }
         },
+        // I8 per tensor quantization
         {
-            ngraph::element::i8,
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsI8I8(),
             {
-                {ngraph::element::f32},
-                {{128.f, 0.f, 128.f / 2}},
-                {{3.f, 1.f, 2.f}}
+                ngraph::element::i8,
+                {{ngraph::element::f32}, {128.f}, {-5.f}}
             },
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-    // U8 per channel quantization with the same values
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f}},
-                {{3.f, 3.f, 3.f}}
+                ngraph::element::i8,
+                {{}, {}, {}},
+                ngraph::element::f32,
+                {{}, {128.f}, {-5.f}}
             }
         },
+        // U8 without convert
         {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsU8I8(),
             {
-                {},
-                {{128.f, 128.f, 128.f}},
-                {{3.f, 3.f, 3.f}}
+                ngraph::element::f32,
+                {{}, {128.f}, {3.f}}
             },
-        }
-    },
-    // I8 per channel quantization with the same values
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f}},
-                {{3.f, 3.f, 3.f}}
+                ngraph::element::f32,
+                {{}, {}, {}},
+                ngraph::element::f32,
+                {{}, {128.f}, {3.f}}
             }
         },
+        // I8 without convert
         {
-            ngraph::element::i8,
-            {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsI8I8(),
             {
-                {},
-                {{128.f, 128.f, 128.f}},
-                {{3.f, 3.f, 3.f}}
+                ngraph::element::f32,
+                {{}, {128.f}, {3.f}}
             },
-        }
-    },
-    // U8 dequantization in second dimension
-    {
-        ngraph::Shape({ 1, 3, 4, 4 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                ngraph::element::f32,
+                {{}, {}, {}},
+                ngraph::element::f32,
+                {{}, {128.f}, {3.f}}
             }
-        },
+    },
+        // U8 without subtract
         {
-            ngraph::element::u8,
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsU8I8(),
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {}, {3.f}}
             },
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-    // I8 dequantization in second dimension
-    {
-        ngraph::Shape({ 1, 3, 4, 4 }),
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                ngraph::element::u8,
+                {{}, {}, {}},
+                ngraph::element::f32,
+                {{}, {}, {3.f}}
             }
         },
+        // I8 without subtract
         {
-            ngraph::element::i8,
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsI8I8(),
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                ngraph::element::i8,
+                {{ngraph::element::f32}, {}, {3.f}}
             },
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-    // U8 asymmetric quantization
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        {
-            ngraph::element::u8,
             {
-                {ngraph::element::f32},
-                {{ 128.f, 0.f, 128.f }},
-                {{ 3.f, 3.f, 3.f }}
+                ngraph::element::i8,
+                {{}, {}, {}},
+                ngraph::element::f32,
+                {{}, {}, {3.f}}
             }
         },
+        // U8 per channel quantization with different values
         {
-            ngraph::element::u8,
-            {{}, {{ 128.f, 0.f, 128.f }, ngraph::element::f32}, {}},
-            ngraph::element::f32,
-            {{}, {}, {{3.f, 3.f, 3.f}}}
-        }
-    },
-    // U8 without asymmetric quantization
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
-        {
-            ngraph::element::u8,
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsU8I8(),
             {
-                {ngraph::element::f32},
-                {{ 128.f, 0.f, 128.f }},
-                {{ 3.f, 3.f, 3.f }}
-            }
-        },
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{ 128.f, 0.f, 128.f }},
-                {{ 3.f, 3.f, 3.f }}
-            },
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-    // per channel quantization with small values
-    {
-        ngraph::Shape({ 1, 3, 224, 224 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {
+                ngraph::element::u8,
+                {
                     {ngraph::element::f32},
-                    {{1e-14, 1e-12, 1e-15}},
-                    {{1e-14, 1e-12, 1e-15}}
+                    {{128.f, 0.f, 128.f / 2}},
+                    {{3.f, 1.f, 2.f}}
+                }
+            },
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{128.f, 0.f, 128.f / 2}},
+                    {{3.f, 1.f, 2.f}}
+                },
+                ngraph::element::f32,
+                {{}, {}, {}}
             }
         },
+        // I8 per channel quantization with different values
         {
-            ngraph::element::u8,
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsI8I8(),
             {
+                ngraph::element::i8,
+                {
                     {ngraph::element::f32},
-                    {{1e-14, 1e-12, 1e-15}},
-                    {{1e-14, 1e-12, 1e-15}}
+                    {{128.f, 0.f, 128.f / 2}},
+                    {{3.f, 1.f, 2.f}}
+                }
             },
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-};
+            {
+                ngraph::element::i8,
+                {
+                    {ngraph::element::f32},
+                    {{128.f, 0.f, 128.f / 2}},
+                    {{3.f, 1.f, 2.f}}
+                },
+                ngraph::element::f32,
+                {{}, {}, {}}
+            }
+        },
+        // U8 per channel quantization with the same values
+        {
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{128.f, 128.f, 128.f}},
+                    {{3.f, 3.f, 3.f}}
+                }
+            },
+            {
+                ngraph::element::u8,
+                {{}, {}, {}},
+                ngraph::element::f32,
+                {
+                    {},
+                    {{128.f, 128.f, 128.f}},
+                    {{3.f, 3.f, 3.f}}
+                },
+            }
+        },
+        // I8 per channel quantization with the same values
+        {
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsI8I8(),
+            {
+                ngraph::element::i8,
+                {
+                    {ngraph::element::f32},
+                    {{128.f, 128.f, 128.f}},
+                    {{3.f, 3.f, 3.f}}
+                }
+            },
+            {
+                ngraph::element::i8,
+                {{}, {}, {}},
+                ngraph::element::f32,
+                {
+                    {},
+                    {{128.f, 128.f, 128.f}},
+                    {{3.f, 3.f, 3.f}}
+                },
+            }
+        },
+        // U8 dequantization in second dimension
+        {
+            ngraph::Shape({ 1, 3, 4, 4 }),
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
+                    {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                }
+            },
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
+                    {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                },
+                ngraph::element::f32,
+                {{}, {}, {}}
+            }
+        },
+        // I8 dequantization in second dimension
+        {
+            ngraph::Shape({ 1, 3, 4, 4 }),
+            LayerTransformation::createParamsI8I8(),
+            {
+                ngraph::element::i8,
+                {
+                    {ngraph::element::f32},
+                    {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
+                    {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                }
+            },
+            {
+                ngraph::element::i8,
+                {
+                    {ngraph::element::f32},
+                    {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
+                    {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                },
+                ngraph::element::f32,
+                {{}, {}, {}}
+            }
+        },
+        // U8 asymmetric quantization
+        {
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{ 128.f, 0.f, 128.f }},
+                    {{ 3.f, 3.f, 3.f }}
+                }
+            },
+            {
+                ngraph::element::u8,
+                {{}, {{ 128.f, 0.f, 128.f }, ngraph::element::f32}, {}},
+                ngraph::element::f32,
+                {{}, {}, {{3.f, 3.f, 3.f}}}
+            }
+        },
+        // U8 without asymmetric quantization
+        {
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{ 128.f, 0.f, 128.f }},
+                    {{ 3.f, 3.f, 3.f }}
+                }
+            },
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{ 128.f, 0.f, 128.f }},
+                    {{ 3.f, 3.f, 3.f }}
+                },
+                ngraph::element::f32,
+                {{}, {}, {}}
+            }
+        },
+        // per channel quantization with small values
+        {
+            ngraph::Shape({ 1, 3, 224, 224 }),
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {
+                        {ngraph::element::f32},
+                        {{1e-14, 1e-12, 1e-15}},
+                        {{1e-14, 1e-12, 1e-15}}
+                }
+            },
+            {
+                ngraph::element::u8,
+                {
+                        {ngraph::element::f32},
+                        {{1e-14, 1e-12, 1e-15}},
+                        {{1e-14, 1e-12, 1e-15}}
+                },
+                ngraph::element::f32,
+                {{}, {}, {}}
+            }
+        },
+    };
+}
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ClampTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     ClampTransformation::getTestCaseName);
 } // namespace

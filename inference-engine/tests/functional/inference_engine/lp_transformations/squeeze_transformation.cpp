@@ -104,127 +104,129 @@ TEST_P(SqueezeTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<SqueezeTransformationTestValues> testValues = {
-    {
-        ngraph::Shape{ 1, 1, 16, 16 }, // Input shape
-        { 1.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
-
-        /* Actual */
+static std::vector<SqueezeTransformationTestValues> getTestValues() {
+    return {
         {
-            ngraph::element::u8, // Precision before dequantization
-            /* Dequantization */
+            ngraph::Shape{ 1, 1, 16, 16 }, // Input shape
+            { 1.0f }, // Squeeze axes
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
+    
+            /* Actual */
             {
-                {ngraph::element::f32}, // Convert
-                {-0.32f}, // Subtract
-                {0.45f} // Multiply
+                ngraph::element::u8, // Precision before dequantization
+                /* Dequantization */
+                {
+                    {ngraph::element::f32}, // Convert
+                    {-0.32f}, // Subtract
+                    {0.45f} // Multiply
+                }
+            },
+            /* Expected */
+            {
+                ngraph::element::u8, // Precision before dequantization
+                /* Dequantization before */
+                {},
+                ngraph::element::u8, // Precision after dequantization
+                /* Dequantization after */
+                {
+                    {ngraph::element::f32}, // Convert
+                    {-0.32f}, // Subtract
+                    {0.45f} // Multiply
+                }
             }
         },
-        /* Expected */
         {
-            ngraph::element::u8, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ngraph::element::u8, // Precision after dequantization
-            /* Dequantization after */
+            ngraph::Shape{ 1, 1, 1, 1000 }, // Input shape
+            {1.0f }, // Squeeze axes
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
+    
+            /* Actual */
             {
-                {ngraph::element::f32}, // Convert
-                {-0.32f}, // Subtract
-                {0.45f} // Multiply
-            }
-        }
-    },
-    {
-        ngraph::Shape{ 1, 1, 1, 1000 }, // Input shape
-        {1.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
-
-        /* Actual */
-        {
-            ngraph::element::i8, // Precision before dequantization
-            /* Dequantization */
+                ngraph::element::i8, // Precision before dequantization
+                /* Dequantization */
+                {
+                    {ngraph::element::f32}, // Convert
+                    {0.5f}, // Subtract
+                    {2.0f} // Multiply
+                }
+            },
+            /* Expected */
             {
-                {ngraph::element::f32}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ngraph::element::i8, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ngraph::element::i8, // Precision after dequantization
-            /* Dequantization after */
-            {
-                {ngraph::element::f32}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        }
-    },
-    {
-        ngraph::Shape{ 1, 1, 1000 }, // Input shape
-        { 1.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
-
-        /* Actual */
-        {
-            ngraph::element::f32, // Precision before dequantization
-            /* Dequantization */
-            {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
+                ngraph::element::i8, // Precision before dequantization
+                /* Dequantization before */
+                {},
+                ngraph::element::i8, // Precision after dequantization
+                /* Dequantization after */
+                {
+                    {ngraph::element::f32}, // Convert
+                    {0.5f}, // Subtract
+                    {2.0f} // Multiply
+                }
             }
         },
-        /* Expected */
         {
-            ngraph::element::f32, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ngraph::element::f32, // Precision after dequantization
-            /* Dequantization after */
+            ngraph::Shape{ 1, 1, 1000 }, // Input shape
+            { 1.0f }, // Squeeze axes
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
+    
+            /* Actual */
             {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        }
-    },
-    {
-        ngraph::Shape{ 1, 1, 1000, 1000 }, // Input shape
-        { 0.0f}, // Squeeze axes
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
-
-        /* Actual */
-        {
-            ngraph::element::f32, // Precision before dequantization
-            /* Dequantization */
+                ngraph::element::f32, // Precision before dequantization
+                /* Dequantization */
+                {
+                    {}, // Convert
+                    {0.5f}, // Subtract
+                    {2.0f} // Multiply
+                }
+            },
+            /* Expected */
             {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
+                ngraph::element::f32, // Precision before dequantization
+                /* Dequantization before */
+                {},
+                ngraph::element::f32, // Precision after dequantization
+                /* Dequantization after */
+                {
+                    {}, // Convert
+                    {0.5f}, // Subtract
+                    {2.0f} // Multiply
+                }
             }
         },
-        /* Expected */
         {
-            ngraph::element::f32, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ngraph::element::f32, // Precision after dequantization
-            /* Dequantization after */
+            ngraph::Shape{ 1, 1, 1000, 1000 }, // Input shape
+            { 0.0f}, // Squeeze axes
+            LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
+    
+            /* Actual */
             {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
+                ngraph::element::f32, // Precision before dequantization
+                /* Dequantization */
+                {
+                    {}, // Convert
+                    {0.5f}, // Subtract
+                    {2.0f} // Multiply
+                }
+            },
+            /* Expected */
+            {
+                ngraph::element::f32, // Precision before dequantization
+                /* Dequantization before */
+                {},
+                ngraph::element::f32, // Precision after dequantization
+                /* Dequantization after */
+                {
+                    {}, // Convert
+                    {0.5f}, // Subtract
+                    {2.0f} // Multiply
+                }
             }
-        }
-    },
-};
+        },
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     SqueezeTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     SqueezeTransformation::getTestCaseName);

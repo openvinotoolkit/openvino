@@ -98,86 +98,90 @@ TEST_P(MoveDequantizationAfterWithIntConstantTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> inputShapes = {
-    { 1, 3, 16, 16 },
-    { 4, 3, 16, 16 }
-};
+static std::vector<ngraph::Shape> getInputShapes() {
+    return {
+        { 1, 3, 16, 16 },
+        { 4, 3, 16, 16 }
+    };
+}
 
-const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
-    // I8 & I8: Multiply
-    {
-        ngraph::element::i8,
-        LayerTransformation::createParamsU8I8(),
-        false,
-        true,
+static std::vector<MoveDequantizationAfterTransformationParams> getTestValues() {
+    return {
+        // I8 & I8: Multiply
         {
-            { {},  {}, { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8 } },
-        },
-        {
-            { {},  {}, {} },
-            ngraph::element::f32,
-            { {},  {}, { 10.f } },
-        },
-    },
-    // I8 & I8: Subtract + Multiply
-    {
-        ngraph::element::i8,
-        LayerTransformation::createParamsU8I8(),
-        false,
-        true,
-        {
+            ngraph::element::i8,
+            LayerTransformation::createParamsU8I8(),
+            false,
+            true,
             {
-                {},
-                { {5.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8 },
-                { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8 }
+                { {},  {}, { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8 } },
+            },
+            {
+                { {},  {}, {} },
+                ngraph::element::f32,
+                { {},  {}, { 10.f } },
             },
         },
+        // I8 & I8: Subtract + Multiply
         {
-            { {},  {}, {} },
-            ngraph::element::f32,
-            { {},  {5.f}, { 10.f } },
-        },
-    },
-    // FP32 & I8: Multiply
-    {
-        ngraph::element::u8,
-        LayerTransformation::createParamsU8I8(),
-        false,
-        true,
-        {
-            { {ngraph::element::f32},  {}, { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8 } },
-        },
-        {
-            { {},  {}, {} },
-            ngraph::element::f32,
-            { {},  {}, { 10.f } },
-        },
-    },
-    // FP32 & I8: Subtract + Multiply
-    {
-        ngraph::element::u8,
-        LayerTransformation::createParamsU8I8(),
-        false,
-        true,
-        {
+            ngraph::element::i8,
+            LayerTransformation::createParamsU8I8(),
+            false,
+            true,
             {
-                {ngraph::element::f32},
-                { {5.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8 },
-                { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8 }
+                {
+                    {},
+                    { {5.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8 },
+                    { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8 }
+                },
+            },
+            {
+                { {},  {}, {} },
+                ngraph::element::f32,
+                { {},  {5.f}, { 10.f } },
             },
         },
+        // FP32 & I8: Multiply
         {
-            { {},  {}, {} },
-            ngraph::element::f32,
-            { {},  {5.f}, { 10.f } },
+            ngraph::element::u8,
+            LayerTransformation::createParamsU8I8(),
+            false,
+            true,
+            {
+                { {ngraph::element::f32},  {}, { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8 } },
+            },
+            {
+                { {},  {}, {} },
+                ngraph::element::f32,
+                { {},  {}, { 10.f } },
+            },
         },
-    }
-};
+        // FP32 & I8: Subtract + Multiply
+        {
+            ngraph::element::u8,
+            LayerTransformation::createParamsU8I8(),
+            false,
+            true,
+            {
+                {
+                    {ngraph::element::f32},
+                    { {5.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8 },
+                    { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8 }
+                },
+            },
+            {
+                { {},  {}, {} },
+                ngraph::element::f32,
+                { {},  {5.f}, { 10.f } },
+            },
+        }
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MoveDequantizationAfterWithIntConstantTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(getInputShapes()),
+        ::testing::ValuesIn(getTestValues())),
     MoveDequantizationAfterWithIntConstantTransformation::getTestCaseName);

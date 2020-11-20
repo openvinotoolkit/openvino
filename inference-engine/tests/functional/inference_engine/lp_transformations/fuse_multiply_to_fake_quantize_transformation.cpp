@@ -83,61 +83,63 @@ TEST_P(FuseMultiplyToFakeQuantizeTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues = {
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
+static std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> getTestValues() {
+    return {
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, {}, { 0.5f } },
+            Shape{1, 3, 16, 16},
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+                { {element::f32}, {}, { 0.5f } },
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
+                { {}, {}, {} },
+            }
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
-            { {}, {}, {} },
-        }
-    },
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
-            { {element::f32}, {}, { 0.5f } },
+            Shape{1, 3, 16, 16},
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
+                { {element::f32}, {}, { 0.5f } },
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
+                { {}, {}, {} },
+            }
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
-            { {}, {}, {} },
-        }
-    },
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, {}, { 0.5f } },
+            Shape{1, 3, 16, 16},
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+                { {}, {}, { 0.5f } },
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
+                { {}, {}, {} },
+            }
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
-            { {}, {}, {} },
-        }
-    },
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, {}, { { 0.5f }, element::u8 } },
+            Shape{1, 3, 16, 16},
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+                { {}, {}, { { 0.5f }, element::u8 } },
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
+                { {}, {}, {} },
+            }
         },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
-            { {}, {}, {} },
-        }
-    },
-};
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FuseMultiplyToFakeQuantizeTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     FuseMultiplyToFakeQuantizeTransformation::getTestCaseName);
 
 } // namespace

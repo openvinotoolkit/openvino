@@ -98,168 +98,172 @@ TEST_P(MoveDequantizationAfterTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> inputShapes = {
-    { 1, 3, 16, 16 },
-    { 4, 3, 16, 16 }
-};
+static std::vector<ngraph::Shape> getInputShapes() {
+    return {
+        { 1, 3, 16, 16 },
+        { 4, 3, 16, 16 }
+    };
+}
 
-const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
-    // U8
-    {
-        ngraph::element::u8,
-        LayerTransformation::createParamsU8I8(),
-        true,
-        true,
+static std::vector<MoveDequantizationAfterTransformationParams> getTestValues() {
+    return {
+        // U8
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
-        },
-        {
-            { {},  {}, {} },
             ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            LayerTransformation::createParamsU8I8(),
+            true,
+            true,
+            {
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
+            {
+                { {},  {}, {} },
+                ngraph::element::u8,
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
         },
-    },
-    // moveSubtract = false
-    {
-        ngraph::element::u8,
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
+        // moveSubtract = false
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            ngraph::element::u8,
+            LayerTransformation::createParamsU8I8(),
+            true,
+            false,
+            {
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
+            {
+                { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
+                ngraph::element::f32,
+                { {},  {}, { 10.f } },
+            },
         },
+        // updatePrecision = false
         {
-            { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
-            ngraph::element::f32,
-            { {},  {}, { 10.f } },
+            ngraph::element::u8,
+            LayerTransformation::createParamsU8I8(),
+            false,
+            true,
+            {
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
+            {
+                { {},  {}, {} },
+                ngraph::element::f32,
+                { {},  { 7.f }, { 10.f } },
+            },
         },
-    },
-    // updatePrecision = false
-    {
-        ngraph::element::u8,
-        LayerTransformation::createParamsU8I8(),
-        false,
-        true,
+        // moveSubtract = false & updatePrecision = false
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            ngraph::element::u8,
+            LayerTransformation::createParamsU8I8(),
+            false,
+            false,
+            {
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
+            {
+                { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
+                ngraph::element::f32,
+                { {},  {}, { 10.f } },
+            },
         },
+        // I8
         {
-            { {},  {}, {} },
-            ngraph::element::f32,
-            { {},  { 7.f }, { 10.f } },
-        },
-    },
-    // moveSubtract = false & updatePrecision = false
-    {
-        ngraph::element::u8,
-        LayerTransformation::createParamsU8I8(),
-        false,
-        false,
-        {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
-        },
-        {
-            { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
-            ngraph::element::f32,
-            { {},  {}, { 10.f } },
-        },
-    },
-    // I8
-    {
-        ngraph::element::i8,
-        LayerTransformation::createParamsI8I8(),
-        true,
-        true,
-        {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
-        },
-        {
-            { {},  {}, {} },
             ngraph::element::i8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            LayerTransformation::createParamsI8I8(),
+            true,
+            true,
+            {
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
+            {
+                { {},  {}, {} },
+                ngraph::element::i8,
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
         },
-    },
-    // moveSubtract = false
-    {
-        ngraph::element::i8,
-        LayerTransformation::createParamsI8I8(),
-        true,
-        false,
+        // moveSubtract = false
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            ngraph::element::i8,
+            LayerTransformation::createParamsI8I8(),
+            true,
+            false,
+            {
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
+            {
+                { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
+                ngraph::element::f32,
+                { {},  {}, { 10.f } },
+            },
         },
+        // updatePrecision = false
         {
-            { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
-            ngraph::element::f32,
-            { {},  {}, { 10.f } },
+            ngraph::element::i8,
+            LayerTransformation::createParamsI8I8(),
+            false,
+            true,
+            {
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
+            {
+                { {},  {}, {} },
+                ngraph::element::f32,
+                { {},  { 7.f }, { 10.f } },
+            },
         },
-    },
-    // updatePrecision = false
-    {
-        ngraph::element::i8,
-        LayerTransformation::createParamsI8I8(),
-        false,
-        true,
+        // moveSubtract = false & updatePrecision = false
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            ngraph::element::i8,
+            LayerTransformation::createParamsI8I8(),
+            false,
+            false,
+            {
+                { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            },
+            {
+                { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
+                ngraph::element::f32,
+                { {},  {}, { 10.f } },
+            },
         },
+        // per-channel quantizations with the same values
         {
-            { {},  {}, {} },
-            ngraph::element::f32,
-            { {},  { 7.f }, { 10.f } },
+            ngraph::element::u8,
+            LayerTransformation::createParamsU8I8(),
+            false,
+            false,
+            {
+                { {ngraph::element::f32},  { { 7.f, 7.f, 7.f } }, { { 10.f, 10.f, 10.f } } },
+            },
+            {
+                { {},  { { 7.f, 7.f, 7.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
+                ngraph::element::f32,
+                { {},  {}, { { 10.f, 10.f, 10.f } } },
+            },
         },
-    },
-    // moveSubtract = false & updatePrecision = false
-    {
-        ngraph::element::i8,
-        LayerTransformation::createParamsI8I8(),
-        false,
-        false,
+        // per-channel quantizations with the same values
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            ngraph::element::u8,
+            LayerTransformation::createParamsU8I8(),
+            false,
+            false,
+            {
+                { {ngraph::element::f32},  { { 7.f, 8.f, 9.f } }, { { 10.f, 12.f, 16.f } } },
+            },
+            {
+                { {},  { { 7.f, 8.f, 9.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
+                ngraph::element::f32,
+                { {},  {}, { { 10.f, 12.f, 16.f } } },
+            },
         },
-        {
-            { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
-            ngraph::element::f32,
-            { {},  {}, { 10.f } },
-        },
-    },
-    // per-channel quantizations with the same values
-    {
-        ngraph::element::u8,
-        LayerTransformation::createParamsU8I8(),
-        false,
-        false,
-        {
-            { {ngraph::element::f32},  { { 7.f, 7.f, 7.f } }, { { 10.f, 10.f, 10.f } } },
-        },
-        {
-            { {},  { { 7.f, 7.f, 7.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
-            ngraph::element::f32,
-            { {},  {}, { { 10.f, 10.f, 10.f } } },
-        },
-    },
-    // per-channel quantizations with the same values
-    {
-        ngraph::element::u8,
-        LayerTransformation::createParamsU8I8(),
-        false,
-        false,
-        {
-            { {ngraph::element::f32},  { { 7.f, 8.f, 9.f } }, { { 10.f, 12.f, 16.f } } },
-        },
-        {
-            { {},  { { 7.f, 8.f, 9.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
-            ngraph::element::f32,
-            { {},  {}, { { 10.f, 12.f, 16.f } } },
-        },
-    },
-};
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MoveDequantizationAfterTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(getInputShapes()),
+        ::testing::ValuesIn(getTestValues())),
     MoveDequantizationAfterTransformation::getTestCaseName);

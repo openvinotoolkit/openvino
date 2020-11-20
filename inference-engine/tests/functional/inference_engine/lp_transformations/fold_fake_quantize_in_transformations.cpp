@@ -101,115 +101,117 @@ TEST_P(FoldFakeQuantizeInTransformations, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
-    {
-        Shape{2, 2, 2, 2},
-        LayerTransformation::createParamsU8I8(),
-        true,
-        true,
+static std::vector<FoldFakeQuantizeInTransformationsTestValues> getTestValues() {
+    return {
         {
+            Shape{2, 2, 2, 2},
+            LayerTransformation::createParamsU8I8(),
+            true,
+            true,
             {
-                1, 0, 77, 125,
-                254, 100, 0, 127,
-                0, 64, 1, 254,
-                7, 0, 9, 0
+                {
+                    1, 0, 77, 125,
+                    254, 100, 0, 127,
+                    0, 64, 1, 254,
+                    7, 0, 9, 0
+                },
+                ngraph::element::f32,
+                { 255ul, {}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+                ngraph::element::i8,
             },
-            ngraph::element::f32,
-            { 255ul, {}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            ngraph::element::i8,
+            {
+                {
+                    -126, -127, -50, -2,
+                    127, -27, -127, 0,
+                    -127, -63, -126, 127,
+                    -120, -127, -118, -127
+                },
+                ngraph::element::f32
+            },
         },
         {
+            Shape{2, 2, 2, 2},
+            LayerTransformation::createParamsU8I8(),
+            true,
+            false,
             {
-                -126, -127, -50, -2,
-                127, -27, -127, 0,
-                -127, -63, -126, 127,
-                -120, -127, -118, -127
+                {
+                    1, -1, 77, 125,
+                    254, 100, 0, 127,
+                    -2, 64, 1, 300,
+                    7, -200, 9, -301
+                },
+                ngraph::element::f32,
+                { 255ul, {}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+                ngraph::element::f32,
             },
-            ngraph::element::f32
-        },
-    },
-    {
-        Shape{2, 2, 2, 2},
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
-        {
             {
-                1, -1, 77, 125,
-                254, 100, 0, 127,
-                -2, 64, 1, 300,
-                7, -200, 9, -301
+                {
+                    -12.6f, -12.7f, -5.0f, -0.2f,
+                    12.7f, -2.7f, -12.7f, 0.f,
+                    -12.7f, -6.3f, -12.6f, 12.7f,
+                    -12.0f, -12.7f, -11.8f, -12.7f
+                },
+                ngraph::element::f32
             },
-            ngraph::element::f32,
-            { 255ul, {}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-            ngraph::element::f32,
-        },
-        {
-            {
-                -12.6f, -12.7f, -5.0f, -0.2f,
-                12.7f, -2.7f, -12.7f, 0.f,
-                -12.7f, -6.3f, -12.6f, 12.7f,
-                -12.0f, -12.7f, -11.8f, -12.7f
-            },
-            ngraph::element::f32
-        },
-    },
-    {
-        Shape{2, 2, 2, 2},
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
-        {
-            {
-                1, -1, 77, 125,
-                254, 100, 0, 127,
-                -2, 64, 1, 300,
-                7, -200, 9, -301
-            },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 255.f }, { -12.8f }, { 12.7f } },
-            ngraph::element::f32
         },
         {
+            Shape{2, 2, 2, 2},
+            LayerTransformation::createParamsU8I8(),
+            true,
+            false,
             {
-                -12.7f, -12.8f, -5.1f, -0.3f,
-                12.6f, -2.8f, -12.8f, -0.1f,
-                -12.8f, -6.4f, -12.7f, 12.7f,
-                -12.1f, -12.8f, -11.9f, -12.8f
+                {
+                    1, -1, 77, 125,
+                    254, 100, 0, 127,
+                    -2, 64, 1, 300,
+                    7, -200, 9, -301
+                },
+                ngraph::element::f32,
+                { 256ul, {}, { 0.f }, { 255.f }, { -12.8f }, { 12.7f } },
+                ngraph::element::f32
             },
-            ngraph::element::f32
+            {
+                {
+                    -12.7f, -12.8f, -5.1f, -0.3f,
+                    12.6f, -2.8f, -12.8f, -0.1f,
+                    -12.8f, -6.4f, -12.7f, 12.7f,
+                    -12.1f, -12.8f, -11.9f, -12.8f
+                },
+                ngraph::element::f32
+            },
         },
-    },
-    {
-        Shape{2, 2, 2, 2},
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
         {
+            Shape{2, 2, 2, 2},
+            LayerTransformation::createParamsU8I8(),
+            true,
+            false,
             {
-                1, 0, 77, 125,
-                254, 100, 0, 127,
-                0, 64, 1, 255,
-                7, 0, 9, 0
+                {
+                    1, 0, 77, 125,
+                    254, 100, 0, 127,
+                    0, 64, 1, 255,
+                    7, 0, 9, 0
+                },
+                ngraph::element::u8,
+                { 256ul, {}, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
+                ngraph::element::i8
             },
-            ngraph::element::u8,
-            { 256ul, {}, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
-            ngraph::element::i8
-        },
-        {
             {
-                -127, -128, -51, -3,
-                126, -28, -128, -1,
-                -128, -64, -127, 127,
-                -121, -128, -119, -128
+                {
+                    -127, -128, -51, -3,
+                    126, -28, -128, -1,
+                    -128, -64, -127, 127,
+                    -121, -128, -119, -128
+                },
+                ngraph::element::i8
             },
-            ngraph::element::i8
         },
-    },
-};
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FoldFakeQuantizeInTransformations,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     FoldFakeQuantizeInTransformations::getTestCaseName);

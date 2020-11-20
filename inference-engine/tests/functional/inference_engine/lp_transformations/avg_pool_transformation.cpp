@@ -92,40 +92,50 @@ TEST_P(AvgPoolTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
-};
+static std::vector<ngraph::element::Type> getPrecisions() {
+    return {
+        ngraph::element::f32,
+        // ngraph::element::f16
+    };
+}
 
-const std::vector<std::string> additionalLayer = {
-    "",
-    // issue #40768
-    // "maxpool"  // any transparent layer
-};
+static std::vector<std::string> getAdditionalLayer() {
+    return {
+        "",
+        // issue #40768
+        // "maxpool"  // any transparent layer
+    };
+}
 
-const std::vector<bool> addFQ = {
-    true,
-    // issue #40768
-    // false
-};
+static std::vector<bool> getAddFQ() {
+    return {
+        true,
+        // issue #40768
+        // false
+    };
+}
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 }
-};
+static std::vector<ngraph::Shape> getShapes() {
+    return {
+        { 1, 32, 72, 48 }
+    };
+}
 
-const std::vector<AvgPoolTransformationTestValues> testValues = {
-    { LayerTransformation::createParamsU8I8(), { 128 }, { 0.02f } },
-    { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), { 128 }, { 0.02f } },
-    { LayerTransformation::createParamsI8I8(), { 128 }, { 0.02f } },
-};
+static std::vector<AvgPoolTransformationTestValues> getTestValues() {
+    return {
+        { LayerTransformation::createParamsU8I8(), { 128 }, { 0.02f } },
+        { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), { 128 }, { 0.02f } },
+        { LayerTransformation::createParamsI8I8(), { 128 }, { 0.02f } },
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     AvgPoolTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(addFQ),
-        ::testing::ValuesIn(additionalLayer),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(getPrecisions()),
+        ::testing::ValuesIn(getShapes()),
+        ::testing::ValuesIn(getAddFQ()),
+        ::testing::ValuesIn(getAdditionalLayer()),
+        ::testing::ValuesIn(getTestValues())),
     AvgPoolTransformation::getTestCaseName);

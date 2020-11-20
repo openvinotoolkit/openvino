@@ -131,78 +131,86 @@ TEST_P(FakeQuantizePrecisionSelectionTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
-};
+static std::vector<ngraph::element::Type> getPrecisions() {
+    return {
+        ngraph::element::f32,
+        // ngraph::element::f16
+    };
+}
 
-const std::vector<bool> updatePrecisions = {
-    true,
-    false
-};
+static std::vector<bool> getUpdatePrecisions() {
+    return {
+        true,
+        false
+    };
+}
 
-const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> fakeQuantizeTransformationTestValues = {
-    {
-        { element::u8, element::i8 },
-        { element::u8 },
-        true,
+static std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> getFakeQuantizeTransformationTestValues() {
+    return {
         {
-            { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-            { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { element::u8, element::i8 },
+            { element::u8 },
+            true,
+            {
+                { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+                { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            {
+                element::u8,
+                { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
+                { }
+            },
         },
         {
-            element::u8,
-            { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
-            { }
-        },
-    },
-    {
-        { element::u8, element::i8 },
-        { element::i8 },
-        true,
-        {
-            { 256ul, { }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-            { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-        },
-        {
+            { element::u8, element::i8 },
             { element::i8 },
-            { 256ul, { }, { -1.28f }, { 1.27f }, { -128.f }, { 127.f } },
-            { }
+            true,
+            {
+                { 256ul, { }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
+                { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            },
+            {
+                { element::i8 },
+                { 256ul, { }, { -1.28f }, { 1.27f }, { -128.f }, { 127.f } },
+                { }
+            },
         },
-    },
-    // {
-    //    { element::u8, element::i8 },
-    //    { element::i8 },
-    //    // INT8 is not available for limited operation (Convolution)
-    //    false,
-    //    {
-    //        { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-    //        { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-    //    },
-    //    {
-    //        // original precision is used
-    //        element::u8,
-    //        // FakeQuantize has to select the first available: U8, not limited operation required I8 but this fact doesn't affect
-    //        { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
-    //        // FakeQuantize on weights is not changed
-    //        { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
-    //    },
-    // },
-};
+        // {
+        //    { element::u8, element::i8 },
+        //    { element::i8 },
+        //    // INT8 is not available for limited operation (Convolution)
+        //    false,
+        //    {
+        //        { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        //        { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+        //    },
+        //    {
+        //        // original precision is used
+        //        element::u8,
+        //        // FakeQuantize has to select the first available: U8, not limited operation required I8 but this fact doesn't affect
+        //        { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
+        //        // FakeQuantize on weights is not changed
+        //        { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+        //    },
+        // },
+    };
+}
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 },
-    // TODO: 3D tensor
-};
+static std::vector<ngraph::Shape> getShapes() {
+    return {
+        { 1, 32, 72, 48 },
+        // TODO: 3D tensor
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FakeQuantizePrecisionSelectionTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(updatePrecisions),
-        ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
+        ::testing::ValuesIn(getPrecisions()),
+        ::testing::ValuesIn(getShapes()),
+        ::testing::ValuesIn(getUpdatePrecisions()),
+        ::testing::ValuesIn(getFakeQuantizeTransformationTestValues())),
     FakeQuantizePrecisionSelectionTransformation::getTestCaseName);
 
 } // namespace

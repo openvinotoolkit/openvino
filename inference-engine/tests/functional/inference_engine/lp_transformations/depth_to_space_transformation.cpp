@@ -96,79 +96,81 @@ TEST_P(DepthToSpaceTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<DepthToSpaceTransformationTestValues> testValues = {
-    // blockSize = 2
-    {
-        ngraph::Shape{ 1, 4, 3, 3 },
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        2,
-        LayerTransformation::createParamsU8I8(),
+static std::vector<DepthToSpaceTransformationTestValues> getTestValues() {
+    return {
+        // blockSize = 2
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        },
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        }
-    },
-    // blockSize = 3
-    {
-        ngraph::Shape{ 1, 9, 3, 3 },
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        3,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        },
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        }
-    },
-    // DEPTH_FIRST
-    {
-        ngraph::Shape{ 1, 9, 3, 3 },
-        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST,
-        3,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        },
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        }
-    },
-    // not scalar-like dequantizations
-    {
-        ngraph::Shape{ 1, 4, 3, 3 },
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        2,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
+            ngraph::Shape{ 1, 4, 3, 3 },
+            DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+            2,
+            LayerTransformation::createParamsU8I8(),
             {
-                {ngraph::element::f32},
-                {{0.32f, 0.5f, 0.6f, 0.77f}},
-                {{0.1f, 0.55f, 0.3f, 0.8f}}
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            },
+            {
+                ngraph::element::u8,
+                {{}, {}, {}},
+                {{ngraph::element::f32}, {0.32f}, {0.45f}}
             }
         },
+        // blockSize = 3
         {
-            ngraph::element::u8,
+            ngraph::Shape{ 1, 9, 3, 3 },
+            DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+            3,
+            LayerTransformation::createParamsU8I8(),
             {
-                {ngraph::element::f32},
-                {{0.32f, 0.5f, 0.6f, 0.77f}},
-                {{0.1f, 0.55f, 0.3f, 0.8f}}
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {0.32f}, {0.45f}}
             },
-            { {}, {}, {}}
-        }
-    },
-};
+            {
+                ngraph::element::u8,
+                {{}, {}, {}},
+                {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            }
+        },
+        // DEPTH_FIRST
+        {
+            ngraph::Shape{ 1, 9, 3, 3 },
+            DepthToSpace::DepthToSpaceMode::DEPTH_FIRST,
+            3,
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            },
+            {
+                ngraph::element::u8,
+                {{}, {}, {}},
+                {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            }
+        },
+        // not scalar-like dequantizations
+        {
+            ngraph::Shape{ 1, 4, 3, 3 },
+            DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+            2,
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{0.32f, 0.5f, 0.6f, 0.77f}},
+                    {{0.1f, 0.55f, 0.3f, 0.8f}}
+                }
+            },
+            {
+                ngraph::element::u8,
+                {
+                    {ngraph::element::f32},
+                    {{0.32f, 0.5f, 0.6f, 0.77f}},
+                    {{0.1f, 0.55f, 0.3f, 0.8f}}
+                },
+                { {}, {}, {}}
+            }
+        },
+    };
+}
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, DepthToSpaceTransformation, ::testing::ValuesIn(testValues), DepthToSpaceTransformation::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_LPT, DepthToSpaceTransformation, ::testing::ValuesIn(getTestValues()), DepthToSpaceTransformation::getTestCaseName);

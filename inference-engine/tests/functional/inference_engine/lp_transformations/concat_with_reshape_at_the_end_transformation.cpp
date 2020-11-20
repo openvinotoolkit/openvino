@@ -134,81 +134,89 @@ TEST_P(ConcatWithReshapeAtTheEndTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-};
+static std::vector<ngraph::element::Type> getPrecisions() {
+    return {
+        ngraph::element::f32,
+    };
+}
 
-const std::vector<bool> updatePrecisions = { true, false };
+static std::vector<bool> getUpdatePrecisions() {
+    return { true, false };
+}
 
-const std::vector<ConcatTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
+static std::vector<ConcatTransformationTestValues> getTestValues() {
+    return {
         {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+                { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+                { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            },
+            {
+                { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+                { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+                { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+                { ngraph::element::f32, {}, { 0.01f } }
+            }
         },
         {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-            { ngraph::element::f32, {}, { 0.01f } }
+            LayerTransformation::createParamsU8I8(),
+            {
+                {
+                    256ul,
+                    {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                    {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
+                },
+                {
+                    256ul,
+                    {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                    {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
+                },
+                {
+                    256ul,
+                    {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                    {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
+                },
+            },
+            {
+                {
+                    256ul,
+                    {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+                    {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f}, ngraph::element::u8
+                },
+                {
+                    256ul,
+                    {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+                    {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f},
+                    ngraph::element::u8
+                },
+                {
+                    256ul,
+                    {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+                    {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f},
+                    ngraph::element::u8
+                },
+                { ngraph::element::f32, {}, {{ 0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f }} }
+            }
         }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
-            },
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
-            },
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
-            },
-        },
-        {
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f}, ngraph::element::u8
-            },
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f},
-                ngraph::element::u8
-            },
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f},
-                ngraph::element::u8
-            },
-            { ngraph::element::f32, {}, {{ 0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f }} }
-        }
-    }
-};
+    };
+}
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 3, 9, 9 },
-    { 4, 3, 9, 9 }
-};
+static std::vector<ngraph::Shape> getShapes() {
+    return {
+        { 1, 3, 9, 9 },
+        { 4, 3, 9, 9 }
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ConcatWithReshapeAtTheEndTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(updatePrecisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(getPrecisions()),
+        ::testing::ValuesIn(getUpdatePrecisions()),
+        ::testing::ValuesIn(getShapes()),
+        ::testing::ValuesIn(getTestValues())),
     ConcatWithReshapeAtTheEndTransformation::getTestCaseName);
 }  // namespace

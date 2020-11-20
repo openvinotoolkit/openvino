@@ -145,178 +145,182 @@ TEST_P(MatMulWithConstantTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
-};
+static std::vector<ngraph::element::Type> getPrecisions() {
+    return {
+        ngraph::element::f32,
+        // ngraph::element::f16
+    };
+}
 
 const std::vector<size_t> batches = { 1, 4 };
 
-std::vector<MatMullTransformationTestValues> testValues = {
-    // supported 3D: U8 & I8
-    {
-        LayerTransformation::createParamsU8I8(),
+static std::vector<MatMullTransformationTestValues> getTestValues() {
+    return {
+        // supported 3D: U8 & I8
         {
-            { 1, 384, 1024 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            { 1024, 1024 },
-            std::vector<float>(1024 * 1024, 1.f),
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
-        },
-        {
-            { 1, 384, 1024 },
-            ngraph::element::u8,
-            { {}, {}, {} },
-            ngraph::element::i8,
-            { 1024, 1024 },
-            std::vector<float>(1024 * 1024, -126),
-            ngraph::element::i8,
-            { {}, {}, { 0.02f * 0.1f } },
-            {}
-        }
-    },
-
-    // not supported 3D: U8 & I8
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 1, 3, 4 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
-            { 4, 4 },
-            std::vector<float>(4 * 4, 1.f),
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
-        },
-        {
-            { 1, 3, 4 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
-            ngraph::element::i8,
-            {4, 4},
-            std::vector<float>(4 * 4, 1.f),
-            ngraph::element::f32,
-            {},
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
-        }
-    },
-
-    // not supported 3D: U8 & I8
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 1, 3, 4 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            { 4, 4 },
-            std::vector<float>(4 * 4, 1.f),
+            LayerTransformation::createParamsU8I8(),
             {
-                255,
-                { 4, 1 },
-                {0.f, 0.f, 0.f, 0.f},
-                {254.f, 254.f, 254.f, 254.f},
-                {-12.7f / 4.f, -12.7f / 3.f, -12.7f / 2.f, -12.7f},
-                {12.7f / 4.f, 12.7f / 3.f, 12.7f / 2.f, 12.7f}
+                { 1, 384, 1024 },
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.02f } },
+                { 1024, 1024 },
+                std::vector<float>(1024 * 1024, 1.f),
+                { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
             },
-        },
-        {
-            { 1, 3, 4 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::i8,
-            {4, 4},
-            std::vector<float>(4 * 4, 1.f),
-            ngraph::element::f32,
-            {},
             {
-                255,
-                { 4, 1 },
-                {0.f, 0.f, 0.f, 0.f},
-                {254.f, 254.f, 254.f, 254.f},
-                {-12.7f / 4.f, -12.7f / 3.f, -12.7f / 2.f, -12.7f},
-                {12.7f / 4.f, 12.7f / 3.f, 12.7f / 2.f, 12.7f}
+                { 1, 384, 1024 },
+                ngraph::element::u8,
+                { {}, {}, {} },
+                ngraph::element::i8,
+                { 1024, 1024 },
+                std::vector<float>(1024 * 1024, -126),
+                ngraph::element::i8,
+                { {}, {}, { 0.02f * 0.1f } },
+                {}
+            }
+        },
+    
+        // not supported 3D: U8 & I8
+        {
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 1, 3, 4 },
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
+                { 4, 4 },
+                std::vector<float>(4 * 4, 1.f),
+                { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
             },
-        }
-    },
-
-    // 2D: U8 & I8
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 1, 2048 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            { 2048, 1000 },
-            std::vector<float>(2048 * 1000, 1.f),
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            {
+                { 1, 3, 4 },
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
+                ngraph::element::i8,
+                {4, 4},
+                std::vector<float>(4 * 4, 1.f),
+                ngraph::element::f32,
+                {},
+                { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            }
         },
+    
+        // not supported 3D: U8 & I8
         {
-            { 1, 2048 },
-            ngraph::element::u8,
-            { {}, {}, {} },
-            ngraph::element::i8,
-            {2048, 1000},
-            std::vector<float>(2048 * 1000, -126),
-            ngraph::element::i8,
-            { {}, {}, { 0.02f * 0.1f } },
-            {}
-        }
-    },
-    // 2D: I8 & I8
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            { 1, 2048 },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            { 2048, 1000 },
-            std::vector<float>(2048 * 1000, 1.f),
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 1, 3, 4 },
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.02f } },
+                { 4, 4 },
+                std::vector<float>(4 * 4, 1.f),
+                {
+                    255,
+                    { 4, 1 },
+                    {0.f, 0.f, 0.f, 0.f},
+                    {254.f, 254.f, 254.f, 254.f},
+                    {-12.7f / 4.f, -12.7f / 3.f, -12.7f / 2.f, -12.7f},
+                    {12.7f / 4.f, 12.7f / 3.f, 12.7f / 2.f, 12.7f}
+                },
+            },
+            {
+                { 1, 3, 4 },
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.02f } },
+                ngraph::element::i8,
+                {4, 4},
+                std::vector<float>(4 * 4, 1.f),
+                ngraph::element::f32,
+                {},
+                {
+                    255,
+                    { 4, 1 },
+                    {0.f, 0.f, 0.f, 0.f},
+                    {254.f, 254.f, 254.f, 254.f},
+                    {-12.7f / 4.f, -12.7f / 3.f, -12.7f / 2.f, -12.7f},
+                    {12.7f / 4.f, 12.7f / 3.f, 12.7f / 2.f, 12.7f}
+                },
+            }
         },
+    
+        // 2D: U8 & I8
         {
-            { 1, 2048 },
-            ngraph::element::i8,
-            { {}, {}, {} },
-            ngraph::element::i8,
-            {2048, 1000},
-            std::vector<float>(2048 * 1000, -126),
-            ngraph::element::i8,
-            { {}, {}, { 0.02f * 0.1f } },
-            {}
-        }
-    },
-    // 2D: FP32 & FP328
-    {
-        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-        {
-            { 1, 2048 },
-            ngraph::element::f32,
-            { {}, {}, { 0.02f } },
-            { 2048, 1000 },
-            std::vector<float>(2048 * 1000, 1.f),
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 1, 2048 },
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.02f } },
+                { 2048, 1000 },
+                std::vector<float>(2048 * 1000, 1.f),
+                { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            },
+            {
+                { 1, 2048 },
+                ngraph::element::u8,
+                { {}, {}, {} },
+                ngraph::element::i8,
+                {2048, 1000},
+                std::vector<float>(2048 * 1000, -126),
+                ngraph::element::i8,
+                { {}, {}, { 0.02f * 0.1f } },
+                {}
+            }
         },
+        // 2D: I8 & I8
         {
-            { 1, 2048 },
-            ngraph::element::f32,
-            { {}, {}, {} },
-            ngraph::element::f32,
-            {2048, 1000},
-            std::vector<float>(2048 * 1000, -126),
-            ngraph::element::f32,
-            { {}, {}, { 0.02f * 0.1f } },
-            {}
-        }
-    },
-};
+            LayerTransformation::createParamsI8I8(),
+            {
+                { 1, 2048 },
+                ngraph::element::i8,
+                { ngraph::element::f32, {}, { 0.02f } },
+                { 2048, 1000 },
+                std::vector<float>(2048 * 1000, 1.f),
+                { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            },
+            {
+                { 1, 2048 },
+                ngraph::element::i8,
+                { {}, {}, {} },
+                ngraph::element::i8,
+                {2048, 1000},
+                std::vector<float>(2048 * 1000, -126),
+                ngraph::element::i8,
+                { {}, {}, { 0.02f * 0.1f } },
+                {}
+            }
+        },
+        // 2D: FP32 & FP328
+        {
+            LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+            {
+                { 1, 2048 },
+                ngraph::element::f32,
+                { {}, {}, { 0.02f } },
+                { 2048, 1000 },
+                std::vector<float>(2048 * 1000, 1.f),
+                { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            },
+            {
+                { 1, 2048 },
+                ngraph::element::f32,
+                { {}, {}, {} },
+                ngraph::element::f32,
+                {2048, 1000},
+                std::vector<float>(2048 * 1000, -126),
+                ngraph::element::f32,
+                { {}, {}, { 0.02f * 0.1f } },
+                {}
+            }
+        },
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MatMulWithConstantTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(getPrecisions()),
         ::testing::ValuesIn(batches),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(getTestValues())),
     MatMulWithConstantTransformation::getTestCaseName);
 
 } // namespace

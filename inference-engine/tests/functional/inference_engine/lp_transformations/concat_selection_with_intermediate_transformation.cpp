@@ -127,38 +127,44 @@ TEST_P(ConcatSelectionWithIntermediateTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
-};
+static std::vector<ngraph::element::Type> getPrecisions() {
+    return {
+        ngraph::element::f32,
+        // ngraph::element::f16
+    };
+}
 
-const std::vector<bool> updatePrecisions = { true, false };
+static std::vector<bool> getUpdatePrecisions() {
+    return { true, false };
+}
 
-const std::vector<TestValues> testValues = {
-    // U8: Concat + MaxPool
-    {
-        Shape{ 1, 3, 9, 9 },
-        LayerTransformation::createParamsU8I8(),
-        true,
+static std::vector<TestValues> getTestValues() {
+    return {
+        // U8: Concat + MaxPool
         {
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, {2.55f / 2.f} }
-        },
-        {
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, { 128.f}, ngraph::element::u8 },
-            { ngraph::element::f32, {}, { 0.01f } },
-            { ngraph::element::f32, {}, { 0.01f } }
+            Shape{ 1, 3, 9, 9 },
+            LayerTransformation::createParamsU8I8(),
+            true,
+            {
+                { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+                { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, {2.55f / 2.f} }
+            },
+            {
+                { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+                { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, { 128.f}, ngraph::element::u8 },
+                { ngraph::element::f32, {}, { 0.01f } },
+                { ngraph::element::f32, {}, { 0.01f } }
+            }
         }
-    }
-};
+    };
+}
 
 // INSTANTIATE_TEST_CASE_P(
 //    DISABLED_LPT,
 //    ConcatSelectionWithIntermediateTransformation,
 //    ::testing::Combine(
-//        ::testing::ValuesIn(precisions),
-//        ::testing::ValuesIn(updatePrecisions),
-//        ::testing::ValuesIn(testValues)),
+//        ::testing::ValuesIn(getPrecisions()),
+//        ::testing::ValuesIn(getUpdatePrecisions()),
+//        ::testing::ValuesIn(getTestValues())),
 //    ConcatSelectionWithIntermediateTransformation::getTestCaseName);
 }  // namespace

@@ -82,36 +82,38 @@ TEST_P(ConvertMulOrAddFinallyTransformationWithDequantization, CompareFunctions)
     ASSERT_TRUE(res.first) << res.second;
 }
 
-std::vector<ConvertMulOrAddFinallyTransformationWithDequantizationTestValues> testValues = {
-    {
-        { -1.0 },
-        { 1, 1000 },
-        ngraph::element::f32,
-        LayerTransformation::createParamsU8I8()
-    },
-    {
-        { 128.0 },
-        { 1, 10 },
-        ngraph::element::f32,
-        LayerTransformation::createParamsU8I8()
-    },
-    {
-        { -64.5 },
-        { 1, 10 },
-        ngraph::element::i8,
-        LayerTransformation::createParamsU8I8()
-    },
-    {
-        { 1.2 },
-        { 1, 100 },
-        ngraph::element::u8,
-        LayerTransformation::createParamsI8I8()
-    }
-};
+static std::vector<ConvertMulOrAddFinallyTransformationWithDequantizationTestValues> getTestValues() {
+    return {
+        {
+            { -1.0 },
+            { 1, 1000 },
+            ngraph::element::f32,
+            LayerTransformation::createParamsU8I8()
+        },
+        {
+            { 128.0 },
+            { 1, 10 },
+            ngraph::element::f32,
+            LayerTransformation::createParamsU8I8()
+        },
+        {
+            { -64.5 },
+            { 1, 10 },
+            ngraph::element::i8,
+            LayerTransformation::createParamsU8I8()
+        },
+        {
+            { 1.2 },
+            { 1, 100 },
+            ngraph::element::u8,
+            LayerTransformation::createParamsI8I8()
+        }
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ConvertMulOrAddFinallyTransformationWithDequantization,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     ConvertMulOrAddFinallyTransformationWithDequantization::getTestCaseName);
 } // namespace

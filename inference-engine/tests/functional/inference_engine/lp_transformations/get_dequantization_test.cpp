@@ -61,9 +61,13 @@ public:
     }
 };
 
-std::vector<bool> isConvert = { true, false };
+static std::vector<bool> getIsConvert() {
+    return { true, false };
+}
 
-std::vector<bool> isSubtract = { true, false };
+static std::vector<bool> getIsSubtract() {
+    return { true, false };
+}
 
 std::vector<size_t> subDataInput = { 0ul, 1ul };
 
@@ -80,8 +84,8 @@ TEST_P(GetDequantizationTransformation, CompareFunctions) {
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, GetDequantizationTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(isConvert),
-        ::testing::ValuesIn(isSubtract),
+        ::testing::ValuesIn(getIsConvert()),
+        ::testing::ValuesIn(getIsSubtract()),
         ::testing::ValuesIn(subDataInput),
         ::testing::ValuesIn(mulDataInput)),
     GetDequantizationTransformation::getTestCaseName);

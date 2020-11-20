@@ -102,352 +102,354 @@ TEST_P(SplitTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<SplitTransformationTestValues> testValues = {
-    // U8 per tensor quantization
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{2}, size_t{2},
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
+static std::vector<SplitTransformationTestValues> getTestValues() {
+    return {
+        // U8 per tensor quantization
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {3.f}}
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{2}, size_t{2},
+            LayerTransformation::createParamsU8I8(),
+            // ActualValues
             {
-                {{ngraph::element::f32}, {128.f}, {3.f}},
-                {{ngraph::element::f32}, {128.f}, {3.f}},
-            }
-        }
-    },
-    // I8 per tensor quantization
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{2}, size_t{2},
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {128.f}, {3.f}}
-        },
-        {
-            ngraph::element::i8,
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {128.f}, {3.f}}
+            },
+            // ExpectedValues
             {
-                {{ngraph::element::f32}, {128.f}, {3.f}},
-                {{ngraph::element::f32}, {128.f}, {3.f}},
-            }
-        }
-    },
-    // U8 per channel quantization with different values
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32},
-            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ngraph::element::u8,
-            {
+                ngraph::element::u8,
                 {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{2.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{3.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-            }
-        }
-    },
-    // I8 per channel quantization with different values
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32},
-            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ngraph::element::i8,
-            {
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{2.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{3.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-            }
-        }
-    },
-    // U8 per channel quantization with the same values
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32},
-            {{1.f, 1.f, 1.f}, ngraph::element::f32, {1, 3, 1, 1}},
-            {{11.f, 11.f, 11.f}, ngraph::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ngraph::element::u8,
-            {
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-            }
-        }
-    },
-    // I8 per channel quantization with the same values
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32},
-            {{1.f, 1.f, 1.f}, ngraph::element::f32, {1, 3, 1, 1}},
-            {{11.f, 11.f, 11.f}, ngraph::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ngraph::element::i8,
-            {
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-            }
-        }
-    },
-    // U8 split second dimension
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-1}, size_t{2},
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32},
-            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ngraph::element::u8,
-            {
-                {
-                    {ngraph::element::f32},
-                    {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-                    {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-                    {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-                    {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                    {{ngraph::element::f32}, {128.f}, {3.f}},
+                    {{ngraph::element::f32}, {128.f}, {3.f}},
                 }
             }
-        }
-    },
-    // I8 split second dimension
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-1}, size_t{2},
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32},
-            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         },
+        // I8 per tensor quantization
         {
-            ngraph::element::i8,
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{2}, size_t{2},
+            LayerTransformation::createParamsU8I8(),
             {
+                ngraph::element::i8,
+                {{ngraph::element::f32}, {128.f}, {3.f}}
+            },
+            {
+                ngraph::element::i8,
                 {
-                    {ngraph::element::f32},
-                    {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-                    {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-                    {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-                    {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                    {{ngraph::element::f32}, {128.f}, {3.f}},
+                    {{ngraph::element::f32}, {128.f}, {3.f}},
                 }
             }
-        }
-    },
-    // U8 without subtract
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-3}, size_t{3},
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32},
-            {},
-            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         },
+        // U8 per channel quantization with different values
         {
-            ngraph::element::u8,
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
+            LayerTransformation::createParamsU8I8(),
             {
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-            }
-        }
-    },
-    // I8 without subtract
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-3}, size_t{3},
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32},
-            {},
-            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ngraph::element::i8,
+                ngraph::element::u8,
+                {{ngraph::element::f32},
+                {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            },
             {
+                ngraph::element::u8,
                 {
-                    {ngraph::element::f32},
-                    {},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-            }
-        }
-    },
-    // I8 dequantization in second dimension
-    {
-        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, size_t{2},
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32},
-            {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}},
-            {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 4, 1, 1}}}
-        },
-        {
-            ngraph::element::i8,
-            {
-                {
-                    {ngraph::element::f32},
-                    {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}},
-                    {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{3.f, 4.f}, ngraph::element::f32, {1, 2, 1, 1}},
-                    {{33.f, 44.f}, ngraph::element::f32, {1, 2, 1, 1}}
+                    {
+                        {ngraph::element::f32},
+                        {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{2.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{3.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
                 }
             }
-        }
-    },
-    // without Convert
-    {
-        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, size_t{2},
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::f32,
-            {{},
-            {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}},
-            {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 4, 1, 1}}}
         },
+        // I8 per channel quantization with different values
         {
-            ngraph::element::f32,
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
+            LayerTransformation::createParamsI8I8(),
             {
+                ngraph::element::i8,
+                {{ngraph::element::f32},
+                {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            },
+            {
+                ngraph::element::i8,
                 {
-                    {},
-                    {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}},
-                    {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}
-                },
-                {
-                    {},
-                    {{3.f, 4.f}, ngraph::element::f32, {1, 2, 1, 1}},
-                    {{33.f, 44.f}, ngraph::element::f32, {1, 2, 1, 1}}
+                    {
+                        {ngraph::element::f32},
+                        {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{2.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{3.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
                 }
             }
-        }
-    },
-    // no dequantization
-    {
-        ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
-        LayerTransformation::createParamsI8I8(),
-        { },
-        { }
-    },
-};
+        },
+        // U8 per channel quantization with the same values
+        {
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32},
+                {{1.f, 1.f, 1.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{11.f, 11.f, 11.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            },
+            {
+                ngraph::element::u8,
+                {
+                    {
+                        {ngraph::element::f32},
+                        {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                }
+            }
+        },
+        // I8 per channel quantization with the same values
+        {
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
+            LayerTransformation::createParamsI8I8(),
+            {
+                ngraph::element::i8,
+                {{ngraph::element::f32},
+                {{1.f, 1.f, 1.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{11.f, 11.f, 11.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            },
+            {
+                ngraph::element::i8,
+                {
+                    {
+                        {ngraph::element::f32},
+                        {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                }
+            }
+        },
+        // U8 split second dimension
+        {
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-1}, size_t{2},
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32},
+                {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            },
+            {
+                ngraph::element::u8,
+                {
+                    {
+                        {ngraph::element::f32},
+                        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                    }
+                }
+            }
+        },
+        // I8 split second dimension
+        {
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-1}, size_t{2},
+            LayerTransformation::createParamsI8I8(),
+            {
+                ngraph::element::i8,
+                {{ngraph::element::f32},
+                {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            },
+            {
+                ngraph::element::i8,
+                {
+                    {
+                        {ngraph::element::f32},
+                        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+                        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                    }
+                }
+            }
+        },
+        // U8 without subtract
+        {
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-3}, size_t{3},
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32},
+                {},
+                {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            },
+            {
+                ngraph::element::u8,
+                {
+                    {
+                        {ngraph::element::f32},
+                        {},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {},
+                        {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {},
+                        {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                }
+            }
+        },
+        // I8 without subtract
+        {
+            ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-3}, size_t{3},
+            LayerTransformation::createParamsI8I8(),
+            {
+                ngraph::element::i8,
+                {{ngraph::element::f32},
+                {},
+                {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            },
+            {
+                ngraph::element::i8,
+                {
+                    {
+                        {ngraph::element::f32},
+                        {},
+                        {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {},
+                        {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {},
+                        {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
+                    },
+                }
+            }
+        },
+        // I8 dequantization in second dimension
+        {
+            ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, size_t{2},
+            LayerTransformation::createParamsI8I8(),
+            {
+                ngraph::element::i8,
+                {{ngraph::element::f32},
+                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}},
+                {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 4, 1, 1}}}
+            },
+            {
+                ngraph::element::i8,
+                {
+                    {
+                        {ngraph::element::f32},
+                        {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                        {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}
+                    },
+                    {
+                        {ngraph::element::f32},
+                        {{3.f, 4.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                        {{33.f, 44.f}, ngraph::element::f32, {1, 2, 1, 1}}
+                    }
+                }
+            }
+        },
+        // without Convert
+        {
+            ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, size_t{2},
+            LayerTransformation::createParamsI8I8(),
+            {
+                ngraph::element::f32,
+                {{},
+                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}},
+                {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 4, 1, 1}}}
+            },
+            {
+                ngraph::element::f32,
+                {
+                    {
+                        {},
+                        {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                        {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}
+                    },
+                    {
+                        {},
+                        {{3.f, 4.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                        {{33.f, 44.f}, ngraph::element::f32, {1, 2, 1, 1}}
+                    }
+                }
+            }
+        },
+        // no dequantization
+        {
+            ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
+            LayerTransformation::createParamsI8I8(),
+            { },
+            { }
+        },
+    };
+}
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     SplitTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     SplitTransformation::getTestCaseName);
 } // namespace

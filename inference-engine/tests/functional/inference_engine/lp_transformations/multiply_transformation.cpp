@@ -88,371 +88,379 @@ TEST_P(MultiplyTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    //ngraph::element::f16
-};
+static std::vector<ngraph::element::Type> getPrecisions() {
+    return {
+        ngraph::element::f32,
+        //ngraph::element::f16
+    };
+}
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 }
-};
+static std::vector<ngraph::Shape> getShapes() {
+    return {
+        { 1, 32, 72, 48 }
+    };
+}
 
-const std::vector<bool> broadcastValues = {
-    true,
-    false
-};
+static std::vector<bool> getBroadcastValues() {
+    return {
+        true,
+        false
+    };
+}
 
-const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
-    // U8
-    {
-        LayerTransformation::createParamsU8I8(),
+static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTestValues() {
+    return {
+        // U8
         {
+            LayerTransformation::createParamsU8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { 2.f }, { 10.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { 3.f }, { 7.f }}
+                },
+                false
             },
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
-            },
-            false
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { 2.f }, { 10.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { 3.f }, { 7.f }}
+                },
+                false
+            }
         },
+    
         {
+            LayerTransformation::createParamsU8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { 2.f }, { 10.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { }, { 7.f }}
+                },
+                false
             },
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        }
-    },
-
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { }, { 7.f }}
-            },
-            false
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { 2.f }, { 70.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {}
+                },
+                false
+            }
         },
+    
         {
+            LayerTransformation::createParamsU8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 70.f }}
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    { ngraph::element::f32, {  }, { 10.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    { ngraph::element::f32, { }, { 7.f } }
+                },
+                false
             },
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {}
-            },
-            false
-        }
-    },
-
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                { ngraph::element::f32, {  }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                { ngraph::element::f32, { }, { 7.f } }
-            },
-            false
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, {  }, { 70.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {}
+                },
+                false
+            }
         },
+    
         {
+            LayerTransformation::createParamsU8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, {  }, { 70.f }}
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { 2.f }, {  }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { }, { 7.f } }
+                },
+                false
             },
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {}
-            },
-            false
-        }
-    },
-
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, {  }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { }, { 7.f } }
-            },
-            false
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {ngraph::element::f32, { 2.f }, { 7.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::u8,
+                    {}
+                },
+                false
+            }
         },
+    
+        // I8
         {
+            LayerTransformation::createParamsI8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 7.f }}
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 2.f }, { 10.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 3.f }, { 7.f }}
+                },
+                false
             },
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {}
-            },
-            false
-        }
-    },
-
-    // I8
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
-            },
-            false
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 2.f }, { 10.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 3.f }, { 7.f } }
+                },
+                false
+            }
         },
+    
         {
+            LayerTransformation::createParamsI8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 2.f }, { 10.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { }, { 7.f }}
+                },
+                false
             },
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 3.f }, { 7.f } }
-            },
-            false
-        }
-    },
-
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 7.f }}
-            },
-            false
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 2.f }, { 70.f }},
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {}
+                },
+                false
+            }
         },
+    
         {
+            LayerTransformation::createParamsI8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 70.f }},
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { }, { 10.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { }, { 7.f } }
+                },
+                false
             },
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {}
-            },
-            false
-        }
-    },
-
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 7.f } }
-            },
-            false
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    { ngraph::element::f32, {  }, { 70.f }}
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    { }
+                },
+                false
+            }
         },
+    
         {
+            LayerTransformation::createParamsI8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                { ngraph::element::f32, {  }, { 70.f }}
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 2.f }, {  }},
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { }, { 7.f } },
+                },
+                false
             },
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                { }
-            },
-            false
-        }
-    },
-
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, {  }},
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 7.f } },
-            },
-            false
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 2.f }, { 7.f }},
+                },
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {}
+                },
+                false
+            }
         },
+    
+        // Constant as input
         {
+            LayerTransformation::createParamsU8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 7.f }},
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { }, { 10.f }},
+                },
+                {
+                    {},
+                    {{ 7.f }, ngraph::element::f32}, // Constant as input
+                    ngraph::element::f32,
+                    {}
+                },
+                false
             },
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {}
-            },
-            false
-        }
-    },
-
-    // Constant as input
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 10.f }},
-            },
-            {
-                {},
-                {{ 7.f }, ngraph::element::f32}, // Constant as input
-                ngraph::element::f32,
-                {}
-            },
-            false
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, {}, {}},
+                },
+                {
+                    {},
+                    {{ 70.f }, ngraph::element::f32},
+                    ngraph::element::f32,
+                    {}
+                },
+                true
+            }
         },
+    
         {
+            LayerTransformation::createParamsU8I8(),
             {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, {}, {}},
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 18.f }, { 10.f }},
+                },
+                {
+                    {},
+                    {{ 7.f }, ngraph::element::f32},
+                    ngraph::element::f32,
+                    {}
+                },
+                false
             },
             {
-                {},
-                {{ 70.f }, ngraph::element::f32},
-                ngraph::element::f32,
-                {}
-            },
-            true
+                {
+                    { 1, 3, 8, 16 },
+                    {},
+                    ngraph::element::i8,
+                    {ngraph::element::f32, { 18.f }, { }},
+                },
+                {
+                    {},
+                    {{ 70.f }, ngraph::element::f32},
+                    ngraph::element::f32,
+                    {}
+                },
+                true
+            }
         }
-    },
-
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 18.f }, { 10.f }},
-            },
-            {
-                {},
-                {{ 7.f }, ngraph::element::f32},
-                ngraph::element::f32,
-                {}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 18.f }, { }},
-            },
-            {
-                {},
-                {{ 70.f }, ngraph::element::f32},
-                ngraph::element::f32,
-                {}
-            },
-            true
-        }
-    }
-};
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MultiplyTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(broadcastValues),
-        ::testing::ValuesIn(multiplyTransformationTestValues)),
+        ::testing::ValuesIn(getPrecisions()),
+        ::testing::ValuesIn(getShapes()),
+        ::testing::ValuesIn(getBroadcastValues()),
+        ::testing::ValuesIn(getMultiplyTransformationTestValues())),
     MultiplyTransformation::getTestCaseName);

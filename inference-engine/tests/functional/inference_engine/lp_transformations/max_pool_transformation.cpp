@@ -92,110 +92,114 @@ TEST_P(MaxPoolTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 },
-    { 4, 32, 72, 48 }
-};
+static std::vector<ngraph::Shape> getShapes() {
+    return {
+        { 1, 32, 72, 48 },
+        { 4, 32, 72, 48 }
+    };
+}
 
-const std::vector<MaxPoolTransformationTestValues> testValues = {
-    // Multiply
-    {
-        LayerTransformation::createParamsU8I8(),
+static std::vector<MaxPoolTransformationTestValues> getTestValues() {
+    return {
+        // Multiply
         {
-            ngraph::element::u8,
-            { {}, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }},
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            { ngraph::element::f32, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }}
-        }
-    },
-    // Subtract + Multiply
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
+            LayerTransformation::createParamsU8I8(),
             {
-                {},
-                { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
-                { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+                ngraph::element::u8,
+                { {}, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }},
+                {}
             },
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {},
             {
-                ngraph::element::f32,
-                { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
-                { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+                ngraph::element::u8,
+                {},
+                { ngraph::element::f32, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }}
+            }
+        },
+        // Subtract + Multiply
+        {
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {
+                    {},
+                    { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
+                    { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+                },
+                {}
+            },
+            {
+                ngraph::element::u8,
+                {},
+                {
+                    ngraph::element::f32,
+                    { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
+                    { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+                }
+            }
+        },
+        // Convert + Subtract + Multiply
+        {
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, { 128 }, { 0.02f }},
+                {}
+            },
+            {
+                ngraph::element::u8,
+                {},
+                { ngraph::element::f32, { 128 }, { 0.02f }}
+            }
+        },
+        // Convert + Subtract + Multiply
+        {
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.02f }},
+                {}
+            },
+            {
+                ngraph::element::u8,
+                {},
+                { ngraph::element::f32, {}, { 0.02f }}
+            }
+        },
+        // Convert + Subtract + Multiply
+        {
+            LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, { 128 }, { 0.02f }},
+                {}
+            },
+            {
+                ngraph::element::u8,
+                {},
+                { ngraph::element::f32, { 128 }, { 0.02f }}
+            }
+        },
+        // Convert + Subtract + Multiply
+        {
+            LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+            {
+                ngraph::element::u8,
+                { ngraph::element::f32, {}, { 0.02f }},
+                {}
+            },
+            {
+                ngraph::element::u8,
+                {},
+                { ngraph::element::f32, {}, { 0.02f }}
             }
         }
-    },
-    // Convert + Subtract + Multiply
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 128 }, { 0.02f }},
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            { ngraph::element::f32, { 128 }, { 0.02f }}
-        }
-    },
-    // Convert + Subtract + Multiply
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f }},
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            { ngraph::element::f32, {}, { 0.02f }}
-        }
-    },
-    // Convert + Subtract + Multiply
-    {
-        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 128 }, { 0.02f }},
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            { ngraph::element::f32, { 128 }, { 0.02f }}
-        }
-    },
-    // Convert + Subtract + Multiply
-    {
-        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f }},
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            { ngraph::element::f32, {}, { 0.02f }}
-        }
-    }
-};
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MaxPoolTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(getShapes()),
+        ::testing::ValuesIn(getTestValues())),
     MaxPoolTransformation::getTestCaseName);

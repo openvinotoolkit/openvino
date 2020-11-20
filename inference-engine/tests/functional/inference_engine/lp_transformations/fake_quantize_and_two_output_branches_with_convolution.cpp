@@ -109,46 +109,54 @@ TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareFun
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
-};
+static std::vector<ngraph::element::Type> getPrecisions() {
+    return {
+        ngraph::element::f32,
+        // ngraph::element::f16
+    };
+}
 
-const std::vector<bool> updatePrecisions = {
-    true,
-    false
-};
+static std::vector<bool> getUpdatePrecisions() {
+    return {
+        true,
+        false
+    };
+}
 
-const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues> fakeQuantizeOnDataTestValues = {
-    // U8
-    {
-        LayerTransformation::createParamsU8I8(),
+static std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues> getFakeQuantizeOnDataTestValues() {
+    return {
+        // U8
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-        },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            { 1.f },
-            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            { 1.f }
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+                { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+                { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+                { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+                { 1.f },
+                { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+                { 1.f }
+            }
         }
-    }
-};
+    };
+}
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 },
-    // TODO: 3D tensor
-};
+static std::vector<ngraph::Shape> getShapes() {
+    return {
+        { 1, 32, 72, 48 },
+        // TODO: 3D tensor
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(updatePrecisions),
-        ::testing::ValuesIn(fakeQuantizeOnDataTestValues)),
+        ::testing::ValuesIn(getPrecisions()),
+        ::testing::ValuesIn(getShapes()),
+        ::testing::ValuesIn(getUpdatePrecisions()),
+        ::testing::ValuesIn(getFakeQuantizeOnDataTestValues())),
     FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName);

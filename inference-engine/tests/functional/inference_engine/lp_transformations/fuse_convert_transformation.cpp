@@ -91,74 +91,76 @@ public:
     }
 };
 
-const std::vector<FuseConvertTransformationTestValues> testValues = {
-    // fuse to subtract
-    {
-        ngraph::Shape{ 1, 4, 16, 16 },
-        false,
-        LayerTransformation::createParamsU8I8(),
+static std::vector<FuseConvertTransformationTestValues> getTestValues() {
+    return {
+        // fuse to subtract
         {
-            ngraph::element::u8,
+            ngraph::Shape{ 1, 4, 16, 16 },
+            false,
+            LayerTransformation::createParamsU8I8(),
             {
-                { ngraph::element::f32 },
-                {1.f},
-                {0.45f}
+                ngraph::element::u8,
+                {
+                    { ngraph::element::f32 },
+                    {1.f},
+                    {0.45f}
+                }
+            },
+            {
+                ngraph::element::u8,
+                {
+                    {},
+                    DequantizationOperations::Subtract({1.f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32),
+                    {0.45f}
+                }
             }
         },
+        // fuse to multiply
         {
-            ngraph::element::u8,
+            ngraph::Shape{ 1, 4, 16, 16 },
+            false,
+            LayerTransformation::createParamsU8I8(),
             {
-                {},
-                DequantizationOperations::Subtract({1.f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32),
-                {0.45f}
-            }
-        }
-    },
-    // fuse to multiply
-    {
-        ngraph::Shape{ 1, 4, 16, 16 },
-        false,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
+                ngraph::element::u8,
+                {
+                    { ngraph::element::f32 },
+                    {},
+                    {0.45f}
+                }
+            },
             {
-                { ngraph::element::f32 },
-                {},
-                {0.45f}
-            }
-        },
-        {
-            ngraph::element::u8,
-            {
-                {},
-                {},
-                DequantizationOperations::Multiply({0.45f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32)
-            }
-        }
-    },
-    // fuse to const
-    {
-        ngraph::Shape{ 1, 4, 16, 16 },
-        true,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {
-                { ngraph::element::f32 },
-                {1.f},
-                {0.45f}
+                ngraph::element::u8,
+                {
+                    {},
+                    {},
+                    DequantizationOperations::Multiply({0.45f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32)
+                }
             }
         },
+        // fuse to const
         {
-            ngraph::element::f32,
+            ngraph::Shape{ 1, 4, 16, 16 },
+            true,
+            LayerTransformation::createParamsU8I8(),
             {
-                {},
-                {1.f},
-                {0.45f}
+                ngraph::element::u8,
+                {
+                    { ngraph::element::f32 },
+                    {1.f},
+                    {0.45f}
+                }
+            },
+            {
+                ngraph::element::f32,
+                {
+                    {},
+                    {1.f},
+                    {0.45f}
+                }
             }
-        }
-    },
-};
+        },
+    };
+}
 
 TEST_P(FuseConvertTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
@@ -169,5 +171,5 @@ TEST_P(FuseConvertTransformation, CompareFunctions) {
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FuseConvertTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     FuseConvertTransformation::getTestCaseName);

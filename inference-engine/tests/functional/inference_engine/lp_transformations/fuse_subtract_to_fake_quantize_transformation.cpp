@@ -104,93 +104,95 @@ TEST_P(FuseSubtractToFakeQuantizeTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
+static std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> getTestValues() {
+    return {
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, { 128.f }, {} },
-            {},
-            {}
+            Shape{1, 3, 16, 16},
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+                { {element::f32}, { 128.f }, {} },
+                {},
+                {}
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
+                { {}, {}, {} },
+                {},
+                {}
+            }
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {}, {}, {} },
-            {},
-            {}
-        }
-    },
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
-            { {element::f32}, { 128.f }, {} },
-            {},
-            {}
+            Shape{1, 3, 16, 16},
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
+                { {element::f32}, { 128.f }, {} },
+                {},
+                {}
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
+                { {}, {}, {} },
+                {},
+                {}
+            }
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {}, {}, {} },
-            {},
-            {}
-        }
-    },
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, { 128.f }, {} },
-            {},
-            {}
+            Shape{1, 3, 16, 16},
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+                { {}, { 128.f }, {} },
+                {},
+                {}
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
+                { {}, {}, {} },
+                {},
+                {}
+            }
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {}, {}, {} },
-            {},
-            {}
-        }
-    },
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
-            { {}, { 128.f }, {} },
-            {},
-            {}
+            Shape{1, 3, 16, 16},
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
+                { {}, { 128.f }, {} },
+                {},
+                {}
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
+                { {}, {}, {} },
+                {},
+                {}
+            }
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {}, {}, {} },
-            {},
-            {}
-        }
-    },
-    {
-        Shape{1, 4, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, { 128.f }, {} },
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, { 128.f }, {} },
+            Shape{1, 4, 16, 16},
+            LayerTransformation::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+                { {}, { 128.f }, {} },
+                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+                { {}, { 128.f }, {} },
+            },
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
+                { {}, {}, {} },
+                { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
+                { {}, {}, {} },
+            }
         },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {}, {}, {} },
-            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {}, {}, {} },
-        }
-    },
-};
+    };
+}
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FuseSubtractToFakeQuantizeTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
 
 } // namespace
