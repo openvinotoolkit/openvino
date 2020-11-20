@@ -115,7 +115,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
     }
 
     InferenceEngine::CNNNetwork GetExecGraphInfo() override {
-        return plg->getExecGraphInfo();
+        return plg->GetExecGraphInfo();
     }
 };
 
