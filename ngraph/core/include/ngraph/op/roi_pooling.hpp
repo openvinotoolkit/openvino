@@ -29,12 +29,6 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"ROIPooling", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                enum class ROIPoolingMethod
-                {
-                    Bilinear, // Bilinear interpolation
-                    Max       // Maximum
-                };
-
                 ROIPooling() = default;
                 /// \brief Constructs a ROIPooling operation
                 ///
@@ -67,4 +61,4 @@ namespace ngraph
         } // namespace v0
         using v0::ROIPooling;
     } // namespace op
-}
+} // namespace ngraph
