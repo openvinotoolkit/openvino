@@ -62,6 +62,7 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     k.EnableDifferentTypes();
     k.EnableBatching();
     k.EnableTensorPitches();
+    k.EnableTensorOffset();
     return k;
 }
 
