@@ -521,7 +521,6 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passIdx = passes->run(passIdx);
     };
 
-    ICNNNetwork::Ptr newNet;
     if (gnaFlags->sw_fp32) {
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             transformLayer(lp, WeightsConverter());

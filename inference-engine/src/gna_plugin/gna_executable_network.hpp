@@ -113,6 +113,10 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
         return plg->GetMetric(name, {});
     }
+
+    InferenceEngine::CNNNetwork GetExecGraphInfo() override {
+        return plg->getExecGraphInfo();
+    }
 };
 
 }  // namespace GNAPluginNS

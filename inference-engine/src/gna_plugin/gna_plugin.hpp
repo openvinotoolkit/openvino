@@ -14,6 +14,7 @@
 #include <tuple>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include "cpp_interfaces/impl/ie_memory_state_internal.hpp"
+#include "ie_icnn_network.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_output_desc.hpp"
@@ -85,6 +86,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
     std::vector<InferenceEngine::VariableStateInternal::Ptr> memoryStates;
+    InferenceEngine::ICNNNetwork::Ptr newNet;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);
@@ -173,6 +175,10 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 
      InferenceEngine::Parameter GetAvailableDevices() const;
 
+     /**
+      * Return CNNNetwork after passes
+      */
+     inline InferenceEngine::CNNNetwork GetExecGraphInfo() { return InferenceEngine::CNNNetwork(newNet); }
  protected:
     void Init();
 
