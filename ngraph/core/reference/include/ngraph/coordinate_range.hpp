@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <iterator>
 
 #include "ngraph/coordinate.hpp"
@@ -26,6 +27,58 @@ namespace ngraph
 {
     namespace coordinates
     {
+        template <typename Range>
+        class RangeIterator
+        {
+            template <typename C>
+            bool has_zeros(const C& c)
+            {
+                const auto is_zero = [](size_t x) { return x == 0; };
+                return std::any_of(c.begin(), c.end(), is_zero);
+            }
+
+        public:
+            using value_type = Range;
+            using reference = Range&;
+            using iterator_category = std::input_iterator_tag;
+            using pointer = Range*;
+            using difference_type = void;
+
+            RangeIterator(Range* r)
+                : m_r{r}
+            {
+                if (m_r && has_zeros(m_r->source_shape()))
+                {
+                    m_r = nullptr;
+                }
+            }
+
+            const Range& operator*() const { return *m_r; }
+            const Range* operator->() const { return m_r; }
+            RangeIterator& operator++()
+            {
+                if (m_r && !m_r->increment())
+                {
+                    m_r = nullptr;
+                }
+                return *this;
+            }
+
+            RangeIterator operator++(int) = delete;
+
+            friend bool operator==(const RangeIterator& lhs, const RangeIterator& rhs)
+            {
+                return lhs.m_r == rhs.m_r;
+            }
+            friend bool operator!=(const RangeIterator& lhs, const RangeIterator& rhs)
+            {
+                return !(lhs == rhs);
+            }
+
+        private:
+            Range* m_r;
+        };
+
         class SliceRange
         {
         public:
@@ -35,37 +88,12 @@ namespace ngraph
                        const Strides& strides);
 
             size_t index() const;
+
+            bool increment();
+
+            const Shape& source_shape() const { return m_source_shape; }
             const Coordinate& coodinate() const { return m_coordinate; }
-            class Iterator
-            {
-            public:
-                using value_type = SliceRange;
-                using reference = SliceRange&;
-                using iterator_category = std::input_iterator_tag;
-                using pointer = SliceRange*;
-                using difference_type = void;
-
-                Iterator(SliceRange* r);
-
-                const SliceRange& operator*() const { return *m_r; }
-                const SliceRange* operator->() const { return m_r; }
-                Iterator& operator++();
-
-                Iterator operator++(int) = delete;
-
-                friend bool operator==(const Iterator& lhs, const Iterator& rhs)
-                {
-                    return lhs.m_r == rhs.m_r;
-                }
-                friend bool operator!=(const Iterator& lhs, const Iterator& rhs)
-                {
-                    return !(lhs == rhs);
-                }
-
-            private:
-                SliceRange* m_r;
-            };
-
+            using Iterator = RangeIterator<SliceRange>;
             Iterator begin() { return Iterator(this); }
             Iterator end() { return Iterator(nullptr); }
         private:
@@ -104,42 +132,16 @@ namespace ngraph
 
             size_t index() const;
 
+            bool increment();
+
+            const Shape& source_shape() const { return m_source_shape; }
             const Coordinate& coodinate() const
             {
                 do_reverse();
                 return m_reversed_coordinate;
             }
 
-            class Iterator
-            {
-            public:
-                using value_type = ReverseRange;
-                using reference = ReverseRange&;
-                using iterator_category = std::input_iterator_tag;
-                using pointer = ReverseRange*;
-                using difference_type = void;
-
-                Iterator(ReverseRange* r);
-
-                const ReverseRange& operator*() const { return *m_r; }
-                const ReverseRange* operator->() const { return m_r; }
-                Iterator& operator++();
-
-                Iterator operator++(int) = delete;
-
-                friend bool operator==(const Iterator& lhs, const Iterator& rhs)
-                {
-                    return lhs.m_r == rhs.m_r;
-                }
-                friend bool operator!=(const Iterator& lhs, const Iterator& rhs)
-                {
-                    return !(lhs == rhs);
-                }
-
-            private:
-                ReverseRange* m_r;
-            };
-
+            using Iterator = RangeIterator<ReverseRange>;
             Iterator begin() { return Iterator(this); }
             Iterator end() { return Iterator(nullptr); }
         private:

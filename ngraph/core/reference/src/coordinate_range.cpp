@@ -16,23 +16,14 @@
 
 #include "ngraph/coordinate_range.hpp"
 
+#include <stdexcept>
+
 #include "ngraph/coordinate_index.hpp"
 
 namespace ngraph
 {
     namespace coordinates
     {
-        namespace
-        {
-            template <typename C>
-            bool has_zeros(const C& c)
-            {
-                const auto is_zero = [](size_t x) { return x == 0; };
-                return std::any_of(c.begin(), c.end(), is_zero);
-            }
-
-        } // namespace
-
         SliceRange::SliceRange(const Shape& source_shape,
                                const Coordinate& source_start_corner,
                                const Coordinate& source_end_corner,
@@ -64,31 +55,19 @@ namespace ngraph
         }
 
         size_t SliceRange::index() const { return coordinate_index(m_coordinate, m_source_shape); }
-        SliceRange::Iterator::Iterator(SliceRange* r)
-            : m_r{r}
+        bool SliceRange::increment()
         {
-            if (m_r && has_zeros(m_r->m_source_shape))
+            for (auto axis = m_coordinate.size(); axis-- > 0;)
             {
-                m_r = nullptr;
-            }
-        }
-
-        SliceRange::Iterator& SliceRange::Iterator::operator++()
-        {
-            if (m_r)
-            {
-                for (auto axis = m_r->m_coordinate.size(); axis-- > 0;)
+                m_coordinate[axis] += m_source_strides[axis];
+                if (m_coordinate[axis] < m_bounds.upper[axis])
                 {
-                    m_r->m_coordinate[axis] += m_r->m_source_strides[axis];
-                    if (m_r->m_coordinate[axis] < m_r->m_bounds.upper[axis])
-                    {
-                        return *this;
-                    }
-                    m_r->m_coordinate[axis] = m_r->m_bounds.lower[axis];
+                    return true;
                 }
-                m_r = nullptr;
+                m_coordinate[axis] = m_bounds.lower[axis];
             }
-            return *this;
+
+            return false;
         }
 
         ReverseRange::ReverseRange(const Shape& source_shape, const AxisSet& reversed_axes)
@@ -112,31 +91,18 @@ namespace ngraph
             return coordinate_index(m_reversed_coordinate, m_source_shape);
         }
 
-        ReverseRange::Iterator::Iterator(ReverseRange* r)
-            : m_r{r}
+        bool ReverseRange::increment()
         {
-            if (m_r && has_zeros(m_r->m_source_shape))
+            for (auto axis = m_coordinate.size(); axis-- > 0;)
             {
-                m_r = nullptr;
-            }
-        }
-
-        ReverseRange::Iterator& ReverseRange::Iterator::operator++()
-        {
-            if (m_r)
-            {
-                for (auto axis = m_r->m_coordinate.size(); axis-- > 0;)
+                ++m_coordinate[axis];
+                if (m_coordinate[axis] < m_source_shape[axis])
                 {
-                    ++m_r->m_coordinate[axis];
-                    if (m_r->m_coordinate[axis] < m_r->m_source_shape[axis])
-                    {
-                        return *this;
-                    }
-                    m_r->m_coordinate[axis] = 0;
+                    return true;
                 }
-                m_r = nullptr;
+                m_coordinate[axis] = 0;
             }
-            return *this;
+            return false;
         }
 
         void ReverseRange::do_reverse() const
