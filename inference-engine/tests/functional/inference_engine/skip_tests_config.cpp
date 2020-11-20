@@ -14,5 +14,11 @@ std::vector<std::string> disabledTestPatterns() {
         ".*TransformationTests\\.ConstFoldingPriorBoxClustered.*",
         // TODO: task 32568, enable after supporting constants outputs in plugins
         ".*TransformationTests\\.ConstFoldingPriorBox.*",
+#if !defined(ENABLE_V10_SERIALIZE)
+        // Disable tests for serialization
+        ".*SerializationTest.*",
+        ".*CustomOpsSerializationTest.*",
+        ".*SerializationDeterministicityTest.*",
+#endif
     };
 }
