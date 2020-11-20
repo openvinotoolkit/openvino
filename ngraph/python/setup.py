@@ -19,7 +19,7 @@ import pathlib
 import shutil
 import glob
 import sysconfig
-from sys import platform 
+import sys
 
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
@@ -63,8 +63,9 @@ class CMakeExtension(Extension):
 
 class BuildCMakeExt(build_ext):
 
-    user_options = build_ext.user_options + [
-        ("config=", "c", "Build configuration [Release| Debug]")
+    cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
+    user_options = [
+        ("config=", None, "Build configuration [{}]".format("|".join(cmake_build_types)))
     ]
     
     def initialize_options(self):
@@ -72,8 +73,18 @@ class BuildCMakeExt(build_ext):
         super().initialize_options()
     
     def finalize_options(self):
-        if self.config not in ["Release", "Debug"]:
+        if not self.config:
+            self.announce("Set default value for CMAKE_BUILD_TYPE = Release.", level=4)
             self.config = "Release"
+        else:
+            build_types = [item.lower() for item in self.cmake_build_types]
+            try:
+                i = build_types.index(str(self.config).lower())
+                self.config = self.cmake_build_types[i]
+            except ValueError:
+                self.announce("Unsupported CMAKE_BUILD_TYPE value: " + self.config, level=4)
+                self.announce("Supported values: {}".format(", ".join(self.cmake_build_types)), level=4)
+                sys.exit(1)
         super().finalize_options()
         
     def run(self):
@@ -134,9 +145,9 @@ class InstallCMakeLibs(install_lib):
         bin_dir = os.path.join(OPENVINO_ROOT_DIR, 'bin')
 
         lib_ext = ".so"
-        if "linux" in platform or platform == "darwin":
+        if "linux" in sys.platform or sys.platform == "darwin":
             lib_ext = ".so"
-        elif platform == "win32":
+        elif sys.platform == "win32":
             lib_ext = ".dll"
 
         libs = []
@@ -165,4 +176,3 @@ setup(
     cmdclass={"build_ext": BuildCMakeExt,
               "install_lib": InstallCMakeLibs}
 )
-
