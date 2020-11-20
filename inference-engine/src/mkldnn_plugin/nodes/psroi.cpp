@@ -112,14 +112,8 @@ public:
             float roi_width   = 0.0f;
             float roi_height  = 0.0f;
 
-            if (mode_ == "bilinear") {
-                roi_start_w = bottom_rois[1] * spatial_scale_;
-                roi_start_h = bottom_rois[2] * spatial_scale_;
-                roi_end_w = bottom_rois[3] * spatial_scale_;
-                roi_end_h = bottom_rois[4] * spatial_scale_;
-                roi_width  = roi_end_w - roi_start_w;
-                roi_height = roi_end_h - roi_start_h;
-            } else if (mode_ == "average") {
+            size_t index = n*nc*nh*nw;
+            if (mode_ == "average") {
                 roi_start_w = static_cast<float>(round(bottom_rois[1])) * spatial_scale_;
                 roi_start_h = static_cast<float>(round(bottom_rois[2])) * spatial_scale_;
                 roi_end_w   = static_cast<float>(round(bottom_rois[3]) + 1.0f) * spatial_scale_;
@@ -127,21 +121,11 @@ public:
                 // Force too small ROIs to be 1x1
                 roi_width  = std::max<float>(roi_end_w - roi_start_w, 0.1f);  // avoid 0
                 roi_height = std::max<float>(roi_end_h - roi_start_h, 0.1f);
-            } else if (mode_ == "bilinear_deformable") {
-                roi_start_w = static_cast<float>(round(bottom_rois[1])) * spatial_scale_ - 0.5f;
-                roi_start_h = static_cast<float>(round(bottom_rois[2])) * spatial_scale_ - 0.5f;
-                roi_end_w   = static_cast<float>(round(bottom_rois[3]) + 1.0f) * spatial_scale_ - 0.5f;
-                roi_end_h   = static_cast<float>(round(bottom_rois[4]) + 1.0f) * spatial_scale_ - 0.5f;
-                // Force too small ROIs to be 1x1
-                roi_width  = std::max<float>(roi_end_w - roi_start_w, 0.1f);  // avoid 0
-                roi_height = std::max<float>(roi_end_h - roi_start_h, 0.1f);
-            }
-            if (mode_ == "average") {
+
                 for (int c = 0; c < nc; c++) {
                     for (int h = 0; h < nh; h++) {
                         for (int w = 0; w < nw; w++) {
-                            size_t index = n*nc*nh*nw + c*nh*nw + h*nw + w;
-                            dst_data[index] = 0.0f;
+                            dst_data[index] = 0;
                             float bin_size_h = roi_height / static_cast<float>(pooled_height_);
                             float bin_size_w = roi_width  / static_cast<float>(pooled_width_);
 
@@ -172,15 +156,22 @@ public:
                                 }
                                 dst_data[index] = out_sum / bin_area;
                             }
+                            index++;
                         }
                     }
                 }
             } else if (mode_ == "bilinear") {
+                roi_start_w = bottom_rois[1] * spatial_scale_;
+                roi_start_h = bottom_rois[2] * spatial_scale_;
+                roi_end_w = bottom_rois[3] * spatial_scale_;
+                roi_end_h = bottom_rois[4] * spatial_scale_;
+                roi_width  = roi_end_w - roi_start_w;
+                roi_height = roi_end_h - roi_start_h;
+
                 for (int c = 0; c < nc; c++) {
                     for (int h = 0; h < nh; h++) {
                         for (int w = 0; w < nw; w++) {
-                            size_t index = n*nc*nh*nw + c*nh*nw + h*nw + w;
-                            dst_data[index] = 0.0f;
+                            dst_data[index] = 0;
                             float accum = 0.0f;
                             for (size_t bin_y = 0; bin_y < spatial_bins_y_; bin_y++) {
                                 for (size_t bin_x = 0; bin_x < spatial_bins_x_; bin_x++) {
@@ -235,15 +226,23 @@ public:
                             }
                             accum /= num_bins;
                             dst_data[index] = accum;
+                            index++;
                         }
                     }
                 }
             } else if (mode_ == "bilinear_deformable") {
+                roi_start_w = static_cast<float>(round(bottom_rois[1])) * spatial_scale_ - 0.5f;
+                roi_start_h = static_cast<float>(round(bottom_rois[2])) * spatial_scale_ - 0.5f;
+                roi_end_w   = static_cast<float>(round(bottom_rois[3]) + 1.0f) * spatial_scale_ - 0.5f;
+                roi_end_h   = static_cast<float>(round(bottom_rois[4]) + 1.0f) * spatial_scale_ - 0.5f;
+                // Force too small ROIs to be 1x1
+                roi_width  = std::max<float>(roi_end_w - roi_start_w, 0.1f);  // avoid 0
+                roi_height = std::max<float>(roi_end_h - roi_start_h, 0.1f);
+
                 for (int c = 0; c < nc; c++) {
                     for (int h = 0; h < nh; h++) {
                         for (int w = 0; w < nw; w++) {
-                            size_t index = n*nc*nh*nw + c*nh*nw + h*nw + w;
-                            dst_data[index] = 0.0f;
+                            dst_data[index] = 0;
                             // Compute w and h at bottom
                             float bin_size_h = roi_height / static_cast<float>(pooled_height_);
                             float bin_size_w = roi_width  / static_cast<float>(pooled_width_);
@@ -289,7 +288,8 @@ public:
                                     count++;
                                 }
                             }
-                            dst_data[index] = count == 0 ? 0.0f : sum / count;
+                            dst_data[index] = count == 0 ? 0 : sum / count;
+                            index++;
                         }
                     }
                 }
@@ -299,7 +299,7 @@ public:
         for (int n = real_rois; n < nn; n++) {
             parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
                 int index = n * nc * nh * nw + c * nh * nw + h * nw + w;
-                dst_data[index] = 0.0f;
+                dst_data[index] = 0;
             });
         }
 
