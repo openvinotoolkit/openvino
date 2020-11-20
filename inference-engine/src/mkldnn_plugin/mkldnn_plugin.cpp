@@ -7,6 +7,7 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
+#include <iostream>
 
 #include <legacy/net_pass.h>
 #include <threading/ie_executor_manager.hpp>
@@ -93,6 +94,7 @@ Engine::~Engine() {
 }
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
+    std::cout << "Now we will perform transformations in MKLDNN.\n";
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
@@ -249,6 +251,8 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
     legacyManager.run_passes(nGraphFunc);
+
+    std::cout << "All nGraph transformations are passed in MKLDNN.\n";
 
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
 
