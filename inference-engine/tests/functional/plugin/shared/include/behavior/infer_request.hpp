@@ -5,6 +5,7 @@
 #pragma once
 
 #include <chrono>
+#include <future>
 #include <tuple>
 #include <vector>
 #include <string>
@@ -643,23 +644,19 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::ResponseDesc response;
     InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
-    std::chrono::system_clock::time_point callbackTimeStamp;
-    volatile bool callbackTimeStampSet = false;
+    std::promise<std::chrono::system_clock::time_point> callbackTimeStamp;
+    auto callbackTimeStampFuture = callbackTimeStamp.get_future();
     // add a callback to the request and capture the timestamp
     req.SetCompletionCallback([&]() {
-        callbackTimeStamp = std::chrono::system_clock::now();
-        callbackTimeStampSet = true;
+        callbackTimeStamp.set_value(std::chrono::system_clock::now());
         });
     req.StartAsync();
     ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY));
     // get timestamp taken AFTER return from the Wait(STATUS_ONLY)
     const auto afterWaitTimeStamp = std::chrono::system_clock::now();
-    // wait for callback to complete
-    while (!callbackTimeStampSet) {
-    }
-    // IF the callback timestamp is larger than the AFTER Wait(STATUS_ONLY) timestamp
+    // IF the callback timestamp is larger than the afterWaitTimeStamp
     // then we should observe RESULT_NOT_READY
-    if (afterWaitTimeStamp < callbackTimeStamp) {
+    if (afterWaitTimeStamp < callbackTimeStampFuture.get()) {
         ASSERT_TRUE(sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
     }
     ASSERT_NO_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
