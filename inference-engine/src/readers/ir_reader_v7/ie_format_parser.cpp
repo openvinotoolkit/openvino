@@ -440,16 +440,17 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     _network->resolveOutput();
 
     // Set default output precision to FP32 (for back-compatibility)
-    OutputsDataMap outputsInfo;
-    _network->getOutputsInfo(outputsInfo);
-    for (auto outputInfo : outputsInfo) {
-        if (outputInfo.second->getPrecision() == Precision::I64) {
-            outputInfo.second->setPrecision(Precision::I32);
-        } else if (outputInfo.second->getPrecision() != Precision::FP32 &&
-            outputInfo.second->getPrecision() != Precision::I32) {
-            outputInfo.second->setPrecision(Precision::FP32);
-        }
-    }
+    // TODO: remove this logic
+    // OutputsDataMap outputsInfo;
+    // _network->getOutputsInfo(outputsInfo);
+    // for (auto outputInfo : outputsInfo) {
+    //     if (outputInfo.second->getPrecision() == Precision::I64) {
+    //         outputInfo.second->setPrecision(Precision::I32);
+    //     } else if (outputInfo.second->getPrecision() != Precision::FP32 &&
+    //         outputInfo.second->getPrecision() != Precision::I32) {
+    //         outputInfo.second->setPrecision(Precision::FP32);
+    //     }
+    // }
 
     return _network;
 }
