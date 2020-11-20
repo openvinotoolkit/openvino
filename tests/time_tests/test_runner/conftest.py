@@ -230,13 +230,13 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
 
     # add test info
     info = {
+        # results will be added immediately before uploading to DB in `pytest_runtest_makereport`
         "run_id": run_id,
         "timetest": str(executable.stem),
         "model": request.node.funcargs["instance"]["model"],
         "device": request.node.funcargs["instance"]["device"],
         "niter": niter,
         "test_name": request.node.name,
-        "results": test_info["results"],
         "os": "_".join([str(item) for item in [get_os_name(), *get_os_version()]])
     }
     info['_id'] = hashlib.sha256(
@@ -276,7 +276,7 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
             "os": {"type": "string"},
             "_id": {"type": "string"}
         },
-        "required": ["device", "model", "run_id", "timetest", "niter", "test_name", "results", "os", "_id"],
+        "required": ["device", "model", "run_id", "timetest", "niter", "test_name", "os", "_id"],
         "additionalProperties": true
     }
     """
@@ -387,6 +387,7 @@ def pytest_runtest_makereport(item, call):
         return
 
     data = item._request.test_info["db_info"].copy()
+    data["results"] = item._request.test_info["results"].copy()
     data["status"] = "not_finished"
     data["error_msg"] = ""
 
