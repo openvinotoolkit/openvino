@@ -14,8 +14,14 @@ const std::vector<std::vector<size_t>> inShapes = {
     {3, 4, 50, 50}
 };
 
-const std::vector<std::vector<size_t>> pooledShapes = {
+const std::vector<std::vector<size_t>> pooledShapes_max = {
     {1, 1},
+    {2, 2},
+    {3, 3},
+    {6, 6}
+};
+
+const std::vector<std::vector<size_t>> pooledShapes_bilinear = {
     {2, 2},
     {3, 3},
     {6, 6}
@@ -32,11 +38,22 @@ const std::vector<float> spatial_scales = {0.625f, 1.f};
 const auto test_ROIPooling_max = ::testing::Combine(
     ::testing::ValuesIn(inShapes),
     ::testing::ValuesIn(coordShapes),
-    ::testing::ValuesIn(pooledShapes),
+    ::testing::ValuesIn(pooledShapes_max),
     ::testing::ValuesIn(spatial_scales),
     ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_MAX),
     ::testing::Values(InferenceEngine::Precision::FP32),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
+const auto test_ROIPooling_bilinear = ::testing::Combine(
+    ::testing::ValuesIn(inShapes),
+    ::testing::ValuesIn(coordShapes),
+    ::testing::ValuesIn(pooledShapes_bilinear),
+    ::testing::Values(spatial_scales[1]),
+    ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
+    ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
 INSTANTIATE_TEST_CASE_P(smoke_TestsROIPooling_max, ROIPoolingLayerTest, test_ROIPooling_max, ROIPoolingLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_TestsROIPooling_bilinear, ROIPoolingLayerTest, test_ROIPooling_bilinear, ROIPoolingLayerTest::getTestCaseName);
