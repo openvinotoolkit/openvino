@@ -30,6 +30,19 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 | Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
 
+**Could Be Optionally Installed**
+
+[Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
+configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components:
+* [Model Downloader](@ref omz_tools_downloader_README)
+* [Intel® Open Model Zoo](@ref omz_models_intel_index)
+* [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Post-training Optimization Tool](@ref pot_README)
+* [Accuracy Checker](@ref omz_tools_accuracy_checker_README)
+* [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md)
+
+Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
+
 ## System Requirements
 
 **Hardware**
@@ -113,6 +126,15 @@ sudo ./install_GUI.sh
 ```sh
 sudo ./install.sh
 ```
+   - **Option 3:** Command-Line Silent Instructions:
+```sh
+sudo sed -i 's/decline/accept/g' silent.cfg
+sudo ./install.sh -s silent.cfg
+```   
+You can select which OpenVINO components will be installed by modifying the `COMPONENTS` parameter in the `silent.cfg` file. For example, to install only CPU runtime for the Inference Engine, set 
+`COMPONENTS=intel-openvino-ie-rt-cpu__x86_64` in `silent.cfg`.
+To get a full list of available components for installation, run the `./install.sh --list_components` command from the unpacked OpenVINO™ toolkit package.
+
 6. Follow the instructions on your screen. Watch for informational
 messages such as the following in case you must complete additional
 steps:
