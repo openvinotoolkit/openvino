@@ -667,14 +667,13 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
 
 void MKLDNNConvolutionNode::addZeroPoints(mkldnn::primitive_attr& attr) const {
     if (!inputZeroPoints.empty())
-        attr.set_zero_points(0,  1 << 1 /*through C dim*/, std::vector<int32_t>(inputZeroPoints.begin(), inputZeroPoints.end()));
+        attr.set_input_zero_points(1 << 1 /*through C dim*/, inputZeroPoints);
 
     if (!weightsZeroPoints.empty())
-        attr.set_zero_points(1, 1 << 1 /*through C dim*/, std::vector<int32_t>(weightsZeroPoints.begin(), weightsZeroPoints.end()));
+        attr.set_weights_zero_points(1 << 1 /*through C dim*/, weightsZeroPoints);
 
     if (!outputCompensation.empty()) {
-        THROW_IE_EXCEPTION << "unimplemented set_output_compensations ...";
-//        attr.set_output_compensations(1 << 1 /*through C dim*/, outputCompensation);
+        attr.set_output_compensations(1 << 1 /*through C dim*/, outputCompensation);
     }
 }
 
