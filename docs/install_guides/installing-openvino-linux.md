@@ -84,28 +84,25 @@ If you downloaded the package file to the current user's `Downloads` directory:
 ```sh
 cd ~/Downloads/
 ```
-By default, the file is saved as `l_openvino_toolkit_p_<version>.tgz`.
-
+   By default, the file is saved as `l_openvino_toolkit_p_<version>.tgz`.
 3. Unpack the .tgz file:
 ```sh
 tar -xvzf l_openvino_toolkit_p_<version>.tgz
 ```
-The files are unpacked to the `l_openvino_toolkit_p_<version>` directory.
-
+   The files are unpacked to the `l_openvino_toolkit_p_<version>` directory.
 4. Go to the `l_openvino_toolkit_p_<version>` directory:
 ```sh
 cd l_openvino_toolkit_p_<version>
 ```
-If you have a previous version of the Intel Distribution of OpenVINO
+   If you have a previous version of the Intel Distribution of OpenVINO
 toolkit installed, rename or delete these two directories:
 - `~/inference_engine_samples_build`
 - `~/openvino_models`
 
-**Installation Notes:**
-
-- Choose an installation option and run the related script as root.
-- You can use either a GUI installation wizard or command-line instructions (CLI).
-- Screenshots are provided for the GUI, but not for CLI. The following information also applies to CLI and will be helpful to your installation where you will be presented with the same choices and tasks.
+   **Installation Notes:**
+   - Choose an installation option and run the related script as root.
+   - You can use either a GUI installation wizard or command-line instructions (CLI).
+   - Screenshots are provided for the GUI, but not for CLI. The following information also applies to CLI and will be helpful to your installation where you will be presented with the same choices and tasks.
 
 5.  Choose your installation option:
    - **Option 1:** GUI Installation Wizard:
@@ -155,7 +152,7 @@ cd /opt/intel/openvino_2021/install_dependencies
 ```sh
 sudo -E ./install_openvino_dependencies.sh
 ```
-The dependencies are installed. Continue to the next section to set your environment variables.
+   The dependencies are installed. Continue to the next section to set your environment variables.
 
 ## <a name="set-the-environment-variables"></a>Set the Environment Variables
 
@@ -278,20 +275,18 @@ cd /opt/intel/openvino_2021/deployment_tools/demo
 ```sh
 ./demo_squeezenet_download_convert_run.sh
 ```
-This verification script downloads a SqueezeNet model, uses the Model Optimizer to convert the model to the .bin and .xml Intermediate Representation (IR) files. The Inference Engine requires this model conversion so it can use the IR as input and achieve optimum performance on Intel hardware.<br>
-This verification script builds the [Image Classification Sample Async](../../inference-engine/samples/classification_sample_async/README.md) application and run it with the `car.png` image located in the demo directory. When the verification script completes, you will have the label and confidence for the top-10 categories:
-![](../img/image_classification_script_output_lnx.png)
+   This verification script downloads a SqueezeNet model, uses the Model Optimizer to convert the model to the .bin and .xml Intermediate Representation (IR) files. The Inference Engine requires this model conversion so it can use the IR as input and achieve optimum performance on Intel hardware.<br>
+   This verification script builds the [Image Classification Sample Async](../../inference-engine/samples/classification_sample_async/README.md) application and run it with the `car.png` image located in the demo directory. When the verification script completes, you will have the label and confidence for the top-10 categories:
+   ![](../img/image_classification_script_output_lnx.png)
 
 3. Run the **Inference Pipeline verification script**:
 ```sh
 ./demo_security_barrier_camera.sh
 ```
-This script downloads three pre-trained model IRs, builds the [Security Barrier Camera Demo](@ref omz_demos_security_barrier_camera_demo_README) application, and runs it with the downloaded models and the `car_1.bmp` image from the `demo` directory to show an inference pipeline. The verification script uses vehicle recognition in which vehicle attributes build on each other to narrow in on a specific attribute.
-
-   First, an object is identified as a vehicle. This identification is used as input to the next model, which identifies specific vehicle attributes, including the license plate. Finally, the attributes identified as the license plate are used as input to the third model, which recognizes specific characters in the license plate.
-
-  When the verification script completes, you will see an image that displays the resulting frame with detections rendered as bounding boxes, and text:
-  ![](../img/inference_pipeline_script_lnx.png)
+   This script downloads three pre-trained model IRs, builds the [Security Barrier Camera Demo](@ref omz_demos_security_barrier_camera_demo_README) application, and runs it with the downloaded models and the `car_1.bmp` image from the `demo` directory to show an inference pipeline. The verification script uses vehicle recognition in which vehicle attributes build on each other to narrow in on a specific attribute.<br>
+   First, an object is identified as a vehicle. This identification is used as input to the next model, which identifies specific vehicle attributes, including the license plate. Finally, the attributes identified as the license plate are used as input to the third model, which recognizes specific characters in the license plate.<br>
+   When the verification script completes, you will see an image that displays the resulting frame with detections rendered as bounding boxes, and text:
+   ![](../img/inference_pipeline_script_lnx.png)
 
 4. Close the image viewer window to complete the verification script.
 
@@ -322,20 +317,15 @@ sudo -E su
 ```sh
 ./install_NEO_OCL_driver.sh
 ```
-The drivers are not included in the package and the script downloads them. Make sure you have the 
-internet connection for this step.
-
-The script compares the driver version on the system to the current version. 
-If the driver version on the system is higher or equal to the current version, the script does 
-not install a new driver. 
-If the version of the driver is lower than the current version, the script uninstalls the lower 
-and installs the current version with your permission:
-![](../img/NEO_check_agreement.png)
-Higher hardware versions require a higher driver version, namely 20.35 instead of 19.41.
-If the script fails to uninstall the driver, uninstall it manually.    
-During the script execution, you may see the following command line output:  
-   - Add OpenCL user to video group    
-Ignore this suggestion and continue.    
+   The drivers are not included in the package and the script downloads them. Make sure you have the internet connection for this step.<br>
+   The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does 
+not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower and installs the current version with your permission:
+   ![](../img/NEO_check_agreement.png) 
+   Higher hardware versions require a higher driver version, namely 20.35 instead of 19.41. If the script fails to uninstall the driver, uninstall it manually. During the script execution, you may see the following command line output:  
+```sh
+Add OpenCL user to video group    
+```
+   Ignore this suggestion and continue.    
 4. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
 ## <a name="additional-NCS-steps"></a>Steps for Intel® Neural Compute Stick 2
@@ -346,8 +336,7 @@ These steps are only required if you want to perform inference on Intel® Movidi
 ```sh
 sudo usermod -a -G users "$(whoami)"
 ```
-Log out and log in for it to take effect.
-
+   Log out and log in for it to take effect.
 2. To perform inference on Intel® Neural Compute Stick 2, install the USB rules as follows:
 ```sh
 sudo cp /opt/intel/openvino_2021/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/
