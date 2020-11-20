@@ -183,7 +183,7 @@ static std::vector<MVNTransformationTestValues> getTestValues() {
                 {}
             }
         },
-    
+
         {
             ngraph::Shape{ 1, 4, 16, 16 },
             {1, 2, 3},
@@ -200,7 +200,7 @@ static std::vector<MVNTransformationTestValues> getTestValues() {
                 {{}, {}, {-1.f}}
             }
         },
-    
+
         {
             ngraph::Shape{ 1, 4, 16, 16 },
             {1, 2, 3},

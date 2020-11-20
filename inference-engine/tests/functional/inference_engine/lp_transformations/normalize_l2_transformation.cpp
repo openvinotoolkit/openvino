@@ -114,27 +114,27 @@ static std::vector<NormalizeL2TransformationTestValues> getNormalizeL2Transforma
             { ngraph::element::u8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
             { ngraph::element::u8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
         },
-    
+
         // U8
         {
             LayerTransformation::createParamsU8I8(),
             { ngraph::element::u8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
             { ngraph::element::u8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
         },
-    
+
         {
             LayerTransformation::createParamsU8I8(),
             { ngraph::element::u8, { 1, 2, 3 }, { }, { 12.3f }},
             { ngraph::element::u8, { 1, 2, 3 }, { }, { 1.f }}
         },
-    
+
         // I8
         {
             LayerTransformation::createParamsI8I8(),
             { ngraph::element::i8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
             { ngraph::element::i8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
         },
-    
+
         {
             LayerTransformation::createParamsI8I8(),
             { ngraph::element::i8, { 1, 2, 3 }, { }, { 12.3f }},

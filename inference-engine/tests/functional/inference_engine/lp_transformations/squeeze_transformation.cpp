@@ -110,7 +110,7 @@ static std::vector<SqueezeTransformationTestValues> getTestValues() {
             ngraph::Shape{ 1, 1, 16, 16 }, // Input shape
             { 1.0f }, // Squeeze axes
             LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
-    
+
             /* Actual */
             {
                 ngraph::element::u8, // Precision before dequantization
@@ -139,7 +139,7 @@ static std::vector<SqueezeTransformationTestValues> getTestValues() {
             ngraph::Shape{ 1, 1, 1, 1000 }, // Input shape
             {1.0f }, // Squeeze axes
             LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
-    
+
             /* Actual */
             {
                 ngraph::element::i8, // Precision before dequantization
@@ -168,7 +168,7 @@ static std::vector<SqueezeTransformationTestValues> getTestValues() {
             ngraph::Shape{ 1, 1, 1000 }, // Input shape
             { 1.0f }, // Squeeze axes
             LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
-    
+
             /* Actual */
             {
                 ngraph::element::f32, // Precision before dequantization
@@ -197,7 +197,7 @@ static std::vector<SqueezeTransformationTestValues> getTestValues() {
             ngraph::Shape{ 1, 1, 1000, 1000 }, // Input shape
             { 0.0f}, // Squeeze axes
             LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
-    
+
             /* Actual */
             {
                 ngraph::element::f32, // Precision before dequantization

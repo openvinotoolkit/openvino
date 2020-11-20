@@ -264,9 +264,9 @@ static std::vector<AddTransformationTestValues> getAddTransformationTestValues()
             },
             ""
         },
-    
+
         // I8 + broadcast
-    
+
         {
             ngraph::element::f32,
             ngraph::Shape{1, 4, 16, 16},
@@ -382,7 +382,7 @@ static std::vector<AddTransformationTestValues> getAddTransformationTestValues()
             },
             ""
         },
-    
+
         {
             ngraph::element::f32,
             ngraph::Shape{4, 1},
@@ -406,7 +406,7 @@ static std::vector<AddTransformationTestValues> getAddTransformationTestValues()
             },
             ""
         },
-    
+
         // constant input: Add -> Subtract
         {
         ngraph::element::f32,
@@ -432,7 +432,7 @@ static std::vector<AddTransformationTestValues> getAddTransformationTestValues()
             },
             ""
         },
-    
+
         // constant input: Add -> Subtract
         {
             ngraph::element::f32,
@@ -452,7 +452,7 @@ static std::vector<AddTransformationTestValues> getAddTransformationTestValues()
                 { {ngraph::element::f32},  {}, {} },
                 ngraph::element::f32,
                 { {},  {}, { }},
-    
+
                 { {},  {}, {5.f} },
                 { -2.f, -1.f, -0.4f, -0.8f, -0.6f, -2.4f, -1.6f, -2.8f },
                 "Subtract"

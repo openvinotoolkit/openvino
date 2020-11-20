@@ -144,7 +144,7 @@ static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTe
                 false
             }
         },
-    
+
         {
             LayerTransformation::createParamsU8I8(),
             {
@@ -178,7 +178,7 @@ static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTe
                 false
             }
         },
-    
+
         {
             LayerTransformation::createParamsU8I8(),
             {
@@ -212,7 +212,7 @@ static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTe
                 false
             }
         },
-    
+
         {
             LayerTransformation::createParamsU8I8(),
             {
@@ -246,7 +246,7 @@ static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTe
                 false
             }
         },
-    
+
         // I8
         {
             LayerTransformation::createParamsI8I8(),
@@ -281,7 +281,7 @@ static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTe
                 false
             }
         },
-    
+
         {
             LayerTransformation::createParamsI8I8(),
             {
@@ -315,7 +315,7 @@ static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTe
                 false
             }
         },
-    
+
         {
             LayerTransformation::createParamsI8I8(),
             {
@@ -349,7 +349,7 @@ static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTe
                 false
             }
         },
-    
+
         {
             LayerTransformation::createParamsI8I8(),
             {
@@ -383,7 +383,7 @@ static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTe
                 false
             }
         },
-    
+
         // Constant as input
         {
             LayerTransformation::createParamsU8I8(),
@@ -418,7 +418,7 @@ static std::vector<MultiplyTransformationTestValues> getMultiplyTransformationTe
                 true
             }
         },
-    
+
         {
             LayerTransformation::createParamsU8I8(),
             {

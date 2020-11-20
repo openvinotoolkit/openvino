@@ -157,7 +157,7 @@ static std::vector<FakeQuantizeTransformationTestValues> getFakeQuantizeTransfor
                 { ngraph::element::f16, {{ 128.f }, { 0.01f }} }
             }
         },
-    
+
         // I8
         {
             LayerTransformation::createParamsI8I8(),
@@ -189,7 +189,7 @@ static std::vector<FakeQuantizeTransformationTestValues> getFakeQuantizeTransfor
                 { ngraph::element::f16, {{ -128.f }, { 0.01f }} }
             }
         },
-    
+
         // dot interval
         {
             LayerTransformation::createParamsI8I8(),
@@ -200,7 +200,7 @@ static std::vector<FakeQuantizeTransformationTestValues> getFakeQuantizeTransfor
                 { ngraph::element::f32, {{}, { 2.55f }} }
             }
         },
-    
+
         // efficientnet-b0: efficientnet-b0/model/blocks_2/depthwise_conv2d/depthwise/fq_input_0, interval: -0.504395 - +0.5
         // I8 symmetric: max ratio = 0.000907078
         {
@@ -213,7 +213,7 @@ static std::vector<FakeQuantizeTransformationTestValues> getFakeQuantizeTransfor
                 { ngraph::element::f16, {{ }, { -0.504395f / -128.0f }} }
             }
         },
-    
+
         // denormal values
         {
             LayerTransformation::createParamsU8I8AndI8(),

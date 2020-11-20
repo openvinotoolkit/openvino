@@ -179,7 +179,7 @@ static std::vector<MatMullTransformationTestValues> getTestValues() {
                 {}
             }
         },
-    
+
         // not supported 3D: U8 & I8
         {
             LayerTransformation::createParamsU8I8(),
@@ -203,7 +203,7 @@ static std::vector<MatMullTransformationTestValues> getTestValues() {
                 { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
             }
         },
-    
+
         // not supported 3D: U8 & I8
         {
             LayerTransformation::createParamsU8I8(),
@@ -241,7 +241,7 @@ static std::vector<MatMullTransformationTestValues> getTestValues() {
                 },
             }
         },
-    
+
         // 2D: U8 & I8
         {
             LayerTransformation::createParamsU8I8(),
