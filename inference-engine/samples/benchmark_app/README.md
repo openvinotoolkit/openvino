@@ -4,6 +4,12 @@ This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learn
 
 > **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../tools/benchmark_tool/README.md).
 
+> **TIP**: You also can work with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare 
+> performance of deep learning models on various Intel® architecture
+> configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components.
+> <br>
+> Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
 
 ## How It Works
 
@@ -43,6 +49,7 @@ The application also saves executable graph information serialized to an XML fil
 
 
 ## Run the Tool
+
 Note that the benchmark_app usually produces optimal performance for any device out of the box.
 
 **So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:
