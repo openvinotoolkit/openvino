@@ -1090,10 +1090,11 @@ void MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const
                                     inDesc.getPrecision()}));
     MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, getEngine(), weightsCache));
     auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
-    if (reorderPtr) {
-        reorderPtr->setDescs(inDesc, outDesc);
-        reorderPtr->_scales = scales;
+    if (reorderPtr == nullptr) {
+        THROW_IE_EXCEPTION << "MKLDNNGraph::InsertReorder: Cannot cast to MKLDNNReorderNode";
     }
+    reorderPtr->setDescs(inDesc, outDesc);
+    reorderPtr->_scales = scales;
 
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
