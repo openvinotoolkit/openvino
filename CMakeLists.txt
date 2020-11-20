@@ -4,6 +4,14 @@
 
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
+if(USE_CCACHE)
+    find_program(CCACHE_BINARY ccache)
+
+    if(CCACHE_BINARY)
+        set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_BINARY}")
+    endif()
+endif()
+
 project(OpenVINO)
 
 set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
