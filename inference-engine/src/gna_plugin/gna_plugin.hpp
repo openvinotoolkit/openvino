@@ -179,6 +179,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
       * Return CNNNetwork after passes
       */
      inline InferenceEngine::CNNNetwork GetExecGraphInfo() { return InferenceEngine::CNNNetwork(newNet); }
+
  protected:
     void Init();
 
