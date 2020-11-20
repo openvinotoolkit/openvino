@@ -9,7 +9,7 @@
 
 using namespace LayerTestsDefinitions;
 
-const std::vector<std::vector<uint64_t>> inShapes = {
+const std::vector<std::vector<size_t>> inShapes = {
     {1, 3, 8, 8},
     {3, 4, 50, 50}
 };
@@ -21,7 +21,7 @@ const std::vector<std::vector<size_t>> pooledShapes = {
     {6, 6}
 };
 
-const std::vector<std::vector<uint64_t>> coordShapes = {
+const std::vector<std::vector<size_t>> coordShapes = {
     {1, 5},
     {3, 5},
     {5, 5}
