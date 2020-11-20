@@ -35,7 +35,7 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
     auto output_format = input_layout.format;
 
     int spatialNum = 0;
-    for (auto i : node.input(1).get_output_layout().size.raw)
+    for (auto i : node.input(1).get_output_layout().size.spatial)
          spatialNum += (i > 1) ? 1 : 0;
 
     // change output format if input indeces > 1
