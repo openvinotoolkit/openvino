@@ -179,7 +179,7 @@ TEST_P(TransposeTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     TransposeTransformation,
     ::testing::ValuesIn(testValues),
     TransposeTransformation::getTestCaseName);

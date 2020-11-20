@@ -37,5 +37,6 @@ public:
 
 protected:
     JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
+    bool IsGlobalPooling(const pooling_params& params) const;
 };
 }  // namespace kernel_selector

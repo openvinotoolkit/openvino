@@ -234,7 +234,7 @@ const std::vector<ReluTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ReluTransformation,
     ::testing::ValuesIn(testValues),
     ReluTransformation::getTestCaseName);
