@@ -76,7 +76,7 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         mean_scale = get_mean_scale_dictionary(mean_values, scale_values, None)
         argv = Namespace(mean_scale_values=mean_scale)
 
-        graph = build_graph(nodes, [*connect('parameter', 'result')], {'parameter': {'name': None}},
+        graph = build_graph(nodes, [*connect('parameter', 'result')], {'parameter': {'name': 'None'}},
                             nodes_with_edges_only=True, cli=argv)
         graph.graph['layout'] = 'NCHW'
 
@@ -145,7 +145,7 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         ])
 
         argv = Namespace(mean_scale_values=[[np.array([1., 2., 3.]), np.array([1., 2., 3.])]])
-        graph = build_graph(nodes, [*connect('parameter', 'result')], {'parameter': {'name': None}},
+        graph = build_graph(nodes, [*connect('parameter', 'result')],
                             nodes_with_edges_only=True, cli=argv)
         graph.graph['layout'] = 'NCHW'
 
