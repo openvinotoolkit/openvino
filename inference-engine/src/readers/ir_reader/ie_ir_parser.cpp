@@ -499,13 +499,9 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     // Try to create operation from loaded opsets
     if (!ngraphNode && opsets.count(params.version)) {
         auto opset = opsets.at(params.version);
-        std::string type = params.type;
 
         if (!opset.contains_type(params.type)) {
-            std::transform(type.begin() + 1, type.end(), type.begin() + 1, ::tolower);
-            if (!opset.contains_type(type)) {
-                THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
-            }
+            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
         }
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
