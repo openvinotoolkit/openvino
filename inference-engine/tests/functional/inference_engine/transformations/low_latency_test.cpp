@@ -95,10 +95,10 @@ TEST(TransformationTests, LowLatencyLSTM) {
         auto lstm_cell = std::make_shared<opset5::LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
         auto assign_H = std::make_shared<opset5::Assign>(lstm_cell->output(0), variable_name_H);
         auto assign_C = std::make_shared<opset5::Assign>(lstm_cell->output(1), variable_name_C);
-        auto res_1 = std::make_shared<opset5::Result>(lstm_cell->output(0));
         auto unsqueeze = std::make_shared<opset5::Unsqueeze>(lstm_cell->output(0), axis);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-        f_ref = std::make_shared<ngraph::Function>(OutputVector{unsqueeze, res_1}, ParameterVector{Xi, H_t, C_t});
+        auto res_1 = std::make_shared<opset5::Result>(lstm_cell->output(0));
+        f_ref = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
         assign_C->add_control_dependency(read_value_C);
@@ -340,10 +340,10 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
         auto lstm_cell = std::make_shared<opset5::LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
         auto assign_H = std::make_shared<opset5::Assign>(lstm_cell->output(0), variable_name_H);
         auto assign_C = std::make_shared<opset5::Assign>(lstm_cell->output(1), variable_name_C);
-        auto res_1 = std::make_shared<opset5::Result>(lstm_cell->output(0));
         auto unsqueeze = std::make_shared<opset5::Unsqueeze>(lstm_cell->output(0), axis);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-        f_ref = std::make_shared<ngraph::Function>(OutputVector{unsqueeze, res_1}, ParameterVector{Xi, H_t, C_t});
+        auto res_1 = std::make_shared<opset5::Result>(lstm_cell->output(0));
+        f_ref = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
         assign_C->add_control_dependency(read_value_C);
