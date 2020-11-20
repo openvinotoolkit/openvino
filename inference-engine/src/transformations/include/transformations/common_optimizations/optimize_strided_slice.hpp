@@ -9,6 +9,7 @@
 
 #include <transformations_visibility.hpp>
 
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/slice_plan.hpp>
 #include <ngraph/util.hpp>
@@ -68,10 +69,7 @@ public:
 class ngraph::pass::StridedSliceOptimization: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
-        bool rewritten = UselessStridedSliceEraser().run_on_function(f);
-        rewritten |= SharedStridedSliceEraser().run_on_function(f);
-        rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
-        return rewritten;
-    }
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
+
+ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> slice);

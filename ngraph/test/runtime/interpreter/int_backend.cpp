@@ -53,6 +53,13 @@ shared_ptr<runtime::Tensor>
     return make_shared<runtime::HostTensor>(type, shape);
 }
 
+shared_ptr<runtime::Tensor>
+    runtime::interpreter::INTBackend::create_dynamic_tensor(const element::Type& type,
+                                                            const PartialShape& pshape)
+{
+    return make_shared<runtime::HostTensor>(type, pshape);
+}
+
 shared_ptr<runtime::Tensor> runtime::interpreter::INTBackend::create_tensor(
     const element::Type& type, const Shape& shape, void* memory_pointer)
 {

@@ -32,6 +32,17 @@ else:
   * **Default value**: None
   * **Required**: *yes*
 
+* *auto_broadcast*
+
+  * **Description**: specifies rules used for auto-broadcasting of input tensors.
+  * **Range of values**:
+    * *none* - no auto-broadcasting is allowed, all input shapes should match
+    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>
+    * *pdpd* - PaddlePaddle-style implicit broadcasting.
+  * **Type**: string
+  * **Default value**: "numpy"
+  * **Required**: *no*
+
 **Inputs**:
 
 *   **1**: `X` - multidimensional input tensor of floating type to be quantized. Required.

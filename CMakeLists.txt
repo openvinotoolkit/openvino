@@ -2,12 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_policy(SET CMP0054 NEW)
-
-# TODO: for make instal / package we need to use 3.13.3 version because
-# it allows to install targets created outside of current projects
-# See https://blog.kitware.com/cmake-3-13-0-available-for-download/
-
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 project(OpenVINO)
@@ -66,12 +60,36 @@ function(build_ngraph)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
     endif()
 
-    if(NOT (ANDROID OR WINDOWS_STORE))
+    if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
     endif()
     ngraph_set(NGRAPH_INTERPRETER_ENABLE TRUE)
+
+    if(TREAT_WARNING_AS_ERROR)
+        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS ON)
+    else()
+        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS OFF)
+    endif()
+
+    if(COVERAGE)
+        ngraph_set(NGRAPH_CODE_COVERAGE_ENABLE ON)
+    else()
+        ngraph_set(NGRAPH_CODE_COVERAGE_ENABLE OFF)
+    endif()
+
+    if(ENABLE_SANITIZER)
+        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE ON)
+    else()
+        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE OFF)
+    endif()
+
+    if(ENABLE_THREAD_SANITIZER)
+        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE ON)
+    else()
+        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE OFF)
+    endif()
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
@@ -132,6 +150,7 @@ build_ngraph()
 
 add_subdirectory(inference-engine)
 
+add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 
 #

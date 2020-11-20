@@ -38,8 +38,8 @@ classification_sample_async [OPTION]
 Options:
 
     -h                      Print a usage message.
-    -i "<path>"             Required. Path to a folder with images or path to an image files: a .ubyte file for LeNetand a .bmp file for the other networks.
     -m "<path>"             Required. Path to an .xml file with a trained model.
+    -i "<path>"             Required. Path to a folder with images or path to an image files: a .ubyte file for LeNetand a .bmp file for the other networks.
       -l "<absolute_path>"  Required for CPU custom layers.Absolute path to a shared library with the kernels implementation
           Or
       -c "<absolute_path>"  Required for GPU custom kernels.Absolute path to the .xml file with kernels description
@@ -57,7 +57,7 @@ To run the sample, use AlexNet and GoogLeNet or other public or pre-trained imag
 
 You can do inference of an image using a trained AlexNet network on FPGA with fallback to CPU using the following command:
 ```sh
-./classification_sample_async -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU
+./classification_sample_async -m <path_to_model>/alexnet_fp32.xml -i <path_to_image>/cat.bmp -d HETERO:FPGA,CPU -nt 5 
 ```
 
 ## Sample Output
