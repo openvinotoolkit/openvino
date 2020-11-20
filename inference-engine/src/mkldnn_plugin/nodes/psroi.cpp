@@ -50,20 +50,24 @@ public:
             part_size_ = layer->GetParamAsInt("part_size", 1);
             trans_std_ = layer->GetParamAsFloat("trans_std", 1);
 
-            bool isBf16Input = layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16;
+            bool supportedPrecision = layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16 ? Precision::BF16 : Precision::FP32;
 
             if (no_trans_) {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN)},
-                          {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
+                                  DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                          {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
 
-                addConfig(layer, {DataConfigurator(ConfLayout::BLK16, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN)},
-                          {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
+                addConfig(layer, {DataConfigurator(ConfLayout::BLK16, supportedPrecision),
+                                  DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                          {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
             } else {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN),
-                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
+                                  DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
 
-                addConfig(layer, {DataConfigurator(ConfLayout::BLK16, isBf16Input ? Precision::BF16 : Precision::FP32), DataConfigurator(ConfLayout::PLN),
-                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, isBf16Input ? Precision::BF16 : Precision::FP32)});
+                addConfig(layer, {DataConfigurator(ConfLayout::BLK16, supportedPrecision),
+                                  DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
             }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
