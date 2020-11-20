@@ -82,8 +82,8 @@ def get_net_copy_with_output(model: str, output: str, core: IECore):
         if founded_op:
             net_copy.add_outputs(output)
         else:
-            splitted = output.rsplit(".", 1)
-            net_copy.add_outputs((splitted[0], int(splitted[1])))
+            split = output.rsplit(".", 1)
+            net_copy.add_outputs((split[0], int(split[1])))
     return net_copy
 
 
