@@ -489,6 +489,22 @@ inline uint FUNC(get_os_zyxi_osv16_index)(uint o, uint i, uint z, uint y, uint x
     (o)*CAT(prefix, _OFM_PITCH) +               \
     (g)*CAT(prefix, _GROUPS_PITCH)
 
+#define GET_FILTER_GIOYX(prefix, g, o, i, y, x) \
+    CAT(prefix, _OFFSET) +                      \
+    (x)*CAT(prefix, _X_PITCH) +                 \
+    (y)*CAT(prefix, _Y_PITCH) +                 \
+    (i)*CAT(prefix, _IFM_PITCH) +               \
+    (o)*CAT(prefix, _OFM_PITCH) +               \
+    (g)*CAT(prefix, _GROUPS_PITCH)
+
+#define GET_FILTER_GIOYX_SAFE(prefix, g, o, i, y, x)        \
+    CAT(prefix, _OFFSET) +                                  \
+    (x % CAT(prefix, _SIZE_X ))*CAT(prefix, _X_PITCH) +     \
+    (y % CAT(prefix, _SIZE_Y ))*CAT(prefix, _Y_PITCH) +     \
+    (i % CAT(prefix, _IFM_NUM))*CAT(prefix, _IFM_PITCH) +   \
+    (o % CAT(prefix, _OFM_NUM))*CAT(prefix, _OFM_PITCH) +   \
+    (g % CAT(prefix, _GROUPS_NUM))*CAT(prefix, _GROUPS_PITCH)
+
 #define GET_FILTER_GOIYX_SAFE(prefix, g, o, i, y, x)        \
     CAT(prefix, _OFFSET) +                                  \
     (x % CAT(prefix, _SIZE_X ))*CAT(prefix, _X_PITCH) +     \
@@ -511,6 +527,24 @@ inline uint FUNC(get_os_zyxi_osv16_index)(uint o, uint i, uint z, uint y, uint x
     (g)*CAT(prefix, _GROUPS_PITCH)
 
 #define GET_FILTER_GOIZYX_SAFE(prefix, g, o, i, z, y, x)    \
+    CAT(prefix, _OFFSET) +                                  \
+    (x % CAT(prefix, _SIZE_X ))*CAT(prefix, _X_PITCH) +     \
+    (y % CAT(prefix, _SIZE_Y ))*CAT(prefix, _Y_PITCH) +     \
+    (z % CAT(prefix, _SIZE_Z ))*CAT(prefix, _Z_PITCH) +     \
+    (i % CAT(prefix, _IFM_NUM))*CAT(prefix, _IFM_PITCH) +   \
+    (o % CAT(prefix, _OFM_NUM))*CAT(prefix, _OFM_PITCH) +   \
+    (g % CAT(prefix, _GROUPS_NUM))*CAT(prefix, _GROUPS_PITCH)
+
+#define GET_FILTER_GIOZYX(prefix, g, o, i, z, y, x) \
+    CAT(prefix, _OFFSET) +                          \
+    (x)*CAT(prefix, _X_PITCH) +                     \
+    (y)*CAT(prefix, _Y_PITCH) +                     \
+    (z)*CAT(prefix, _Z_PITCH) +                     \
+    (i)*CAT(prefix, _IFM_PITCH) +                   \
+    (o)*CAT(prefix, _OFM_PITCH) +                   \
+    (g)*CAT(prefix, _GROUPS_PITCH)
+
+#define GET_FILTER_GIOZYX_SAFE(prefix, g, o, i, z, y, x)    \
     CAT(prefix, _OFFSET) +                                  \
     (x % CAT(prefix, _SIZE_X ))*CAT(prefix, _X_PITCH) +     \
     (y % CAT(prefix, _SIZE_Y ))*CAT(prefix, _Y_PITCH) +     \
