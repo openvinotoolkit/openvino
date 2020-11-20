@@ -48,7 +48,7 @@ namespace ngraph
     NGRAPH_API EnumNames<op::PadType>& EnumNames<op::PadType>::get()
     {
         static auto enum_names = EnumNames<op::PadType>("op::PadType",
-                                                        {{"none", op::PadType::EXPLICIT},
+                                                        {{"explicit", op::PadType::EXPLICIT},
                                                          {"same_lower", op::PadType::SAME_LOWER},
                                                          {"same_upper", op::PadType::SAME_UPPER},
                                                          {"valid", op::PadType::VALID}});
