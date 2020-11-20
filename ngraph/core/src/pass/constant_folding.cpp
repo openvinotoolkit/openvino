@@ -21,6 +21,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConstantFolding, "ConstantFolding", 0);
+
 bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
     bool rewritten = false;
