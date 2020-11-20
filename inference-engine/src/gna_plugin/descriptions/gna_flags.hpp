@@ -15,6 +15,7 @@ struct GNAFlags {
     bool uniformPwlDesign = false;
     bool gna_openmp_multithreading = false;
     bool sw_fp32 = false;
+    bool fake_quantized = false;
     bool performance_counting = false;
 };
 }  // namespace GNAPluginNS

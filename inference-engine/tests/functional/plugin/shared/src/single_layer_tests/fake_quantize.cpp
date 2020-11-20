@@ -111,8 +111,6 @@ void FakeQuantizeLayerTest::SetUp() {
             {fqDirectArg[2]},
             {fqDirectArg[3]});
     }
-
-
     auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};

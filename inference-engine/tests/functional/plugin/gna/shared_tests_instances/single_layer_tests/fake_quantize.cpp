@@ -41,17 +41,45 @@ const std::vector<std::pair<std::string, ConfigType>> gnaQuantModes = {
 //    {"sw_exact_i8", configInt8},
 };
 
-const std::vector<std::vector<size_t>> inputShapes = {{1, 1, 1, 1}, {3, 10, 5, 6}};
+const std::vector<std::vector<size_t>> inputShapes = {
+            {3, 10, 5, 6},
+            {1, 1, 1, 1},
+            {1, 8, 8, 256},
+            {1, 2, 2, 2},
+            {1, 3, 4, 5},
+            };
 const std::vector<std::vector<size_t>> constShapes = {{1}};
 const std::vector<size_t> levels = {16, 255, 256};
 
-const std::vector<std::vector<float>> fqArgs = {{0, 10, 2, 5}, {}};
+const std::vector<std::vector<float>> fqArgs = {{}};
 const std::vector<std::vector<float>> inputParams = {{-10, 10, 0.1}, {}};
+
+const std::vector<float> fqInputMin = {0, 1, 2, 3, 4, 5};
+const std::vector<float> fqInputMax = {10, 9, 8, 7, 6};
+const std::vector<float> fqOutputMin = {1, 2, 3, 4};
+const std::vector<float> fqOutputMax = {8, 7, 6, 5};
+
+std::vector<std::vector<float>> getInputOutputShapes(const std::vector<float> inputsMin,
+        const std::vector<float> inputsMax,
+        const std::vector<float> OutputsMin,
+        const std::vector<float> OutputsMax,
+        std::vector<std::vector<float>> fqArg) {
+    for (const auto& inputMin : inputsMin) {
+        for (const auto& inputMax : inputsMax) {
+            for (const auto& outputMin : OutputsMin) {
+                for (const auto& outputMax : OutputsMax) {
+                    fqArg.push_back({inputMin, inputMax, outputMin, outputMax});
+                }
+            }
+        }
+    }
+    return fqArg;
+}
 
 const auto fqParams = ::testing::Combine(
     ::testing::ValuesIn(levels),
     ::testing::ValuesIn(constShapes),
-    ::testing::ValuesIn(fqArgs),
+    ::testing::ValuesIn(getInputOutputShapes(fqInputMin, fqInputMax, fqOutputMin, fqOutputMax, fqArgs)),
     ::testing::ValuesIn(inputParams)
 );
 

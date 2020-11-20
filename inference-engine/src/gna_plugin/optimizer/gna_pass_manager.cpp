@@ -25,21 +25,25 @@
 #include <legacy/net_pass.h>
 #include <layers/gna_copy_layer.hpp>
 
+#include "backend/dnn_types.h"
 #include "gna_plugin_log.hpp"
 #include "frontend/quantization.h"
 #include "frontend/quantized_layer_params.hpp"
 #include <layers/gna_copy_layer.hpp>
+#include <layers/gna_fake_quantize_layer.hpp>
+#include <runtime/pwl.h>
 #include "gna_graph_tools.hpp"
 #include "gna_pass_manager.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "gna_upstream_iterator.hpp"
+#include "frontend/quantization.h"
 
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 
-#define pass_trace() gnalog() << "[" << getName() << "]"
+#define pass_trace() gnalog() << "[" << getName() << "] "
 
 std::shared_ptr<IPassManager> BasePass::getPassManager() {
     auto sharedMgr = mgr.lock();
@@ -1668,6 +1672,232 @@ void FuseMultipleIdentitiesPass::run() {
             //2nd stage - now setting up new connection
             l->insData.push_back(alreadyIdentity->outData.front());
             getInputTo(alreadyIdentity->outData.front())[l->name] = l;
+        }
+    }
+}
+
+void FuseFQIntoWeightsPass::run() {
+    auto isNonFunctional = [](CNNLayerPtr ptr) {
+        return LayerInfo(ptr).isNonFunctional();
+    };
+
+    auto assignWeightsAndBiases = [](CNNLayerPtr layer, Blob::Ptr weights, Blob::Ptr biases) {
+        auto weigtableLayer = std::dynamic_pointer_cast<WeightableLayer>(layer);
+        if (nullptr == weigtableLayer) {
+            THROW_GNA_LAYER_EXCEPTION(layer) << " not a weightable layer";
+        }
+        weigtableLayer->_weights = weights;
+        weigtableLayer->_biases  = biases;
+        weigtableLayer->blobs["weights"] = weights;
+        weigtableLayer->blobs["biases"] = biases;
+    };
+
+    for (auto &l : *pLayers) {
+        if (!LayerInfo(l).isFakeQuantize()) {
+            continue;
+        }
+        // determine whether this FQ is actually ends into weigtable layer
+        auto fqLayer = l;
+        if (!CNNNetHasNextLayerSkipCertain(fqLayer, 0, 0, isNonFunctional)) {
+            continue;
+        }
+
+        auto weightableLayer = CNNNetGetNextLayerSkipCertain(fqLayer, 0, 0, isNonFunctional).first;
+        if (!LayerInfo(weightableLayer).isWeightable()) {
+            continue;
+        }
+        if (weightableLayer->insData.size() != 3) {
+            continue;
+        }
+
+        // check whether this FQ represents weights - it need to be at index 1 of weightable layer
+        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, 1, isNonFunctional);
+
+        if (prevLayerAt1 != fqLayer) {
+            continue;
+        }
+
+        // now this FQ layer represents weights - lets apply it and fuse to given weightable layer.
+        pass_trace() << "found " << LAYER_NAME(fqLayer) << " that will be converted to weights of "
+            << LAYER_NAME(weightableLayer) << "\n";
+
+        GNAFakeQuantizeLayer gnaFakeQuantizeLayer(fqLayer);
+
+        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, 2);
+        auto quantizedWeights = gnaFakeQuantizeLayer.getConstInputData();
+
+        // 1. broke existing connections - by detaching fq subgraph from rest of graph
+        auto prevData = weightableLayer->insData[1].lock();
+        auto prevLayer = getCreatorLayer(prevData).lock();
+        auto weightDims = prevLayer->outData.front()->getDims();
+        prevLayer->outData.clear();
+        weightableLayer->insData.resize(1);
+
+        // 2. running FQ function for given layer
+        if (weightDims.size() != 2) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " layout of weigths not equal to NC not yet supported";
+        }
+        auto outputSize = details::product(weightDims.begin(), weightDims.end());
+
+        // depending on compute precision weights will be recreated
+        // for integer mode - weights might be simply copied - to avoid furter quantisations overhead
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(weightableLayer);
+        if (quantized) {
+            // assign already quantized Weights
+            assignWeightsAndBiases(weightableLayer, quantizedWeights, biases);
+
+            // modify scale factors for quantized component
+            auto levels = gnaFakeQuantizeLayer.getLevels();
+            auto inputRange = gnaFakeQuantizeLayer.getInputRange();
+            auto outputRange = gnaFakeQuantizeLayer.getOutputRange();
+            if (outputRange.first.size() != outputRange.second.size()) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " number of min and max data must be equal, min size: "
+                    << outputRange.first.size() << ", max size: " << outputRange.second.size();
+            }
+
+            if (inputRange.first.size() != outputRange.first.size() ||
+                inputRange.second.size() != outputRange.second.size()) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " size of input and output range differs. "
+                    << "input min size: " << inputRange.first.size() << ", "
+                    << "output min size: " << outputRange.first.size() << ", "
+                    << "input max size: " << inputRange.second.size() << ", "
+                    << "output max size: " << outputRange.second.size();
+            }
+
+            if (levels > std::numeric_limits<uint8_t>::max() && outputRange.first.size() > 1) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantization for int16 weights."
+                    << " Per-channel quantization ";
+            }
+
+            // check if
+            // - weights were float values and need to be quantized,
+            // - weights are integer values and quantization can be skipped
+            for (size_t i = 0; i < outputRange.first.size(); ++i) {
+                if (inputRange.first[i] > outputRange.first[i] ||
+                    inputRange.second[i] > outputRange.second[i]) {
+                    quantized->_weights_quantized = true;
+                    break;
+                }
+            }
+
+            quantized->_weights_quant.SetMinValues(outputRange.first);
+            quantized->_weights_quant.SetMaxValues(outputRange.second);
+            quantized->_weights_quant.SetLevels(levels);
+
+            // lets find out minimum scale factor among channels
+            if (quantized->_weights_quant.GetMinValues().empty()) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " per channel/tensor weigths scales are missed";
+            }
+            auto getScale = [&quantized](size_t i) {
+                return (quantized->_weights_quant.GetLevels() - 1) /
+                    (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
+            };
+
+            float min_channel_scale = getScale(0);
+            for (uint32_t i = 1; i < quantized->_weights_quant.GetMinValues().size(); i++) {
+                min_channel_scale = std::min(min_channel_scale, getScale(i));
+            }
+
+            auto multiplier = 1.0f;
+            if (quantized->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
+                // GNA supports additional multiplier for only 8bit weights.
+                // The multipler is used to extend dynamic range.
+                multiplier = MAX_OUT_MULTIPLIER;
+            }
+
+            // Common weights scale calculation
+            quantized->_weights_quant.SetScale(min_channel_scale * multiplier);
+            continue;
+        }
+
+        intel_dnn_component_t component;
+        component.num_columns_in = weightDims[1];
+        component.num_rows_in    = weightDims[0];
+
+        intel_piecewiselinear_t *transform = reinterpret_cast<intel_piecewiselinear_t *>(&component.op.pwl);
+        transform->func_id = gnaFakeQuantizeLayer.parseAsActivation();
+
+        auto quantizedWeightsData = quantizedWeights->buffer();
+        component.ptr_inputs = quantizedWeightsData.as<float*>();
+
+        auto dequantizedWeights = make_shared_blob<float>(TensorDesc(Precision::FP32, {outputSize}, Layout::C));
+        dequantizedWeights->allocate();
+
+        auto resultBuffer = dequantizedWeights->buffer();
+        component.ptr_outputs = resultBuffer.as<float*>();
+
+        PwlApply32(&component, 0, component.num_rows_in - 1, 0, component.num_columns_in - 1);
+
+        // 3. assign dequantized const blob to weightable layer
+        assignWeightsAndBiases(weightableLayer, dequantizedWeights, biases);
+    }
+}
+
+void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+    if (!quantized) {
+        return;
+    }
+
+    auto donotSkip = [](CNNLayerPtr) {
+        return false;
+    };
+    for (auto &&l : *pLayers) {
+        if (!LayerInfo(l).isFakeQuantize()) {
+            continue;
+        }
+        GNAFakeQuantizeLayer fqLayer(l);
+        auto prevLayer = CNNNetPrevLayerSkipCertain(*fqLayer, 0, donotSkip);
+        if (prevLayer->outData.size() != 1) {
+            THROW_GNA_LAYER_EXCEPTION(prevLayer) << " fake quantize input that connected to something else not supported";
+        }
+
+        auto inputRange = fqLayer.getInputRange();
+        auto outputRange = fqLayer.getOutputRange();
+        if (inputRange.second.size() != 1 || inputRange.second.size() != 1 ||
+            outputRange.second.size() != 1 || outputRange.second.size() != 1) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation";
+        }
+
+        float fqLevels = fqLayer.getLevels();
+        float scaleInput = (fqLevels - 1) / (inputRange.second[0] - inputRange.first[0]);
+        float scaleOutputs = (fqLevels - 1) / (outputRange.second[0] - outputRange.first[0]);
+
+        // Before FQ layer is removed, the previous layer has to be updated with its quantization data
+        auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
+        quantParamsPrevLayer->_dst_quant.SetScale(scaleOutputs);
+        quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);
+        quantParamsPrevLayer->_dst_quant.SetMinValues({ inputRange.first[0] });
+        quantParamsPrevLayer->_dst_quant.SetMaxValues({ inputRange.second[0] });
+
+        auto prevData = prevLayer->outData.front();
+        getInputTo(prevLayer->outData.front()).clear();
+
+        // Find all output layers connected to FQ
+        auto nextLayers = CNNNetGetAllNextLayersSkipCertain(*fqLayer, -1, donotSkip);
+        if (nextLayers.empty()) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize does not have any output layers connected";
+        }
+
+        // Connect all next layers after FQ to the layer that is before FQ
+        // and propagate quantization data
+        for (size_t i = 0; i < nextLayers.size(); ++i) {
+            auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
+            if (insDatas.size() != 1) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
+                    << LAYER_NAME(nextLayers[i]) << " is not correct";
+            }
+
+            nextLayers[i]->insData[insDatas.front()] = prevData;
+            getInputTo(prevLayer->outData.front())[nextLayers[i]->name] = nextLayers[i];
+
+            // After layer gets removed lets absorb its params in QuantParams structure
+            // replacing scale factor from this fq layer
+            auto quantParamsNextLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(nextLayers[i]);
+            quantParamsNextLayer->_src_quant.SetScale(scaleOutputs);
+            quantParamsNextLayer->_src_quant.SetLevels(fqLevels);
+            quantParamsNextLayer->_src_quant.SetMinValues({ outputRange.first[0] });
+            quantParamsNextLayer->_src_quant.SetMaxValues({ outputRange.second[0] });
         }
     }
 }

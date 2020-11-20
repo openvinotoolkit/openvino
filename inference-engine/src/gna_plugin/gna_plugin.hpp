@@ -219,6 +219,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                     int idx = 0);
 
     void UpdateFieldsFromConfig();
+    void UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork &);
+    void UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork &);
 };
 
 }  // namespace GNAPluginNS

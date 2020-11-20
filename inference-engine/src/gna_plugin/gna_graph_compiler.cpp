@@ -31,6 +31,7 @@
 #include "layers/layers_builder.hpp"
 #include "layers/gna_concat_layer.hpp"
 #include "layers/gna_crop_layer.hpp"
+#include "layers/gna_fake_quantize_layer.hpp"
 #include "round_float_define.hpp"
 #include "gna_plugin_policy.hpp"
 
@@ -377,8 +378,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     float output_scale_factor = 1.0f;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
     if (quantized != nullptr) {
-        weight_scale_factor = quantized->_weights_quant.scale;
-        output_scale_factor = quantized->_dst_quant.scale;
+        weight_scale_factor = quantized->_weights_quant.GetScale();
+        output_scale_factor = quantized->_dst_quant.GetScale();
     }
 
     auto& currentComponent = dnnComponents.addComponent(layer->name, "convolution");
@@ -541,8 +542,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
             // TODO: only fp32 and Int16 tested
             quantized == nullptr ? input->getPrecision().size() : 2,
             quantized == nullptr ? input->getPrecision().size() : 4,
-            quantized == nullptr ? 1 : quantized->_weights_quant.scale,
-            quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+            quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+            quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
             ptr_inputs,
             ptr_outputs,
             ptr_weights,
@@ -558,9 +559,9 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
             gnamem->readonly().push_value(ptr_biases, power.offset, num_rows_out, 64);
         } else {
             IE_ASSERT(quantized != nullptr);
-            auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.scale * power.scale,
+            auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.GetScale() * power.scale,
                 static_cast<float>(INT16_MAX)));
-            auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.scale * power.offset,
+            auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.GetScale() * power.offset,
                 static_cast<float>(INT32_MAX)));
             gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedScale, num_rows_out, 64);
             gnamem->readonly().push_value<int32_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
@@ -580,8 +581,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
         gna_pwl_segment_t* ptr_pwl_segments_target = nullptr;
 
-        float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
-        float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.scale : 1.0f;
+        float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
+        float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.GetScale() : 1.0f;
 
         if (!gnaFlags->sw_fp32) {
             if (gnaFlags->uniformPwlDesign) {
@@ -687,7 +688,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         pooling._kernel[X_AXIS],
         num_columns_in,
         false,
-        quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+        quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         ptr_inputs,
         ptr_outputs);
 
@@ -727,7 +728,7 @@ void GNAGraphCompiler::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
         num_columns_out,
         inputs->getPrecision().size(),
         outputs->getPrecision().size(),
-        quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+        quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         num_rows_out + num_padding_out,
         num_columns_out,
         ptr_inputs,
@@ -915,8 +916,8 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
             4,
             quantized == nullptr ? inputs->getPrecision().size() : 2,
             4,
-            quantized == nullptr ? 1 : quantized->_weights_quant.scale,
-            quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+            quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+            quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
             ptr_inputs,
             ptr_outputs,
             ptr_weights,
@@ -1028,8 +1029,8 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         // TODO: only fp32 and Int16 tested
         quantized == nullptr ? inputs2Bytes->getPrecision().size() : 2,
         quantized == nullptr ? inputs4Bytes->getPrecision().size() : 4,
-        quantized == nullptr ? 1 : quantized->_weights_quant.scale,
-        quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+        quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+        quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
@@ -1050,7 +1051,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         if (quantized == nullptr) {
             gnamem->readonly().push_value(ptr_weights, -1.0f, num_rows_out, 64);
         } else {
-            auto scaledIdentity = -quantized->_weights_quant.scale;
+            auto scaledIdentity = -quantized->_weights_quant.GetScale();
 
             auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
 
@@ -1062,7 +1063,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         if (quantized == nullptr) {
             gnamem->readonly().push_value(ptr_weights, 1.0f, num_rows_out, 64);
         } else {
-            auto scaledIdentity = quantized->_weights_quant.scale;
+            auto scaledIdentity = quantized->_weights_quant.GetScale();
 
             auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
 
@@ -1132,8 +1133,8 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         outputs->getPrecision().size(),
         weightable._weights->getTensorDesc().getPrecision().size(),
         biasPrecision.size(),
-        quantized == nullptr ? 1 : quantized->_weights_quant.scale,
-        quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+        quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+        quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
@@ -1310,7 +1311,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
                                num_columns_in,
                                inputs->getPrecision().size(),
                                inputs->getPrecision().size(),
-                               quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+                               quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
                                num_rows_copied,
                                num_columns_in,
                                ptr_inputs,
@@ -1346,8 +1347,8 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         outputs->getPrecision().size(),
         filterLayer->_weights->getTensorDesc().getPrecision().size(),
         biasPrecision.size(),
-        quantized == nullptr ? 1 : quantized->_weights_quant.scale,
-        quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+        quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+        quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
@@ -1436,8 +1437,8 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
         outputs->getPrecision().size(),
         filterLayer->_weights->getTensorDesc().getPrecision().size(),
         biasPrecision.size(),
-        quantized == nullptr ? 1 : quantized->_weights_quant.scale,
-        quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+        quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+        quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
@@ -1517,13 +1518,14 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
     } while (false);
 
-    IE_ASSERT(!layer->insData.empty());
-    IE_ASSERT(!layer->outData.empty());
+    GNA_LAYER_ASSERT(layer, !layer->insData.empty());
+    GNA_LAYER_ASSERT(layer, !layer->outData.empty());
+
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-    float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
-    float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.scale : 1.0f;
+    float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
+    float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.GetScale() : 1.0f;
 
     auto orientation = kDnnInterleavedOrientation;
 
@@ -1588,39 +1590,7 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (it->second == kActFakeQuantize) {
-        // get params from const input
-        auto GetParamFromInputAsFloat = [](CNNLayerPtr input, size_t idx) {
-            if (input->insData.size() <= idx) {
-                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << "input";
-            }
-            auto iLayerData = input->insData[idx].lock();
-            if (!iLayerData) {
-                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: cannot dereference data weak-pointer";
-            }
-            auto iLayer = getCreatorLayer(iLayerData).lock();
-            if (!iLayer) {
-                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: cannot dereference creator layer weak-pointer";
-            }
-            if (!LayerInfo(iLayer).isConst()) {
-                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: expected to be of type const, but was: " << iLayer->type;
-            }
-
-            if (!iLayer->blobs.count("custom")) {
-                THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot get custom blob";
-            }
-            auto data = iLayer->blobs["custom"];
-            if (data->getTensorDesc().getPrecision() != Precision::FP32) {
-                THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot cast custom blob to type FP32, since it is of type: " << data->getTensorDesc().getPrecision();
-            }
-
-            return data->cbuffer().as<float*>()[0];
-        };
-
-        activation_type.args.fakeQuantize.levels = layer->GetParamAsInt("levels");
-        activation_type.args.fakeQuantize.input_low = GetParamFromInputAsFloat(layer, 1);
-        activation_type.args.fakeQuantize.input_high = GetParamFromInputAsFloat(layer, 2);
-        activation_type.args.fakeQuantize.output_low = GetParamFromInputAsFloat(layer, 3);
-        activation_type.args.fakeQuantize.output_high = GetParamFromInputAsFloat(layer, 4);
+        activation_type = GNAFakeQuantizeLayer(layer).parseAsActivation();
     }
 
     string actName = "unknown";
@@ -1759,7 +1729,7 @@ void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
                                          squeezedInputOrder[1],
                                          inputs->getPrecision().size(),
                                          outputs->getPrecision().size(),
-                                         (quantized == nullptr) ? 1.0f : quantized->_dst_quant.scale,
+                                         (quantized == nullptr) ? 1.0f : quantized->_dst_quant.GetScale(),
                                          ptr_inputs,
                                          ptr_outputs);
         }
@@ -1774,7 +1744,7 @@ void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
                                            squeezedInputOrder[1],
                                            inputs->getPrecision().size(),
                                            outputs->getPrecision().size(),
-                                           quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+                                           quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
                                            ptr_inputs,
                                            ptr_outputs);
         }
