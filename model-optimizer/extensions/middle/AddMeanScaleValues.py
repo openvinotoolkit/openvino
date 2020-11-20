@@ -59,14 +59,14 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         shape[features_dim_idx] = value.size
         value = value.reshape(shape)
 
-        name = input_node.soft_get('name', input_node.id) + preprocessing_name
-        prepocessing = create_op_with_const_inputs(graph, op=op, port_value_dict={1: value}, op_attrs={'name': name})
+        name = input_node.soft_get('name', input_node.id) + '/' + preprocessing_name
+        preprocessing = create_op_with_const_inputs(graph, op=op, port_value_dict={1: value}, op_attrs={'name': name})
 
         for dst in input_node.out_port(0).get_destinations():
             if dst.node.soft_get('type') != 'ShapeOf':
-                dst.get_connection().set_source(prepocessing.out_port(0))
+                dst.get_connection().set_source(preprocessing.out_port(0))
 
-        input_node.out_port(0).connect(prepocessing.in_port(0))
+        input_node.out_port(0).connect(preprocessing.in_port(0))
 
     @staticmethod
     def apply_scale(graph: Graph, input_node: Node, node_mean_scale_values: dict):
