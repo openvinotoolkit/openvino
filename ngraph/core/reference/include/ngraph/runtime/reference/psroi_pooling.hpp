@@ -16,7 +16,9 @@
 
 #pragma once
 
+#include <cmath>
 #include <string>
+
 #include "ngraph/shape.hpp"
 
 namespace ngraph
@@ -73,10 +75,10 @@ namespace ngraph
                     float end_h = box[4] * spatial_scale;
                     if (mode == AVG)
                     {
-                        start_w = round(start_w);
-                        start_h = round(start_h);
-                        end_w = round(end_w) + 1;
-                        end_h = round(end_h) + 1;
+                        start_w = std::roundf(start_w);
+                        start_h = std::roundf(start_h);
+                        end_w = std::roundf(end_w) + 1;
+                        end_h = std::roundf(end_h) + 1;
                     }
                     float box_width = end_w - start_w;
                     float box_height = end_h - start_h;
