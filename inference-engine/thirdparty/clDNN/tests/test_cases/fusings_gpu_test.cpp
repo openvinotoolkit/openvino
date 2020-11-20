@@ -638,6 +638,36 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale,
                                              bc_test_params{CASE_CONV_FP16_10, 2, 3},
                                              }), );
 
+class conv_fp32_bias : public ConvFusingTest {};
+TEST_P(conv_fp32_bias, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 convolution("conv_prim", "input", {"weights"}, std::vector<primitive_id>{}, p.groups, p.stride, p.pad, p.dilation),
+                 eltwise("add_bias", {"conv_prim", "bias"}, eltwise_mode::sum),
+                 reorder("reorder_bfyx", "add_bias", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_bias,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                             bc_test_params{CASE_CONV_FP32_1, 2, 3},
+                                             bc_test_params{CASE_CONV_FP32_2, 2, 3},
+                                             bc_test_params{CASE_CONV_FP32_3, 2, 3},
+                                             bc_test_params{CASE_CONV_FP32_4, 2, 3},
+                                             bc_test_params{CASE_CONV_FP32_10, 2, 3},
+
+                                             bc_test_params{CASE_CONV_FP16_1, 2, 3},
+                                             bc_test_params{CASE_CONV_FP16_2, 2, 3},
+                                             bc_test_params{CASE_CONV_FP16_3, 2, 3},
+                                             bc_test_params{CASE_CONV_FP16_4, 2, 3},
+                                             bc_test_params{CASE_CONV_FP16_10, 2, 3},
+                                             }), );
+
 class conv_fp32_prelu_eltwise : public ConvFusingTest {};
 TEST_P(conv_fp32_prelu_eltwise, basic_sum) {
     auto p = GetParam();
@@ -2451,6 +2481,27 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_fp32_activation, ::testing::ValuesIn(std
                                                                             bc_test_params{ CASE_FC_FP32_3, 2, 3 },
 }), );
 
+class fc_fp32_bias : public FCFusingTest {};
+TEST_P(fc_fp32_bias, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                data("weights", get_mem(get_weights_layout(p))),
+                data("bias", get_mem(get_bias_layout(p))),
+                fully_connected("fc_prim", "input", "weights", ""),
+                eltwise("bias_add", {"fc_prim", "bias"}, eltwise_mode::sum),
+                reorder("reorder_bfyx", "bias_add", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_fp32_bias, ::testing::ValuesIn(std::vector<bc_test_params>{
+                                                                            bc_test_params{ CASE_FC_FP32_1, 2, 3 },
+                                                                            bc_test_params{ CASE_FC_FP32_2, 2, 3 },
+                                                                            bc_test_params{ CASE_FC_FP32_3, 2, 3 },
+}), );
+
 class fc_int8_scale : public FCFusingTest {};
 TEST_P(fc_int8_scale, basic) {
     auto p = GetParam();
@@ -4040,6 +4091,58 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_actv,
         deconv_test_params{ CASE_DECONV_S8S8_3D_6, 2, 3 },
         deconv_test_params{ CASE_DECONV_S8S8_3D_7, 2, 3 },
         deconv_test_params{ CASE_DECONV_S8S8_3D_8, 2, 3 },
+}), );
+
+
+class deconv_bias : public DeconvolutionFusingTest {};
+TEST_P(deconv_bias, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
+        eltwise("bias_add", {"deconv", "bias"}, eltwise_mode::sum),
+        reorder("out", "bias_add", p.default_format, data_types::f32)
+    );
+    // Need much higher tolerance because of deconvolution -> convolution optimization
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_bias,
+    ::testing::ValuesIn(std::vector<deconv_test_params>{
+        deconv_test_params{ CASE_DECONV_FP32_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_FP16_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_FP32_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_3, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_FP16_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_3, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_3, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_3, 2, 3 },
 }), );
 
 class deconv_scale : public DeconvolutionFusingTest {};

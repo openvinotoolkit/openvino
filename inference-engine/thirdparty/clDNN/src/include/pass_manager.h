@@ -197,6 +197,7 @@ public:
 private:
     void run(program_impl& p) override;
     void fuse_sigmoid_mul_to_swish(program_impl &p);
+    void fuse_bias(program_impl &p);
     void fuse_reorders(program_impl& p);
     void fuse_activations(program_impl& p);
     void fuse_simple_primitives(program_impl &p);

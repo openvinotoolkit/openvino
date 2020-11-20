@@ -108,10 +108,14 @@ inline std::string fmt_to_str(format fmt) {
 
         case format::oiyx:
             return "oiyx";
+        case format::ioyx:
+            return "ioyx";
         case format::yxio:
             return "yxio";
         case format::oizyx:
             return "oizyx";
+        case format::iozyx:
+            return "iozyx";
         case format::winograd_2x3_s1_weights:
             return "winograd_2x3_s1_weights";
         case format::winograd_2x3_s1_fused_weights:
@@ -179,6 +183,10 @@ inline std::string fmt_to_str(format fmt) {
             return "goiyx";
         case format::goizyx:
             return "goizyx";
+        case format::gioyx:
+            return "gioyx";
+        case format::giozyx:
+            return "giozyx";
         case format::g_os_iyx_osv16:
             return "g_os_iyx_osv16";
         case format::g_os_iyx_osv32:

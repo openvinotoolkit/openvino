@@ -761,11 +761,11 @@ struct convolution : public primitive_base<convolution> {
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
     /// @brief List of primitive ids containing weights zero points.
-    const primitive_id_arr weights_zero_points;
+    primitive_id_arr weights_zero_points;
     /// @brief List of primitive ids containing activations zero points.
-    const primitive_id_arr activations_zero_points;
+    primitive_id_arr activations_zero_points;
     /// @brief List of primitive ids containing compensation.
-    const primitive_id_arr compensation;
+    primitive_id_arr compensation;
 
 
     /// @brief On how many cards split the computation to.

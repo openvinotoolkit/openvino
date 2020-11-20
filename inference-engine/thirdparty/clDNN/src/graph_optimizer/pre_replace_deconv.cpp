@@ -53,7 +53,8 @@ void pre_replace_deconv::run(program_impl& p) {
 
             for (auto& weights_id : weights_vec) {
                 auto weights_iter = p.nodes_map.find(weights_id);
-                if (weights_iter == p.nodes_map.end())  continue;
+                if (weights_iter == p.nodes_map.end())
+                    continue;
             }
 
             // limit optimization to stride = 1
@@ -83,7 +84,8 @@ void pre_replace_deconv::run(program_impl& p) {
                 auto stride = deconv_prim->stride;
                 auto biases = deconv_prim->bias;
                 std::vector<primitive_id> bias_vec;
-                for (auto& bias_id : biases) bias_vec.push_back(bias_id);
+                for (auto& bias_id : biases)
+                    bias_vec.push_back(bias_id);
                 auto input_offset = deconv_prim->input_offset;
                 auto output_padding = deconv_prim->output_padding;
 
@@ -92,7 +94,8 @@ void pre_replace_deconv::run(program_impl& p) {
                 p.remove_connection(node->get_dependency(0), *node);
                 for (auto& weights_id : weights_vec) {
                     auto weights_iter = p.nodes_map.find(weights_id);
-                    if (weights_iter == p.nodes_map.end())  continue;
+                    if (weights_iter == p.nodes_map.end())
+                        continue;
 
                     auto weights_node_ptr = weights_iter->second;
                     p.remove_connection(*weights_node_ptr, *node);
@@ -105,7 +108,8 @@ void pre_replace_deconv::run(program_impl& p) {
                 if (!bias_vec.empty()) {
                     for (auto& bias_id : bias_vec) {
                         auto bias_iter = p.nodes_map.find(bias_id);
-                        if (bias_iter == p.nodes_map.end())  continue;
+                        if (bias_iter == p.nodes_map.end())
+                            continue;
 
                         auto bias_id_node_ptr = bias_iter->second;
                         p.remove_connection(*bias_id_node_ptr, *node);
@@ -121,7 +125,7 @@ void pre_replace_deconv::run(program_impl& p) {
                 p.rename(*node, rename_id);
 
                 // create convolution primitive
-                if (biases.size() != 0) {
+                if (!biases.empty()) {
                     auto conv_prim = std::make_shared<convolution>(deconv_id,
                                                                    input_id,
                                                                    weights_vec,
@@ -145,7 +149,8 @@ void pre_replace_deconv::run(program_impl& p) {
                 }
 
                 auto conv_node_itr = p.nodes_map.find(deconv_id);
-                if (conv_node_itr == p.nodes_map.end()) continue;
+                if (conv_node_itr == p.nodes_map.end())
+                    continue;
 
                 auto conv_node_ptr = conv_node_itr->second;
                 auto conv_node = &conv_node_ptr->as<convolution>();
@@ -156,7 +161,8 @@ void pre_replace_deconv::run(program_impl& p) {
 
                 for (auto& weights_id : weights_vec) {
                     auto weights_node_itr = p.nodes_map.find(weights_id);
-                    if (weights_node_itr == p.nodes_map.end()) continue;
+                    if (weights_node_itr == p.nodes_map.end())
+                        continue;
 
                     auto weights_node_ptr = weights_node_itr->second;
                     p.add_connection(*weights_node_ptr, *conv_node_ptr);
@@ -165,7 +171,8 @@ void pre_replace_deconv::run(program_impl& p) {
                 if (!bias_vec.empty()) {
                     for (auto& bias_id : bias_vec) {
                         auto bias_id_node_itr = p.nodes_map.find(bias_id);
-                        if (bias_id_node_itr == p.nodes_map.end()) continue;
+                        if (bias_id_node_itr == p.nodes_map.end())
+                            continue;
 
                         auto bias_id_node_ptr = bias_id_node_itr->second;
                         p.add_connection(*bias_id_node_ptr, *conv_node_ptr);

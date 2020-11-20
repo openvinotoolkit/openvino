@@ -78,6 +78,8 @@ inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x
     return GET_FILTER_OS_I_YXS_OSV4_YXSV4_INDEX(INPUT0, o, i, y, x);
 #elif defined INPUT0_LAYOUT_GOIZYX
     return GET_FILTER_GOIZYX(INPUT0, g, o, i, z, y, x);
+#elif defined INPUT0_LAYOUT_GIOZYX
+    return GET_FILTER_GIOZYX(INPUT0, g, o, i, z, y, x);
 #elif defined INPUT0_LAYOUT_G_OS_IYX_OSV16
     return GET_FILTER_G_OS_IYX_OSV16(INPUT0, g, o, i, y, x, 16);
 #elif defined INPUT0_LAYOUT_G_OS_IYX_OSV32
@@ -89,7 +91,8 @@ inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x
 #elif defined INPUT0_LAYOUT_GS_OIYX_GSV32
     return GET_FILTER_GS_OIYX_GSV16(INPUT0, g, o, i, y, x, 32);
 #elif defined INPUT0_LAYOUT_GYXIO || \
-      defined INPUT0_LAYOUT_GOIYX
+      defined INPUT0_LAYOUT_GOIYX || \
+      defined INPUT0_LAYOUT_GIOYX
     return GET_FILTER_GOIYX(INPUT0, g, o, i, y, x);
 #elif defined INPUT0_LAYOUT_OS_IS_YX_OSV16_ISV16
     return GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(INPUT0, o, i, y, x);
@@ -195,7 +198,7 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
     return GET_FILTER_OS_ZYXI_OSV16(OUTPUT, o, i, z, y, x);
 #elif defined OUTPUT_LAYOUT_OS_I_YXS_OSV4_YXSV4
     return GET_FILTER_OS_I_YXS_OSV4_YXSV4_INDEX(OUTPUT, o, i, y, x);
-#elif defined OUTPUT_LAYOUT_GOIZYX
+#elif defined OUTPUT_LAYOUT_GOIZYX || defined OUTPUT_LAYOUT_GIOZYX
     return GET_FILTER_INDEX_5D(OUTPUT, g, o, i, z, y, x);
 #elif defined OUTPUT_LAYOUT_G_OS_IYX_OSV16
     return GET_FILTER_G_OS_IYX_OSV16(OUTPUT, g, o, i, y, x, 16);
@@ -208,7 +211,8 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
 #elif defined OUTPUT_LAYOUT_GS_OIYX_GSV32
     return GET_FILTER_GS_OIYX_GSV16(OUTPUT, g, o, i, y, x, 32);
 #elif defined OUTPUT_LAYOUT_GYXIO || \
-      defined OUTPUT_LAYOUT_GOIYX
+      defined OUTPUT_LAYOUT_GOIYX || \
+      defined OUTPUT_LAYOUT_GIOYX
     return GET_FILTER_GOIYX(OUTPUT, g, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_GI_YXS_OS_YXSV2_OSV16
     return GET_FILTER_GI_YXS_OS_YXSV2_OSV_INDEX(OUTPUT, g, o, i, y, x, SUB_GROUP_SIZE);

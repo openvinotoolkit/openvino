@@ -63,6 +63,7 @@
 void prepare_primitive_fusing::run(program_impl& p) {
     fuse_reorders(p);
     fuse_sigmoid_mul_to_swish(p);
+    fuse_bias(p);
     fuse_simple_primitives(p);
     fuse_activations(p);
     optimize_fused_ops(p);
@@ -236,6 +237,118 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
 
             p.add_optimized_primitive_info(id, {input.id()});
         });
+    }
+}
+
+void prepare_primitive_fusing::fuse_bias(program_impl &p) {
+    auto itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node_itr = itr++;
+        auto& node = (*node_itr);
+
+        if (node->is_output() || node->is_constant() || !node->is_type<eltwise>())
+            continue;
+
+        auto& eltw_node = node->as<eltwise>();
+        bool is_bias = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
+                       eltw_node.get_dependencies().size() == 2;
+
+        if (!is_bias)
+            continue;
+
+        size_t out_features = static_cast<size_t>(node->get_output_layout().size.feature[0]);
+
+        int bias_idx = -1;
+        for (size_t i = 0; i < eltw_node.get_dependencies().size(); i++) {
+            auto& dep = eltw_node.get_dependency(i);
+            if (dep.is_constant() && dep.get_output_layout().count() == out_features) {
+                bias_idx = static_cast<int>(i);
+                break;
+            }
+        }
+        if (bias_idx < 0)
+            continue;
+
+        auto& bias_node = eltw_node.get_dependency(bias_idx);
+        primitive_id bias_name = bias_node.id();
+        auto& replace_candidate = bias_idx == 0 ? eltw_node.get_dependency(1) : eltw_node.get_dependency(0);
+
+        if (bias_node.get_output_layout().data_type != replace_candidate.get_output_layout().data_type)
+            continue;
+
+        auto fuse_bias_f = [&p](program_node& prev_node, program_node& new_node, program_node& bias_node, program_node& eltw_node) {
+            auto eltw_id = eltw_node.id();
+            p.replace(prev_node, new_node);
+            // Insert bias_node into 3-rd position in dependencies vector to get correct order in case of asymmetric quantization
+            // which means that node can have > 2 dependencies even without bias
+            new_node.dependencies.insert(new_node.dependencies.begin() + 2, &bias_node);
+            bias_node.users.push_back(&new_node);
+
+            // Remove all edges connected with peer node
+            while (eltw_node.get_dependencies().size() > 0) {
+                auto& dep = eltw_node.get_dependency(eltw_node.get_dependencies().size() - 1);
+                p.remove_connection(dep, eltw_node);
+            }
+
+            p.replace_all_usages(eltw_node, new_node);
+
+            p.add_optimized_primitive_info(eltw_id, {new_node.id()});
+
+            new_node.recalc_output_layout();
+        };
+
+        if (replace_candidate.is_type<convolution>()) {
+            auto& conv = replace_candidate.as<convolution>();
+            auto desc = conv.get_primitive();
+            std::vector<primitive_id> biases = {bias_name};
+
+            auto conv_with_bias_prim = std::make_shared<convolution>(desc->id + "_tmp",
+                                                                     desc->input[0],
+                                                                     desc->weights,
+                                                                     biases,
+                                                                     desc->groups,
+                                                                     desc->stride,
+                                                                     desc->input_offset,
+                                                                     desc->dilation,
+                                                                     conv.get_output_layout().size,
+                                                                     conv.get_output_layout().data_type);
+
+            conv_with_bias_prim->activations_zero_points = desc->activations_zero_points;
+            conv_with_bias_prim->weights_zero_points = desc->weights_zero_points;
+            conv_with_bias_prim->compensation = desc->compensation;
+            auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
+            // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
+            new_conv_node.as<convolution>().set_transposed(conv.get_transposed());
+
+            fuse_bias_f(conv, new_conv_node, bias_node, eltw_node);
+        } else if (replace_candidate.is_type<deconvolution>()) {
+            auto& deconv = replace_candidate.as<deconvolution>();
+            auto desc = deconv.get_primitive();
+            std::vector<primitive_id> biases = {bias_name};
+
+            auto deconv_with_bias_prim = std::make_shared<deconvolution>(desc->id + "_tmp",
+                                                                         desc->input[0],
+                                                                         desc->weights,
+                                                                         biases,
+                                                                         desc->groups,
+                                                                         desc->stride,
+                                                                         desc->input_offset,
+                                                                         deconv.get_output_layout().size);
+
+            auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
+            fuse_bias_f(deconv, new_deconv_node, bias_node, eltw_node);
+        } else if (replace_candidate.is_type<fully_connected>()) {
+            auto& fc = replace_candidate.as<fully_connected>();
+            auto desc = fc.get_primitive();
+            auto fc_with_bias_prim = std::make_shared<fully_connected>(desc->id + "_tmp",
+                                                                       desc->input[0],
+                                                                       desc->weights,
+                                                                       bias_name,
+                                                                       fc.get_output_layout().data_type);
+
+            auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
+            fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);
+        }
     }
 }
 
