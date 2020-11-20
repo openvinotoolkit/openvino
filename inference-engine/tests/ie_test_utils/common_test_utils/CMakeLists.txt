@@ -15,7 +15,7 @@ function(add_gtest_libraries)
     endif ()
 
     set(BUILD_SHARED_LIBS OFF)
-    add_subdirectory(gtest)
+    add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
     set_target_properties(gtest PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${gtest_include_dirs}")

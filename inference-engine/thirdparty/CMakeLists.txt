@@ -41,6 +41,7 @@ if (ENABLE_CLDNN)
     endif()
 
     add_subdirectory(clDNN EXCLUDE_FROM_ALL)
+    set_target_properties(clDNN_unit_tests PROPERTIES EXCLUDE_FROM_ALL OFF)
 
     # disable CLDNN docs build
     set_target_properties(docs PROPERTIES EXCLUDE_FROM_ALL ON FOLDER docs)
