@@ -428,4 +428,5 @@ def loop(
         "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
     }
 
-    return _get_node_factory_opset5().create("Loop", as_nodes(trip_count, execution_condition, *inputs), attributes)
+    return _get_node_factory_opset5().create("Loop", as_nodes(trip_count, execution_condition, *inputs),
+                                            attributes)
