@@ -42,7 +42,7 @@ namespace ngraph
                     else
                     {
                         beta =
-                            default_opset::Constant::create(element::f32, Shape{}, {0});
+                            default_opset::Constant::create(element::f32, Shape{}, {1.0});
                     }
 
                     return {std::make_shared<default_opset::Swish>(ng_inputs.at(0), beta)};
