@@ -2157,9 +2157,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta)
     auto test_case = test::TestCase<TestEngine>(function);
     std::vector<float> input_data{-0.5f, 0, 0.5f};
     test_case.add_input<float>(input_data);
-    test_case.add_expected_output<float>(
-        expected_output_shape,
-        {-0.2036667, 0.0, 0.2963333});
+    test_case.add_expected_output<float>(expected_output_shape, {-0.2036667, 0.0, 0.2963333});
 
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
@@ -2173,9 +2171,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta)
     auto test_case = test::TestCase<TestEngine>(function);
     std::vector<float> input_data{-0.5f, 0, 0.5f};
     test_case.add_input<float>(input_data);
-    test_case.add_expected_output<float>(
-        expected_output_shape,
-        {-0.18877034, 0.0, 0.31122968});
+    test_case.add_expected_output<float>(expected_output_shape, {-0.18877034, 0.0, 0.31122968});
 
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }

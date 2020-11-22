@@ -14,11 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
 #include "ngraph/op/normalize_l2.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/common.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
+#include "onnx_import/utils/common.hpp"
 #include "onnx_import/utils/reshape.hpp"
 
 namespace ngraph
@@ -36,13 +36,11 @@ namespace ngraph
                     Output<ngraph::Node> beta;
                     if (ng_inputs.size() > 1)
                     {
-                        beta =
-                            ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(1));
+                        beta = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(1));
                     }
                     else
                     {
-                        beta =
-                            default_opset::Constant::create(element::f32, Shape{}, {1.0});
+                        beta = default_opset::Constant::create(element::f32, Shape{}, {1.0});
                     }
 
                     return {std::make_shared<default_opset::Swish>(ng_inputs.at(0), beta)};
