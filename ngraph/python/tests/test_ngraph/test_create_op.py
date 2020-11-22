@@ -678,14 +678,85 @@ def test_rnn_sequence():
     assert list(node_param.get_output_shape(1)) == expected_shape_h
 
 
-@skip_segfault
 def test_loop():
+    from ngraph.utils.tensor_iterator_types import (
+        GraphBody,
+        TensorIteratorSliceInputDesc,
+        TensorIteratorMergedInputDesc,
+        TensorIteratorInvariantInputDesc,
+        TensorIteratorBodyOutputDesc,
+        TensorIteratorConcatOutputDesc,
+    )
+
     trip_count = 8
     condition = True
+    #  Body parameters
+    body_timestep = ng.parameter([], np.int32, "timestep")
+    body_data_in = ng.parameter([1, 2, 2], np.float32, "body_in")
+    body_prev_cma = ng.parameter([2, 2], np.float32, "body_prev_cma")
+    body_const_one = ng.parameter([], np.int32, "body_const_one")
 
-    node_default = ng.loop(trip_count, condition)
+    # CMA = cumulative moving average
+    prev_cum_sum = ng.multiply(ng.convert(body_timestep, "f32"), body_prev_cma)
+    curr_cum_sum = ng.add(prev_cum_sum, ng.squeeze(body_data_in, [0]))
+    elem_cnt = ng.add(body_const_one, body_timestep)
+    curr_cma = ng.divide(curr_cum_sum, ng.convert(elem_cnt, "f32"))
+    cma_hist = ng.unsqueeze(curr_cma, [0])
 
-    assert node_default.get_type_name() == "Loop"
+    # TI inputs
+    data = ng.parameter([16, 2, 2], np.float32, "data")
+    # Iterations count
+    zero = ng.constant(0, dtype=np.int32)
+    one = ng.constant(1, dtype=np.int32)
+    initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
+    iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
+    ti_inputs = [iter_cnt, data, initial_cma, one]
+
+    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist])
+    ti_slice_input_desc = [
+        # timestep
+        # input_idx, body_param_idx, start, stride, part_size, end, axis
+        TensorIteratorSliceInputDesc(0, 0, 0, 1, 1, -1, 0),
+        # data
+        TensorIteratorSliceInputDesc(1, 1, 0, 1, 1, -1, 0),
+    ]
+    ti_merged_input_desc = [
+        # body prev/curr_cma
+        TensorIteratorMergedInputDesc(2, 2, 0),
+    ]
+    ti_invariant_input_desc = [
+        # body const one
+        TensorIteratorInvariantInputDesc(3, 3),
+    ]
+
+    # TI outputs
+    ti_body_output_desc = [
+        # final average
+        TensorIteratorBodyOutputDesc(0, 0, -1),
+    ]
+    ti_concat_output_desc = [
+        # history of cma
+        TensorIteratorConcatOutputDesc(1, 1, 0, 1, 1, -1, 0),
+    ]
+
+    node = ng.loop(
+        trip_count,
+        condition,
+        ti_inputs,
+        graph_body,
+        ti_slice_input_desc,
+        ti_merged_input_desc,
+        ti_invariant_input_desc,
+        ti_body_output_desc,
+        ti_concat_output_desc,
+    )
+
+    assert node.get_type_name() == "Loop"
+    assert node.get_output_size() == 3
+    # final average
+    assert list(node.get_output_shape(1)) == [2, 2]
+    # cma history
+    assert list(node.get_output_shape(2)) == [16, 2, 2]
 
 
 def test_roi_pooling():
