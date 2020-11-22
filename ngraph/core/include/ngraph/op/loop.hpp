@@ -65,19 +65,6 @@ namespace ngraph
                 Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition);
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
-                void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
-                                      const Output<Node>& value,
-                                      int64_t start,
-                                      int64_t stride,
-                                      int64_t part_size,
-                                      int64_t end,
-                                      int64_t axis) override
-                {
-                    NGRAPH_CHECK(false,
-                                 "Incorrect type of input. Implicit slicing is not supported in "
-                                 "Loop operation.");
-                }
-
                 Output<Node> get_concatenated_slices(const Output<Node>& value,
                                                      int64_t start,
                                                      int64_t stride,
