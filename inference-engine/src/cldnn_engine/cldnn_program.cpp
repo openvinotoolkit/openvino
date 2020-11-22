@@ -3,6 +3,7 @@
 //
 
 #include "cldnn_program.h"
+#include <cctype>
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_ie_internal.hpp"
 

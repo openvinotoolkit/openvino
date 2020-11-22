@@ -8,14 +8,78 @@
 #include <ngraph/ngraph.hpp>
 
 #include <ngraph/ngraph.hpp>
-#include "lpt_ngraph_functions/get_dequantization_function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include <low_precision/common/fake_quantize_dequantization.hpp>
+#include <low_precision/network_helper.hpp>
+
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
+#include "lpt_ngraph_functions/get_dequantization_function.hpp"
 
 
 namespace ngraph {
 namespace builder {
 namespace subgraph {
+
+std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
+    const ngraph::element::Type& precision,
+    const Shape& shape,
+    const FakeQuantizeOnData& fakeQuantize,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::opset1::Parameter>(
+        ngraph::element::f32,
+        shape);
+
+    std::shared_ptr<ngraph::Node> parent = input;
+    if (!fakeQuantize.empty()) {
+        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(parent, precision, fakeQuantize);
+    }
+
+    if (!dequantization.empty()) {
+        parent = makeDequantization(parent, dequantization);
+        parent->set_friendly_name("output");
+    }
+
+    return std::make_shared<ngraph::Function>(
+        ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(parent) },
+        ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(input) },
+        "DequantizationFunction");
+}
+
+std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
+    const ngraph::element::Type& precision,
+    const Shape& shape,
+    const FakeQuantizeOnData& fakeQuantize,
+    const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization) {
+    const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::opset1::Parameter>(
+        ngraph::element::f32,
+        shape);
+
+    std::shared_ptr<ngraph::Node> parent = input;
+    if (!fakeQuantize.empty()) {
+        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(parent, precision, fakeQuantize);
+    }
+
+    if (dequantization.convert != nullptr) {
+        parent = dequantization.convert->clone_with_new_inputs({ parent });
+        parent->set_friendly_name(dequantization.convert->get_friendly_name());
+    }
+
+    if (dequantization.subtract != nullptr) {
+        parent = dequantization.subtract->clone_with_new_inputs({ parent, dequantization.subtract->get_input_node_shared_ptr(1) });
+        parent->set_friendly_name(dequantization.subtract->get_friendly_name());
+    }
+
+    if (dequantization.multiply != nullptr) {
+        parent = dequantization.multiply->clone_with_new_inputs({ parent, dequantization.multiply->get_input_node_shared_ptr(1) });
+        parent->set_friendly_name(dequantization.multiply->get_friendly_name());
+    }
+
+    return std::make_shared<ngraph::Function>(
+        ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(parent) },
+        ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(input) },
+        "DequantizationFunction");
+}
+
 std::shared_ptr<ngraph::Function> GetDequantizationFunction::getOriginal(
     bool isConvert, bool isSubtract, size_t subDataInput, size_t mulDataInput) {
     const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::opset1::Parameter>(

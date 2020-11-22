@@ -83,6 +83,8 @@ public:
 
     static std::shared_ptr<opset1::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
 
+    static std::shared_ptr<opset1::FakeQuantize> composeFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
+
     static std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
         const element::Type precision,
@@ -114,8 +116,19 @@ public:
         const bool hasZeroPoint,
         const bool updatePrecision);
 
-    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul, const bool inPlace = false);
+    static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node);
 
+    static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node);
+
+    static bool isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
+
+    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node>& node, const size_t parentIndex = 0ul, const bool inPlace = false);
+
+    static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node);
+
+    // 1. remove Convert if possible
+    // 2. optimize Constant if possible
+    // 3. remove Subtract if Constant on the second branch is zero
     static std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
 
     class InsertDequantizationResult {
@@ -134,11 +147,6 @@ public:
         const bool updatePrecision,
         const bool moveSubtract);
 
-    // TODO: rename: fuseConvertIfPossible
-    static void removeConvertIfPossible(
-        const std::shared_ptr<ngraph::Node>& operation,
-        const FakeQuantizeDequantization& dequantization);
-
     static bool checkConstantValuePrecision(const element::Type expectedPrecision, const std::shared_ptr<Node>& constant);
 
     static size_t getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
@@ -149,6 +157,8 @@ public:
 
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 
+    static bool isConstantPath(const std::shared_ptr<Node>& node);
+
     static bool isZeroConst(const std::shared_ptr<Node>& node);
 
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
@@ -156,9 +166,11 @@ public:
     static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
     static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues);
 
-    // multi-precision constant folding
-    // handles only specific case: Constant -> [dequantization operations] -> [node]
-    static void foldDequantization(std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
+    static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
+
+    static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node);
+
+    static std::shared_ptr<opset1::FakeQuantize> fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);

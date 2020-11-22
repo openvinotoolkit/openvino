@@ -28,7 +28,7 @@ bool PReluTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    prelu = separateInStandaloneBranch(prelu);
+    prelu = NetworkHelper::separateInStandaloneBranch(prelu);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, 0);
     moveDequantizationAfter(context, prelu, dequantization, false, false);
     return true;

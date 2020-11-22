@@ -23,6 +23,7 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/smart_reshape/set_batch_size.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include "transformations/serialize.hpp"
 
 // TODO: remove this pass usage
@@ -339,6 +340,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         {
             OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
             ::ngraph::pass::Manager manager;
+            manager.register_pass<::ngraph::pass::DisableConvertConcstantFoldingOnConstPath>();
             // resolves dynamism by replacing dynamic operation with static version
             manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
             manager.register_pass<::ngraph::pass::ConstantFolding>();

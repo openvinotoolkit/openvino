@@ -32,7 +32,7 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnWeights& data) {
-    return out << "_" << data.constantShape << "_" << data.outputLowValues << "_" << data.outputHighValues;
+    return out << "_" << data.quantizationLevel << "_" << data.constantShape << "_" << data.outputLowValues << "_" << data.outputHighValues;
 }
 
 }  // namespace subgraph

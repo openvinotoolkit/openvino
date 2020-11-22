@@ -30,7 +30,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         return false;
     }
 
-    multiply = separateInStandaloneBranch(multiply);
+    multiply = NetworkHelper::separateInStandaloneBranch(multiply);
     auto newMultiply = multiply;
 
     auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
@@ -49,6 +49,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     const int fullPathIndex = getNotEmpty(multiply);
     if (fullPathIndex == -1) {
         const auto multiplyBranch = getMultiplyConstBranch(multiply);
+        NetworkHelper::foldDequantization(multiply, multiplyBranch.second == 0 ? 1 : 0);
 
         if (multiplyBranch.first == -1 || multiplyBranch.second == -1) {
             NetworkHelper::foldDequantization(multiply, 0);
@@ -87,6 +88,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             return false;
         }
 
+        dequantizationEmptyPath = NetworkHelper::foldDequantization(multiply, emptyPathIndex);
         std::shared_ptr<Node> subtractValuesEmptyPath;
         std::shared_ptr<Node> multiplyValuesEmptyPath;
         std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
@@ -96,6 +98,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             return false;
         }
 
+        dequantizationFullPath = NetworkHelper::foldDequantization(multiply, fullPathIndex);
         std::shared_ptr<Node> subtractValuesFullPath;
         std::shared_ptr<Node> multiplyValuesFullPath;
         std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath);

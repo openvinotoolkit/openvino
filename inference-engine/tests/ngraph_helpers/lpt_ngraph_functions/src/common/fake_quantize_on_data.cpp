@@ -44,6 +44,38 @@ bool FakeQuantizeOnData::empty() const {
         outputHighValues.empty();
 }
 
+FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant() :
+    quantizationLevel(0),
+    outputPrecision(ngraph::element::undefined) {}
+
+FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
+    const size_t quantizationLevel,
+    const std::vector<ngraph::Shape>& constantShapes,
+    const std::vector<float>& inputLowValues,
+    const std::vector<float>& inputHighValues,
+    const std::vector<float>& outputLowValues,
+    const std::vector<float>& outputHighValues,
+    const ngraph::element::Type outputPrecision) :
+    quantizationLevel(quantizationLevel),
+    constantShapes(constantShapes),
+    inputLowValues(inputLowValues),
+    inputHighValues(inputHighValues),
+    outputLowValues(outputLowValues),
+    outputHighValues(outputHighValues),
+    outputPrecision(outputPrecision)
+{}
+
+FakeQuantizeOnDataWithConstant::~FakeQuantizeOnDataWithConstant() {}
+
+bool FakeQuantizeOnDataWithConstant::empty() const {
+    return (quantizationLevel == 0ul) &&
+        constantShapes.empty() &&
+        inputLowValues.empty() &&
+        inputHighValues.empty() &&
+        outputLowValues.empty() &&
+        outputHighValues.empty();
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph
