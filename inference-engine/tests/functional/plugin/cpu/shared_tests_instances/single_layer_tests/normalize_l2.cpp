@@ -29,7 +29,7 @@ const auto normL2params = testing::Combine(
         testing::ValuesIn(axes),
         testing::ValuesIn(eps),
         testing::ValuesIn(epsMode),
-        testing::Values(std::vector<size_t>{1, 3, 10, 5}),
+        testing::ValuesIn(std::vector<std::vector<size_t>>({{1, 3, 10, 5}, {1, 5, 3}})),
         testing::ValuesIn(netPrecisions),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
