@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -345,58 +345,137 @@ std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<op
     return foldFakeQuantize(fq, roundValues, true);
 }
 
-void NetworkHelper::foldDequantization(std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace) {
+FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace) {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
     if (dequantization.empty() || (dequantization.multiply == nullptr)) {
-        return;
-    }
-
-    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(dequantization.data.get_node_shared_ptr());
-    if ((constant == nullptr) || (constant->output(0).get_target_inputs().size() != 1ul)) {
-        return;
+        return dequantization;
     }
 
     if (dequantization.convert != nullptr) {
         const std::shared_ptr<Node> result = fold<opset1::Convert>(dequantization.data, dequantization.convert->get_element_type());
-        if (!is_type<opset1::Constant>(result)) {
-            return;
+        if (is_type<opset1::Constant>(result)) {
+            if (inPlace) {
+                copyInfo(dequantization.convert, result);
+            }
+            replace_node(dequantization.convert, result);
+            dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
         }
-        if (inPlace) {
-            copyInfo(dequantization.convert, result);
-        }
-        replace_node(dequantization.convert, result);
-        dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
     }
 
     if (dequantization.subtract != nullptr) {
-        if (dequantization.data.get_element_type() != dequantization.subtract->input(1).get_element_type()) {
-            return;
+        if (dequantization.subtractConvert != nullptr) {
+            const auto convertionResult = fold<opset1::Convert>(
+                dequantization.subtractConstant,
+                dequantization.subtractConvert->get_element_type());
+            if (is_type<opset1::Constant>(convertionResult)) {
+                replace_node(dequantization.subtractConvert, convertionResult);
+                dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
+            }
         }
-        const std::shared_ptr<Node> result = fold<opset1::Subtract>(dequantization.data, dequantization.subtract->get_input_node_shared_ptr(1));
-        if (!is_type<opset1::Constant>(result)) {
-            return;
+
+        const std::shared_ptr<Node> result = fold<opset1::Subtract>(
+            dequantization.subtract->get_input_node_shared_ptr(0),
+            dequantization.subtract->get_input_node_shared_ptr(1));
+        if (is_type<opset1::Constant>(result)) {
+            if (inPlace) {
+                copyInfo(dequantization.subtract, result);
+            }
+            replace_node(dequantization.subtract, result);
+            dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
+        } else {
+            return dequantization;
         }
-        if (inPlace) {
-            copyInfo(dequantization.subtract, result);
-        }
-        replace_node(dequantization.subtract, result);
-        dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
     }
 
     if (dequantization.multiply != nullptr) {
-        if (dequantization.data.get_element_type() != dequantization.multiply->input(1).get_element_type()) {
-            return;
+        const std::shared_ptr<Node> result = fold<opset1::Multiply>(
+            dequantization.multiply->get_input_node_shared_ptr(0),
+            dequantization.multiply->get_input_node_shared_ptr(1));
+        if (is_type<opset1::Constant>(result)) {
+            if (inPlace) {
+                copyInfo(dequantization.multiply, result);
+            }
+            replace_node(dequantization.multiply, result);
+            dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
+        } else {
+            return dequantization;
         }
-        const std::shared_ptr<Node> result = fold<opset1::Multiply>(dequantization.data, dequantization.multiply->get_input_node_shared_ptr(1));
-        if (!is_type<opset1::Constant>(result)) {
-            return;
-        }
-        if (inPlace) {
-            copyInfo(dequantization.multiply, result);
-        }
-        replace_node(dequantization.multiply, result);
-        dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
     }
+
+    return dequantization;
+}
+
+std::shared_ptr<ngraph::Node> NetworkHelper::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) {
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
+    if (dequantization.isShared()) {
+        Output<Node> parent = dequantization.data;
+        if (dequantization.convert != nullptr) {
+            parent = dequantization.convert->clone_with_new_inputs({ parent });
+            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
+        }
+
+        if (dequantization.subtract != nullptr) {
+            const auto parentOnWeights = dequantization.subtract->get_input_node_shared_ptr(1);
+            const std::vector<Input<Node>> inputs = parentOnWeights->inputs();
+            OutputVector outputs;
+            outputs.reserve(inputs.size());
+            for (const auto& input : inputs) {
+                outputs.push_back(input.get_source_output());
+            }
+
+            parent = dequantization.subtract->clone_with_new_inputs({parent, parentOnWeights->clone_with_new_inputs(outputs) });
+            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
+        }
+
+        if (dequantization.multiply != nullptr) {
+            parent = dequantization.multiply->clone_with_new_inputs({
+                parent,
+                dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
+            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
+        }
+
+        std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
+        const size_t inputIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, node);
+        inputs[inputIndex] = parent;
+        const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
+
+        replace_node(node, newNode);
+        newNode->set_friendly_name(node->get_friendly_name());
+
+        return newNode;
+    }
+
+    return node;
+}
+
+std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
+    const Output<Node> output = fakeQuantize->output(0);
+    const auto targetInputs = output.get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return fakeQuantize;
+    }
+
+    Node* node = targetInputs.begin()->get_node();
+    if (!is_type<opset1::Convert>(node) ||
+        // TODO: LPT: avoid precision hardcode: to separate method: isSupportedPrecision
+        ((node->get_output_element_type(0) != element::u8) && (node->get_output_element_type(0) != element::i8))) {
+        return fakeQuantize;
+    }
+
+
+    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
+        std::vector<ngraph::element::Type>{ element::f32, element::f32, element::f32, element::f32, element::f32 },
+        std::vector<ngraph::element::Type>{},
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(0), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(1), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(2), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(3), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(4), element::f32).get(),
+        fakeQuantize->get_levels());
+    NetworkHelper::setOutDataPrecisionForTypeRelaxed(newFakeQuantize, node->get_output_element_type(0));
+    replace_node(node->shared_from_this(), newFakeQuantize);
+    newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
+    return newFakeQuantize;
 }
 
 std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
@@ -509,6 +588,93 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
     }
 
     return fq;
+}
+
+std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
+    std::shared_ptr<Node> parent = fakeQuantize;
+    auto targetInputs = parent->output(0).get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return nullptr;
+    }
+    if (is_type<opset1::Convert>(targetInputs.begin()->get_node())) {
+        parent = targetInputs.begin()->get_node()->shared_from_this();
+    }
+
+    targetInputs = parent->output(0).get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return nullptr;
+    }
+    if (is_type<opset1::Subtract>(targetInputs.begin()->get_node())) {
+        parent = targetInputs.begin()->get_node()->shared_from_this();
+    }
+
+    targetInputs = parent->output(0).get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return nullptr;
+    }
+    if (is_type<opset1::Multiply>(targetInputs.begin()->get_node())) {
+        parent = targetInputs.begin()->get_node()->shared_from_this();
+    }
+
+    const std::shared_ptr<Node> prev = parent;
+    parent = parent->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+
+    const size_t index = NetworkHelper::getChildInputIndex(prev, parent);
+    const FakeQuantizeDequantization dequantization = getDequantization(parent, index);
+    if (dequantization.empty()) {
+        return nullptr;
+    }
+
+    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = fakeQuantize;
+
+    if (dequantization.convert != nullptr) {
+        const std::shared_ptr<opset1::FakeQuantize> replacement = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+            newFakeQuantize->input_value(0),
+            newFakeQuantize->input_value(1),
+            newFakeQuantize->input_value(2),
+            newFakeQuantize->input_value(3),
+            newFakeQuantize->input_value(4),
+            newFakeQuantize->get_levels(),
+            newFakeQuantize->get_auto_broadcast());
+        replace_node(dequantization.convert, replacement);
+        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, dequantization.convert->output(0).get_element_type());
+        newFakeQuantize = replacement;
+    }
+
+    if (dequantization.subtract != nullptr) {
+        const auto subtractValue = (dequantization.subtractConvert == nullptr) ?
+            dequantization.subtractConstant :
+            fold<opset1::Convert>(dequantization.subtractConstant, dequantization.subtractConvert->output(0).get_element_type());
+
+        const std::shared_ptr<opset1::FakeQuantize> replacement = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+            newFakeQuantize->input_value(0),
+            newFakeQuantize->input_value(1),
+            newFakeQuantize->input_value(2),
+            fold<opset1::Subtract>(newFakeQuantize->get_input_node_shared_ptr(3), subtractValue),
+            fold<opset1::Subtract>(newFakeQuantize->get_input_node_shared_ptr(4), subtractValue),
+            newFakeQuantize->get_levels(),
+            newFakeQuantize->get_auto_broadcast());
+        replace_node(dequantization.subtract, replacement);
+        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        newFakeQuantize = replacement;
+    }
+
+    if (dequantization.multiply != nullptr) {
+        const std::shared_ptr<opset1::FakeQuantize> replacement = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+            newFakeQuantize->input_value(0),
+            newFakeQuantize->input_value(1),
+            newFakeQuantize->input_value(2),
+            fold<opset1::Multiply>(newFakeQuantize->get_input_node_shared_ptr(3), dequantization.multiply->get_input_node_shared_ptr(1)),
+            fold<opset1::Multiply>(newFakeQuantize->get_input_node_shared_ptr(4), dequantization.multiply->get_input_node_shared_ptr(1)),
+            newFakeQuantize->get_levels(),
+            newFakeQuantize->get_auto_broadcast());
+        replace_node(dequantization.multiply, replacement);
+        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        newFakeQuantize = replacement;
+    }
+
+    return newFakeQuantize;
 }
 
 // Decompose FakeQuantize to FakeQuantize with output integer limits (quantize), dequatized MultiplyAdd
@@ -694,20 +860,22 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     }
 
     std::shared_ptr<DequantizationSubtract> subtract;
+    std::shared_ptr<opset1::Constant> subtractConstant;
     if (std::abs(dequantizationSub) > 1e-6) {
-        subtract = std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationSub })));
+        subtractConstant = std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationSub }));
+        subtract = std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(parent, subtractConstant);
         subtract->set_output_type(0, originalPrecision, subtract->get_output_partial_shape(0));
         parent = subtract;
     }
 
     // mandatory
-    std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(
-        parent,
-        std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationMul })));
+    std::shared_ptr<opset1::Constant> multiplyConstant = std::make_shared<ngraph::opset1::Constant>(
+        originalPrecision,
+        ngraph::Shape({}),
+        std::vector<float>({ dequantizationMul }));
+    std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(parent, multiplyConstant);
 
-    return FakeQuantizeDequantization(input, convert, subtract, multiply);
+    return FakeQuantizeDequantization(input, convert, subtract, nullptr, subtractConstant, multiply, multiplyConstant);
 }
 
 FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
@@ -728,15 +896,18 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
 
     // TODO: threshold values have to used here to avoid shifts
 
-    const std::shared_ptr<Node> scale = fold<opset1::Divide>(
+    const std::shared_ptr<opset1::Constant> scale = as_type_ptr<opset1::Constant>(fold<opset1::Divide>(
         fold<opset1::Subtract>(outputHigh, outputLow),
-        fold<opset1::Subtract>(newMax, newMin));
+        fold<opset1::Subtract>(newMax, newMin)));
+    assert(scale != nullptr);
 
-    std::shared_ptr<Node> shift = hasZeroPoint ?
-        fold<opset1::Divide>(
+    std::shared_ptr<opset1::Constant> shift;
+    if (hasZeroPoint) {
+        shift = as_type_ptr<opset1::Constant>(fold<opset1::Divide>(
             fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
-            fold<opset1::Subtract>(outputHigh, outputLow)) :
-        nullptr;
+            fold<opset1::Subtract>(outputHigh, outputLow)));
+        assert(shift != nullptr);
+    }
 
     if (shift != nullptr) {
         std::shared_ptr<opset1::Constant> shiftConst = as_type_ptr<opset1::Constant>(shift);
@@ -771,32 +942,97 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     }
     const std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(parent, scale);
 
-    return FakeQuantizeDequantization(fq, convert, subtract, multiply);
+    return FakeQuantizeDequantization(fq, convert, subtract, nullptr, shift, multiply, scale);
 }
 
-FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex, const bool inPlace) {
+bool NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node) {
+    if (!is_type<opset1::Subtract>(node)) {
+        return false;
+    }
+
+    const auto targetInputs = node->output(0).get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return false;
+    }
+
+    const auto multiply = targetInputs.begin()->get_node()->shared_from_this();
+    return areQuantizeAndDequantizeSupportedForMultiply(multiply);
+}
+
+bool NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node) {
+    if (!is_type<opset1::Multiply>(node)) {
+        return false;
+    }
+
+    const std::shared_ptr<ngraph::Node> multiply = const_cast<ngraph::Node*>(node.get())->shared_from_this();
+    const auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(multiply, 0, true);
+    if (dequantization.empty()) {
+        return false;
+    }
+
+    const auto dataNode = dequantization.data.get_node();
+    if (is_type<opset1::Convert>(dataNode)) {
+        const auto quantize = as_type_ptr<opset1::FakeQuantize>(dataNode->get_input_node_shared_ptr(0));
+        if (quantize == nullptr) {
+            return false;
+        }
+
+        return NetworkHelper::isQuantizeSupported(quantize);
+    } else if (is_type<opset1::Constant>(dataNode)) {
+        return true;
+    }
+
+    return false;
+}
+
+bool NetworkHelper::isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
+    return QuantizationDetails::outputLayoutIsSupported(fakeQuantize) && QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels());
+}
+
+FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_ptr<Node>& node, const size_t parentIndex, const bool inPlace) {
     auto getDataIndex = [](const std::shared_ptr<ngraph::Node>& node) {
         if (is_type<opset1::Constant>(node->get_input_node_ptr(1))) {
             return 0ul;
-        } else {
+        }
+
+        if (is_type<opset1::Convert>(node->get_input_node_ptr(1)) && is_type<opset1::Constant>(node->get_input_node_ptr(1)->get_input_node_ptr(0))) {
+            return 0ul;
+        }
+
+        if (is_type<opset1::Convert>(node->get_input_node_ptr(0)) && is_type<opset1::Constant>(node->get_input_node_ptr(0)->get_input_node_ptr(0))) {
             return 1ul;
         }
+
+        return 1ul;
     };
 
     Output<Node> dataNode = inPlace ? node : node->input_value(parentIndex);
 
     const std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr());
+    std::shared_ptr<opset1::Constant> multiplyConstant;
     if (multiply != nullptr) {
-        if (!is_type<opset1::Constant>(multiply->get_input_node_ptr(0)) && !is_type<opset1::Constant>(multiply->get_input_node_ptr(1))) {
+        if (!FakeQuantizeDequantization::checkShape(multiply)) {
+            return FakeQuantizeDequantization();
+        }
+
+        FakeQuantizeDequantization::fillDequantizationParams(multiply, multiplyConstant);
+        if (multiplyConstant == nullptr) {
             return FakeQuantizeDequantization();
         }
         dataNode = multiply->get_input_source_output(getDataIndex(multiply));
     }
 
     const std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<ngraph::opset1::Subtract>(dataNode.get_node_shared_ptr());
+    std::shared_ptr<opset1::Convert> subtractConvert;
+    std::shared_ptr<opset1::Constant> subtractConstant;
     if (subtract != nullptr) {
-        if (!is_type<opset1::Constant>(subtract->get_input_node_ptr(0)) && !is_type<opset1::Constant>(subtract->get_input_node_ptr(1))) {
-            return FakeQuantizeDequantization(dataNode, nullptr, nullptr, multiply);
+        if (!FakeQuantizeDequantization::checkShape(subtract)) {
+            return FakeQuantizeDequantization(dataNode, nullptr, nullptr, nullptr, nullptr, multiply, multiplyConstant);
+        }
+
+        FakeQuantizeDequantization::fillDequantizationParams(subtract, subtractConvert, subtractConstant);
+        if (subtractConstant == nullptr) {
+            return FakeQuantizeDequantization(dataNode, nullptr, nullptr, nullptr, nullptr, multiply, multiplyConstant);
         }
         dataNode = subtract->get_input_source_output(getDataIndex(subtract));
     }
@@ -805,12 +1041,58 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
     if (convert != nullptr) {
         if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
             (convert->output(0).get_element_type() != element::f32)) {
-            return FakeQuantizeDequantization(dataNode, nullptr, subtract, multiply);
+            return FakeQuantizeDequantization(dataNode, nullptr, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
         }
         dataNode = convert->get_input_source_output(0);
     }
 
-    return FakeQuantizeDequantization(dataNode, convert, subtract, multiply);
+    return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
+}
+
+FakeQuantizeDequantization NetworkHelper::getDequantizationBelow(const std::shared_ptr<Node>& node) {
+    const Output<Node> dataNode = node->output(0);
+    std::shared_ptr<Node> lastNode = dataNode.get_target_inputs().begin()->get_node()->shared_from_this();
+
+    const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(lastNode);
+    if (convert != nullptr) {
+        if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
+            (convert->output(0).get_element_type() != element::f32)) {
+            return FakeQuantizeDequantization();
+        }
+
+        const auto& inputs = lastNode->output(0).get_target_inputs();
+        if (inputs.size() != 1ul) {
+            return FakeQuantizeDequantization();
+        }
+        lastNode = inputs.begin()->get_node()->shared_from_this();
+    }
+
+    const std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<ngraph::opset1::Subtract>(lastNode);
+    std::shared_ptr<opset1::Convert> subtractConvert;
+    std::shared_ptr<opset1::Constant> subtractConstant;
+    if (subtract != nullptr) {
+        FakeQuantizeDequantization::fillDequantizationParams(subtract, subtractConvert, subtractConstant);
+        if (subtractConstant == nullptr) {
+            return FakeQuantizeDequantization();
+        }
+
+        const auto& inputs = lastNode->output(0).get_target_inputs();
+        if (inputs.size() != 1ul) {
+            return FakeQuantizeDequantization();
+        }
+        lastNode = inputs.begin()->get_node()->shared_from_this();
+    }
+
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(lastNode);
+    std::shared_ptr<opset1::Constant> multiplyConstant;
+    if (multiply != nullptr) {
+        FakeQuantizeDequantization::fillDequantizationParams(multiply, multiplyConstant);
+        if (multiplyConstant == nullptr) {
+            return FakeQuantizeDequantization();
+        }
+    }
+
+    return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
 }
 
 FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDequantization dequantization) {
@@ -844,7 +1126,9 @@ FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuan
         std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 1.f }));
 
     std::shared_ptr<Node> subtract1Const = dequantization.subtract ?
-        dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) :
+        (dequantization.subtractConvert == nullptr ?
+            dequantization.subtractConstant->clone_with_new_inputs({}) :
+            fold<opset1::Convert>(dequantization.subtractConstant, dequantization.subtractConvert->get_element_type())) :
         std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 0.f }));
 
     subtract1Const->set_output_type(0, multiply1Const->get_output_element_type(0), subtract1Const->get_output_partial_shape(0));
@@ -887,29 +1171,51 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
     }
 
     auto data = convertOnSubtract->input_value(0);
-    auto shift = subtract->input_value(1).get_node_shared_ptr();
-    auto roundedShift = NetworkHelper::round(shift, convertInputType);
+    const auto subtractParent = subtract->get_input_node_shared_ptr(1);
+    if (is_type<opset1::Constant>(subtractParent)) {
+        std::shared_ptr<Node> replacement;
 
-    // Propagate convertInputType down
-    const auto replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, roundedShift);
-    NetworkHelper::copyInfo(subtract, replacement);
-    NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, convertOutputType);
-    replace_node(subtract, replacement);
+        auto shift = subtract->input_value(1).get_node_shared_ptr();
+        auto roundedShift = NetworkHelper::round(shift, convertInputType);
 
-    // We lose the tail conversion here; not needed if the next node is a TypeRelaxed
-    // TODO: check cases when Convert should be preserved
+        if (isScalarLike(roundedShift)) {
+            roundedShift = toScalar(roundedShift);
+            if (op::util::constantIsEqualTo(roundedShift, 0)) {
+                replace_node(subtract, convertOnSubtract->get_input_node_shared_ptr(0));
+                roundedShift = nullptr;
+            }
+        }
 
-    // Try to optimize Add out if constant is zero
-    // TODO: don't remove operation here: don't create this Subtraction operation in FQ decomposition
-    // if (isScalarLike(roundedShift)) {
-    //    auto scalar = distillToScalar(roundedShift);
-    //    if (op::util::constantIsEqualTo(scalar, 0)) {
-    //        replace_node(replacement, replacement->input_value(0).get_node_shared_ptr());
-    //        replacement = nullptr;
-    //    }
-    // }
+        if (roundedShift) {
+            // Propagate convertInputType down
+            replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, roundedShift);
+            NetworkHelper::copyInfo(subtract, replacement);
+            NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, convertOutputType);
+            replace_node(subtract, replacement);
+        }
 
-    return replacement;
+        // We lose the tail conversion here; not needed if the next node is a TypeRelaxed
+        // TODO: check cases when Convert should be preserved
+
+        // Try to optimize Add out if constant is zero
+        // TODO: don't remove operation here: don't create this Subtraction operation in FQ decomposition
+        // if (isScalarLike(roundedShift)) {
+        //    auto scalar = distillToScalar(roundedShift);
+        //    if (op::util::constantIsEqualTo(scalar, 0)) {
+        //        replace_node(replacement, replacement->input_value(0).get_node_shared_ptr());
+        //        replacement = nullptr;
+        //    }
+        // }
+
+        return replacement;
+    } else if (is_type<opset1::Convert>(subtractParent) || is_type<opset1::Constant>(subtractParent->get_input_node_shared_ptr(0))) {
+        auto replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, subtractParent->get_input_node_shared_ptr(0));
+        NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, convertOutputType);
+        replace_node(subtract, replacement);
+        return replacement;
+    }
+
+    return subtract;
 }
 
 NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter(
@@ -917,6 +1223,14 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision,
     const bool moveSubtract) {
+    assert(
+        (NetworkHelper::getDequantization(operation).subtractConstant == nullptr) ||
+        (NetworkHelper::getDequantization(operation).subtractConstant.get() == dequantization.subtractConstant.get()));
+
+    assert(
+        (NetworkHelper::getDequantization(operation).multiplyConstant == nullptr) ||
+        (NetworkHelper::getDequantization(operation).multiplyConstant.get() == dequantization.multiplyConstant.get()));
+
     std::vector<Output<Node>> inputs(operation->get_input_size());
     for (size_t i = 0; i < operation->get_input_size(); ++i) {
         inputs[i] = operation->get_input_node_shared_ptr(i);
@@ -952,20 +1266,25 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     }
 
     if (moveSubtract && (dequantization.subtract != nullptr)) {
-        auto subtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
-        const element::Type parentPrecision = parent->get_output_element_type(0);
-        if (parentPrecision.bitwidth() < subtractConstant->output(0).get_element_type().bitwidth()) {
-            THROW_IE_LPT_EXCEPTION(*parent) <<
-                "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
-                ", subtract dequantization constant " << subtractConstant->get_friendly_name() << ":" << subtractConstant->output(0).get_element_type();
-        }
+        if (dequantization.subtractConvert == nullptr) {
+            const element::Type parentPrecision = parent->get_output_element_type(0);
+            if (parentPrecision.bitwidth() < dequantization.subtractConstant->output(0).get_element_type().bitwidth()) {
+                THROW_IE_LPT_EXCEPTION(*parent) <<
+                    "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
+                    ", subtract dequantization constant " << dequantization.subtractConstant->get_friendly_name() << ":" <<
+                    dequantization.subtractConstant->output(0).get_element_type();
+            }
 
-        parent = std::make_shared<DequantizationSubtract>(
-            parent,
-            subtractConstant->output(0).get_element_type() == parentPrecision ?
-                subtractConstant :
-                fold<opset1::Convert>(subtractConstant->output(0), parentPrecision));
-        ngraph::copy_runtime_info({ newOperation, parent }, parent);
+            parent = std::make_shared<DequantizationSubtract>(
+                parent,
+                dequantization.subtractConstant->output(0).get_element_type() == parentPrecision ?
+                    dequantization.subtractConstant :
+                    fold<opset1::Convert>(dequantization.subtractConstant, parentPrecision));
+            ngraph::copy_runtime_info({ newOperation, parent }, parent);
+        } else {
+            parent = std::make_shared<DequantizationSubtract>(parent, dequantization.subtractConvert);
+            ngraph::copy_runtime_info({ newOperation, parent }, parent);
+        }
     }
 
     if (dequantization.multiply != nullptr) {
@@ -993,19 +1312,6 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     }
 
     return InsertDequantizationResult(newOperation, parent);
-}
-
-void NetworkHelper::removeConvertIfPossible(
-    const std::shared_ptr<ngraph::Node>& operation,
-    const FakeQuantizeDequantization& dequantization) {
-    const element::Type precisionBeforeConvert = dequantization.convert->input(0).get_element_type();
-
-    if (checkConstantValuePrecision(precisionBeforeConvert, dequantization.subtract->get_input_node_shared_ptr(1))) {
-        auto newSubtract = dequantization.subtract->clone_with_new_inputs({
-            dequantization.convert->get_input_node_shared_ptr(0),
-            fold<opset1::Convert>(dequantization.subtract->get_input_node_shared_ptr(1), precisionBeforeConvert) });
-        replace_node(dequantization.subtract, newSubtract);
-    }
 }
 
 bool NetworkHelper::checkConstantValuePrecision(const element::Type expectedPrecision, const std::shared_ptr<Node>& constant) {

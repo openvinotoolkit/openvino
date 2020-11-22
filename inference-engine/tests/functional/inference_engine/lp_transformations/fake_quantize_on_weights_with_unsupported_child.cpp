@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <transformations/utils/utils.hpp>
-#include <low_precision/fake_quantize.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -60,7 +60,7 @@ public:
             testValues.actual.fakeQuantizeOnWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
