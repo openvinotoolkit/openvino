@@ -51,6 +51,10 @@ public:
             max(max),
             hasZeroPoint(hasZeroPoint) {}
 
+    static bool isSupported(const element::Type& precision) {
+        return (precision == element::u8) || (precision == element::i8);
+    }
+
     static float getMinValue(const element::Type precision, const size_t levels) {
         if (precision == element::i8) {
             if (levels == 255) {
@@ -305,16 +309,12 @@ protected:
     ILayerTransformationsManager* layerTransformationsManager;
 
 protected:
-    std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const;
-
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(
         TransformationContext &context,
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract = true) const;
-
-    void fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const;
 
     void updateOutput(
         TransformationContext &context,

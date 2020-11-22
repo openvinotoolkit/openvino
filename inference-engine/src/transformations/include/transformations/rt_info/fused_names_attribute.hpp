@@ -77,6 +77,8 @@ public:
     std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override;
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+
+    std::string get_value() const override;
 };
 
 /**

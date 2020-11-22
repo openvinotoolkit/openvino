@@ -34,6 +34,7 @@ namespace ngraph
 
         virtual std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node);
         virtual std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes);
+        virtual std::string get_value() const;
     };
 
     template <typename VT>

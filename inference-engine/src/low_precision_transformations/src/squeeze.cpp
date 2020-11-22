@@ -39,7 +39,7 @@ bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
         return dequantizationOpConstant;
     };
 
-    const std::shared_ptr<Node> squeeze = separateInStandaloneBranch(m.get_match_root());
+    const std::shared_ptr<Node> squeeze = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(squeeze);
 
     if (dequantization.multiply != nullptr) {

@@ -81,7 +81,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
         return false;
     }
 
-    auto mvn = as_type_ptr<op::MVN>(separateInStandaloneBranch(operation));
+    auto mvn = as_type_ptr<op::MVN>(NetworkHelper::separateInStandaloneBranch(operation));
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn);
     auto scalesConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));

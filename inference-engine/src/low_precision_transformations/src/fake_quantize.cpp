@@ -28,22 +28,44 @@ void FakeQuantizeTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 
 bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
+    if (context.quantizedFakeQuantizeNames.find(layer->get_friendly_name()) != context.quantizedFakeQuantizeNames.end()) {
+        return false;
+    }
+
+    if (!NetworkHelper::isQuantizeSupported(layer)) {
+        return false;
+    }
+
+    layer = NetworkHelper::fuseConvert(layer);
 
     std::shared_ptr<opset1::FakeQuantize> fakeQuantize = layer;
-
     do {
         layer = fakeQuantize;
         fakeQuantize = fuseElementwise(context, fakeQuantize);
     } while (fakeQuantize != nullptr);
 
-    const ngraph::element::Type precision = layer->get_output_element_type(0);
-    if ((precision == ngraph::element::i8) || (precision == ngraph::element::u8)) {
-        return false;
-    }
-
     // FakeQuantize on weights are used without dequantization ScaleShifts
     if (NetworkHelper::onWeights(layer)) {
         return false;
+    }
+
+    // TODO: LPT: hardcoded precision: move to isPrecisionSupported
+    const ngraph::element::Type precision = layer->get_output_element_type(0);
+    if ((precision == ngraph::element::i8) || (precision == ngraph::element::u8)) {
+        const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
+        const DataPrecision exepctedDataPrecision = getDataPrecision(layer, quantizationDetails, false);
+        if (exepctedDataPrecision.precision == element::undefined) {
+            return false;
+        }
+
+        if (exepctedDataPrecision.precision == precision) {
+            return false;
+        }
+
+        layer = NetworkHelper::composeFakeQuantize(layer);
+        if (layer == nullptr) {
+            return false;
+        }
     }
 
     if (as_type<opset1::Constant>(layer->get_input_node_ptr(0))) {
@@ -115,6 +137,8 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 
     std::shared_ptr<ngraph::Node> dequantize = std::get<1>(QDQ);
     updateOutput(context, dequantize, layer);
+
+    context.quantizedFakeQuantizeNames.insert(layer->get_friendly_name());
 
     return true;
 }

@@ -51,18 +51,36 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData1,
-    const FakeQuantizeOnDataWithConstant& fqOnData2) {
+    const DequantizationOperations::Convert& convert1,
+    const DequantizationOperations& dequantization1,
+    const FakeQuantizeOnDataWithConstant& fqOnData2,
+    const DequantizationOperations::Convert& convert2,
+    const DequantizationOperations& dequantization2) {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input1");
-    const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
+    std::shared_ptr<Node> parent1 = makeFakeQuantize(input1, precision, fqOnData1);
+    parent1->set_friendly_name("fakeQuantize1");
+    if (!convert1.empty()) {
+        parent1 = std::make_shared<opset1::Convert>(parent1, convert1.outPrecision);
+    }
+    if (!dequantization1.empty()) {
+        parent1 = makeDequantization(parent1, dequantization1);
+    }
 
     const std::vector<size_t> inputShape2 = inputShape;
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
     input2->set_friendly_name("input2");
-    const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
+    std::shared_ptr<Node> parent2 = makeFakeQuantize(input2, precision, fqOnData2);
+    parent2->set_friendly_name("fakeQuantize2");
+    if (!convert2.empty()) {
+        parent2 = std::make_shared<opset1::Convert>(parent2, convert2.outPrecision);
+    }
+    if (!dequantization2.empty()) {
+        parent2 = makeDequantization(parent2, dequantization2);
+    }
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
-        ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
+        ngraph::OutputVector{ parent1->output(0), parent2->output(0) }, 1);
     concat->set_friendly_name("output");
 
     auto& rtInfo = concat->get_rt_info();
@@ -561,19 +579,39 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData1,
+    const DequantizationOperations::Convert& convert1,
+    const DequantizationOperations& dequantization1,
     const FakeQuantizeOnDataWithConstant& fqOnData2,
+    const DequantizationOperations::Convert& convert2,
+    const DequantizationOperations& dequantization2,
     const DequantizationOperations& dequantizationOperations) {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
+
+    std::shared_ptr<Node> parent1 = fakeQuantize1;
+    if (!convert1.empty()) {
+        parent1 = std::make_shared<opset1::Convert>(parent1, convert1.outPrecision);
+    }
+    if (!dequantization1.empty()) {
+        parent1 = makeDequantization(parent1, dequantization1);
+    }
 
     const std::vector<size_t> inputShape2 = inputShape;
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
 
+    std::shared_ptr<Node> parent2 = fakeQuantize2;
+    if (!convert2.empty()) {
+        parent2 = std::make_shared<opset1::Convert>(parent2, convert2.outPrecision);
+    }
+    if (!dequantization2.empty()) {
+        parent2 = makeDequantization(parent1, dequantization2);
+    }
+
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Concat>>(
-        ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
+        ngraph::OutputVector{ parent1->output(0), parent2->output(0) }, 1);
 
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");

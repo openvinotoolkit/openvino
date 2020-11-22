@@ -149,7 +149,7 @@ bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    reshape = as_type_ptr<opset1::Reshape>(separateInStandaloneBranch(reshape));
+    reshape = as_type_ptr<opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape));
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
     return true;

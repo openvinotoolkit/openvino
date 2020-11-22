@@ -28,6 +28,16 @@ using namespace ngraph;
 
 namespace LayerTestsUtils {
 
+ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
+    return ngraph::pass::low_precision::LayerTransformation::Params(
+        true,
+        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        true,
+        { ngraph::element::u8, ngraph::element::i8 },
+        { ngraph::element::i8 });
+}
+
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8() {
     return ngraph::pass::low_precision::LayerTransformation::Params(
         true,
@@ -50,6 +60,8 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationPara
 
 LayerTransformation::LayerTransformation() {
     threshold = 0.05;
+    auto& configuration = GetConfiguration();
+    configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }
 
 InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(

@@ -53,7 +53,7 @@ void TransposeAfterMatMulTransformation::SetUp() {
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input2->set_friendly_name("input2");
 
-    const float k = 50.f;
+    const float k = 10.f;
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(input1, precision, 256ul, { 1ul }, { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
     input2->set_friendly_name("fakeQuantize1");
     const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(input2, precision, 256ul, { 1ul }, { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });

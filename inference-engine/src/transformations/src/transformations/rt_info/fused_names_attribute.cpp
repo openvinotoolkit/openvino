@@ -55,6 +55,10 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<FusedNames>::init(const std::sha
     return std::make_shared<VariantWrapper<FusedNames> > (FusedNames(node->get_friendly_name()));
 }
 
+std::string VariantWrapper<FusedNames>::get_value() const {
+    return m_value.getNames();
+}
+
 std::string getFusedNames(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
     using FusedNamesWraper = VariantWrapper<FusedNames>;

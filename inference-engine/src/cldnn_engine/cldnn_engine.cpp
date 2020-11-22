@@ -28,10 +28,14 @@
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
+
+#include <transformations/low_precision/disable_convert_on_const_path.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
@@ -53,6 +57,7 @@
 
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
+#include <low_precision/network_helper.hpp>
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -153,6 +158,12 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             ngraph::pass::Manager manager;
             using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
             const auto& pass_config = manager.get_pass_config();
+
+            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+            if (enableInt8) {
+                manager.register_pass<ngraph::pass::DisableConvertOnConstPath>();
+            }
+
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
             manager.register_pass<ngraph::pass::ConvertPriorBox>();
@@ -208,9 +219,21 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                         }
                         return true;
                     });
+
+            if (enableInt8) {
+                pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
+                    const std::shared_ptr<ngraph::Node> multiply = const_cast<ngraph::Node*>(node.get())->shared_from_this();
+                    return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(multiply);
+                });
+
+                pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
+                    const std::shared_ptr<ngraph::Node> subtract = const_cast<ngraph::Node*>(node.get())->shared_from_this();
+                    return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(subtract);
+                });
+            }
+
             manager.run_passes(nGraphFunc);
 
-            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 const auto fp16_callback = [&baselineIsFP16](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
                     if (!baselineIsFP16 && node->get_output_element_type(0) == ngraph::element::f16) {

@@ -36,5 +36,10 @@ std::shared_ptr<ngraph::Variant> Variant::merge(const ngraph::NodeVector& nodes)
     return nullptr;
 }
 
+std::string Variant::get_value() const
+{
+    return "";
+}
+
 template class ngraph::VariantImpl<std::string>;
 template class ngraph::VariantImpl<int64_t>;

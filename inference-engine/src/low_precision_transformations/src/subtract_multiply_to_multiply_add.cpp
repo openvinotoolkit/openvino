@@ -27,7 +27,9 @@ FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
         dataNode.get_node_shared_ptr()->get_input_node_shared_ptr(1)) ?
         as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr()) :
         nullptr;
+    std::shared_ptr<opset1::Constant> multiplyConstant;
     if (multiply != nullptr) {
+        FakeQuantizeDequantization::fillMultiply(multiply, multiplyConstant);
         dataNode = multiply->get_input_source_output(0);
     }
 
@@ -35,7 +37,10 @@ FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
         && is_type<opset1::Constant>(dataNode.get_node_shared_ptr()->get_input_node_ptr(1)) ?
             as_type_ptr<opset1::Subtract>(dataNode.get_node_shared_ptr()) :
             nullptr;
+    std::shared_ptr<opset1::Convert> subtractConvert;
+    std::shared_ptr<opset1::Constant> subtractConstant;
     if (subtract != nullptr) {
+        FakeQuantizeDequantization::fillSubtract(subtract, subtractConvert, subtractConstant);
         dataNode = subtract->get_input_source_output(0);
     }
 
@@ -44,7 +49,7 @@ FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
         dataNode = convert->get_input_source_output(0);
     }
 
-    return FakeQuantizeDequantization(dataNode, convert, subtract, multiply);
+    return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
 }
 
 bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
@@ -53,7 +58,7 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         return false;
     }
 
-    multiply = separateInStandaloneBranch(multiply);
+    multiply = NetworkHelper::separateInStandaloneBranch(multiply);
     FakeQuantizeDequantization dequantization = get(multiply);
 
     const element::Type precisionBeforeDequantization = dequantization.convert == nullptr ?

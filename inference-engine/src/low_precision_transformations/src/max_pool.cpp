@@ -47,7 +47,7 @@ bool MaxPoolTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
+    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
     moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
     return true;
 }

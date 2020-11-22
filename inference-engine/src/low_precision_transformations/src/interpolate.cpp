@@ -37,7 +37,7 @@ bool InterpolateTransformation::transform(TransformationContext &context, ngraph
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
-    interpolate = separateInStandaloneBranch(interpolate);
+    interpolate = NetworkHelper::separateInStandaloneBranch(interpolate);
     moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate), true);
     return true;
 }

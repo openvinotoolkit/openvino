@@ -138,7 +138,29 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
         return false;
     }
 
-    return true;
+    const auto parent = dequantization.subtract->input_value(1).get_node_shared_ptr();
+
+    // if (is_type<opset1::Constant>(parent)) {
+    //    std::shared_ptr<Node> zeroPoint = dequantization.subtract->get_input_node_shared_ptr(1);
+    //    auto convertedZeroPoint = NetworkHelper::roundWithTolerance(zeroPoint, operationType);
+    //    return convertedZeroPoint->output(0).get_element_type() == operationType;
+    // } else if (is_type<opset1::Convert>(parent) && is_type<opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
+    //    const auto constant = parent->get_input_node_shared_ptr(0);
+    //    const auto constantType = constant->output(0).get_element_type();
+    //    return operationType == constantType;
+    // } else {
+    //    return false;
+    // }
+
+    if (is_type<opset1::Constant>(parent)) {
+        return true;
+    } else if (is_type<opset1::Convert>(parent) && is_type<opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
+        const auto constant = parent->get_input_node_shared_ptr(0);
+        const auto constantType = constant->output(0).get_element_type();
+        return operationType == constantType;
+    } else {
+        return false;
+    }
 }
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -312,30 +334,36 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
             continue;
         }
 
-        if (!layerTransformationsManager->isQuantized(child)) {
-            // low precision chain is interrupted here: next operation supported precisions are ignored
-            continue;
-        }
+        std::vector<element::Type> childPrecisionsOnActivations;
+        if (is_type<opset1::Convert>(child) || is_type<opset1::Subtract>(child) || is_type<opset1::Multiply>(child)) {
+            // dequantization operation is fused, as result is any precision is supported
+            childPrecisionsOnActivations = availablePrecisions;
+        } else {
+            if (!layerTransformationsManager->isQuantized(child)) {
+                // low precision chain is interrupted here: next operation supported precisions are ignored
+                continue;
+            }
 
-        const std::vector<element::Type> childPrecisionsOnActivations = paramsManager->getPrecisionsOnActivations(*child);
-        if (childPrecisionsOnActivations.size() == 0ul) {
-            continue;
-        }
+            childPrecisionsOnActivations = paramsManager->getPrecisionsOnActivations(*child);
+            if (childPrecisionsOnActivations.size() == 0ul) {
+                continue;
+            }
 
-        for (size_t index = 0ul; index < availablePrecisions.size();) {
-            const element::Type availablePrecision = availablePrecisions[index];
-            if (!std::any_of(
+            for (size_t index = 0ul; index < availablePrecisions.size();) {
+                const element::Type availablePrecision = availablePrecisions[index];
+                if (!std::any_of(
                     childPrecisionsOnActivations.begin(),
                     childPrecisionsOnActivations.end(),
                     [&](const element::Type precision) { return availablePrecision == precision; })) {
-                availablePrecisions.erase(availablePrecisions.begin() + index);
-            } else {
-                ++index;
+                    availablePrecisions.erase(availablePrecisions.begin() + index);
+                } else {
+                    ++index;
+                }
             }
-        }
 
-        if (!layerTransformationsManager->isPrecisionPreserved(child)) {
-            continue;
+            if (!layerTransformationsManager->isPrecisionPreserved(child)) {
+                continue;
+            }
         }
 
         fillAvailablePrecisions(child, availablePrecisions);
@@ -378,44 +406,6 @@ std::vector<std::shared_ptr<Node>> LayerTransformation::getChildrenRecursivelyEx
     return resultChildren;
 }
 
-
-std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
-    if (dequantization.isShared()) {
-        Output<Node> parent = dequantization.data;
-        if (dequantization.convert != nullptr) {
-            parent = dequantization.convert->clone_with_new_inputs({ parent });
-            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
-        }
-
-        if (dequantization.subtract != nullptr) {
-            parent = dequantization.subtract->clone_with_new_inputs({
-                parent,
-                dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
-            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
-        }
-
-        if (dequantization.multiply != nullptr) {
-            parent = dequantization.multiply->clone_with_new_inputs({
-                parent,
-                dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
-            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
-        }
-
-        std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
-        const size_t inputIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, node);
-        inputs[inputIndex] = parent;
-        const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
-
-        replace_node(node, newNode);
-        newNode->set_friendly_name(node->get_friendly_name());
-
-        return newNode;
-    }
-
-    return node;
-}
-
 std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     TransformationContext &context,
     const std::shared_ptr<ngraph::Node>& operation,
@@ -425,21 +415,6 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision, moveSubtract);
     updateOutput(context, result.lastDequantization, result.newOperation);
     return result.newOperation;
-}
-
-void LayerTransformation::fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(operation, 0);
-    if ((dequantization.subtract != nullptr) &&
-        NetworkHelper::checkConstantValuePrecision(
-            dequantization.convert->get_output_element_type(0),
-            dequantization.subtract->get_input_node_shared_ptr(1))) {
-        auto newOperation = separateInStandaloneBranch(operation);
-        dequantization = NetworkHelper::getDequantization(operation, 0);
-        // TODO: It is correct to use optimizeSubtract here: uncomment following rows and fix it
-        //auto newSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
-        //replace_node(dequantization.subtract, newSubtract);
-        NetworkHelper::removeConvertIfPossible(operation, dequantization);
-    }
 }
 
 void LayerTransformation::updateOutput(

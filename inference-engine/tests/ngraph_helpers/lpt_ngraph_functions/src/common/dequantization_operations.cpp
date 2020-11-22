@@ -14,9 +14,10 @@ DequantizationOperations::Convert::Convert() :
     outPrecision(ngraph::element::undefined)
 {}
 
-DequantizationOperations::Convert::Convert(const ngraph::element::Type outPrecision) :
+DequantizationOperations::Convert::Convert(const ngraph::element::Type outPrecision, const bool addDeqAttr) :
     isEmpty(false),
-    outPrecision(outPrecision)
+    outPrecision(outPrecision),
+    addDequantizationAttribute(addDeqAttr)
 {}
 
 bool DequantizationOperations::Convert::empty() const noexcept {
@@ -61,7 +62,10 @@ DequantizationOperations::Subtract::Subtract(
     const ngraph::Shape& constantShape,
     const bool addDequantizationAttribute,
     const size_t constantIndex,
-    const ngraph::element::Type constantPrecision) :
+    const ngraph::element::Type constantPrecision,
+    const bool addConvert,
+    const std::vector<std::string>& attributes,
+    const std::vector<std::string>& convertAttributes) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
@@ -69,7 +73,10 @@ DequantizationOperations::Subtract::Subtract(
     constantShapeIsDefined(true),
     addDequantizationAttribute(addDequantizationAttribute),
     constantIndex(constantIndex),
-    constantPrecision(constantPrecision) {
+    constantPrecision(constantPrecision),
+    addConvert(addConvert),
+    attributes(attributes),
+    convertAttributes(convertAttributes) {
 }
 
 bool DequantizationOperations::Subtract::empty() const noexcept {

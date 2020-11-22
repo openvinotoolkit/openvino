@@ -59,6 +59,21 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& dat
 
 class FakeQuantizeOnDataWithConstant {
 public:
+    FakeQuantizeOnDataWithConstant();
+
+    FakeQuantizeOnDataWithConstant(
+        const size_t quantizationLevel,
+        const std::vector<ngraph::Shape>& constantShapes,
+        const std::vector<float>& inputLowValues,
+        const std::vector<float>& inputHighValues,
+        const std::vector<float>& outputLowValues,
+        const std::vector<float>& outputHighValues,
+        const ngraph::element::Type outputPrecision = ngraph::element::undefined);
+
+    virtual ~FakeQuantizeOnDataWithConstant();
+
+    virtual bool empty() const;
+
     size_t quantizationLevel;
     std::vector<ngraph::Shape> constantShapes;
     std::vector<float> inputLowValues;

@@ -50,8 +50,8 @@
 #include "low_precision/split.hpp"
 
 // cleanup transformations
-#include "low_precision/convert.hpp"
 #include "low_precision/fuse_convert.hpp"
+#include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
@@ -244,6 +244,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
         add<InterpolateTransformation, opset4::Interpolate>(params).
 
+        addCleanup<FoldConvertTransformation, opset1::Subtract>(params).
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
 
         addStandaloneCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).

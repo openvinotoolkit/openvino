@@ -16,14 +16,20 @@ namespace low_precision {
 FakeQuantizeDequantization::FakeQuantizeDequantization() {}
 
 FakeQuantizeDequantization::FakeQuantizeDequantization(
-    Output<Node> data,
-    std::shared_ptr<opset1::Convert> convert,
-    std::shared_ptr<opset1::Subtract> subtract,
-    std::shared_ptr<opset1::Multiply> multiply) :
+    const Output<Node>& data,
+    const std::shared_ptr<opset1::Convert>& convert,
+    const std::shared_ptr<opset1::Subtract>& subtract,
+    const std::shared_ptr<ngraph::opset1::Convert>& subtractConvert,
+    const std::shared_ptr<ngraph::opset1::Constant>& subtractConstant,
+    const std::shared_ptr<opset1::Multiply>& multiply,
+    const std::shared_ptr<ngraph::opset1::Constant>& multiplyConstant) :
     data(data),
     convert(convert),
     subtract(subtract),
-    multiply(multiply) {
+    subtractConvert(subtractConvert),
+    subtractConstant(subtractConstant),
+    multiply(multiply),
+    multiplyConstant(multiplyConstant) {
 }
 
 bool FakeQuantizeDequantization::empty() const {
@@ -115,6 +121,40 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
     }
 
     return true;
+}
+
+void FakeQuantizeDequantization::fillMultiply(
+    const std::shared_ptr<ngraph::opset1::Multiply>& multiply,
+    std::shared_ptr<ngraph::opset1::Constant>& constant) {
+    constant = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1));
+    if (constant == nullptr) {
+        constant = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(0));
+    }
+}
+
+void FakeQuantizeDequantization::fillSubtract(
+    const std::shared_ptr<ngraph::opset1::Subtract>& subtract,
+    std::shared_ptr<ngraph::opset1::Convert>& convert,
+    std::shared_ptr<ngraph::opset1::Constant>& constant) {
+    auto fill = [](
+        const std::shared_ptr<opset1::Subtract>& subtract,
+        const size_t branchIndex,
+        std::shared_ptr<ngraph::opset1::Convert>& convert,
+        std::shared_ptr<ngraph::opset1::Constant>& constant) {
+        constant = as_type_ptr<opset1::Constant>(subtract->get_input_node_shared_ptr(branchIndex));
+        convert = nullptr;
+        if (constant == nullptr) {
+            convert = as_type_ptr<opset1::Convert>(subtract->get_input_node_shared_ptr(branchIndex));
+            if (convert != nullptr) {
+                constant = as_type_ptr<opset1::Constant>(subtract->get_input_node_ptr(branchIndex)->get_input_node_shared_ptr(0));
+            }
+        }
+    };
+
+    fill(subtract, 1, convert, constant);
+    if (constant == nullptr) {
+        fill(subtract, 0, convert, constant);
+    }
 }
 
 }  // namespace low_precision

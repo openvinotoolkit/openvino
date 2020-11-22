@@ -27,6 +27,7 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "ngraph/variant.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -484,7 +485,17 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
             rc += "\\nrt info: ";
             for (const auto& item : rt)
             {
-                rc += item.first + " ";
+                auto type_info = item.second->get_type_info();
+                if (item.first == "Variant::RuntimeAttribute::FusedNames")
+                {
+                    std::shared_ptr<Variant> var = item.second;
+                    auto value = var->get_value();
+                    rc += item.first + "(" + value + ")";
+                }
+                else
+                {
+                    rc += item.first + " ";
+                }
             }
         }
     }
