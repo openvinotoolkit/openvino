@@ -108,7 +108,8 @@ const std::string& element::Type::c_type_string() const
     return get_type_info_map().at(m_type).m_cname;
 }
 
-element::Type& element::Type::operator=(const element::Type_t& other) {
+element::Type& element::Type::operator=(const element::Type_t& other)
+{
     *this = element::Type(other);
     return *this;
 }
