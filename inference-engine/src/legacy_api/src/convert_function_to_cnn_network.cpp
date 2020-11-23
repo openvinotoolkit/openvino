@@ -546,13 +546,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<PReLULayer>(attrs);
         res->params = params;
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
         const auto weightsNode = node->input_value(1).get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
+
         return res;
     });
 
