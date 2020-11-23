@@ -207,5 +207,21 @@ inline std::string tolower(const std::string& s) {
     std::transform(s.begin(), s.end(), ret.begin(), ::tolower);
     return ret;
 }
+
+/**
+ * @brief Converts string with text bool representation into string with integer (0/1)
+ * @ingroup ie_dev_api_error_debug
+ * @param s A std::string to convert
+ * @return An output std::string containing 0 or 1 depending on the input
+ */
+inline std::string getBoolStrParamAsIntStr(const std::string &s) {
+  if (s == "true") {
+    return "1";
+  } else if (s == "false") {
+    return "0";
+  }
+  return s;
+}
+
 }  // namespace details
 }  // namespace InferenceEngine

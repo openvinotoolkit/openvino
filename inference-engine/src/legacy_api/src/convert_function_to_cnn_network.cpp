@@ -469,27 +469,19 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
-        auto parseBoolStrToIntStr = [](const std::string &param) -> const std::string {
-            if (param == "true") {
-                return "1";
-            }
-            else if (param == "false") {
-                return "0";
-            }
-            return param;
-        };
+
         if (res->params["code_type"] == "caffe.priorboxparameter.center_size"){
             res->params["code_type"] = "caffe.PriorBoxParameter.CENTER_SIZE";
         }
         else{
             res->params["code_type"] =  "caffe.PriorBoxParameter.CORNER";
         }
-        res->params["variance_encoded_in_target"] = parseBoolStrToIntStr(res->params["variance_encoded_in_target"]);
-        res->params["share_location"] = parseBoolStrToIntStr(res->params["share_location"]);
-        res->params["clip_after_nms"] = parseBoolStrToIntStr(res->params["clip_after_nms"]);
-        res->params["clip_before_nms"] = parseBoolStrToIntStr(res->params["clip_before_nms"]);
-        res->params["decrease_label_id"] = parseBoolStrToIntStr(res->params["decrease_label_id"]);
-        res->params["normalized"] = parseBoolStrToIntStr(res->params["normalized"]);
+        res->params["variance_encoded_in_target"] = details::getBoolStrParamAsIntStr(res->params["variance_encoded_in_target"]);
+        res->params["share_location"] = details::getBoolStrParamAsIntStr(res->params["share_location"]);
+        res->params["clip_after_nms"] = details::getBoolStrParamAsIntStr(res->params["clip_after_nms"]);
+        res->params["clip_before_nms"] = details::getBoolStrParamAsIntStr(res->params["clip_before_nms"]);
+        res->params["decrease_label_id"] = details::getBoolStrParamAsIntStr(res->params["decrease_label_id"]);
+        res->params["normalized"] = details::getBoolStrParamAsIntStr(res->params["normalized"]);
         return res;
     });
 
@@ -610,20 +602,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "PriorBox",
             details::convertPrecision(node->get_output_element_type(0))};
-        auto parseBoolStrToIntStr = [](const std::string &param) -> const std::string {
-            if (param == "true") {
-                return "1";
-            }
-            else if (param == "false") {
-                return "0";
-            }
-            return param;
-        };
+
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
-        res->params["clip"] = parseBoolStrToIntStr(res->params["clip"]);
-        res->params["flip"] = parseBoolStrToIntStr(res->params["flip"]);
-        res->params["scale_all_sizes"] = parseBoolStrToIntStr(res->params["scale_all_sizes"]);
+        res->params["clip"] = details::getBoolStrParamAsIntStr(res->params["clip"]);
+        res->params["flip"] = details::getBoolStrParamAsIntStr(res->params["flip"]);
+        res->params["scale_all_sizes"] = details::getBoolStrParamAsIntStr(res->params["scale_all_sizes"]);
 
         auto scale_all_sizes = std::stoi(res->params["scale_all_sizes"]);
         if (!scale_all_sizes) {
@@ -663,12 +647,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
-        if (res->params["clip"] == "true") {
-            res->params["clip"] = "1";
-        }
-        else if (res->params["clip"] == "false") {
-            res->params["clip"] = "0";
-        }
+        res->params["clip"] =
+            details::getBoolStrParamAsIntStr(res->params["clip"]);
+
         auto step_h = std::stof(res->params["step_h"]);
         auto step_w = std::stof(res->params["step_w"]);
         if (std::abs(step_h - step_w) < 1e-5) {
@@ -682,20 +663,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Proposal",
             details::convertPrecision(node->get_output_element_type(0))};
-        auto parseBoolStrToIntStr = [](const std::string &param) -> const std::string {
-            if (param == "true") {
-                return "1";
-            }
-            else if (param == "false") {
-                return "0";
-            }
-            return param;
-        };
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
-        res->params["clip_before_nms"] = parseBoolStrToIntStr(res->params["clip_before_nms"]);
-        res->params["clip_after_nms"] = parseBoolStrToIntStr(res->params["clip_after_nms"]);
-        res->params["normalize"] = parseBoolStrToIntStr(res->params["normalize"]);
+        res->params["clip_before_nms"] =
+            details::getBoolStrParamAsIntStr(res->params["clip_before_nms"]);
+        res->params["clip_after_nms"] =
+            details::getBoolStrParamAsIntStr(res->params["clip_after_nms"]);
+        res->params["normalize"] =
+            details::getBoolStrParamAsIntStr(res->params["normalize"]);
         return res;
     });
 
