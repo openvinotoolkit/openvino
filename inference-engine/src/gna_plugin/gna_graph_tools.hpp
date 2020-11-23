@@ -147,8 +147,8 @@ inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayerSkipCertain(Layer layer, int
 /**
  * @brief returns next layer, skipping certain layers based on given functor
  * @param layer - given start layer
- * @param oidx - index of output data
- * @param iidx - index of input layers for given output
+ * @param oidx - index of output data for start layer, in other layers only zero oidx will be used
+ * @param iidx - index of input layers for given output right after start layer, in other layers only zero oidx will be used
  * @param bOnlyCheck - doesn't throw exception if next layer missed
  * @param shouldSkip
  * @return layer pointer and it's insData index that uses to connect to previous layer in chain
@@ -169,15 +169,30 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
     auto outLayer = getInputTo(layer->outData[oidx]).begin();
     std::advance(outLayer, iidx);
 
-    if (!shouldSkip(outLayer->second)) {
-        auto insDataIdx = CNNLayerFindInsDataIdxes(layer->outData[oidx], outLayer->second);
-        if (insDataIdx.size() != 1) {
-            if (bOnlyCheck) return {nullptr, 0};
-            THROW_GNA_LAYER_EXCEPTION(layer) << " has multiple connection to " << oidx << " outData";
+    while (shouldSkip(outLayer->second)) {
+        oidx = 0;
+        iidx = 0;
+
+        if (outLayer->second->outData.size() <= oidx) {
+            if (bOnlyCheck) return { nullptr, 0 };
+            THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << oidx;
         }
-        return {outLayer->second, insDataIdx.front()};
+
+        if (getInputTo(outLayer->second->outData[oidx]).size() <= iidx) {
+            if (bOnlyCheck) return { nullptr, 0 };
+            THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << oidx << " and inputTo index: " << iidx;
+        }
+
+        layer = outLayer->second;
+        outLayer = getInputTo(layer->outData[oidx]).begin();
     }
-    return CNNNetCheckNextLayerSkipCertain(outLayer->second, 0, 0, bOnlyCheck, shouldSkip);
+
+    auto insDataIdx = CNNLayerFindInsDataIdxes(layer->outData[oidx], outLayer->second);
+    if (insDataIdx.size() != 1) {
+        if (bOnlyCheck) return { nullptr, 0 };
+        THROW_GNA_LAYER_EXCEPTION(layer) << " has multiple connection to " << oidx << " outData";
+    }
+    return { outLayer->second, insDataIdx.front() };
 }
 
 /**
