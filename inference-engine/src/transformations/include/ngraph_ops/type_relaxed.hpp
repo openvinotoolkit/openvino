@@ -39,10 +39,9 @@ public:
     /// is used to deduce output type. In some cases they don't match: get_overridden_output_type may return
     /// element::undefined for some index i, and get_output_element_type will return some real type for
     /// the same index i.
-    const element::Type& get_overridden_output_type(size_t outputIndex = 0) const {
+    const element::Type get_overridden_output_type(size_t outputIndex = 0) const {
         if (outputIndex >= m_output_data_types.size()) {
-            static element::Type undef_elem(element::undefined);
-            return undef_elem;
+            return element::undefined;
         }
         return m_output_data_types[outputIndex];
     }
@@ -61,10 +60,9 @@ public:
     /// \return Data type that will be set for input when original shape/type inference function is called.
     /// If index inputIndex hasn't been set before, element::undefined will returned. Undefined means that
     /// the type from input tensor descriptor is used for a given index.
-    const element::Type& get_origin_input_type(size_t inputIndex = 0) const {
+    const element::Type get_origin_input_type(size_t inputIndex = 0) const {
         if (inputIndex >= m_input_data_types.size()) {
-            static element::Type undef_elem(element::undefined);
-            return undef_elem;
+            return element::undefined;
         }
         return m_input_data_types[inputIndex];
     }
