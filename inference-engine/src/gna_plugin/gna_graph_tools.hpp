@@ -169,28 +169,28 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
     auto outLayer = getInputTo(layer->outData[oidx]).begin();
     std::advance(outLayer, iidx);
 
-    while (shouldSkip(outLayer->second)) {
-        oidx = 0;
-        iidx = 0;
+    int new_oidx = shouldSkip(outLayer->second) ? 0 : oidx;
+    int new_iidx = shouldSkip(outLayer->second) ? 0 : iidx;
 
-        if (outLayer->second->outData.size() <= oidx) {
+    while (shouldSkip(outLayer->second)) {
+        if (outLayer->second->outData.size() <= new_oidx) {
             if (bOnlyCheck) return { nullptr, 0 };
-            THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << oidx;
+            THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << new_oidx;
         }
 
-        if (getInputTo(outLayer->second->outData[oidx]).size() <= iidx) {
+        if (getInputTo(outLayer->second->outData[new_oidx]).size() <= new_iidx) {
             if (bOnlyCheck) return { nullptr, 0 };
-            THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << oidx << " and inputTo index: " << iidx;
+            THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << new_oidx << " and inputTo index: " << new_iidx;
         }
 
         layer = outLayer->second;
-        outLayer = getInputTo(layer->outData[oidx]).begin();
+        outLayer = getInputTo(layer->outData[new_oidx]).begin();
     }
 
-    auto insDataIdx = CNNLayerFindInsDataIdxes(layer->outData[oidx], outLayer->second);
+    auto insDataIdx = CNNLayerFindInsDataIdxes(layer->outData[new_oidx], outLayer->second);
     if (insDataIdx.size() != 1) {
         if (bOnlyCheck) return { nullptr, 0 };
-        THROW_GNA_LAYER_EXCEPTION(layer) << " has multiple connection to " << oidx << " outData";
+        THROW_GNA_LAYER_EXCEPTION(layer) << " has multiple connection to " << new_oidx << " outData";
     }
     return { outLayer->second, insDataIdx.front() };
 }
