@@ -866,6 +866,7 @@ def test_prior_box(int_dtype, fp_dtype):
         "offset": fp_dtype(0),
         "min_size": np.array([2, 3], dtype=fp_dtype),
         "aspect_ratio": np.array([1.5, 2.0, 2.5], dtype=fp_dtype),
+        "scale_all_sizes": False
     }
 
     layer_shape = ng.constant(np.array([32, 32], dtype=int_dtype), int_dtype)
