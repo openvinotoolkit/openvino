@@ -105,10 +105,17 @@ class BuildCMakeExt(build_ext):
 
         os.makedirs(build_dir, exist_ok=True)
         os.makedirs(extension_path.parent.absolute(), exist_ok=True)
-
+        
+        # If ngraph_DIR is not set try to build from OpenVINO root
+        root_dir = OPENVINO_ROOT_DIR
+        bin_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
+        if os.environ.get('ngraph_DIR') is not None:
+            root_dir = PYNGRAPH_ROOT_DIR
+            bin_dir = build_dir
+            
         self.announce("Configuring cmake project", level=3)
 
-        self.spawn(["cmake", "-H" + OPENVINO_ROOT_DIR, "-B" + self.build_temp,
+        self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
                     "-DENABLE_CLDNN=OFF",
                     "-DENABLE_OPENCV=OFF",
@@ -120,17 +127,14 @@ class BuildCMakeExt(build_ext):
         
         self.spawn(["cmake", "--build", self.build_temp, "--target", extension.name,
                     "--config", self.config])
-       
-        self.announce("Moving built python module to " + str(extension_path), level=3)
-        bin_dir = os.path.join(OPENVINO_ROOT_DIR, 'bin')
-        self.distribution.bin_dir = bin_dir
 
+        self.announce("Moving built python module to " + str(extension_path), level=3)
         pyds = [name for name in glob.iglob("{0}/**/{1}*{2}".format(bin_dir,
                 extension.name,
                 sysconfig.get_config_var("EXT_SUFFIX")), recursive=True)]
         for name in pyds:
-            self.announce("copy " + os.path.join(bin_dir, name), level=3)
-            shutil.copy(os.path.join(bin_dir, name),  extension_path)
+            self.announce("copy " + os.path.join(name), level=3)
+            shutil.copy(name,  extension_path)
 
 
 class InstallCMakeLibs(install_lib):
@@ -142,7 +146,9 @@ class InstallCMakeLibs(install_lib):
 
         self.announce("Adding library files", level=3)
 
-        bin_dir = os.path.join(OPENVINO_ROOT_DIR, 'bin')
+        root_dir = os.path.join(OPENVINO_ROOT_DIR, 'bin')
+        if os.environ.get('ngraph_DIR') is not None:
+            root_dir = pathlib.Path(os.environ['ngraph_DIR'])
 
         lib_ext = ".so"
         if "linux" in sys.platform or sys.platform == "darwin":
@@ -153,8 +159,13 @@ class InstallCMakeLibs(install_lib):
         libs = []
         for ngraph_lib in NGRAPH_LIBS:
             libs.extend([name for name in
-                         glob.iglob('{0}/**/*{1}*{2}'.format(bin_dir, ngraph_lib, lib_ext), recursive=True)])
-        self.distribution.data_files.extend([("lib", [os.path.normpath(os.path.join(bin_dir, lib)) for lib in libs])])
+                         glob.iglob('{0}/**/*{1}*{2}'.format(root_dir, ngraph_lib, lib_ext), recursive=True)])
+        if not libs:
+            raise Exception("NGraph libs not found.")
+
+        self.announce("Adding library files" + str(libs), level=3)
+
+        self.distribution.data_files.extend([("lib", [os.path.normpath(lib) for lib in libs])])
         self.distribution.run_command("install_data")
         super().run()
 

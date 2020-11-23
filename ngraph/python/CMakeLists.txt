@@ -19,8 +19,12 @@ cmake_minimum_required (VERSION 3.13)
 project (pyngraph)
 
 if(NOT DEFINED IE_MAIN_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-    find_package(ngraph REQUIRED)
+    find_package(InferenceEngineDeveloperPackage)
+    find_package(ngraph REQUIRED)    
+endif()
+
+if(ngraph_FOUND)
+    message("ngraph version = {${ngraph_VERSION}}")
 endif()
 
 include(FetchContent)
@@ -36,7 +40,6 @@ if(NOT pybind11_POPULATED)
     FetchContent_Populate(pybind11)
     add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
 endif()
-
 
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
 
@@ -65,16 +68,17 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 target_include_directories(_${PROJECT_NAME} PRIVATE src)
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
 
-ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
+if(InferenceEngineDeveloperPackage_FOUND)
+    ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
 
-install(TARGETS _${PROJECT_NAME} 
-        DESTINATION python/${PYTHON_VERSION}
-        COMPONENT pyngraph_${PYTHON_VERSION})
-        
-install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/src/ngraph
-        DESTINATION python/${PYTHON_VERSION}
-        COMPONENT pyngraph_${PYTHON_VERSION}
-        USE_SOURCE_PERMISSIONS)
+    install(TARGETS _${PROJECT_NAME} 
+            DESTINATION python/${PYTHON_VERSION}
+            COMPONENT pyngraph_${PYTHON_VERSION})
 
-ie_cpack(pyngraph_${PYTHON_VERSION})
+    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/src/ngraph
+            DESTINATION python/${PYTHON_VERSION}
+            COMPONENT pyngraph_${PYTHON_VERSION}
+            USE_SOURCE_PERMISSIONS)
 
+    ie_cpack(pyngraph_${PYTHON_VERSION})
+endif()
