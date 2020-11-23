@@ -53,7 +53,7 @@ public:
             low_precision::LayerTransformation::Params(params.transformationParams));
         transform.transform(actualFunction);
 
-        referenceFunction = (!params.transformationParams.supportAsymmetricQuantization) && (!params.expected.subtractValues.empty()) ?
+        referenceFunction = !params.expected.subtractValues.empty() ?
             ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
                 precision,
                 shape,
