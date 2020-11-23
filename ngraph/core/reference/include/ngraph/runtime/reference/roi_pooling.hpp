@@ -142,9 +142,8 @@ namespace ngraph
                         T roi_height = (roi_h_end - roi_h_start) * (height - 1);
                         T roi_width = (roi_w_end - roi_w_start) * (width - 1);
 
-                        // Divide ROIs into sub-regions
-                        T bin_size_h = roi_height / (pooled_h - 1);
-                        T bin_size_w = roi_width / (pooled_w - 1);
+                        T roi_height_scale = (pooled_h > 1) ? roi_height / (pooled_h - 1) : 0;
+                        T roi_width_scale = (pooled_w > 1) ? roi_width / (pooled_w - 1) : 0;
 
                         for (unsigned int c = 0; c < channels; c++)
                         {
@@ -152,8 +151,14 @@ namespace ngraph
                             {
                                 for (unsigned int pw = 0; pw < pooled_w; pw++)
                                 {
-                                    T in_y = (ph * bin_size_h + roi_h_start * (height - 1));
-                                    T in_x = (pw * bin_size_w + roi_w_start * (width - 1));
+                                    T in_y =
+                                        (pooled_h > 1)
+                                            ? (ph * roi_height_scale + roi_h_start * (height - 1))
+                                            : 0.5 * (roi_h_start + roi_h_end) * (height - 1);
+                                    T in_x =
+                                        (pooled_w > 1)
+                                            ? (pw * roi_width_scale + roi_w_start * (width - 1))
+                                            : 0.5 * (roi_w_end + roi_w_start) * (width - 1);
 
                                     const size_t pool_index =
                                         roi_num * channels * pooled_h * pooled_w +
