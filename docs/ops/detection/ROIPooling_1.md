@@ -14,6 +14,11 @@
 3. Divide the box into bins according to the pooled size attributes, `[pooled_h, pooled_w]`.
 4. Apply maximum or bilinear interpolation pooling, for each bin, based on *method* attribute to produce output feature map element.
 
+The box height and width have different representation based on **method** attribute:
+  * *max*: Expressed in relative coordinates. The box height and width are calculated the following way: `roi_width = max(spatial_scale * (x_2 - x_1), 1.0)`,
+`roi_height = max(spatial_scale * (y_2 - y_1), 1.0)`, so the malformed boxes are expressed as a box of size `1 x 1`.
+  * *bilinear*: Expressed in absolute coordinates and normalized to the `[0, 1]` interval. The box height and width are calculated the following way: `roi_width = (W - 1)  * (x_2 - x_1)`, `roi_height = (H - 1) * (y_2 - y_1)`.
+
 **Attributes**
 
 * *pooled_h*
@@ -53,10 +58,7 @@
 *   **1**: 4D input tensor of shape `[N, C, H, W]` with feature maps of type *T*. Required.
 
 *   **2**: 2D input tensor of shape `[NUM_ROIS, 5]` describing region of interest box consisting of 5 element tuples of type *T*: `[batch_id, x_1, y_1, x_2, y_2]`. Required.
-Batch indices must be in the range of `[0, N-1]`. The box height and width have different representation based on **method** attribute:
-  * **max**: Expressed in relative coordinates. The box height and width are calculated the following way: `roi_width = max(spatial_scale * (x_2 - x_1), 1.0)`,
-`roi_height = max(spatial_scale * (y_2 - y_1), 1.0)`, so the malformed boxes are expressed as a box of size `1 x 1`.
-  * **bilinear**: Expressed in absolute coordinates and normalized to the `[0, 1]` interval. The box height and width are calculated the following way: `roi_width = (W - 1)  * (x_2 - x_1)`, `roi_height = (H - 1) * (y_2 - y_1)`.
+Batch indices must be in the range of `[0, N-1]`.
 
 
 **Outputs**:
