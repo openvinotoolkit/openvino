@@ -15,7 +15,6 @@
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include <algorithm>
-#include <iostream>
 
 #include "jit_generator.hpp"
 #include "jit_uni_eltwise.hpp"
@@ -1393,7 +1392,7 @@ private:
 };
 
 MKLDNNInterpolateNode::MKLDNNInterpolateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {std::cout << "We are in Interpolate constructor of MKLDNN plugin.\n";}
+        : MKLDNNNode(layer, eng, cache) {}
 
 // shapeND: n     c     d     h    w
 // blockND: ncdhw cdhw  dhw   hw   w    1
@@ -2126,7 +2125,6 @@ std::vector<float> MKLDNNInterpolateNode::getScales() {
 }
 
 void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
-    std::cout << "We are in MKLDNNInterpolateNode::execute() method.\n";
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
 
