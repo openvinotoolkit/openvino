@@ -81,7 +81,7 @@ public:
     // Optimizes the series of multiplies after a given output port
     static std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
-    static std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance = 0.1);
+    static std::shared_ptr<opset1::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
 
     static std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
