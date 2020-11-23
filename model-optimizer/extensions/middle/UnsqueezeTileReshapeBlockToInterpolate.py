@@ -15,8 +15,9 @@
 """
 
 import logging as log
+import numpy as np
 
-from extensions.middle.InterpolateSequenceToInterpolate import InterpolateSequenceToInterpolate
+from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
@@ -53,6 +54,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
     force_shape_inference = True
 
     def run_before(self):
+        from extensions.middle.InterpolateSequenceToInterpolate import InterpolateSequenceToInterpolate
         return [InterpolateSequenceToInterpolate]
 
     def pattern(self):
@@ -91,7 +93,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         if len(input_shape_of_unsqueeze) not in {4, 5}:
             return
 
-        scale = int64_array([second_input_of_tile.value[d_idx]])
+        scale = np.array([second_input_of_tile.value[d_idx]], dtype=np.float32)
         axis = d_idx - 1
         axis_node = Const(graph, {'name': unsqueeze_name + '/axis_', 'value': int64_array([axis])}).create_node()
 
@@ -114,7 +116,11 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         shape_node.out_port(0).connect(strided_slice_node.in_port(0))
         slice_begin.out_port(0).connect(strided_slice_node.in_port(1))
         slice_end.out_port(0).connect(strided_slice_node.in_port(2))
-        strided_slice_node.out_port(0).connect(mul_node.in_port(0))
+
+        cast_shape_to_float = Cast(graph, {'dst_type': np.float32}).create_node()
+
+        strided_slice_node.out_port(0).connect(cast_shape_to_float.in_port(0))
+        cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
 
         interp_node = Interpolate(graph,
                                   dict(mode='nearest',

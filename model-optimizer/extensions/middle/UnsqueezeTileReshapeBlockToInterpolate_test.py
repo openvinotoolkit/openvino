@@ -15,6 +15,7 @@
 """
 
 import unittest
+import numpy as np
 
 from extensions.middle.UnsqueezeTileReshapeBlockToInterpolate import UnsqueezeTileReshapeBlockToInterpolate
 from mo.front.common.partial_infer.utils import int64_array
@@ -169,7 +170,7 @@ ref_graph_node_attrs_with_4_inputs_interpolate = {
         'kind': 'op',
         'op': 'Const',
         'type': 'Const',
-        'value': int64_array([2]),
+        'value': np.array([2], dtype=np.float32),
         'shape': int64_array([1]),
     },
     'scales_data': {
@@ -177,6 +178,8 @@ ref_graph_node_attrs_with_4_inputs_interpolate = {
         'value': None,
         'shape': None,
     },
+    'cast_shape_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float32},
+    'cast_shape_to_float_data': {'kind': 'data', 'shape': None},
     'mul': {'type': 'Mul', 'kind': 'op', 'op': 'Mul'},
     'mul_data': {
         'kind': 'data',
@@ -222,7 +225,9 @@ ref_graph_edges_attrs_with_4_inputs_interpolate = [
     ('end', 'end_data'),
     ('end_data', 'strided_slice', {'in': 2}),
     ('scales', 'scales_data'),
-    ('strided_slice_data', 'mul', {'in': 0}),
+    ('strided_slice_data', 'cast_shape_to_float'),
+    ('cast_shape_to_float', 'cast_shape_to_float_data'),
+    ('cast_shape_to_float_data', 'mul', {'in': 0}),
     ('scales_data', 'mul', {'out': 0, 'in': 1}),
     ('scales_data', 'interpolate', {'out': 0, 'in': 2}),
     ('mul', 'mul_data'),
