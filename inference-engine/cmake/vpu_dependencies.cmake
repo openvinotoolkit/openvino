@@ -19,7 +19,7 @@ set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma248x)
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1492)
+set(FIRMWARE_PACKAGE_VERSION 1508)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
