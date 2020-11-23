@@ -402,7 +402,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::DeformableConvolution>>("DeformableConvolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::DeformablePSROIPooling>>("DeformablePSROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::SpaceToDepth>>("SpaceToDepth"),
-        std::make_shared<LayerCreator<ngraph::op::DepthToSpace>>("DepthToSpace"),
         std::make_shared<LayerCreator<ngraph::op::v1::Subtract>>("Subtract"),
         std::make_shared<LayerCreator<ngraph::op::MatMul>>("MatMul"),
         std::make_shared<LayerCreator<ngraph::op::v1::Broadcast>>("Broadcast"),
