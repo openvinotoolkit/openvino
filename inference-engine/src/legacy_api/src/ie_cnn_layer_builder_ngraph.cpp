@@ -426,23 +426,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Exp>::createLayer(const std::shared_ptr<
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::MVN>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "MVN", details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::MVNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::MVN>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["eps"] = asString(castedLayer->get_eps());
-
-    const size_t chanelAxis = 1;
-    ngraph::AxisSet reductionAxes = castedLayer->get_reduction_axes();
-    res->params["across_channels"] = asString(reductionAxes.count(chanelAxis) > 0);
-
-    res->params["normalize_variance"] = asString(castedLayer->get_normalize_variance());
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::LRN_IE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Norm",
                           details::convertPrecision(layer->get_output_element_type(0))};

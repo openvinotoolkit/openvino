@@ -425,7 +425,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::NotEqual>>("NotEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::FloorMod>>("FloorMod"),
         std::make_shared<LayerCreator<ngraph::op::LRN>>("LRN"),
-        std::make_shared<LayerCreator<ngraph::op::MVN>>("MVN"),
         std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell"),
         std::make_shared<LayerCreator<ngraph::op::v1::MaxPool>>("MaxPool"),
         std::make_shared<LayerCreator<ngraph::op::v1::Minimum>>("Minimum"),
@@ -505,6 +504,11 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         if (type == "Const") {
             type = "Constant";
         }
+        // MVN was missing in opset1
+        if (type == "MVN" && params.version == "opset1") {
+            opset = opsets.at("opset2");
+        }
+
         if (!opset.contains_type(type)) {
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
@@ -980,23 +984,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::FloorMod>:
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 2);
     return std::make_shared<ngraph::op::v1::FloorMod>(inputs[0], inputs[1]);
-}
-
-// MVN layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::MVN>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    double eps = GetFloatAttr(dn, "eps");
-    bool across = GetUIntAttr(dn, "across_channels", 0) == 1;
-    bool normalize_variance = GetUIntAttr(dn, "normalize_variance", 0) == 1;
-    return std::make_shared<ngraph::op::MVN>(inputs[0], across, normalize_variance, eps);
 }
 
 // LRN layer
