@@ -34,7 +34,7 @@ Model Optimizer keeps all necessary information about the operation in the node 
 `mo.graph.graph.Node` defined in the  `mo/graph/graph.py` file which is a wrapper on top of a `networkx` node attributes
 dictionary and provides many convenient methods to work with the nodes. In particular, the node `my_node` attribute with
 name `my_attr` can be obtained from the node with the following code `my_node.my_attr` which is equivalent to obtaining
-attribute with name  `'my_attr'` in the `graph.node['my_node']` dictionary. Refer to the `mo/graph/graph.py` for the
+attribute with name `'my_attr'` in the `graph.node['my_node']` dictionary. Refer to the `mo/graph/graph.py` for the
 class implementation details.
 
 An operation may have several inputs and outputs. For example, operation [Split](../../../ops/movement/Split_1.md) has
@@ -253,7 +253,8 @@ calculation to perform shape calculation in a correct layout.
 results.
 
 The list of main transformations responsible for the layout change are: `extensions/middle/ApplyPermutations.py`,
-`extensions/middle/InsertLayoutPropagationTransposes.py` and `extensions/middle/LayoutChangeForConstantShapePaths.py`.
+`extensions/middle/InsertLayoutPropagationTransposes.py`, `extensions/middle/MarkSubgraphsWithCorrectLayout.py`,
+`extensions/middle/ApplyNHWCtoNCHWpermutation.py` and `extensions/middle/LayoutChangeForConstantShapePaths.py`.
 Refer to the source code of these transformations for more details on how the layout change works.
 
 ### Back Phase
@@ -261,10 +262,10 @@ The back phase starts after the layout change to NCHW. This phase contains mostl
 
 1. Transformations which should be working with a graph in the NCHW layout and thus cannot be implemented in the middle
 phase.
-1. Transformations which replace nodes corresponding to internal Model Optimizer operations with nodes corresponding to
+2. Transformations which replace nodes corresponding to internal Model Optimizer operations with nodes corresponding to
 [opset](@ref openvino_docs_ops_opset) operations.
-1. Transformations which normalize operations inputs according to the specification.
-1. Final optimization transformations.
+3. Transformations which normalize operations inputs according to the specification.
+4. Final optimization transformations.
 
 The graph structure during the back phase is the same as as during the middle phase. There is no difference in writing
 middle and back transformations.
@@ -443,13 +444,17 @@ There are several types of Model Optimizer extractor extensions:
 2. The special extractor for Caffe\* models with Python layers. This kind of extractor is described in the
 [Extending the Model Optimizer with Caffe* Python Layers](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers).
 3. The special extractor for MXNet\* models with custom operations. This kind of extractor is described in the
-[Extending the Model Optimizer for Custom MXNet* Operations](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives)
+[Extending the Model Optimizer for Custom MXNet* Operations](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives).
+4. The special extractor and fallback to Caffe\* for shape inference is described in the [Legacy Mode for Caffe* Custom
+Layers](Legacy_Mode_for_Caffe_Custom_Layers.md).
 
-Model Optimizer provides class `mo.front.extractor.FrontExtractorOp` as a base class to implement the extractor. It has
-a class method `extract` which gets the only parameter `Node` which corresponds to the graph node to extract data from.
-The operation description in the original framework format is stored in the attribute `pb` of the node. The extractor
-goal is to parse this attribute and save necessary attributes to the corresponding node of the graph. Consider the
-extractor for the TensorFlow\* operation `Const` (refer to the file `extensions/front/tf/const_ext.py`):
+This chapter is focused on the option #1 which provides a generic mechanism for the operation extractor applicable for
+all frameworks. Model Optimizer provides class `mo.front.extractor.FrontExtractorOp` as a base class to implement the
+extractor. It has a class method `extract` which gets the only parameter `Node` which corresponds to the graph node to
+extract data from. The operation description in the original framework format is stored in the attribute `pb` of the
+node. The extractor goal is to parse this attribute and save necessary attributes to the corresponding node of the
+graph. Consider the extractor for the TensorFlow\* operation `Const` (refer to the file
+`extensions/front/tf/const_ext.py`):
 
 ```py
 from mo.front.extractor import FrontExtractorOp
@@ -535,7 +540,45 @@ these attributes are parsed from the particular instance of the operation.
 > **NOTE**: Model Optimizer uses numpy arrays to store values and numpy arrays of type `np.int64` to store shapes in the
 > graph.
 
+## Graph Transformation Extensions <a name="graph-transformations"></a>
+Model Optimizer provides various base classes to implement [Front Phase Transformations](#front-phase-transformations),
+[Middle Phase Transformations](#middle-phase-transformations) and [Back Phase Transformations](#back-phase-transformations).
+All classes have the following common class attributes and methods:
+1. Attribute `enabled` specifies whether the transformation is enabled or not. The value can be changed during runtime
+to enable or disable execution of the transformation during a model conversion.
+2. Attribute `id` specifies a unique transformation string identifier. This transformation identified can be used to
+enable (disable) the transformation by setting environment variable `MO_ENABLED_TRANSFORMS` (`MO_DISABLED_TRANSFORMS`)
+with a comma separated list of `id`s. The environment variables override the value of the `enabled` attribute of the
+transformation.
+3. Method `run_before()` returns a list of transformation classes which this transformation should be executed before.
+4. Method `run_after()` returns a list of transformation classes which this transformation should be executed after.
+
+> **NOTE**: Some of the transformation types have specific class attributes and methods which are explained in the
+> dedicated sections of this document.
+
+Model Optimizer builds a graph of dependencies between registered transformations and executes them in the topological
+order. In order to execute the transformation during a proper model conversion phase the Model Optimizer defines several
+anchor transformations which does nothing. All transformations are ordered with respect to these anchor transformations.
+The diagram below shows anchor transformations, some of built-in transformations and dependencies between them:
+
+![Transformations Graph](../../../img/MO_transformations_graph.png)
+
+User defined transformations are be executed after corresponding `Start` and before corresponding `Finish` anchor
+transformations by default (if `run_before()` and `run_after()` methods have not been overridden).
+
+> **NOTE**: The `PreMiddleStart` and `PostMiddleStart` anchors were introduced due to historical reasons to refactor
+> the Model Optimizer pipeline which initially had a hardcoded order of transformations.
+
 ### Front Phase Transformations <a name="front-phase-transformations"></a>
+There are several types of front phase transformations:
+
+1. Pattern-defined transformation triggered for each sub-graph of the original graph isomorphic to the specified
+pattern.
+2. Transformation triggered for node with specific `op` attribute value.
+3. Manually enabled transformation defined with a JSON configuration file (for TensorFlow\* and ONNX\* models only):
+    1. Node name defined sub-graph transformation.
+    2. Start/end node names defined sub-graph transformation.
+    3. Generic graph transformation.
 
 ### Middle Phase Transformations <a name="middle-phase-transformations"></a>
 
