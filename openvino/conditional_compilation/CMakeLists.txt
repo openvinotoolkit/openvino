@@ -28,7 +28,8 @@ if(SELECTIVE_BUILD STREQUAL "COLLECT")
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
 elseif(SELECTIVE_BUILD STREQUAL "ON")
     if(NOT DEFINED SELECTIVE_BUILD_STAT)
-        message(FATAL_ERROR "The collected IntelSEAPI statistics must be provided in the SELECTIVE_BUILD_STAT variable.")
+        message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics.\
+ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv")
     endif()
 
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
