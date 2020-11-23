@@ -392,6 +392,8 @@ def loop(
     invariant_input_desc: List[TensorIteratorInvariantInputDesc],
     body_output_desc: List[TensorIteratorBodyOutputDesc],
     concat_output_desc: List[TensorIteratorConcatOutputDesc],
+    current_iteration_input_idx: int,
+    body_condition_output_idx: int,
     name: Optional[str] = None,
 ) -> Node:
     """Perform recurrent execution of the network described in the body, iterating through the data.
@@ -426,7 +428,8 @@ def loop(
         "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc],
         "body_output_desc": [desc.serialize() for desc in body_output_desc],
         "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
+        "body_condition_output_idx": body_condition_output_idx,
+        "current_iteration_input_idx": current_iteration_input_idx,
     }
-
     return _get_node_factory_opset5().create("Loop", as_nodes(trip_count, execution_condition, *inputs),
-                                            attributes)
+                                             attributes)

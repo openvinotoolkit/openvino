@@ -711,8 +711,9 @@ def test_loop():
     initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
     iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
+    body_const_condition = ng.constant(True, dtype=np.bool)
 
-    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist])
+    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist, body_const_condition])
     ti_slice_input_desc = [
         # timestep
         # input_idx, body_param_idx, start, stride, part_size, end, axis
@@ -749,6 +750,8 @@ def test_loop():
         ti_invariant_input_desc,
         ti_body_output_desc,
         ti_concat_output_desc,
+        -1,
+        2
     )
 
     assert node.get_type_name() == "Loop"
