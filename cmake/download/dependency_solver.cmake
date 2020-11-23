@@ -4,8 +4,7 @@
 
 include ("download")
 
-function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH FOLDER ENVIRONMENT)
-
+function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH FOLDER ENVIRONMENT SHA256)
   if (ENVIRONMENT AND (DEFINED ${ENVIRONMENT} OR DEFINED ENV{${ENVIRONMENT}}))
     set(HAS_ENV "TRUE")
   endif()
@@ -13,9 +12,9 @@ function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHI
   if (NOT DEFINED HAS_ENV)
     if (ARCHIVE)
       #TODO: check whether this is platform specific binary with same name per or it is in common folder
-      DownloadAndExtract(${COMPONENT} ${ARCHIVE} ${TARGET_PATH} result_path ${FOLDER})
+      DownloadAndExtract(${COMPONENT} ${ARCHIVE} ${TARGET_PATH} result_path ${FOLDER} ${SHA256})
     else()
-      DownloadAndExtractPlatformSpecific(${COMPONENT} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} result_path  ${FOLDER})
+      DownloadAndExtractPlatformSpecific(${COMPONENT} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} result_path  ${FOLDER} ${SHA256})
     endif()
 
     set (${VAR} ${result_path} PARENT_SCOPE)
@@ -54,7 +53,7 @@ endfunction(read_version)
 function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
 
   list(REMOVE_AT ARGV 0)
-  set(SUPPORTED_ARGS FOLDER ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH ENVIRONMENT GITHUB_PULL_REQUEST VERSION_REGEX)
+  set(SUPPORTED_ARGS FOLDER ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH ENVIRONMENT GITHUB_PULL_REQUEST VERSION_REGEX SHA256)
 
 
   #unnecessary vars
@@ -113,6 +112,10 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
     set (FOLDER FALSE)
   endif()
 
+  if (NOT DEFINED SHA256)
+    message(WARNING "SHA is not specified for: " ${NAME_OF_CMAKE_VAR})
+    set(SHA256 "skip")
+  endif()
 
 
   #for each dependency type have to do separate things
@@ -121,7 +124,7 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
       message(FATAL_ERROR "TARGET_PATH should be defined for every dependency")
     endif()
 
-    resolve_archive_dependency(RESULT ${NAME_OF_CMAKE_VAR} ${ARCHIVE} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} ${FOLDER} ${ENVIRONMENT})
+    resolve_archive_dependency(RESULT ${NAME_OF_CMAKE_VAR} ${ARCHIVE} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} ${FOLDER} ${ENVIRONMENT} ${SHA256})
     set(${NAME_OF_CMAKE_VAR} ${RESULT} PARENT_SCOPE)
     if (VERSION_REGEX)
         GetNameAndUrlToDownload(archive RELATIVE_URL ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID})

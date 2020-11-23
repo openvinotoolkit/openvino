@@ -60,7 +60,8 @@ if (ENABLE_MKL_DNN AND GEMM STREQUAL "OPENBLAS")
             RESOLVE_DEPENDENCY(OpenBLAS
                     ARCHIVE_LIN "keembay/openblas_0.3.7_yocto_kmb.tar.xz"
                     TARGET_PATH "${TEMP}/openblas_0.3.7_yocto_kmb"
-                    ENVIRONMENT "OpenBLAS_DIR")
+                    ENVIRONMENT "OpenBLAS_DIR"
+                    SHA256 "c75aac901d5297d6d60a4b1f941f0335d8fd7f52e0dff8c445f644e2e45e6fba")
 
             update_deps_cache(OpenBLAS_DIR "${OpenBLAS}/lib/cmake/openblas" "Path to OpenBLAS package folder")
 
@@ -137,26 +138,31 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_WIN "tbb2020_20200415_win.zip"
                     TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT")
+                    ENVIRONMENT "TBBROOT"
+                    SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
         elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                     TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT")
+                    ENVIRONMENT "TBBROOT"
+                    SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
         elseif(LINUX AND X86_64)
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
-                    TARGET_PATH "${TEMP}/tbb")
+                    TARGET_PATH "${TEMP}/tbb"
+                    SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
         elseif(LINUX AND AARCH64)
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
                     TARGET_PATH "${TEMP}/tbb_yocto"
-                    ENVIRONMENT "TBBROOT")
+                    ENVIRONMENT "TBBROOT"
+                    SHA256 "57ad3ceeab119c8a4d5e9fc38e80952fc19d4bf23ae065e9540cde89b25561d5")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
                     TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT")
+                    ENVIRONMENT "TBBROOT"
+                    SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
         else()
             message(FATAL_ERROR "TBB is not available on current platform")
         endif()
@@ -202,7 +208,8 @@ if (ENABLE_OPENCV)
                     ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
+                    SHA256 "b5239e0e50b9009f95a29cb11f0840ec085fa07f6c4d3349adf090f1e51b0787")
 
             unset(IE_PATH_TO_DEPS)
         endif()
@@ -212,29 +219,37 @@ if (ENABLE_OPENCV)
                     ARCHIVE_WIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
+                    SHA256 "f20bfbf47281895fe488b594090958bb37f6893e5d9845ae56bc84079987f1df")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(OPENCV
                     ARCHIVE_MAC "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
                     ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
+                    SHA256 "3c0d81b6450e209daea9597906b24fab2c2654fa3a966d38c7ac87e4de5043a6")
         elseif(LINUX)
             if (AARCH64)
                 set(OPENCV_SUFFIX "yocto_kmb")
                 set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
             elseif (ARM)
                 set(OPENCV_SUFFIX "debian9arm")
+                set(OPENCV_HASH "120336ac7696779a8152c2b71ace3fa5cf868b452d03032ef66513ed8446a794")
             elseif (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 set(OPENCV_SUFFIX "centos7")
+                set(OPENCV_HASH "ed68bc21ae62ac892f61ba7bad266be3a1a1937e692f9dc7eb080c167a5fd37a")
             elseif (LINUX_OS_NAME MATCHES "CentOS 8")
                 set(OPENCV_SUFFIX "centos8")
+                set(OPENCV_HASH "94b6a22eecd99c1c7383ef171750b75ea8b5c13e6399937387c6fb11ec1ecd69")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04")
                 set(OPENCV_SUFFIX "ubuntu16")
+                set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04")
                 set(OPENCV_SUFFIX "ubuntu18")
+                set(OPENCV_HASH "94b6a22eecd99c1c7383ef171750b75ea8b5c13e6399937387c6fb11ec1ecd69")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
                 set(OPENCV_SUFFIX "ubuntu20")
+                set(OPENCV_HASH "85ddb4df514e47b8451c5416e8ba91a3caa6b0c97ea8129d0c89cd005bd4995f")
             else()
                 message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
@@ -242,7 +257,8 @@ if (ENABLE_OPENCV)
                     ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
+                    SHA256 ${OPENCV_HASH})
         endif()
 
     endif()
@@ -279,18 +295,22 @@ if (ENABLE_GNA)
     if (GNA_LIBRARY_VERSION STREQUAL "GNA1")
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA/gna_20181120.zip"
-                TARGET_PATH "${TEMP}/gna")
+                TARGET_PATH "${TEMP}/gna"
+                SHA256 "b631d6cc5f6cca4a89a3f5dfa383066f3282fee25d633d9085c605bdd8090210")
     else()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
             set(GNA_VERSION "01.00.00.1401")
+            set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
             set(GNA_VERSION "02.00.00.1047.1")
+            set(GNA_HASH "20820e07392a1e876cf5577430c1c4c74b924d8f34cc17bfa3e36e641555e05d")
         endif()
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
-                VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*")
+                VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
+                SHA256 ${GNA_HASH})
     endif()
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA})
@@ -310,20 +330,23 @@ if (ENABLE_SPEECH_DEMO)
             RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
                     ARCHIVE_WIN "speech_demo_1.0.0.754_windows.zip"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754"
+                    SHA256 "0379a0d37695d0b9325caf313f1f0e92f55a13b24847bfbbb9ddb190d3b703f6")
             debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
         elseif (LINUX AND X86_64)
             if (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
                     ARCHIVE_LIN "speech_demo_1.0.0.754_centos.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754"
+                    SHA256 "3852ddc057bbe3701209602900d64eb28a947899e8027b8f152236b49c57e3ca")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             else()
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
                     ARCHIVE_LIN "speech_demo_1.0.0.754_linux.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754"
+                    SHA256 "d530ac07c24bd05cc689c12a2467c3c51c504ab1a2162065c4811061ac4ef235")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             endif()
         else()

@@ -14,6 +14,9 @@ endif()
 include(dependency_solver)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma248x)
+set(VPU_SUPPORTED_FIRMWARES_HASH
+    "def0aaa1b054a132facc82f831d9b67527186a6ef042bbb1d911afcbc0280c82"
+    "28bf22df4e906620bb9dd669bfe5334ae0a1ac3565d9d47f7a894ac057c9c408")
 
 #
 # Default packages
@@ -25,8 +28,11 @@ set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 #
 # CMake variables to override default firmware files
 #
-
-foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
+list(LENGTH VPU_SUPPORTED_FIRMWARES num_firmwares)
+math(EXPR num_firmwares "${num_firmwares} - 1")
+foreach(idx RANGE 0 ${num_firmwares})
+    list(GET VPU_SUPPORTED_FIRMWARES ${idx} firmware_name)
+    list(GET VPU_SUPPORTED_FIRMWARES_HASH ${idx} hash)
     string(TOUPPER "${firmware_name}" firmware_name_upper)
 
     set(firmware_name_full ${firmware_name}.mvcmd)
@@ -41,7 +47,8 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         ARCHIVE_UNIFIED VPU/${firmware_name}/firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
         TARGET_PATH "${TEMP}/vpu/firmware/${firmware_name}"
         ENVIRONMENT "VPU_FIRMWARE_${firmware_name_upper}_FILE"
-        FOLDER)
+        FOLDER
+        SHA256 ${hash})
     debug_message(STATUS "${firmware_name}=" ${VPU_FIRMWARE_${firmware_name_upper}})
 
     update_deps_cache(
@@ -98,7 +105,8 @@ add_custom_target(vpu_copy_firmware
 if(ANDROID)
     RESOLVE_DEPENDENCY(LIBUSB
         ARCHIVE_ANDROID "libusb_39409_android.tgz"
-        TARGET_PATH "${TEMP}/vpu/libusb")
+        TARGET_PATH "${TEMP}/vpu/libusb"
+        SHA256 "f9e73e95bc769abf1e9910a59b138cf387205e1b4c4e5faec236136fb1d325f7")
     debug_message(STATUS "LIBUSB=" ${LIBUSB})
 
     set(LIBUSB_INCLUDE_DIR "${LIBUSB}/include")
@@ -129,7 +137,8 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
         RESOLVE_DEPENDENCY(VPU_CLC_MA2X8X
             ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X8X_VERSION}.tar.gz"
             TARGET_PATH "${TEMP}/vpu/clc/ma2x8x/${VPU_CLC_MA2X8X_VERSION}"
-            ENVIRONMENT "VPU_CLC_MA2X8X_COMMAND")
+            ENVIRONMENT "VPU_CLC_MA2X8X_COMMAND"
+            SHA256 "0a864bd0e11cee2d85ac7e451dddae19216c8bc9bb50e1a8e0151ab97d5e3c8d")
         debug_message(STATUS "VPU_CLC_MA2X8X=" ${VPU_CLC_MA2X8X})
 
         update_deps_cache(
