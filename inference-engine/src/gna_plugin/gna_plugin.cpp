@@ -879,6 +879,10 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     num_rotate_rows = dnn->num_rotate_rows;
     num_rotate_columns = dnn->num_rotate_columns;
 
+    do_rotate_output = dnn->do_rotate_output;
+    num_rotate_output_rows = dnn->num_rotate_output_rows;
+    num_rotate_output_columns = dnn->num_rotate_output_columns;
+
     DumpXNNToFile();
 
 #ifdef PLOT
@@ -1166,29 +1170,35 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto & outputDesc = outputsDesc[output_idx];
         if (outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN
             || outputBlob->getTensorDesc().getLayout() == Layout::NCHW || outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
-            // TODO: rotate can be incorporated with exporting - used only in unit tests so far
-            // TODO: restore:
-//        if (orientation_out != kDnnInterleavedOrientation) {
-//            if (inputs.size() != 1) {
-//                THROW_GNA_EXCEPTION << "Invalid number of inputs for  for deinterleave " << inputs.size()
-//                                    << ", only 1 supported";
-//            }
-//            auto dims = inputs.begin()->second->dims();
-//            RotateFeatures(reinterpret_cast<uint8_t*>(ptr_outputs_global),
-//                           gnadevice ? 2 : 4,
-//                           dims[dims.size() - 1],
-//                           dims[0],  // num_feature_vectors looks batch should be there
-//                           dims[0],
-//                           dims[dims.size() - 1]);
-//        }
+            auto dims = outputBlob->getTensorDesc().getDims();
             auto is2D = outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN;
             auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
             auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
             auto batchSize = is3D ? 1 : exportOutputDims[0];
             auto elementsPerBatch = is2D ? exportOutputDims[exportOutputDims.size() - 1]
                 : exportOutputDims[exportOutputDims.size() - 1]
-                  * exportOutputDims[exportOutputDims.size() - 2]
-                  * exportOutputDims[exportOutputDims.size() - 3];
+                * exportOutputDims[exportOutputDims.size() - 2]
+                * exportOutputDims[exportOutputDims.size() - 3];
+
+            if (do_rotate_output) {
+                if (batchSize * elementsPerBatch != num_rotate_output_columns * num_rotate_output_rows) {
+                    THROW_GNA_EXCEPTION << "Rotate output dimensions (" << num_rotate_output_rows << "," << num_rotate_output_columns
+                                        << ") do not match output buffer length of " << batchSize * elementsPerBatch;
+                }
+                uint32_t element_size = outputDesc.num_bytes_per_element;
+                std::vector<uint8_t> temp(num_rotate_output_columns * num_rotate_output_rows * element_size);
+                for (uint32_t k = 0; k < num_rotate_output_columns; ++k) {
+                    uint8_t* ptr_in = reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]) + k * element_size;
+                    for (uint32_t i = 0; i < num_rotate_output_rows; ++i) {
+                        ie_memcpy(&temp.front() + (k *num_rotate_output_rows + i) * element_size,
+                                  element_size,
+                                  ptr_in + (i * num_rotate_output_columns) * element_size,
+                                  element_size);
+                    }
+                }
+                ie_memcpy(outputDesc.ptrs[request_idx], num_rotate_output_columns * num_rotate_output_rows * element_size,
+                    &temp.front(), num_rotate_output_columns * num_rotate_output_rows * element_size);
+            }
 
             ExportScores(outputBlob->buffer(),
                          outputDesc.ptrs[request_idx],
@@ -1366,6 +1376,10 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
     num_rotate_rows = header.nRotateRows;
     num_rotate_columns = header.nRotateColumns;
 
+    do_rotate_output = header.doRotateOutput;
+    num_rotate_output_rows = header.nRotateOutputRows;
+    num_rotate_output_columns = header.nRotateOutputColumns;
+
     for (auto && memory : mt) {
         GNAMemoryLayer memoryLayer(nullptr, nullptr, gnaFlags->sw_fp32 ? 4 : 2);
         memoryLayer.gna_ptr = memory.first;
@@ -1416,7 +1430,8 @@ void GNAPlugin::Export(const std::string &fileName) {
                                  outputsDesc,
                                  inputsDataMap,
                                  outputsDataMap)
-                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns, dnn->do_rotate_input);
+                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns, dnn->do_rotate_input)
+                    .SetOutputRotation(dnn->num_rotate_output_rows, dnn->num_rotate_output_columns, dnn->do_rotate_output);
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size);

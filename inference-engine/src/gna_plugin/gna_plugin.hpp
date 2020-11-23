@@ -58,6 +58,9 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     bool do_rotate_input = false;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
+    bool do_rotate_output = false;
+    uint32_t num_rotate_output_rows = 0;
+    uint32_t num_rotate_output_columns = 0;
     uint32_t *ptr_active_indices = nullptr;
     uint32_t num_active_indices = 0;
     uint32_t num_group_in = 0;
