@@ -321,52 +321,15 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
     return nullptr;
 }
 
-std::shared_ptr<opset1::Constant> NetworkHelper::roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance) {
-    auto constant = as_type_ptr<opset1::Constant>(node);
+std::shared_ptr<opset1::Constant> NetworkHelper::round(std::shared_ptr<Node> node, element::Type target_type) {
+    const auto constant = as_type_ptr<opset1::Constant>(node);
     assert(constant);
-    auto values = constant->cast_vector<float>();
 
-    auto castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(constant, target_type));
-    auto castedValues = castedConstant->cast_vector<float>();
+    const auto castedConstant = as_type_ptr<ngraph::opset1::Constant>(fold<op::v0::Convert>(
+        fold<ngraph::op::v5::Round>(constant->output(0), ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO),
+        target_type));
 
-    // TODO: implement with constant folding when ReduceAnd constant folding is ready
-    if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
-        return castedConstant;
-    }
-
-    auto round = [](
-        const std::shared_ptr<opset1::Constant>& constant,
-        element::Type target_type,
-        float tolerance,
-        std::vector<float>& values,
-        float increaseValue) -> std::shared_ptr<opset1::Constant> {
-        const auto castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(
-            fold<opset1::Add>(constant, std::make_shared<opset1::Constant>(constant->get_output_element_type(0), Shape{ 1 }, increaseValue)),
-            target_type));
-        const auto castedValues = castedConstant->cast_vector<float>();
-        if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
-            return castedConstant;
-        }
-
-        return nullptr;
-    };
-
-    castedConstant = round(constant, target_type, tolerance, values, 0.5f);
-    if (castedConstant != nullptr) {
-        return castedConstant;
-    }
-
-    castedConstant = round(constant, target_type, tolerance, values, -0.5f);
-    if (castedConstant != nullptr) {
-        return castedConstant;
-    }
-
-    castedConstant = round(constant, target_type, tolerance, values, 1.f);
-    if (castedConstant != nullptr) {
-        return castedConstant;
-    }
-
-    return constant;
+    return castedConstant;
 }
 
 std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq) {
@@ -889,16 +852,13 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
 
     auto data = convertOnSubtract->input_value(0);
     auto shift = subtract->input_value(1).get_node_shared_ptr();
-    auto roundedShift = NetworkHelper::roundWithTolerance(shift, convertInputType);
+    auto roundedShift = NetworkHelper::round(shift, convertInputType);
 
-    std::shared_ptr<Node> replacement;
-    if (roundedShift->get_element_type() == convertInputType) {
-        // Propagate convertInputType down
-        replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, roundedShift);
-        NetworkHelper::copyInfo(subtract, replacement);
-        NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, convertOutputType);
-        replace_node(subtract, replacement);
-    }
+    // Propagate convertInputType down
+    const auto replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, roundedShift);
+    NetworkHelper::copyInfo(subtract, replacement);
+    NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, convertOutputType);
+    replace_node(subtract, replacement);
 
     // We lose the tail conversion here; not needed if the next node is a TypeRelaxed
     // TODO: check cases when Convert should be preserved
@@ -992,7 +952,8 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
 
     if ((!moveSubtract) && (dequantization.convert != nullptr) && (dequantization.subtract != nullptr)) {
         NetworkHelper::cleanRunTimeInfo(dequantization.subtract);
-        optimizeSubtract(dequantization.subtract);
+        // issue #43088
+        // NetworkHelper::optimizeElementwise(dequantization.subtract);
     }
 
     return InsertDequantizationResult(newOperation, parent);

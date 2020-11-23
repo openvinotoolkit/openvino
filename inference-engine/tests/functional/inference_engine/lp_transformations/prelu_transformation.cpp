@@ -137,9 +137,9 @@ const std::vector<PReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, { {128}, ngraph::element::f32 }, {}},
+            {{ngraph::element::f32}, { 128 }, {0.1f}},
             ngraph::element::f32,
-            {{}, {}, {0.1f}}
+            {{}, {}, {}}
         }
     },
     // I8: with positive subtract value
@@ -152,24 +152,9 @@ const std::vector<PReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
-            {{}, { {127}, ngraph::element::f32 }, {}},
+            {{ngraph::element::f32}, { 127 }, {0.1f}},
             ngraph::element::f32,
-            {{}, {}, {0.1f}}
-        }
-    },
-    // U8: with negative subtract value: Convert is still here
-    {
-        ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { -128 }, {0.1f}}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { {-128}, ngraph::element::f32 }, {}},
-            ngraph::element::f32,
-            {{}, {}, {0.1f}}
+            {{}, {}, {}}
         }
     },
 };

@@ -218,12 +218,12 @@ std::vector<MatMullTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            { ngraph::element::f32, { 127.5f }, { 0.02f } },
+            { {}, {{128.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
             ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            { },
             ngraph::element::f32,
             ngraph::element::f32,
-            {},
+            { {}, {}, { 0.0006f } },
         }
     },
     // U8 + FP32

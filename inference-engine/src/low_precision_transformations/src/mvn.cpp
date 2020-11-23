@@ -41,7 +41,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    if (!canSubtractBeHandled(operation)) {
+    if (NetworkHelper::getDequantization(operation).subtract != nullptr) {
         return false;
     }
 

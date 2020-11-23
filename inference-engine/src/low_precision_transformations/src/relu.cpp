@@ -48,11 +48,7 @@ bool ReluTransformation::canBeTransformed(const TransformationContext& context, 
     }
 
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
-    if (dequantization.empty()) {
-        return false;
-    }
-
-    if (!canSubtractBeHandled(op, dequantization)) {
+    if (dequantization.empty() || (dequantization.subtract != nullptr)) {
         return false;
     }
 

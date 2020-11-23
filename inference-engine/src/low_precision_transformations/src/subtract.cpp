@@ -72,12 +72,13 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
     }
 
     if (dequantization.convert != nullptr) {
-        std::shared_ptr<Node> newSubtract = NetworkHelper::optimizeSubtract(subtract);
-        newSubtract->set_output_type(0, originalPrecision, newSubtract->get_output_partial_shape(0));
+        // issue #43088
+        // std::shared_ptr<Node> newSubtract = NetworkHelper::optimizeElementwise(subtract);
+        subtract->set_output_type(0, originalPrecision, subtract->get_output_partial_shape(0));
 
-        replace_node(newSubtract, std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
-            newSubtract->get_input_node_shared_ptr(0),
-            newSubtract->get_input_node_shared_ptr(1)));
+        replace_node(subtract, std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+            subtract->get_input_node_shared_ptr(0),
+            subtract->get_input_node_shared_ptr(1)));
     }
     return true;
 }

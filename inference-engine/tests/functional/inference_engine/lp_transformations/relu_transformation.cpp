@@ -73,6 +73,7 @@ public:
 
         std::ostringstream result;
         result <<
+            toString(testValues.params) << "_" <<
             testValues.shape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
@@ -166,9 +167,9 @@ const std::vector<ReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, { {128}, ngraph::element::f32, {}, false }, {}},
+            {{ngraph::element::f32}, { 128 }, {0.1f}},
             ngraph::element::f32,
-            {{}, {}, {0.1f}}
+            {{}, {}, {}}
         }
     },
     // I8: with subtract value
@@ -181,9 +182,9 @@ const std::vector<ReluTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
-            {{}, { {127}, ngraph::element::f32, {}, false }, {}},
+            {{ngraph::element::f32}, { 127 }, {0.1f}},
             ngraph::element::f32,
-            {{}, {}, {0.1f}}
+            {{}, {}, {}}
         }
     },
     // I8: with subtract value
