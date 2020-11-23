@@ -8,13 +8,13 @@ if(NOT ENABLE_DOCKER)
     # Detect nGraph
     find_package(ngraph QUIET)
     if(NOT ngraph_FOUND)
-        set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
+        set(ngraph_DIR ${CMAKE_BUILD_DIR}/ngraph)
     endif()
 
     # Detect InferenceEngine
     find_package(InferenceEngine QUIET)
     if(NOT InferenceEngine_FOUND)
-        set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
+        set(InferenceEngine_DIR ${CMAKE_BUILD_DIR})
     endif()
 
     if (NGRAPH_ONNX_IMPORT_ENABLE)
@@ -50,13 +50,13 @@ function(build_docs)
         message(FATAL_ERROR "LATEX is required to build the documentation")
     endif()
 
-    set(DOCS_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(DOXYGEN_DIR "${OpenVINO_MAIN_SOURCE_DIR}/docs/doxygen")
     set(IE_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine")
     set(PYTHON_API_IN "${IE_SOURCE_DIR}/ie_bridges/python/src/openvino/inference_engine/ie_api.pyx")
-    set(PYTHON_API_OUT "${DOCS_BINARY_DIR}/python_api/ie_api.pyx")
+    set(PYTHON_API_OUT "${DOCS_BUILD_DIR}/python_api/ie_api.pyx")
     set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
-    set(PLUGIN_API_DIR "${DOCS_BINARY_DIR}/IE_PLUGIN_DG")
+    set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
@@ -80,32 +80,32 @@ function(build_docs)
     set(PY_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_py_api.config")
     set(PLUGIN_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_plugin_api.config")
 
-    set(IE_CONFIG_BINARY "${DOCS_BINARY_DIR}/ie_docs.config")
-    set(C_CONFIG_BINARY "${DOCS_BINARY_DIR}/ie_c_api.config")
-    set(PY_CONFIG_BINARY "${DOCS_BINARY_DIR}/ie_py_api.config")
-    set(PLUGIN_CONFIG_BINARY "${DOCS_BINARY_DIR}/ie_plugin_api.config")
+    set(IE_CONFIG_BUILD "${DOCS_BUILD_DIR}/ie_docs.config")
+    set(C_CONFIG_BUILD "${DOCS_BUILD_DIR}/ie_c_api.config")
+    set(PY_CONFIG_BUILD "${DOCS_BUILD_DIR}/ie_py_api.config")
+    set(PLUGIN_CONFIG_BUILD "${DOCS_BUILD_DIR}/ie_plugin_api.config")
 
     set(IE_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_docs.xml")
     set(C_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_c_api.xml")
     set(PY_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_py_api.xml")
     set(PLUGIN_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_plugin_api.xml")
 
-    set(IE_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_docs.xml")
-    set(C_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_c_api.xml")
-    set(PY_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_py_api.xml")
-    set(PLUGIN_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_plugin_api.xml")
+    set(IE_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_docs.xml")
+    set(C_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_c_api.xml")
+    set(PY_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_py_api.xml")
+    set(PLUGIN_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_plugin_api.xml")
 
     # Tables of contents
-    configure_file(${IE_LAYOUT_SOURCE} ${IE_LAYOUT_BINARY} @ONLY)
-    configure_file(${C_LAYOUT_SOURCE} ${C_LAYOUT_BINARY} @ONLY)
-    configure_file(${PY_LAYOUT_SOURCE} ${PY_LAYOUT_BINARY} @ONLY)
-    configure_file(${PLUGIN_LAYOUT_SOURCE} ${PLUGIN_LAYOUT_BINARY} @ONLY)
+    configure_file(${IE_LAYOUT_SOURCE} ${IE_LAYOUT_BUILD} @ONLY)
+    configure_file(${C_LAYOUT_SOURCE} ${C_LAYOUT_BUILD} @ONLY)
+    configure_file(${PY_LAYOUT_SOURCE} ${PY_LAYOUT_BUILD} @ONLY)
+    configure_file(${PLUGIN_LAYOUT_SOURCE} ${PLUGIN_LAYOUT_BUILD} @ONLY)
 
     # Doxygen config files
-    configure_file(${IE_CONFIG_SOURCE} ${IE_CONFIG_BINARY} @ONLY)
-    configure_file(${C_CONFIG_SOURCE} ${C_CONFIG_BINARY} @ONLY)
-    configure_file(${PY_CONFIG_SOURCE} ${PY_CONFIG_BINARY} @ONLY)
-    configure_file(${PLUGIN_CONFIG_SOURCE} ${PLUGIN_CONFIG_BINARY} @ONLY)
+    configure_file(${IE_CONFIG_SOURCE} ${IE_CONFIG_BUILD} @ONLY)
+    configure_file(${C_CONFIG_SOURCE} ${C_CONFIG_BUILD} @ONLY)
+    configure_file(${PY_CONFIG_SOURCE} ${PY_CONFIG_BUILD} @ONLY)
+    configure_file(${PLUGIN_CONFIG_SOURCE} ${PLUGIN_CONFIG_BUILD} @ONLY)
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
@@ -114,16 +114,16 @@ function(build_docs)
     # C API
 
     add_custom_target(c_api
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${C_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${C_CONFIG_BUILD}
+                      WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating C API Reference"
                       VERBATIM)
 
     # Python API
 
     add_custom_target(py_api
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${PY_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${PY_CONFIG_BUILD}
+                      WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating Python API Reference"
                       VERBATIM)
 
@@ -135,8 +135,8 @@ function(build_docs)
     # Plugin API
 
     add_custom_target(plugin_api
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BUILD}
+                      WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating Plugin API Reference"
                       VERBATIM)
 
@@ -148,21 +148,21 @@ function(build_docs)
 
     foreach(source_file ${doc_source_files})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E copy
-            "${OpenVINO_MAIN_SOURCE_DIR}/${source_file}" "${DOCS_BINARY_DIR}/${source_file}")
+            "${OpenVINO_MAIN_SOURCE_DIR}/${source_file}" "${DOCS_BUILD_DIR}/${source_file}")
     endforeach()
 
     add_custom_command(TARGET preprocess_docs
                        PRE_BUILD
                        ${commands}
-                       COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER} ${DOCS_BINARY_DIR}
+                       COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER} ${DOCS_BUILD_DIR}
                        COMMENT "Pre-process markdown and image links")
 
     # IE dev guide and C++ API
 
     add_custom_target(ie_docs
                       DEPENDS preprocess_docs
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BUILD}
+                      WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
 
     # Umbrella OpenVINO target
