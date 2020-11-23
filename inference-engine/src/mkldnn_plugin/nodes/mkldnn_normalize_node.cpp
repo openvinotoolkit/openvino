@@ -708,13 +708,10 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
     if (inData == nullptr) {
         THROW_IE_EXCEPTION << errPrefix << "has nullable input data.";
     }
-    const auto& layout = inData->getLayout();
     const auto& inDims = inData->getDims();
-    size_t channels = 1lu;
-    if (layout == Layout::NCHW || layout == Layout::NC)
-        channels = inDims[1];
-    else
-        THROW_IE_EXCEPTION << errPrefix << "has unsupported layout: '" << layout << "'.";
+    if (inDims.size() < 2)
+        THROW_IE_EXCEPTION << errPrefix << "has unsupported layout: '" << inData->getLayout() << "'.";
+    const size_t channels = inDims[1];
     const auto weightsSize = tweights->size();
     if (weightsSize != channels) {
         if (weightsSize == 1) {
