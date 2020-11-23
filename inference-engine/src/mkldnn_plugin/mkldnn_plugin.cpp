@@ -7,7 +7,6 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
-#include <iostream>
 
 #include <legacy/net_pass.h>
 #include <threading/ie_executor_manager.hpp>
@@ -94,7 +93,6 @@ Engine::~Engine() {
 }
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
-    std::cout << "Now we will perform transformations in MKLDNN.\n";
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
@@ -252,13 +250,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     });
     legacyManager.run_passes(nGraphFunc);
 
-    std::cout << "All nGraph transformations are passed in MKLDNN.\n";
-
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-
-    std::cout << "nGraph function was converted to ICNNNetwork in MKLDNN.\n";
 
     OV_ITT_TASK_NEXT(taskChain, "ConvertIOPrecision");
 
@@ -267,7 +261,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     for (auto & precision : convert_precision_list) {
         NetPass::ConvertIOPrecision(*clonedNetwork, convertPrecision(precision.first), convertPrecision(precision.second));
     }
-    std::cout  << "Precisions were converted. MKLDNN.\n";
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
@@ -326,14 +319,12 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         }
     }
 
-    std::cout << "MKLDNN Engine::LoadExeNetworkImpl. Before return.\n";
     return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager, weightsSharing);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     // accumulate config parameters on engine level
     engConfig.readProperties(config);
-    std::cout << "MKLDNN Engine::SetConfig.\n";
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
@@ -344,7 +335,6 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     } else {
         THROW_IE_EXCEPTION << "Unsupported config key " << name;
     }
-    std::cout << "MKLDNN Engine::GetConfig.\n";
     return result;
 }
 
@@ -428,7 +418,6 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
 }
 
 QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
-    std::cout << "MKLDNN Engine::QueryNetwork starts.\n";
     QueryNetworkResult res;
     MKLDNNWeightsSharing::Ptr fake_w_cache;
     auto function = network.getFunction();
