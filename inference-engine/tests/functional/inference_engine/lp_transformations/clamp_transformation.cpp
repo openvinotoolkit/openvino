@@ -93,14 +93,14 @@ const std::vector<ClampTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         // ActualValues
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {3.f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128.f}, {3.f}}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {128.f}, {3.f}}
         }
     },
@@ -109,13 +109,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {128.f}, {-5.f}}
+            ngraph::element::Type(ngraph::element::i8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128.f}, {-5.f}}
         },
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {128.f}, {-5.f}}
         }
     },
@@ -124,13 +124,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {128.f}, {3.f}}
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {128.f}, {3.f}}
         }
     },
@@ -139,13 +139,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {128.f}, {3.f}}
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {128.f}, {3.f}}
         }
 },
@@ -154,13 +154,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {3.f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {3.f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {3.f}}
         }
     },
@@ -169,13 +169,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}}
+            ngraph::element::Type(ngraph::element::i8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {3.f}}
         },
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {3.f}}
         }
     },
@@ -184,21 +184,21 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
+                {ngraph::element::Type(ngraph::element::f32)},
                 {{128.f, 0.f, 128.f / 2}},
                 {{3.f, 1.f, 2.f}}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
+                {ngraph::element::Type(ngraph::element::f32)},
                 {{128.f, 0.f, 128.f / 2}},
                 {{3.f, 1.f, 2.f}}
             },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -207,21 +207,21 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {
-                {ngraph::element::f32},
+                {ngraph::element::Type(ngraph::element::f32)},
                 {{128.f, 0.f, 128.f / 2}},
                 {{3.f, 1.f, 2.f}}
             }
         },
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {
-                {ngraph::element::f32},
+                {ngraph::element::Type(ngraph::element::f32)},
                 {{128.f, 0.f, 128.f / 2}},
                 {{3.f, 1.f, 2.f}}
             },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -230,17 +230,17 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
+                {ngraph::element::Type(ngraph::element::f32)},
                 {{128.f, 128.f, 128.f}},
                 {{3.f, 3.f, 3.f}}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {
                 {},
                 {{128.f, 128.f, 128.f}},
@@ -253,17 +253,17 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {
-                {ngraph::element::f32},
+                {ngraph::element::Type(ngraph::element::f32)},
                 {{128.f, 128.f, 128.f}},
                 {{3.f, 3.f, 3.f}}
             }
         },
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {
                 {},
                 {{128.f, 128.f, 128.f}},
@@ -276,21 +276,21 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 4, 4 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 4, 1}},
+                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 4, 1}}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 4, 1}},
+                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 4, 1}}
             },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -299,21 +299,21 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 4, 4 }),
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 4, 1}},
+                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 4, 1}}
             }
         },
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 4, 1}},
+                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 4, 1}}
             },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -322,17 +322,17 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
+                {ngraph::element::Type(ngraph::element::f32)},
                 {{ 128.f, 0.f, 128.f }},
                 {{ 3.f, 3.f, 3.f }}
             }
         },
         {
-            ngraph::element::u8,
-            {{}, {{ 128.f, 0.f, 128.f }, ngraph::element::f32}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{}, {{ 128.f, 0.f, 128.f }, ngraph::element::Type(ngraph::element::f32)}, {}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {{3.f, 3.f, 3.f}}}
         }
     },
@@ -341,21 +341,21 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
+                {ngraph::element::Type(ngraph::element::f32)},
                 {{ 128.f, 0.f, 128.f }},
                 {{ 3.f, 3.f, 3.f }}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
+                {ngraph::element::Type(ngraph::element::f32)},
                 {{ 128.f, 0.f, 128.f }},
                 {{ 3.f, 3.f, 3.f }}
             },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -364,21 +364,21 @@ const std::vector<ClampTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                    {ngraph::element::f32},
+                    {ngraph::element::Type(ngraph::element::f32)},
                     {{1e-14, 1e-12, 1e-15}},
                     {{1e-14, 1e-12, 1e-15}}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                    {ngraph::element::f32},
+                    {ngraph::element::Type(ngraph::element::f32)},
                     {{1e-14, 1e-12, 1e-15}},
                     {{1e-14, 1e-12, 1e-15}}
             },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },

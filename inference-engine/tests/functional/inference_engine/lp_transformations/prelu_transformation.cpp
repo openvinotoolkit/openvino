@@ -102,13 +102,13 @@ const std::vector<PReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {0.1f}}
         }
     },
@@ -117,13 +117,13 @@ const std::vector<PReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::i8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         },
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {0.1f}}
         }
     },
@@ -132,13 +132,13 @@ const std::vector<PReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128 }, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, { 128 }, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{}, { {128}, ngraph::element::f32 }, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{}, { {128}, ngraph::element::Type(ngraph::element::f32), true }, {}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {0.1f}}
         }
     },
@@ -147,13 +147,13 @@ const std::vector<PReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}}
+            ngraph::element::Type(ngraph::element::i8),
+            {{ngraph::element::Type(ngraph::element::f32)}, { 127 }, {0.1f}}
         },
         {
-            ngraph::element::i8,
-            {{}, { {127}, ngraph::element::f32 }, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::i8),
+            {{}, { {127}, ngraph::element::Type(ngraph::element::f32), true }, {}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {0.1f}}
         }
     },
@@ -162,13 +162,13 @@ const std::vector<PReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { -128 }, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, { -128 }, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { {-128}, ngraph::element::f32 }, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, { {-128}, ngraph::element::Type(ngraph::element::f32), true }, {}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {0.1f}}
         }
     },

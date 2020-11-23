@@ -106,10 +106,10 @@ TEST_P(MulAddToScaleshiftOrPowerTransformation, CompareFunctions) {
 }
 
 const std::vector<ngraph::element::Type> precision = {
-    ngraph::element::i32,
-    ngraph::element::f32,
-    ngraph::element::u8,
-    ngraph::element::i8,
+    ngraph::element::Type(ngraph::element::i32),
+    ngraph::element::Type(ngraph::element::f32),
+    ngraph::element::Type(ngraph::element::u8),
+    ngraph::element::Type(ngraph::element::i8),
 };
 
 const std::vector<bool> isDequantization = { false, true };
@@ -124,13 +124,13 @@ const std::vector<MulAddToScaleshiftOrPowerParams> testValues = {
         LayerTransformation::createParamsU8I8(),
         { 0.1f },
         { 128.f },
-        ngraph::element::f32
+        ngraph::element::Type(ngraph::element::f32)
     },
     {
         LayerTransformation::createParamsU8I8(),
         { 0.1f },
         { -128.f },
-        ngraph::element::f32
+        ngraph::element::Type(ngraph::element::f32)
     }
 };
 

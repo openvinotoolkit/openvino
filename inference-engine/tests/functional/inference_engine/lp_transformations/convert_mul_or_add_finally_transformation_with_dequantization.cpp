@@ -86,25 +86,25 @@ std::vector<ConvertMulOrAddFinallyTransformationWithDequantizationTestValues> te
     {
         { -1.0 },
         { 1, 1000 },
-        ngraph::element::f32,
+        ngraph::element::Type(ngraph::element::f32),
         LayerTransformation::createParamsU8I8()
     },
     {
         { 128.0 },
         { 1, 10 },
-        ngraph::element::f32,
+        ngraph::element::Type(ngraph::element::f32),
         LayerTransformation::createParamsU8I8()
     },
     {
         { -64.5 },
         { 1, 10 },
-        ngraph::element::i8,
+        ngraph::element::Type(ngraph::element::i8),
         LayerTransformation::createParamsU8I8()
     },
     {
         { 1.2 },
         { 1, 100 },
-        ngraph::element::u8,
+        ngraph::element::Type(ngraph::element::u8),
         LayerTransformation::createParamsI8I8()
     }
 };

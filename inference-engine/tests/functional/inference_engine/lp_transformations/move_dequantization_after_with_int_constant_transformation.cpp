@@ -106,69 +106,70 @@ const std::vector<ngraph::Shape> inputShapes = {
 const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
     // I8 & I8: Multiply
     {
-        ngraph::element::i8,
+        ngraph::element::Type(ngraph::element::i8),
         LayerTransformation::createParamsU8I8(),
         false,
         true,
         {
-            { {},  {}, { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8 } },
+            { {},  {}, { {10.f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1ul, ngraph::element::Type(ngraph::element::u8) } },
         },
         {
             { {},  {}, {} },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {},  {}, { 10.f } },
         },
     },
     // I8 & I8: Subtract + Multiply
     {
-        ngraph::element::i8,
+        ngraph::element::Type(ngraph::element::i8),
         LayerTransformation::createParamsU8I8(),
         false,
         true,
         {
             {
                 {},
-                { {5.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8 },
-                { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8 }
+                { {5.f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1ul, ngraph::element::Type(ngraph::element::u8) },
+                { {10.f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1ul, ngraph::element::Type(ngraph::element::u8) }
             },
         },
         {
             { {},  {}, {} },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {},  {5.f}, { 10.f } },
         },
     },
     // FP32 & I8: Multiply
     {
-        ngraph::element::u8,
+        ngraph::element::Type(ngraph::element::u8),
         LayerTransformation::createParamsU8I8(),
         false,
         true,
         {
-            { {ngraph::element::f32},  {}, { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8 } },
+            { {ngraph::element::Type(ngraph::element::f32)},  {},
+                { {10.f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1ul, ngraph::element::Type(ngraph::element::i8) } },
         },
         {
             { {},  {}, {} },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {},  {}, { 10.f } },
         },
     },
     // FP32 & I8: Subtract + Multiply
     {
-        ngraph::element::u8,
+        ngraph::element::Type(ngraph::element::u8),
         LayerTransformation::createParamsU8I8(),
         false,
         true,
         {
             {
-                {ngraph::element::f32},
-                { {5.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8 },
-                { {10.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8 }
+                {ngraph::element::Type(ngraph::element::f32)},
+                { {5.f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1ul, ngraph::element::Type(ngraph::element::i8) },
+                { {10.f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1ul, ngraph::element::Type(ngraph::element::i8) }
             },
         },
         {
             { {},  {}, {} },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {},  {5.f}, { 10.f } },
         },
     }

@@ -104,14 +104,14 @@ const std::vector<TransposeTransformationTestValues> testValues = {
         { 0, 1, 3, 2},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128}, {0.1f}}
         }
     },
     {
@@ -119,14 +119,14 @@ const std::vector<TransposeTransformationTestValues> testValues = {
         { 0, 2, 1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128}, {0.1f}}
         }
     },
     // U8: per-channel quantization
@@ -135,21 +135,21 @@ const std::vector<TransposeTransformationTestValues> testValues = {
         { 0, 1, 3, 2},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                { ngraph::element::f32 },
-                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
-                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
+                { ngraph::element::Type(ngraph::element::f32) },
+                {{ 128, 64, 32 }, ngraph::element::Type(ngraph::element::f32), { 1, 3, 1, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::Type(ngraph::element::f32), { 1, 3, 1, 1 }}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                { ngraph::element::f32 },
-                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
-                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
+                { ngraph::element::Type(ngraph::element::f32) },
+                {{ 128, 64, 32 }, ngraph::element::Type(ngraph::element::f32), { 1, 3, 1, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::Type(ngraph::element::f32), { 1, 3, 1, 1 }}
             }
         }
     },
@@ -159,13 +159,13 @@ const std::vector<TransposeTransformationTestValues> testValues = {
         { 0, 1, 3, 2},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {}
         }
     },

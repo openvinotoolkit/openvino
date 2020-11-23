@@ -106,15 +106,15 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {0.1f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
-            ngraph::element::f32,
-            {{0.1f}, {ngraph::element::f32}},
+            ngraph::element::Type(ngraph::element::f32),
+            {{0.1f}, {ngraph::element::Type(ngraph::element::f32)}},
             {}
         },
     },
@@ -123,15 +123,15 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {{0.1f, 0.2f, 0.3f}}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
-            ngraph::element::f32,
-            {{0.1f, 0.2f, 0.3f}, {ngraph::element::f32}},
+            ngraph::element::Type(ngraph::element::f32),
+            {{0.1f, 0.2f, 0.3f}, {ngraph::element::Type(ngraph::element::f32)}},
             {}
         },
     },
@@ -140,16 +140,16 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            {{ngraph::element::f32}, {{128.f, 128.f / 2.f, 128.f / 4.f}}, {0.1f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{128.f, 128.f / 2.f, 128.f / 4.f}}, {0.1f}},
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
-            ngraph::element::f32,
-            {{0.1f}, {ngraph::element::f32}},
-            {{-12.8f, -12.8f / 2.f, -12.8f / 4.f}, {ngraph::element::f32}}
+            ngraph::element::Type(ngraph::element::f32),
+            {{0.1f}, {ngraph::element::Type(ngraph::element::f32)}},
+            {{-12.8f, -12.8f / 2.f, -12.8f / 4.f}, {ngraph::element::Type(ngraph::element::f32)}}
         },
     },
     // FP32 Subtract + Multiply {} -> Multiply + Subtract {1x3x1x1}
@@ -157,16 +157,16 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            {{ngraph::element::f32}, {128}, {0.1f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128}, {0.1f}},
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
-            ngraph::element::f32,
-            {{0.1f}, {ngraph::element::f32}},
-            {{-12.8f}, {ngraph::element::f32}}
+            ngraph::element::Type(ngraph::element::f32),
+            {{0.1f}, {ngraph::element::Type(ngraph::element::f32)}},
+            {{-12.8f}, {ngraph::element::Type(ngraph::element::f32)}}
         },
     },
     // U8 Multiply {} -> Multiply + Subtract {1x3x1x1}
@@ -174,15 +174,15 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}},
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
-            {{0.1f}, {ngraph::element::f32}},
+            ngraph::element::Type(ngraph::element::u8),
+            {{0.1f}, {ngraph::element::Type(ngraph::element::f32)}},
             {}
         },
     },
@@ -191,16 +191,16 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128}, {0.1f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128}, {0.1f}},
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
-            {{0.1f}, {ngraph::element::f32}},
-            {{-12.8f}, {ngraph::element::f32}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{0.1f}, {ngraph::element::Type(ngraph::element::f32)}},
+            {{-12.8f}, {ngraph::element::Type(ngraph::element::f32)}}
         },
     },
     // empty
@@ -208,14 +208,14 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128}, {}},
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128}, {}},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {128}, {}},
+            ngraph::element::Type(ngraph::element::u8),
             {},
             {}
         },
@@ -225,14 +225,14 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
             {}
         },
@@ -242,15 +242,15 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {2, 5, 4, 4},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            {{}, {}, {{0.1f, 0.2f, 0.3f, 0.4f, 0.5f}, ngraph::element::f32, {5, 1, 1}}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            {{}, {}, {{0.1f, 0.2f, 0.3f, 0.4f, 0.5f}, ngraph::element::Type(ngraph::element::f32), {5, 1, 1}}},
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
-            ngraph::element::f32,
-            {{0.1f, 0.2f, 0.3f, 0.4f, 0.5f}, {ngraph::element::f32}, {5, 1, 1}},
+            ngraph::element::Type(ngraph::element::f32),
+            {{0.1f, 0.2f, 0.3f, 0.4f, 0.5f}, {ngraph::element::Type(ngraph::element::f32)}, {5, 1, 1}},
             {}
         },
     },
@@ -259,14 +259,14 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
         {2, 5, 2, 2},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            {{}, {}, {{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.f}, ngraph::element::f32, {5, 1, 2}}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            {{}, {}, {{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.f}, ngraph::element::Type(ngraph::element::f32), {5, 1, 2}}},
+            ngraph::element::Type(ngraph::element::f32),
         },
         {
-            ngraph::element::f32,
-            {{}, {}, {{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.f}, ngraph::element::f32, {5, 1, 2}}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            {{}, {}, {{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.f}, ngraph::element::Type(ngraph::element::f32), {5, 1, 2}}},
+            ngraph::element::Type(ngraph::element::f32),
             {},
             {}
         },

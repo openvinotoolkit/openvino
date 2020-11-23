@@ -128,8 +128,8 @@ TEST_P(ConcatSelectionWithIntermediateTransformation, CompareFunctions) {
 }
 
 const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::Type(ngraph::element::f32),
+    // ngraph::element::Type(ngraph::element::f16)
 };
 
 const std::vector<bool> updatePrecisions = { true, false };
@@ -145,10 +145,10 @@ const std::vector<TestValues> testValues = {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, {2.55f / 2.f} }
         },
         {
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, { 128.f}, ngraph::element::u8 },
-            { ngraph::element::f32, {}, { 0.01f } },
-            { ngraph::element::f32, {}, { 0.01f } }
+            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::Type(ngraph::element::u8) },
+            { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, { 128.f}, ngraph::element::Type(ngraph::element::u8) },
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.01f } },
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.01f } }
         }
     }
 };

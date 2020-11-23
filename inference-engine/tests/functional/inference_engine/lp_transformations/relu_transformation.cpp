@@ -101,14 +101,14 @@ const std::vector<ReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         }
     },
     // U8: no subtract
@@ -116,14 +116,14 @@ const std::vector<ReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}}}
         }
     },
     // U8: no subtract
@@ -131,13 +131,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, -0.2f, 0.3f}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, -0.2f, 0.3f}}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -146,14 +146,14 @@ const std::vector<ReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::i8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         },
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::i8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         }
     },
     // U8: with subtract value
@@ -161,13 +161,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128 }, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, { 128 }, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{}, { {128}, ngraph::element::f32, {}, false }, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{}, { {128}, ngraph::element::Type(ngraph::element::f32), {}, false }, {}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {0.1f}}
         }
     },
@@ -176,13 +176,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}}
+            ngraph::element::Type(ngraph::element::i8),
+            {{ngraph::element::Type(ngraph::element::f32)}, { 127 }, {0.1f}}
         },
         {
-            ngraph::element::i8,
-            {{}, { {127}, ngraph::element::f32, {}, false }, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::i8),
+            {{}, { {127}, ngraph::element::Type(ngraph::element::f32), {}, false }, {}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {0.1f}}
         }
     },
@@ -191,13 +191,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}}
+            ngraph::element::Type(ngraph::element::i8),
+            {{ngraph::element::Type(ngraph::element::f32)}, { 127 }, {0.1f}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::i8),
+            {{ngraph::element::Type(ngraph::element::f32)}, { 127 }, {0.1f}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -206,13 +206,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {}
         }
     },
@@ -221,13 +221,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {}
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {}
         }
     }

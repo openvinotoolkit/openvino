@@ -106,14 +106,14 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 1, 384, 16, 64},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         }
     },
     // U8: no subtract 3D -> 4D: channels are not affected
@@ -122,14 +122,14 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 4, 384, 16, 64},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         }
     },
     // U8: no subtract 3D -> 4D: channels are not affected: no subtract
@@ -138,14 +138,14 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 1, 3, 4, 5},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}}
         }
     },
     // U8: no subtract 3D -> 4D: channels are not affected: no subtract
@@ -154,14 +154,14 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 4, 3, 4, 5},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}}
         }
     },
     // U8: no subtract 3D -> 4D: channels are not affected: with subtract
@@ -170,21 +170,21 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 1, 3, 4, 5},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
-                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1}},
-                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{32, 64, 128}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
-                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
-                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{32, 64, 128}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}
             }
         }
     },
@@ -194,21 +194,21 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 1, -1, 4, 5},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
-                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1}},
-                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{32, 64, 128}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
-                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
-                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{32, 64, 128}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}
             }
         }
     },
@@ -218,13 +218,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 1, 3, 20, 1, 1, 1},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}},
+            ngraph::element::Type(ngraph::element::f32),
             {}
         }
     },
@@ -234,21 +234,21 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 1, 3, 20, 1, 1, 1},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
-                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
-                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{32, 64, 128}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                { ngraph::element::f32 },
-                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
-                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
+                { ngraph::element::Type(ngraph::element::f32) },
+                {{32, 64, 128}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}
             },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {}
         }
     },
@@ -259,13 +259,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 6144, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}},
+            ngraph::element::Type(ngraph::element::f32),
             {}
         }
     },
@@ -275,13 +275,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 12, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -291,13 +291,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 12, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}}, {{0.1f, 0.2f, 0.3f}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}}, {{0.1f, 0.2f, 0.3f}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32}, {{0.1f, 0.2f, 0.3f}}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32)}, {{0.1f, 0.2f, 0.3f}}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -307,13 +307,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 12, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {}
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },
@@ -323,13 +323,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 12, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {}
         }
     },
@@ -339,13 +339,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 1, 3, 1, 1, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {3, 1, 1}}},
+            ngraph::element::Type(ngraph::element::f32),
             {}
         }
     },
@@ -356,14 +356,16 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{128.f}, ngraph::element::Type(ngraph::element::f32), {}},
+                {{0.1f}, ngraph::element::Type(ngraph::element::f32), {}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{128.f}, ngraph::element::Type(ngraph::element::f32), {}},
+                {{0.1f}, ngraph::element::Type(ngraph::element::f32), {}}}
         }
     },
     // U8: no subtract 4D -> 2D: channels are not affected: per tensor quantization
@@ -372,17 +374,18 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
-                {{0.f, 0.f, 0.f, 0.f, 128.f, 128.f, 128.f, 128.f, 255.f, 255.f, 255.f, 255.f}, ngraph::element::f32, {1, 12}},
-                {{0.1f, 0.1f, 0.1f, 0.1f, 0.2f, 0.2f, 0.2f, 0.2f, 0.3f, 0.3f, 0.3f, 0.3f}, ngraph::element::f32, {1, 12}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{0.f, 0.f, 0.f, 0.f, 128.f, 128.f, 128.f, 128.f, 255.f, 255.f, 255.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 12}},
+                {{0.1f, 0.1f, 0.1f, 0.1f, 0.2f, 0.2f, 0.2f, 0.2f, 0.3f, 0.3f, 0.3f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 12}}
             }
         }
     },
@@ -392,17 +395,18 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {ngraph::element::f32},
-                {{0.f, 0.f, 0.f, 0.f, 128.f, 128.f, 128.f, 128.f, 255.f, 255.f, 255.f, 255.f}, ngraph::element::f32, {1, 12}},
-                {{0.1f, 0.1f, 0.1f, 0.1f, 0.2f, 0.2f, 0.2f, 0.2f, 0.3f, 0.3f, 0.3f, 0.3f}, ngraph::element::f32, {1, 12}}
+                {ngraph::element::Type(ngraph::element::f32)},
+                {{0.f, 0.f, 0.f, 0.f, 128.f, 128.f, 128.f, 128.f, 255.f, 255.f, 255.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 12}},
+                {{0.1f, 0.1f, 0.1f, 0.1f, 0.2f, 0.2f, 0.2f, 0.2f, 0.3f, 0.3f, 0.3f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 12}}
             }
         }
     },
@@ -412,14 +416,16 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3}}},
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 3}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3}}},
         }
     },
     // U8: no subtract 4D -> 2D: channels are not affected: per channel quantization: case #2: dequantization operation constant doesn't need broadcast
@@ -428,14 +434,16 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3}}},
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 3}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3}}},
         }
     },
     // U8: no subtract 4D -> 3D: channels are affected: per tensor quantization: case #1: dequantization operation constant needs broadcast
@@ -444,14 +452,16 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 0, 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}},
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}}},
         }
     },
     // U8: no subtract 4D -> 3D: channels are affected: per tensor quantization: case #2: dequantization operation constant doesn't need broadcast
@@ -460,14 +470,16 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 0, 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}},
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {{0.f, 128.f, 255.f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::Type(ngraph::element::f32), {1, 3, 1}}},
         }
     },
     // U8: no subtract 4D -> 2D
@@ -476,14 +488,14 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 1, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f}, ngraph::element::Type(ngraph::element::f32), {}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f}, ngraph::element::Type(ngraph::element::f32), {}}}
         }
     },
     // U8: no subtract 4D -> 2D
@@ -492,14 +504,14 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 2, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1ul}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f}, ngraph::element::Type(ngraph::element::f32), {1ul}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1ul}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f}, ngraph::element::Type(ngraph::element::f32), {1ul}}}
         }
     },
     // U8: no subtract 4D -> 2D
@@ -508,14 +520,14 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 1, -1 },
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f}, ngraph::element::Type(ngraph::element::f32), {1, 1}}}
         }
     },
     // U8: no subtract 4D -> 2D: channels are not affected
@@ -524,14 +536,14 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         { 2, -1},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1, 1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f}, ngraph::element::Type(ngraph::element::f32), {1, 1, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1}}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.1f}, ngraph::element::Type(ngraph::element::f32), {1, 1}}}
         }
     }
 };

@@ -100,7 +100,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction =
-            (testValues.expected.precisionBeforeOperation1 == ngraph::element::f32) && testValues.expected.result.empty() ?
+            (testValues.expected.precisionBeforeOperation1 == ngraph::element::Type(ngraph::element::f32)) && testValues.expected.result.empty() ?
             ngraph::builder::subgraph::MatMulFunction::getOriginal(
                 shapes.first,
                 testValues.actual.precisionBeforeDequantization1,
@@ -138,8 +138,8 @@ TEST_P(MatMulTransformation, CompareFunctions) {
 }
 
 const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::Type(ngraph::element::f32),
+    // ngraph::element::Type(ngraph::element::f16)
 };
 
 const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
@@ -154,18 +154,18 @@ std::vector<MatMullTransformationTestValues> testValues = {
     // {
     //    LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
     //    {
-    //        ngraph::element::u8,
-    //        { ngraph::element::f32, { 127.f }, { {0.02f}, ngraph::element::f32, {}, true, 0 } },
-    //        ngraph::element::i8,
-    //        { ngraph::element::f32, {}, { 0.03f } },
+    //        ngraph::element::Type(ngraph::element::u8),
+    //        { ngraph::element::Type(ngraph::element::f32), { 127.f }, { {0.02f}, ngraph::element::Type(ngraph::element::f32), {}, true, 0 } },
+    //        ngraph::element::Type(ngraph::element::i8),
+    //        { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
     //    },
     //    {
-    //        ngraph::element::u8,
-    //        { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
-    //        ngraph::element::i8,
+    //        ngraph::element::Type(ngraph::element::u8),
+    //        { {}, {{127.f}, ngraph::element::Type(ngraph::element::f32), ngraph::Shape{ }, false}, {} },
+    //        ngraph::element::Type(ngraph::element::i8),
     //        { },
-    //        ngraph::element::f32,
-    //        ngraph::element::f32,
+    //        ngraph::element::Type(ngraph::element::f32),
+    //        ngraph::element::Type(ngraph::element::f32),
     //        { {}, {}, { 0.0006f } },
     //    }
     // },
@@ -173,18 +173,18 @@ std::vector<MatMullTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), { 127.f }, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
         },
         {
-            ngraph::element::u8,
-            { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::u8),
+            { {}, {{127.f}, ngraph::element::Type(ngraph::element::f32), ngraph::Shape{ }, false}, {} },
+            ngraph::element::Type(ngraph::element::i8),
             { },
-            ngraph::element::f32,
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, { 0.0006f } },
         }
     },
@@ -192,18 +192,18 @@ std::vector<MatMullTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::i8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), { 127.f }, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
         },
         {
-            ngraph::element::i8,
-            { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
+            { {}, {{127.f}, ngraph::element::Type(ngraph::element::f32), ngraph::Shape{ }, false}, {} },
+            ngraph::element::Type(ngraph::element::i8),
             { },
-            ngraph::element::f32,
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, { 0.0006f } },
         }
     },
@@ -211,18 +211,18 @@ std::vector<MatMullTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.5f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), { 127.5f }, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
         },
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.5f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), { 127.5f }, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::f32),
+            ngraph::element::Type(ngraph::element::f32),
             {},
         }
     },
@@ -230,18 +230,18 @@ std::vector<MatMullTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), { 127.f }, { 0.02f } },
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, { 0.03f } },
         },
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), { 127.f }, { 0.02f } },
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            ngraph::element::Type(ngraph::element::f32),
             { },
         }
     },
@@ -249,126 +249,126 @@ std::vector<MatMullTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {}, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {}, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::f32),
+            ngraph::element::Type(ngraph::element::f32),
             { },
         }
     },
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), { 127.f }, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
         },
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), { 127.f }, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::f32),
+            ngraph::element::Type(ngraph::element::f32),
             { },
         }
     },
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             { {}, {}, {} },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::u8),
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, { 0.02f * 0.03f } },
         }
     },
     {
         LayerTransformation::createParamsU8U8(),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             { {}, {}, {} },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::u8),
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, { 0.02f * 0.03f } },
         }
     },
     {
         LayerTransformation::createParamsU8U8(),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             { {}, {}, {} },
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
+            ngraph::element::Type(ngraph::element::u8),
             { {}, {}, { 0.02f * 0.03f } },
         }
     },
     {
         LayerTransformation::createParamsI8I8().setUpdatePrecisions(true),
         {
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.03f } },
         },
         {
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, {} },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, {} },
-            ngraph::element::i8,
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, { 0.02f * 0.03f } },
         }
     },
     {
         LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, { 0.02f } },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, { 0.03f } },
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, {} },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, {} },
-            ngraph::element::f32,
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, { 0.02f * 0.03f } },
         }
     }

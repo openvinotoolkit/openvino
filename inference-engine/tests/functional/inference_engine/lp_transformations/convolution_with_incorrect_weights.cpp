@@ -103,7 +103,7 @@ const std::vector<ConvolutionWIthIncorrectWeightsTestValues> testValues = {
     // incorrect weights
     {
         ngraph::Shape({ 1, 3, 224, 224 }),
-        ngraph::element::f32,
+        ngraph::element::Type(ngraph::element::f32),
         LayerTransformation::createParamsU8I8(),
         bool{ false },
         {
@@ -111,10 +111,10 @@ const std::vector<ConvolutionWIthIncorrectWeightsTestValues> testValues = {
             { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
-            {{ngraph::element::f32}, {}, {0.1f}},
-            ngraph::element::f32,
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.1f}},
+            ngraph::element::Type(ngraph::element::f32),
             {1.f},
             { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
             {}
@@ -123,7 +123,7 @@ const std::vector<ConvolutionWIthIncorrectWeightsTestValues> testValues = {
     // correct weights
     {
         ngraph::Shape({ 1, 3, 224, 224 }),
-        ngraph::element::f32,
+        ngraph::element::Type(ngraph::element::f32),
         LayerTransformation::createParamsU8I8(),
         true,
         {
@@ -131,10 +131,10 @@ const std::vector<ConvolutionWIthIncorrectWeightsTestValues> testValues = {
             { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
             {},
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {-126.f},
             {},
             {{}, {}, {0.1f}},

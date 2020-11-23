@@ -138,8 +138,8 @@ TEST_P(ConcatWithIntermediateWithConstantTransformation, CompareFunctions) {
 }
 
 const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::Type(ngraph::element::f32),
+    // ngraph::element::Type(ngraph::element::f16)
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {
@@ -156,10 +156,10 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
             { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.01f } },
-            ngraph::element::f32
+            ngraph::element::Type(ngraph::element::u8),
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.01f } },
+            ngraph::element::Type(ngraph::element::f32)
         }
     },
     // I8: concat
@@ -175,10 +175,10 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-128.f}, {127.f} },
             { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-64.f}, { 64.f} },
             { {}, {}, {} },
-            ngraph::element::i8,
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.01f } },
-            ngraph::element::f32
+            ngraph::element::Type(ngraph::element::i8),
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.01f } },
+            ngraph::element::Type(ngraph::element::f32)
         }
     },
     // U8: concat with subtract
@@ -194,10 +194,10 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
             { 256ul, ngraph::Shape({}), {1.275f}, {2.55f}, {128.f}, {255.f} },
             { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.01f } },
-            ngraph::element::f32
+            ngraph::element::Type(ngraph::element::u8),
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.01f } },
+            ngraph::element::Type(ngraph::element::f32)
         }
     },
     // U8: not update precisions
@@ -213,10 +213,10 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
             { 256ul, ngraph::Shape({}), {1.275f}, {2.55f}, {128.f}, {255.f} },
             { {}, {}, {} },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { ngraph::element::f32, {}, { 0.01f } },
-            ngraph::element::f32
+            ngraph::element::Type(ngraph::element::f32),
+            ngraph::element::Type(ngraph::element::f32),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.01f } },
+            ngraph::element::Type(ngraph::element::f32)
         }
     },
     // U8: concat multi channels
@@ -232,10 +232,10 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, { 255.f} },
             { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }} },
-            ngraph::element::f32
+            ngraph::element::Type(ngraph::element::u8),
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }} },
+            ngraph::element::Type(ngraph::element::f32)
         }
     },
     // I8: concat multi channels
@@ -251,10 +251,10 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-128.f}, {127.f} },
             { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-128.f}, {127.f} },
             { {}, {}, {} },
-            ngraph::element::i8,
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }} },
-            ngraph::element::f32
+            ngraph::element::Type(ngraph::element::i8),
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }} },
+            ngraph::element::Type(ngraph::element::f32)
         }
     },
     // U8: concat multi channels with subtract
@@ -270,14 +270,14 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
             { 256ul, ngraph::Shape({}), {1.275f}, {2.55f}, {0.f}, {255.f} },
             { {}, {}, {} },
-            ngraph::element::u8,
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
+            ngraph::element::Type(ngraph::element::u8),
             {
-                ngraph::element::f32,
+                ngraph::element::Type(ngraph::element::f32),
                 {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
                 {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
             },
-            ngraph::element::f32
+            ngraph::element::Type(ngraph::element::f32)
         }
     },
     // U8: concat multi channels, not update precisions
@@ -293,14 +293,14 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
             { 256ul, ngraph::Shape({}), {1.275f}, {2.55f}, {0.f}, {255.f} },
             { {}, {}, {} },
-            ngraph::element::f32,
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
+            ngraph::element::Type(ngraph::element::f32),
             {
-                ngraph::element::f32,
+                ngraph::element::Type(ngraph::element::f32),
                 {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
                 {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
             },
-            ngraph::element::f32
+            ngraph::element::Type(ngraph::element::f32)
         }
     },
 };

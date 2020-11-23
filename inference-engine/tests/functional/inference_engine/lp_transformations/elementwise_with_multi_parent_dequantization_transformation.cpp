@@ -118,38 +118,38 @@ TEST_P(ElementwiseWithMultiParentDequantizationTransformation, CompareFunctions)
 const std::vector<ElementwiseWithMultiParentDequantizationTransformationTestValues> addTransformationTestValues = {
     // U8
     {
-        ngraph::element::f32,
+        ngraph::element::Type(ngraph::element::f32),
         ngraph::Shape{1, 4, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f }},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
+            { {ngraph::element::Type(ngraph::element::f32)},  { 7.f }, { 10.f }},
+            ngraph::element::Type(ngraph::element::u8),
             {},
         },
         {
-            ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f }},
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
+            { {ngraph::element::Type(ngraph::element::f32)},  { 7.f }, { 10.f }},
+            ngraph::element::Type(ngraph::element::u8),
             {},
         }
     },
     // U8
     {
-        ngraph::element::f32,
+        ngraph::element::Type(ngraph::element::f32),
         ngraph::Shape{1, 4, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f }}
+            ngraph::element::Type(ngraph::element::u8),
+            { {ngraph::element::Type(ngraph::element::f32)},  { 7.f }, { 10.f }}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f }}
+            ngraph::element::Type(ngraph::element::u8),
+            { {ngraph::element::Type(ngraph::element::f32)},  { 7.f }, { 10.f }}
         }
     }
 };

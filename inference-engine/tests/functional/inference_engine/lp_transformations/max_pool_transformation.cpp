@@ -102,35 +102,36 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { {}, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }},
+            ngraph::element::Type(ngraph::element::u8),
+            { {}, {}, { {0.02f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1, ngraph::element::Type(ngraph::element::f32) }},
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            { ngraph::element::f32, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }}
+            { ngraph::element::Type(ngraph::element::f32), {},
+                { {0.02f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1, ngraph::element::Type(ngraph::element::f32) }}
         }
     },
     // Subtract + Multiply
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
                 {},
-                { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
-                { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+                { {128.f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1, ngraph::element::Type(ngraph::element::f32) },
+                { {0.02f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1, ngraph::element::Type(ngraph::element::f32) }
             },
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
             {
-                ngraph::element::f32,
-                { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
-                { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+                ngraph::element::Type(ngraph::element::f32),
+                { {128.f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1, ngraph::element::Type(ngraph::element::f32) },
+                { {0.02f}, ngraph::element::Type(ngraph::element::f32), {}, true, 1, ngraph::element::Type(ngraph::element::f32) }
             }
         }
     },
@@ -138,56 +139,56 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 128 }, { 0.02f }},
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), { 128 }, { 0.02f }},
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            { ngraph::element::f32, { 128 }, { 0.02f }}
+            { ngraph::element::Type(ngraph::element::f32), { 128 }, { 0.02f }}
         }
     },
     // Convert + Subtract + Multiply
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f }},
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f }},
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            { ngraph::element::f32, {}, { 0.02f }}
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f }}
         }
     },
     // Convert + Subtract + Multiply
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 128 }, { 0.02f }},
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), { 128 }, { 0.02f }},
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            { ngraph::element::f32, { 128 }, { 0.02f }}
+            { ngraph::element::Type(ngraph::element::f32), { 128 }, { 0.02f }}
         }
     },
     // Convert + Subtract + Multiply
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f }},
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f }},
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {},
-            { ngraph::element::f32, {}, { 0.02f }}
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f }}
         }
     }
 };

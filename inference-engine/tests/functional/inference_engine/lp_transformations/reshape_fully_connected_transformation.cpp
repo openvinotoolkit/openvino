@@ -83,19 +83,19 @@ TEST_P(ReshapeFullyConnectedTransformation, CompareFunctions) {
 std::vector<ReshapeFullyConnectedTransformationTestValues> testValues = {
     {
         { 1, 1, 2048 },
-        ngraph::element::u8,
-        ngraph::element::i8,
-        ngraph::element::f32,
+        ngraph::element::Type(ngraph::element::u8),
+        ngraph::element::Type(ngraph::element::i8),
+        ngraph::element::Type(ngraph::element::f32),
         { 1, 1000 },
-        ngraph::element::f32
+        ngraph::element::Type(ngraph::element::f32)
     },
     {
         { 1, 1, 2048 },
-        ngraph::element::f32,
-        ngraph::element::f32,
-        ngraph::element::f32,
+        ngraph::element::Type(ngraph::element::f32),
+        ngraph::element::Type(ngraph::element::f32),
+        ngraph::element::Type(ngraph::element::f32),
         { 1, 1000 },
-        ngraph::element::f32
+        ngraph::element::Type(ngraph::element::f32)
     }
 };
 

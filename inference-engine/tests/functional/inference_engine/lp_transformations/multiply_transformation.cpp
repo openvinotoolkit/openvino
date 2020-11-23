@@ -89,8 +89,8 @@ TEST_P(MultiplyTransformation, CompareFunctions) {
 }
 
 const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    //ngraph::element::f16
+    ngraph::element::Type(ngraph::element::f32),
+    //ngraph::element::Type(ngraph::element::f16)
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -110,14 +110,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 10.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { 3.f }, { 7.f }}
             },
             false
         },
@@ -125,14 +125,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 10.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { 3.f }, { 7.f }}
             },
             false
         }
@@ -144,14 +144,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 10.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { }, { 7.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { }, { 7.f }}
             },
             false
         },
@@ -159,13 +159,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 70.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 70.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
+                ngraph::element::Type(ngraph::element::u8),
                 {}
             },
             false
@@ -178,14 +178,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                { ngraph::element::f32, {  }, { 10.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                { ngraph::element::Type(ngraph::element::f32), {  }, { 10.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                { ngraph::element::f32, { }, { 7.f } }
+                ngraph::element::Type(ngraph::element::u8),
+                { ngraph::element::Type(ngraph::element::f32), { }, { 7.f } }
             },
             false
         },
@@ -193,13 +193,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, {  }, { 70.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), {  }, { 70.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
+                ngraph::element::Type(ngraph::element::u8),
                 {}
             },
             false
@@ -212,14 +212,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, {  }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, {  }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { }, { 7.f } }
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { }, { 7.f } }
             },
             false
         },
@@ -227,13 +227,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 7.f }}
+                ngraph::element::Type(ngraph::element::u8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 7.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::u8,
+                ngraph::element::Type(ngraph::element::u8),
                 {}
             },
             false
@@ -247,14 +247,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 10.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 3.f }, { 7.f }}
             },
             false
         },
@@ -262,14 +262,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 10.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 3.f }, { 7.f } }
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 3.f }, { 7.f } }
             },
             false
         }
@@ -281,14 +281,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 10.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 7.f }}
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { }, { 7.f }}
             },
             false
         },
@@ -296,13 +296,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 70.f }},
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 70.f }},
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
+                ngraph::element::Type(ngraph::element::i8),
                 {}
             },
             false
@@ -315,14 +315,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 10.f }}
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { }, { 10.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 7.f } }
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { }, { 7.f } }
             },
             false
         },
@@ -330,13 +330,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                { ngraph::element::f32, {  }, { 70.f }}
+                ngraph::element::Type(ngraph::element::i8),
+                { ngraph::element::Type(ngraph::element::f32), {  }, { 70.f }}
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
+                ngraph::element::Type(ngraph::element::i8),
                 { }
             },
             false
@@ -349,14 +349,14 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, {  }},
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, {  }},
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 7.f } },
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { }, { 7.f } },
             },
             false
         },
@@ -364,13 +364,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 2.f }, { 7.f }},
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 2.f }, { 7.f }},
             },
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
+                ngraph::element::Type(ngraph::element::i8),
                 {}
             },
             false
@@ -384,13 +384,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { }, { 10.f }},
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { }, { 10.f }},
             },
             {
                 {},
-                {{ 7.f }, ngraph::element::f32}, // Constant as input
-                ngraph::element::f32,
+                {{ 7.f }, ngraph::element::Type(ngraph::element::f32)}, // Constant as input
+                ngraph::element::Type(ngraph::element::f32),
                 {}
             },
             false
@@ -399,13 +399,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, {}, {}},
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), {}, {}},
             },
             {
                 {},
-                {{ 70.f }, ngraph::element::f32},
-                ngraph::element::f32,
+                {{ 70.f }, ngraph::element::Type(ngraph::element::f32)},
+                ngraph::element::Type(ngraph::element::f32),
                 {}
             },
             true
@@ -418,13 +418,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 18.f }, { 10.f }},
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 18.f }, { 10.f }},
             },
             {
                 {},
-                {{ 7.f }, ngraph::element::f32},
-                ngraph::element::f32,
+                {{ 7.f }, ngraph::element::Type(ngraph::element::f32)},
+                ngraph::element::Type(ngraph::element::f32),
                 {}
             },
             false
@@ -433,13 +433,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             {
                 { 1, 3, 8, 16 },
                 {},
-                ngraph::element::i8,
-                {ngraph::element::f32, { 18.f }, { }},
+                ngraph::element::Type(ngraph::element::i8),
+                {ngraph::element::Type(ngraph::element::f32), { 18.f }, { }},
             },
             {
                 {},
-                {{ 70.f }, ngraph::element::f32},
-                ngraph::element::f32,
+                {{ 70.f }, ngraph::element::Type(ngraph::element::f32)},
+                ngraph::element::Type(ngraph::element::f32),
                 {}
             },
             true

@@ -146,8 +146,8 @@ TEST_P(MatMulWithConstantTransformation, CompareFunctions) {
 }
 
 const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::Type(ngraph::element::f32),
+    // ngraph::element::Type(ngraph::element::f16)
 };
 
 const std::vector<size_t> batches = { 1, 4 };
@@ -158,20 +158,20 @@ std::vector<MatMullTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             { 1, 384, 1024 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f } },
             { 1024, 1024 },
             std::vector<float>(1024 * 1024, 1.f),
             { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         },
         {
             { 1, 384, 1024 },
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             { {}, {}, {} },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             { 1024, 1024 },
             std::vector<float>(1024 * 1024, -126),
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, { 0.02f * 0.1f } },
             {}
         }
@@ -182,20 +182,20 @@ std::vector<MatMullTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             { 1, 3, 4 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { {0.01f, 0.02f, 0.03f} } },
             { 4, 4 },
             std::vector<float>(4 * 4, 1.f),
             { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         },
         {
             { 1, 3, 4 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { {0.01f, 0.02f, 0.03f} } },
+            ngraph::element::Type(ngraph::element::i8),
             {4, 4},
             std::vector<float>(4 * 4, 1.f),
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
             { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         }
@@ -206,8 +206,8 @@ std::vector<MatMullTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             { 1, 3, 4 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f } },
             { 4, 4 },
             std::vector<float>(4 * 4, 1.f),
             {
@@ -221,12 +221,12 @@ std::vector<MatMullTransformationTestValues> testValues = {
         },
         {
             { 1, 3, 4 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
             {4, 4},
             std::vector<float>(4 * 4, 1.f),
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {},
             {
                 255,
@@ -244,20 +244,20 @@ std::vector<MatMullTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             { 1, 2048 },
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
+            ngraph::element::Type(ngraph::element::u8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f } },
             { 2048, 1000 },
             std::vector<float>(2048 * 1000, 1.f),
             { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         },
         {
             { 1, 2048 },
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             { {}, {}, {} },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {2048, 1000},
             std::vector<float>(2048 * 1000, -126),
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, { 0.02f * 0.1f } },
             {}
         }
@@ -267,20 +267,20 @@ std::vector<MatMullTransformationTestValues> testValues = {
         LayerTransformation::createParamsI8I8(),
         {
             { 1, 2048 },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.02f } },
+            ngraph::element::Type(ngraph::element::i8),
+            { ngraph::element::Type(ngraph::element::f32), {}, { 0.02f } },
             { 2048, 1000 },
             std::vector<float>(2048 * 1000, 1.f),
             { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         },
         {
             { 1, 2048 },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, {} },
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             {2048, 1000},
             std::vector<float>(2048 * 1000, -126),
-            ngraph::element::i8,
+            ngraph::element::Type(ngraph::element::i8),
             { {}, {}, { 0.02f * 0.1f } },
             {}
         }
@@ -290,7 +290,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
             { 1, 2048 },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, { 0.02f } },
             { 2048, 1000 },
             std::vector<float>(2048 * 1000, 1.f),
@@ -298,12 +298,12 @@ std::vector<MatMullTransformationTestValues> testValues = {
         },
         {
             { 1, 2048 },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, {} },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {2048, 1000},
             std::vector<float>(2048 * 1000, -126),
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             { {}, {}, { 0.02f * 0.1f } },
             {}
         }

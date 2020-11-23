@@ -108,13 +108,13 @@ const std::vector<MVNTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.45f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {-0.32f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.45f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {-0.32f}, {0.45f}},
+            ngraph::element::Type(ngraph::element::f32),
             { }
         }
     },
@@ -124,13 +124,13 @@ const std::vector<MVNTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.45f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.45f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             { },
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {1.f}}
         }
     },
@@ -140,13 +140,13 @@ const std::vector<MVNTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {127.f}, {0.45f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {127.f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {127.f}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {127.f}, {}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {1.f}}
         }
     },
@@ -156,13 +156,13 @@ const std::vector<MVNTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {12.5f}, {0.45f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {12.5f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {12.5f}, {0.45f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {12.5f}, {0.45f}},
+            ngraph::element::Type(ngraph::element::f32),
             {}
         }
     },
@@ -172,13 +172,13 @@ const std::vector<MVNTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {127.f}, {0.45f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {127.f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {127.f}, {0.45f}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {127.f}, {0.45f}},
+            ngraph::element::Type(ngraph::element::f32),
             {}
         }
     },
@@ -189,13 +189,13 @@ const std::vector<MVNTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {-0.5f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {-0.5f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {-1.f}}
         }
     },
@@ -206,13 +206,13 @@ const std::vector<MVNTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.45f}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {0.45f}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {0.45f}}
         }
     },
@@ -222,14 +222,14 @@ const std::vector<MVNTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.45f, 0.45f}, ngraph::element::f32, ngraph::Shape{ 1, 2, 1, 1 }}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.45f, 0.45f}, ngraph::element::Type(ngraph::element::f32), ngraph::Shape{ 1, 2, 1, 1 }}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {}, {{0.45f, 0.45f}, ngraph::element::f32, ngraph::Shape{ 1, 2, 1, 1 }}}
+            ngraph::element::Type(ngraph::element::f32),
+            {{}, {}, {{0.45f, 0.45f}, ngraph::element::Type(ngraph::element::f32), ngraph::Shape{ 1, 2, 1, 1 }}}
         }
     },
     {
@@ -238,14 +238,14 @@ const std::vector<MVNTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.45f, -0.45f}, ngraph::element::f32, ngraph::Shape{ 1, 2, 1, 1 }}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.45f, -0.45f}, ngraph::element::Type(ngraph::element::f32), ngraph::Shape{ 1, 2, 1, 1 }}}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {}, {{1.f, -1.f}, ngraph::element::f32, ngraph::Shape{ 1, 2, 1, 1 }}}
+            ngraph::element::Type(ngraph::element::f32),
+            {{}, {}, {{1.f, -1.f}, ngraph::element::Type(ngraph::element::f32), ngraph::Shape{ 1, 2, 1, 1 }}}
         }
     },
     {
@@ -254,13 +254,13 @@ const std::vector<MVNTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.45f, -0.45f}, ngraph::element::f32, ngraph::Shape{ 1, 2, 1, 1 }}}
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.45f, -0.45f}, ngraph::element::Type(ngraph::element::f32), ngraph::Shape{ 1, 2, 1, 1 }}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.45f, -0.45f}, ngraph::element::f32, ngraph::Shape{ 1, 2, 1, 1 }}},
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::u8),
+            {{ngraph::element::Type(ngraph::element::f32)}, {}, {{0.45f, -0.45f}, ngraph::element::Type(ngraph::element::f32), ngraph::Shape{ 1, 2, 1, 1 }}},
+            ngraph::element::Type(ngraph::element::f32),
             {{}, {}, {}}
         }
     },

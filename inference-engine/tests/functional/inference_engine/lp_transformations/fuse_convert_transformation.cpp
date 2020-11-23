@@ -98,18 +98,19 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                { ngraph::element::f32 },
+                { ngraph::element::Type(ngraph::element::f32) },
                 {1.f},
                 {0.45f}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                {},
-                DequantizationOperations::Subtract({1.f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32),
+                {{}},
+                DequantizationOperations::Subtract({1.f}, ngraph::element::Type(ngraph::element::f32), true)
+                    .setConstantPrecision(ngraph::element::Type(ngraph::element::f32)),
                 {0.45f}
             }
         }
@@ -120,19 +121,20 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                { ngraph::element::f32 },
+                { ngraph::element::Type(ngraph::element::f32) },
                 {},
                 {0.45f}
             }
         },
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
                 {},
                 {},
-                DequantizationOperations::Multiply({0.45f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32)
+                DequantizationOperations::Multiply({0.45f}, ngraph::element::Type(ngraph::element::f32))
+                    .setConstantPrecision(ngraph::element::Type(ngraph::element::f32))
             }
         }
     },
@@ -142,15 +144,15 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::Type(ngraph::element::u8),
             {
-                { ngraph::element::f32 },
+                { ngraph::element::Type(ngraph::element::f32) },
                 {1.f},
                 {0.45f}
             }
         },
         {
-            ngraph::element::f32,
+            ngraph::element::Type(ngraph::element::f32),
             {
                 {},
                 {1.f},
