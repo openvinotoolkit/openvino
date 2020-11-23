@@ -109,6 +109,46 @@ NGRAPH_TEST(${BACKEND_NAME}, roi_pooling_2x2_max)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, roi_pooling_1x1_bilinear)
+{
+    const int H = 6;
+    const int W = 6;
+    const int image_size = H * W;
+    const int channels = 3;
+    const int num_rois = 2;
+
+    const int pooled_h = 1;
+    const int pooled_w = 1;
+    const float spatial_scale = 1.f;
+
+    Shape feat_maps_shape{1, channels, H, W};
+    Shape rois_shape{num_rois, 5};
+    Shape pooled_shape{pooled_h, pooled_w};
+    Shape output_shape{num_rois, channels, pooled_h, pooled_w};
+
+    const auto feat_maps = make_shared<op::Parameter>(element::f32, feat_maps_shape);
+    const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
+    const auto roi_pooling =
+        make_shared<op::v0::ROIPooling>(feat_maps, rois, pooled_shape, spatial_scale, "bilinear");
+    const auto f = make_shared<Function>(roi_pooling, ParameterVector{feat_maps, rois});
+
+    vector<float> feat_maps_vect;
+    for (unsigned int i = 0; i < channels * image_size; i++)
+    {
+        feat_maps_vect.push_back(1.f * i / 10);
+    }
+
+    vector<float> rois_vect = {0, 0.2, 0.2, 0.4, 0.4, 0, 0.2, 0.2, 0.6, 0.6};
+
+    const vector<float> expected_vect = {1.05f, 4.65f, 8.25f, 1.4f, 5.0f, 8.6f};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(feat_maps_shape, feat_maps_vect);
+    test_case.add_input<float>(rois_shape, rois_vect);
+    test_case.add_expected_output<float>(output_shape, expected_vect);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, roi_pooling_2x2_bilinear)
 {
     const int H = 8;
