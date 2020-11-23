@@ -918,7 +918,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             keep_constants = attr->get();
         }
 
-        // Restore output and krenel size
+        // Restore output and kernel size
         auto shape = node->get_input_shape(1);
         shape.erase(shape.begin(), shape.begin() + 2);
 
@@ -930,22 +930,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->params.erase("auto_pad");
         }
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
-        if (!keep_constants && converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr(); 
+        if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
             if (node->inputs().size() == 3) {
                 const auto biasNode = node->input_value(2).get_node_shared_ptr();
-                if (converter.canCreate(biasNode)) {
-                    const auto& bias = converter.createLayer(biasNode);
-                    res->blobs["biases"] = bias->blobs["custom"];
-                    res->_biases = bias->blobs["custom"];
-                }
+                InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
             }
         }
+
         return res;
     });
 }
