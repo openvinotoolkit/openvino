@@ -29,7 +29,6 @@ from tests import (
     xfail_issue_43380,
     xfail_issue_43382,
     xfail_issue_43439,
-    xfail_issue_36533,
     xfail_issue_39684,
     xfail_issue_40957,
     xfail_issue_39685,
@@ -38,7 +37,12 @@ from tests import (
     xfail_issue_38084,
     xfail_issue_39669,
     xfail_issue_38726,
-    xfail_issue_40686)
+    xfail_issue_40686,
+    xfail_issue_39704,
+    xfail_issue_43208,
+    xfail_issue_43209,
+    xfail_issue_43213,
+    xfail_issue_37973)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -147,11 +151,11 @@ if len(zoo_models) > 0:
     if tests.MODEL_ZOO_XFAIL:
         execution_xfail_list = [
             # ONNX Model Zoo
-            (xfail_issue_36533, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
-            (xfail_issue_36533, "test_onnx_model_zoo_vision_object_detection_segmentation_retinanet_model_retinanet_9_test_retinanet_resnet101_retinanet_9_cpu"),
+            (xfail_issue_39704, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
+            (xfail_issue_43213, "test_onnx_model_zoo_vision_object_detection_segmentation_retinanet_model_retinanet_9_test_retinanet_resnet101_retinanet_9_cpu"),
             (xfail_issue_39684, "test_onnx_model_zoo_vision_object_detection_segmentation_yolov4_model_yolov4_yolov4_yolov4_cpu"),
-            (xfail_issue_36533, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_10_GPT2_model_cpu"),
-            (xfail_issue_36533, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_lm_head_10_GPT_2_LM_HEAD_model_cpu"),
+            (xfail_issue_43208, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_10_GPT2_model_cpu"),
+            (xfail_issue_43209, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_lm_head_10_GPT_2_LM_HEAD_model_cpu"),
             (xfail_issue_40957, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_10_download_sample_10_bertsquad10_cpu"),
             (xfail_issue_40957, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
             (xfail_issue_40957, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
@@ -163,11 +167,11 @@ if len(zoo_models) > 0:
             (xfail_issue_43380, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov3_model_tiny_yolov3_11_yolov3_tiny_cpu"),
 
             # Model MSFT
-            (xfail_issue_36533, "test_MSFT_opset7_tf_inception_v2_model_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset8_tf_inception_v2_model_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset9_tf_inception_v2_model_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset11_tf_inception_v2_model_cpu"),
-            (xfail_issue_36533, "test_MSFT_opset10_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_MSFT_opset7_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_MSFT_opset8_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_MSFT_opset9_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_MSFT_opset11_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_MSFT_opset10_tf_inception_v2_model_cpu"),
 
             (xfail_issue_40686, "test_MSFT_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
             (xfail_issue_40686, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
