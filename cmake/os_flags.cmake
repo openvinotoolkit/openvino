@@ -241,11 +241,6 @@ if(WIN32)
         # 15335: was not vectorized: vectorization possible but seems inefficient. Use vector always directive or /Qvec-threshold0 to override
         ie_add_compiler_flags(/Qdiag-disable:161,177,556,1744,1879,2586,2651,3180,11075,15335)
     endif()
-
-    # Debug information flags
-
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Z7")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7")
 else()
     # TODO: enable for C sources as well
     # ie_add_compiler_flags(-Werror)
