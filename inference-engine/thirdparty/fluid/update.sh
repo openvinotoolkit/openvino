@@ -19,11 +19,11 @@ case "$#" in
 esac
 
 # Before doing anything, check if this snapshot was not modified
-#./check.sh
-#if [ $? -ne 0 ]; then
-#    echo "Consistency check failed, please reset this subtree to its initial state first!"
-#    exit 1
-#fi
+./check.sh
+if [ $? -ne 0 ]; then
+    echo "Consistency check failed, please reset this subtree to its initial state first!"
+    exit 1
+fi
 
 # Download the stuff...
 URL="https://github.com/opencv/opencv/archive/${REVISION}.zip"
