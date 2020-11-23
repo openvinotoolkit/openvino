@@ -268,6 +268,6 @@ class InterpolateSequenceToInterpolate(MiddleReplacementPattern):
         log.debug('Enabled replacement of a sequence of Interpolate layers with one Interpolate layer.')
         interps = [n for n in graph.pseudo_topological_sort() if n.kind == 'op' and n.op == 'Interpolate']
         fuser = CanBeFused()
-        sequences = group_by_with_binary_predicate(interps, lambda prev, x: is_next(prev, x) and fuser(prev, x))
+        sequences = group_by_with_binary_predicate(interps, fuser)
         for seq in sequences:
             replace_sequence(seq, graph)
