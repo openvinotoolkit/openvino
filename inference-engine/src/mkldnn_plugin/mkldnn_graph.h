@@ -109,9 +109,9 @@ public:
      * optimization flag; if isOptimized is true then Reorder node does nothing
      * @param scales
      * pointer to the blob containing scales
-     * @return none.
+     * @return pointer to the new Reorder node.
      */
-    void InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc, const InferenceEngine::TensorDesc& outDesc,
+    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc, const InferenceEngine::TensorDesc& outDesc,
                        bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
 
     InferenceEngine::CNNNetwork dump() const;
