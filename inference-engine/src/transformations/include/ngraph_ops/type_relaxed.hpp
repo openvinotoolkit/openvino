@@ -41,7 +41,8 @@ public:
     /// the same index i.
     const element::Type& get_overridden_output_type(size_t outputIndex = 0) const {
         if (outputIndex >= m_output_data_types.size()) {
-            return element::undefined;
+            static element::Type undef_elem(element::undefined);
+            return undef_elem;
         }
         return m_output_data_types[outputIndex];
     }
@@ -62,7 +63,8 @@ public:
     /// the type from input tensor descriptor is used for a given index.
     const element::Type& get_origin_input_type(size_t inputIndex = 0) const {
         if (inputIndex >= m_input_data_types.size()) {
-            return element::undefined;
+            static element::Type undef_elem(element::undefined);
+            return undef_elem;
         }
         return m_input_data_types[inputIndex];
     }

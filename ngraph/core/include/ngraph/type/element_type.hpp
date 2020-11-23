@@ -37,7 +37,7 @@ namespace ngraph
 {
     namespace element
     {
-        enum class Type_t
+        enum Type_t
         {
             undefined,
             dynamic,
@@ -76,6 +76,7 @@ namespace ngraph
                  const std::string& cname);
             ~Type() {}
             Type& operator=(const Type&) = default;
+            Type& operator=(const Type_t&);
             const std::string& c_type_string() const;
             size_t size() const;
             size_t hash() const;
@@ -94,8 +95,10 @@ namespace ngraph
             bool operator==(const Type& other) const;
             bool operator!=(const Type& other) const { return !(*this == other); }
             bool operator<(const Type& other) const;
+            bool operator==(const Type_t& other) const;
+            bool operator!=(const Type_t& other) const { return !(*this == other); }
+            bool operator<(const Type_t& other) const;
             friend NGRAPH_API std::ostream& operator<<(std::ostream&, const Type&);
-            static std::vector<const Type*> get_known_types();
 
             /// \brief Checks whether this element type is merge-compatible with `t`.
             /// \param t The element type to compare this element type to.
@@ -129,23 +132,6 @@ namespace ngraph
         };
 
         typedef std::vector<Type> TypeVector;
-
-        extern NGRAPH_API const Type undefined;
-        extern NGRAPH_API const Type dynamic;
-        extern NGRAPH_API const Type boolean;
-        extern NGRAPH_API const Type bf16;
-        extern NGRAPH_API const Type f16;
-        extern NGRAPH_API const Type f32;
-        extern NGRAPH_API const Type f64;
-        extern NGRAPH_API const Type i8;
-        extern NGRAPH_API const Type i16;
-        extern NGRAPH_API const Type i32;
-        extern NGRAPH_API const Type i64;
-        extern NGRAPH_API const Type u1;
-        extern NGRAPH_API const Type u8;
-        extern NGRAPH_API const Type u16;
-        extern NGRAPH_API const Type u32;
-        extern NGRAPH_API const Type u64;
 
         template <typename T>
         Type from()

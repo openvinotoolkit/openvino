@@ -28,7 +28,7 @@ using namespace ngraph;
 TEST(input_output, param_tensor)
 {
     // Params have no arguments, so we can check that the value becomes a tensor output
-    auto& et = element::f32;
+    element::Type et = element::f32;
     Shape shape{2, 4};
     auto param = make_shared<op::Parameter>(et, shape);
 

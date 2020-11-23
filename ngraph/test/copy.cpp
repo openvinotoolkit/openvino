@@ -136,7 +136,7 @@ TEST(copy, constant)
 {
     Shape shape{};
     vector<float> c{2.4f};
-    auto& et = element::f32;
+    element::Type et = element::f32;
     auto node = op::Constant::create(et, shape, c);
     auto new_node = node->clone_with_new_inputs(OutputVector{});
     auto node_cast = as_type_ptr<op::Constant>(new_node);
@@ -151,7 +151,7 @@ TEST(copy, constant)
 TEST(copy, convert)
 {
     Shape shape;
-    auto& et = element::f64;
+    element::Type et = element::f64;
     auto arg0 = make_shared<op::Parameter>(element::f32, shape);
     OutputVector new_args{make_shared<op::Parameter>(element::f32, shape)};
 

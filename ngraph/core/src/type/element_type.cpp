@@ -26,23 +26,6 @@
 using namespace ngraph;
 using namespace std;
 
-const element::Type element::undefined(element::Type_t::undefined);
-const element::Type element::dynamic(element::Type_t::dynamic);
-const element::Type element::boolean(element::Type_t::boolean);
-const element::Type element::bf16(element::Type_t::bf16);
-const element::Type element::f16(element::Type_t::f16);
-const element::Type element::f32(element::Type_t::f32);
-const element::Type element::f64(element::Type_t::f64);
-const element::Type element::i8(element::Type_t::i8);
-const element::Type element::i16(element::Type_t::i16);
-const element::Type element::i32(element::Type_t::i32);
-const element::Type element::i64(element::Type_t::i64);
-const element::Type element::u1(element::Type_t::u1);
-const element::Type element::u8(element::Type_t::u8);
-const element::Type element::u16(element::Type_t::u16);
-const element::Type element::u32(element::Type_t::u32);
-const element::Type element::u64(element::Type_t::u64);
-
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type>::type_info;
 
 class TypeInfo
@@ -102,26 +85,6 @@ static const element_types_map_t& get_type_info_map()
     return s_type_info_map;
 };
 
-std::vector<const element::Type*> element::Type::get_known_types()
-{
-    std::vector<const element::Type*> rc = {&element::dynamic,
-                                            &element::boolean,
-                                            &element::bf16,
-                                            &element::f16,
-                                            &element::f32,
-                                            &element::f64,
-                                            &element::i8,
-                                            &element::i16,
-                                            &element::i32,
-                                            &element::i64,
-                                            &element::u1,
-                                            &element::u8,
-                                            &element::u16,
-                                            &element::u32,
-                                            &element::u64};
-    return rc;
-}
-
 element::Type::Type(size_t bitwidth,
                     bool is_real,
                     bool is_signed,
@@ -143,6 +106,21 @@ element::Type::Type(size_t bitwidth,
 const std::string& element::Type::c_type_string() const
 {
     return get_type_info_map().at(m_type).m_cname;
+}
+
+element::Type& element::Type::operator=(const element::Type_t& other) {
+    *this = element::Type(other);
+    return *this;
+}
+
+bool element::Type::operator==(const element::Type_t& other) const
+{
+    return m_type == other;
+}
+
+bool element::Type::operator<(const Type_t& other) const
+{
+    return m_type < other;
 }
 
 bool element::Type::operator==(const element::Type& other) const

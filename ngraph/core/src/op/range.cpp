@@ -363,7 +363,7 @@ void op::v0::Range::validate_and_infer_types()
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
 
-    auto result_et = element::dynamic;
+    element::Type result_et = element::dynamic;
 
     NODE_VALIDATION_CHECK(
         this,

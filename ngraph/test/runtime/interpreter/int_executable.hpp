@@ -1532,7 +1532,7 @@ protected:
                                            info.sort_result_descending);
 
             auto selected_scores_type =
-                (args.size() < 4) ? element::f32 : args[3]->get_element_type();
+                (args.size() < 4) ? element::Type(element::f32) : args[3]->get_element_type();
 
             reference::nms5_postprocessing(out,
                                            info.output_type,

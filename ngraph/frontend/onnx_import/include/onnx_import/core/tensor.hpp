@@ -531,7 +531,7 @@ namespace ngraph
                 return static_cast<Type>(m_tensor_proto->data_type());
             }
 
-            const element::Type& get_ng_type() const
+            const element::Type get_ng_type() const
             {
                 if (!m_tensor_proto->has_data_type())
                 {

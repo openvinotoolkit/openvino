@@ -161,7 +161,7 @@ public:
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_0eps_f64)
 {
     using T = double;
-    auto& et = element::f64;
+    element::Type et = element::f64;
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     BatchNormInferenceTesterZeroEpsilon<T> bnt(backend, et);
     EXPECT_TRUE(bnt.test_gamma()) << "Gamma test";
@@ -173,7 +173,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_0eps_f64)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_0eps_f32)
 {
     using T = float;
-    auto& et = element::f32;
+    element::Type et = element::f32;
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     BatchNormInferenceTesterZeroEpsilon<T> bnt(backend, et);
     EXPECT_TRUE(bnt.test_gamma()) << "Gamma test";
@@ -255,7 +255,7 @@ public:
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_f64)
 {
     using T = double;
-    auto& et = element::f64;
+    element::Type et = element::f64;
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     BatchNormInferenceTesterNonZeroEpsilon<T> bnt(backend, et);
     EXPECT_TRUE(bnt.test_gamma()) << "Gamma test";
@@ -267,7 +267,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_f64)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_f32)
 {
     using T = float;
-    auto& et = element::f32;
+    element::Type et = element::f32;
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     BatchNormInferenceTesterNonZeroEpsilon<T> bnt(backend, et);
     EXPECT_TRUE(bnt.test_gamma()) << "Gamma test";
