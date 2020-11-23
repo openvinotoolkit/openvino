@@ -118,9 +118,11 @@ ref_graph_edges_opset4 = [
         ('slice_end', 'slice_end_data'),
         ('slice_end_data', 'sslice', {'in': 2}),
         ('sslice', 'sslice_data'),
+        ('sslice_data', 'cast_shape_to_float'),
+        ('cast_shape_to_float', 'cast_shape_to_float_data'),
         ('scales', 'scales_data'),
         ('axes', 'axes_data'),
-        ('sslice_data', 'mul', {'in': 0}),
+        ('cast_shape_to_float_data', 'mul', {'in': 0}),
         ('scales_data', 'mul', {'in': 1, 'out': 0}),
         ('mul', 'mul_data'),
         ('mul_data', 'interpolate', {'in': 1}),
@@ -181,10 +183,12 @@ ref_graph_node_attrs_for_2d_spatial_case_1_opset4 = {
         'type': 'Const',
         'op': 'Const',
         'kind': 'op',
-        'value': int64_array([2]),
+        'value': np.array([2], dtype=np.float32),
         'shape': int64_array([1])
     },
     'scales_data': {'kind': 'data', 'shape': None},
+    'cast_shape_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float32},
+    'cast_shape_to_float_data': {'kind': 'data', 'shape': None},
     'axes': {
         'type': 'Const',
         'op': 'Const',
@@ -312,10 +316,12 @@ ref_graph_node_attrs_for_2d_spatial_case_2 = {
         'type': 'Const',
         'op': 'Const',
         'kind': 'op',
-        'value': int64_array([2]),
+        'value': np.array([2], dtype=np.float32),
         'shape': int64_array([1])
     },
     'scales_data': {'kind': 'data', 'shape': None},
+    'cast_shape_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float32},
+    'cast_shape_to_float_data': {'kind': 'data', 'shape': None},
     'axes': {
         'type': 'Const',
         'op': 'Const',
@@ -382,10 +388,12 @@ ref_graph_node_attrs_for_3d_spatial_case_1 = {
         'type': 'Const',
         'op': 'Const',
         'kind': 'op',
-        'value': int64_array([2]),
+        'value': np.array([2], dtype=np.float32),
         'shape': int64_array([1])
     },
     'scales_data': {'kind': 'data', 'shape': None},
+    'cast_shape_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float32},
+    'cast_shape_to_float_data': {'kind': 'data', 'shape': None},
     'axes': {
         'type': 'Const',
         'op': 'Const',
@@ -452,10 +460,12 @@ ref_graph_node_attrs_for_3d_spatial_case_2 = {
         'type': 'Const',
         'op': 'Const',
         'kind': 'op',
-        'value': int64_array([2]),
+        'value': np.array([2], dtype=np.float32),
         'shape': int64_array([1])
     },
     'scales_data': {'kind': 'data', 'shape': None},
+    'cast_shape_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float32},
+    'cast_shape_to_float_data': {'kind': 'data', 'shape': None},
     'axes': {
         'type': 'Const',
         'op': 'Const',
