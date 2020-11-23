@@ -96,12 +96,20 @@ void generateTestModel(const std::string &modelPath,
     getCreatorLayer(conv1OutData) = conv1LayerPtr;
     conv1LayerPtr->outData[0] = conv1OutData;
 
+    shapeStr.str("");
+    InferenceEngine::SizeVector constShape {conv1Params.out_c, inputDims[1], conv1Params.kernel[0], conv1Params.kernel[1]};
+    std::copy(constShape.begin(), constShape.end() - 1, std::ostream_iterator<size_t>(shapeStr, ","));
+    shapeStr << constShape.back();
+
     auto conv1ParamConstLayerXML = ir_builder_v10
             .AddLayer("Conv1_Param_Const", "Const",
                       {{"size", std::to_string(CommonTestUtils::getConvWeightsSize(
                               inputDims,
                               conv1Params,
-                              netPrc.name()))}})
+                              netPrc.name()))},
+                        {"offset", "0"},
+                        {"element_type", FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc).get_type_name()},
+                        {"shape", shapeStr.str()}})
             .AddOutPort(netPrc, {conv1Params.out_c, inputDims[1], conv1Params.kernel[0], conv1Params.kernel[1]})
             .getLayer();
 
@@ -166,9 +174,13 @@ void generateTestModel(const std::string &modelPath,
                                                                                            InferenceEngine::Layout::NCHW});
     getCreatorLayer(lrn1OutData) = lrn1LayerPtr;
     lrn1LayerPtr->outData[0] = lrn1OutData;
+    size_t offset = CommonTestUtils::getConvWeightsSize(inputDims, conv1Params, netPrc.name());
 
     auto lrn1ParamConstLayerXML = ir_builder_v10
-            .AddLayer("Lrn1_Param_Const", "Const", {{"size", "8"}})
+            .AddLayer("Lrn1_Param_Const", "Const", {{"size", "8"},
+                                                    {"element_type", "i64"},
+                                                    {"shape", "1"},
+                                                    {"offset", std::to_string(offset)}})
             .AddOutPort(InferenceEngine::Precision::I64, {1})
             .getLayer();
 
@@ -266,8 +278,13 @@ void generateTestModel(const std::string &modelPath,
     split1LayerPtr->outData[0] = split1OutData0;
     split1LayerPtr->outData[1] = split1OutData1;
 
+    offset = offset + 8;
+
     auto split1ParamConstLayerXML = ir_builder_v10
-            .AddLayer("Split1_Param_Const", "Const", {{"size", "8"}})
+            .AddLayer("Split1_Param_Const", "Const", {{"size", "8"},
+                                                      {"element_type", "i64"},
+                                                      {"shape", ""},
+                                                      {"offset", std::to_string(offset)}})
             .AddOutPort(InferenceEngine::Precision::I64, {})
             .getLayer();
 
@@ -315,12 +332,21 @@ void generateTestModel(const std::string &modelPath,
     getCreatorLayer(conv2OutData) = conv2LayerPtr;
     conv2LayerPtr->outData[0] = conv2OutData;
 
+    shapeStr.str("");
+    InferenceEngine::SizeVector conv2ConstShape {conv2Params.out_c, split1OutShape[1], conv2Params.kernel[0], conv2Params.kernel[1]};
+    std::copy(conv2ConstShape.begin(), conv2ConstShape.end() - 1, std::ostream_iterator<size_t>(shapeStr, ","));
+    shapeStr << conv2ConstShape.back();
+    offset = offset + 8;
+
     auto conv2ParamConstLayerXML = ir_builder_v10
             .AddLayer("Conv2_Param_Const", "Const",
                       {{"size", std::to_string(CommonTestUtils::getConvWeightsSize(
                               split1OutShape,
                               conv2Params,
-                              netPrc.name()))}})
+                              netPrc.name()))},
+                        {"offset", std::to_string(offset)},
+                        {"element_type", FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc).get_type_name()},
+                        {"shape", shapeStr.str()}})
             .AddOutPort(netPrc,
                         {conv2Params.out_c, split1OutShape[1], conv2Params.kernel[0], conv2Params.kernel[1]})
             .getLayer();
@@ -372,12 +398,21 @@ void generateTestModel(const std::string &modelPath,
     getCreatorLayer(conv3OutData) = conv3LayerPtr;
     conv3LayerPtr->outData[0] = conv3OutData;
 
+    shapeStr.str("");
+    InferenceEngine::SizeVector conv3ConstShape {conv3Params.out_c, split1OutShape[1], conv3Params.kernel[0], conv3Params.kernel[1]};
+    std::copy(conv3ConstShape.begin(), conv3ConstShape.end() - 1, std::ostream_iterator<size_t>(shapeStr, ","));
+    shapeStr << conv3ConstShape.back();
+    offset = offset + CommonTestUtils::getConvWeightsSize(split1OutShape, conv2Params, netPrc.name());
+
     auto conv3ParamConstLayerXML = ir_builder_v10
             .AddLayer("Conv3_Param_Const", "Const",
                       {{"size", std::to_string(CommonTestUtils::getConvWeightsSize(
                               split1OutShape,
                               conv3Params,
-                              netPrc.name()))}})
+                              netPrc.name()))},
+                        {"offset", std::to_string(offset)},
+                        {"element_type", FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc).get_type_name()},
+                        {"shape", shapeStr.str()}})
             .AddOutPort(netPrc,
                         {conv3Params.out_c, split1OutShape[1], conv3Params.kernel[0], conv3Params.kernel[1]})
             .getLayer();

@@ -343,18 +343,6 @@ CNNLayer::Ptr NodeConverter<ngraph::opset5::Loop>::createLayer(const std::shared
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Constant>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Const",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->blobs["custom"] = shareWeights(castedLayer);
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Convert>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Convert",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -732,22 +720,14 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ConvolutionIE>::createLayer(
         keep_constants = attr->get();
     }
 
-    NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
-    if (!keep_constants && converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-
+    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr(); 
+    if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
         if (castedLayer->inputs().size() == 3) {
             const auto biasNode = castedLayer->input_value(2).get_node_shared_ptr();
-            if (converter.canCreate(biasNode)) {
-                const auto& bias = converter.createLayer(biasNode);
-                res->blobs["biases"] = bias->blobs["custom"];
-                res->_biases = bias->blobs["custom"];
-            }
+            InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
         }
     }
+
     return res;
 }
 
@@ -816,13 +796,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::DeformableConvolution>::createLayer(
     res->params["group"] = asString(castedLayer->get_group());
     res->params["deformable_group"] = asString(castedLayer->get_deformable_group());
 
-    NodeConverter<ngraph::op::Constant> converter;
     const auto weightsNode = castedLayer->input_value(2).get_node_shared_ptr();
-    if (converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-    }
+    InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
+
     return res;
 }
 
@@ -1031,7 +1007,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PRelu>::createLayer(const std::shared_pt
             dataShape = {dataShape[1]};
         }
 
-        Blob::Ptr dataBlb = shareWeights(const_weights);
+        Blob::Ptr dataBlb = InferenceEngine::details::shareWeights(const_weights);
 
         res->blobs["weights"] = dataBlb;
         res->_weights = dataBlb;
@@ -1217,20 +1193,10 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ScaleShiftIE>::createLayer(const std::sh
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::ScaleShiftLayer>(params);
 
-    NodeConverter<ngraph::op::Constant> converter;
     const auto weightsNode = layer->input_value(1).get_node_shared_ptr();
-    if (converter.canCreate(weightsNode)) {
-        const auto& weightsLayer = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weightsLayer->blobs["custom"];
-        res->_weights = weightsLayer->blobs["custom"];
-    }
-
+    InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
     const auto biasNode = layer->input_value(2).get_node_shared_ptr();
-    if (converter.canCreate(biasNode)) {
-        const auto& bias = converter.createLayer(biasNode);
-        res->blobs["biases"] = bias->blobs["custom"];
-        res->_biases = bias->blobs["custom"];
-    }
+    InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
 
     return res;
 }
@@ -1683,21 +1649,12 @@ CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::
         keep_constants = attr->get();
     }
 
-    NodeConverter<ngraph::op::Constant> converter;
-
     const auto weightsNode = layer->input_value(1).get_node_shared_ptr();
-    if (!keep_constants && converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-
+    if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
         const auto biasNode = layer->input_value(2).get_node_shared_ptr();
-        if (converter.canCreate(biasNode)) {
-            const auto& bias = converter.createLayer(biasNode);
-            res->blobs["biases"] = bias->blobs["custom"];
-            res->_biases = bias->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
     }
+
     return res;
 }
 
@@ -1821,13 +1778,10 @@ CNNLayer::Ptr NodeConverter<ngraph::op::NormalizeIE>::createLayer(const std::sha
     res->params["channel_shared"] = castedLayer->get_channel_shared() ? "1" : "0";
     res->params["across_spatial"] = castedLayer->get_across_spatial() ? "1" : "0";
 
-    NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
-    if (converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-    } else {
-        THROW_IE_EXCEPTION << "Cannot convert weight node for NormalizeIE op";
+    const auto weightsNode = layer->input_value(1).get_node_shared_ptr();
+    if (auto constWeights = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode)) {
+        Blob::Ptr dataBlob = InferenceEngine::details::shareWeights(constWeights);
+        res->blobs["weights"] = dataBlob;
     }
 
     return res;

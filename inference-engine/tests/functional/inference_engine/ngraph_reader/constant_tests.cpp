@@ -13,7 +13,7 @@ TEST_F(NGraphReaderTests, ReadConstantNetwork) {
 <net name="Network" version="10">
     <layers>
         <layer id="0" name="constant" type="Const" version="opset1">
-            <data offset="0" size="5808"/>
+            <data element_type="f32" offset="0" shape="1,3,22,22" size="5808"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

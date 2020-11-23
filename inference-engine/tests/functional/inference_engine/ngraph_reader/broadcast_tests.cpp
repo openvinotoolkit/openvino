@@ -18,7 +18,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles1) {
             </output>
         </layer>
         <layer id="15" name="broadcast1_shape" type="Const" version="opset1">
-            <data offset="256" size="32"/>
+            <data element_type="i64" offset="256" shape="4" size="32"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>4</dim>
@@ -173,7 +173,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles2) {
             </output>
         </layer>
         <layer id="15" name="broadcast1_shape" type="Const" version="opset1">
-            <data offset="256" size="32"/>
+            <data element_type="i64" offset="256" shape="4" size="32"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>4</dim>
@@ -351,7 +351,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles3) {
             </output>
         </layer>
         <layer id="15" name="broadcast1_shape" type="Const" version="opset1">
-            <data offset="256" size="32"/>
+            <data element_type="i64" offset="256" shape="4" size="32"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>4</dim>
@@ -462,7 +462,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles4) {
             </output>
         </layer>
         <layer id="15" name="broadcast1_shape" type="Const" version="opset1">
-            <data offset="256" size="32"/>
+            <data element_type="i64" offset="256" shape="4" size="32"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>4</dim>
@@ -470,7 +470,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles4) {
             </output>
         </layer>
         <layer id="16" name="broadcast1_axes" type="Const" version="opset1">
-            <data offset="288" size="16"/>
+            <data element_type="i64" offset="288" shape="2" size="16"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>2</dim>
@@ -612,7 +612,7 @@ TEST_F(NGraphReaderTests, DISABLED_ConvertBroadcastToTiles5) {
             </output>
         </layer>
         <layer id="15" name="broadcast1_shape" type="Const" version="opset1">
-            <data offset="256" size="32"/>
+            <data element_type="i64" offset="256" shape="4" size="32"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>4</dim>
@@ -620,7 +620,7 @@ TEST_F(NGraphReaderTests, DISABLED_ConvertBroadcastToTiles5) {
             </output>
         </layer>
         <layer id="16" name="broadcast1_axes" type="Const" version="opset1">
-            <data offset="288" size="16"/>
+            <data element_type="i64" offset="288" shape="2" size="16"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>2</dim>

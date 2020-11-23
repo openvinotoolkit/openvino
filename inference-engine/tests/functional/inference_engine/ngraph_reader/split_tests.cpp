@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="" size="8"/>
             <output>
                 <port id="0" precision="I64"/>
             </output>
@@ -147,7 +147,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork2) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="" size="8"/>
             <output>
                 <port id="0" precision="I64"/>
             </output>
@@ -381,13 +381,13 @@ TEST_F(NGraphReaderTests, ReadVariadicSplitNetwork) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="" size="8"/>
             <output>
                 <port id="0" precision="I64"/>
             </output>
         </layer>
         <layer id="2" name="const2" type="Const" version="opset1">
-            <data offset="8" size="16"/>
+            <data element_type="i64" offset="8" shape="2" size="16"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>2</dim>

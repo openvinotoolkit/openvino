@@ -18,7 +18,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork1) {
             </output>
         </layer>
         <layer id="1" name="embedded_input__const" type="Const" version="opset1">
-            <data offset="0" size="8192000"/>
+            <data element_type="f32" offset="0" shape="2048,1000" size="8192000"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>2048</dim>
@@ -112,7 +112,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork2) {
             </output>
         </layer>
         <layer id="1" name="embedded_input__const" type="Const" version="opset1">
-            <data offset="0" size="8192000"/>
+            <data element_type="f32" offset="0" shape="1000,2048" size="8192000"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>1000</dim>
@@ -207,7 +207,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork3) {
             </output>
         </layer>
         <layer id="1" name="embedded_input__const" type="Const" version="opset1">
-            <data offset="0" size="8192000"/>
+            <data element_type="f32" offset="0" shape="1000,2048" size="8192000"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>1000</dim>
