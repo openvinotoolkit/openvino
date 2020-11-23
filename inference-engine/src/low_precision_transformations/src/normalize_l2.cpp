@@ -40,7 +40,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    if (!canSubtractBeHandled(operation)) {
+    if (NetworkHelper::getDequantization(operation).subtract != nullptr) {
         return false;
     }
 
