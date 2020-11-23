@@ -25,7 +25,7 @@ namespace ngraph
     {
         namespace common
         {
-            const ngraph::element::Type& get_ngraph_element_type(int64_t onnx_type)
+            const ngraph::element::Type get_ngraph_element_type(int64_t onnx_type)
             {
                 switch (onnx_type)
                 {
