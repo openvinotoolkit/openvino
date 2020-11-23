@@ -48,10 +48,10 @@ namespace ngraph
     NGRAPH_API EnumNames<op::PadType>& EnumNames<op::PadType>::get()
     {
         static auto enum_names = EnumNames<op::PadType>("op::PadType",
-                                                        {{"EXPLICIT", op::PadType::EXPLICIT},
-                                                         {"SAME_LOWER", op::PadType::SAME_LOWER},
-                                                         {"SAME_UPPER", op::PadType::SAME_UPPER},
-                                                         {"VALID", op::PadType::VALID}});
+                                                        {{"explicit", op::PadType::EXPLICIT},
+                                                         {"same_lower", op::PadType::SAME_LOWER},
+                                                         {"same_upper", op::PadType::SAME_UPPER},
+                                                         {"valid", op::PadType::VALID}});
         return enum_names;
     }
 
@@ -66,7 +66,7 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::RoundingType>(
             "op::RoundingType",
-            {{"FLOOR", op::RoundingType::FLOOR}, {"CEIL", op::RoundingType::CEIL}});
+            {{"floor", op::RoundingType::FLOOR}, {"ceil", op::RoundingType::CEIL}});
         return enum_names;
     }
 
@@ -82,10 +82,10 @@ namespace ngraph
     {
         static auto enum_names =
             EnumNames<op::AutoBroadcastType>("op::AutoBroadcastType",
-                                             {{"NONE", op::AutoBroadcastType::NONE},
-                                              {"EXPLICIT", op::AutoBroadcastType::EXPLICIT},
-                                              {"NUMPY", op::AutoBroadcastType::NUMPY},
-                                              {"PDPD", op::AutoBroadcastType::PDPD}});
+                                             {{"none", op::AutoBroadcastType::NONE},
+                                              {"explicit", op::AutoBroadcastType::EXPLICIT},
+                                              {"numpy", op::AutoBroadcastType::NUMPY},
+                                              {"pdpd", op::AutoBroadcastType::PDPD}});
         return enum_names;
     }
     constexpr DiscreteTypeInfo AttributeAdapter<op::AutoBroadcastType>::type_info;
