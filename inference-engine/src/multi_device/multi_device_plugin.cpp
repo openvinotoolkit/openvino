@@ -236,6 +236,8 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&  
                     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
                 } else {
                     auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
+                    if (cnnNetworkImpl == nullptr)
+                        THROW_IE_EXCEPTION << "Cannot create CNNNetworkImpl shared_ptr";
                     queryNetwork(*cnnNetworkImpl);
                 }
             } else {
