@@ -849,6 +849,56 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         return res;
     });
+
+    addSpecificCreator({"Convert"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                    const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Convert",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+
+        auto p = details::convertPrecision(node->get_output_element_type(0));
+        std::string precision_str;
+        switch (p) {
+        case Precision::FP16:
+          precision_str = "FP16";
+          break;
+        case Precision::FP32:
+          precision_str = "FP32";
+          break;
+        case Precision::I8:
+          precision_str = "I8";
+          break;
+        case Precision::I16:
+          precision_str = "I16";
+          break;
+        case Precision::I32:
+          precision_str = "I32";
+          break;
+        case Precision::I64:
+          precision_str = "I64";
+          break;
+        case Precision::U8:
+          precision_str = "U8";
+          break;
+        case Precision::U16:
+          precision_str = "U16";
+          break;
+        case Precision::U32:
+          precision_str = "U32";
+          break;
+        case Precision::U64:
+          precision_str = "U64";
+          break;
+        case Precision::BOOL:
+          precision_str = "BOOL";
+          break;
+        default:
+          THROW_IE_EXCEPTION << "Unsupported type";
+        }
+
+        res->params["precision"] = precision_str;
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -880,7 +930,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ConvolutionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Convert>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CTCGreedyDecoder>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformableConvolution>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformablePSROIPooling>>(),
