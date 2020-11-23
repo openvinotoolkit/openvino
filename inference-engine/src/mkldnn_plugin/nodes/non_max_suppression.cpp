@@ -184,7 +184,7 @@ public:
         int batch_index;
         int class_index;
         int box_index;
-        filteredBoxes() {}
+        filteredBoxes() = default;
         filteredBoxes(float _score, int _batch_index, int _class_index, int _box_index) :
                       score(_score), batch_index(_batch_index), class_index(_class_index), box_index(_box_index) {}
     };
