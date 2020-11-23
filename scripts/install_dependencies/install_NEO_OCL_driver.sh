@@ -38,11 +38,11 @@ print_help()
 {
    # Display Help
    usage="Usage: $(basename "$0") [OPTIONS]...
-Installs the Graphics Driver for OpenCL on Linux
+Download and installs the Intel® Graphics Compute Runtime for OpenCL™ Driver on Linux
 
     Available options:
     -y                      Replace the currently installed driver with the newer version.
-    -d, --install_driver    Force change version to one of available to install drivers.
+    -d, --install_driver    Manually select driver version to one of available to install drivers.
                             Default value: $INSTALL_DRIVER_VERSION
                             Available to install drivers: ${AVAILABLE_DRIVERS[@]}
     -h, --help              display this help and exit" 
@@ -54,11 +54,11 @@ do
     key="$1"
     case $key in
         -d|--install_driver)
-        user_chosed_driver="$2"
-        if [[ " ${AVAILABLE_DRIVERS[@]} " =~ " ${user_chosed_driver} " ]]; then
-            INSTALL_DRIVER_VERSION=$user_chosed_driver
+        user_chosen_driver="$2"
+        if [[ " ${AVAILABLE_DRIVERS[@]} " =~ " ${user_chosen_driver} " ]]; then
+            INSTALL_DRIVER_VERSION=$user_chosen_driver
         else
-            echo "ERROR: unable to install the driver ${user_chosed_driver}."
+            echo "ERROR: unable to install the driver ${user_chosen_driver}."
             echo "Available values: ${AVAILABLE_DRIVERS[@]}"
             exit -1
         fi
@@ -484,7 +484,7 @@ check_agreement()
 check_specific_generation()
 {
     echo "Checking processor generation..."
-    specific_generation=$(cat /proc/cpu-info | grep -m1 'model name' | grep -E "i[357]-1[01][0-9]{2,4}N?G[147R]E?")
+    specific_generation=$(cat /proc/cpuinfo | grep -m1 'model name' | grep -E "i[357]-1[01][0-9]{2,4}N?G[147R]E?")
     if [[ ! -z $specific_generation && $INSTALL_DRIVER_VERSION != '20.35.17767' ]]; then
         echo "$(basename "$0"): Detected 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)."
         echo "Driver version 20.35.17767 is going to be installed to fully utilize hardware features and performance."
