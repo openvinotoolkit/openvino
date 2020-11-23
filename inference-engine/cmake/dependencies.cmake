@@ -185,7 +185,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
 
     if (WIN32)
-        log_rpath_from_dir(TBB "${TBB}/bin")
+        log_rpath_from_dir(TBB "${TBB}/redist/intel64/vc14")
     else ()
         log_rpath_from_dir(TBB "${TBB}/lib")
     endif ()
