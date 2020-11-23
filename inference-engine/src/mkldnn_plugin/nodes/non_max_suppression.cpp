@@ -379,13 +379,15 @@ public:
                             });
         }
 
-        size_t validOutputs = std::min(filtBoxes.size(), static_cast<size_t>(outputs[NMS_SELECTEDINDICES]->getTensorDesc().getDims()[0]));
+        const size_t selectedBoxesNum = outputs[NMS_SELECTEDINDICES]->getTensorDesc().getDims()[0];
+        const size_t validOutputs = std::min(filtBoxes.size(), selectedBoxesNum);
 
         int selectedIndicesStride = outputs[NMS_SELECTEDINDICES]->getTensorDesc().getBlockingDesc().getStrides()[0];
         int *selectedIndicesPtr = selected_indices;
         float *selectedScoresPtr = selected_scores;
 
-        for (size_t idx = 0; idx < validOutputs; idx++) {
+        size_t idx = 0lu;
+        for (; idx < validOutputs; idx++) {
             selectedIndicesPtr[0] = filtBoxes[idx].batch_index;
             selectedIndicesPtr[1] = filtBoxes[idx].class_index;
             selectedIndicesPtr[2] = filtBoxes[idx].box_index;
@@ -397,6 +399,7 @@ public:
                 selectedScoresPtr += selectedIndicesStride;
             }
         }
+        std::fill(selectedIndicesPtr, selectedIndicesPtr + (selectedBoxesNum - idx) * selectedIndicesStride, -1);
         if (outputs.size() > NMS_VALIDOUTPUTS)
             *valid_outputs = static_cast<int>(validOutputs);
 
