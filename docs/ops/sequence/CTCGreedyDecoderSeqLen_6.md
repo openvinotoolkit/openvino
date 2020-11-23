@@ -1,21 +1,24 @@
-## CTCGreedyDecoderV2 <a name="CTCGreedyDecoderV2"></a> {#openvino_docs_ops_sequence_CTCGreedyDecoderV2_6}
+## CTCGreedyDecoderSeqLen <a name="CTCGreedyDecoderSeqLen"></a> {#openvino_docs_ops_sequence_CTCGreedyDecoderSeqLen_6}
 
-**Versioned name**: *CTCGreedyDecoderV2-6*
+**Versioned name**: *CTCGreedyDecoderSeqLen-6*
 
 **Category**: Sequence processing
 
-**Short description**: *CTCGreedyDecoderV2* performs greedy decoding on the logits given in input (best path).
+**Short description**: *CTCGreedyDecoderSeqLen* performs greedy decoding on the logits given in input (best path).
 
 **Detailed description**:
 
 This operation is similar [Reference](https://www.tensorflow.org/api_docs/python/tf/nn/ctc_greedy_decoder)
 
-Given an input sequence \f$X\f$ of length \f$T\f$, *CTCGreedyDecoderV2* assumes the probability of a length \f$T\f$ character sequence \f$C\f$ is given by
+Given an input sequence \f$X\f$ of length \f$T\f$, *CTCGreedyDecoderSeqLen* assumes the probability of a length \f$T\f$ character sequence \f$C\f$ is given by
 \f[
 p(C|X) = \prod_{t=1}^{T} p(c_{t}|X)
 \f]
 
-Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor `sequence_length`. 
+Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor `sequence_length`.
+
+Operation different beetwine CTCGreedyDecoderSeqLen and CTCGreedyDecoder. 
+The main diff is CTCGreedyDecoder use `sequence_mask` as second input. 2D input floating point tensor with sequence masks for each sequence in the batch. The lengths of sequences are coded as values 1 and 0. CTCGreedyDecoderSeqLen use 1D integer tensor with sequence lengths in second input.
 
 **Attributes**
 
@@ -35,7 +38,7 @@ Sequences in the batch can have different length. The lengths of sequences are c
 
 **Output**
 
-* **1**: Output tensor with shape `[N, T, 1, 1]` and integer elements containing final sequence class indices. A final sequence can be shorter that the size `T` of the tensor, all elements that do not code sequence classes are filled with -1. Type of elements is floating point, but all values are integers. Type of elements is *T_F*.
+* **1**: Output tensor with shape `[N, T]` and integer elements containing final sequence class indices. A final sequence can be shorter that the size `T` of the tensor, all elements that do not code sequence classes are filled with -1. Type of elements is floating point, but all values are integers. Type of elements is *T_F*.
 
 **Types**
 
@@ -46,7 +49,7 @@ Sequences in the batch can have different length. The lengths of sequences are c
 **Example**
 
 ```xml
-<layer ... type="CTCGreedyDecoderV2" ...>
+<layer ... type="CTCGreedyDecoderSeqLen" ...>
     <input>
         <port id="0">
             <dim>20</dim>
@@ -61,8 +64,6 @@ Sequences in the batch can have different length. The lengths of sequences are c
         <port id="0">
             <dim>8</dim>
             <dim>20</dim>
-            <dim>1</dim>
-            <dim>1</dim>
        </port>
     </output>
 </layer>
