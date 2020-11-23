@@ -16,28 +16,27 @@
 
 #pragma once
 
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/util.hpp"
+#include "ngraph/pass/pass.hpp"
 
 namespace ngraph
 {
     namespace pass
     {
-        class ConstantFolding;
-        bool revalidate_and_ensure_static(std::shared_ptr<ngraph::Node> n);
-    }
-}
+        /**
+         * @brief Constant folding iterates over the function and tries to evaluate nodes
+         *        with constant inputs. Such nodes are then replaced with new Constants containing
+         *        the result of a folded operation.
+         */
+        class NGRAPH_API ConstantFolding : public FunctionPass
+        {
+        public:
+            NGRAPH_RTTI_DECLARATION;
+            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
-class NGRAPH_API ngraph::pass::ConstantFolding : public ngraph::pass::GraphRewrite
-{
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap());
+        private:
+            void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
+                                                    const Output<Node>& replacement);
+        };
 
-private:
-    void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
-                                            const Output<Node>& replacement);
-
-    ngraph::BuildNodeExecutorMap m_cfmap;
-};
+    } // namespace pass
+} // namespace ngraph

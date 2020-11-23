@@ -367,7 +367,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(shapes),
