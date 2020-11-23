@@ -177,9 +177,9 @@ namespace ngraph
                                             params_prime_shape,
                                             indices_prime_shape,
                                             out_prime_shape);
-                            out_inner_coord_iter++;
+                            ++out_inner_coord_iter;
                         }
-                        out_outer_coord_iter++;
+                        ++out_outer_coord_iter;
                     }
                 }
             } // namespace old_impl
@@ -231,19 +231,19 @@ namespace ngraph
 
                     // Create a CoordinateTransform for "out" that visits the outer "axis"
                     // dimensions
-                    const size_t out_ndim = static_cast<size_t>(out_shape.size());
+                    const size_t out_ndim = out_shape.size();
                     const Coordinate out_outer_start_corner(out_ndim, 0);
                     Coordinate out_outer_end_corner(out_shape);
                     for (size_t i = axis; i < out_ndim; i++)
                     {
                         out_outer_end_corner[i] = 1;
                     }
-                    const CoordinateTransform out_outer_transform(
-                        out_shape, out_outer_start_corner, out_outer_end_corner);
+                    auto out_outer_transform =
+                        coordinates::slice(out_shape, out_outer_start_corner, out_outer_end_corner);
 
                     // Create a CoordinateTransform for "params" that visits the outer "axis"
                     // dimensions
-                    size_t params_ndim = static_cast<size_t>(params_shape.size());
+                    const size_t params_ndim = params_shape.size();
                     Coordinate params_outer_start_corner(params_ndim, 0);
                     Coordinate params_outer_end_corner(params_shape);
                     for (size_t i = axis; i < params_ndim; i++)
@@ -251,7 +251,7 @@ namespace ngraph
                         params_outer_end_corner[i] = 1;
                     }
                     Strides params_outer_strides(params_ndim, 1);
-                    const CoordinateTransform params_outer_transform(
+                    auto params_outer_transform = coordinates::slice(
                         params_shape, params_outer_start_corner, params_outer_end_corner);
 
                     // Create a CoordinateTransform for "indices" that visits only the first element
@@ -262,7 +262,7 @@ namespace ngraph
                     {
                         indices_outer_end_corner[indices_ndim - 1] = 1;
                     }
-                    const CoordinateTransform indices_outer_transform(
+                    auto indices_outer_transform = coordinates::slice(
                         indices_shape, indices_outer_start_corner, indices_outer_end_corner);
 
                     // Create an inner CoordinateTransfrom for "out"
@@ -278,27 +278,24 @@ namespace ngraph
                     {
                         out_inner_end_corner[i] = 1;
                     }
-                    const CoordinateTransform out_inner_transform(
+                    auto out_inner_transform = coordinates::slice(
                         out_inner_shape, out_inner_start_corner, out_inner_end_corner);
 
                     auto out_outer_coord_iter = out_outer_transform.begin();
-                    for (const Coordinate& params_outer_coord : params_outer_transform)
+                    for (const auto& params_outer_coord : params_outer_transform)
                     {
                         if (out_outer_coord_iter == out_outer_transform.end())
                             break;
-                        const T* params_prime =
-                            &params[params_outer_transform.index(params_outer_coord)];
-                        T* out_outer = &out[out_outer_transform.index(*out_outer_coord_iter)];
+                        const T* params_prime = &params[params_outer_coord.index()];
+                        T* out_outer = &out[out_outer_coord_iter->index()];
 
                         auto out_inner_coord_iter = out_inner_transform.begin();
-                        for (const Coordinate& indices_outer_coord : indices_outer_transform)
+                        for (const auto& indices_outer_coord : indices_outer_transform)
                         {
                             if (out_inner_coord_iter == out_inner_transform.end())
                                 break;
-                            const U* indices_prime =
-                                &indices[indices_outer_transform.index(indices_outer_coord)];
-                            T* out_prime =
-                                &out_outer[out_inner_transform.index(*out_inner_coord_iter)];
+                            const U* indices_prime = &indices[indices_outer_coord.index()];
+                            T* out_prime = &out_outer[out_inner_coord_iter->index()];
                             gather_nd<T, U>(params_prime,
                                             indices_prime,
                                             out_prime,
@@ -341,22 +338,25 @@ namespace ngraph
                             const Shape& out_shape,
                             size_t axis)
                 {
+                    for (int i = 0; i != 1000; ++i)
                     {
-                        Timer t{};
-                        new_impl::gather(
-                            params, indices, out, params_shape, indices_shape, out_shape, axis);
-                        std::cout << "gather new impl: " << t.getPeriodStr() << std::endl;
-                    }
-                    {
-                        Timer t{};
-                        old_impl::gather(
-                            params, indices, out, params_shape, indices_shape, out_shape, axis);
-                        std::cout << "gather old impl: " << t.getPeriodStr() << std::endl;
+                        {
+//                            Timer t{};
+                            new_impl::gather(
+                                params, indices, out, params_shape, indices_shape, out_shape, axis);
+//                            std::cout << "gather new impl: " << t.getPeriodStr() << std::endl;
+                        }
+                        {
+//                            Timer t{};
+                            old_impl::gather(
+                                params, indices, out, params_shape, indices_shape, out_shape, axis);
+//                            std::cout << "gather old impl: " << t.getPeriodStr() << std::endl;
+                        }
                     }
                 }
             } // namespace timing
 
-            using namespace new_impl;
+            using namespace timing;
 
         } // namespace reference
     }     // namespace runtime
