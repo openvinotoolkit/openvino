@@ -476,12 +476,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         else{
             res->params["code_type"] =  "caffe.PriorBoxParameter.CORNER";
         }
-        res->params["variance_encoded_in_target"] = details::getBoolStrParamAsIntStr(res->params["variance_encoded_in_target"]);
-        res->params["share_location"] = details::getBoolStrParamAsIntStr(res->params["share_location"]);
-        res->params["clip_after_nms"] = details::getBoolStrParamAsIntStr(res->params["clip_after_nms"]);
-        res->params["clip_before_nms"] = details::getBoolStrParamAsIntStr(res->params["clip_before_nms"]);
-        res->params["decrease_label_id"] = details::getBoolStrParamAsIntStr(res->params["decrease_label_id"]);
-        res->params["normalized"] = details::getBoolStrParamAsIntStr(res->params["normalized"]);
+        res->params["variance_encoded_in_target"] = res->getBoolStrParamAsIntStr("variance_encoded_in_target");
+        res->params["share_location"] = res->getBoolStrParamAsIntStr("share_location");
+        res->params["clip_after_nms"] = res->getBoolStrParamAsIntStr("clip_after_nms");
+        res->params["clip_before_nms"] = res->getBoolStrParamAsIntStr("clip_before_nms");
+        res->params["decrease_label_id"] = res->getBoolStrParamAsIntStr("decrease_label_id");
+        res->params["normalized"] = res->getBoolStrParamAsIntStr("normalized");
         return res;
     });
 
@@ -605,9 +605,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
-        res->params["clip"] = details::getBoolStrParamAsIntStr(res->params["clip"]);
-        res->params["flip"] = details::getBoolStrParamAsIntStr(res->params["flip"]);
-        res->params["scale_all_sizes"] = details::getBoolStrParamAsIntStr(res->params["scale_all_sizes"]);
+        res->params["clip"] = res->getBoolStrParamAsIntStr("clip");
+        res->params["flip"] = res->getBoolStrParamAsIntStr("flip");
+        res->params["scale_all_sizes"] = res->getBoolStrParamAsIntStr("scale_all_sizes");
 
         auto scale_all_sizes = std::stoi(res->params["scale_all_sizes"]);
         if (!scale_all_sizes) {
@@ -648,7 +648,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
         res->params["clip"] =
-            details::getBoolStrParamAsIntStr(res->params["clip"]);
+            res->getBoolStrParamAsIntStr("clip");
 
         auto step_h = std::stof(res->params["step_h"]);
         auto step_w = std::stof(res->params["step_w"]);
@@ -666,11 +666,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
         res->params["clip_before_nms"] =
-            details::getBoolStrParamAsIntStr(res->params["clip_before_nms"]);
+            res->getBoolStrParamAsIntStr("clip_before_nms");
         res->params["clip_after_nms"] =
-            details::getBoolStrParamAsIntStr(res->params["clip_after_nms"]);
-        res->params["normalize"] =
-            details::getBoolStrParamAsIntStr(res->params["normalize"]);
+            res->getBoolStrParamAsIntStr("clip_after_nms");
+        res->params["normalize"] = res->getBoolStrParamAsIntStr("normalize");
         return res;
     });
 
