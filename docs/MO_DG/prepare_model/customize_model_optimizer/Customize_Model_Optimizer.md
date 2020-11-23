@@ -10,7 +10,7 @@ combination of supported operations. In this case a custom transformation should
 operation(s) with supported ones.
 * The model contains sub-graph of operations which can be replaced with a smaller number of operations to get the better
 performance. This example corresponds to so called fusing transformations. For example, replace a sub-graph performing
-the following calculation $x / (1.0 + e^{-(beta * x)})$ to a single operation of type Swish.
+the following calculation \f$x / (1.0 + e^{-(beta * x)})\f$ to a single operation of type Swish.
 * The model contains custom framework operation (the operation which is not a part of official operation set of the
 framework) which was developed using the framework extensibility mechanism. In this case the Model Optimizer should know
 how to treat the operation and generate an IR for it.
@@ -89,7 +89,7 @@ The next step is to parse framework-dependent operation representation saved in 
 attributes with operation specific attributes. There are two ways to do this.
 
 1.  The extractor extension approach. This is recommended way to extract attributes for the operation and it is
-explained in details in the section about extensions below.
+explained in details in the [Operation Extractor](#extension-extractor) section.
 
 2.  The legacy approach with built-in extractor. The file `mo/front/<FRAMEWORK>/extractor.py` (for example, the one for
 Caffe) has a dictionary with extractors for specific operation types. The key in the dictionary is the type of the
@@ -192,7 +192,7 @@ The shape inference function should calculate the operation (node) output shape(
 example of the shape infer function for the [Reshape](../../../ops/shape/Reshape_1.md) operation (the full version is
 `mo/ops/reshape.py`):
 
-```python
+```py
     @staticmethod
     def infer(node: Node):
         name = node.soft_get('name', node.id)
@@ -247,9 +247,9 @@ explanation of this process is provided below:
 dimensional) tensors as if they were in NHWC layout to NCHW layout: `nchw_shape = np.array(nhwc_shape)[0, 3, 1, 2]` for
 4D and `nchw_shape = np.array(nhwc_shape)[0, 4, 1, 2, 3]` for 5D. This permutation does not happen for some operations
 with specific conditions identified during the model conversion.
-1. Model Optimizer inserts [Gather](../../../ops/movement/Gather_1.md) operations to the sub-graph relates to shapes
+2. Model Optimizer inserts [Gather](../../../ops/movement/Gather_1.md) operations to the sub-graph relates to shapes
 calculation to perform shape calculation in a correct layout.
-1. Model Optimizer inserts [Transpose](../../../ops/movement/Transpose_1.md) operations to produce correct inference
+3. Model Optimizer inserts [Transpose](../../../ops/movement/Transpose_1.md) operations to produce correct inference
 results.
 
 The list of main transformations responsible for the layout change are: `extensions/middle/ApplyPermutations.py`,
@@ -277,13 +277,13 @@ most notable steps:
 the operation type and used in the Inference Engine to instantiate proper operation from the
 [opset](@ref openvino_docs_ops_opset) specified in the `version` attribute of the node. If some node does not have
 attribute `type` or its values is `None` then the Model Optimizer exits with an error.
-1. Performs type inference of all operations in the graph similar to the shape inference. The inferred data types are
+2. Performs type inference of all operations in the graph similar to the shape inference. The inferred data types are
 saved to the node attributes in the IR.
-1. Performs topological sort of the graph and changes `id` attribute of all operation nodes to be sequential integer
+3. Performs topological sort of the graph and changes `id` attribute of all operation nodes to be sequential integer
 values starting from 0.
-1. Saves all Constants values to the `.bin` file. Constants with the same values are shared between different
+4. Saves all Constants values to the `.bin` file. Constants with the same values are shared between different
 operations.
-1. Generates `.xml` file defining the graph structure. The information about operation inputs and outputs are prepared
+5. Generates `.xml` file defining the graph structure. The information about operation inputs and outputs are prepared
 uniformly for all operations regardless of its type. The attributes to be dumped and how they are represented in the XML
 file is defined with the `backend_attrs` or `supported_attrs`. For more information on how the operation attributes are
 saved to XML refer to the [Custom Model Optimizer Operation](#extension-operation).
@@ -298,8 +298,8 @@ Model Optimizer extensions allow to inject some logic to the model conversion pi
 Optimizer core code. There are three types of the Model Optimizer extensions:
 
 1. The Model Optimizer operation.
-1. The framework operation extractor.
-1. A model transformation which can be executed during front, middle or back phase of the model conversion.
+2. The framework operation extractor.
+3. A model transformation which can be executed during front, middle or back phase of the model conversion.
 
 An extension is just a plain text file with a Python code. The file should contain a class (or classes) inherited from
 one of extension base classes. Extension files should be saved to a directory with the following structure:
@@ -329,11 +329,11 @@ Model Optimizer defines a class `mo.ops.Op` (`Op` will be used later in the docu
 for operations used in the Model Optimizer. The instance of the `Op` class serves the following purposes:
 
 1. Stores operation attributes.
-1. Stores the operation shape/value/type inference functions.
-1. Defines operation attributes to be saved to an IR.
-1. Contains convenient methods to create a graph node from the `Op` object instance and connect it with the existing
+2. Stores the operation shape/value/type inference functions.
+3. Defines operation attributes to be saved to an IR.
+4. Contains convenient methods to create a graph node from the `Op` object instance and connect it with the existing
 graph.
-1. Used in the extractors to store parsed attributes and operation specific attributes in the dedicated graph node.
+5. Used in the extractors to store parsed attributes and operation specific attributes in the dedicated graph node.
 
 It is important to mention that there is no connection between the instance of the `Op` class and the `Node` object
 created from it. The `Op` class is just a container of attributes describing the operation. Model Optimizer uses `Op`
@@ -371,7 +371,7 @@ redundant ports can be removed using dedicated `Node` class API methods.
 Here is an example of the Model Optimizer class for the operation [`SoftMax`](../../../ops/activation/SoftMax_1.md) from
 the file `mo/ops/softmax.py` with the in code explanations.
 
-```python
+```py
 class Softmax(Op):
     # the class attribute defining a name of the operation so the operation class can be obtained using the
     # "Op.get_op_class_by_name()" static method
@@ -406,7 +406,7 @@ class Softmax(Op):
 
 There is a dedicated method called `backend_attrs()` defining a list of attributes to be saved to the IR. Consider an
 example from the `mo/ops/pooling.py` file:
-```python
+```py
    def backend_attrs(self):
         return [
             ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
@@ -426,17 +426,114 @@ example from the `mo/ops/pooling.py` file:
 The `backend_attrs` function returns a list of records which can be of one of the following formats:
 1. A string defining the attribute to be saved to the IR. If the value of the attribute is `None` then the attribute is
 not saved. Example of this case are `rounding_type` and `auto_pad`.
-1. A tuple where the first element is a string defining the name of the attribute as it will appear in the IR and the
+2. A tuple where the first element is a string defining the name of the attribute as it will appear in the IR and the
 second element is a function to produce the value for this attribute. The function gets an instance of the `Node` as the
 only parameter and returns a string with the value to be saved to the IR. Example of this case are `strides`, `kernel`,
 `pads_begin` and `pads_end`.
-1. A tuple where the first element is a string defining the name of the attribute as it will appear in the IR and the
+3. A tuple where the first element is a string defining the name of the attribute as it will appear in the IR and the
 second element is the name of tha `Node` attribute to get the value from. Example of this case are `pool-method` and
 `exclude-pad`.
 
 ### Operation Extractor <a name="extension-extractor"></a>
-When Model Optimizer loads the input model it runs the specific extractor for each operation in the model. Refer to the
+Model Optimizer runs specific extractor for each operation in the model during the model loading. Refer to the
 [operations-attributes-extracting](#operations-attributes-extracting) for more information about this process.
+
+There are several types of Model Optimizer extractor extensions:
+1. The generic one which is described in this section.
+2. The special extractor for Caffe\* models with Python layers. This kind of extractor is described in the
+[Extending the Model Optimizer with Caffe* Python Layers](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers).
+3. The special extractor for MXNet\* models with custom operations. This kind of extractor is described in the
+[Extending the Model Optimizer for Custom MXNet* Operations](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives)
+
+Model Optimizer provides class `mo.front.extractor.FrontExtractorOp` as a base class to implement the extractor. It has
+a class method `extract` which gets the only parameter `Node` which corresponds to the graph node to extract data from.
+The operation description in the original framework format is stored in the attribute `pb` of the node. The extractor
+goal is to parse this attribute and save necessary attributes to the corresponding node of the graph. Consider the
+extractor for the TensorFlow\* operation `Const` (refer to the file `extensions/front/tf/const_ext.py`):
+
+```py
+from mo.front.extractor import FrontExtractorOp
+from mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, tf_tensor_content
+from mo.ops.const import Const
+
+
+class ConstExtractor(FrontExtractorOp):
+    # the "op" class attribute defines a type of the operation in the framework (in this case it is a TensorFlow) for
+    # which the extractor should be triggered
+    op = 'Const'
+    enabled = True  # the flag that indicates that this extractor is enabled
+
+    @classmethod
+    def extract(cls, node):  # the entry point of the extractor
+        # node.pb attribute stores the TensorFlow representation of the operation which is a Protobuf message of the
+        # specific format. In particular the message contains the attribute called "value" containing the description of
+        # the constant. The string "pb.attr["value"].tensor" is just a Python binding for Protobuf message parsing
+        pb_tensor = node.pb.attr["value"].tensor
+        # get the shape of the tensor from the protobuf message using the helper function "tf_tensor_shape"
+        shape = tf_tensor_shape(pb_tensor.tensor_shape)
+        # create a dictionary with necessary attributes
+        attrs = {
+            'shape': shape,
+            # get the tensor value using "tf_tensor_content" helper function
+            'value': tf_tensor_content(pb_tensor.dtype, shape, pb_tensor),
+            # get the tensor data type using "tf_dtype_extractor" helper function
+            'data_type': tf_dtype_extractor(pb_tensor.dtype),
+        }
+        # update the node attributes using default attributes from the "Const" operation and attributes saved to the
+        # "attrs" dictionary
+        Const.update_node_stat(node, attrs)
+        return cls.enabled
+```
+
+Consider another example with an extractor of ONNX\* operation `Constant` (refer to the file
+`extensions/front/onnx/const_ext.py`):
+
+```py
+from onnx import numpy_helper
+from onnx.numpy_helper import to_array
+
+from mo.front.extractor import FrontExtractorOp
+from mo.front.onnx.extractors.utils import onnx_attr
+from mo.ops.const import Const
+
+
+class ConstantExtractor(FrontExtractorOp):
+    op = 'Constant'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        # use helper method "onnx_attr" which parses the Protobuf representation of the operation saved in the "node"
+        # gets the value of the attribute with name "value" as "TensorProto" type (specified with a keyword "t")
+        pb_value = onnx_attr(node, 'value', 't')
+        # use ONNX helper method "numpy_helper.to_array()" to convert "TensorProto" object to a numpy array
+        value = numpy_helper.to_array(pb_value)
+
+        attrs = {
+            'data_type': value.dtype,
+            'value': value,
+        }
+        # update the node attributes using default attributes from the "Const" operation and attributes saved to the
+        # "attrs" dictionary
+        Const.update_node_stat(node, attrs)
+        return cls.enabled
+```
+
+The extractors for operations from different frameworks work similarly. The only difference is in the helper methods
+used to parse operation attributes encoded with framework-specific representation.
+
+Common practice is to use `update_node_stat()` method of the dedicated `Op` class to update node attributes. This method
+does the following:
+
+1. Sets values for common attribute like `op`, `type`, `infer`, `in_ports_count`, `out_ports_count`, `version` etc to
+values specific to the dedicated operation (`Const` operation in this case).
+2. Uses methods `supported_attrs()` and `backend_attrs()` defined in the `Op` class to update specific node attribute
+`IE` which stores information about operation attributes to be saved to IR.
+3. Optionally sets additional attributes provided to the `update_node_stat()` function as a second parameter. Usually
+these attributes are parsed from the particular instance of the operation.
+
+> **NOTE**: Model Optimizer uses numpy arrays to store values and numpy arrays of type `np.int64` to store shapes in the
+> graph.
 
 ### Front Phase Transformations <a name="front-phase-transformations"></a>
 
@@ -511,19 +608,4 @@ The general process is as shown:
 3.  Model Optimizer **calculates the output shape of all layers**. The logic is the same as it is for the priorities. **Important:** the Model Optimizer always takes the first available option.
 
 4.  Model Optimizer **optimizes the original model and produces the Intermediate Representation**.
-
-## TensorFlow\* Models with Custom Layers <a name="Tensorflow-models-with-custom-layers"></a>
-
-You have two options for TensorFlow\* models with custom layers:
-
-*   **Register those layers as extensions to the Model Optimizer.** In this case, the Model Optimizer generates a valid and optimized Intermediate Representation.
-*   **If you have sub-graphs that should not be expressed with the analogous sub-graph in the Intermediate Representation, but another sub-graph should appear in the model, the Model Optimizer provides such an option.** This feature is helpful for many TensorFlow models. To read more, see [Sub-graph Replacement in the Model Optimizer](Subgraph_Replacement_Model_Optimizer.md).
-	
-## MXNet\* Models with Custom Layers <a name="mxnet-models-with-custom-layers"></a>
-
-There are two options to convert your MXNet* model that contains custom layers:
-
-1.  Register the custom layers as extensions to the Model Optimizer. For instructions, see [Extending MXNet Model Optimizer with New Primitives](Extending_MXNet_Model_Optimizer_with_New_Primitives.md). When your custom layers are registered as extensions, the Model Optimizer generates a valid and optimized Intermediate Representation. You can create Model Optimizer extensions for both MXNet layers with op `Custom` and layers which are not standard MXNet layers.
-
-2.  If you have sub-graphs that should not be expressed with the analogous sub-graph in the Intermediate Representation, but another sub-graph should appear in the model, the Model Optimizer provides such an option. In MXNet the function is actively used for ssd models provides an opportunity to  for the necessary subgraph sequences and replace them. To read more, see [Sub-graph Replacement in the Model Optimizer](Subgraph_Replacement_Model_Optimizer.md).
 

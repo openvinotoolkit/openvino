@@ -29,7 +29,7 @@ Model Optimizer provides several ways to perform most of the sub-graph replaceme
 For example, there is an operation `SquaredDifference` in TensorFlow which calculates \f$(a - b)^2\f$, where \f$a\f$ and \f$b\f$ are input tensors. Inference Engine does not support such operation. However, `SquaredDifference` could be expressed using two `Power` operations and one `Eltwise Add`. The `Power` operation calculates \f$scale * (a ^ {power}) + shift\f$, where \f$a\f$ is a tensor and \f$scale\f$, \f$power\f$ and \f$shift\f$ are float values. The first `Power` operation negates the value of tensor \f$b\f$. The second one is used to square the result of \f$a + (- b)\f$ which is calculated using the `Eltwise Add` operation applied to tensor \f$a\f$ and tensor \f$-b\f$.
 
 Given that, we can replace all `SquaredDifference` operations in the initial model with two `Power` and one `Eltwise` operations. The replacer is implemented in the following file `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/SquaredDifference.py`.
-```python
+```py
 import networkx as nx
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node
@@ -98,7 +98,7 @@ networkx Python\* module provides methods to find graph isomorphic to the given 
 For example, the Caffe\* has layer called [Mean-Variance Normalization (MVN)](http://caffe.berkeleyvision.org/tutorial/layers/mvn.html), which is also supported by the Inference Engine. This layer is implemented with low-level operations in TensorFlow: `Mean`, `StopGradient`, `SquaredDifference`, `Squeeze` and `FusedBatchNorm`. Model Optimizer should replace sub-graph with these operations with a single Inference Engine layer of type `MVN`.
 
 The file `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/mvn.py` performs such a replacement. The first part of the file is:
-```python
+```py
 class MVN(FrontReplacementSubgraph):
     enabled = True
     def pattern(self):
@@ -149,7 +149,7 @@ class MVN(FrontReplacementSubgraph):
 *   Lines 26 - 27: Specify a list of attributes to be checked. In fact, these lists are just list of all keys in the dictionaries for node and edge attributes.
 
 Now when the Model Optimizer knows how to find sub-graph (step 1 of the sub-graph replacement), it is necessary to implement function that will perform actual sub-graph replacement (step 2 and 3). The code for this function is:
-```python
+```py
 def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
     fbn = match['fbn']
     input = fbn.in_node(0)
@@ -187,7 +187,7 @@ The function generates new sub-graph with node of type `MVN` and two nodes of th
 The first one is the call to function `replace_node` in line 36. `FusedBatchNorm` node is replaced with the output node of the generated sub-graph: all input edges of the `FusedBatchNorm` node are re-connected to the `new_subgraph` node, all consumers of the `FusedBatchNorm` node are updated to get inputs from the `new_subgraph` node. This action connects newly generated sub-graph with an existing graph (step 4 of the sub-graph replacement).
 
 The second one is that the default implementation of the inference function for `MVN` operation is overwritten. In line 16, the default implementation of the inference function for `MVN` is saved to attribute `old_infer`. In line 17, the new inference function is saved to the instance of the `MVN` operation class. The new inference function code looks the following way:
-```python
+```py
 @staticmethod
 def infer(node: Node):
     if not(node.in_node(1).has_valid('value') and node.in_node(2).has_valid('value')):
@@ -302,7 +302,7 @@ The order of items in the internal list describing nodes does not matter, but th
 The value for the key `outputs` is a list describing nodes of the sub-graph producing tensor that goes outside of the sub-graph or does not have child nodes. Denote these nodes as output nodes of the sub-graph. The order of elements in the list is important. The i-th element of the list describes the i-th output tensor of the sub-graph, which could be obtained using call `match.output_node(i)`. The order of elements can be manually changed in the configuration file. Model Optimizer uses this order to connect output edges if the sub-graph is replaced with a single node.
 
 Now, when meaning of `inputs` and `outputs` attributes is clean, return back to the replacer implementation. The replacer `InceptionBlockReplacer` contains attribute `op` with the value `InceptionBlock`, which means that the identified sub-graph should be replaced with a single layer of type `InceptionBlock`. This layer is not known for the Model Optimizer, so it is necessary to define it. See [Extending the Model Optimizer with New Primitives](Extending_Model_Optimizer_with_New_Primitives.md). You must create file `extension/ops/InceptionBlock.py` with the following content:
-```python
+```py
 import numpy as np
 from mo.graph.graph import Node
 from mo.ops.op import Op

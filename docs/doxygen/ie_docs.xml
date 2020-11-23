@@ -44,7 +44,7 @@
                     </tab>
                     <tab type="usergroup" title="Model Optimizer Customization" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer">
                         <tab type="user" title="Extending the Model Optimizer with New Primitives" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives"/>
-                        <tab type="user" title="Extending the Model Optimizer with Caffe* Python Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers"/>
+                        <tab type="user" title="Extending the Model Optimizer with Caffe* Python Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers"/>
                         <tab type="user" title="Extending the Model Optimizer for Custom MXNet* Operations" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives"/>
                         <tab type="user" title="Legacy Mode for Caffe* Custom Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers"/>
                         <tab type="user" title="[DEPRECATED] Offloading Sub-Graph Inference" url="https://docs.openvinotoolkit.org/2020.1/_docs_MO_DG_prepare_model_customize_model_optimizer_Offloading_Sub_Graph_Inference.html"/>
@@ -57,8 +57,8 @@
             <tab id="model_downloader" type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
             <!-- Custom Layers Guide -->
             <tab type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
-        </tab>    
-        
+        </tab>
+
         <!-- Intermediate Representation and Operations Sets -->
         <tab id="intermediate_representaton_and_operations_sets" type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
             <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
@@ -294,7 +294,7 @@
 
             <!-- Compile Tool -->
             <tab type="user" title="Compile Tool" url="@ref openvino_inference_engine_tools_compile_tool_README"/>
-            
+
             <!-- API References -->
             <tab id="api_references" type="usergroup" title="API References">
                 <!-- IE C -->
