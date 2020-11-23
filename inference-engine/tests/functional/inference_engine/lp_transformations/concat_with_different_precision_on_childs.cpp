@@ -218,7 +218,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ConcatWithDifferentChildsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

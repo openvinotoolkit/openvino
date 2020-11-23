@@ -9,6 +9,7 @@
 #include <mutex>
 #include <string>
 #include <map>
+#include <set>
 #include <vector>
 #include <thread>
 
@@ -39,6 +40,10 @@ enum GnaWaitStatus : int {
  */
 class GNADeviceHelper {
     static std::mutex acrossPluginsSync;
+    static std::string decoratedGnaLibVersion() {
+        static std::string gnaLibraryVersion{ ", GNA library version: " + GNADeviceHelper::getGnaLibraryVersion() };
+        return gnaLibraryVersion;
+    }
 #if GNA_LIB_VER == 1
     intel_gna_status_t nGNAStatus = GNA_NOERROR;
     intel_gna_handle_t nGNAHandle = 0;
@@ -57,7 +62,7 @@ class GNADeviceHelper {
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
     uint32_t instrumentationConfigId = 0;
-    std::vector<uint32_t> unwaitedRequestIds;
+    std::set<uint32_t> unwaitedRequestIds;
 #define MAX_TIMEOUT 500000
 #endif
     bool isPerformanceMeasuring = false;
@@ -125,7 +130,7 @@ public:
     bool isUpTo20GnaDevice() const {
         return detectedGnaDevVersion <= Gna2DeviceVersion2_0;
     }
-    static void checkGna2Status(Gna2Status status);
+    static void checkGna2Status(Gna2Status status, const std::string& from);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
 #endif
     GnaWaitStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
@@ -165,6 +170,7 @@ public:
     void open(uint8_t const n_threads);
 
     void close();
+    static std::string getGnaLibraryVersion();
 #if GNA_LIB_VER == 1
     void checkStatus() const;
 #else
@@ -187,7 +193,7 @@ public:
             gna2InstrumentationPoints,
             instrumentationResults,
             &instrumentationConfigId);
-        checkGna2Status(status);
+        checkGna2Status(status, "Gna2InstrumentationConfigCreate");
 #endif
     }
 };  // NOLINT

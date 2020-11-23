@@ -475,24 +475,6 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         }
     }
 
-    NetPass::CombineRNNSeq(network);
-    for (int i = 0; i < 2; i++) {
-        NetPass::UnrollTI(network);
-        NetPass::UnrollRNN_if(network, [](const RNNCellBase &rnn) -> bool {
-            if (rnn.clip != 0.0f)
-                return true;
-            if (rnn.type == "GRUCell" ||
-                rnn.type == "GRUSequence" ||
-                rnn.type == "RNNCell" ||
-                rnn.type == "RNNSequence")
-                return true;
-            if (!(rnn.type == "LSTMCell" || rnn.type == "LSTMSequence") ||
-                rnn.activations == std::vector<std::string>{"sigmoid", "tanh", "tanh"})
-                return false;
-            return true;
-        });
-    }
-
     if (m_config.max_dynamic_batch > 1) {
         // check topology for applicability
         if (!CanProcessDynBatch(network)) {
@@ -4320,12 +4302,14 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
 
     auto inputLayout = layer->insData[0].lock()->getTensorDesc().getLayout();
     auto outDims = layer->outData[0]->getTensorDesc().getDims();
+    auto outLayout = layer->outData[0]->getTensorDesc().getLayout();
 
     auto gatherPrim = cldnn::gather(
         gatherLayerName,
         reorderedInputs[0],
         reorderedInputs[1],
         cldnnAxisFromIE(axis, FormatFromLayout(inputLayout)),
+        FormatFromLayout(outLayout),
         CldnnTensorFromIEDims(outDims));
 
     topology.add(gatherPrim);
@@ -4999,7 +4983,7 @@ void Program::CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, Infere
     auto centerPointBox = nonMaxSupression->center_point_box;
     auto outputIndices = nonMaxSupression->outData[0]->getTensorDesc().getDims()[0];
 
-    auto name = layer_type_name_ID(layer);
+    auto name = layer->outData.size() > 1 ? (layer_type_lower(layer) + ":" + layer->outData[0]->getName()) : layer_type_name_ID(layer);
     auto prim = cldnn::non_max_suppression(
         name,
         reorderedInputs[0],

@@ -30,7 +30,7 @@ def build_argparser():
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.", required=True,
                       type=str)
-    args.add_argument("-i", "--input", help="Required. Path to image file.",
+    args.add_argument("-i", "--input", help="Required. Path to an image file.",
                       required=True, type=str)
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. "
@@ -73,7 +73,7 @@ def main():
     n, c, h, w = net.input_info[input_blob].input_data.shape
     images = np.ndarray(shape=(n, c, h, w))
     for i in range(n):
-        image = cv2.imread(args.input[i])
+        image = cv2.imread(args.input)
         if image.shape[:-1] != (h, w):
             log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
             image = cv2.resize(image, (w, h))

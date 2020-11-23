@@ -556,7 +556,7 @@ TEST_P(ReshapeTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ReshapeTransformation,
     ::testing::ValuesIn(testValues),
     ReshapeTransformation::getTestCaseName);
