@@ -16,7 +16,6 @@ include(check_features_ie)
 # resolving dependencies for the project
 include(dependencies)
 
-
 # Fuzz tests also building without ENABLE_FUZZING
 include(fuzzing)
 
@@ -100,10 +99,6 @@ if (ENABLE_PYTHON)
 endif()
 
 add_subdirectory(ie_bridges/c)
-
-if (ENABLE_JAVA)
-    add_subdirectory(ie_bridges/java)
-endif()
 
 add_cpplint_report_target()
 

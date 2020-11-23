@@ -10,7 +10,7 @@
 std::vector<std::string> disabledTestPatterns() {
     return {
         // TODO: Issue 26264
-        R"(.*(MaxPool|AvgPool).*S\(1\.2\).*Rounding=CEIL.*)",
+        R"(.*(MaxPool|AvgPool).*S\(1\.2\).*Rounding=ceil.*)",
         // TODO: Issue 31841
         R"(.*(QuantGroupConvBackpropData3D).*)",
         // TODO: Issue 31843
@@ -51,8 +51,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 37862
         R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)",
         // TODO: Issue: 38841
-        R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
+        R"(.*TopKLayerTest.*k=5.*sort=none.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform

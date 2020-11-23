@@ -32,7 +32,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork) {
             </output>
         </layer>
         <layer id="2" name="in3" type="Const" version="opset1">
-            <data offset="0" size="24"/>
+            <data element_type="i64" offset="0" shape="3" size="24"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>3</dim>
@@ -183,7 +183,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
             </output>
         </layer>
         <layer id="2" name="in3" type="Const" version="opset1">
-            <data offset="0" size="32"/>
+            <data element_type="i64" offset="0" shape="4" size="32"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>4</dim>
@@ -334,7 +334,7 @@ TEST_F(NGraphReaderTests, ReadExtensionProposalNetwork) {
             </output>
         </layer>
         <layer id="2" name="in3" type="Const" version="opset1">
-            <data offset="0" size="24"/>
+            <data element_type="i64" offset="0" shape="3" size="24"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>3</dim>

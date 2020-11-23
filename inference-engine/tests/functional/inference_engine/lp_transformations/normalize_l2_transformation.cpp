@@ -53,7 +53,7 @@ public:
             low_precision::LayerTransformation::Params(params.transformationParams));
         transform.transform(actualFunction);
 
-        referenceFunction = (!params.transformationParams.supportAsymmetricQuantization) && (!params.expected.subtractValues.empty()) ?
+        referenceFunction = !params.expected.subtractValues.empty() ?
             ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
                 precision,
                 shape,
@@ -136,7 +136,7 @@ const std::vector<NormalizeL2TransformationTestValues> normalizeL2Transformation
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     NormalizeL2Transformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
