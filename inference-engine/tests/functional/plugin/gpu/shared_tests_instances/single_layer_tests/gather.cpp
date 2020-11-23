@@ -197,6 +197,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 const std::vector<std::vector<size_t>> inputShapesAxes2 = {
+        std::vector<size_t>{5, 6, 7},
         std::vector<size_t>{5, 6, 7, 8},
         std::vector<size_t>{1, 6, 7, 8},
         std::vector<size_t>{5, 1, 7, 8},
@@ -265,6 +266,8 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 const std::vector<std::vector<size_t>> inputShapesAxes1 = {
+        std::vector<size_t>{5, 6},
+        std::vector<size_t>{5, 6, 7},
         std::vector<size_t>{5, 6, 7, 8},
         std::vector<size_t>{1, 6, 7, 8},
         std::vector<size_t>{5, 6, 1, 8},
@@ -333,6 +336,9 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 const std::vector<std::vector<size_t>> inputShapesAxes0 = {
+        std::vector<size_t>{5},
+        std::vector<size_t>{5, 6},
+        std::vector<size_t>{5, 6, 7},
         std::vector<size_t>{5, 6, 7, 8},
         std::vector<size_t>{5, 1, 7, 8},
         std::vector<size_t>{5, 6, 1, 8},
