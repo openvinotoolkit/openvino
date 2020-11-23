@@ -37,8 +37,10 @@ op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution
 bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("body", m_body);
-    visitor.on_attribute("current_iteration_input_idx", m_special_body_ports.current_iteration_input_idx);
-    visitor.on_attribute("body_condition_output_idx", m_special_body_ports.body_condition_output_idx);
+    visitor.on_attribute("current_iteration_input_idx",
+                         m_special_body_ports.current_iteration_input_idx);
+    visitor.on_attribute("body_condition_output_idx",
+                         m_special_body_ports.body_condition_output_idx);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
 

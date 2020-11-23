@@ -21,8 +21,6 @@ import ngraph as ng
 import ngraph.opset1 as ng_opset1
 from ngraph.impl import Type
 
-from tests import skip_segfault
-
 np_types = [np.float32, np.int32]
 integral_np_types = [
     np.int8,
@@ -713,7 +711,8 @@ def test_loop():
     ti_inputs = [iter_cnt, data, initial_cma, one]
     body_const_condition = ng.constant(True, dtype=np.bool)
 
-    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist, body_const_condition])
+    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one],
+                           [curr_cma, cma_hist, body_const_condition])
     ti_slice_input_desc = [
         # timestep
         # input_idx, body_param_idx, start, stride, part_size, end, axis
