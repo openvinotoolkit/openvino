@@ -37,7 +37,7 @@ struct IdleGuard {
     }
     ~IdleGuard() {
         if (nullptr != _notBusyWorkerRequests) {
-            _notBusyWorkerRequests->push(_workerInferRequestPtr);
+            _notBusyWorkerRequests->try_push(_workerInferRequestPtr);
         }
     }
     MultiDeviceExecutableNetwork::NotBusyWorkerRequests* Release() {
@@ -80,10 +80,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto& idleWorkerRequests = _idleWorkerRequests[device];
         workerRequests.resize(numRequests);
         auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
+        idleWorkerRequests.set_capacity(numRequests);
         for (auto&& workerRequest : workerRequests) {
             workerRequest._inferRequest = network.CreateInferRequest();
             auto* workerRequestPtr = &workerRequest;
-            idleWorkerRequests.push(workerRequestPtr);
+            IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
             workerRequest._inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
                 [workerRequestPtr, this, device, idleWorkerRequestsPtr] (InferRequest , StatusCode status) mutable {
                     IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
@@ -92,41 +93,42 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                         auto capturedTask = std::move(workerRequestPtr->_task);
                         capturedTask();
                     }
-                    if (!_terminate) {
-                        idleGuard.Release()->push(workerRequestPtr);
-                        ScheduleToWorkerInferRequest();
+                    if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                        if (_inferPipelineTasks.try_pop(workerRequestPtr->_task)) {
+                            ScheduleToWorkerInferRequest(std::move(workerRequestPtr->_task));
+                        }
                     }
                 });
         }
     }
 }
 
-void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
+void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask) {
     auto devices = [&] {
         std::lock_guard<std::mutex> lock(_mutex);
         return _devicePriorities;
     }();
+    WorkerInferRequest* workerRequestPtr = nullptr;
+    NotBusyWorkerRequests* idleWorkerRequests = nullptr;
     for (auto&& device : devices) {
-        auto& idleWorkerRequests = _idleWorkerRequests[device.deviceName];
-        WorkerInferRequest* workerRequestPtr = nullptr;
-        if (idleWorkerRequests.try_pop(workerRequestPtr)) {
-            IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
-            Task inferPipelineTask;
-            if (_inferPipelineTasks.try_pop(inferPipelineTask)) {
-                _thisWorkerInferRequest = workerRequestPtr;
-                inferPipelineTask();
-                idleGuard.Release();
-                break;
-            }
+        idleWorkerRequests = &(_idleWorkerRequests[device.deviceName]);
+        if (idleWorkerRequests->try_pop(workerRequestPtr)) {
+            break;
         }
+    }
+    if (workerRequestPtr != nullptr) {
+        IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequests};
+        _thisWorkerInferRequest = workerRequestPtr;
+        auto captchuredTask = std::move(inferPipelineTask);
+        captchuredTask();
+        idleGuard.Release();
+    } else {
+        _inferPipelineTasks.push(std::move(inferPipelineTask));
     }
 }
 
 void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
-    if (!_terminate) {
-        _inferPipelineTasks.push(std::move(inferPipelineTask));
-        ScheduleToWorkerInferRequest();
-    }
+    ScheduleToWorkerInferRequest(std::move(inferPipelineTask));
 }
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
@@ -134,10 +136,16 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         std::lock_guard<std::mutex> lock(_mutex);
         _devicePriorities.clear();
     }
-    _terminate = true;
     /* NOTE: The only threads that use `MultiDeviceExecutableNetwork` Context are those that are used by Worker infer requests.
      *       But AsyncInferRequest destructor should waits for all asynchronous tasks that are used by the request
      */
+    auto devices = [&] {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _devicePriorities;
+    }();
+    for (auto&& networkValue : _networksPerDevice) {
+        _idleWorkerRequests.at(networkValue.first).set_capacity(0);
+    }
     _workerRequests.clear();
 }
 
