@@ -47,7 +47,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_single_indices)
     Shape out_shape{};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -79,7 +79,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_2d)
     Shape out_shape{2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -111,7 +111,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_2d)
     Shape out_shape{2, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -145,7 +145,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_3d)
     Shape out_shape{2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -177,7 +177,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_3d)
     Shape out_shape{2, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -211,7 +211,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_2d_from_3d)
     Shape out_shape{1, 2, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -245,7 +245,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_2d)
     Shape out_shape{2, 1};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -277,7 +277,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_2d)
     Shape out_shape{2, 1, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -311,7 +311,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_3d)
     Shape out_shape{2, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -345,7 +345,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d)
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -379,7 +379,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_2d_from_3d)
     Shape out_shape{2, 1, 2, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
+    auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

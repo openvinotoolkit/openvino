@@ -43,49 +43,51 @@ std::string GetStringEnv(const char* varName) {
 std::string toString(ActivationFunction activation) {
     std::string method("LINEAR");
     switch (activation) {
-        case ActivationFunction::LOGISTIC:                 method = "LOGISTIC"; break;
-        case ActivationFunction::HYPERBOLIC_TAN:           method = "HYPERBOLIC_TAN"; break;
-        case ActivationFunction::RELU:                     method = "RELU"; break;
-        case ActivationFunction::RELU_NEGATIVE_SLOPE:      method = "RELU_NEGATIVE_SLOPE"; break;
-        case ActivationFunction::CLAMP:                    method = "CLAMP"; break;
-        case ActivationFunction::SOFTRELU:                 method = "SOFTRELU"; break;
-        case ActivationFunction::ABS:                      method = "ABS"; break;
-        case ActivationFunction::SQUARE:                   method = "SQUARE"; break;
-        case ActivationFunction::SQRT:                     method = "SQRT"; break;
-        case ActivationFunction::LINEAR:                   method = "LINEAR"; break;
-        case ActivationFunction::ELU:                      method = "ELU"; break;
-        case ActivationFunction::SIN:                      method = "SIN"; break;
-        case ActivationFunction::ASIN:                     method = "ASIN"; break;
-        case ActivationFunction::SINH:                     method = "SINH"; break;
-        case ActivationFunction::ASINH:                    method = "ASINH"; break;
-        case ActivationFunction::COS:                      method = "COS"; break;
-        case ActivationFunction::ACOS:                     method = "ACOS"; break;
-        case ActivationFunction::COSH:                     method = "COSH"; break;
-        case ActivationFunction::ACOSH:                    method = "ACOSH"; break;
-        case ActivationFunction::LOG:                      method = "LOG"; break;
-        case ActivationFunction::LOG2:                     method = "LOG2"; break;
-        case ActivationFunction::EXP:                      method = "EXP"; break;
-        case ActivationFunction::NOT:                      method = "NOT"; break;
-        case ActivationFunction::POW:                      method = "POW"; break;
-        case ActivationFunction::NONE:                     method = "NONE"; break;
-        case ActivationFunction::TAN:                      method = "TAN"; break;
-        case ActivationFunction::ATAN:                     method = "ATAN"; break;
-        case ActivationFunction::ATANH:                    method = "ATANH"; break;
-        case ActivationFunction::FLOOR:                    method = "FLOOR"; break;
-        case ActivationFunction::CEIL:                     method = "CEIL"; break;
-        case ActivationFunction::NEGATIVE:                 method = "NEGATIVE"; break;
-        case ActivationFunction::ERF:                      method = "ERF"; break;
-        case ActivationFunction::HARD_SIGMOID:             method = "HARD_SIGMOID"; break;
-        case ActivationFunction::HSIGMOID:                 method = "HSIGMOID"; break;
-        case ActivationFunction::RECIPROCAL:               method = "RECIPROCAL"; break;
-        case ActivationFunction::SELU:                     method = "SELU"; break;
-        case ActivationFunction::SIGN:                     method = "SIGN"; break;
-        case ActivationFunction::SOFTPLUS:                 method = "SOFTPLUS"; break;
-        case ActivationFunction::SOFTSIGN:                 method = "SOFTSIGN"; break;
-        case ActivationFunction::SWISH:                    method = "SWISH"; break;
-        case ActivationFunction::HSWISH:                   method = "HSWISH"; break;
-        case ActivationFunction::MISH:                     method = "MISH"; break;
-        case ActivationFunction::GELU:                     method = "GELU"; break;
+        case ActivationFunction::LOGISTIC:                  method = "LOGISTIC"; break;
+        case ActivationFunction::HYPERBOLIC_TAN:            method = "HYPERBOLIC_TAN"; break;
+        case ActivationFunction::RELU:                      method = "RELU"; break;
+        case ActivationFunction::RELU_NEGATIVE_SLOPE:       method = "RELU_NEGATIVE_SLOPE"; break;
+        case ActivationFunction::CLAMP:                     method = "CLAMP"; break;
+        case ActivationFunction::SOFTRELU:                  method = "SOFTRELU"; break;
+        case ActivationFunction::ABS:                       method = "ABS"; break;
+        case ActivationFunction::SQUARE:                    method = "SQUARE"; break;
+        case ActivationFunction::SQRT:                      method = "SQRT"; break;
+        case ActivationFunction::LINEAR:                    method = "LINEAR"; break;
+        case ActivationFunction::ELU:                       method = "ELU"; break;
+        case ActivationFunction::SIN:                       method = "SIN"; break;
+        case ActivationFunction::ASIN:                      method = "ASIN"; break;
+        case ActivationFunction::SINH:                      method = "SINH"; break;
+        case ActivationFunction::ASINH:                     method = "ASINH"; break;
+        case ActivationFunction::COS:                       method = "COS"; break;
+        case ActivationFunction::ACOS:                      method = "ACOS"; break;
+        case ActivationFunction::COSH:                      method = "COSH"; break;
+        case ActivationFunction::ACOSH:                     method = "ACOSH"; break;
+        case ActivationFunction::LOG:                       method = "LOG"; break;
+        case ActivationFunction::LOG2:                      method = "LOG2"; break;
+        case ActivationFunction::EXP:                       method = "EXP"; break;
+        case ActivationFunction::NOT:                       method = "NOT"; break;
+        case ActivationFunction::POW:                       method = "POW"; break;
+        case ActivationFunction::NONE:                      method = "NONE"; break;
+        case ActivationFunction::TAN:                       method = "TAN"; break;
+        case ActivationFunction::ATAN:                      method = "ATAN"; break;
+        case ActivationFunction::ATANH:                     method = "ATANH"; break;
+        case ActivationFunction::FLOOR:                     method = "FLOOR"; break;
+        case ActivationFunction::CEIL:                      method = "CEIL"; break;
+        case ActivationFunction::NEGATIVE:                  method = "NEGATIVE"; break;
+        case ActivationFunction::ERF:                       method = "ERF"; break;
+        case ActivationFunction::HARD_SIGMOID:              method = "HARD_SIGMOID"; break;
+        case ActivationFunction::HSIGMOID:                  method = "HSIGMOID"; break;
+        case ActivationFunction::RECIPROCAL:                method = "RECIPROCAL"; break;
+        case ActivationFunction::SELU:                      method = "SELU"; break;
+        case ActivationFunction::SIGN:                      method = "SIGN"; break;
+        case ActivationFunction::SOFTPLUS:                  method = "SOFTPLUS"; break;
+        case ActivationFunction::SOFTSIGN:                  method = "SOFTSIGN"; break;
+        case ActivationFunction::SWISH:                     method = "SWISH"; break;
+        case ActivationFunction::HSWISH:                    method = "HSWISH"; break;
+        case ActivationFunction::MISH:                      method = "MISH"; break;
+        case ActivationFunction::GELU:                      method = "GELU"; break;
+        case ActivationFunction::ROUND_HALF_TO_EVEN:        method = "ROUND_HALF_TO_EVEN"; break;
+        case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO: method = "ROUND_HALF_AWAY_FROM_ZERO"; break;
         default: break;
     }
     return method;
@@ -298,6 +300,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::oi:                                          return "OI";
         case WeightsLayout::io:                                          return "IO";
         case WeightsLayout::oiyx:                                        return "OIYX";
+        case WeightsLayout::ioyx:                                        return "IOYX";
         case WeightsLayout::oyxi:                                        return "OYXI";
         case WeightsLayout::iyxo:                                        return "IYXO";
         case WeightsLayout::yxio:                                        return "YXIO";
@@ -341,6 +344,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4:          return "OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::os_is_yx_osv32_isv32p:                       return "OS_IS_YX_OSV32_ISV32P";
         case WeightsLayout::oizyx:                                       return "OIZYX";
+        case WeightsLayout::iozyx:                                       return "IOZYX";
         case WeightsLayout::os_is_zyx_isv16_osv16:                       return "OS_IS_ZYX_ISV16_OSV16";
         case WeightsLayout::is_os_zyx_isv16_osv16:                       return "IS_OS_ZYX_ISV16_OSV16";
         case WeightsLayout::is_os_yx_isv16_osv16:                        return "IS_OS_YX_ISV16_OSV16";
@@ -350,8 +354,10 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_osv32_isv32_swizzled_by_4:             return "OS_IS_OSV32_ISV32_SWIZZLED_BY_4";
         case WeightsLayout::os_i_yxs_osv4_yxsv4:                         return "OS_I_YXS_OSV4_YXSV4";
         case WeightsLayout::goiyx:                                       return "GOIYX";
+        case WeightsLayout::gioyx:                                       return "GIOYX";
         case WeightsLayout::gyxio:                                       return "GYXIO";
         case WeightsLayout::goizyx:                                      return "GOIZYX";
+        case WeightsLayout::giozyx:                                      return "GIOZYX";
         case WeightsLayout::g_os_iyx_osv16:                              return "G_OS_IYX_OSV16";
         case WeightsLayout::g_os_iyx_osv32:                              return "G_OS_IYX_OSV32";
         case WeightsLayout::gs_oiyx_gsv16:                               return "GS_OIYX_GSV16";
@@ -389,16 +395,6 @@ std::string toString(ConcatAxis a) {
         case ConcatAxis::W:       return "W";
         case ConcatAxis::FEATURE: return "FEATURE";
         case ConcatAxis::BATCH:   return "BATCH";
-        default: return "";
-    }
-}
-
-std::string toString(TileAxis a) {
-    switch (a) {
-        case TileAxis::X:       return "X";
-        case TileAxis::Y:       return "Y";
-        case TileAxis::FEATURE: return "FEATURE";
-        case TileAxis::BATCH:   return "BATCH";
         default: return "";
     }
 }

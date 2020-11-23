@@ -59,10 +59,6 @@ else ()
 endif()
 
 if (WIN32)
-    if (NOT "${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-        message(FATAL_ERROR "Only 64-bit supported on Windows")
-    endif()
-
     set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS -DNOMINMAX")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") #no asynchronous structured exception handling
@@ -123,8 +119,12 @@ set (INTTYPES_FORMAT C99)
 set (BUILD_TESTING OFF)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
-    add_subdirectory(thirdparty/gflags)
-    set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
+    function(add_gflags)
+        set(BUILD_SHARED_LIBS OFF)
+        add_subdirectory(thirdparty/gflags)
+        set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
+    endfunction()
+    add_gflags()
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

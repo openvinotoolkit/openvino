@@ -4,6 +4,7 @@
 
 #include "multi-device/multi_device_config.hpp"
 #include "vpu/vpu_plugin_config.hpp"
+#include "vpu/private_plugin_config.hpp"
 #include "behavior/config.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -39,6 +40,9 @@ namespace {
             {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"}},
             {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "2"}},
             {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "3"}},
+
+            {{InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(YES)}},
+            {{InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(NO)}},
 
             // Deprecated
             {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}},
@@ -101,6 +105,9 @@ namespace {
 
             {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "Two"}},
             {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "SINGLE"}},
+
+            {{InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "ON"}},
+            {{InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "OFF"}},
 
             // Deprecated
             {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "BLUETOOTH"}},

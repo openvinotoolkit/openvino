@@ -79,6 +79,7 @@ set(SRC
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
     op_eval/roi_align.cpp
+    op_eval/round.cpp
     op_eval/softplus.cpp
     op_eval/split.cpp
     op_eval/swish.cpp
@@ -87,6 +88,7 @@ set(SRC
     op_is.cpp
     opset1.cpp
     partial_shape.cpp
+    pass_config.cpp
     pass_liveness.cpp
     pass_manager.cpp
     pass_shape_relevance.cpp
@@ -109,12 +111,11 @@ set(SRC
     type_prop/constant.cpp
     type_prop/convert.cpp
     type_prop/convolution.cpp
+    type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_loss.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
-    type_prop/dequantize.cpp
-    type_prop/dot.cpp
     type_prop/dyn_reshape.cpp
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
@@ -132,6 +133,7 @@ set(SRC
     type_prop/gru_cell.cpp
     type_prop/gru_sequence.cpp
     type_prop/hard_sigmoid.cpp
+    type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
     type_prop/interpolate.cpp
     type_prop/lrn.cpp
@@ -151,14 +153,11 @@ set(SRC
     type_prop/prelu.cpp
     type_prop/proposal.cpp
     type_prop/quantize.cpp
-    type_prop/quantized_convolution.cpp
-    type_prop/quantized_dot.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
     type_prop/reorg_yolo.cpp
-    type_prop/replace_slice.cpp
     type_prop/reshape.cpp
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
@@ -166,20 +165,19 @@ set(SRC
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
+    type_prop/round.cpp
     type_prop/scatter_elements_update.cpp
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
     type_prop/select.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
-    type_prop/slice.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
     type_prop/split.cpp
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
-    type_prop/sum.cpp
     type_prop/swish.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
@@ -279,7 +277,6 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder.in.cpp
     backend/cum_sum.in.cpp
     backend/divide.in.cpp
-    backend/dot.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
@@ -292,16 +289,17 @@ set(MULTI_TEST_SRC
     backend/gather_nd.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
+    backend/hard_sigmoid.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
+    backend/logical_and.in.cpp
+    backend/logical_not.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
-    backend/max.in.cpp
     backend/maximum.in.cpp
-    backend/min.in.cpp
     backend/minimum.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -309,17 +307,14 @@ set(MULTI_TEST_SRC
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
-    backend/not.in.cpp
+    backend/non_max_suppression.in.cpp
     backend/non_zero.in.cpp
     backend/numeric.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
-    backend/product.in.cpp
     backend/quantize_dequantize.in.cpp
-    backend/quantized_convolution.in.cpp
-    backend/quantized_dot.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
@@ -329,7 +324,6 @@ set(MULTI_TEST_SRC
     backend/region_yolo.in.cpp
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
-    backend/replace_slice.in.cpp
     backend/reshape.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
@@ -340,11 +334,10 @@ set(MULTI_TEST_SRC
     backend/sign.in.cpp
     backend/sin.in.cpp
     backend/sinh.in.cpp
-    backend/slice.in.cpp
     backend/softmax.in.cpp
+    backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/subtract.in.cpp
-    backend/sum.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp
@@ -363,13 +356,13 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_convpool.in.cpp
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
-            onnx/onnx_import_library.in.cpp
             onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
             onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
-            onnx/onnx_import_exceptions.cpp)
+            onnx/onnx_import_exceptions.cpp
+            onnx/onnx_import_library.cpp)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})

@@ -33,8 +33,9 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
 
-# Create shared library
-add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+# Create static or shared library depending on BUILD_SHARED_LIBS
+add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ngraph
@@ -45,6 +46,11 @@ endif()
 
 if(COMMAND ie_add_api_validator_post_build_step)
     ie_add_api_validator_post_build_step(TARGET ngraph)
+endif()
+
+if(COMMAND ie_add_vs_version_file)
+    ie_add_vs_version_file(NAME ngraph
+                           FILEDESCRIPTION "nGraph library")
 endif()
 
 set_target_properties(ngraph PROPERTIES
@@ -70,6 +76,9 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
         SOVERSION ${NGRAPH_API_VERSION})
 endif()
 target_compile_definitions(ngraph PUBLIC NGRAPH_VERSION="${NGRAPH_VERSION}")
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
+endif()
 
 if (LINUX)
     # nGraph links against one or more libraries (ex. LLVM) but we don't want to

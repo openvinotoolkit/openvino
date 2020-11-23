@@ -15,10 +15,13 @@
 //*****************************************************************************
 
 #include "ngraph/op/loop.hpp"
+#include "itt.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/specialize_function.hpp"
+
+#include "ngraph/runtime/reference/loop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -111,6 +114,36 @@ void op::v5::Loop::validate_and_infer_types()
             m_num_iterations = 1; // condition_always_false, do_while mode
         }
     }
+    else if (const auto& cond_param = std::dynamic_pointer_cast<const ngraph::opset5::Parameter>(
+                 body_execution_condition.get_node_shared_ptr()))
+    {
+        // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
+        for (const auto& desc : get_input_descriptions())
+        {
+            if (m_body->get_parameters().at(desc->m_body_parameter_index) == cond_param)
+            {
+                if (const auto& cond_value =
+                        std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
+                            input_value(desc->m_input_index).get_node_shared_ptr()))
+                {
+                    auto val = cond_value->cast_vector<bool>();
+                    NODE_VALIDATION_CHECK(
+                        this,
+                        val.size() == 1,
+                        "The number of values in the Condition constant is greater than 1");
+
+                    if (val[0])
+                    {
+                        condition_always_true = true;
+                    }
+                    else
+                    {
+                        m_num_iterations = 1; // condition_always_false, do_while mode
+                    }
+                }
+            }
+        }
+    }
 
     const auto& trip_count = input_value(0);
     const auto& trip_count_rank = trip_count.get_partial_shape().rank();
@@ -139,8 +172,6 @@ void op::v5::Loop::validate_and_infer_types()
                           get_output_size() == m_output_descriptions.size(),
                           "Number of outputs must be the same as number of output descriptions");
 
-    std::vector<std::shared_ptr<Node>> ends;
-
     // Input
     uint64_t index_it = 2;
     for (const auto& input_description : m_input_descriptions)
@@ -149,11 +180,29 @@ void op::v5::Loop::validate_and_infer_types()
         NODE_VALIDATION_CHECK(this, index == index_it, "Input_index not in order");
         index_it++;
 
-        if (auto merged_input_description = as_type_ptr<MergedInputDescription>(input_description))
+        if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
+        {
+            auto body_parameter =
+                m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
+            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            if (input_partial_shape.is_static())
+            {
+                // infer type for m_body_parameter
+                Shape out_shape{input_partial_shape.to_shape()};
+                out_shape[slice_input_description->m_axis] = slice_input_description->m_part_size;
+                body_parameter->set_partial_shape(out_shape);
+            }
+            else
+            {
+                body_parameter->set_partial_shape(
+                    PartialShape::dynamic(input_partial_shape.rank()));
+            }
+        }
+        else if (auto merged_input_description =
+                     as_type_ptr<MergedInputDescription>(input_description))
         {
             auto body_value =
                 m_body->get_results().at(merged_input_description->m_body_value_index);
-            ends.push_back(body_value);
 
             const auto& body_value_partial_shape = body_value->get_input_partial_shape(0);
             auto body_parameter =
@@ -161,22 +210,8 @@ void op::v5::Loop::validate_and_infer_types()
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  body_value_partial_shape.compatible(body_param_partial_shape),
-                                  "Iterator successive value is not compatible with body param");
-            NODE_VALIDATION_CHECK(this,
-                                  input_partial_shape.compatible(body_param_partial_shape),
-                                  "Iterator initial value is not compatible with body param");
 
-            if (input_partial_shape.is_static())
-            {
-                auto input_shape = input_partial_shape.to_shape();
-                // infer type for body_parameter
-                if (body_param_partial_shape.is_dynamic())
-                {
-                    body_parameter->set_partial_shape(input_shape);
-                }
-            }
+            body_parameter->set_partial_shape(input_partial_shape);
         }
         else if (auto invariant_input_description =
                      as_type_ptr<TensorIterator::InvariantInputDescription>(input_description))
@@ -190,15 +225,7 @@ void op::v5::Loop::validate_and_infer_types()
                                   input_partial_shape.compatible(body_param_partial_shape),
                                   "Iterator initial value is not compatible with body param");
 
-            if (input_partial_shape.is_static())
-            {
-                auto input_shape = input_partial_shape.to_shape();
-                // infer type for m_body_parameter
-                if (body_param_partial_shape.is_dynamic())
-                {
-                    body_parameter->set_partial_shape(input_shape);
-                }
-            }
+            body_parameter->set_partial_shape(input_partial_shape);
         }
     }
 
@@ -248,6 +275,12 @@ void op::v5::Loop::validate_and_infer_types()
                     }
                     set_output_type(index, body_value.get_element_type(), out_shape);
                 }
+            }
+            else
+            {
+                set_output_type(index,
+                                body_value.get_element_type(),
+                                PartialShape::dynamic(body_value.get_partial_shape().rank()));
             }
         }
         else if (auto body_output_description =
@@ -301,6 +334,17 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
                     new_args[input_index].get_element_type();
                 new_shapes[input_description->m_body_parameter_index] =
                     new_args[input_index].get_partial_shape();
+
+                if (new_shapes[input_description->m_body_parameter_index].is_static())
+                {
+                    if (auto slice_in = ::ngraph::as_type_ptr<
+                            ngraph::op::v0::TensorIterator::SliceInputDescription>(
+                            input_description))
+                    {
+                        new_shapes[slice_in->m_body_parameter_index][slice_in->m_axis] =
+                            slice_in->m_part_size;
+                    }
+                }
             }
         }
     }
@@ -319,10 +363,12 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
     }
     op->m_num_iterations = m_num_iterations;
     op->m_special_body_ports = m_special_body_ports;
-    auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
+    auto func = std::make_shared<Function>(
+        m_body->get_results(), m_body->get_sinks(), m_body->get_parameters());
     auto spec_func = specialize_function(
         func, types, new_shapes, std::vector<void*>(body_params_args.size(), nullptr));
-    op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_parameters());
+    op->m_body = std::make_shared<Function>(
+        spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions)
     {
@@ -347,4 +393,12 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
                  "Supported values for start {0}, for stride and part_size {1}, for end "
                  "{-1}");
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
+}
+
+bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v5::Loop::evaluate");
+    runtime::reference::loop(
+        m_body, m_output_descriptions, m_input_descriptions, m_special_body_ports, outputs, inputs);
+    return true;
 }

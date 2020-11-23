@@ -9,6 +9,7 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/specialize_function.hpp>
 
@@ -76,7 +77,7 @@ OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &node
 }
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                                                                                                element::Type_t convertType) {
+                                                           const std::vector<ngraph::element::Type_t> convertType) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -108,20 +109,25 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
 
     auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     const auto &results = function->get_results();
-    for (size_t i = 0; i <results.size(); ++i) {
+    for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());
     }
 
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
     auto outputs = std::vector<std::vector<std::uint8_t>>(results.size());
-    for (const auto &result : results) {
-        const auto &resultIndex = function->get_result_index(result);
-        auto &output = outputs[resultIndex];
-        output.resize(shape_size(result->get_shape()) * result->get_element_type().size());
+    for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
+        auto& output = outputs[resultIndex];
+        const auto& outputTensor = outputTensors[resultIndex];
+        output.resize(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().size());
         outputTensors[resultIndex]->read(output.data(), output.size());
-        if (convertType != element::Type_t::undefined)
-            output = convertOutputPrecision(output, result->get_element_type(), convertType, shape_size(result->get_shape()));
+        if (!convertType.empty() && convertType[resultIndex] != element::Type_t::undefined &&
+                outputTensor->get_element_type() != element::Type(convertType[resultIndex]))
+            output = convertOutputPrecision(
+                output,
+                outputTensor->get_element_type(),
+                convertType[resultIndex],
+                shape_size(outputTensors[resultIndex]->get_shape()));
     }
 
     return outputs;
@@ -155,7 +161,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
     return foldedFunc;
 }
 
-std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function, element::Type_t convertType) {
+std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function, std::vector<ngraph::element::Type_t> convertType) {
     size_t numOutputs = function->get_output_size();
     auto outputs = std::vector<std::vector<std::uint8_t>>(numOutputs);
     for (size_t i = 0; i < numOutputs; i++) {
@@ -169,15 +175,13 @@ std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Functi
         const auto dataSize = shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
         outputs[i].resize(dataSize);
         std::copy(data, data + dataSize, outputs[i].data());
-        if (convertType != element::Type_t::undefined)
-            outputs[i] = convertOutputPrecision(outputs[i], parrentNode->get_element_type(), convertType, shape_size(parrentNode->get_shape()));
+        if (!convertType.empty() && convertType[i] != element::Type_t::undefined && parrentNode->get_element_type() != element::Type(convertType[i]))
+            outputs[i] = convertOutputPrecision(outputs[i], parrentNode->get_element_type(), convertType[i], shape_size(parrentNode->get_shape()));
     }
     return outputs;
 }
 
 namespace {
-
-using ComparingNodesPair = std::pair<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>;
 
 std::string toString(const NodeTypeInfo& typeInfo) {
     return std::string(typeInfo.name) + " ver. " + std::to_string(typeInfo.version);
@@ -195,34 +199,38 @@ void CompareNodes(const Node& actual, const Node& expected) {
     const auto& numActualInputs = actual.inputs().size();
     const auto& numExpectedInputs = expected.inputs().size();
     NGRAPH_CHECK(numActualInputs == numExpectedInputs, "Functions compare: numbers of inputs are different: ", numActualInputs, " and ", numExpectedInputs);
+
+    const auto& numActualOutputs = actual.outputs().size();
+    const auto& numExpectedOutputs = expected.outputs().size();
+    NGRAPH_CHECK(numActualOutputs == numExpectedOutputs, "Functions compare: numbers of outputs are different: ",
+                 numActualOutputs, " and ", numExpectedOutputs);
 }
 
 }  // namespace
 
 void CompareFunctions(const Function& actual, const Function& expected) {
-    const auto& actualResults = actual.get_results();
-    NGRAPH_CHECK(actualResults.size() == 1, "Got ", actualResults.size(), " outputs for function, but only single output functions are supported");
-    const auto& actualResult = actualResults.front();
+    const auto& actualOrderedOps = actual.get_ordered_ops();
+    const auto& expectedOrderedOps = expected.get_ordered_ops();
 
-    const auto& expectedResults = expected.get_results();
-    NGRAPH_CHECK(expectedResults.size() == 1, "Got ", expectedResults.size(), " outputs for function, but only single output functions are supported");
-    const auto& expectedResult = expectedResults.front();
+    NGRAPH_CHECK(expectedOrderedOps.size() == actualOrderedOps.size(),
+                 "Functions compare: expected and actual ops number should be equal "
+                 "but got ", expectedOrderedOps.size(), " and ", actualOrderedOps.size(), " respectively");
 
-    std::queue<ComparingNodesPair> nodes;
-    nodes.emplace(actualResult, expectedResult);
-    while (!nodes.empty()) {
-        const auto actualNode   = nodes.front().first;
-        const auto expectedNode = nodes.front().second;
-        nodes.pop();
+    for (std::size_t i = 0; i < expectedOrderedOps.size(); i++) {
+        const auto& expectedOp = expectedOrderedOps[i];
+        const auto& actualOp = actualOrderedOps[i];
 
-        CompareNodes(*actualNode, *expectedNode);
-
-        for (std::size_t i = 0; i < actualNode->inputs().size(); ++i) {
-            const auto& actualShape = actualNode->input(i).get_partial_shape();
-            const auto& expectedShape = expectedNode->input(i).get_partial_shape();
+        CompareNodes(*actualOp, *expectedOp);
+        for (std::size_t i = 0; i < actualOp->inputs().size(); ++i) {
+            const auto& actualShape = actualOp->input(i).get_partial_shape();
+            const auto& expectedShape = expectedOp->input(i).get_partial_shape();
             CompareShapes(actualShape, expectedShape);
+        }
 
-            nodes.emplace(actualNode->input_value(i).get_node_shared_ptr(), expectedNode->input_value(i).get_node_shared_ptr());
+        for (std::size_t i = 0; i < actualOp->outputs().size(); ++i) {
+            const auto& actualShape = actualOp->output(i).get_partial_shape();
+            const auto& expectedShape = expectedOp->output(i).get_partial_shape();
+            CompareShapes(actualShape, expectedShape);
         }
     }
 }
@@ -246,6 +254,17 @@ std::vector<std::uint8_t> convertPrecision(std::vector<std::uint8_t> &buffer, co
     for (size_t i = 0; i < elementsCount; i++)
         dst[i] = static_cast<toPrec>(src[i]);
     return convertedData;
+}
+
+bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func) {
+    const auto& ops = func->get_ops();
+    for (const auto& node : ops) {
+        const auto& ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(node);
+        if (ti) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &output, const element::Type_t &fromPrecision, const element::Type_t &toPrecision,
@@ -506,28 +525,28 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
         case element::Type_t::boolean: {
             switch (toPrecision) {
             case element::Type_t::u8: {
-                return convertPrecision<bool, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::u16: {
-                return convertPrecision<bool, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::i8: {
-                return convertPrecision<bool, int8_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, int8_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::i16: {
-                return convertPrecision<bool, int16_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, int16_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::i32: {
-                return convertPrecision<bool, int32_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, int32_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::i64: {
-                return convertPrecision<bool, int64_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, int64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::f32: {
-                return convertPrecision<bool, float>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, float>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::u64: {
-                return convertPrecision<bool, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
@@ -561,6 +580,9 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) 
             break;
         case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
             os << "FloorMod";
+            break;
+        case ngraph::helpers::EltwiseTypes::MOD:
+            os << "Mod";
             break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
@@ -722,5 +744,44 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCa
     return os;
 }
 
+std::ostream& operator<<(std::ostream & os, TensorIteratorBody type) {
+    switch (type) {
+        case TensorIteratorBody::LSTM:
+            os << "LSTM";
+            break;
+        case TensorIteratorBody::RNN:
+            os << "RNN";
+            break;
+        case TensorIteratorBody::GRU:
+            os << "GRU";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, SequenceTestsMode type) {
+    switch (type) {
+        case SequenceTestsMode::PURE_SEQ:
+            os << "PURE_SEQ";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM:
+            os << "CONVERT_TO_TI_RAND_SEQ_LEN_PARAM";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST:
+            os << "CONVERT_TO_TI_RAND_SEQ_LEN_CONST";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM:
+            os << "CONVERT_TO_TI_MAX_SEQ_LEN_PARAM";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST:
+            os << "CONVERT_TO_TI_MAX_SEQ_LEN_CONST";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
 }  // namespace helpers
 }  // namespace ngraph

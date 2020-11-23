@@ -137,8 +137,8 @@ TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
     auto quantParams = getInjectedData<QuantizedLayerParams>(affineLayerPtr);
 
 
-    ASSERT_FLOAT_EQ(quantParams->_dst_quant.scale, 100);
-    ASSERT_FLOAT_EQ(quantParams->_weights_quant.scale, 100);
+    ASSERT_FLOAT_EQ(quantParams->_dst_quant.GetScale(), 100);
+    ASSERT_FLOAT_EQ(quantParams->_weights_quant.GetScale(), 100);
 }
 
 TEST_F(I16QuantisationTest, OnlyAffine_NoActivationInsertion) {

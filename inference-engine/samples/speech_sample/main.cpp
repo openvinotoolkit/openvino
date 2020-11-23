@@ -702,7 +702,7 @@ int main(int argc, char *argv[]) {
                 outputs.push_back(outBlobName.substr(0, pos_layer));
                 try {
                     ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1)));
-                } catch (std::exception) {
+                } catch (const std::exception &) {
                     throw std::logic_error("Ports should have integer type");
                 }
             }
@@ -845,7 +845,7 @@ int main(int argc, char *argv[]) {
             ptrUtterances.resize(inputArkFiles.size());
 
             // initialize memory state before starting
-            for (auto &&state : executableNet.QueryState()) {
+            for (auto &&state : inferRequests.begin()->inferRequest.QueryState()) {
                 state.Reset();
             }
 
@@ -857,7 +857,10 @@ int main(int argc, char *argv[]) {
 
                 uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0),
                         numBytesReferenceScoreThisUtterance(0);
-                const uint32_t numScoresPerFrame = ptrOutputBlob.size() / batchSize;
+                auto dims = outputs.empty() ? cOutputInfo.rbegin()->second->getDims() : cOutputInfo[outputs[next_output]]->getDims();
+                const auto numScoresPerFrame = std::accumulate(std::begin(dims), std::end(dims), size_t{1}, std::multiplies<size_t>());
+
+                slog::info << "Number scores per frame : " << numScoresPerFrame << slog::endl;
 
                 numFrameElementsInput.resize(numInputArkFiles);
                 for (size_t i = 0; i < inputArkFiles.size(); i++) {
@@ -1077,7 +1080,7 @@ int main(int argc, char *argv[]) {
                 totalTime += d.count();
 
                 // resetting state between utterances
-                for (auto &&state : executableNet.QueryState()) {
+                for (auto &&state : inferRequests.begin()->inferRequest.QueryState()) {
                     state.Reset();
                 }
 

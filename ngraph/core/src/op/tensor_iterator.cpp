@@ -114,7 +114,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
         {
             auto body_parameter =
                 m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.is_static())
             {
@@ -126,40 +125,17 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 auto start = make_positive(slice_input_description->m_start, dim_size);
                 auto end = make_positive(slice_input_description->m_end, dim_size);
 
-                if (m_num_iterations == -1)
-                {
-                    // +1 because the left and right borders are included [start, end]
-                    m_num_iterations = (abs(end - start) + 1) / part_size;
-                }
-                else
-                {
-                    NODE_VALIDATION_CHECK(this,
-                                          m_num_iterations == (abs(end - start) + 1) / part_size,
-                                          "Number of slices not the same");
-                }
-
-                if (body_param_partial_shape.is_static())
-                {
-                    // validate
-                    auto body_param_shape = body_param_partial_shape.to_shape();
-                    for (auto i = 0; i < input_shape.size(); i++)
-                    {
-                        if (i != axis)
-                        {
-                            NODE_VALIDATION_CHECK(
-                                this,
-                                input_shape[i] == body_param_shape[i],
-                                "Iterator input is not compatible with body param");
-                        }
-                    }
-                }
-                else
-                {
-                    // infer type for m_body_parameter
-                    Shape out_shape{input_shape};
-                    out_shape[axis] = part_size;
-                    body_parameter->set_partial_shape(out_shape);
-                }
+                // +1 because the left and right borders are included [start, end]
+                m_num_iterations = (abs(end - start) + 1) / part_size;
+                // infer type for m_body_parameter
+                Shape out_shape{input_shape};
+                out_shape[axis] = part_size;
+                body_parameter->set_partial_shape(out_shape);
+            }
+            else
+            {
+                body_parameter->set_partial_shape(
+                    PartialShape::dynamic(input_partial_shape.rank()));
             }
         }
         else if (auto merged_input_description =
@@ -175,22 +151,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  body_value_partial_shape.compatible(body_param_partial_shape),
-                                  "Iterator successive value is not compatible with body param");
-            NODE_VALIDATION_CHECK(this,
-                                  input_partial_shape.compatible(body_param_partial_shape),
-                                  "Iterator initial value is not compatible with body param");
-
-            if (input_partial_shape.is_static())
-            {
-                auto input_shape = input_partial_shape.to_shape();
-                // infer type for body_parameter
-                if (body_param_partial_shape.is_dynamic())
-                {
-                    body_parameter->set_partial_shape(input_shape);
-                }
-            }
+            body_parameter->set_partial_shape(input_partial_shape);
         }
         else if (auto invariant_input_description =
                      as_type_ptr<InvariantInputDescription>(input_description))
@@ -203,16 +164,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
             NODE_VALIDATION_CHECK(this,
                                   input_partial_shape.compatible(body_param_partial_shape),
                                   "Iterator initial value is not compatible with body param");
-
-            if (input_partial_shape.is_static())
-            {
-                auto input_shape = input_partial_shape.to_shape();
-                // infer type for m_body_parameter
-                if (body_param_partial_shape.is_dynamic())
-                {
-                    body_parameter->set_partial_shape(input_shape);
-                }
-            }
+            body_parameter->set_partial_shape(input_partial_shape);
         }
     }
 
@@ -260,6 +212,12 @@ void op::v0::TensorIterator::validate_and_infer_types()
                     out_shape[axis] = m_num_iterations * part_size;
                     set_output_type(index, body_value.get_element_type(), out_shape);
                 }
+            }
+            else
+            {
+                set_output_type(index,
+                                body_value.get_element_type(),
+                                PartialShape::dynamic(body_value.get_partial_shape().rank()));
             }
         }
         else if (auto body_output_description =
@@ -316,10 +274,12 @@ std::shared_ptr<Node>
     }
 
     op->m_num_iterations = m_num_iterations;
-    auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
+    auto func = std::make_shared<Function>(
+        m_body->get_results(), m_body->get_sinks(), m_body->get_parameters());
     auto spec_func =
         specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
-    op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_parameters());
+    op->m_body = std::make_shared<Function>(
+        spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions)
     {

@@ -22,7 +22,8 @@ from openvino.inference_engine import IECore, IENetwork
 
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, Node, PartialShape
-from ngraph.utils.types import NumericData, get_shape
+from ngraph.utils.types import NumericData, get_shape, get_dtype
+
 import tests
 
 log = logging.getLogger(__name__)
@@ -36,6 +37,12 @@ def runtime(backend_name: str = "CPU") -> "Runtime":
 def get_runtime():
     """Return runtime object."""
     return runtime(backend_name=tests.BACKEND_NAME)
+
+
+def convert_i64_to_i32(cnn_network: IENetwork) -> None:
+    for cnn_input in cnn_network.input_info:
+        if cnn_network.input_info[cnn_input].precision == "I64":
+            cnn_network.input_info[cnn_input].precision = "I32"
 
 
 class Runtime(object):
@@ -98,6 +105,8 @@ class Computation(object):
             cnn_network = IENetwork(capsule)
             if self.function.is_dynamic():
                 cnn_network.reshape(dict(zip(param_names, input_shapes)))
+            # Convert inputs of the network from I64 to I32
+            convert_i64_to_i32(cnn_network)
             self.network_cache[str(input_shapes)] = cnn_network
         else:
             cnn_network = self.network_cache[str(input_shapes)]
@@ -121,4 +130,10 @@ class Computation(object):
 
         request = executable_network.requests[0]
         request.infer(dict(zip(param_names, input_values)))
-        return [blob.buffer for blob in request.output_blobs.values()]
+
+        # Since OV overwrite result data type we have to convert results to the original one.
+        original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
+        result_buffers = [blob.buffer for blob in request.output_blobs.values()]
+        converted_buffers = [buffer.astype(original_dtype) for buffer, original_dtype in
+                             zip(result_buffers, original_dtypes)]
+        return converted_buffers

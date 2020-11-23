@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::AlgebraicSimplification, "AlgebraicSimplification", 0);
+
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
 static bool simplify_gather(std::shared_ptr<Node> node) {
@@ -151,7 +153,7 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
         return false;
     }
 
-    const auto input_shape_rank = input_shape.rank().get_length();
+    const size_t input_shape_rank = input_shape.rank().get_length();
 
     auto order = as_type_ptr<opset3::Constant>(transpose->input_value(1).get_node_shared_ptr());
     if (!order || !ngraph::shape_size(order->get_shape())) {

@@ -185,7 +185,7 @@ if (ENABLE_OPENCV)
     set(OPENCV_BUILD "36")
     set(OPENCV_BUILD_YOCTO "337")
 
-    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    if (AARCH64)
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
             set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
         elseif(DEFINED THIRDPARTY_SERVER_PATH)
@@ -220,13 +220,15 @@ if (ENABLE_OPENCV)
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
         elseif(LINUX)
-            if (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+            if (AARCH64)
                 set(OPENCV_SUFFIX "yocto_kmb")
                 set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
-            elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
+            elseif (ARM)
                 set(OPENCV_SUFFIX "debian9arm")
             elseif (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 set(OPENCV_SUFFIX "centos7")
+            elseif (LINUX_OS_NAME MATCHES "CentOS 8")
+                set(OPENCV_SUFFIX "centos8")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04")
                 set(OPENCV_SUFFIX "ubuntu16")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04")
@@ -234,7 +236,7 @@ if (ENABLE_OPENCV)
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
                 set(OPENCV_SUFFIX "ubuntu20")
             else()
-                message(FATAL_ERROR "OpenCV is not available on current platform")
+                message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
             RESOLVE_DEPENDENCY(OPENCV
                     ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
@@ -306,22 +308,22 @@ if (ENABLE_SPEECH_DEMO)
     if(DEFINED IE_PATH_TO_DEPS)
         if (WIN32 AND X86_64)
             RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_WIN "speech_demo_1.0.0.751_windows.zip"
+                    ARCHIVE_WIN "speech_demo_1.0.0.754_windows.zip"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.746")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754")
             debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
         elseif (LINUX AND X86_64)
             if (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.751_centos.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.754_centos.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.746")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             else()
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.751_linux.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.754_linux.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.746")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             endif()
         else()

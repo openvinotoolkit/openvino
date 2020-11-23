@@ -72,6 +72,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const
                     });
         if (!allSupportsNgraph) {
             auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
+            IE_ASSERT(cnnNetworkImpl != nullptr);
             return std::make_shared<HeteroExecutableNetwork>(
                 *cnnNetworkImpl, mergeConfigs(_config, config), this);
         } else {
