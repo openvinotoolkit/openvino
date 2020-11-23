@@ -4302,12 +4302,14 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
 
     auto inputLayout = layer->insData[0].lock()->getTensorDesc().getLayout();
     auto outDims = layer->outData[0]->getTensorDesc().getDims();
+    auto outLayout = layer->outData[0]->getTensorDesc().getLayout();
 
     auto gatherPrim = cldnn::gather(
         gatherLayerName,
         reorderedInputs[0],
         reorderedInputs[1],
         cldnnAxisFromIE(axis, FormatFromLayout(inputLayout)),
+        FormatFromLayout(outLayout),
         CldnnTensorFromIEDims(outDims));
 
     topology.add(gatherPrim);
