@@ -41,16 +41,12 @@ namespace ngraph
                 ///
                 /// \param element_type The element type of the parameter.
                 /// \param pshape The partial shape of the parameter.
-                /// \param cacheable True if the parameter is not expected to be frequently updated.
-                Parameter(const ngraph::element::Type& element_type,
-                          const PartialShape& pshape,
-                          const bool cacheable = false);
+                Parameter(const ngraph::element::Type& element_type, const PartialShape& pshape);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
 
-                bool get_cacheable() const { return m_cacheable; }
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -70,7 +66,6 @@ namespace ngraph
                 }
 
             protected:
-                bool m_cacheable;
                 PartialShape m_partial_shape;
                 element::Type m_element_type;
                 bool m_is_relevant_to_shapes;
