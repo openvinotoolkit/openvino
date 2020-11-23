@@ -18,6 +18,7 @@ import logging as log
 import numpy as np
 from typing import Optional
 
+from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
@@ -98,7 +99,10 @@ def replace_interpolate_pattern(graph: Graph, match: dict):
                                                      })
     shape_node.out_port(0).connect(strided_slice_node.in_port(0))
 
-    strided_slice_node.out_port(0).connect(mul_node.in_port(0))
+    cast_shape_to_float = Cast(graph, {'dst_type': np.float32}).create_node()
+
+    strided_slice_node.out_port(0).connect(cast_shape_to_float.in_port(0))
+    cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
 
     interp_node = Interpolate(graph,
                               dict(name=split_node_name + '/Interpolate_',
