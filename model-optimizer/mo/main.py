@@ -251,9 +251,10 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
 
         orig_model_name = os.path.join(output_dir, argv.model_name)
-        from openvino.inference_engine import IECore
+        from openvino.inference_engine import IECore, ApplyMOCTransformations
         ie = IECore()
         net = ie.read_network(model=orig_model_name + ".xml", weights=orig_model_name + ".bin")
+        ApplyMOCTransformations(net)
         net.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
 
         print('\n[ SUCCESS ] Serialize-Read-Serialize')
