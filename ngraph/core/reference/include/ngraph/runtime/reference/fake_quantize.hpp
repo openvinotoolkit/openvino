@@ -43,13 +43,13 @@ namespace ngraph
                         {
                             broadcast_offsets[i] = memory_offsets[i];
                         }
-                        else
-                        {
-                            broadcast_offsets[i] = std::accumulate(broadcast_offsets.begin() + i,
-                                                                   broadcast_offsets.end(),
-                                                                   0,
-                                                                   std::plus<size_t>());
-                        }
+//                        else
+//                        {
+//                            broadcast_offsets[i] = std::accumulate(broadcast_offsets.begin() + i,
+//                                                                   broadcast_offsets.end(),
+//                                                                   0,
+//                                                                   std::plus<size_t>());
+//                        }
                     }
                     if (!std::all_of(broadcast_shape.begin(),
                                      broadcast_shape.end(),
@@ -57,6 +57,13 @@ namespace ngraph
                         broadcast_shape.back() == 1)
                     {
                         broadcast_offsets[broadcast_offsets.size() - 1] = 1;
+                    }
+                    for (int i = broadcast_shape.size() - 1; i >= 0; --i)
+                    {
+                        if (broadcast_shape[i] != 1) {
+                            broadcast_offsets[i] = memory_offsets[i] - 1;
+                            break;
+                        }
                     }
                     return broadcast_offsets;
                 }
@@ -115,6 +122,15 @@ namespace ngraph
                 Shape in_high_shape(_in_high_shape);
                 Shape out_low_shape(_out_low_shape);
                 Shape out_high_shape(_out_high_shape);
+
+                if (in_low_shape.size() > arg_shape.size() ||
+                    in_high_shape.size() > arg_shape.size() ||
+                    out_low_shape.size() > arg_shape.size() ||
+                    out_high_shape.size() > arg_shape.size()) {
+                    throw std::runtime_error(std::string("Tensors with inout\\output ranges should have rank less or "
+                                                         "equal to data tensor rank equal to ") + std::to_string(arg_shape.size()));
+                }
+
                 std::vector<size_t> arg_memory_offsets(arg_shape.size(), 0);
                 for (int i = arg_shape.size() - 2; i >= 0; i--)
                 {
