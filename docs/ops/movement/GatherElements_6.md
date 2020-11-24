@@ -11,8 +11,7 @@ and `indices` tensors have the same rank `r >= 1`. Optional attribute `axis` (by
 along which axis elements with indices specified in `indices` are taken. `indices` tensor has the same shape as `data` 
 except for `axis` dimension. Output consists of values (gathered from the `data`) for each element in `indices` 
 and has the same shape as `indices`. Operation can be expressed through GatherND-5 from opset but in this case execution 
-will be slower. (in this case additional memory will be used and additional memory access operations also will slow 
-down execution).
+will be slower.
 
 For instance, in the 3D case (`r = 3`), the output is determined by the following equations:
 ```
