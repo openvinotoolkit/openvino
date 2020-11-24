@@ -15,14 +15,14 @@ include(dependency_solver)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma248x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "def0aaa1b054a132facc82f831d9b67527186a6ef042bbb1d911afcbc0280c82"
-    "28bf22df4e906620bb9dd669bfe5334ae0a1ac3565d9d47f7a894ac057c9c408")
+    "67f91ad33170ac6304772f8f7bbb9ea92bf41a86c080980644a12f66a5ef956c"
+    "bfb1b2e465e4b3c7d003a54f2d910c872a042c5b09e77a0fb12913fe253d53ae")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1492)
+set(FIRMWARE_PACKAGE_VERSION 1508)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
