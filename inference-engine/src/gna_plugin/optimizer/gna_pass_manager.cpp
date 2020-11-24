@@ -781,7 +781,7 @@ void InsertIdentityLayerPass::run() {
 void InsertCopyLayerPass::run() {
     // Copy layer insertion happens in few cases:
     // Crop output goes to concat layer -> copy layer insertion
-    // Concat layer goes to memory layer -> delayed copy layer insertion
+    // Concat|Split|Crop layer goes to memory layer -> delayed copy layer insertion
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
     // and copies before concay layers (one less copy than outputs)
     for (auto & l : *pLayers) {
@@ -799,14 +799,14 @@ void InsertCopyLayerPass::run() {
                     auto current_layer = original_child;
                     size_t input_idx = CNNLayerFindInsDataIdxes(output, original_child)[0];
 
-                    while (LayerInfo(current_layer).isNonFunctional() || LayerInfo(current_layer).isSplit()) {
+                    while (LayerInfo(current_layer).isNonFunctional()) {
                         if (current_layer->outData.size() == 0) break;
                         if (getInputTo(current_layer->outData[0]).size() == 0) break;
                         current_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
                     }
 
-                    if (LayerInfo(l).isConcat() && LayerInfo(current_layer).isMemory()) {
-                        // Concat -> Memory case
+                    if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isMemory()) {
+                        // Concat|Split|Crop -> Memory case
                         delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
                     } else if (LayerInfo(l).isCrop() && LayerInfo(current_layer).isConcat()) {
                         // Crop -> Concat case
@@ -837,7 +837,7 @@ void InsertCopyLayerPass::run() {
                 auto previous_layer = l;
                 size_t input_idx = CNNLayerFindInsDataIdxes(output, current_layer)[0];
 
-                while (LayerInfo(current_layer).isNonFunctional() || LayerInfo(current_layer).isSplit()) {
+                while (LayerInfo(current_layer).isNonFunctional()) {
                     if (current_layer->outData.size() == 0) break;
                     if (getInputTo(current_layer->outData[0]).size() == 0) break;
                     previous_layer = current_layer;
