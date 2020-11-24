@@ -118,6 +118,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                 createConstInputTo(layer, shiftBlob, "biases");
             } else if (scalesBlob != nullptr) {
                 Blob::Ptr biases = make_shared_blob<float>(scalesBlob->getTensorDesc());
+                if (biases == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot make 'biases' shared blob";
                 biases->allocate();
                 auto biasesPtr = biases->buffer().as<float*>();
                 for (size_t i = 0; i < biases->size(); i++)
