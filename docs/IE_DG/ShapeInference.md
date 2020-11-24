@@ -33,14 +33,14 @@ OpenVINO™ provides the following methods for runtime model reshaping:
    > - If an ONNX model does not have a fully defined input shape and the model was imported with the ONNX importer, reshape the model before loading it to the plugin.
 * **Set a new batch dimension value** with the `InferenceEngine::CNNNetwork::setBatchSize` method.<br>     
    The meaning of a model batch may vary depending on the model design.
-   Batch dimension assumed to be placed on the 0 index for all inputs of the model.
+   Batch dimension is usually placed at the 0 index of all inputs of the model.
    This method does not work for models with a non-zero index batch placement or models with inputs without a batch dimension. 
-   The `InferenceEngine::CNNNetwork::setBatchSize` method transforms the model before new shape propagation to relax hard-coded batch dimension in the model if any.
+   The method transforms the model before a new shape propagation to relax a hard-coded batch dimension in the model, if any.
 
-You can change input shapes of a model multiple times using `InferenceEngine::CNNNetwork::reshape` and `InferenceEngine::CNNNetwork::setBatchSize` methods in any order.
-If a model has hard-coded batch dimension, use `InferenceEngine::CNNNetwork::setBatchSize` first to change the batch and then call `InferenceEngine::CNNNetwork::reshape` to update other dimensions if needed.
+To change input shapes multiple times, use the `InferenceEngine::CNNNetwork::reshape` and `InferenceEngine::CNNNetwork::setBatchSize` methods in any order.
+If a model has a hard-coded batch dimension, use `InferenceEngine::CNNNetwork::setBatchSize` first to change the batch, then call `InferenceEngine::CNNNetwork::reshape` to update other dimensions, if needed.
 
-Once input shape of the `InferenceEngine::CNNNetwork` is set call `InferenceEngine::Core::LoadNetwork` method to get `InferenceEngine::ExecutableNetwork` object for inference with updated shapes.
+Once the input shape of `InferenceEngine::CNNNetwork` is set, call the `InferenceEngine::Core::LoadNetwork` method to get an `InferenceEngine::ExecutableNetwork` object for inference with updated shapes.
 
 There are other approaches to reshape the model during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](../nGraph_DG/build_function.md).
 
