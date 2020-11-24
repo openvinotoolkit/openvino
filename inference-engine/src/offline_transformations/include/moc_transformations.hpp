@@ -14,6 +14,26 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <transformations/common_optimizations/normalize_l2_fusion.hpp>
+#include <transformations/common_optimizations/hsigmoid_fusion.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/common_optimizations/remove_filtering_boxes_by_size.hpp>
+#include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
+#include <transformations/common_optimizations/optimize_strided_slice.hpp>
+#include <transformations/common_optimizations/algebraic_simplification.hpp>
+#include <transformations/common_optimizations/nop_elimination.hpp>
+#include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
+#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
+#include <transformations/common_optimizations/mish_fusion.hpp>
+#include <transformations/common_optimizations/softplus_fusion.hpp>
+#include <transformations/common_optimizations/softplus_to_mish_fusion.hpp>
+#include <transformations/common_optimizations/swish_fusion.hpp>
+#include <transformations/common_optimizations/hswish_fusion.hpp>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
+#include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 
 //namespace ngraph {
 //namespace pass {
@@ -30,14 +50,50 @@ public:
     explicit MOCTransformations(bool cf) : m_cf(cf) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
-        std::cout << "Hello MOC!" << std::endl;
+        std::cout << "Hello MOC! " << (m_cf ? "CF enabled" : "CF disabled") << std::endl;
         ngraph::pass::Manager manager(get_pass_config());
-        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        auto pass_config = manager.get_pass_config();
         if (!m_cf) {
-            auto pass_config = manager.get_pass_config();
             pass_config->disable<ngraph::pass::ConstantFolding>();
         }
+
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
+        manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
+        manager.register_pass<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
+        manager.register_pass<ngraph::pass::NopElimination>(); // may introduce fake dynamism
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
+        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.register_pass<ngraph::pass::MishFusion>();
+        manager.register_pass<ngraph::pass::SoftPlusFusion>();
+        manager.register_pass<ngraph::pass::SoftPlusToMishFusion>();
+        manager.register_pass<ngraph::pass::SwishFusion>();
+        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+
+        manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+
+        auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+        conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+        conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+        conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+        conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+        conv_fusions->set_name("ngraph::pass::ConvFusions");
+
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+
+        auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+        fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
+        fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
+        fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
+        fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
         manager.run_passes(f);
+
         return true;
     }
 };
