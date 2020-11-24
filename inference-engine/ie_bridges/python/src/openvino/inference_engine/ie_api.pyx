@@ -56,8 +56,8 @@ cdef c_map_to_dict(map[string, string] c_map):
 def get_version():
     return C.get_version().decode()
 
-def ApplyMOCTransformations(IENetwork network):
-    C.ApplyMOCTransformations(network.impl)
+def ApplyMOCTransformations(IENetwork network, bool cf):
+    C.ApplyMOCTransformations(network.impl, cf)
 
 ## This class defines Tensor description
 cdef class TensorDesc:
