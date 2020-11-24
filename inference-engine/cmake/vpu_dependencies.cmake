@@ -6,8 +6,8 @@ include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "ed5a91aba906485b5159ba646a1b38d22ecc891d00912741a6ae9185ed4ddbfa"
-    "ea1e10b93b8c49999d95add29b302b6a657e94190ffc8b9a6ec499de2bc99465")
+    "67f91ad33170ac6304772f8f7bbb9ea92bf41a86c080980644a12f66a5ef956c"
+    "bfb1b2e465e4b3c7d003a54f2d910c872a042c5b09e77a0fb12913fe253d53ae")
 
 #
 # Default packages
