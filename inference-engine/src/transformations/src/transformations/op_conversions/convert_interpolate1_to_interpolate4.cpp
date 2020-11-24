@@ -31,17 +31,11 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         } else if (interpolate_attrs.mode == "cubic") {
             mode_v4 = ngraph::op::v4::Interpolate::InterpolateMode::cubic;
         } else if (interpolate_attrs.mode == "linear") {
-            if (input_shape_rank < 5) {
-                mode_v4 = ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx;
-            } else if (input_shape_rank == 5) {
-                mode_v4 = ngraph::op::v4::Interpolate::InterpolateMode::linear;
-            } else {
-                return false;
-            }
+            mode_v4 = ngraph::op::v4::Interpolate::InterpolateMode::linear;
         } else {
             return false;
         }
-        auto nearest_mode_v4 = ngraph::op::v4::Interpolate::NearestMode::floor;
+        auto nearest_mode_v4 = ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor;
         auto shape_calculation_mode_v4 = ngraph::op::v4::Interpolate::ShapeCalcMode::sizes;
         auto coordinate_transformation_mode_v4 = interpolate_attrs.align_corners ? ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners :
                                                 ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric;

@@ -97,7 +97,7 @@ TEST(TransformationTests, ConvertInterpolate1ToInterpolate4_1) {
         auto default_scales_node = opset1::Constant::create(ngraph::element::f32, Shape{2}, {1.f, 1.f});
         auto axes_node = opset1::Constant::create(ngraph::element::i64, Shape{2}, {2, 3});
 
-        auto interpolate4_attr = opset4::Interpolate::InterpolateAttrs(opset4::Interpolate::InterpolateMode::linear_onnx,
+        auto interpolate4_attr = opset4::Interpolate::InterpolateAttrs(opset4::Interpolate::InterpolateMode::linear,
             opset4::Interpolate::ShapeCalcMode::sizes, std::vector<size_t>{0, 0, 0, 0}, std::vector<size_t>{0, 0, 0, 0},
             opset4::Interpolate::CoordinateTransformMode::align_corners, opset4::Interpolate::NearestMode::floor,
             false, -0.75);
