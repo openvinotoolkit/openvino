@@ -77,9 +77,12 @@ namespace ngraph
                 }
                 // TODO: Move all uses of get_autob to get_auto_broadcast() and remove this.
                 const AutoBroadcastSpec& get_autob() const override { return m_auto_broadcast; }
+                virtual bool evaluate(const HostTensorVector& output_values,
+                                      const HostTensorVector& input_values) const override;
+
             private:
                 AutoBroadcastSpec m_auto_broadcast;
             };
-        }
-    }
-}
+        } // namespace v1
+    } // namespace op
+} // namespace ngraph

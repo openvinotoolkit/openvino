@@ -447,49 +447,6 @@ TEST(provenance, fused_decomposition_tag)
     traverse_nodes(as_node_vector(decomposed_op->outputs()), tag_check, {p1});
 }
 
-TEST(provenance, topk_setk)
-{
-    auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{20, 3, 4});
-    p1->add_provenance_tag("P1");
-    auto tk = make_shared<op::TopK>(p1, 0, element::i32, 10);
-    tk->add_provenance_tag("TK");
-    auto tkc0 = tk->input_value(1).get_node_shared_ptr();
-    tkc0->add_provenance_tag("TKC0");
-    for (auto node : topological_sort(NodeVector{tk}))
-    {
-        if (node == p1)
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"P1"}));
-        }
-        else if (node == tkc0)
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"TK", "TKC0"}));
-        }
-        else
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"TK"}));
-        }
-    }
-    tk->set_k(5);
-    auto tkc1 = tk->input_value(1).get_node_shared_ptr();
-    tkc1->add_provenance_tag("TKC1");
-    for (auto node : topological_sort(NodeVector{tk}))
-    {
-        if (node == p1)
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"P1"}));
-        }
-        else if (node == tkc1)
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"TK", "TKC0", "TKC1"}));
-        }
-        else
-        {
-            EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"TK"}));
-        }
-    }
-}
-
 TEST(provenance, empty_group)
 {
     auto p1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});

@@ -132,6 +132,13 @@ public:
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void>& adapter) override;
 
+    void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void*>& adapter) override {
+        if (std::string(node->get_type_name()) != "Constant") {
+            const auto data_beg = static_cast<char*>(adapter.get_ptr());
+            params[name] = std::string(data_beg, adapter.size()); 
+        }
+    }
+
 private:
     std::shared_ptr<::ngraph::Node> node;
     std::map<std::string, std::string> params;
@@ -353,14 +360,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["input"] = Builder::asString(weights_shape[1]);
         res->params["pad_value"] = Builder::asString(castedLayer->get_pad_value());
 
-        Builder::NodeConverter<::ngraph::op::Constant> converter;
-
         const auto weightsNode = castedLayer->input(1).get_source_output().get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
+
         return res;
     });
 
@@ -439,20 +441,11 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         }
         res->params["kernel"] = kernel_value;
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr(); 
+        if (InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
             if (node->inputs().size() == 3) {
                 const auto biasNode = node->input_value(2).get_node_shared_ptr();
-                if (converter.canCreate(biasNode)) {
-                    const auto& bias = converter.createLayer(biasNode);
-                    res->blobs["biases"] = bias->blobs["custom"];
-                    res->_biases = bias->blobs["custom"];
-                }
+                InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
             }
         }
         return res;
@@ -504,20 +497,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                              details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<LSTMCell>(attrs);
         res->params = params;
-        Builder::NodeConverter<ngraph::op::Constant> converter;
         const auto weightsNode = node->input_value(3).get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         const auto biasNode = node->input_value(4).get_node_shared_ptr();
-        if (converter.canCreate(biasNode)) {
-            const auto& bias = converter.createLayer(biasNode);
-            res->blobs["biases"] = bias->blobs["custom"];
-            res->_biases = bias->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
+
         return res;
     });
 
@@ -528,20 +513,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<RNNCell>(attrs);
         res->params = params;
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
         const auto weightsNode = node->input_value(2).get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         const auto biasNode = node->input_value(3).get_node_shared_ptr();
-        if (converter.canCreate(biasNode)) {
-            const auto& bias = converter.createLayer(biasNode);
-            res->blobs["biases"] = bias->blobs["custom"];
-            res->_biases = bias->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
+
         return res;
     });
 
@@ -552,20 +529,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<GRUCell>(attrs);
         res->params = params;
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
         const auto weightsNode = node->input_value(2).get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         const auto biasNode = node->input_value(3).get_node_shared_ptr();
-        if (converter.canCreate(biasNode)) {
-            const auto& bias = converter.createLayer(biasNode);
-            res->blobs["biases"] = bias->blobs["custom"];
-            res->_biases = bias->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
+ 
         return res;
     });
 
@@ -653,6 +622,83 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     });
 
+    addSpecificCreator({"NonMaxSuppressionIE3"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression",
+            details::convertPrecision(node->get_output_element_type(0))};
+
+        auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::NonMaxSuppressionIE3>(node);
+        IE_ASSERT(castedLayer) << " Operation " << node->description() << " with name "
+            << node->get_friendly_name() << " cannot be casted to ngraph::op::NonMaxSuppressionIE3";
+
+        auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
+        res->params = params;
+
+        res->params["center_point_box"] = castedLayer->m_center_point_box ? "true" : "false";
+        res->params["sort_result_descending"] = castedLayer->m_sort_result_descending ? "true" : "false";
+
+        auto output_type = details::convertPrecision(castedLayer->m_output_type);
+        std::string output_type_str;
+        switch (output_type) {
+        case Precision::I32:
+            output_type_str = "I32";
+            break;
+        case Precision::I64:
+            output_type_str = "I64";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Unsupported output type";
+        }
+        res->params["output_type"] = output_type_str;
+
+        return res;
+    });
+
+    addSpecificCreator({"NonMaxSuppression"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression",
+            details::convertPrecision(node->get_output_element_type(0))};
+
+        auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::v5::NonMaxSuppression>(node);
+        IE_ASSERT(castedLayer) << " Operation " << node->description() << " with name "
+            << node->get_friendly_name() << " cannot be casted to ngraph::op::v5::NonMaxSuppression";
+
+        auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
+        res->params = params;
+
+        auto box_encoding = castedLayer->get_box_encoding();
+        switch (box_encoding) {
+            case ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CORNER:
+                res->params["center_point_box"] = "false";
+                break;
+            case ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER:
+                res->params["center_point_box"] = "true";
+                break;
+            default:
+                THROW_IE_EXCEPTION << "Unsupported box encoding for NonMaxSuppression op";
+                break;
+        }
+
+        auto output_type = details::convertPrecision(castedLayer->get_output_type());
+        std::string output_type_str;
+        switch (output_type) {
+        case Precision::I32:
+            output_type_str = "I32";
+            break;
+        case Precision::I64:
+            output_type_str = "I64";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Unsupported output type";
+        }
+        res->params["output_type"] = output_type_str;
+
+        bool sort_result_descending = castedLayer->get_sort_result_descending();
+        res->params["sort_result_descending"] = sort_result_descending ? "true" : "false";
+
+        return res;
+    });
+
     addSpecificCreator({"NonMaxSuppressionIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                  const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression", details::convertPrecision(node->get_output_element_type(0))};
@@ -668,7 +714,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                              details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<RNNSequenceLayer>(attrs);
         res->params = params;
-
+        res->axis = std::stoi(res->params["axis"]);
         if (res->params["direction"] == "reverse")
             res->params["direction"] = "Backward";
         else if (res->params["direction"] == "forward")
@@ -681,20 +727,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->cellType = RNNSequenceLayer::CellType::GRU_LBR;
         }
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
         const auto weightsNode = node->input_value(3).get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         const auto biasNode = node->input_value(4).get_node_shared_ptr();
-        if (converter.canCreate(biasNode)) {
-            const auto& bias = converter.createLayer(biasNode);
-            res->blobs["biases"] = bias->blobs["custom"];
-            res->_biases = bias->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
+
         return res;
     });
 
@@ -707,7 +745,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
 
         res->cellType = RNNSequenceLayer::CellType::RNN;
-
+        res->axis = std::stoi(res->params["axis"]);
         if (res->params["direction"] == "reverse")
             res->params["direction"] = "Backward";
         else if (res->params["direction"] == "forward")
@@ -715,20 +753,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         else
             res->params["direction"] = "Bidirectional";
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
         const auto weightsNode = node->input_value(3).get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto& weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         const auto biasNode = node->input_value(4).get_node_shared_ptr();
-        if (converter.canCreate(biasNode)) {
-            const auto& bias = converter.createLayer(biasNode);
-            res->blobs["biases"] = bias->blobs["custom"];
-            res->_biases = bias->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
+
         return res;
     });
 
@@ -741,7 +771,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
 
         res->cellType = RNNSequenceLayer::CellType::LSTM;
-
+        res->axis = std::stoi(res->params["axis"]);
         if (res->params["direction"] == "reverse")
             res->params["direction"] = "Backward";
         else if (res->params["direction"] == "forward")
@@ -749,20 +779,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         else
             res->params["direction"] = "Bidirectional";
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
         const auto weightsNode = node->input_value(4).get_node_shared_ptr();
-        if (converter.canCreate(weightsNode)) {
-            const auto &weights = converter.createLayer(weightsNode);
-            res->blobs["weights"] = weights->blobs["custom"];
-            res->_weights = weights->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         const auto biasNode = node->input_value(5).get_node_shared_ptr();
-        if (converter.canCreate(biasNode)) {
-            const auto &bias = converter.createLayer(biasNode);
-            res->blobs["biases"] = bias->blobs["custom"];
-            res->_biases = bias->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
+
         return res;
     });
 
@@ -816,6 +838,17 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
         return res;
     });
+
+    addSpecificCreator({"Constant"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Const", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(node);
+        if (!res) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+
+        res->blobs["custom"] = InferenceEngine::details::shareWeights(castedLayer);
+
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -845,7 +878,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         const static std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Constant>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ConvolutionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Convert>>(),

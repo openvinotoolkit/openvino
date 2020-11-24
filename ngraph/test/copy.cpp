@@ -178,11 +178,6 @@ TEST(copy, divide)
     ASSERT_TRUE(check_binary<op::v1::Divide>());
 }
 
-TEST(copy, dot)
-{
-    ASSERT_TRUE(check_binary<op::Dot>());
-}
-
 TEST(copy, equal)
 {
     ASSERT_TRUE(check_binary<op::v1::Equal>());

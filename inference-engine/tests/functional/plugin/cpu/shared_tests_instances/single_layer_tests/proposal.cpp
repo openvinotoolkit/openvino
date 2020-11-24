@@ -24,7 +24,6 @@ const std::vector<clip_before_nms_type> clip_before_nms_ = {false};
 const std::vector<clip_after_nms_type> clip_after_nms_ = {false};
 
 // empty string corresponds to Caffe framework
-// Myriad plugin does not take this parameter; uses "" by default
 const std::vector<framework_type> framework_ = {""};
 
 const auto proposalParams = ::testing::Combine(
@@ -40,7 +39,7 @@ const auto proposalParams = ::testing::Combine(
         ::testing::ValuesIn(framework_)
 );
 
-INSTANTIATE_TEST_CASE_P(Proposal_tests, ProposalLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Proposal_tests, ProposalLayerTest,
                         ::testing::Combine(
                                 proposalParams,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),

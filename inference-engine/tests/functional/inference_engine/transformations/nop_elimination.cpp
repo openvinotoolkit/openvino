@@ -57,22 +57,6 @@ TEST(nop_elimination, convert_type_agnostic) {
     ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
 }
 
-TEST(nop_elimination, eliminate_strided_slice) {
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto begin_node = op::Constant::create(element::i64, {2}, {0, 0});
-    auto end_node = op::Constant::create(element::i64, {2}, {2, 2});
-    std::vector<int64_t> mask(2, 0);
-    auto s = make_shared<op::v1::StridedSlice>(A, begin_node, end_node, mask, mask);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(f), 0);
-}
-
 TEST(nop_elimination, eliminate_broadcast) {
     Shape shape{1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -258,8 +242,16 @@ TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination) {
         auto A = make_shared<op::Parameter>(element::f32, shape);
         shared_ptr<Node> A1;
         if (multiout) {
+            shared_ptr<Node> k;
             auto last_dim = shape.rank().get_length() - 1;
-            A1 = make_shared<op::v0::TopK>(A, last_dim, element::i32);
+            if (shape[last_dim].is_dynamic()) {
+                k = make_shared<op::v1::Gather>(make_shared<op::ShapeOf>(A),
+                                                op::Constant::create(element::i64, {}, {last_dim}),
+                                                op::Constant::create(element::i64, {}, {0}));
+            } else {
+                k = make_shared<op::Constant>(element::i64, Shape{}, std::vector<int64_t>{shape[last_dim].get_length()});
+            }
+            A1 = make_shared<op::v1::TopK>(A, k, last_dim, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         } else {
             A1 = make_shared<op::v0::Abs>(A);
         }
@@ -730,7 +722,7 @@ TEST(nop_elimination, topk_convert_elimination) {
     auto check_usecase = []() {
         auto A = make_shared<op::Parameter>(element::f32, Shape{20, 3, 4});
         auto A1 = make_shared<op::v0::Abs>(A);
-        auto B = make_shared<op::TopK>(A1, 0, element::i64, 10);
+        auto B = make_shared<op::v1::TopK>(A1, op::Constant::create(element::i64, {}, {10}), 0, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         auto C = make_shared<op::Convert>(B->output(0), B->output(0).get_element_type());
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(C), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);

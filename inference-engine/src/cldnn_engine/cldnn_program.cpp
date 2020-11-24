@@ -88,12 +88,6 @@
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
 
-#ifdef USE_CNNNETWORK_LPT
-#include "low_precision_transformations/transformer.hpp"
-#include "low_precision_transformations/fully_connected.hpp"
-#include "low_precision_transformations/gemm.hpp"
-#endif
-
 #include <iostream>
 #include <iomanip>
 #include "cldnn_common_utils.h"
@@ -412,54 +406,6 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         }
     }
 
-#ifdef USE_CNNNETWORK_LPT
-    bool allFQareSupported = true;
-    if (config.enableInt8) {
-        auto it = details::CNNNetworkIterator(&network);
-        auto end = details::CNNNetworkIterator();
-        while (it != end) {
-            auto& layer = *it;
-            if (layer->precision == Precision::FP16) {
-                baselineIsFP16 = true;
-            }
-
-            if (CaselessEq<std::string>()(layer->type, "FakeQuantize")) {
-                fqFound = true;
-                auto levels = layer->GetParamAsUInt("levels");
-                if (levels != 255 && levels != 256) {
-                    allFQareSupported = false;
-                }
-            }
-            it++;
-        }
-    }
-
-    if (config.enableInt8) {
-        auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                  true,  // quantizeOutputs
-                                                  true,  // weightsToConst
-                                                  LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                  LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                  true,  // roundQuantizedValues
-                                                  true,  // updateBiases
-                                                  true,   // supportAsymmetricQuantization
-                                                  {Precision::U8, Precision::I8},  // Precision on activations
-                                                  {Precision::I8});  // Precision on weights
-
-        auto transforms = LowPrecisionTransformer::getAllTransformations(params)
-                .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
-                .add<GemmTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
-
-        // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-        if (fqFound && allFQareSupported) {
-            NetPass::ConvertPrecision(network, Precision::FP16, Precision::FP32);
-        }
-
-        LowPrecisionTransformer transformer(transforms);
-        transformer.transform(network);
-    }
-#endif
-
     // [WA part2] Try to find non-quantized layers and convert them back to FP16
     if (config.enableInt8) {
         if (fqFound && baselineIsFP16 && config.enable_fp16_for_quantized_models) {
@@ -527,24 +473,6 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                 }
             }
         }
-    }
-
-    NetPass::CombineRNNSeq(network);
-    for (int i = 0; i < 2; i++) {
-        NetPass::UnrollTI(network);
-        NetPass::UnrollRNN_if(network, [](const RNNCellBase &rnn) -> bool {
-            if (rnn.clip != 0.0f)
-                return true;
-            if (rnn.type == "GRUCell" ||
-                rnn.type == "GRUSequence" ||
-                rnn.type == "RNNCell" ||
-                rnn.type == "RNNSequence")
-                return true;
-            if (!(rnn.type == "LSTMCell" || rnn.type == "LSTMSequence") ||
-                rnn.activations == std::vector<std::string>{"sigmoid", "tanh", "tanh"})
-                return false;
-            return true;
-        });
     }
 
     if (m_config.max_dynamic_batch > 1) {
@@ -761,6 +689,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Pooling" , Pooling },
         { "FullyConnected" , FullyConnected },
         { "SoftMax" , SoftMax },
+        { "LogSoftmax", LogSoftmax },
         { "Power" , Power },
         { "Split" , Split },
         { "VariadicSplit", VariadicSplit },
@@ -1441,6 +1370,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case FullyConnected: CreateFullyConnectedPrimitive(topology, layer);
             break;
         case SoftMax: CreateSoftMaxPrimitive(topology, layer);
+            break;
+        case LogSoftmax: CreateLogSoftmaxPrimitive(topology, layer);
             break;
         case Power: CreatePowerPrimitive(topology, layer);
             break;
@@ -2922,6 +2853,36 @@ void Program::CreateSoftMaxPrimitive(cldnn::topology& topology, InferenceEngine:
     AddPrimitiveToProfiler(softmaxLayerName, layer);
 }
 
+void Program::CreateLogSoftmaxPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 1);
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto logSoftmaxLayer = as<InferenceEngine::GenericLayer*>(layer);
+    auto sz = logSoftmaxLayer->input().get()->getTensorDesc().getDims().size();
+
+    auto axis = logSoftmaxLayer->GetParamAsInt("axis", 1);
+    if (axis < 0) axis += sz;
+    cldnn::softmax::dimension_t softmax_axis;
+
+    switch (axis) {
+        case 0: softmax_axis = cldnn::softmax::normalize_all; break;
+        case 1: softmax_axis = cldnn::softmax::normalize_f; break;
+        case 2: softmax_axis = sz > 4 ? cldnn::softmax::normalize_z : cldnn::softmax::normalize_y; break;
+        case 3: softmax_axis = sz > 4 ? cldnn::softmax::normalize_y : cldnn::softmax::normalize_x; break;
+        case 4: softmax_axis = cldnn::softmax::normalize_x; break;
+        default: THROW_CLDNN_EXCEPTION("Unsupported logsoftmax axis " << axis);
+    }
+
+    std::string softmaxLayerName = "softMax";
+    auto softmaxPrim = cldnn::softmax(softmaxLayerName, inputPrimitives[0], softmax_axis);
+    topology.add(softmaxPrim);
+    AddPrimitiveToProfiler(softmaxLayerName, layer);
+
+    std::string logSoftmaxLayerName = layer_type_name_ID(layer);
+    auto logPrim = cldnn::activation(logSoftmaxLayerName, softmaxLayerName, cldnn::activation_func::log);
+    topology.add(logPrim);
+    AddPrimitiveToProfiler(logSoftmaxLayerName, layer);
+}
+
 void Program::CreateFullyConnectedPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, {1, 2, 3});
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
@@ -4341,12 +4302,14 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
 
     auto inputLayout = layer->insData[0].lock()->getTensorDesc().getLayout();
     auto outDims = layer->outData[0]->getTensorDesc().getDims();
+    auto outLayout = layer->outData[0]->getTensorDesc().getLayout();
 
     auto gatherPrim = cldnn::gather(
         gatherLayerName,
         reorderedInputs[0],
         reorderedInputs[1],
         cldnnAxisFromIE(axis, FormatFromLayout(inputLayout)),
+        FormatFromLayout(outLayout),
         CldnnTensorFromIEDims(outDims));
 
     topology.add(gatherPrim);
@@ -5020,7 +4983,7 @@ void Program::CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, Infere
     auto centerPointBox = nonMaxSupression->center_point_box;
     auto outputIndices = nonMaxSupression->outData[0]->getTensorDesc().getDims()[0];
 
-    auto name = layer_type_name_ID(layer);
+    auto name = layer->outData.size() > 1 ? (layer_type_lower(layer) + ":" + layer->outData[0]->getName()) : layer_type_name_ID(layer);
     auto prim = cldnn::non_max_suppression(
         name,
         reorderedInputs[0],

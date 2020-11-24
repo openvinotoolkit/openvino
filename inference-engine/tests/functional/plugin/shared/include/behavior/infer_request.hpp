@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <chrono>
+#include <future>
 #include <tuple>
 #include <vector>
 #include <string>
@@ -23,6 +25,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "subgraph_tests/basic_lstm.hpp"
 
 namespace BehaviorTestsDefinitions {
 using InferRequestTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -622,5 +625,40 @@ TEST_P(InferRequestTests, returnDeviceBusyOnGetPerformanceCountAfterAsyncInfer) 
     catch (const std::exception &e) {
         std::cout << "Exception" << e.what() << std::endl;
     }
+}
+
+class InferRequestTestsResultNotReady : public InferRequestTests {
+};
+
+TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngraph::Function
+    // return function which computes around 20ms on GNA SW
+    function = LayerTestsDefinitions::Basic_LSTM_S::GetNetwork(3000, 380);
+    InferenceEngine::CNNNetwork cnnNet(function);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    InferenceEngine::ResponseDesc response;
+    InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
+    std::promise<std::chrono::system_clock::time_point> callbackTimeStamp;
+    auto callbackTimeStampFuture = callbackTimeStamp.get_future();
+    // add a callback to the request and capture the timestamp
+    req.SetCompletionCallback([&]() {
+        callbackTimeStamp.set_value(std::chrono::system_clock::now());
+        });
+    req.StartAsync();
+    ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY));
+    // get timestamp taken AFTER return from the Wait(STATUS_ONLY)
+    const auto afterWaitTimeStamp = std::chrono::system_clock::now();
+    // IF the callback timestamp is larger than the afterWaitTimeStamp
+    // then we should observe RESULT_NOT_READY
+    if (afterWaitTimeStamp < callbackTimeStampFuture.get()) {
+        ASSERT_TRUE(sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
+    }
+    ASSERT_NO_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
 }
 }  // namespace BehaviorTestsDefinitions

@@ -84,6 +84,11 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
             data_range = 2;
             break;
         }
+        case ngraph::helpers::ActivationTypes::Ceiling: {
+            data_start_from = -1000;
+            data_range = 2000;
+            break;
+        }
         default: {
             data_start_from = -10;
             data_range = 20;

@@ -61,7 +61,7 @@ class StaticShapeLoopTest : public testing::WithParamInterface<StaticShapeLoopPa
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StaticShapeLoopParams> &obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
+    std::vector<std::vector<std::uint8_t>> PredefinedRefs();
 
 private:
     bool static_iter_num;       // trip count provided by constant node
@@ -86,6 +86,10 @@ protected:
     using RefBlobGenerator = std::function<InferenceEngine::Blob::Ptr (const InferenceEngine::TensorDesc &info)>;
     std::map<std::string, RefBlobGenerator> inputGens, outputGens;
 
+    void CreateSlicedLoop(size_t batch_size, size_t num_iteration, InferenceEngine::Precision iePrc,
+                          InferenceEngine::SizeVector& ieShape);
+    void CreateSlicedLoopDynCondition(size_t batch_size, size_t num_iteration, InferenceEngine::Precision iePrc,
+                          InferenceEngine::SizeVector& ieShape, size_t trip_count);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
         auto found = inputGens.find(info.name());
         if (found != inputGens.end()) {

@@ -8,7 +8,7 @@
 #include <ngraph/ngraph.hpp>
 #include <inference_engine.hpp>
 
-namespace LayerTestsDefinitions {
+namespace ExecutionGraphTests {
 
 std::string ExecGraphKeepAssignNode::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::string targetDevice = obj.param;
@@ -66,4 +66,4 @@ TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
     ASSERT_TRUE(assign_node_found);
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace ExecutionGraphTests

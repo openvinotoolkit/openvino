@@ -67,7 +67,7 @@ xfail_issue_34310 = xfail_test(reason="RuntimeError: Error of validate layer: LS
                                       "type: LSTMSequence. Layer is not instance of RNNLayer class")
 xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a form that is not "
                                "supported.RNNCell_<number> should be converted to RNNCellIE operation")
-xfail_issue_34323 = xfail_test(reason="RuntimeError: data [value] doesn't exist")
+xfail_issue_40957 = xfail_test(reason="RuntimeError: MKLDNNGraph::CreateGraph: No inputs for the topology")
 xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
                                       "IN and OUT channels number")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -98,8 +98,6 @@ xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input ima
                                "not supported yet...")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
-xfail_issue_36483 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
-                               "Ceiling name: <value>")
 xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
                                "/openvino/ngraph/core/src/op/shuffle_channels.cpp:77:")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
@@ -137,16 +135,12 @@ xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "While validating node 'v1::<name> (sizes[0]:i64{4},"
                                       "Convert_29306[0]:f32{4}) -> (dynamic?)' with friendly_name '<name>':"
                                       "Argument element types are inconsistent.")
-xfail_issue_41813 = xfail_test(reason="RuntimeError: While validating ONNX node"
-                                      " '<Node(Loop): generic_loop_Loop__69>'"
-                                      "While validating ONNX node '<Node(Resize): Resize__143>':"
-                                      "vector::_M_range_check: __n (which is 2) >= this->size() (which is 2")
-xfail_issue_41814 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop):"
-                                      " generic_loop_Loop__121>':"
-                                      "While validating ONNX node '<Node(TopK):"
-                                      " map_1/while/select_bboxes/sort_bboxes_10/TopKV2>':"
-                                      "Check 'tensor_rank.is_static()' failed at"
-                                      " ngraph/core/src/validation_util.cpp:882:")
+xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+                                      "If")
+xfail_issue_43439 = xfail_test(reason="Check 'tensor_rank.is_static()' failed at "
+                                      "ngraph/core/src/validation_util.cpp:884:"
+                                      "map_1/while/select_bboxes/sort_bboxes_10/TopKV2 "
+                                      "Rank must be static in order to normalize negative axis=-1")
 xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
                                       "While validating node 'v1::OneHot OneHot_<number>"
                                       "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
@@ -177,12 +171,6 @@ xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "NegativeLogLikelihoodLoss")
 
 # Model ONNX Zoo issues:
-xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismatch")
-xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape:"
-                                      "%s does not match the expected: %s."
-                                      "<PartialShape: <value>>, <PartialShape: <value>>)")
-xfail_issue_39682 = xfail_test(reason="model with IR version >= 3 must specify opset_import for ONNX")
-xfail_issue_39683 = xfail_test(reason="convolution.W in initializer but not in graph input")
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
                                       "('Expected %s parameters, received %s.', 1, 3)")
 xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::Transpose 315,"
@@ -201,8 +189,6 @@ xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of 
 xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
                                       "with dynamic shape")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
-xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape: "
-                                      "<value> does not match the expected: <value>")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
@@ -217,6 +203,13 @@ xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
-xfail_issue_41815 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::NonMaxSuppression casted "
-                                      "(yolo_evaluation_layer_1/concat_6:0_btc[0]:f32{1,2535,4},")
+xfail_issue_43380 = xfail_test(reason="RuntimeError: Sorting not possible, due to existed loop")
+xfail_issue_43382 = xfail_test(reason="Testing models which have upper bound output shape is not supported")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
+
+
+xfail_issue_39704 = xfail_test(reason="ResNet101_DUC_HDC - AssertionError: zoo models results mismatch")
+xfail_issue_43208 = xfail_test(reason="GPT-2 - AssertionError: zoo models results mismatch")
+xfail_issue_43209 = xfail_test(reason="GPT-2-LM-HEAD - AssertionError: zoo models results mismatch")
+xfail_issue_43213 = xfail_test(reason="RetinaNet Resnet101 - AssertionError: zoo models results mismatch")
+xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")

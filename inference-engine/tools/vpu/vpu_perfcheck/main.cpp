@@ -682,7 +682,7 @@ static float f16tof32(short x) {
         u |= s;
     }
 
-    // finaly represent result as float and return
+    // finally represent result as float and return
     return *reinterpret_cast<float *>(&u);
 }
 

@@ -58,6 +58,9 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     bool do_rotate_input = false;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
+    bool do_rotate_output = false;
+    uint32_t num_rotate_output_rows = 0;
+    uint32_t num_rotate_output_columns = 0;
     uint32_t *ptr_active_indices = nullptr;
     uint32_t num_active_indices = 0;
     uint32_t num_group_in = 0;
@@ -84,7 +87,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
-    std::vector<InferenceEngine::MemoryStateInternal::Ptr> memoryStates;
+    std::vector<InferenceEngine::VariableStateInternal::Ptr> memoryStates;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);
@@ -123,7 +126,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext() override { THROW_GNA_EXCEPTION << "Not implemented"; }
+    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const InferenceEngine::ParamMap&) override { THROW_GNA_EXCEPTION << "Not implemented"; }
 
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
@@ -159,7 +162,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      * QueryState API
      * @return
      */
-     std::vector<InferenceEngine::IMemoryStateInternal::Ptr>  QueryState();
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState();
 
      /**
       * test-wise API
@@ -218,6 +222,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                     int idx = 0);
 
     void UpdateFieldsFromConfig();
+    void UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork &);
+    void UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork &);
 };
 
 }  // namespace GNAPluginNS

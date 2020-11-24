@@ -7,7 +7,7 @@
 #include "execution_graph_tests/unique_node_names.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ExecutionGraphTests;
 
 namespace {
 
