@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <moc_transformations.hpp>
+#include <ngraph/pass/manager.hpp>
 #include "ie_api_impl.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
@@ -612,4 +614,10 @@ PyObject *InferenceEnginePython::IECore::getMetric(const std::string &deviceName
 PyObject *InferenceEnginePython::IECore::getConfig(const std::string &deviceName, const std::string &name) {
     InferenceEngine::Parameter param = actual.GetConfig(deviceName, name);
     return parse_parameter(param);
+}
+
+void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<MOCTransformations>();
+    manager.run_passes(network.actual->getFunction());
 }
