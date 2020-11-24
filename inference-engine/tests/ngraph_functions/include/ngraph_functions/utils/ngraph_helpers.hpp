@@ -167,7 +167,8 @@ enum ReductionType {
     Sum,
     LogicalOr,
     LogicalAnd,
-    LogicalXor
+    L1,
+    L2
 };
 
 enum class InputLayerType {
