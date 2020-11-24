@@ -6,7 +6,7 @@ function (Download from to fatal result output sha256)
 
   if((NOT EXISTS "${to}"))
     message(STATUS "Downloading from ${from} to ${to} ...")
-    if ("${SHA256}" STREQUAL "skip")
+    if ("${sha256}" STREQUAL "skip")
       file(DOWNLOAD ${from} ${to}
            TIMEOUT 3600
            LOG log
