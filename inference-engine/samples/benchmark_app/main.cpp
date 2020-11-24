@@ -26,7 +26,7 @@
 #include "inputs_filling.hpp"
 #include "utils.hpp"
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT)
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 #include <codecvt>
 #include <locale>
 #endif
@@ -335,7 +335,7 @@ int main(int argc, char *argv[]) {
             // Read XML file content into a string
             std::ifstream xml_file(FLAGS_m);
             std::string xml_content((std::istreambuf_iterator<char>(xml_file)), std::istreambuf_iterator<char>());
-#if defined(ENABLE_UNICODE_PATH_SUPPORT)
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
             std::wstring bin_file = std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(FLAGS_m);
             bin_file = bin_file.substr(0, FLAGS_m.find_last_of('.')) + L".bin";
 #else
