@@ -254,9 +254,23 @@ namespace ngraph
     template <typename T>
     std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes)
     {
-        std::stack<Node*, std::vector<Node*>> nodes_to_do;
-        std::unordered_set<Node*> nodes_done;
-        std::vector<std::shared_ptr<Node>> result;
+        std::stack<Node*> nodes_to_do;
+        NodeVector result;
+
+        auto is_used = [](Node* node) -> bool {
+            const auto& rt_info = node->get_rt_info();
+            return rt_info.count("USED") != 0;
+        };
+
+        auto use = [](Node* node) {
+            auto& rt_info = node->get_rt_info();
+            rt_info["USED"] = nullptr;
+        };
+
+        auto clean = [](Node* node) {
+            auto& rt_info = node->get_rt_info();
+            rt_info.erase("USED");
+        };
 
         for (auto& node : root_nodes)
         {
@@ -265,14 +279,14 @@ namespace ngraph
         while (nodes_to_do.size() > 0)
         {
             Node* node = nodes_to_do.top();
-            if (nodes_done.count(node) == 0)
+            if (!is_used(node))
             {
                 bool can_add = true;
                 size_t arg_count = node->get_input_size();
                 for (size_t i = 0; i < arg_count; ++i)
                 {
                     Node* dep = node->get_input_node_ptr(arg_count - i - 1);
-                    if (nodes_done.count(dep) == 0)
+                    if (!is_used(dep))
                     {
                         can_add = false;
                         nodes_to_do.push(dep);
@@ -281,7 +295,7 @@ namespace ngraph
                 for (auto& depptr : node->get_control_dependencies())
                 {
                     Node* dep = depptr.get();
-                    if (nodes_done.count(dep) == 0)
+                    if (!is_used(dep))
                     {
                         can_add = false;
                         nodes_to_do.push(dep);
@@ -291,13 +305,18 @@ namespace ngraph
                 {
                     result.push_back(node->shared_from_this());
                     nodes_to_do.pop();
-                    nodes_done.insert(node);
+                    use(node);
                 }
             }
             else
             {
                 nodes_to_do.pop();
             }
+        }
+
+        for (auto& node : result)
+        {
+            clean(node.get());
         }
         return result;
     }
