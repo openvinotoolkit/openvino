@@ -39,7 +39,7 @@ OpenVINO™ provides the following methods for runtime model reshaping:
    This method does not work for models with a non-zero index batch placement or models with inputs without a batch dimension. 
    The method transforms the model before a new shape propagation to relax a hard-coded batch dimension in the model, if any.
 
-To change input shapes multiple times, use the `InferenceEngine::CNNNetwork::reshape` and `InferenceEngine::CNNNetwork::setBatchSize` methods in any order.
+You can change input shapes multiple times using the `InferenceEngine::CNNNetwork::reshape` and `InferenceEngine::CNNNetwork::setBatchSize` methods in any order.
 If a model has a hard-coded batch dimension, use `InferenceEngine::CNNNetwork::setBatchSize` first to change the batch, then call `InferenceEngine::CNNNetwork::reshape` to update other dimensions, if needed.
 
 Once the input shape of `InferenceEngine::CNNNetwork` is set, call the `InferenceEngine::Core::LoadNetwork` method to get an `InferenceEngine::ExecutableNetwork` object for inference with updated shapes.
