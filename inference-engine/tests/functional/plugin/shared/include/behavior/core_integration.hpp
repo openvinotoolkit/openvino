@@ -1379,34 +1379,6 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrow_v7) {
     }
 }
 
-TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIwithHETERONoThrowv7) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
-
-    if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
-        std::string devices;
-        auto availableDevices = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-        for (auto &&device : availableDevices) {
-            devices += CommonTestUtils::DEVICE_HETERO + std::string(".") + device;
-            if (&device != &(availableDevices.back())) {
-                devices += ',';
-            }
-        }
-
-        QueryNetworkResult result;
-        auto convertedActualNetwork = std::make_shared<details::CNNNetworkImpl>(actualNetwork);
-        ASSERT_NO_THROW(result = ie.QueryNetwork(InferenceEngine::CNNNetwork{convertedActualNetwork}, CommonTestUtils::DEVICE_MULTI, {
-                {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                {"TARGET_FALLBACK",                   deviceName + "," + CommonTestUtils::DEVICE_CPU}}));
-
-        for (auto &&layer : result.supportedLayersMap) {
-            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(convertedActualNetwork.get(), layer.first));
-        }
-    } else {
-        GTEST_SKIP();
-    }
-}
-
 TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Core ie;
