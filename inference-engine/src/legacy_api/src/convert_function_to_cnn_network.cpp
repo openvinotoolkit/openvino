@@ -935,6 +935,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         return res;
     });
+
+    addSpecificCreator({"Subtract"}, [](const std::shared_ptr<::ngraph::Node> &node,
+                    const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Eltwise",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::EltwiseLayer>(attrs);
+        res->params["operation"] = "sub";
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -1007,7 +1016,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Softmax>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Split>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Subtract>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Tanh>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TileIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TensorIterator>>(),
