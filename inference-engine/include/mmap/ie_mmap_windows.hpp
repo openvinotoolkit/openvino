@@ -55,9 +55,13 @@ protected:
                 THROW_IE_EXCEPTION <<  "Unsupported lock option.";
         }
 
+#if defined(ENABLE_UNICODE_PATH_SUPPORT)
+        _file = ::CreateFileW(path.c_str(), file_mode, FILE_SHARE_READ | FILE_SHARE_WRITE,
+            0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+#else
         _file = ::CreateFileA(path.c_str(), file_mode, FILE_SHARE_READ | FILE_SHARE_WRITE,
             0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-
+#endif
         if (_file == INVALID_HANDLE_VALUE) {
             THROW_IE_EXCEPTION << "Can not open file for mapping.";
         }

@@ -10,7 +10,7 @@
 #pragma once
 
 #ifdef _WIN32
-#inlcude "ie_mmap_windows.hpp"
+#include "ie_mmap_windows.hpp"
 #else
 #include "ie_mmap_linux.hpp"
 #endif

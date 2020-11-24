@@ -26,6 +26,11 @@
 #include "inputs_filling.hpp"
 #include "utils.hpp"
 
+#if defined(ENABLE_UNICODE_PATH_SUPPORT)
+#include <codecvt>
+#include <locale>
+#endif
+
 using namespace InferenceEngine;
 
 static const size_t progressBarDefaultTotalCount = 1000;
@@ -330,8 +335,12 @@ int main(int argc, char *argv[]) {
             // Read XML file content into a string
             std::ifstream xml_file(FLAGS_m);
             std::string xml_content((std::istreambuf_iterator<char>(xml_file)), std::istreambuf_iterator<char>());
-
+#if defined(ENABLE_UNICODE_PATH_SUPPORT)
+            std::wstring bin_file = std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(FLAGS_m);
+            bin_file = bin_file.substr(0, FLAGS_m.find_last_of('.')) + L".bin";
+#else
             std::string bin_file = FLAGS_m.substr(0, FLAGS_m.find_last_of('.')) + ".bin";
+#endif
 
             // Get file size, size is needed to create a tensor descriptor
             std::ifstream bin_stream(bin_file, std::ios::in);
