@@ -27,29 +27,22 @@ OpenVINO™ provides the following methods for runtime model reshaping:
 
 * **Set a new input shape** with the `InferenceEngine::CNNNetwork::reshape` method.<br>
    The `InferenceEngine::CNNNetwork::reshape` method updates input shapes and propagates them down to the outputs of the model through all intermediate layers. 
-   You can reshape a model multiple times like in this application scheme:
-   ```
-   ReadNetwork -> reshape(input_1_shape) -> LoadNetwork -> infer(input_1)
-              \
-               -> reshape(input_2_shape) -> LoadNetwork -> infer(input_2)
-   ```
-   > **NOTES**:
-   > - Starting with the 2021.1 release, the Model Optimizer converts topologies keeping shape-calculating sub-graphs by default, which enables correct shape propagation during reshaping.
-   > - Older versions of IRs are not guaranteed to reshape successfully. Please regenerate them with the Model Optimizer of the latest version of OpenVINO™.<br>
-   > - If an ONNX model does not have a fully defined input shape and the model was imported with the ONNX importer, reshape the model before loading it to the plugin.
+   
+> **NOTES**:
+> - Starting with the 2021.1 release, the Model Optimizer converts topologies keeping shape-calculating sub-graphs by default, which enables correct shape propagation during reshaping.
+> - Older versions of IRs are not guaranteed to reshape successfully. Please regenerate them with the Model Optimizer of the latest version of OpenVINO™.<br>
+> - If an ONNX model does not have a fully defined input shape and the model was imported with the ONNX importer, reshape the model before loading it to the plugin.
+
 * **Set a new batch dimension value** with the `InferenceEngine::CNNNetwork::setBatchSize` method.<br>     
    The meaning of a model batch may vary depending on the model design.
-   The `InferenceEngine::CNNNetwork::setBatchSize` method deduces the index of a batch dimension based only on the input rank. 
+   Batch dimension is usually placed at the 0 index of all inputs of the model.
    This method does not work for models with a non-zero index batch placement or models with inputs without a batch dimension. 
-   The batch-setting algorithm does not involve the shape inference mechanism.
-   Batch of input and output shapes for all layers is set to a new batch value without layer validation.
-   It may cause both positive and negative side effects.
-   Due to the limitations described above, the current method is not recommended to use.
-   If you need to set a new batch size for the model, use the `CNNNetwork::reshape` method instead.
+   The method transforms the model before a new shape propagation to relax a hard-coded batch dimension in the model, if any.
 
-Do not use runtime reshaping methods simultaneously, especially do not call the `CNNNetwork::reshape` method after you use `InferenceEngine::CNNNetwork::setBatchSize`.
-The `InferenceEngine::CNNNetwork::setBatchSize` method causes irreversible conversion of the internal model representation into the legacy model representation.
-The method does not use nGraph for shape inference which leads to reduced reshape opportunities and may affect the performance of the model.
+You can change input shapes multiple times using the `InferenceEngine::CNNNetwork::reshape` and `InferenceEngine::CNNNetwork::setBatchSize` methods in any order.
+If a model has a hard-coded batch dimension, use `InferenceEngine::CNNNetwork::setBatchSize` first to change the batch, then call `InferenceEngine::CNNNetwork::reshape` to update other dimensions, if needed.
+
+Once the input shape of `InferenceEngine::CNNNetwork` is set, call the `InferenceEngine::Core::LoadNetwork` method to get an `InferenceEngine::ExecutableNetwork` object for inference with updated shapes.
 
 There are other approaches to reshape the model during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](../nGraph_DG/build_function.md).
 
@@ -62,8 +55,8 @@ Shape collision during shape propagation may be a sign that a new shape does not
 Changing the model input shape may result in intermediate operations shape collision.
 
 Examples of such operations:
-- <a href="_docs_MO_DG_prepare_model_convert_model_IR_V10_opset1.html#Reshape">`Reshape` operation</a> with a hard-coded output shape value
-- <a href="_docs_MO_DG_prepare_model_convert_model_IR_V10_opset1.html#MatMul">`MatMul` operation</a> with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
+- [`Reshape` operation](../ops/shape/Reshape_1.md) with a hard-coded output shape value
+- [`MatMul` operation](../ops/matrix/MatMul_1.md) with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
 
 Model structure and logic should not change significantly after model reshaping.
 - The Global Pooling operation is commonly used to reduce output feature map of classification models output.
