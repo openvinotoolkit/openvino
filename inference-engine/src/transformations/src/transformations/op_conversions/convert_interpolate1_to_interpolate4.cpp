@@ -38,7 +38,7 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         auto nearest_mode_v4 = ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor;
         auto shape_calculation_mode_v4 = ngraph::op::v4::Interpolate::ShapeCalcMode::sizes;
         auto coordinate_transformation_mode_v4 = interpolate_attrs.align_corners ? ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners :
-                                                ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric;
+                                                ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel;
         auto interpolate4_attr = ngraph::op::v4::Interpolate::InterpolateAttrs(mode_v4, shape_calculation_mode_v4,
             interpolate_attrs.pads_begin, interpolate_attrs.pads_end,
             coordinate_transformation_mode_v4, nearest_mode_v4, interpolate_attrs.antialias, -0.75);
