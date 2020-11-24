@@ -29,7 +29,7 @@
                 <tab type="user" title="Anaconda Cloud" url="@ref openvino_docs_install_guides_installing_openvino_conda"/>
                 <tab type="user" title="Yocto" url="@ref openvino_docs_install_guides_installing_openvino_yocto"/>
                 <tab type="user" title="PyPI" url="@ref openvino_docs_install_guides_installing_openvino_pip"/>
-                <tab type="user" title="Build from Source" url="https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md"/>
+                <tab type="user" title="Build from Source" url="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode"/>
             </tab>
             <!-- Get Started Guides-->
             <tab type="usergroup" title="Get Started Guides" url=""><!--automatically generated-->

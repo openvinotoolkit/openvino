@@ -20,7 +20,9 @@ using TensorIteratorParams = typename std::tuple<
         size_t,                                   // seq_lengths
         size_t,                                   // batch
         size_t,                                   // hidden size
-        size_t,                                   // input size
+        // todo: fix. input size hardcoded to 10 due to limitation (10 args) of gtests Combine() func.
+        //size_t,                                 // input size
+        size_t,                                   // sequence axis
         float,                                    // clip
         ngraph::helpers::TensorIteratorBody,      // body type
         ngraph::op::RecurrentSequenceDirection,   // direction

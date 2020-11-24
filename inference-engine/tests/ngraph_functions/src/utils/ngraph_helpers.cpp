@@ -9,6 +9,7 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/specialize_function.hpp>
 
@@ -40,8 +41,11 @@ std::ostream &operator<<(std::ostream &os, const ReductionType &m) {
         case LogicalAnd:
             os << "LogicalAnd";
             break;
-        case LogicalXor:
-            os << "LogicalXor";
+        case L1:
+            os << "ReduceL1";
+            break;
+        case L2:
+            os << "ReduceL2";
             break;
     }
     return os;
@@ -76,7 +80,7 @@ OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &node
 }
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           std::vector<ngraph::element::Type_t> convertType) {
+                                                           const std::vector<ngraph::element::Type_t> convertType) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -108,22 +112,25 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
 
     auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     const auto &results = function->get_results();
-    for (size_t i = 0; i <results.size(); ++i) {
+    for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());
     }
 
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
     auto outputs = std::vector<std::vector<std::uint8_t>>(results.size());
-    size_t in = 0;
-    for (const auto &result : results) {
-        const auto &resultIndex = function->get_result_index(result);
-        auto &output = outputs[resultIndex];
-        output.resize(shape_size(result->get_shape()) * result->get_element_type().size());
+    for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
+        auto& output = outputs[resultIndex];
+        const auto& outputTensor = outputTensors[resultIndex];
+        output.resize(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().size());
         outputTensors[resultIndex]->read(output.data(), output.size());
-        if (!convertType.empty() && convertType[in] != element::Type_t::undefined && result->get_element_type() != element::Type(convertType[in]))
-            output = convertOutputPrecision(output, result->get_element_type(), convertType[in], shape_size(result->get_shape()));
-        in++;
+        if (!convertType.empty() && convertType[resultIndex] != element::Type_t::undefined &&
+                outputTensor->get_element_type() != element::Type(convertType[resultIndex]))
+            output = convertOutputPrecision(
+                output,
+                outputTensor->get_element_type(),
+                convertType[resultIndex],
+                shape_size(outputTensors[resultIndex]->get_shape()));
     }
 
     return outputs;
@@ -250,6 +257,17 @@ std::vector<std::uint8_t> convertPrecision(std::vector<std::uint8_t> &buffer, co
     for (size_t i = 0; i < elementsCount; i++)
         dst[i] = static_cast<toPrec>(src[i]);
     return convertedData;
+}
+
+bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func) {
+    const auto& ops = func->get_ops();
+    for (const auto& node : ops) {
+        const auto& ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(node);
+        if (ti) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &output, const element::Type_t &fromPrecision, const element::Type_t &toPrecision,
@@ -739,6 +757,29 @@ std::ostream& operator<<(std::ostream & os, TensorIteratorBody type) {
             break;
         case TensorIteratorBody::GRU:
             os << "GRU";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, SequenceTestsMode type) {
+    switch (type) {
+        case SequenceTestsMode::PURE_SEQ:
+            os << "PURE_SEQ";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM:
+            os << "CONVERT_TO_TI_RAND_SEQ_LEN_PARAM";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST:
+            os << "CONVERT_TO_TI_RAND_SEQ_LEN_CONST";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM:
+            os << "CONVERT_TO_TI_MAX_SEQ_LEN_PARAM";
+            break;
+        case SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST:
+            os << "CONVERT_TO_TI_MAX_SEQ_LEN_CONST";
             break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");

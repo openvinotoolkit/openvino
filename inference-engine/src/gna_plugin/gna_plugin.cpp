@@ -37,6 +37,7 @@
 #include "memory/gna_memory_state.hpp"
 #include "gna_model_serial.hpp"
 #include "runtime/gna_float_runtime.hpp"
+#include <layers/gna_fake_quantize_layer.hpp>
 
 #include <generic_ie.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -351,6 +352,87 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
+void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & network) {
+    // fp32 emulation mode dont need any modifications to configuration
+    if (config.gnaFlags.sw_fp32) return;
+
+    // search for FQ layers
+    // only supports cases of int16 or int8
+    auto it = details::CNNNetworkIterator(&network);
+    auto end = details::CNNNetworkIterator();
+    for (; it != end; it++) {
+        if (!LayerInfo(*it).isFakeQuantize()) {
+            continue;
+        }
+
+        GNAFakeQuantizeLayer fqLayer(*it);
+        auto inputLayer = fqLayer.getInputLayer();
+
+        // this fake quantize represents data quantization - not weights
+        if (!LayerInfo(inputLayer).isConst()) {
+            continue;
+        }
+        // also in mixed mode i8 should be stated as target precision
+        if (fqLayer.getLevels() <= std::numeric_limits<uint8_t>::max()) {
+            config.gnaPrecision = InferenceEngine::Precision::I8;
+        } else if (fqLayer.getLevels() <= std::numeric_limits<uint16_t>::max()) {
+            config.gnaPrecision = InferenceEngine::Precision::I16;
+        } else {
+            THROW_GNA_LAYER_EXCEPTION(*it)
+                << "unsupported quantisation scheme: number of levels is " << fqLayer.getLevels() << " while only up to "
+                << std::numeric_limits<uint16_t>::max() << " is supported";
+        }
+
+        gnaFlags->fake_quantized = true;
+        config.gnaFlags.fake_quantized = true;
+    }
+}
+
+void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & network) {
+    // fp32 emulation mode dont need any modifications to configuration
+    if (config.gnaFlags.sw_fp32) return;
+
+    // search for FQ layers
+    // only supports cases of int16 or int8
+    InputsDataMap  inputs;
+    network.getInputsInfo(inputs);
+    for (auto && input : inputs) {
+        auto data = input.second->getInputData();
+        size_t inputIdx = 0;
+        for (auto && nextToInputLayer : getInputTo(data)) {
+            if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
+                inputIdx++;
+                continue;
+            }
+            // replacing scale factor from this fq layer
+            GNAFakeQuantizeLayer fqLayer(nextToInputLayer.second);
+            auto inputRange = fqLayer.getInputRange();
+            auto outputRange = fqLayer.getOutputRange();
+            if (inputRange.second.size() != 1 || inputRange.second.size() != 1 ||
+                outputRange.second.size() != 1 || outputRange.second.size() != 1) {
+                THROW_GNA_LAYER_EXCEPTION(nextToInputLayer.second)
+                    << "unsupported, per-channel quantization for input layer : " << input.second->name();
+            }
+            float scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
+
+            if (!config.inputScaleFactors.empty()) {
+                gnalog() << "Scale factor calculated during model quantization (" << scaleInput
+                    << ") will be used instead of user input (" << inputsDesc->inputScaleFactors[inputIdx] << ").\n";
+                if (inputsDesc->inputScaleFactors[inputIdx] < scaleInput) {
+                    gnawarn() << "WARNING: Scale factor calculated based on input values (" << inputsDesc->inputScaleFactors[inputIdx]
+                        << ") is smaller than scale factor used to quantize model (" << scaleInput << "). "
+                        << "Input values will be clamped.\n";
+                }
+            }
+
+            config.inputScaleFactors[inputIdx] = scaleInput;
+            inputsDesc->inputScaleFactors[inputIdx] = scaleInput;
+
+            inputIdx++;
+        }
+    }
+}
+
 void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
@@ -390,6 +472,10 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
+    // FQ networks now replaces certain flags in the plugin - flags will'be owerritten
+    UpdateGnaQuantModeFromNetwork(network);
+    UpdateInputScaleFromNetwork(network);
+
     // network optimisation phases
     int passIdx = 0;
     auto run_passes = [&] (const CNNNetPtr& network, bool runBeforeCopy) {
@@ -401,6 +487,10 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<UnrollLSTMCellPass>();
         passes->registerPass<RemoveSingleInputConcatPass>();
 
+        // fake quantisation aware passes
+        passes->registerPass<FuseFQIntoWeightsPass>();
+        passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
+
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
 
@@ -408,6 +498,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
+        passes->registerPass<Concat4Dto2DPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
         if (policy.PermutePolicy != Policy::Permute::DISABLED) {
@@ -440,6 +531,19 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         // to run all passes need to have two calls to pass manager
         run_passes(newNet, true);
         run_passes(newNet, false);
+    } else if (gnaFlags->fake_quantized) {
+        switch (config.gnaPrecision) {
+            case Precision::I16:
+                ModelQuantizer<FakeQuantI16> q16;
+                newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                break;
+            case Precision::I8:
+                ModelQuantizer<FakeQuantI8> q8;
+                newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                break;
+            default:
+                THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
+        }
     } else {
         switch (config.gnaPrecision) {
             case Precision::I16:
@@ -451,8 +555,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
                 newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
             default:
-                THROW_GNA_EXCEPTION << "no mans land for GNA precision";
-                break;
+                THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
         }
     }
 
@@ -469,7 +572,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
             return;
         }
         printed_properties.emplace_back(
-            "scale factor", std::to_string(quantized->_dst_quant.scale));
+            "scale factor", std::to_string(quantized->_dst_quant.GetScale()));
     });
 #endif
 
@@ -563,7 +666,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
         desc.orientation = component.orientation_out;
         desc.num_bytes_per_element = component.num_bytes_per_output;
-        desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+        desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
         // TODO: this need to be fixed
         desc.num_elements = component.num_rows_out;
 
@@ -622,7 +725,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
                     // TODO: what is orientation for concat
                     desc.orientation = kDnnInterleavedOrientation;
                     desc.num_bytes_per_element = layer->outData.front()->getPrecision().size();
-                    desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+                    desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
                     desc.num_elements = concatConnection->second.reserved_size / desc.num_bytes_per_element;
 
                     // binding ptr for first infer request - then others will be setup during relocation
@@ -775,6 +878,10 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     do_rotate_input = dnn->do_rotate_input;
     num_rotate_rows = dnn->num_rotate_rows;
     num_rotate_columns = dnn->num_rotate_columns;
+
+    do_rotate_output = dnn->do_rotate_output;
+    num_rotate_output_rows = dnn->num_rotate_output_rows;
+    num_rotate_output_columns = dnn->num_rotate_output_columns;
 
     DumpXNNToFile();
 
@@ -1063,29 +1170,35 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto & outputDesc = outputsDesc[output_idx];
         if (outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN
             || outputBlob->getTensorDesc().getLayout() == Layout::NCHW || outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
-            // TODO: rotate can be incorporated with exporting - used only in unit tests so far
-            // TODO: restore:
-//        if (orientation_out != kDnnInterleavedOrientation) {
-//            if (inputs.size() != 1) {
-//                THROW_GNA_EXCEPTION << "Invalid number of inputs for  for deinterleave " << inputs.size()
-//                                    << ", only 1 supported";
-//            }
-//            auto dims = inputs.begin()->second->dims();
-//            RotateFeatures(reinterpret_cast<uint8_t*>(ptr_outputs_global),
-//                           gnadevice ? 2 : 4,
-//                           dims[dims.size() - 1],
-//                           dims[0],  // num_feature_vectors looks batch should be there
-//                           dims[0],
-//                           dims[dims.size() - 1]);
-//        }
+            auto dims = outputBlob->getTensorDesc().getDims();
             auto is2D = outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN;
             auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
             auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
             auto batchSize = is3D ? 1 : exportOutputDims[0];
             auto elementsPerBatch = is2D ? exportOutputDims[exportOutputDims.size() - 1]
                 : exportOutputDims[exportOutputDims.size() - 1]
-                  * exportOutputDims[exportOutputDims.size() - 2]
-                  * exportOutputDims[exportOutputDims.size() - 3];
+                * exportOutputDims[exportOutputDims.size() - 2]
+                * exportOutputDims[exportOutputDims.size() - 3];
+
+            if (do_rotate_output) {
+                if (batchSize * elementsPerBatch != num_rotate_output_columns * num_rotate_output_rows) {
+                    THROW_GNA_EXCEPTION << "Rotate output dimensions (" << num_rotate_output_rows << "," << num_rotate_output_columns
+                                        << ") do not match output buffer length of " << batchSize * elementsPerBatch;
+                }
+                uint32_t element_size = outputDesc.num_bytes_per_element;
+                std::vector<uint8_t> temp(num_rotate_output_columns * num_rotate_output_rows * element_size);
+                for (uint32_t k = 0; k < num_rotate_output_columns; ++k) {
+                    uint8_t* ptr_in = reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]) + k * element_size;
+                    for (uint32_t i = 0; i < num_rotate_output_rows; ++i) {
+                        ie_memcpy(&temp.front() + (k *num_rotate_output_rows + i) * element_size,
+                                  element_size,
+                                  ptr_in + (i * num_rotate_output_columns) * element_size,
+                                  element_size);
+                    }
+                }
+                ie_memcpy(outputDesc.ptrs[request_idx], num_rotate_output_columns * num_rotate_output_rows * element_size,
+                    &temp.front(), num_rotate_output_columns * num_rotate_output_rows * element_size);
+            }
 
             ExportScores(outputBlob->buffer(),
                          outputDesc.ptrs[request_idx],
@@ -1186,11 +1299,11 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
     return inputBlob;
 }
 
-std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() {
+std::vector<InferenceEngine::VariableStateInternal::Ptr>  GNAPlugin::QueryState() {
     if (memoryStates.size() != graphCompiler.memory_connection.size()) {
         memoryStates.clear();
         for (auto& connection : graphCompiler.memory_connection) {
-            auto state = std::make_shared<memory::GNAMemoryState>(connection.first, std::make_shared <GNAMemoryLayer>(connection.second));
+            auto state = std::make_shared<memory::GNAVariableState>(connection.first, std::make_shared <GNAMemoryLayer>(connection.second));
             memoryStates.emplace_back(state);
         }
     }
@@ -1263,6 +1376,10 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
     num_rotate_rows = header.nRotateRows;
     num_rotate_columns = header.nRotateColumns;
 
+    do_rotate_output = header.doRotateOutput;
+    num_rotate_output_rows = header.nRotateOutputRows;
+    num_rotate_output_columns = header.nRotateOutputColumns;
+
     for (auto && memory : mt) {
         GNAMemoryLayer memoryLayer(nullptr, nullptr, gnaFlags->sw_fp32 ? 4 : 2);
         memoryLayer.gna_ptr = memory.first;
@@ -1313,7 +1430,8 @@ void GNAPlugin::Export(const std::string &fileName) {
                                  outputsDesc,
                                  inputsDataMap,
                                  outputsDataMap)
-                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns, dnn->do_rotate_input);
+                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns, dnn->do_rotate_input)
+                    .SetOutputRotation(dnn->num_rotate_output_rows, dnn->num_rotate_output_columns, dnn->do_rotate_output);
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size);

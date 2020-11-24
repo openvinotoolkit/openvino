@@ -104,6 +104,11 @@ public:
         transform.add<ngraph::pass::low_precision::ClampTransformation, ngraph::opset1::Clamp>(testValues.params);
         transform.transform(actualFunction);
 
+        if (!updatePrecisions) {
+            // there is no Convert operation after MaxPool in FP32
+            testValues.result.dequantizationOperations2.convert = {};
+        }
+
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithDifferentPrecisionOnChilds(
             precision,
             testValues.inputShape,
@@ -213,7 +218,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ConcatWithDifferentChildsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

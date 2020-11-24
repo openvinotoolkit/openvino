@@ -6,7 +6,7 @@
 
 #include <legacy/graph_tools.hpp>
 #include "gna_plugin_log.hpp"
-
+#include "frontend/quantized_layer_params.hpp"
 #include <utility>
 #include <string>
 #include <vector>
@@ -133,8 +133,12 @@ inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayerSkipCertain(Layer layer, int
     auto prev = CNNNetPrevLayer(layer, idx);
 
     /// using upper search simplified version
-    if (shouldSkip(prev)) {
-        return CNNNetPrevLayerSkipCertain(prev, 0, shouldSkip);
+    while (shouldSkip(prev)) {
+        if (!CNNNetHasPrevLayer(prev.get(), 0)) {
+            THROW_GNA_EXCEPTION << "Can't find PrevLayer. All layers are skipped.";
+            return nullptr;
+        }
+        prev = CNNNetPrevLayer(prev, 0);
     }
 
     return prev;
@@ -143,8 +147,8 @@ inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayerSkipCertain(Layer layer, int
 /**
  * @brief returns next layer, skipping certain layers based on given functor
  * @param layer - given start layer
- * @param oidx - index of output data
- * @param iidx - index of input layers for given output
+ * @param oidx - index of output data for start layer, in other layers only zero oidx will be used
+ * @param iidx - index of input layers for given output right after start layer, in other layers only zero oidx will be used
  * @param bOnlyCheck - doesn't throw exception if next layer missed
  * @param shouldSkip
  * @return layer pointer and it's insData index that uses to connect to previous layer in chain
@@ -165,15 +169,30 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
     auto outLayer = getInputTo(layer->outData[oidx]).begin();
     std::advance(outLayer, iidx);
 
-    if (!shouldSkip(outLayer->second)) {
-        auto insDataIdx = CNNLayerFindInsDataIdxes(layer->outData[oidx], outLayer->second);
-        if (insDataIdx.size() != 1) {
-            if (bOnlyCheck) return {nullptr, 0};
-            THROW_GNA_LAYER_EXCEPTION(layer) << " has multiple connection to " << oidx << " outData";
+    int new_oidx = shouldSkip(outLayer->second) ? 0 : oidx;
+    int new_iidx = shouldSkip(outLayer->second) ? 0 : iidx;
+
+    while (shouldSkip(outLayer->second)) {
+        if (outLayer->second->outData.size() <= new_oidx) {
+            if (bOnlyCheck) return { nullptr, 0 };
+            THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << new_oidx;
         }
-        return {outLayer->second, insDataIdx.front()};
+
+        if (getInputTo(outLayer->second->outData[new_oidx]).size() <= new_iidx) {
+            if (bOnlyCheck) return { nullptr, 0 };
+            THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << new_oidx << " and inputTo index: " << new_iidx;
+        }
+
+        layer = outLayer->second;
+        outLayer = getInputTo(layer->outData[new_oidx]).begin();
     }
-    return CNNNetCheckNextLayerSkipCertain(outLayer->second, 0, 0, bOnlyCheck, shouldSkip);
+
+    auto insDataIdx = CNNLayerFindInsDataIdxes(layer->outData[new_oidx], outLayer->second);
+    if (insDataIdx.size() != 1) {
+        if (bOnlyCheck) return { nullptr, 0 };
+        THROW_GNA_LAYER_EXCEPTION(layer) << " has multiple connection to " << new_oidx << " outData";
+    }
+    return { outLayer->second, insDataIdx.front() };
 }
 
 /**
@@ -441,7 +460,45 @@ inline void CNNNetSwapLayers(InferenceEngine::CNNLayerPtr lhs,
     lhs->outData.front()->setDims(rhs->outData.front()->getDims());
 }
 
+/**
+* @brief changes the Tensor Desctiption if data by created a new one with correct description and replacing original one
+*/
+inline DataPtr CNNReplaceDataWithChangedTensorDescription(DataPtr old_data, TensorDesc& new_td) {
+    auto new_dataPtr = std::make_shared<Data>(old_data->getName() + "_reshaped", new_td);
+    getInputTo(new_dataPtr) = getInputTo(old_data);
+    auto creatorLayer = getCreatorLayer(old_data).lock();
+    getCreatorLayer(new_dataPtr) = creatorLayer;
+    size_t idx = -1;
+    for (size_t i=0; i < creatorLayer->outData.size(); i++) {
+        if (areEqualDatas(old_data, creatorLayer->outData[i])) {
+            idx = i;
+            break;
+        }
+    }
+    if (idx == -1) THROW_GNA_EXCEPTION << "No idx for data was found";
 
+    creatorLayer->outData[idx] = new_dataPtr;
+    auto input_to = getInputTo(new_dataPtr);
+    for (auto& input : input_to) {
+        for (auto& input_idx : CNNLayerFindInsDataIdxes(old_data, input.second)) {
+            input.second->insData[input_idx] = new_dataPtr;
+        }
+    }
+    return new_dataPtr;
+}
+
+/**
+* @brief Creates a Reshape with given name and tensor description
+*/
+inline CNNLayerPtr CNNNetworkCreateReshape(TensorDesc td, std::string name, bool quantized) {
+    auto reshape = std::make_shared<ReshapeLayer>(LayerParams({name, "reshape", Precision::FP32}));
+    auto reshapeLayerWithQuant = quantized ? InferenceEngine::injectData<GNAPluginNS::QuantizedLayerParams>(reshape) : reshape;
+    auto dataPtr = std::make_shared<Data>(name + "_data", td);
+    getCreatorLayer(dataPtr) = reshapeLayerWithQuant;
+    reshapeLayerWithQuant->outData.push_back(dataPtr);
+
+    return reshapeLayerWithQuant;
+}
 
 /**
  * @@brief insertLayer between given layers
@@ -594,6 +651,7 @@ std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr or
  * @brief remove given layer from topology, currently only layers with one input data and one output data supported
  */
 inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
+    gnalog() << "Removing " << layer->name << "layer";
     if (!layer) {
         THROW_IE_EXCEPTION << "Cannot remove layer pointed to NULL";
     }

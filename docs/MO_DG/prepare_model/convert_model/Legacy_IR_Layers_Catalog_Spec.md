@@ -1475,7 +1475,7 @@ where \f$b_{i}^{1}\f$ - first blob \f$i\f$-th element, \f$b_{i}^{2}\f$ - second 
 
 * **Parameter name**: *end_axis*
 
-  * **Description**: *end_axis* speficies the last dimension to flatten. The value can be negative meaning counting axes from the end.
+  * **Description**: *end_axis* specifies the last dimension to flatten. The value can be negative meaning counting axes from the end.
   * **Range of values**: an integer
   * **Type**: `int`
   * **Default value**: -1
@@ -2352,7 +2352,7 @@ o_{i} = \sum_{i}^{H*W}\frac{\left ( n*C*H*W \right )` scale}{\sqrt{\sum_{i=0}^{C
 
 * **Parameter name**: *pads_end*
 
-  * **Description**: *pads_end* specfies the number of padding elements at the end of each axis.
+  * **Description**: *pads_end* specifies the number of padding elements at the end of each axis.
   * **Range of values**: a list of non-negative integers. The length of the list must be equal to the number of dimensions in the input blob.
   * **Type**: `int[]`
   * **Default value**: None
@@ -4104,7 +4104,7 @@ Here 224 is the "canonical" size, 2 is the pyramid starting level, and w, h are 
 
 **Short description**: *ExperimentalSparseWeightedSum* extracts embedding vectors from the parameters table for each object feature value and sum up these embedding vectors multiplied by weights for each object.
 
-**Detailed description**: [Reference](https://www.tensorflow.org/api_docs/python/tf/nn/embedding_lookup_sparse). This is similar to *embedding_lookup_sparse* but it accepts objects with empty feature values for which it uses a defaut value to extract an embedding from the parameters table. In comparison with *embedding_lookup_sparse* it has a limitation to work only with two-dimensional indices tensor.
+**Detailed description**: [Reference](https://www.tensorflow.org/api_docs/python/tf/nn/embedding_lookup_sparse). This is similar to *embedding_lookup_sparse* but it accepts objects with empty feature values for which it uses a default value to extract an embedding from the parameters table. In comparison with *embedding_lookup_sparse* it has a limitation to work only with two-dimensional indices tensor.
 
 **Inputs**:
 
@@ -4543,7 +4543,7 @@ where \f$C\f$ is a number of classes
 
 *   **1**: ND tensor. Data tensor from which rows are selected for the mean operation. Required.
 *   **2**: 1D tensor. Tensor of rows indices selected from the first input tensor along 0 dimension. Required.
-*   **3**: 1D tensor. Tensor of segment IDs that rows selected for the operation belong to. Rows beloging to the same segment are summed up and divided by N, where N is a number of selected rows in a segment. This input has the same size as the second input. Values must be sorted in ascending order and can be repeated. Required.
+*   **3**: 1D tensor. Tensor of segment IDs that rows selected for the operation belong to. Rows belonging to the same segment are summed up and divided by N, where N is a number of selected rows in a segment. This input has the same size as the second input. Values must be sorted in ascending order and can be repeated. Required.
 
 **Outputs**:
 
