@@ -20,6 +20,7 @@ import shutil
 import glob
 import sysconfig
 import sys
+import multiprocessing
 
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
@@ -56,23 +57,29 @@ with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
 
 
 class CMakeExtension(Extension):
+    """Build extension stub."""
 
     def __init__(self, name, sources=[]):
         super().__init__(name=name, sources=sources)
 
 
 class BuildCMakeExt(build_ext):
+    """Builds module using cmake instead of the python setuptools implicit build."""
 
     cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
     user_options = [
-        ("config=", None, "Build configuration [{}]".format("|".join(cmake_build_types)))
+        ("config=", None, "Build configuration [{}].".format("|".join(cmake_build_types))),
+        ("jobs=", None, "Specifies the number of jobs to use with make.")
     ]
-    
+
     def initialize_options(self):
+        """Set default values for all the options that this command supports."""
         self.config = None
+        self.jobs = None
         super().initialize_options()
-    
+
     def finalize_options(self):
+        """Set final values for all the options that this command supports."""
         if not self.config:
             self.announce("Set default value for CMAKE_BUILD_TYPE = Release.", level=4)
             self.config = "Release"
@@ -85,18 +92,19 @@ class BuildCMakeExt(build_ext):
                 self.announce("Unsupported CMAKE_BUILD_TYPE value: " + self.config, level=4)
                 self.announce("Supported values: {}".format(", ".join(self.cmake_build_types)), level=4)
                 sys.exit(1)
+        if self.jobs is None and os.getenv("MAX_JOBS") is not None:
+            self.jobs = os.getenv("MAX_JOBS")
+        self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
         super().finalize_options()
-        
+
     def run(self):
+        """Run CMake build for modules."""
         for extension in self.extensions:
             if extension.name == "_pyngraph":
                 self.build_cmake(extension)
 
     def build_cmake(self, extension: Extension):
-        """
-        Steps required to build the extension
-        """
-
+        """Cmake configure and build steps."""
         self.announce("Preparing the build environment", level=3)
 
         build_dir = pathlib.Path(self.build_temp)
@@ -105,14 +113,14 @@ class BuildCMakeExt(build_ext):
 
         os.makedirs(build_dir, exist_ok=True)
         os.makedirs(extension_path.parent.absolute(), exist_ok=True)
-        
+
         # If ngraph_DIR is not set try to build from OpenVINO root
         root_dir = OPENVINO_ROOT_DIR
         bin_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
-        if os.environ.get('ngraph_DIR') is not None:
+        if os.environ.get("ngraph_DIR") is not None:
             root_dir = PYNGRAPH_ROOT_DIR
             bin_dir = build_dir
-            
+
         self.announce("Configuring cmake project", level=3)
 
         self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
@@ -122,33 +130,31 @@ class BuildCMakeExt(build_ext):
                     "-DENABLE_VPU=OFF",
                     "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
                     "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"])
-        
+
         self.announce("Building binaries", level=3)
-        
+
         self.spawn(["cmake", "--build", self.build_temp, "--target", extension.name,
-                    "--config", self.config])
+                    "--config", self.config, "-j", str(self.jobs)])
 
         self.announce("Moving built python module to " + str(extension_path), level=3)
-        pyds = [name for name in glob.iglob("{0}/**/{1}*{2}".format(bin_dir,
-                extension.name,
-                sysconfig.get_config_var("EXT_SUFFIX")), recursive=True)]
+        pyds = list(glob.iglob("{0}/**/{1}*{2}".format(bin_dir,
+                    extension.name,
+                    sysconfig.get_config_var("EXT_SUFFIX")), recursive=True))
         for name in pyds:
             self.announce("copy " + os.path.join(name), level=3)
-            shutil.copy(name,  extension_path)
+            shutil.copy(name, extension_path)
 
 
 class InstallCMakeLibs(install_lib):
+    """Finds and installs NGraph libraries to a package location."""
 
     def run(self):
-        """
-        Copy libraries from the bin directory and place them as appropriate
-        """
-
+        """Copy libraries from the bin directory and place them as appropriate."""
         self.announce("Adding library files", level=3)
 
-        root_dir = os.path.join(OPENVINO_ROOT_DIR, 'bin')
-        if os.environ.get('ngraph_DIR') is not None:
-            root_dir = pathlib.Path(os.environ['ngraph_DIR'])
+        root_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
+        if os.environ.get("ngraph_DIR") is not None:
+            root_dir = pathlib.Path(os.environ["ngraph_DIR"])
 
         lib_ext = ""
         if "linux" in sys.platform:
@@ -160,8 +166,8 @@ class InstallCMakeLibs(install_lib):
 
         libs = []
         for ngraph_lib in NGRAPH_LIBS:
-            libs.extend([name for name in
-                         glob.iglob('{0}/**/*{1}*{2}'.format(root_dir, ngraph_lib, lib_ext), recursive=True)])
+            libs.extend(list(glob.iglob("{0}/**/*{1}*{2}".format(root_dir,
+                             ngraph_lib, lib_ext), recursive=True)))
         if not libs:
             raise Exception("NGraph libs not found.")
 
