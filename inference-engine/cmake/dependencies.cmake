@@ -328,25 +328,25 @@ if (ENABLE_SPEECH_DEMO)
     if(DEFINED IE_PATH_TO_DEPS)
         if (WIN32 AND X86_64)
             RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_WIN "speech_demo_1.0.0.754_windows.zip"
+                    ARCHIVE_WIN "speech_demo_1.0.0.755_windows.zip"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754"
-                    SHA256 "0379a0d37695d0b9325caf313f1f0e92f55a13b24847bfbbb9ddb190d3b703f6")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.755"
+                    SHA256 "58adef14b8a749f70fa83888614cee34b941956e6e958e445e3f48885b3c20a0")
             debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
         elseif (LINUX AND X86_64)
             if (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.754_centos.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.755_centos.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754"
-                    SHA256 "3852ddc057bbe3701209602900d64eb28a947899e8027b8f152236b49c57e3ca")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.755"
+                    SHA256 "716201e377714ac50f3909c445d36d47a089de50a557d8ef65232de040671188")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             else()
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.754_linux.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.755_linux.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754"
-                    SHA256 "d530ac07c24bd05cc689c12a2467c3c51c504ab1a2162065c4811061ac4ef235")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.755"
+                    SHA256 "7714b8776ec0183ed73eed6d3d965ee6d5c15d2dc49ee5ae118cc368c89c7a9d")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             endif()
         else()
