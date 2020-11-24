@@ -45,6 +45,7 @@ class TRANSFORMATIONS_API MOCTransformations;
 
 class MOCTransformations: public ngraph::pass::FunctionPass {
     bool m_cf;
+
 public:
     NGRAPH_RTTI_DECLARATION;
     explicit MOCTransformations(bool cf) : m_cf(cf) {}
