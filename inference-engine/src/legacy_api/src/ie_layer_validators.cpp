@@ -1186,7 +1186,7 @@ void NMSValidator::parseParams(CNNLayer* layer) {
 
 #define REG_LAYER_VALIDATOR_FOR_TYPE(__validator, __type) _validators[#__type] = std::make_shared<__validator>(#__type)
 
-LayerValidators::LayerValidators() {
+LayerValidators::LayerValidators() : _validators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(BatchNormalizationValidator, BatchNormalization);
     REG_LAYER_VALIDATOR_FOR_TYPE(ClampValidator, Clamp);
     REG_LAYER_VALIDATOR_FOR_TYPE(ConcatValidator, Concat);
