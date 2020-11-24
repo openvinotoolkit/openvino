@@ -1206,6 +1206,7 @@ void MKLDNNQuantizeNode::createPrimitive() {
     for (const auto fmt : getDataFormats()) {
         if (inDesc.isSame(fmt)) {
             jqp.src_format = fmt;
+            break;
         }
     }
     IE_ASSERT(jqp.src_format != mkldnn::memory::format_tag::undef);
