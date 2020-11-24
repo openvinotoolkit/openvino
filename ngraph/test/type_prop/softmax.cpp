@@ -28,7 +28,7 @@ TEST(type_prop, softmax_default_axis)
     ASSERT_EQ(sm->get_axis(), 1);
 }
 
-TEST(type_prop, softmax_negative_axis)
+TEST(type_prop, softmax_out_of_bound_axis)
 {
     const Shape arg_shape{2, 3};
     auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
