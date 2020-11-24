@@ -1563,8 +1563,12 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (dnn->new_num_conv_columns) {
-        num_rows = dnn->new_num_conv_columns;
-        if (inputs->getDims().size() == 4) num_rows /= num_columns;
+        if (dnn->new_num_conv_columns % num_columns == 0) {
+            num_rows = dnn->new_num_conv_columns / num_columns;
+        } else {
+            num_columns = dnn->new_num_conv_columns;
+            num_rows = 1;
+        }
         dnn->new_num_conv_columns = 0;
     }
 
@@ -2031,7 +2035,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             // if request for allocation less that realTensorInput - we need to extend request
             auto minInput = inputDesc->minBytesRequiredForStoreInput(prevLayer);
             if (num_data_bytes_in < minInput) {
-                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, 8) << "\n";
+                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, 8);
                 num_data_bytes_in = ALIGN(minInput, 8);
             }
 
