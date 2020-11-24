@@ -26,9 +26,9 @@ def run(args):
     statistics = None
     try:
         if args.number_streams is None:
-                logger.warn(" -nstreams default value is determined automatically for a device. "
-                            "Although the automatic selection usually provides a reasonable performance, "
-                            "but it still may be non-optimal for some cases, for more information look at README. ")
+                logger.warning(" -nstreams default value is determined automatically for a device. "
+                               "Although the automatic selection usually provides a reasonable performance, "
+                               "but it still may be non-optimal for some cases, for more information look at README. ")
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
@@ -90,15 +90,15 @@ def run(args):
                 ## set to user defined value
                 config[device]['PERF_COUNT'] = 'YES' if args.perf_counts else 'NO'
             elif 'PERF_COUNT' in config[device].keys() and config[device]['PERF_COUNT'] == 'YES':
-                logger.warn("Performance counters for {} device is turned on. ".format(device) +
-                            "To print results use -pc option.")
+                logger.warning("Performance counters for {} device is turned on. ".format(device) +
+                               "To print results use -pc option.")
             elif args.report_type in [ averageCntReport, detailedCntReport ]:
-                logger.warn("Turn on performance counters for {} device ".format(device) +
-                            "since report type is {}.".format(args.report_type))
+                logger.warning("Turn on performance counters for {} device ".format(device) +
+                               "since report type is {}.".format(args.report_type))
                 config[device]['PERF_COUNT'] = 'YES'
             elif args.exec_graph_path is not None:
-                logger.warn("Turn on performance counters for {} device ".format(device) +
-                            "due to execution graph dumping.")
+                logger.warning("Turn on performance counters for {} device ".format(device) +
+                               "due to execution graph dumping.")
                 config[device]['PERF_COUNT'] = 'YES'
             else:
                 ## set to default value
@@ -115,9 +115,9 @@ def run(args):
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
                     config[device][key] = device_number_streams[device]
                 elif key not in config[device].keys() and args.api_type == "async":
-                    logger.warn("-nstreams default value is determined automatically for {} device. ".format(device) +
-                                "Although the automatic selection usually provides a reasonable performance,"
-                                "but it still may be non-optimal for some cases, for more information look at README.")
+                    logger.warning("-nstreams default value is determined automatically for {} device. ".format(device) +
+                                   "Although the automatic selection usually provides a reasonable performance,"
+                                   "but it still may be non-optimal for some cases, for more information look at README.")
                     config[device][key] = device + "_THROUGHPUT_AUTO"
                 if key in config[device].keys():
                     device_number_streams[device] = config[device][key]
@@ -135,8 +135,8 @@ def run(args):
                     config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
                 elif 'CPU_BIND_THREAD' not in config[device].keys():
                     if MULTI_DEVICE_NAME in device_name and GPU_DEVICE_NAME in device_name:
-                        logger.warn("Turn off threads pinning for {}".format(device) +
-                                    "device since multi-scenario with GPU device is used.")
+                        logger.warning("Turn off threads pinning for {}".format(device) +
+                                       "device since multi-scenario with GPU device is used.")
                         config[device]['CPU_BIND_THREAD'] = 'NO'
                     else:
                         ## set to default value
@@ -149,8 +149,8 @@ def run(args):
                 set_throughput_streams()
 
                 if MULTI_DEVICE_NAME in device_name and CPU_DEVICE_NAME in device_name:
-                    logger.warn("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " +
-                                "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
+                    logger.warning("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " +
+                                   "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
                     config[device]['CLDNN_PLUGIN_THROTTLE'] = '1'
             elif device == MYRIAD_DEVICE_NAME:
                 config[device]['LOG_LEVEL'] = 'LOG_INFO'

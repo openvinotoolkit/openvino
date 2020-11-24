@@ -68,31 +68,31 @@ def get_inputs(paths_to_input, batch_size, input_info, requests):
         binary_files.sort()
 
     if (len(image_files) == 0) and (len(binary_files) == 0):
-        logger.warn("No input files were given: all inputs will be filled with random values!")
+        logger.warning("No input files were given: all inputs will be filled with random values!")
     else:
         binary_to_be_used = binaries_count * batch_size * len(requests)
         if binary_to_be_used > 0 and len(binary_files) == 0:
-            logger.warn("No supported binary inputs found! Please check your file extensions: {}".format(
+            logger.warning("No supported binary inputs found! Please check your file extensions: {}".format(
                 ",".join(BINARY_EXTENSIONS)))
         elif binary_to_be_used > len(binary_files):
-            logger.warn(
+            logger.warning(
                 "Some binary input files will be duplicated: {} files are required, but only {} were provided".format(
                     binary_to_be_used, len(binary_files)))
         elif binary_to_be_used < len(binary_files):
-            logger.warn(
+            logger.warning(
                 "Some binary input files will be ignored: only {} files are required from {}".format(binary_to_be_used,
                                                                                                      len(binary_files)))
 
         images_to_be_used = images_count * batch_size * len(requests)
         if images_to_be_used > 0 and len(image_files) == 0:
-            logger.warn("No supported image inputs found! Please check your file extensions: {}".format(
+            logger.warning("No supported image inputs found! Please check your file extensions: {}".format(
                 ",".join(IMAGE_EXTENSIONS)))
         elif images_to_be_used > len(image_files):
-            logger.warn(
+            logger.warning(
                 "Some image input files will be duplicated: {} files are required, but only {} were provided".format(
                     images_to_be_used, len(image_files)))
         elif images_to_be_used < len(image_files):
-            logger.warn(
+            logger.warning(
                 "Some image input files will be ignored: only {} files are required from {}".format(images_to_be_used,
                                                                                                     len(image_files)))
 
@@ -162,7 +162,7 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
 
         new_im_size = tuple(shape[2:])
         if image.shape[:-1] != new_im_size:
-            logger.warn("Image is resized from ({}) to ({})".format(image.shape[:-1], new_im_size))
+            logger.warning("Image is resized from ({}) to ({})".format(image.shape[:-1], new_im_size))
             image = cv2.resize(image, new_im_size)
 
         if image.shape[0] != shape[2]:
