@@ -66,8 +66,7 @@ do
         shift
     ;;
         -y)
-        agreement="$2"
-        shift
+        agreement=true
         shift
     ;;
         -h|--help)
@@ -81,8 +80,6 @@ do
     esac
 done
 
-params=$@
-
 _install_prerequisites_centos()
 {
     # yum doesn't accept timeout in seconds as parameter
@@ -91,9 +88,7 @@ _install_prerequisites_centos()
     echo "      sudo -E $0"
     echo
 
-    CMDS=("yum -y install tar libpciaccess numactl-libs"
-          "yum -y groupinstall 'Development Tools'"
-          "yum -y install rpmdevtools openssl openssl-devel bc numactl ocl-icd ocl-icd-devel")
+    CMDS=("yum -y install numactl-libs numactl ocl-icd ocl-icd-devel")
 
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
@@ -129,10 +124,10 @@ _install_prerequisites_ubuntu()
 install_prerequisites()
 {
     if [[ $DISTRO == "centos" ]]; then
-        echo Installing prerequisites...
+        echo "Installing prerequisites..."
         _install_prerequisites_centos
     elif [[ $DISTRO == "ubuntu" ]]; then
-        echo Installing prerequisites...
+        echo "Installing prerequisites..."
         _install_prerequisites_ubuntu
     else
         echo Unknown OS
@@ -157,7 +152,6 @@ _deploy_deb()
     echo "$cmd"
     eval "$cmd"
 }
-
 
 _install_user_mode_centos()
 {
@@ -442,7 +436,7 @@ _check_distro_version()
             exit $EXIT_FAILURE
         fi
     elif [[ $DISTRO == ubuntu ]]; then
-        UBUNTU_VERSION=$(lsb_release -r -s) 
+        UBUNTU_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "[0-9]{2}.[0-9]{2}") 
         if [[ $UBUNTU_VERSION != '18.04' && $UBUNTU_VERSION != '20.04' ]]; then
             echo "Warning: This runtime can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
             echo "More info https://github.com/intel/compute-runtime/releases" >&2
@@ -465,7 +459,7 @@ distro_init()
 
 check_agreement()
 {
-    if [ "$agreement" == "-y" ]; then
+    if [ "$agreement" == true ]; then
         return 0
     fi
 
@@ -508,7 +502,7 @@ check_current_driver()
         gfx_version=$(apt show intel-opencl | grep Version)
     fi
     
-    gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version\:[[:space:]]*//')"
+    gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version[[:space:]]*\:[[:space:]]*//')"
     check_specific_generation
     
     # install NEO OCL driver if the current driver version < INSTALL_DRIVER_VERSION
@@ -523,7 +517,6 @@ check_current_driver()
 
 install()
 {   
-        
     uninstall_user_mode
     install_prerequisites
     download_packages
