@@ -27,10 +27,12 @@ OpenVINO™ provides the following methods for runtime model reshaping:
 
 * **Set a new input shape** with the `InferenceEngine::CNNNetwork::reshape` method.<br>
    The `InferenceEngine::CNNNetwork::reshape` method updates input shapes and propagates them down to the outputs of the model through all intermediate layers. 
+   
 > **NOTES**:
 > - Starting with the 2021.1 release, the Model Optimizer converts topologies keeping shape-calculating sub-graphs by default, which enables correct shape propagation during reshaping.
 > - Older versions of IRs are not guaranteed to reshape successfully. Please regenerate them with the Model Optimizer of the latest version of OpenVINO™.<br>
 > - If an ONNX model does not have a fully defined input shape and the model was imported with the ONNX importer, reshape the model before loading it to the plugin.
+
 * **Set a new batch dimension value** with the `InferenceEngine::CNNNetwork::setBatchSize` method.<br>     
    The meaning of a model batch may vary depending on the model design.
    Batch dimension is usually placed at the 0 index of all inputs of the model.
