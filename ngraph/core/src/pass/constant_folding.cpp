@@ -29,7 +29,14 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
 
     for (auto&& node : f->get_ordered_ops())
     {
-        node->revalidate_and_infer_types();
+        for (const auto& output : node->outputs())
+        {
+            if (output.get_partial_shape().is_dynamic())
+            {
+                node->revalidate_and_infer_types();
+                break;
+            }
+        }
 
         // recursively constant fold operators containing subgraphs (ie: TensorIterator)
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
