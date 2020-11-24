@@ -578,7 +578,7 @@ pattern.
 3. Generic front transformation.
 4. Manually enabled transformation defined with a JSON configuration file (for TensorFlow\* and ONNX\* models only)
 specified using `--transformations_config` command line parameter:
-    1. Node name defined sub-graph transformation.
+    1. Node name pattern defined sub-graph transformation.
     2. Start/end node names defined sub-graph transformation.
     3. Generic graph transformation.
 
@@ -728,9 +728,11 @@ is to check that it is enabled. Then model Optimizer executes the method `find_a
 provide the `Graph` object as input.
 
 Consider the example of a generic front transformation from file `extensions/front/SqueezeNormalize.py` performing
-normalization of the [Squeeze](../../../ops/shape/Squeeze_1.md) operation.
+normalization of the [Squeeze](../../../ops/shape/Squeeze_1.md) operation. In older version of the operation the list of
+axes to squeeze was an attribute, but now it is a separate input. For backward compatibility the Model Optimizer
+operation supports both semantics.
 
-```python
+```py
 import logging as log
 
 from mo.front.common.partial_infer.utils import int64_array
@@ -749,19 +751,170 @@ class SqueezeNormalize(FrontReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):  # the function is called unconditionally
         for squeeze_node in graph.get_op_nodes(op='Squeeze'):  # iterate over all nodes with op='Squeeze'
+            # if the operation has only 1 input node and non None 'squeeze_dims' attribute then convert the attribute to
+            # the operation input
             if len(squeeze_node.in_nodes()) == 1 and squeeze_node.has_valid('squeeze_dims'):
                 dims_node = Const(graph, {'name': squeeze_node.id + '/Dims',
                                           'value': int64_array(squeeze_node.squeeze_dims)}).create_node()
                 squeeze_node.in_port(1).connect(dims_node.out_port(0))
                 del squeeze_node['squeeze_dims']
+            # if two inputs already exists that meanss that the operation is already normalized
             elif len(squeeze_node.in_nodes()) == 2:
                 log.debug('The Squeeze node "{}" is already normalized'.format(squeeze_node.name))
+            # in all other cases raise an error
             else:
                 raise Error('The Squeeze layer "{}" should either have 2 inputs or one input and an "squeeze_dims" '
                             'attribute'.format(squeeze_node.soft_get('name')))
 ```
 
 Refer to the `mo/front/common/replacement.py` for implementation details on how these front phase transformations work.
+
+#### Node Name Pattern Front Phase Transformations <a name="node-name-pattern-front-phase-transformations"></a>
+Let's review a real life example before going into details how this type of transformations work.
+
+TensorFlow\* uses a mechanism of scope to group related operation nodes. It is a good practice to put nodes performing
+particular task into the same scope. This approach divides a graph into logical blocks that are easier to review in the
+TensorBoard\*. The scope, in fact, just defines a common name prefix for the node belonging to it.
+
+For example, Inception topologies contain several types of so-called "Inception blocks". Some of them are equal to each
+other, but located in different places of the network. For example, Inception V4 from the [TensorFlow-Slim image
+classification model library](https://github.com/tensorflow/models/tree/master/research/slim) has inception blocks
+`Mixed_5b`, `Mixed_5c` and `Mixed_5d` with exactly the same nodes with the same set of attributes.
+
+Consider situation when someone implemented these Inception blocks extremely efficiently using a single Inference Engine
+operation called `InceptionBlock` and would like to replace these blocks with instances of this operation. Model
+Optimizer provides mechanism to trigger the transformation for a sub-graph of operations defined by the node name
+regular expressions (scope). In this particular case, some of the patterns are: `.*InceptionV4/Mixed_5b`,
+`.*InceptionV4/Mixed_5c` and `.*InceptionV4/Mixed_5d`. Each pattern starts with `.*`, because a prefix `InceptionV4`
+is added to all nodes names during a model freeze.
+
+This type of transformation is implemented using `mo.front.tf.replacement.FrontReplacementFromConfigFileSubGraph` as a
+base class and works the following way.
+1. Developer prepares a JSON configuration file template defining node names patterns.
+2. Developer runs the Model Optimizer with a command line parameter `--tensorflow_custom_operations_config_update` and
+Model Optimizer adds information about input and output nodes of the specified sub-graphs.
+3. Model Optimizer executes developer-defined transformation **only** when an user specifies the path to the
+configuration file updated in step 2 using the command line parameter `--transformations_config`.
+
+Consider the following possible configuration file template for the Inception Block transformation:
+```json
+[
+    {
+        "custom_attributes": {
+            "attr1_key": "attr1_value",
+            "attr2_key": 123456
+        },
+        "id": "InceptionBlockTransformation",
+        "instances": [
+            ".*InceptionV4/Mixed_5b",
+            ".*InceptionV4/Mixed_5c",
+            ".*InceptionV4/Mixed_5d"
+        ],
+        "match_kind": "scope"
+    }
+]
+```
+
+The configuration file contains list of dictionaries. Each dictionary defines one transformation. Each transformation is
+defined with several parameters:
+
+*   `id` (mandatory) is a unique identifier of the transformation. It is used in the Python\* code that implements
+the transformation to link the class and the transformation description from the configuration file.
+
+*   `match_kind` (mandatory) is a string that specifies what matching algorithm is used. For the node name pattern case
+ the value should be equal to `scope`. Another possible values are described in the dedicated sections below.
+
+*   `instances` (mandatory) specifies instances of the sub-graph to be matched. It contains a list of node names
+prefixes patterns for the match kind of type `scope`.
+
+*   `custom_attributes` (optional) is a dictionary with attributes that can be used in the transformation code.
+
+After running the Model Optimizer with additional parameter `--tensorflow_custom_operations_config_update` pointing to
+the template configuration file the content of the file should be updated with two new sections `inputs` and `outputs`.
+The file content will be the following:
+```json
+[
+    {
+        "id": "InceptionBlockTransformation",
+        ...
+        "inputs": [
+            [
+                {
+                    "node": "Branch_2/Conv2d_0a_1x1/Conv2D$",
+                    "port": 0
+                },
+                {
+                    "node": "Branch_3/AvgPool_0a_3x3/AvgPool$",
+                    "port": 0
+                },
+                {
+                    "node": "Branch_1/Conv2d_0a_1x1/Conv2D$",
+                    "port": 0
+                },
+                {
+                    "node": "Branch_0/Conv2d_0a_1x1/Conv2D$",
+                    "port": 0
+                }
+            ]
+        ],
+        "outputs": [
+            {
+                "node": "concat$",
+                "port": 0
+            }
+        ]
+    }
+]
+```
+
+The value for key `inputs` is a list of lists describing input tensors of the sub-graph. Each element of the top-level
+list corresponds to one unique input tensor of the sub-graph. Each internal list describes a list of nodes consuming
+this tensor and port numbers where the tensor is consumed. Model Optimizer generates regular expressions for the input
+nodes names to uniquely identify them in each instance of the sub-graph defined by the `instances`. Denote these nodes
+as input nodes of the sub-graph.
+
+In the InceptionV4 topology, the `InceptionV4/Mixed_5b` block has four input tensors from outside of the sub-graph,
+but all of them are produced by the node `InceptionV4/Mixed_5a/concat`. Therefore, the top-level list of the `inputs`
+contains one list corresponding to this tensor. Four input nodes of the sub-graph consume the tensor produced by
+`InceptionV4/Mixed_5a/concat` node. In this case, all four input nodes consume input tensor into port 0.
+
+The order of items in the internal list describing nodes does not matter, but the order of elements in the top-level
+list is important. This order defines the order in which the Model Optimizer attaches input tensors to a new generated
+node if the sub-graph is replaced with a single node. The i-th input node of the sub-graph is obtained using call
+`match.single_input_node(i)` in the sub-graph transformation code. More information about API is given below. If it is
+necessary to change the order of input tensors, the configuration file can be edited in the text-editor.
+
+The value for the key `outputs` is a list describing nodes of the sub-graph producing tensor that goes outside of the
+sub-graph or does not have child nodes. Denote these nodes as output nodes of the sub-graph. The order of elements in
+the list is important. The i-th element of the list describes the i-th output tensor of the sub-graph, which could be
+obtained using call `match.output_node(i)`. The order of elements can be manually changed in the configuration file.
+Model Optimizer uses this order to connect output edges if the sub-graph is replaced with a single node.
+
+Refer to [Converting TensorFlow* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md)
+for more examples of this type of transformations.
+
+#### Front Phase Transformations Using Start and End Points <a name="start-end-points-front-phase-transformations"></a>
+TO BE REFACTORED
+In this scenario, for the matching algorithm user defines the sub-graph via a set of "start" and "end" nodes.
+Given the set, the Model Optimizer performs the following steps:
+1. Starts graph traversal from every _start_ nodes following the direction of the graph edges.
+The search stops in _end_   nodes or in case of nodes without further children. All visited nodes are added to the matched sub-graph.
+2. Starts another graph traversal from each non-start node of the sub-graph, i.e. every node except nodes from "start" set.
+In this step the edges are traversed in the opposite edge direction. All newly visited nodes are added to the
+   matched sub-graph. This step is needed to add nodes required for calculation values of internal nodes of the
+   matched sub-graph.
+3. Checks that all "end" nodes were reached from "input" nodes. If no then exit with error.
+4. Check that there are no "Placeholder" operations among added nodes. If it is not true then some side branch of
+   the sub-graph (added in step 2) depends on inputs of the network. Such configuration is not correct so exit with error.
+
+This algorithm finds all nodes "between" start and end nodes. Also nodes needed for calculation of non-input nodes of the
+matched sub-graph produce _constant_ values because they do not depend on input of the network.
+**This sub-graph match has a limitation that each start node must have only one input**. Therefore, it is not possible
+to specify, for example, convolution node as input because it has two inputs: data tensor and tensor with weights.
+
+For example of replacement with points, please refer to the case-study of the
+[Converting TensorFlow* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md)
+
 
 ### Middle Phase Transformations <a name="middle-phase-transformations"></a>
 
