@@ -201,6 +201,7 @@ namespace ngraph
                         scan_outputs.push_back(loop->get_concatenated_slices(
                             *body_outputs_it, 0, 1, 1, -1, concat_axis));
                     }
+                    loop->validate_and_infer_types();
 
                     OutputVector node_outputs;
                     for (const auto& v : final_values)

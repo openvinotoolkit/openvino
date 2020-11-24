@@ -4,7 +4,7 @@
 
 include (FindWget)
 
-function (DownloadAndCheck from to fatal result)
+function (DownloadAndCheck from to fatal result sha256)
   set(status_res "ON")
   set(output 1)
 
@@ -19,7 +19,7 @@ function (DownloadAndCheck from to fatal result)
       find_program(aria2c "aria2c")
       if (${aria2c} STREQUAL "aria2c-NOTFOUND")
         if (NOT ${WGET_FOUND})
-          Download(${from} ${to} ${fatal} ${result} output)
+          Download(${from} ${to} ${fatal} ${result} output ${sha256})
           list(GET output 0 status_code)
         else()
           message(STATUS "${WGET_EXECUTABLE} --no-cache --no-check-certificate 
@@ -29,6 +29,12 @@ function (DownloadAndCheck from to fatal result)
             "${from}" "-O" "${to}"
             TIMEOUT 2000
             RESULT_VARIABLE status_code)
+          file(SHA256 ${to} CHECKSUM)
+          if (NOT "${SHA256}" STREQUAL "skip" AND NOT ${CHECKSUM} STREQUAL ${sha256})
+            message(FATAL_ERROR "Hash mismatch:\n"
+              "expected: ${sha256}\n"
+              "got: ${CHECKSUM}")
+          endif()
         endif()
       else()
         message(STATUS "${aria2c} ,*.*.*.* -d ${download_dir} ${from}")
