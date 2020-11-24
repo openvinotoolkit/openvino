@@ -23,7 +23,7 @@ namespace {
     };
 
     const std::vector<LayerTestsDefinitions::UnsqueezeTransformationParam> params = {
-                {
+        {
             { 256ul, ngraph::Shape { 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
             { 3.0 },
             { 3, 3, 5}

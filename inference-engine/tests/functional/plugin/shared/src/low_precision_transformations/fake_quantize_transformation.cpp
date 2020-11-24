@@ -12,6 +12,9 @@
 
 #include <transformations/init_node_info.hpp>
 
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
@@ -52,7 +55,8 @@ void FakeQuantizeTransformation::validate() {
     std::tie(precision, inputShapes, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
 
     auto transformations = getLowPrecisionTransformationsNGraph(params);
-    transformations.removeCleanupTransformations("Multiply");
+    transformations.removeStandaloneCleanup<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation, ngraph::opset1::Subtract>();
+    transformations.removeStandaloneCleanup<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, ngraph::opset1::Multiply>();
 
     const auto transformed = transformNGraph(params, transformations);
     EXPECT_EQ(1ul, transformed->get_output_size());
@@ -60,7 +64,7 @@ void FakeQuantizeTransformation::validate() {
     const auto output = transformed->get_output_op(0);
     const auto scaleShift = output->get_input_node_shared_ptr(0);
     const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("FakeQuantize", typeName);
+    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(FakeQuantizeTransformation, CompareWithRefImpl) {
