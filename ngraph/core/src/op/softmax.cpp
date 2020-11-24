@@ -82,6 +82,11 @@ void op::v1::Softmax::validate_and_infer_types()
                               ") is out of bounds (argument shape: ",
                               input_shape,
                               ").");
+    NODE_VALIDATION_CHECK(this,
+                          m_axis > 0,
+                          "Reduction axis (",
+                          m_axis,
+                          "cannot be a negative number");
 
     set_output_type(0, get_input_element_type(0), input_shape);
 }
