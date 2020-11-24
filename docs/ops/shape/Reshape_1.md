@@ -16,9 +16,7 @@
 
 * *special_zero*
 
-  * **Description**: *special_zero* controls how zero values in `shape` are interpreted. If *special_zero* is `false`, then 0 is interpreted as-is which means that output shape will contain a zero dimension at the specified location. Input and output tensors are empty in this case. 
-  
-  If *special_zero* is `true`, then all zeros in `shape` implies the copying of corresponding dimensions from `data.shape` into the output shape *(left aligned)*.
+  * **Description**: *special_zero* controls how zero values in `shape` are interpreted. If *special_zero* is `false`, then 0 is interpreted as-is which means that output shape will contain a zero dimension at the specified location. Input and output tensors are empty in this case. If *special_zero* is `true`, then all zeros in `shape` implies the copying of corresponding dimensions from `data.shape` into the output shape *(left aligned)*.
   * **Range of values**: `false` or `true`
   * **Type**: boolean
   * **Default value**: None
