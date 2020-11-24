@@ -138,9 +138,7 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
         return false;
     }
 
-    std::shared_ptr<Node> zeroPoint = dequantization.subtract->input_value(1).get_node_shared_ptr();
-    auto convertedZeroPoint = NetworkHelper::roundWithTolerance(zeroPoint, operationType);
-    return convertedZeroPoint->output(0).get_element_type() == operationType;
+    return true;
 }
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
