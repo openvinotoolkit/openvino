@@ -66,8 +66,7 @@ do
         shift
     ;;
         -y)
-        agreement="$2"
-        shift
+        agreement=true
         shift
     ;;
         -h|--help)
@@ -80,64 +79,6 @@ do
         exit -1
     esac
 done
-
-params=$@
-
-_install_prerequisites_centos()
-{
-    # yum doesn't accept timeout in seconds as parameter
-    echo
-    echo "Note: if yum becomes non-responsive, try aborting the script and run:"
-    echo "      sudo -E $0"
-    echo
-
-    CMDS=("yum -y install tar libpciaccess numactl-libs"
-          "yum -y groupinstall 'Development Tools'"
-          "yum -y install rpmdevtools openssl openssl-devel bc numactl ocl-icd ocl-icd-devel")
-
-    for cmd in "${CMDS[@]}"; do
-        echo "$cmd"
-        eval "$cmd"
-        if [[ $? -ne 0 ]]; then
-            echo "ERROR: failed to run $cmd" >&2
-            echo "Problem (or disk space)?" >&2
-            echo ". Verify that you have enough disk space, and run the script again." >&2
-            exit $EXIT_FAILURE
-        fi
-    done
-
-}
-
-_install_prerequisites_ubuntu()
-{
-    CMDS=("apt-get -y update"
-          "apt-get -y install libnuma1 ocl-icd-libopencl1")
-
-    for cmd in "${CMDS[@]}"; do
-        echo "$cmd"
-        eval "$cmd"
-        if [[ $? -ne 0 ]]; then
-            echo "ERROR: failed to run $cmd" >&2
-            echo "Problem (or disk space)?" >&2
-            echo "                sudo -E $0" >&2
-            echo "2. Verify that you have enough disk space, and run the script again." >&2
-            exit $EXIT_FAILURE
-        fi
-    done
-}
-
-install_prerequisites()
-{
-    if [[ $DISTRO == "centos" ]]; then
-        echo Installing prerequisites...
-        _install_prerequisites_centos
-    elif [[ $DISTRO == "ubuntu" ]]; then
-        echo Installing prerequisites...
-        _install_prerequisites_ubuntu
-    else
-        echo Unknown OS
-    fi
-}
 
 _deploy_rpm()
 {
@@ -465,7 +406,7 @@ distro_init()
 
 check_agreement()
 {
-    if [ "$agreement" == "-y" ]; then
+    if [ "$agreement" == true ]; then
         return 0
     fi
 
@@ -508,7 +449,7 @@ check_current_driver()
         gfx_version=$(apt show intel-opencl | grep Version)
     fi
     
-    gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version\:[[:space:]]*//')"
+    gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version[[:space:]]*\:[[:space:]]*//')"
     check_specific_generation
     
     # install NEO OCL driver if the current driver version < INSTALL_DRIVER_VERSION
@@ -523,9 +464,7 @@ check_current_driver()
 
 install()
 {   
-        
     uninstall_user_mode
-    install_prerequisites
     download_packages
     install_user_mode
     add_user_to_video_group
