@@ -58,11 +58,13 @@ namespace ngraph
                     {
                         broadcast_offsets[broadcast_offsets.size() - 1] = 1;
                     }
-                    for (int i = broadcast_shape.size() - 1; i >= 0; --i)
-                    {
-                        if (broadcast_shape[i] != 1) {
-                            broadcast_offsets[i] = memory_offsets[i] - 1;
-                            break;
+                    if (broadcast_shape.back() == 1){
+                        for (int i = broadcast_shape.size() - 1; i >= 0; --i)
+                        {
+                            if (broadcast_shape[i] != 1) {
+                                broadcast_offsets[i] = memory_offsets[i] - 1;
+                                break;
+                            }
                         }
                     }
                     return broadcast_offsets;
@@ -200,9 +202,10 @@ namespace ngraph
                     else
                     {
                         size_t index_offset = calc_full_broadcast_offset(current_dim, offsets);
-
-                        NGRAPH_CHECK(idx >= index_offset && index_offset < shape_size(offsets),
-                                     "Incorrect index offset value!");
+                        if (index_offset != 0) {
+                            NGRAPH_CHECK(idx >= index_offset,
+                                         "Incorrect index offset value!");
+                        }
                         val = data[idx - index_offset];
                     }
                     return val;
