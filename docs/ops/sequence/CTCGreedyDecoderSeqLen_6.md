@@ -17,8 +17,8 @@ p(C|X) = \prod_{t=1}^{T} p(c_{t}|X)
 
 Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor `sequence_length`.
 
-Operation different beetwine CTCGreedyDecoderSeqLen and CTCGreedyDecoder. 
-The main diff is CTCGreedyDecoder use `sequence_mask` as second input. 2D input floating point tensor with sequence masks for each sequence in the batch. The lengths of sequences are coded as values 1 and 0. CTCGreedyDecoderSeqLen use 1D integer tensor with sequence lengths in second input.
+Operation different between CTCGreedyDecoderSeqLen and CTCGreedyDecoder. 
+The main difference is CTCGreedyDecoder uses `sequence_mask` as second input. 2D input floating point tensor with sequence masks for each sequence in the batch. The lengths of sequences are coded as values 1 and 0. CTCGreedyDecoderSeqLen uses 1D integer tensor with sequence lengths in second input.
 
 **Attributes**
 
@@ -38,7 +38,7 @@ The main diff is CTCGreedyDecoder use `sequence_mask` as second input. 2D input 
 
 **Output**
 
-* **1**: Output tensor with shape `[N, T]` and integer elements containing final sequence class indices. A final sequence can be shorter that the size `T` of the tensor, all elements that do not code sequence classes are filled with -1. Type of elements is floating point, but all values are integers. Type of elements is *T_F*.
+* **1**: Output tensor with shape `[N, T]` and integer elements containing final sequence class indices. A final sequence can be shorter that the size `T` of the tensor, all elements that do not code sequence classes are filled with -1. Type of elements is *T_I*.
 
 **Types**
 
