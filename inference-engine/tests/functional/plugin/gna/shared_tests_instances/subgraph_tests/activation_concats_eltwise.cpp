@@ -40,4 +40,4 @@ INSTANTIATE_TEST_CASE_P(smoke_CompareRefs, ActivationConcatsEltwise,
                                 ::testing::Values(additional_config)),
                         ActivationConcatsEltwise::getTestCaseName);
 
-} // namespace                
+} // namespace
