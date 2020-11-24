@@ -35,7 +35,7 @@ std::vector<std::string> disabledTestPatterns() {
 #if (defined(_WIN32) || defined(_WIN64))
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
-        // TODO: Fix scale pre processing
+        // TODO: Issue: 43793
         R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
         R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
         // TODO: Issue: 40957

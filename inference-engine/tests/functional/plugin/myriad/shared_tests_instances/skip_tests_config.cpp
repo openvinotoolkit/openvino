@@ -27,7 +27,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*TopKLayerTest.*mode=min.*sort=index.*)",
         // TODO: Issue: 40961
         R"(.*(ConstantResultSubgraphTest).*)",
-        // TODO: Fix scale pre processing
+        // TODO: Issue: 43795
         R"(.*(PreprocessTest).*(SetMeanValuePreProcess).*)",
         R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
         // TODO: Issue: 42828

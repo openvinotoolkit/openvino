@@ -24,7 +24,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
             // TODO: Issue: 40958
             R"(.*(ConstantResultSubgraphTest).*)",
-            // TODO: Fix scale pre processing
+            // TODO: Issue: 43794
             R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
             // TODO: Issue: 41467 -- "unsupported element type f16 op Convert"
