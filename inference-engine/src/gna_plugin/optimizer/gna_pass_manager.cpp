@@ -802,7 +802,14 @@ void InsertCopyLayerPass::run() {
                     while (LayerInfo(current_layer).isNonFunctional()) {
                         if (current_layer->outData.size() == 0) break;
                         if (getInputTo(current_layer->outData[0]).size() == 0) break;
-                        current_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
+
+                        auto next_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
+                        if (current_layer->outData.size() == 1 && getInputTo(current_layer->outData[0]).size() == 1 && original_child == current_layer) {
+                            original_child = next_layer;
+                            original_parent = current_layer;
+                            input_idx = CNNLayerFindInsDataIdxes(original_parent->outData[0], original_child)[0];
+                        }
+                        current_layer = next_layer;
                     }
 
                     if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isMemory()) {
