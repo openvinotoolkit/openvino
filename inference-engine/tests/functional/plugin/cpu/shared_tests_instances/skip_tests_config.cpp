@@ -35,6 +35,9 @@ std::vector<std::string> disabledTestPatterns() {
 #if (defined(_WIN32) || defined(_WIN64))
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
+        // TODO: Issue: 43793
+        R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
+        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
         // TODO: Issue: 40957
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
