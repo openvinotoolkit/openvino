@@ -146,6 +146,10 @@ public:
             const Stage& stage,
             const DataDesc& desc);
 
+    StageTempBuffer addTempBuffer(
+            const Stage& stage,
+            size_t bufferSize);
+
     void replaceStageInput(
             const StageInput& edge,
             const Data& newInput);
@@ -304,12 +308,12 @@ public:
     // Nodes accessors
     //
 
-    inline int numDatas() const { return _dataPtrList.size(); }
+    inline int numDatas() const { return static_cast<int>(_dataPtrList.size()); }
     inline auto datas() const -> decltype(_dataList | asRange()) {
         return _dataList | asRange();
     }
 
-    inline int numStages() const { return _stagePtrList.size(); }
+    inline int numStages() const { return static_cast<int>(_stagePtrList.size()); }
     inline auto initialStages() const -> decltype(_initialStages | asRange()) {
         return _initialStages | asRange();
     }
@@ -317,6 +321,9 @@ public:
         buildStageOrder();
         return _orderedStageList | asRange();
     }
+
+    bool isDynamic() const;
+    bool isStatic() const;
 
     //
     // Allocator

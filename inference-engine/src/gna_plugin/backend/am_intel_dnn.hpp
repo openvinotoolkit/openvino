@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "dnn_types.h"
+#include "gna_types.h"
 
 #include "gna_plugin_log.hpp"
 
@@ -28,8 +29,11 @@ public:
               num_left_context(0),
               num_right_context(0),
               do_rotate_input(false),
+              do_rotate_output(false),
               num_rotate_rows(0),
               num_rotate_columns(0),
+              num_rotate_output_rows(0),
+              num_rotate_output_columns(0),
               softmax_type(kSoftmaxNone),
               ptr_sumgroup_sizes(NULL),
               num_sumgroup_sizes(0),
@@ -176,7 +180,7 @@ public:
                                              float input_scale_factor,
                                              A *&ptr_inputs,
                                              B *&ptr_outputs,
-                                             intel_pwl_segment_t *ptr_segments) {
+                                             gna_pwl_segment_t *ptr_segments) {
         InitPiecewiseLinearComponentPrivate(cmp,
                                             function_id,
                                             orientation,
@@ -265,8 +269,6 @@ public:
     }
 
 
-    void Propagate();
-
     float OutputScaleFactor(uint32_t component_index) {
         return OutputScaleFactor(component[component_index]);
     }
@@ -310,8 +312,11 @@ public:
     uint32_t num_right_context;
     uint32_t new_num_conv_columns = 0;
     bool do_rotate_input;
+    bool do_rotate_output;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
+    uint32_t num_rotate_output_rows = 0;
+    uint32_t num_rotate_output_columns = 0;
     DnnSoftmaxType softmax_type;
     uint32_t *ptr_sumgroup_sizes;
     uint32_t num_sumgroup_sizes;
@@ -381,7 +386,7 @@ private:
                                                     float input_scale_factor,
                                                     void *&ptr_inputs,
                                                     void *&ptr_outputs,
-                                                    intel_pwl_segment_t *ptr_segments,
+                                                    gna_pwl_segment_t *ptr_segments,
                                                     bool postInitMem);
 
     static void InitInterleaveComponentPrivate(intel_dnn_component_t &cmp,

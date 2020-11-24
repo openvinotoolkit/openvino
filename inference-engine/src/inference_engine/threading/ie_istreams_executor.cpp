@@ -52,9 +52,9 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             }
         } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
             if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
-                _streams = getAvailableNUMANodes().size();
+                _streams = static_cast<int>(getAvailableNUMANodes().size());
             } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
-                const int sockets = getAvailableNUMANodes().size();
+                const int sockets = static_cast<int>(getAvailableNUMANodes().size());
                 // bare minimum of streams (that evenly divides available number of core)
                 const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
                 if (0 == num_cores % 4)
@@ -74,8 +74,11 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                                        << ". Expected only positive numbers (#streams) or "
                                        << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
                 }
-                if (val_i > 0)
-                    _streams = val_i;
+                if (val_i < 0) {
+                    THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+                                    << ". Expected only positive numbers (#streams)";
+                }
+                _streams = val_i;
             }
         } else if (key == CONFIG_KEY(CPU_THREADS_NUM)) {
             int val_i;
@@ -85,7 +88,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                 THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
                                    << ". Expected only positive numbers (#threads)";
             }
-            if (val_i <= 0) {
+            if (val_i < 0) {
                 THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
                                    << ". Expected only positive numbers (#threads)";
             }

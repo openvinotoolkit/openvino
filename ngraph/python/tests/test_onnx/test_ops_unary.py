@@ -22,20 +22,17 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 from ngraph.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-from tests import (xfail_issue_35926,
-                   xfail_issue_35929,
-                   xfail_issue_34323,
-                   xfail_issue_35930,
-                   xfail_issue_35932)
+from tests import (xfail_issue_35929,
+                   xfail_issue_40957,
+                   xfail_issue_35930)
 
 
-@xfail_issue_35926
 @pytest.mark.parametrize(
     "input_data",
     [
-        np.array([-4, 0, 5, -10]),
-        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]]),
-        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]]),
+        np.array([-4, 0, 5, -10], dtype=np.float32),
+        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]], dtype=np.float32),
+        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]], dtype=np.float32),
     ],
 )
 def test_abs(input_data):
@@ -93,13 +90,12 @@ def test_log(input_data):
     assert np.allclose(ng_results, [expected_output])
 
 
-@xfail_issue_35926
 @pytest.mark.parametrize(
     "input_data",
     [
-        np.array([-4, 0, 5, -10]),
-        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]]),
-        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]]),
+        np.array([-4, 0, 5, -10], dtype=np.float32),
+        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]], dtype=np.float32),
+        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]], dtype=np.float32),
     ],
 )
 def test_neg(input_data):
@@ -288,7 +284,6 @@ def test_softmax():
         ng_results = run_node(node, [data])
 
 
-@xfail_issue_35932
 def test_logsoftmax():
     def logsoftmax_2d(x):
         max_x = np.max(x, axis=1).reshape((-1, 1))
@@ -507,7 +502,7 @@ def test_cast_errors():
 
 
 @pytest.mark.parametrize("value_type",
-                         [pytest.param(np.float32, marks=xfail_issue_34323),
+                         [pytest.param(np.float32, marks=xfail_issue_40957),
                           pytest.param(np.float64, marks=xfail_issue_35929)])
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)

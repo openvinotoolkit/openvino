@@ -18,7 +18,7 @@
 #include <typeindex>
 #include <typeinfo>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/runtime/host_tensor.hpp"

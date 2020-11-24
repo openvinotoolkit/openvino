@@ -30,7 +30,7 @@ utterance in the input ARK file is scanned for dynamic range.  The
 scale factor (floating point scalar multiplier) required to scale the
 maximum input value of the first utterance to 16384 (15 bits) is used
 for all subsequent inputs.  The neural network is quantized to
-accomodate the scaled input dynamic range.  In user-defined
+accommodate the scaled input dynamic range.  In user-defined
 quantization mode, the user may specify a scale factor via the `-sf`
 flag that will be used for static quantization.  In dynamic
 quantization mode, the scale factor for each input batch is computed
@@ -42,7 +42,7 @@ target weight resolution for all layers.  For example, when `-qb 8` is
 specified, the plugin will use 8-bit weights wherever possible in the
 network.  Note that it is not always possible to use 8-bit weights due
 to GNA hardware limitations.  For example, convolutional layers always
-use 16-bit weights (GNA harware verison 1 and 2).  This limitation
+use 16-bit weights (GNA hardware version 1 and 2).  This limitation
 will be removed in GNA hardware version 3 and higher.
 
 #### Execution Modes
@@ -155,6 +155,8 @@ feature file (`wsj_dnn5b_smbr_dev93_10.ark`) are assumed to be available
 for comparison.
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+>
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ## Sample Output
 

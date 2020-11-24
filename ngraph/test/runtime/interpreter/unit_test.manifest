@@ -1,5 +1,3 @@
-tile_3d_small_data_rank
-tile_3d_few_repeats
 fake_quantize_pdpd
 convert_float32_bf16
 convert_bf16_float32
@@ -10,29 +8,29 @@ INTERPRETER.onnx_top_k_opset_10
 reduce_sum_large_1d_to_scalar
 reduce_sum_keep_large_1d_to_scalar
 
-# "Unsupported op 'Interpolate'
-INTERPRETER.onnx_resize10_down_scales_const_linear
-INTERPRETER.onnx_resize10_down_scales_const_nearest
-INTERPRETER.onnx_resize10_up_scales_const_linear
-INTERPRETER.onnx_resize10_up_scales_const_nearest
-INTERPRETER.onnx_upsample8_nearest_infer
-INTERPRETER.onnx_upsample8_linear_infer
-INTERPRETER.onnx_upsample9_scales_const_nearest_infer
-INTERPRETER.onnx_upsample9_scales_const_linear_infer
-INTERPRETER.onnx_upsample9_scales_input_nearest_infer
-INTERPRETER.onnx_resize11_scales_down_linear
-INTERPRETER.onnx_resize11_scales_up_linear_asymmetric
-INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor
-INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
-INTERPRETER.onnx_resize11_sizes_linear
+# Temporarily disabled:
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
+INTERPRETER.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 INTERPRETER.interpolate_down_scales_const_linear
+INTERPRETER.onnx_resize10_up_scales_const_nearest
+INTERPRETER.onnx_resize10_up_scales_const_linear
+INTERPRETER.onnx_resize10_down_scales_const_nearest
 
-# ONNX Loop
-onnx_controlflow_loop_2d_add_execution
+# Failed in MacOS:
+INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
+
+# nGraph does not support the following ONNX operations
+INTERPRETER.onnx_model_qlinear_matmul
+INTERPRETER.onnx_model_qlinear_matmul_3d
+INTERPRETER.onnx_model_matmul_integer
+INTERPRETER.onnx_model_matmul_integer_zero_point_zero
+INTERPRETER.onnx_model_matmul_integer_no_zero_point
+INTERPRETER.onnx_model_matmul_integer_scalar
+INTERPRETER.onnx_model_matmul_integer_4d
+INTERPRETER.onnx_model_matmul_integer_4d_zero_point
+INTERPRETER.onnx_model_matmul_integer_4d_no_zero_point
 
 # Disabled tests for disabled reference implementations
-INTERPRETER.onnx_model_qlinear_matmul_3d
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
 INTERPRETER.sum_2d_to_scalar_int8
 INTERPRETER.sum_trivial_in_double
@@ -62,11 +60,11 @@ INTERPRETER.max_3d_to_scalar_double
 INTERPRETER.gelu_f64
 INTERPRETER.gelu_backprop_factor_f64
 INTERPRETER.backwards_gelu_f64
-INTERPRETER.gather_4d_indices_no_axis_uint8
-INTERPRETER.gather_no_axis_int8
-INTERPRETER.gather_no_axis_int16
-INTERPRETER.gather_no_axis_uint8
-INTERPRETER.gather_no_axis_uint16
+INTERPRETER.gather_4d_indices_axis_0_uint8
+INTERPRETER.gather_axis_0_int8
+INTERPRETER.gather_axis_0_int16
+INTERPRETER.gather_axis_0_uint8
+INTERPRETER.gather_axis_0_uint16
 INTERPRETER.fused_clamp_double
 INTERPRETER.fused_clamp_int8
 INTERPRETER.fused_clamp_int16
@@ -107,9 +105,37 @@ INTERPRETER.onnx_model_conv_integer
 INTERPRETER.onnx_model_conv_integer_zero_point_zero
 INTERPRETER.onnx_model_conv_integer_no_zero_point
 INTERPRETER.onnx_model_conv_integer_pads
-INTERPRETER.onnx_model_scatterND
-INTERPRETER.onnx_model_gatherND_int32
-INTERPRETER.onnx_model_gatherND_float
 
-# Round op doesn't support some specific cases of rounding
-onnx_model_round_half_nearest_even
+# Activation function hardsigmoid is not supported.
+gru_cell_activation_function
+lstm_cell_activaction_functions
+onnx_model_gru_fwd_activations
+onnx_model_lstm_fwd_hardsigmoid_activation
+
+# Peepholes, input_forget are not supported
+onnx_model_lstm_fwd_with_clip_peepholes
+onnx_model_lstm_bdir_short_input_seq_peepholes
+lstm_cell_bias_peepholes
+lstm_cell_bias_peepholes_clip_input_forget
+
+# unsupported element type f16
+INTERPRETER.ctc_greedy_decoder_f16
+
+# LogSoftmax's reference implementation doesn't handle scalar input properly
+onnx_model_logsoftmax_0D
+
+# Input body shape is changed during Loop iterations
+# Exception is throw during Loop shape inference
+onnx_controlflow_loop_concat_values
+
+# Infinitive Loop is not supported
+onnx_controlflow_loop_infinite
+
+# Dynamic shape support
+onnx_controlflow_loop_2d_trip_count_dynamic
+onnx_controlflow_loop_no_variadic_inputs_and_outputs
+onnx_controlflow_loop_power
+
+# The test fails in CI on Ubuntu i386
+# There's an overflow of some kind: 2147483647 is not close to -2147483648 at index 2
+quantize_clamp_int32

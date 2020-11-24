@@ -29,7 +29,7 @@ if (ENABLE_MKL_DNN)
 endif()
 
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if(ARM)
+if(ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
     set(THREADING_DEFAULT "TBB")
@@ -45,17 +45,22 @@ if (NOT THREADING STREQUAL "TBB" AND
 endif()
 
 if (ENABLE_GNA)
-    set (DEFAULT_GNA_LIB GNA2)
+    if (UNIX AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
+        set (DEFAULT_GNA_LIB GNA1)
+    else()
+        set (DEFAULT_GNA_LIB GNA2)
+    endif()
     set(GNA_LIBRARY_VERSION "${DEFAULT_GNA_LIB}" CACHE STRING "GNAVersion")
-    set_property(CACHE GNA_LIBRARY_VERSION PROPERTY STRINGS "GNA1_1401" "GNA2")
+    set_property(CACHE GNA_LIBRARY_VERSION PROPERTY STRINGS "GNA1" "GNA1_1401" "GNA2")
     list (APPEND IE_OPTIONS GNA_LIBRARY_VERSION)
-    if (NOT GNA_LIBRARY_VERSION STREQUAL "GNA1_1401" AND
+    if (NOT GNA_LIBRARY_VERSION STREQUAL "GNA1" AND
+        NOT GNA_LIBRARY_VERSION STREQUAL "GNA1_1401" AND
         NOT GNA_LIBRARY_VERSION STREQUAL "GNA2")
-        message(FATAL_ERROR "GNA_LIBRARY_VERSION should be set to GNA1_1401 or GNA2. Default option is ${DEFAULT_GNA_LIB}")
+        message(FATAL_ERROR "GNA_LIBRARY_VERSION should be set to GNA1, GNA1_1401 or GNA2. Default option is ${DEFAULT_GNA_LIB}")
     endif()
 endif()
 
-ie_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON)
+ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_VPU" OFF)
 
@@ -91,6 +96,8 @@ ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
 ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
 
+ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
+
 ie_option (ENABLE_JAVA "enables ie java bridge build" OFF)
 
 ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
@@ -99,6 +106,8 @@ ie_dependent_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of faili
 
 ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON)
 
-set(IE_EXTRA_PLUGINS "" CACHE STRING "Extra paths for plugins to include into DLDT build tree")
+set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
+
+ie_option (USE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)

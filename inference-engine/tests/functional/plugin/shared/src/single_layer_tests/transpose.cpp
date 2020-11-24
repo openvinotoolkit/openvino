@@ -21,25 +21,28 @@ namespace LayerTestsDefinitions {
 
 std::string TransposeLayerTest::getTestCaseName(testing::TestParamInfo<transposeParams> obj) {
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     std::vector<size_t> inputShapes, inputOrder;
     std::string targetDevice;
-    std::tie(inputOrder, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(inputOrder, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "inputOrder=" << CommonTestUtils::vec2str(inputOrder) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetDevice;
     return result.str();
 }
 
 void TransposeLayerTest::SetUp() {
-    // TODO: Issue 32756
-    // Failed to create function on SetUp stage with some parameters
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     std::vector<size_t> inputShape, inputOrder;
     InferenceEngine::Precision netPrecision;
-    std::tie(inputOrder, netPrecision, inputShape, targetDevice) = this->GetParam();
+    std::tie(inputOrder, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

@@ -19,7 +19,9 @@ import logging as log
 import numpy as np
 
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
+from mo.utils.error import Error
 
 
 class Range(Op):
@@ -48,13 +50,29 @@ class Range(Op):
             'type': self.op,
             'op': self.op,
 
-            'version': 'opset1',
+            'version': 'opset4',
             'infer': self.infer,
+            'type_infer': self.type_infer,
 
             'in_ports_count': 3,
             'out_ports_count': 1,
         }
         super().__init__(graph, mandatory_props, attrs)
+
+    def backend_attrs(self):
+        version = self.get_opset()
+        if version == 'opset4':
+            return [
+                ('output_type', lambda node: np_data_type_to_destination_type(node.output_type)),
+            ]
+        elif version == 'opset1':
+            return []
+        else:
+            raise Error('Unknown opset version "{}"'.format(version))
+
+    @staticmethod
+    def type_infer(node: Node):
+        node.out_port(0).set_data_type(node['output_type'])
 
     @staticmethod
     def infer(node: Node):
@@ -69,4 +87,8 @@ class Range(Op):
 
         assert start is not None and limit is not None and delta is not None, \
             'Range operation {} with dynamic inputs is not supported'.format(name)
-        node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node.soft_get('dtype', start.dtype)))
+
+        if not node.has_valid('output_type'):
+            node['output_type'] = start.dtype
+
+        node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node['output_type']))

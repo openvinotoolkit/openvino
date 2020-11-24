@@ -13,6 +13,7 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
+#include "nodes/common/cpu_memcpy.h"
 
 using namespace InferenceEngine;
 using namespace mkldnn;
@@ -97,10 +98,8 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, co
 
         std::vector<ptrdiff_t> dims(memData.dims, memData.dims + memData.ndims);
 
-        auto data_type = GetDataType();
-
         MKLDNNMemory src(eng);
-        src.Create(dims, data_type, format, data);
+        src.Create(dims, dataType, format, data);
 
         std::shared_ptr<mkldnn::reorder> pReorder =
                 std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
@@ -110,7 +109,7 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, co
         uint8_t* dataPtr = static_cast<uint8_t*>(GetData());
         // We cannot support strides for i/o blobs because it affects performance.
         dataPtr += itemSize * prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
-        memcpy(dataPtr, data, size);
+        cpu_memcpy(dataPtr, data, size);
     }
 
     if (ftz && dataType == mkldnn_f32) {
@@ -350,6 +349,7 @@ void MKLDNNMemory::CreateBlockingDesc(memory::desc &desc) {
         blk.strides[0][curr_idx] = dims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, dims[prev_idx]);
     }
 }
+
 memory::format MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
     switch (layout) {
         case NCHW:
@@ -1132,6 +1132,11 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
                 mkldnnFormat = memory::format::x;
             } else if (realDims.ndims() == 2) {
                 mkldnnFormat = memory::format::nc;
+            } else if (realDims.ndims() == 3) {
+                if (order == SizeVector{0, 1, 2})
+                    mkldnnFormat = memory::format::tnc;
+                else if (order == SizeVector{1, 0, 2})
+                    mkldnnFormat = memory::format::ntc;
             } else if (realDims.ndims() == 4) {
                 if (order.size() == 7 &&
                     order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1 && order[5] == 0 && order[6] == 1) {
@@ -1387,7 +1392,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
 
     if (notDefault) {
         for (size_t i = 0; i < strides.size() && i < desc.data.ndims; i++) {
-            desc.data.layout_desc.blocking.strides[0][i] = static_cast<ptrdiff_t>(strides[order[i]]);
+            desc.data.layout_desc.blocking.strides[0][order[i]] = static_cast<ptrdiff_t>(strides[i]);
         }
     }
 }

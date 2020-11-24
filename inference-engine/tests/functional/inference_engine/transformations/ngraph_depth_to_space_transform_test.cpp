@@ -14,8 +14,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/op/depth_to_space.hpp>
 #include <ngraph/op/space_to_depth.hpp>
-#include <transformations/convert_depth_to_space.hpp>
-#include <transformations/convert_space_to_depth.hpp>
+#include <transformations/op_conversions/convert_depth_to_space.hpp>
+#include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -180,4 +180,30 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
     std::vector<int64_t> shape_end_value = shape_end->get_vector<int64_t>();
     std::vector<int64_t> shape_end_value_ref{1, 12 * 4, 1080 / 2, 1616 / 2};
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
+}
+
+TEST(TransformationTests, TestSpaceToDepthDynamic) {
+    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+    std::shared_ptr<ngraph::Function> f(nullptr);
+
+    {
+        auto space_to_depth = std::make_shared<ngraph::op::SpaceToDepth>(input, ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 2);
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{space_to_depth}, ngraph::ParameterVector{input});
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::ConvertSpaceToDepth>();
+        ASSERT_NO_THROW(m.run_passes(f));
+    }
+}
+
+TEST(TransformationTests, TestDepthToSpaceDynamic) {
+    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+    std::shared_ptr<ngraph::Function> f(nullptr);
+
+    {
+        auto depth_to_space = std::make_shared<ngraph::op::DepthToSpace>(input, ngraph::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{depth_to_space}, ngraph::ParameterVector{input});
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::ConvertDepthToSpace>();
+        ASSERT_NO_THROW(m.run_passes(f));
+    }
 }

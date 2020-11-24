@@ -172,7 +172,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
     }
 #endif
 
-#if OUTPUT_LAYOUT_B_FS_YX_FSV4 || OUTPUT_LAYOUT_BYXF_AF32
+#if OUTPUT_LAYOUT_B_FS_YX_FSV4
     const uint output_pos = OUTPUT_GET_INDEX(b, f, y, x);
 #if OUTPUT_FEATURE_NUM % 4 == 0
     *((__global OUTPUT_VEC4*)(output + output_pos)) = final_result;

@@ -13,6 +13,9 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 # QA Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
 
+# OpenVINO Scripts
+/scripts/ @openvinotoolkit/openvino-admins @openvinotoolkit/openvino-scripts-maintainers
+
 # IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
 /inference-engine/ie_bridges/python @openvinotoolkit/openvino-ie-python-api-maintainers

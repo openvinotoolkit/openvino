@@ -20,15 +20,19 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 
 #include "single_layer_tests/prior_box_clustered.hpp"
+#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
 
 namespace LayerTestsDefinitions {
 std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes, imageShapes;
     std::string targetDevice;
     priorBoxClusteredSpecificParams specParams;
     std::tie(specParams,
         netPrecision,
+        inPrc, outPrc, inLayout, outLayout,
         inputShapes,
         imageShapes,
         targetDevice) = obj.param;
@@ -50,6 +54,10 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
     result << "IS="      << CommonTestUtils::vec2str(inputShapes) << separator;
     result << "imageS="  << CommonTestUtils::vec2str(imageShapes) << separator;
     result << "netPRC="  << netPrecision.name()   << separator;
+    result << "inPRC="   << inPrc.name() << separator;
+    result << "outPRC="  << outPrc.name() << separator;
+    result << "inL="     << inLayout << separator;
+    result << "outL="    << outLayout << separator;
     result << "widths="  << CommonTestUtils::vec2str(widths)  << separator;
     result << "heights=" << CommonTestUtils::vec2str(heights) << separator;
     result << "variances=";
@@ -61,7 +69,7 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
     result << "stepHeight=" << step_height << separator;
     result << "offset="     << offset      << separator;
     result << "clip=" << std::boolalpha << clip << separator;
-    result << "targetDevice=" << targetDevice;
+    result << "trgDev=" << targetDevice;
     return result.str();
 }
 
@@ -145,6 +153,7 @@ std::vector<std::vector<std::uint8_t>> PriorBoxClusteredLayerTest::CalculateRefs
 void PriorBoxClusteredLayerTest::SetUp() {
     priorBoxClusteredSpecificParams specParams;
     std::tie(specParams, netPrecision,
+        inPrc, outPrc, inLayout, outLayout,
         inputShapes, imageShapes, targetDevice) = GetParam();
 
     std::tie(widths,
@@ -156,7 +165,9 @@ void PriorBoxClusteredLayerTest::SetUp() {
         variances) = specParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShapes, imageShapes });
+    auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShapes, imageShapes });
+    auto paramsOut = ngraph::helpers::convert2OutputVector(
+        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 
     ngraph::op::PriorBoxClusteredAttrs attributes;
     attributes.widths = widths;
@@ -167,18 +178,16 @@ void PriorBoxClusteredLayerTest::SetUp() {
     attributes.offset = offset;
     attributes.variances = variances;
 
-    auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-    auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
-    auto priorBoxClustered = std::make_shared<ngraph::opset3::PriorBoxClustered>(
-        shape_of_1,
-        shape_of_2,
+    auto priorBoxClustered = std::make_shared<ngraph::op::PriorBoxClusteredIE>(
+        paramsOut[0],
+        paramsOut[1],
         attributes);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(priorBoxClustered) };
-    function = std::make_shared<ngraph::Function>(results, params, "PB_Clustered");
+    function = std::make_shared<ngraph::Function>(results, paramsIn, "PB_Clustered");
 }
 
-TEST_P(PriorBoxClusteredLayerTest, DISABLED_CompareWithRefs) {
+TEST_P(PriorBoxClusteredLayerTest, CompareWithRefs) {
     Run();
 };
 }  // namespace LayerTestsDefinitions

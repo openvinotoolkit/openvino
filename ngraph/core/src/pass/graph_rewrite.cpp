@@ -23,9 +23,10 @@
 #include <vector>
 
 #include "graph_rewrite.hpp"
+#include "itt.hpp"
 #include "ngraph/env_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
+#include "ngraph/op/util/sub_graph_base.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -71,6 +72,7 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
     bool rewritten = false;
+    const auto& pass_config = get_pass_config();
 
     // Initialize execution queue with nodes in topological order
     deque<std::shared_ptr<Node>> nodes_to_run;
@@ -84,6 +86,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
     std::unordered_map<NodeTypeInfo, std::vector<size_t>> type_to_matcher;
     for (size_t matcher_index = 0; matcher_index < m_matchers.size(); ++matcher_index)
     {
+        // Skip passes that are disabled
+        if (pass_config->is_disabled(m_matchers[matcher_index]->get_type_info()))
+            continue;
+
         auto matcher = m_matchers[matcher_index]->get_matcher();
         if (!matcher)
         {
@@ -138,11 +144,6 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
             return false;
         }
 
-        if (!m_has_default_callback)
-        {
-            m_pass->set_callback(m_transformation_callback);
-        }
-
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node
         bool status = m_pass->apply(node);
@@ -170,6 +171,14 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
     {
         auto node = nodes_to_run.front();
         nodes_to_run.pop_front();
+        // Recursive apply Matchers for sub-graph based nodes
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
+        {
+            if (auto sub_graph = sub_graph_node->get_function())
+            {
+                run_on_function(sub_graph);
+            }
+        }
         // Temporary keep this GraphRewrite property for backward compatibility
         if (m_enable_shape_inference)
         {
@@ -215,6 +224,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         {
             for (auto& m_pass : m_matchers)
             {
+                // Skip passes that are disabled
+                if (pass_config->is_disabled(m_pass->get_type_info()))
+                    continue;
+
                 if (run_matcher_pass(m_pass, node))
                 {
                     rewritten = true;
@@ -257,6 +270,35 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
     // callback require static shape.
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
     NGRAPH_SUPPRESS_DEPRECATED_END
+}
+
+void pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs)
+{
+    auto pass_config = get_pass_config();
+    // We have to preserve disabled passes because in case when we register matchers inside
+    // GraphRewrite c-tor we work with local PassConfig instance.
+    // For example:
+    //
+    // class ExampleGraphRewrite: public pass::GraphRewrite {
+    //      ExampleGraphRewrite() {
+    //          add_mather<TestMatcher1, false /* disabled by default */>();
+    //          add_mather<TestMatcher2>();
+    //      }
+    // };
+    //
+    // When we call add_matcher inside c-tor we automatically work with locally created PassConfig
+    // instance that is not shared. So when instance of this pass is being created in pass::Manager
+    // we set shared PassConfig but we will override already existing rules inside local config. To
+    // resolve this we have to copy disabled passes from local PassConfig to shared but we take into
+    // account that if passes were manually enabled we do not add them.
+    rhs->add_disabled_passes(*pass_config);
+    PassBase::set_pass_config(rhs);
+
+    // update nested transformations with new shared pass_config
+    for (auto& pass : m_matchers)
+    {
+        pass->set_pass_config(rhs);
+    }
 }
 
 void pass::RecurrentGraphRewrite::add_matcher(

@@ -128,19 +128,17 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
     // ..
 
     auto cfg = Configuration(config, exportedCfg);
-
-    IExecutableNetwork::Ptr executableNetwork;
     auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
-    executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(exec_network_impl),
-                            [](InferenceEngine::details::IRelease *p) {p->Release(); });
 
-    return InferenceEngine::ExecutableNetwork{ executableNetwork };
+    return make_executable_network(exec_network_impl);
 }
 // ! [plugin:import_network_impl]
 
 // ! [plugin:query_network]
-void Plugin::QueryNetwork(const CNNNetwork &network, const ConfigMap& config, QueryNetworkResult &res) const {
+QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork &network, const ConfigMap& config) const {
+    QueryNetworkResult res;
     Configuration cfg{config, _cfg, false};
+
     auto function = network.getFunction();
     if (function == nullptr) {
          THROW_IE_EXCEPTION << "Template Plugin supports only ngraph cnn network representation";
@@ -161,17 +159,15 @@ void Plugin::QueryNetwork(const CNNNetwork &network, const ConfigMap& config, Qu
     std::unordered_set<std::string> unsupported;
     auto opset = ngraph::get_opset4();
     for (auto&& node : transformedFunction->get_ops()) {
-        if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-            // Extract transformation history from transformed node as list of nodes
-            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
-                // Filter just nodes from original operation set
-                // TODO: fill with actual decision rules based on whether kernel is supported by backend
-                if (contains(originalOps, fusedLayerName)) {
-                    if (opset.contains_type_insensitive(fusedLayerName)) {
-                        supported.emplace(fusedLayerName);
-                    } else {
-                        unsupported.emplace(fusedLayerName);
-                    }
+        // Extract transformation history from transformed node as list of nodes
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
+            // Filter just nodes from original operation set
+            // TODO: fill with actual decision rules based on whether kernel is supported by backend
+            if (contains(originalOps, fusedLayerName)) {
+                if (opset.contains_type_insensitive(fusedLayerName)) {
+                    supported.emplace(fusedLayerName);
+                } else {
+                    unsupported.emplace(fusedLayerName);
                 }
             }
         }
@@ -183,6 +179,8 @@ void Plugin::QueryNetwork(const CNNNetwork &network, const ConfigMap& config, Qu
             res.supportedLayersMap.emplace(layerName, GetName());
         }
     }
+
+    return res;
 }
 // ! [plugin:query_network]
 

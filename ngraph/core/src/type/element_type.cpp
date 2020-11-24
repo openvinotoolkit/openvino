@@ -15,8 +15,9 @@
 //*****************************************************************************
 
 #include <cmath>
+#include <functional>
 #include <iostream>
-#include <map>
+#include <unordered_map>
 
 #include "ngraph/log.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -69,9 +70,16 @@ public:
     std::string m_type_name;
 };
 
-static const map<element::Type_t, const TypeInfo>& get_type_info_map()
+struct element_type_hash
 {
-    static map<element::Type_t, const TypeInfo> s_type_info_map{
+    size_t operator()(element::Type_t t) const { return static_cast<size_t>(t); }
+};
+
+typedef unordered_map<element::Type_t, const TypeInfo, element_type_hash> element_types_map_t;
+
+static const element_types_map_t& get_type_info_map()
+{
+    static element_types_map_t s_type_info_map{
         {element::Type_t::undefined,
          TypeInfo(
              std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined")},
@@ -349,6 +357,7 @@ namespace ngraph
                                         {"i16", element::Type_t::i16},
                                         {"i32", element::Type_t::i32},
                                         {"i64", element::Type_t::i64},
+                                        {"u1", element::Type_t::u1},
                                         {"u8", element::Type_t::u8},
                                         {"u16", element::Type_t::u16},
                                         {"u32", element::Type_t::u32},

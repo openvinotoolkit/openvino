@@ -41,8 +41,11 @@ namespace ngraph
             /// | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
             /// | \f$E[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \texttt{arg1}[i_1,\dots,i_n]\text{ if }\texttt{arg0}[i_1,\dots,i_n] \neq 0\text{, else }\texttt{arg2}[i_1,\dots,i_n]\f$ |
             // clang-format on
-            class NGRAPH_API Select : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Select instead of it.") NGRAPH_API Select : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Select", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -60,8 +63,9 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 void validate_and_infer_types() override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
-        }
+        } // namespace v0
 
         namespace v1
         {
@@ -118,10 +122,15 @@ namespace ngraph
                 }
                 // TODO: Move all uses of get_autob to get_auto_broadcast() and remove this.
                 const AutoBroadcastSpec& get_autob() const override { return m_auto_broadcast; }
+                virtual bool evaluate(const HostTensorVector& output_values,
+                                      const HostTensorVector& input_values) const override;
+
             private:
                 AutoBroadcastSpec m_auto_broadcast;
             };
-        }
+        } // namespace v1
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Select;
-    }
-}
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    } // namespace op
+} // namespace ngraph

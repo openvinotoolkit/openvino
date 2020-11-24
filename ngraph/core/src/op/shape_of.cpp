@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/gather.hpp"
@@ -62,7 +62,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
-namespace
+namespace shape_of
 {
     template <element::Type_t ET>
     inline bool evaluate(const Shape& shape, const HostTensorPtr& output_value)
@@ -100,7 +100,6 @@ namespace
         auto output_type = shape_of_node->get_output_element_type(0);
         if (partial_shape.is_static())
         {
-            NGRAPH_CHECK(pass::revalidate_and_ensure_static(shape_of_node->shared_from_this()));
             auto arg_shape = shape_of_input.get_shape();
             auto result_tensor =
                 make_shared<HostTensor>(output_type, shape_of_node->get_output_shape(0));
@@ -160,13 +159,15 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::ShapeOf::evaluate");
-    return evaluate_shape_of(output_values[0], input_values[0]);
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
-    return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
+    if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
+        return false;
+    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }
 
 // op::v0::ShapeOf
@@ -193,6 +194,12 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 {
     check_new_args_count(this, new_args);
     auto new_shape_of = make_shared<op::v0::ShapeOf>(new_args.at(0));
+    NGRAPH_CHECK(new_shape_of.get(),
+                 new_shape_of != nullptr,
+                 "Cannot clone ",
+                 description(),
+                 " operation with name ",
+                 get_friendly_name());
     new_shape_of->set_is_foldable(m_is_foldable);
     return new_shape_of;
 }
@@ -201,11 +208,13 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::ShapeOf::evaluate");
-    return evaluate_shape_of(output_values[0], input_values[0]);
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
-    return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
+    if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
+        return false;
+    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }

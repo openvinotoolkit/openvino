@@ -135,7 +135,7 @@ TEST_P(Gather_x2_add_mul_relu_concat_matmul, CompareWithRefImpl) {
 };
 
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Gather_x2_add_mul_relu_concat_matmul,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Gather_x2_add_mul_relu_concat_matmul,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -144,7 +144,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Gather_x2_add_mul_relu_concat_m
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Gather_x2_add_mul_relu_concat_matmul::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, Gather_x2_add_mul_relu_concat_matmul,
+INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Gather_x2_add_mul_relu_concat_matmul,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),

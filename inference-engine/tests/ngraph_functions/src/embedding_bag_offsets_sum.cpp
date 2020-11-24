@@ -29,7 +29,7 @@ std::shared_ptr<Node> makeEmbeddingBagOffsetsSum(
         std::vector<size_t> d_shape = {};
         auto defIdxNode = std::make_shared<ngraph::opset1::Constant>(indicesType, d_shape, default_index);
         if (with_weights) {
-            auto weightsNode = makeConstant(dataType, {indices.size()}, {}, true);
+            auto weightsNode = makeConstant<float>(dataType, {indices.size()}, {}, true);
 
             embBag = std::make_shared<opset3::EmbeddingBagOffsetsSum>(
                 embTableNode, indicesNode, offsetsNode, defIdxNode, weightsNode);

@@ -60,6 +60,26 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t>
     return fnPtr;
 }
 
+static std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inputShape = {1, 4, 20, 20},
+                                                         InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+
+    auto shapeOf = std::make_shared<ngraph::opset4::ShapeOf>(params[0]);
+    auto convert = std::make_shared<ngraph::opset4::Convert>(shapeOf, ngPrc);
+    auto newShape = ngraph::builder::makeConstant<int64_t>(ngraph::element::i64, {4}, {1, 4, 1, 1});
+    auto reshape = std::make_shared<ngraph::opset4::Reshape>(convert, newShape, false);
+    auto conv1 = ngraph::builder::makeConvolution(params[0], ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+                                                  ngraph::op::PadType::EXPLICIT, 4);
+    auto relu1 = std::make_shared<ngraph::opset4::Relu>(conv1);
+    auto add = std::make_shared<ngraph::opset4::Add>(relu1, reshape);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};
+    std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
+    fnPtr->set_friendly_name("KSOFunction");
+    return fnPtr;
+}
+
 static std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20}) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP32);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -130,7 +150,7 @@ static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(InferenceEngine::Pre
     inShape = {N, I};
     auto constantX = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, inShape);
     auto LSTM_cell =
-            std::make_shared<ngraph::opset1::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
+            std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
                                                    std::make_shared<ngraph::opset1::Reshape>(H_t, constantH, false),
                                                    std::make_shared<ngraph::opset1::Reshape>(C_t, constantH, false),
                                                    W_body,
@@ -140,7 +160,7 @@ static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(InferenceEngine::Pre
     auto constantHo = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{3}, inShape);
     auto H_o = std::make_shared<ngraph::opset1::Reshape>(LSTM_cell->output(0), constantHo, false);
     auto C_o = std::make_shared<ngraph::opset1::Reshape>(LSTM_cell->output(1), constantHo, false);
-    auto body = std::make_shared<ngraph::op::TensorIterator::BodyLambda>(
+    auto body = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{H_o, C_o}, ngraph::ParameterVector{X, H_t, C_t});
 
     auto tensor_iterator = std::make_shared<ngraph::op::TensorIterator>();
@@ -462,6 +482,33 @@ static std::shared_ptr<ngraph::Function> makeConvBias(std::vector<size_t> inputS
     result->set_friendly_name("result");
     std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{parameter});
     fn_ptr->set_friendly_name("ConvBias");
+    return fn_ptr;
+}
+
+static std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<size_t> inputShape = {1, 1, 2, 4},
+                                                                   InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
+    ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
+    auto parameter =  ngraph::builder::makeParams(type, {inputShape});
+    parameter[0]->set_friendly_name("parameter");
+    auto init_const = ngraph::op::Constant::create(element::f32, Shape{1, 1, 2, 2}, {0, 0, 0, 0});
+    auto read = std::make_shared<ngraph::op::ReadValue>(init_const, "v0");
+    read->set_friendly_name("read");
+    std::vector<std::shared_ptr<ngraph::Node>> args = {parameter[0], read};
+    auto conc = std::make_shared<ngraph::op::Concat>(args, 3);
+    conc->set_friendly_name("concat");
+    auto res = std::make_shared<ngraph::op::Result>(conc);
+    res->set_friendly_name("result");
+    const auto axis = ngraph::op::Constant::create(element::i64, Shape{}, {3});
+    axis->set_friendly_name("axis");
+    auto crop = std::make_shared<ngraph::op::v1::Split>(conc, axis, 3);
+    crop->set_friendly_name("crop");
+    auto assign = std::make_shared<ngraph::op::Assign>(crop, "v0");
+    assign->set_friendly_name("assign");
+
+    std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector({res}),
+                                                                                  ngraph::SinkVector({assign}),
+                                                                                  ngraph::ParameterVector{parameter});
+    fn_ptr->set_friendly_name("ReadConcatSplitAssign");
     return fn_ptr;
 }
 }  // namespace subgraph

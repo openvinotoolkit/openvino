@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 
 #define OUTPUT_SIZE_X_WITH_PADDING (OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X)
 #define OUTPUT_SIZE_Y_WITH_PADDING (OUTPUT_PAD_BEFORE_SIZE_Y + OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y)
+#define OUTPUT_SIZE_B_WITH_PADDING (OUTPUT_PAD_BEFORE_BATCH_NUM + OUTPUT_BATCH_NUM + OUTPUT_PAD_AFTER_BATCH_NUM)
 
 // In some cases input padding may be bigger than needed, those variables describe the offset into padding.
 #define INPUT0_PADDING_OFFSET_SIZE_X (INPUT0_PAD_BEFORE_SIZE_X - PADDING_SIZE_X)
@@ -103,7 +104,7 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
     uint input_offset = oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X;
     input_offset += (or * STRIDE_SIZE_Y + INPUT0_PADDING_OFFSET_SIZE_Y) * INPUT0_SIZE_X_WITH_PADDING;
     input_offset += INPUT0_PAD_BEFORE_FEATURE_NUM * INPUT0_FEATURE_PITCH;
-    input_offset += b * INPUT0_BATCH_PITCH;
+    input_offset += (b + INPUT0_PAD_BEFORE_BATCH_NUM) * INPUT0_BATCH_PITCH;
 
     uint weight_offset = 0;
     weight_offset += fs * FILTER_SIZE_X * FILTER_SIZE_Y * ALIGNED_IFM_NUM * FSV;
@@ -243,12 +244,19 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
 
     // ========================================================================
     // Store results:
+    // Calculate offset to first output element
+    const uint out_pitch_x = FSV;
+    const uint out_pitch_y = out_pitch_x * OUTPUT_SIZE_X_WITH_PADDING;
+    const uint out_pitch_b = out_pitch_y * OUTPUT_SIZE_Y_WITH_PADDING;
+    const uint out_pitch_fs = out_pitch_b * OUTPUT_SIZE_B_WITH_PADDING;
+
     const uint pad_before_fs = (OUTPUT_PAD_BEFORE_FEATURE_NUM / FSV);
+
     uint output_offset = 0;
-    output_offset += (oc + OUTPUT_PAD_BEFORE_SIZE_X) * FSV;
-    output_offset += (or + OUTPUT_PAD_BEFORE_SIZE_Y) * FSV * OUTPUT_SIZE_X_WITH_PADDING;
-    output_offset += b  * FSV * OUTPUT_SIZE_X_WITH_PADDING * OUTPUT_SIZE_Y_WITH_PADDING;
-    output_offset += (pad_before_fs + fs) * FSV * OUTPUT_SIZE_X_WITH_PADDING * OUTPUT_SIZE_Y_WITH_PADDING * OUTPUT_BATCH_NUM;
+    output_offset += (oc + OUTPUT_PAD_BEFORE_SIZE_X) * out_pitch_x;
+    output_offset += (or + OUTPUT_PAD_BEFORE_SIZE_Y) * out_pitch_y;
+    output_offset += (b + OUTPUT_PAD_BEFORE_BATCH_NUM) * out_pitch_b;
+    output_offset += (pad_before_fs + fs) * out_pitch_fs;
 
     const bool full_f = OUTPUT_FEATURE_NUM % FSV == 0 || fs * FSV + FSV <= OUTPUT_FEATURE_NUM;
     const bool full_x = OUTPUT_SIZE_X % OUTPUT_BLOCK_WIDTH == 0 || oc + OUTPUT_BLOCK_WIDTH <= OUTPUT_SIZE_X;
@@ -309,5 +317,6 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
 
 #undef OUTPUT_SIZE_X_WITH_PADDING
 #undef OUTPUT_SIZE_Y_WITH_PADDING
+#undef OUTPUT_SIZE_B_WITH_PADDING
 
 #undef INPUT_BLOCK_WIDTH_EL_CNT

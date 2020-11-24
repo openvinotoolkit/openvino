@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/reduce_mean.hpp"
+#include "itt.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/mean.hpp"
@@ -41,7 +41,7 @@ shared_ptr<Node> op::v1::ReduceMean::clone_with_new_inputs(const OutputVector& n
     return make_shared<op::v1::ReduceMean>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-namespace
+namespace mean
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg,
@@ -85,5 +85,5 @@ bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMean::evaluate");
-    return evaluate_mean(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    return mean::evaluate_mean(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

@@ -125,7 +125,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // To overcome fp16 limitations
     //
 
-    if (env.config.hwOptimization) {
+    if (env.config.hwOptimization && env.config.enableWeightsAnalysis) {
         ADD_PASS(analyzeWeightableLayers);
         ADD_DUMP_PASS("analyzeWeightableLayers");
     }
@@ -249,6 +249,9 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(mergeReLUAndBias);
     ADD_DUMP_PASS("mergeReLUAndBias");
 
+    ADD_PASS(mergeEltwiseAndReLUDynamic);
+    ADD_DUMP_PASS("mergeEltwiseAndReLUDynamic");
+
     //
     // Data layout adjustment
     //
@@ -271,8 +274,8 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // Model SW-specific optimizations after data layout adjustment
     //
 
-    ADD_PASS(mergeEltwiseAndReLU);
-    ADD_DUMP_PASS("mergeEltwiseAndReLU");
+    ADD_PASS(mergeEltwiseAndReLUStatic);
+    ADD_DUMP_PASS("mergeEltwiseAndReLUStatic");
 
     //
     // Model special stages processing
@@ -343,6 +346,11 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(markFastStages);
     ADD_DUMP_PASS("markFastStages");
+
+    if (env.config.enableMemoryTypesAnnotation) {
+        ADD_PASS(annotateMemoryTypes);
+        ADD_DUMP_PASS("annotateMemoryTypes");
+    }
 
     //
     // Final check

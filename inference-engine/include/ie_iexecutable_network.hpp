@@ -118,7 +118,7 @@ public:
      * @return Status code of the operation: InferenceEngine::OK (0) for success, OUT_OF_BOUNDS (-6) no memory state for
      * given index
      */
-    virtual StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
 
     /**
      * @brief Sets configuration for current executable network
@@ -160,7 +160,7 @@ public:
     /**
      * @brief Gets shared context used to create an executable network.
      *
-     * @param pContext Refernce to a pointer that will receive resulting shared context object ptr
+     * @param pContext Reference to a pointer that will receive resulting shared context object ptr
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return code of the operation. InferenceEngine::OK if succeeded
      */

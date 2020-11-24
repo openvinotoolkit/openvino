@@ -3,23 +3,25 @@
 //
 
 #pragma once
+
+#include "backend/gna_types.h"
 #include "gna_lib_ver_selector.hpp"
 
-class NNetComponentMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
-    std::vector<std::shared_ptr<::testing::MatcherInterface<const intel_nnet_type_t*>>> matchers;
+class NNetComponentMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
+    std::vector<std::shared_ptr<::testing::MatcherInterface<const gna_nnet_type_t*>>> matchers;
     mutable int failIdx = -1;
     mutable std::stringstream reason;
     int bitness;
  public:
     NNetComponentMatcher(int bitness  = 16) : bitness(bitness) {}
-    NNetComponentMatcher& add(::testing::MatcherInterface<const intel_nnet_type_t*> * p) {
-        matchers.push_back(std::shared_ptr<::testing::MatcherInterface<const intel_nnet_type_t*>>(p));
+    NNetComponentMatcher& add(::testing::MatcherInterface<const gna_nnet_type_t*> * p) {
+        matchers.push_back(std::shared_ptr<::testing::MatcherInterface<const gna_nnet_type_t*>>(p));
         return *this;
     }
     bool empty() const {
         return matchers.empty();
     }
-    bool MatchAndExplain(const intel_nnet_type_t* foo, ::testing::MatchResultListener* listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t* foo, ::testing::MatchResultListener* listener) const override {
         if (foo == nullptr)
             return false;
         reason.str("");
@@ -48,7 +50,7 @@ class NNetComponentMatcher : public ::testing::MatcherInterface<const intel_nnet
                     }
                     if (foo->pLayers[j].nLayerKind == INTEL_AFFINE ||
                         foo->pLayers[j].nLayerKind == INTEL_AFFINE_DIAGONAL) {
-                        auto pAffine = reinterpret_cast<intel_affine_func_t*>(foo->pLayers[j].pLayerStruct);
+                        auto pAffine = reinterpret_cast<gna_affine_func_t*>(foo->pLayers[j].pLayerStruct);
 
                         if (pAffine->pWeights == foo->pLayers[i].pOutputs) {
                             reason << "numberOfBytes per output int pLayers[" << i << "] should be " << (bitness/8) << ", but was "

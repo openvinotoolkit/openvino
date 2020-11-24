@@ -3,88 +3,46 @@
 //
 
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
+#pragma OPENCL EXTENSION cl_khr_extended_async_copies : enable
 
-#define USE_MANUAL_DMA 1
-
-#if defined (USE_MANUAL_DMA)
-
-__kernel void __dma_preload_cvtu8f16(
-    __global uchar* restrict src,
-    __global half*  restrict dst,
-    float   scale,
-    float   bias,
-    __local uchar* restrict local_src,
-    __local half*  restrict local_dst)
+__kernel void cvtu8f16(__global const uchar *restrict src, __global half *restrict dst, float scale, float bias)
 {
-    WorkGroupDmaCreate3DTransaction(
-        src + get_group_id(0)*get_local_size(0)
-            + get_group_id(1)*get_local_size(1)*get_global_size(0)
-            + get_group_id(2)*get_local_size(2)*get_global_size(0)*get_global_size(1), // src
+    __local uchar local_src[8 * 1024];
+    __local half local_dst[8 * 1024];
+
+    event_t e1 = async_work_group_copy_3D3D(
         local_src, // dst
-        get_local_size(0) * sizeof(uchar), // src width
-        get_local_size(0) * sizeof(uchar), // dst width
-        get_global_size(0) * sizeof(uchar), // src stride
-        get_local_size(0) * sizeof(uchar),  // dst stride
+        src + get_group_id(0) * get_local_size(0) + get_group_id(1) * get_local_size(1) * get_global_size(0)
+            + get_group_id(2) * get_local_size(2) * get_global_size(0) * get_global_size(1), // src
+        get_local_size(0), // num_elements_per_line
+        get_local_size(0) * get_local_size(1) / (get_local_size(0)), // num_lines
+        get_global_size(0) - get_local_size(0), // src_line_stride
+        0, // dst_line_stride
         get_local_size(2), // num planes
-        get_global_size(0) * get_global_size(1) * sizeof(uchar), // src plane stride
-        get_local_size(0) * get_local_size(1) * sizeof(uchar), // dst plane stride
-        get_local_size(0) * get_local_size(1) * sizeof(uchar), // plane size
+        get_global_size(0) * (get_global_size(1) - get_local_size(1)), // src plane stride
+        0, // dst plane stride
         0);
-}
+    wait_group_events(1, &e1);
 
-__kernel void __dma_postwrite_cvtu8f16(
-    __global uchar* restrict src,
-    __global half*  restrict dst,
-    float   scale,
-    float   bias,
-    __local uchar* restrict local_src,
-    __local half*  restrict local_dst)
-{
-    WorkGroupDmaCreate3DTransaction(
+    size_t idx = get_local_id(0)
+               + get_local_id(1) * get_local_size(0)
+               + get_local_id(2) * get_local_size(0) * get_local_size(1);
+
+    local_dst[idx] = convert_half(local_src[idx]) * (half)scale + (half)bias;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    event_t e2 = async_work_group_copy_3D3D(
+        dst + get_group_id(0) * get_local_size(0) + get_group_id(1) * get_local_size(1) * get_global_size(0)
+            + get_group_id(2) * get_local_size(2) * get_global_size(0) * get_global_size(1), // dst
         local_dst, // src
-        dst + get_group_id(0)*get_local_size(0)
-            + get_group_id(1)*get_local_size(1)*get_global_size(0)
-            + get_group_id(2)*get_local_size(2)*get_global_size(0)*get_global_size(1), // dst
-        get_local_size(0) * sizeof(half), // src width
-        get_local_size(0) * sizeof(half), // dst width
-        get_local_size(0) * sizeof(half), // src stride
-        get_global_size(0) * sizeof(half), // dst stride
-        get_local_size(2), // num planes
-        get_local_size(0) * get_local_size(1) * sizeof(half), // src plane stride
-        get_global_size(0) * get_global_size(1) * sizeof(half), // dst plane stride
-        get_local_size(0) * get_local_size(1) * sizeof(half), // plane size
+        get_local_size(0), // num_elements_per_line
+        get_local_size(1), // num_lines
+        0, // src_line_stride
+        get_global_size(0) - get_local_size(0), // dst_line_stride
+        get_local_size(2), // num_planes
+        0, // src_plane_stride
+        get_global_size(0) * (get_global_size(1) - get_local_size(1)), // dst_plane_stride
         0);
+    wait_group_events(1, &e2);
 }
-
-__kernel void cvtu8f16(
-    __global uchar* restrict src,
-    __global half*  restrict dst,
-    float   scale,
-    float   bias,
-    __local uchar* restrict local_src,
-    __local half* restrict local_dst)
-{
-    size_t idx = get_local_id(0) +
-                 get_local_id(1)*get_local_size(0) +
-                 get_local_id(2)*get_local_size(0)*get_local_size(1);
-    local_dst[idx] = convert_half(local_src[idx])*(half)scale+(half)bias;
-}
-
-#else // defined (USE_MANUAL_DMA)
-
-__kernel void cvtu8f16(
-    __global uchar* restrict src,
-    __global half*  restrict dst,
-    float   scale,
-    float   bias,
-    __local uchar* restrict local_src, // unused, added for compatibility with DMA variant
-    __local half* restrict local_dst) // unused, added for compatibility with DMA variant
-{
-    int idx = get_global_id(0) +
-              get_global_id(1) * get_global_size(0) +
-              get_global_id(2) * get_global_size(0) * get_global_size(1);
-    dst[idx] = convert_half(src[idx])*(half)scale+(half)bias;
-}
-
-#endif // defined (USE_MANUAL_DMA)
-

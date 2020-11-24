@@ -34,6 +34,11 @@ class Policy {
         AUTO_PERMUTE
     } PermutePolicy = Permute::DISABLED;
 
+    enum class Concat4Dto2DConversion {
+        DISABLED,
+        ENABLED
+    } ConcatConversionPolicy = Concat4Dto2DConversion::ENABLED;
+
     enum class ConcatAlignment {
         DISABLED,
         DISABLED_FOR_FP32,
@@ -49,6 +54,19 @@ class Policy {
         REMOVE_LAST,
         REMOVE_ALL
     } NHWCToNCHWPolicy = NHWCToNCHW::REMOVE_ALL;
+
+ /**
+ * @brief trim of gna diagonal affine layer maximum elements number
+ */
+    class GNAAffineDiagonal {
+    public:
+        enum : uint32_t {
+            UNLIMIT,
+            // gna limit this to be OxFFFF
+            LIMITED_TO_DEFAULT_GNA2_65536 = 65536 - 64
+        };
+        uint32_t limitedTo = LIMITED_TO_DEFAULT_GNA2_65536;
+    } GNAAffineDiagonalPolicy;
 };
 
 inline std::ostream& operator<<(std::ostream& os, Policy::ScaleShift policy) {

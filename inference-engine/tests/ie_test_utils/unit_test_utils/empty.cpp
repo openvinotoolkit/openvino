@@ -25,8 +25,3 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_imemory_state_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
-
-#include "unit_test_utils/mocks/shape_infer/mock_input_controller.hpp"
-#include "unit_test_utils/mocks/shape_infer/mock_ishape_infer_impl.hpp"
-#include "unit_test_utils/mocks/shape_infer/mock_output_controller.hpp"
-#include "unit_test_utils/mocks/shape_infer/mock_reshaper_launcher.hpp"

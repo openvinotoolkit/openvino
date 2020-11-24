@@ -25,6 +25,6 @@ class RangeFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        Range.update_node_stat(node, {'dtype': tf_dtype_extractor(node.pb.attr['type'].type)})
+        Range.update_node_stat(node, {'output_type': tf_dtype_extractor(node.pb.attr['Tidx'].type)})
         return cls.enabled
 

@@ -60,6 +60,9 @@
 #include "reorder_inst.h"
 #include "split_inst.h"
 #include "mvn_inst.h"
+#include "gemm_inst.h"
+#include "reduce_inst.h"
+#include "strided_slice_inst.h"
 #include "to_string_utils.h"
 #include "gpu/memory_gpu.h"
 
@@ -768,11 +771,12 @@ void program_impl::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program_impl::replace_all_usages(program_node& old_node, program_node& new_node) {
-    auto itr = old_node.users.begin();
-    auto cnt = old_node.users.size();
-    while (cnt != 0) {
-        cnt--;
+    const std::list<program_node*> users(old_node.users);
+    auto itr = users.begin();
+    bool end = (itr == users.end());
+    while (!end) {
         auto& usage = (*itr++);
+        end = (itr == users.end());
         usage->replace_dependency(old_node, new_node);
     }
 }
@@ -1016,6 +1020,45 @@ void program_impl::dump_program(const char* stage,
 
 program_impl::primitives_info program_impl::get_current_stage_info() const {
     primitives_info info;
+
+    auto get_inference_precision = [](program_node& node) -> data_types {
+        if (node.is_input()) {
+            return node.get_output_layout().data_type;
+        }
+        std::vector<data_types> input_dts;
+        for (auto& dep : node.get_dependencies()) {
+            input_dts.push_back(dep->get_output_layout().data_type);
+        }
+        data_types output_dt = node.get_output_layout().data_type;
+
+        assert(!input_dts.empty());
+        if (node.is_type<reorder>()) {
+            // If reorder has different input/output types - pick the max one as runtime precision
+            return data_type_traits::max_type(input_dts[0], output_dt);
+        } else if (node.is_type<quantize>()) {
+            if (data_type_traits::is_quantized(output_dt))
+                return output_dt;
+            return data_type_traits::max_type(input_dts[0], output_dt);
+        } else if (node.is_type<eltwise>()) {
+            auto max_dt = input_dts[0];
+            for (size_t i = 1; i < input_dts.size(); i++) {
+                max_dt = data_type_traits::max_type(max_dt, input_dts[i]);
+            }
+            return max_dt;
+        } else if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
+            if (input_dts.size() < 2) {
+                throw std::runtime_error("[clDNN] Invalid inputs count in node " + node.id() + " during stage info collection. Expected >= 2 inputs");
+            }
+            if (data_type_traits::is_quantized(input_dts[0]) && data_type_traits::is_quantized(input_dts[1])) {
+                return input_dts[0];
+            } else {
+                return data_type_traits::max_type(input_dts[0], input_dts[1]);
+            }
+        }
+
+        return input_dts[0];
+    };
+
     // Get info for actually executed graph nodes
     int exec_id = 0;
     for (auto& p : get_processing_order()) {
@@ -1045,6 +1088,7 @@ program_impl::primitives_info program_impl::get_current_stage_info() const {
                           p->get_output_layout(),
                           fmt_to_str(p->get_output_layout().format),
                           p->selected_impl ? p->selected_impl->get_kernel_name() : "",
+                          get_inference_precision(*p),
                           p->selected_impl ? p->selected_impl->is_cpu() : false,
                           exec_id++);
 
@@ -1089,6 +1133,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // first pass to set layout optimization_attributes for topology
     bool can_use_fsv16 = true;
     bool can_use_bs_fs_yx_bsv16_fsv16 = true;
+    bool is_quantized_int8_model = false;
     size_t total_asym_quantized_conv_layers = 0;
     size_t total_dw_conv_layers = 0;
     size_t total_dw_splitted_conv_layers = 0;
@@ -1165,8 +1210,15 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
-            prim.type() != cldnn::mutable_data::type_id())
+            prim.type() != cldnn::mutable_data::type_id() &&
+            prim.type() != cldnn::reduce::type_id() &&
+            prim.type() != cldnn::strided_slice::type_id())
             can_use_fsv16 = false;
+
+        if (prim.type() == cldnn::quantize::type_id() &&
+            (prim.get_output_layout().data_type == data_types::i8 || prim.get_output_layout().data_type == data_types::u8)) {
+            is_quantized_int8_model = true;
+        }
 
         // WA to keep fsv16 layout disabled for some topologies where it leads to regressions.
         // For reshape bfy*x is preferred, as fsv16 introduces extra reorders
@@ -1200,9 +1252,10 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
 
-    bool should_use_b_fs_yx_fsv16_conv = can_use_fsv16 &&
-                                         total_conv_layers > 11 &&
-                                         lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false}) * cond_denom > 0.5f;
+    bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
+                                         (can_use_fsv16 &&
+                                          total_conv_layers > 11 &&
+                                          lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false}) * cond_denom > 0.5f);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
                                          total_grouped_conv_layers == 0 &&

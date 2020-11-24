@@ -149,7 +149,7 @@ void FrontEnd::parseROIFeatureExtractor(const Model& model, const ie::CNNLayerPt
                       size_dummy_mapping_buf +
                       size_repacked_buf;
 
-    model->addTempBuffer(stage, DataDesc({buffer_size}));
+    model->addTempBuffer(stage, buffer_size);
 }
 
 }  // namespace vpu

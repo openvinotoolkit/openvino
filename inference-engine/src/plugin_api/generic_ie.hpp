@@ -9,13 +9,19 @@
 #include <string>
 #include <map>
 
-#include <legacy/ie_ishape_infer_extension.hpp>
 #include <ie_parameter.hpp>
 #include <ie_precision.hpp>
 
 #include <ngraph/op/op.hpp>
 #include <ngraph/op/tensor_iterator.hpp>
 #include <ngraph/graph_util.hpp>
+
+namespace InferenceEngine {
+
+class IShapeInferExtension;
+using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
+
+}  // namespace InferenceEngine
 
 namespace ngraph {
 namespace op {
@@ -98,7 +104,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    static void addExtension(std::shared_ptr<const ngraph::Lambda> func, const InferenceEngine::IShapeInferExtensionPtr& ext);
+    bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
+
+    static void addExtension(std::shared_ptr<const ngraph::Function> func, const InferenceEngine::IShapeInferExtensionPtr& ext);
     static std::vector<InferenceEngine::IShapeInferExtensionPtr> getExtensions(std::shared_ptr<const ngraph::Function> func);
 
     const std::string& getType() const {
@@ -127,4 +135,3 @@ private:
 
 }  // namespace op
 }  // namespace ngraph
-

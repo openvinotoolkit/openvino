@@ -8,12 +8,14 @@
 #include <string>
 #include <map>
 
+#include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
 #include "gna_plugin.hpp"
 
 namespace GNAPluginNS {
 
 class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
+ protected:
     std::shared_ptr<GNAPlugin> plg;
     uint32_t inferRequestIdx = -1;
 
@@ -48,7 +50,16 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     void InferImpl() override {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);
-        plg->Infer(_inputs, _outputs);
+        // result returned from sync infer wait method
+        auto result = plg->Infer(_inputs, _outputs);
+
+        // if result is false we are dealing with QoS feature
+        // if result is ok, next call to wait() will return Ok, if request not in gna_queue
+        if (!result) {
+            inferRequestIdx = -1;
+        } else {
+            inferRequestIdx = -2;
+        }
     }
 
     /**
@@ -62,9 +73,9 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     }
 
     /**
-        * @brief methods with _ThreadUnsafe prefix are to implement in plugins
-        * or in default wrapper (e.g. AsyncInferRequestThreadSafeDefault)
-        */
+     * @brief methods with _ThreadUnsafe prefix are to implement in plugins
+     * or in default wrapper (e.g. AsyncInferRequestThreadSafeDefault)
+     */
     void StartAsyncImpl() override {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);
@@ -73,10 +84,11 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         if (_callback) {
             auto infer_request = _publicInterface.lock();
             IE_ASSERT(infer_request != nullptr);
-            auto res = Wait(0);
+            auto res = Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
             _callback(infer_request, res);
         }
     }
+
 
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override {
         if (inferRequestIdx == -1) {
@@ -85,8 +97,29 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str;
         }
 
-        plg->Wait(inferRequestIdx);
+        if (millis_timeout == InferenceEngine::IInferRequest::WaitMode::RESULT_READY) {
+            millis_timeout = MAX_TIMEOUT;
+        }
+        const auto waitStatus = plg->WaitFor(inferRequestIdx, millis_timeout);
+
+        if (waitStatus == GNA_REQUEST_PENDING) {
+            // request is still pending so Wait() is needed once again
+            return InferenceEngine::RESULT_NOT_READY;
+        }
+        if (waitStatus == GNA_REQUEST_ABORTED) {
+            // need to preserve invalid state here to avoid next Wait() from clearing it
+            inferRequestIdx = -1;
+            return InferenceEngine::INFER_NOT_STARTED;
+        }
         return InferenceEngine::OK;
     }
+
+    IE_SUPPRESS_DEPRECATED_START
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
+        auto pluginStates = plg->QueryState();
+        std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
+        return plg->QueryState();
+    }
+    IE_SUPPRESS_DEPRECATED_END
 };
 }  // namespace GNAPluginNS

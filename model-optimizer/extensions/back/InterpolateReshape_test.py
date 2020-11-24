@@ -29,7 +29,7 @@ nodes = {
     **valued_const_with_data('out_shape', np.array([60, 160])),
 
     **regular_op_with_shaped_data('interpolate', [1, 3, 60, 160], {'type': 'Interpolate', 'axes': [2, 3],
-                                                                   'op': 'Interpolate'}),
+                                                                   'op': 'Interpolate', 'version': 'opset1'}),
 
     **regular_op_with_shaped_data('shape', [4], {'type': 'ShapeOf', 'op': 'ShapeOf'}),
     **valued_const_with_data('indices', np.array([2, 3])),
@@ -54,7 +54,6 @@ class TestInterpolateReshapeWA(unittest.TestCase):
             *connect('interpolate', 'output'),
         ], nodes_with_edges_only=True)
         InterpolateReshapeWA().find_and_replace_pattern(graph)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
         graph.clean_up()
         graph_ref = build_graph(nodes, [
             *connect('placeholder', '0:interpolate'),
@@ -80,8 +79,8 @@ class TestInterpolateConcat(unittest.TestCase):
             *connect('placeholder_1', '1:concat'),
             *connect('concat', 'output'),
         ], nodes_with_edges_only=True)
+
         InterpolateConcat().find_and_replace_pattern(graph)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
         graph.clean_up()
         graph_ref = build_graph(nodes, [
             *connect('placeholder', '0:interpolate'),

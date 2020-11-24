@@ -12,14 +12,61 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "include/include_all.cl"
-#include "include/unit_type.cl"
+#include "include/common.cl"
+#include "include/fetch.cl"
+#include "include/data_types.cl"
 #include "include/mmad.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define FEATURE_SLICE_SIZE 16
 #define X_BLOCK_SIZE 8
+
+#define INPUT_TYPE        INPUT0_TYPE
+#define INPUT_TYPE8       MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
+
+#define FILTER_TYPE2      MAKE_VECTOR_TYPE(FILTER_TYPE, 2)
+
+#define OUTPUT_TYPE8      MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
+
+#define AS_INPUT_TYPE     CAT(as_, INPUT_TYPE)
+#define AS_INPUT_TYPE8    CAT(as_, INPUT_TYPE8)
+
+#define AS_FILTER_TYPE2   CAT(as_, FILTER_TYPE2)
+#define TO_OUTPUT_TYPE8   CAT(convert_, OUTPUT_TYPE8)
+
+#if INPUT0_TYPE_SIZE == 2
+#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(intel_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(intel_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
+#elif INPUT0_TYPE_SIZE == 4
+#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(intel_sub_group_block_read((__global uint*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(intel_sub_group_block_read8((__global uint*)(ptr) + (offset)))
+#else
+#   error convolution_gpu_bfyx_f16_depthwise.cl - unsupported input type.
+#endif
+
+#if FILTER_TYPE_SIZE == 2
+#   define FILTER_BLOCK_READ(ptr, offset) AS_FILTER_TYPE(intel_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
+#   define FILTER_BLOCK_READ2(ptr, offset) AS_FILTER_TYPE2(intel_sub_group_block_read_us2((__global ushort*)(ptr) + (offset)))
+#elif FILTER_TYPE_SIZE == 4
+#   define FILTER_BLOCK_READ(ptr, offset) AS_FILTER_TYPE(intel_sub_group_block_read((__global uint*)(ptr) + (offset)))
+#   define FILTER_BLOCK_READ2(ptr, offset) AS_FILTER_TYPE2(intel_sub_group_block_read2((__global uint*)(ptr) + (offset)))
+#else
+#   error convolution_gpu_bfyx_f16_depthwise.cl - unsupported filter type.
+#endif
+
+#if OUTPUT_TYPE_SIZE == 1
+#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    BLOCK_WRITE_UC_1((__global uchar*)(ptr) + (offset), as_uchar(val))
+#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   BLOCK_WRITE_UC_8((__global uchar*)(ptr) + (offset), as_uchar8(val))
+#elif OUTPUT_TYPE_SIZE == 2
+#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write_us((__global ushort*)(ptr) + (offset), as_ushort(val))
+#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write_us8((__global ushort*)(ptr) + (offset), as_ushort8(val))
+#elif OUTPUT_TYPE_SIZE == 4
+#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write((__global uint*)(ptr) + (offset), as_uint(val))
+#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write8((__global uint*)(ptr) + (offset), as_uint8(val))
+#else
+#   error convolution_gpu_bfyx_f16_depthwise.cl - unsupported output type.
+#endif
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
@@ -60,33 +107,34 @@ KERNEL(convolution_depthwise)(
                               INPUT0_PAD_BEFORE_SIZE_Y * input_y_pitch +
                               INPUT0_PAD_BEFORE_SIZE_X * input_x_pitch +
                               (f_block + input_fs_pad_before) * input_fs_pitch;
+
 #if BIAS_TERM
-    UNIT_TYPE8 dst = (UNIT_TYPE8)(UNIT_BLOCK_READ(biases, f_block * FEATURE_SLICE_SIZE));
+    INPUT_TYPE8 dst = (INPUT_TYPE8)(INPUT_BLOCK_READ(biases, f_block * FEATURE_SLICE_SIZE));
 #else
-    UNIT_TYPE8 dst = (UNIT_TYPE8)(UNIT_VAL_ZERO);
+    INPUT_TYPE8 dst = (INPUT_TYPE8)(INPUT0_VAL_ZERO);
 #endif
 
 #if ((FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3) && (STRIDE_SIZE_X == 1) && (DILATION_SIZE_X == 1) && (DILATION_SIZE_Y == 1))
 
-    UNIT_TYPE wei_00 = UNIT_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_01 = UNIT_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_02 = UNIT_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_10 = UNIT_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_11 = UNIT_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_12 = UNIT_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_20 = UNIT_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_21 = UNIT_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_22 = UNIT_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_00 = FILTER_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_01 = FILTER_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_02 = FILTER_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_10 = FILTER_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_11 = FILTER_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_12 = FILTER_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_20 = FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_21 = FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_22 = FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
 
-    UNIT_TYPE8 src_block_0 = UNIT_BLOCK_READ8(input, input_offset + (input_y + 0) * input_y_pitch + (input_x) * input_x_pitch);
-    UNIT_TYPE8 src_block_1 = UNIT_BLOCK_READ8(input, input_offset + (input_y + 1) * input_y_pitch + (input_x) * input_x_pitch);
-    UNIT_TYPE8 src_block_2 = UNIT_BLOCK_READ8(input, input_offset + (input_y + 2) * input_y_pitch + (input_x) * input_x_pitch);
-    UNIT_TYPE src_tail_00 = UNIT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 8) * input_x_pitch);
-    UNIT_TYPE src_tail_01 = UNIT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 9) * input_x_pitch);
-    UNIT_TYPE src_tail_10 = UNIT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 8) * input_x_pitch);
-    UNIT_TYPE src_tail_11 = UNIT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 9) * input_x_pitch);
-    UNIT_TYPE src_tail_20 = UNIT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 8) * input_x_pitch);
-    UNIT_TYPE src_tail_21 = UNIT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 9) * input_x_pitch);
+    INPUT_TYPE8 src_block_0 = INPUT_BLOCK_READ8(input, input_offset + (input_y + 0) * input_y_pitch + (input_x) * input_x_pitch);
+    INPUT_TYPE8 src_block_1 = INPUT_BLOCK_READ8(input, input_offset + (input_y + 1) * input_y_pitch + (input_x) * input_x_pitch);
+    INPUT_TYPE8 src_block_2 = INPUT_BLOCK_READ8(input, input_offset + (input_y + 2) * input_y_pitch + (input_x) * input_x_pitch);
+    INPUT_TYPE src_tail_00 = INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 8) * input_x_pitch);
+    INPUT_TYPE src_tail_01 = INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 9) * input_x_pitch);
+    INPUT_TYPE src_tail_10 = INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 8) * input_x_pitch);
+    INPUT_TYPE src_tail_11 = INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 9) * input_x_pitch);
+    INPUT_TYPE src_tail_20 = INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 8) * input_x_pitch);
+    INPUT_TYPE src_tail_21 = INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 9) * input_x_pitch);
 
     for (uint i = 0; i < X_BLOCK_SIZE - 2; i++)
     {
@@ -131,30 +179,30 @@ KERNEL(convolution_depthwise)(
 
 #else // ((FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3) && (STRIDE_SIZE_X == 1))
 
-    UNIT_TYPE wei[FILTER_SIZE_Y * FILTER_SIZE_X];
-    UNIT_TYPE2 wei_temp;
+    FILTER_TYPE wei[FILTER_SIZE_Y * FILTER_SIZE_X];
+    FILTER_TYPE2 wei_temp;
 
     unroll_for (uint i = 0; i < FILTER_SIZE_Y; i++) {
         unroll_for (uint j = 0; j < FILTER_SIZE_X_DIV_2; j++) {
-            wei_temp = UNIT_BLOCK_READ2(weights, filter_offset + i * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + j * 2 * FEATURE_SLICE_SIZE);
+            wei_temp = FILTER_BLOCK_READ2(weights, filter_offset + i * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + j * 2 * FEATURE_SLICE_SIZE);
             wei[i * FILTER_SIZE_X + j * 2] = wei_temp.s0;
             wei[i * FILTER_SIZE_X + j * 2 + 1] = wei_temp.s1;
         }
 #if (FILTER_SIZE_X % 2)
-        wei[i * FILTER_SIZE_X + FILTER_SIZE_X - 1] = UNIT_BLOCK_READ(weights, filter_offset +
-                                                                              i * FILTER_Y_PITCH * FEATURE_SLICE_SIZE +
-                                                                              (FILTER_SIZE_X - 1) * FEATURE_SLICE_SIZE);
+        wei[i * FILTER_SIZE_X + FILTER_SIZE_X - 1] = FILTER_BLOCK_READ(weights, filter_offset +
+                                                                                i * FILTER_Y_PITCH * FEATURE_SLICE_SIZE +
+                                                                                (FILTER_SIZE_X - 1) * FEATURE_SLICE_SIZE);
 #endif // (FILTER_SIZE_X % 2)
     }
 
-    UNIT_TYPE src[X_BLOCK_SIZE * FILTER_SIZE_Y * FILTER_SIZE_X];
+    INPUT_TYPE src[X_BLOCK_SIZE * FILTER_SIZE_Y * FILTER_SIZE_X];
 
     unroll_for (uint k = 0; k < X_BLOCK_SIZE; k++) {
         unroll_for (uint i = 0; i < FILTER_SIZE_Y; i++) {
             unroll_for (uint j = 0; j < FILTER_SIZE_X; j++) {
-                src[k * FILTER_SIZE_Y * FILTER_SIZE_X + i * FILTER_SIZE_X + j] = UNIT_BLOCK_READ(input, input_offset +
-                                                                                                        (input_y + (i * DILATION_SIZE_Y)) * input_y_pitch +
-                                                                                                        (input_x + (j * DILATION_SIZE_X) + k * STRIDE_SIZE_X) * input_x_pitch);
+                src[k * FILTER_SIZE_Y * FILTER_SIZE_X + i * FILTER_SIZE_X + j] = INPUT_BLOCK_READ(input, input_offset +
+                                                                                                         (input_y + (i * DILATION_SIZE_Y)) * input_y_pitch +
+                                                                                                         (input_x + (j * DILATION_SIZE_X) + k * STRIDE_SIZE_X) * input_x_pitch);
             }
         }
     }
@@ -184,16 +232,19 @@ KERNEL(convolution_depthwise)(
                                 (OUTPUT_PAD_BEFORE_SIZE_Y + y) * output_y_pitch +
                                 (OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
 
+    OUTPUT_TYPE8 res;
 #if OUTPUT_LEFTOVERS
     if ((f_block + 1) * FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM)
     {
         for (uint i = 0; i < X_BLOCK_SIZE; i++) {
 #if HAS_FUSED_OPS
             FUSED_OPS_SCALAR;
-            dst[i] = FUSED_OPS_RESULT_SCALAR;
+            res[i] = FUSED_OPS_RESULT_SCALAR;
+#else
+            res[i] = TO_OUTPUT_TYPE(dst[i]);
 #endif // HAS_FUSED_OPS
             if ((x + i) < OUTPUT_SIZE_X && f_block * FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM)
-                output[output_offset + (x + i) * output_x_pitch + lid] = dst[i];
+                output[output_offset + (x + i) * output_x_pitch + lid] = res[i];
         }
     }
     else
@@ -203,18 +254,22 @@ KERNEL(convolution_depthwise)(
         {
 #if HAS_FUSED_OPS
             FUSED_OPS_VEC;
-            dst = FUSED_OPS_RESULT_VEC;
+            res = FUSED_OPS_RESULT_VEC;
+#else
+            res = TO_OUTPUT_TYPE8(dst);
 #endif // HAS_FUSED_OPS
-            UNIT_BLOCK_WRITE8(output, output_offset + x * output_x_pitch, dst);
+            OUTPUT_BLOCK_WRITE8(output, output_offset + x * output_x_pitch, res);
         }
         else
         {
-            for (uint i = 0; i < (OUTPUT_SIZE_X - x); i++) {
+            for (uint i = 0; i < (OUTPUT_SIZE_X % X_BLOCK_SIZE); i++) {
 #if HAS_FUSED_OPS
                 FUSED_OPS_SCALAR;
-                dst[i] = FUSED_OPS_RESULT_SCALAR;
+                res[i] = FUSED_OPS_RESULT_SCALAR;
+#else
+                res[i] = TO_OUTPUT_TYPE(dst[i]);
 #endif // HAS_FUSED_OPS
-                UNIT_BLOCK_WRITE(output, output_offset + (x + i) * output_x_pitch, dst[i]);
+                OUTPUT_BLOCK_WRITE(output, output_offset + (x + i) * output_x_pitch, res[i]);
             }
         }
     }
@@ -224,3 +279,25 @@ KERNEL(convolution_depthwise)(
 
 #undef FEATURE_SLICE_SIZE
 #undef X_BLOCK_SIZE
+
+#undef INPUT_TYPE
+#undef INPUT_TYPE8
+
+#undef FILTER_TYPE2
+
+#undef OUTPUT_TYPE8
+
+#undef AS_INPUT_TYPE
+#undef AS_INPUT_TYPE8
+
+#undef AS_FILTER_TYPE2
+#undef TO_OUTPUT_TYPE8
+
+#undef INPUT_BLOCK_READ
+#undef INPUT_BLOCK_READ8
+
+#undef FILTER_BLOCK_READ
+#undef FILTER_BLOCK_READ2
+
+#undef OUTPUT_BLOCK_WRITE
+#undef OUTPUT_BLOCK_WRITE8

@@ -55,8 +55,12 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise less-than-or-equal operation.
-            class NGRAPH_API LessEq : public util::BinaryElementwiseComparison
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::LessEqual instead of it.") NGRAPH_API LessEq
+                : public util::BinaryElementwiseComparison
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"LessEq", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -78,9 +82,12 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         } // namespace v0
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::LessEq;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace op
 } // namespace ngraph

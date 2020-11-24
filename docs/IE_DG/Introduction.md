@@ -94,30 +94,13 @@ Refer to a dedicated description about [Intermediate Representation and Operatio
 OpenVINO toolkit is powered by nGraph capabilities for Graph construction API, Graph transformation engine and Reshape.
 nGraph Function is used as an intermediate representation for a model in the run-time underneath the CNNNetwork API.
 The conventional representation for CNNNetwork is still available if requested for backward compatibility when some conventional API methods are used.
-Please refer to the [Overview of nGraph Flow](nGraph_Flow.md) describing the details of nGraph integration into the Inference Engine and co-existence with the conventional representation.
-
-**Deprecation Notice**
-
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
-
-*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
-
-*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*
+Please refer to the [Overview of nGraph](../nGraph_DG/nGraph_dg.md) describing the details of nGraph representation.
 
 ## Inference Engine <a name = "IE"></a>
 
 Inference Engine is a runtime that delivers a unified API to integrate the inference with application logic:
 
-* Takes as input the model. The model presented in the specific form of [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md)
+* Takes a model as an input. The model can be presented in [the native ONNX format](./ONNX_Support.md) or in the specific form of [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md)
 produced by Model Optimizer.
 * Optimizes inference execution for target hardware.
 * Delivers inference solution with reduced footprint on embedded inference platforms.
@@ -133,7 +116,7 @@ For Intel® Distribution of OpenVINO™ toolkit, the Inference Engine package co
 [sample console applications](Samples_Overview.md) demonstrating how you can use
 the Inference Engine in your applications.
 
-The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and can be built for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md">Inference Engine Build Instructions</a>.
+The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and can be built for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">Inference Engine Build Instructions</a>.
 ## See Also
 - [Inference Engine Samples](Samples_Overview.md)
 - [Intel&reg; Deep Learning Deployment Toolkit Web Page](https://software.intel.com/en-us/computer-vision-sdk)

@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "backend/dnn_types.h"
+#include "backend/gna_types.h"
 
 #define SIGMOID_NUM_SEGMENTS 65
 #define SIGMOID_DOMAIN 10.0f  // portion of input to be approximated (-10,10)
@@ -95,11 +96,11 @@ void PwlApply32(intel_dnn_component_t *component,
                 const uint32_t num_col_start,
                 const uint32_t num_col_end);
 void PwlDesign16(const DnnActivation activation_type,
-                 intel_pwl_segment_t *ptr_segment,
+                 gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
                  const float scale_out);
 void PwlDesignOpt16(const DnnActivation activation_type,
-                std::vector<intel_pwl_segment_t> &ptr_segment,
+                std::vector<gna_pwl_segment_t> &ptr_segment,
                 const float scale_in,
                 const float scale_out);

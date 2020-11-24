@@ -1317,16 +1317,16 @@ OPENCV_HAL_IMPL_AVX_CHECK_SHORT(v_int16x16)
 ////////// Other math /////////
 
 /** Some frequent operations **/
-#define OPENCV_HAL_IMPL_AVX_MULADD(_Tpvec, suffix)                            \
-    inline _Tpvec v_fma(const _Tpvec& a, const _Tpvec& b, const _Tpvec& c)    \
-    { return _Tpvec(_mm256_fmadd_##suffix(a.val, b.val, c.val)); }            \
-    inline _Tpvec v_muladd(const _Tpvec& a, const _Tpvec& b, const _Tpvec& c) \
-    { return _Tpvec(_mm256_fmadd_##suffix(a.val, b.val, c.val)); }            \
-    inline _Tpvec v_sqrt(const _Tpvec& x)                                     \
-    { return _Tpvec(_mm256_sqrt_##suffix(x.val)); }                           \
-    inline _Tpvec v_sqr_magnitude(const _Tpvec& a, const _Tpvec& b)           \
-    { return v_fma(a, a, b * b); }                                            \
-    inline _Tpvec v_magnitude(const _Tpvec& a, const _Tpvec& b)               \
+#define OPENCV_HAL_IMPL_AVX_MULADD(_Tpvec, suffix)                                  \
+    static inline _Tpvec v_fma(const _Tpvec& a, const _Tpvec& b, const _Tpvec& c)   \
+    { return _Tpvec(_mm256_fmadd_##suffix(a.val, b.val, c.val));}                   \
+    inline _Tpvec v_muladd(const _Tpvec& a, const _Tpvec& b, const _Tpvec& c)       \
+    { return _Tpvec(_mm256_fmadd_##suffix(a.val, b.val, c.val)); }                  \
+    inline _Tpvec v_sqrt(const _Tpvec& x)                                           \
+    { return _Tpvec(_mm256_sqrt_##suffix(x.val)); }                                 \
+    inline _Tpvec v_sqr_magnitude(const _Tpvec& a, const _Tpvec& b)                 \
+    { return v_fma(a, a, b * b); }                                                  \
+    inline _Tpvec v_magnitude(const _Tpvec& a, const _Tpvec& b)                     \
     { return v_sqrt(v_fma(a, a, b*b)); }
 
 OPENCV_HAL_IMPL_AVX_MULADD(v_float32x8, ps)
@@ -1945,6 +1945,18 @@ template<int mask, int shift>
 static inline v_uint8x32 v_blend_shiftright(const v_uint8x32& a, const v_uint8x32& b)
 {
     return v_uint8x32(_mm256_blend_epi16(_mm256_srli_si256(a.val, shift), b.val, mask));
+}
+
+template<int mask, int shift>
+static inline __m256 v_blend_shiftleft(const v_float32x8& a, const v_float32x8& b)
+{
+    return _mm256_castsi256_ps(_mm256_blend_epi32(_mm256_castps_si256(a.val), _mm256_slli_si256(_mm256_castps_si256(b.val), shift), mask));
+}
+
+template<int mask, int shift>
+static inline __m256 v_blend_shiftright(const v_float32x8& a, const v_float32x8& b)
+{
+    return _mm256_castsi256_ps(_mm256_blend_epi32(_mm256_srli_si256(_mm256_castps_si256(a.val), shift), _mm256_castps_si256(b.val), mask));
 }
 
 static inline v_uint8x32 v_setr_s8(char b0, char b1, char b2, char b3, char b4,
@@ -3002,8 +3014,10 @@ static inline void v_deinterleave(const v_float32x8& low, const v_float32x8& hig
 {
     __m256 tmp0 = _mm256_unpacklo_ps(low.val, high.val);
     __m256 tmp1 = _mm256_unpackhi_ps(low.val, high.val);
-    even.val = _mm256_unpacklo_ps(tmp0, tmp1);
-    odd .val = _mm256_unpackhi_ps(tmp0, tmp1);
+    __m256 tmp2 = _mm256_unpacklo_ps(tmp0, tmp1);
+    __m256 tmp3 = _mm256_unpackhi_ps(tmp0, tmp1);
+    even.val = _mm256_castsi256_ps(_mm256_permute4x64_epi64(_mm256_castps_si256(tmp2), 216 /*11011000*/));
+    odd.val = _mm256_castsi256_ps(_mm256_permute4x64_epi64(_mm256_castps_si256(tmp3), 216 /*11011000*/));
 }
 
 static inline void v_deinterleave(const v_uint8x32& v0, const v_uint8x32& v1,
@@ -3213,6 +3227,18 @@ static inline v_uint8x32 v_gather_pairs(const uchar src[], const v_int16x16& ind
     r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[_mm256_extract_epi16(index.val, 15)]), 15);
 
     return r;
+}
+
+static inline void v_gather_pairs(const float src[], const int mapsx[], int x,
+                                  v_float32x8& low, v_float32x8& high) {   
+    low.val = _mm256_castsi256_ps(_mm256_setr_epi64x(*reinterpret_cast<const int64_t*>(&src[mapsx[x + 0]]),
+                                                     *reinterpret_cast<const int64_t*>(&src[mapsx[x + 1]]),
+                                                     *reinterpret_cast<const int64_t*>(&src[mapsx[x + 2]]),
+                                                     *reinterpret_cast<const int64_t*>(&src[mapsx[x + 3]])));
+    high.val = _mm256_castsi256_ps(_mm256_setr_epi64x(*reinterpret_cast<const int64_t*>(&src[mapsx[x + 4]]),
+                                                      *reinterpret_cast<const int64_t*>(&src[mapsx[x + 5]]),
+                                                      *reinterpret_cast<const int64_t*>(&src[mapsx[x + 6]]),
+                                                      *reinterpret_cast<const int64_t*>(&src[mapsx[x + 7]])));
 }
 
 namespace {

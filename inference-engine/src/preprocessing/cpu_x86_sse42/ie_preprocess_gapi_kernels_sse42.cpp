@@ -892,130 +892,15 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
 
 // Resize (bi-linear, 32F)
 void calcRowLinear_32F(float *dst[],
-                 const float *src0[],
-                 const float *src1[],
-                 const float  alpha[],
-                 const int    mapsx[],
-                 const float  beta[],
-                 const Size & inSz,
-                 const Size & outSz,
-                       int    lpi) {
-    bool xRatioEq1 = inSz.width  == outSz.width;
-    bool yRatioEq1 = inSz.height == outSz.height;
-
-    if (!xRatioEq1 && !yRatioEq1) {
-        for (int l = 0; l < lpi; l++) {
-            float beta0 = beta[l];
-            float beta1 = 1 - beta0;
-
-            int x = 0;
-
-        #if CV_SIMD128
-            for (; x <= outSz.width - 4; x += 4) {
-                v_float32x4 alpha0 = v_load(&alpha[x]);
-            //  v_float32x4 alpha1 = 1.f - alpha0;
-
-                v_int32x4 sx = v_load(&mapsx[x]);
-
-                v_float32x4 s0l, s0h, s00, s01;
-                v_gather_pairs(src0[l], sx, s0l, s0h);
-                v_deinterleave(s0l, s0h, s00, s01);
-
-            //  v_float32x4 res0 = s00*alpha0 + s01*alpha1;
-                v_float32x4 res0 = v_fma(s00 - s01, alpha0, s01);
-
-                v_float32x4 s1l, s1h, s10, s11;
-                v_gather_pairs(src1[l], sx, s1l, s1h);
-                v_deinterleave(s1l, s1h, s10, s11);
-
-            //  v_float32x4 res1 = s10*alpha0 + s11*alpha1;
-                v_float32x4 res1 = v_fma(s10 - s11, alpha0, s11);
-
-            //  v_float32x4 d = res0*beta0 + res1*beta1;
-                v_float32x4 d = v_fma(res0 - res1, beta0, res1);
-
-                v_store(&dst[l][x], d);
-            }
-        #endif
-
-            for (; x < outSz.width; x++) {
-                float alpha0 = alpha[x];
-                float alpha1 = 1 - alpha0;
-                int   sx0 = mapsx[x];
-                int   sx1 = sx0 + 1;
-                float res0 = src0[l][sx0]*alpha0 + src0[l][sx1]*alpha1;
-                float res1 = src1[l][sx0]*alpha0 + src1[l][sx1]*alpha1;
-                dst[l][x] = beta0*res0 + beta1*res1;
-            }
-        }
-
-    } else if (!xRatioEq1) {
-        GAPI_DbgAssert(yRatioEq1);
-
-        for (int l = 0; l < lpi; l++) {
-            int x = 0;
-
-        #if CV_SIMD128
-            for (; x <= outSz.width - 4; x += 4) {
-                v_float32x4 alpha0 = v_load(&alpha[x]);
-            //  v_float32x4 alpha1 = 1.f - alpha0;
-
-                v_int32x4 sx = v_load(&mapsx[x]);
-
-                v_float32x4 s0l, s0h, s00, s01;
-                v_gather_pairs(src0[l], sx, s0l, s0h);
-                v_deinterleave(s0l, s0h, s00, s01);
-
-            //  v_float32x4 d = s00*alpha0 + s01*alpha1;
-                v_float32x4 d = v_fma(s00 - s01, alpha0, s01);
-
-                v_store(&dst[l][x], d);
-            }
-        #endif
-
-            for (; x < outSz.width; x++) {
-                float alpha0 = alpha[x];
-                float alpha1 = 1 - alpha0;
-                int   sx0 = mapsx[x];
-                int   sx1 = sx0 + 1;
-                dst[l][x] = src0[l][sx0]*alpha0 + src0[l][sx1]*alpha1;
-            }
-        }
-
-    } else if (!yRatioEq1) {
-        GAPI_DbgAssert(xRatioEq1);
-        int length = inSz.width;  // == outSz.width
-
-        for (int l = 0; l < lpi; l++) {
-            float beta0 = beta[l];
-            float beta1 = 1 - beta0;
-
-            int x = 0;
-
-        #if CV_SIMD128
-            for (; x <= length - 4; x += 4) {
-                v_float32x4 s0 = v_load(&src0[l][x]);
-                v_float32x4 s1 = v_load(&src1[l][x]);
-
-            //  v_float32x4 d = s0*beta0 + s1*beta1;
-                v_float32x4 d = v_fma(s0 - s1, beta0, s1);
-
-                v_store(&dst[l][x], d);
-            }
-        #endif
-
-            for (; x < length; x++) {
-                dst[l][x] = beta0*src0[l][x] + beta1*src1[l][x];
-            }
-        }
-
-    } else {
-        GAPI_DbgAssert(xRatioEq1 && yRatioEq1);
-        int length = inSz.width;  // == outSz.width
-        for (int l = 0; l < lpi; l++) {
-            memcpy(dst[l], src0[l], length * sizeof(float));
-        }
-    }
+                       const float *src0[],
+                       const float *src1[],
+                       const float  alpha[],
+                       const int    mapsx[],
+                       const float  beta[],
+                       const Size&  inSz,
+                       const Size&  outSz,
+                               int  lpi) {
+    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
 }
 
 //------------------------------------------------------------------------------

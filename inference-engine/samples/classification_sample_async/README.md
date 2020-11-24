@@ -38,8 +38,8 @@ classification_sample_async [OPTION]
 Options:
 
     -h                      Print a usage message.
-    -i "<path>"             Required. Path to a folder with images or path to an image files: a .ubyte file for LeNetand a .bmp file for the other networks.
     -m "<path>"             Required. Path to an .xml file with a trained model.
+    -i "<path>"             Required. Path to a folder with images or path to an image files: a .ubyte file for LeNetand a .bmp file for the other networks.
       -l "<absolute_path>"  Required for CPU custom layers.Absolute path to a shared library with the kernels implementation
           Or
       -c "<absolute_path>"  Required for GPU custom kernels.Absolute path to the .xml file with kernels description
@@ -52,10 +52,12 @@ Running the application with the empty list of options yields the usage message 
 To run the sample, use AlexNet and GoogLeNet or other public or pre-trained image classification models. To download the pre-trained models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> 
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 You can do inference of an image using a trained AlexNet network on FPGA with fallback to CPU using the following command:
 ```sh
-./classification_sample_async -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU
+./classification_sample_async -m <path_to_model>/alexnet_fp32.xml -i <path_to_image>/cat.bmp -d HETERO:FPGA,CPU -nt 5 
 ```
 
 ## Sample Output

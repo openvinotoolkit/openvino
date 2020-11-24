@@ -26,6 +26,7 @@
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/variant.hpp"
 #include "pyngraph/node.hpp"
+#include "pyngraph/rt_map.hpp"
 #include "pyngraph/variant.hpp"
 
 namespace py = pybind11;
@@ -36,11 +37,6 @@ PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_pyngraph_Node(py::module m)
 {
-    auto py_map = py::bind_map<PyRTMap>(m, "PyRTMap");
-    py_map.doc() =
-        "ngraph.impl.PyRTMap makes bindings for std::map<std::string, "
-        "std::shared_ptr<ngraph::Variant>>, which can later be used as ngraph::Node::RTMap";
-
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def("__add__",

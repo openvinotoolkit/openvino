@@ -5,4 +5,5 @@
 #include "dims_tests.hpp"
 #include "vpu_tests_config.hpp"
 
-VPU_PLUGING_CASE_WITH_SUFFIX(_nightly, IO_BlobTest, params_myriad);
+// TODO: rewrite to ngraph to have reshape functionality
+// VPU_PLUGING_CASE_WITH_SUFFIX(_nightly, IO_BlobTest, params_myriad);

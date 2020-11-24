@@ -27,8 +27,5 @@ TEST_P(myriadMultipleGraphsTests_nightly, LoadGraphsOnDevice) {
 }
 
 INSTANTIATE_TEST_CASE_P(numerOfGraphs, myriadMultipleGraphsTests_nightly,
-//  Exclude the test cases failing due to known bug:
-//  #-37268: [IE][Myriad] assertion "0 == semInit(&semUsed, 0)" and "stack smashing"
-//  ::testing::Values(2, 4, 10)
-    ::testing::Values(2)
+    ::testing::Values(2, 4, 10)
 );

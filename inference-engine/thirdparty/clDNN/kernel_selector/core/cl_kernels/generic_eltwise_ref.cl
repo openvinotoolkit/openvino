@@ -26,7 +26,11 @@
 
 KERNEL(eltwise)(
     INPUTS_DECLS
-    __global OUTPUT_TYPE* output)
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
 {
 
 #if OUTPUT_DIMS == 6 // 4D spatial
@@ -53,10 +57,10 @@ KERNEL(eltwise)(
     #else
         const uint d1 = get_global_id(0);
         const uint d2 = (uint)get_global_id(1) % OUTPUT_SIZES[1];
-        const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1] % OUTPUT_SIZE[2];
-        const uint d4 = (uint)get_global_id(1) / OUTPUT_SIZES[1] / OUTPUT_SIZE[2];
-        const uint d5 = (uint)get_global_id(2) % OUTPUT_SIZES[3];
-        const uint d6 = (uint)get_global_id(2) / OUTPUT_SIZES[3];
+        const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1] % OUTPUT_SIZES[2];
+        const uint d4 = (uint)get_global_id(1) / OUTPUT_SIZES[1] / OUTPUT_SIZES[2];
+        const uint d5 = (uint)get_global_id(2) % OUTPUT_SIZES[4];
+        const uint d6 = (uint)get_global_id(2) / OUTPUT_SIZES[4];
 
         uint output_offset = OUTPUT_GET_INDEX(d6, d5, d4, d3, d2, d1);
     #endif
@@ -112,9 +116,16 @@ KERNEL(eltwise)(
 
     DO_ELTWISE;
 
-#if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(res, ACTIVATION_PARAMS));
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE out = FUSED_OPS_RESULT;
 #else
-    output[output_offset] = ACTIVATION_TYPED(res, ACTIVATION_PARAMS_TYPED);
+    #define out res
+#endif
+
+#if QUANTIZATION_TERM && !OUTPUT_IS_FP
+    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(out, ACTIVATION_PARAMS));
+#else
+    output[output_offset] = ACTIVATION_TYPED(out, ACTIVATION_PARAMS_TYPED);
 #endif
 }

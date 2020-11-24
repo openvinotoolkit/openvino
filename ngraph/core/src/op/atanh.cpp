@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/atanh.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/atanh.hpp"
@@ -40,7 +40,7 @@ shared_ptr<Node> op::v3::Atanh::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Atanh>(new_args.at(0));
 }
 
-namespace
+namespace atanhop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
@@ -77,5 +77,5 @@ namespace
 bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Atanh::evaluate");
-    return evaluate_atanh(inputs[0], outputs[0]);
+    return atanhop::evaluate_atanh(inputs[0], outputs[0]);
 }

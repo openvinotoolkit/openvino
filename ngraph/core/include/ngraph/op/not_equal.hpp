@@ -25,8 +25,12 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise not-equal operation.
-            class NGRAPH_API NotEqual : public util::BinaryElementwiseComparison
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::NotEqual instead of it.") NGRAPH_API NotEqual
+                : public util::BinaryElementwiseComparison
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"NotEqual", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -49,6 +53,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         } // namespace v0
 
@@ -82,6 +87,8 @@ namespace ngraph
             };
         } // namespace v1
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::NotEqual;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

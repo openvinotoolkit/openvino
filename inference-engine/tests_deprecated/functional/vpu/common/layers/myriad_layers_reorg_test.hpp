@@ -111,3 +111,9 @@ static std::vector<SizeVector> s_ReorgInputs = {
 		{1, 192, 6 * 26, 6 * 26},
 		{1, 4, 6, 6}
 };
+
+static std::vector<SizeVector> s_ReorgInputs_CustomLayer = {
+		{1, 64, 26, 26},
+		{1, 64, 128, 128},
+		{1, 4, 6, 6}
+};

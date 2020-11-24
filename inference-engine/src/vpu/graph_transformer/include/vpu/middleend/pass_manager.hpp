@@ -147,7 +147,8 @@ public:
     //
 
     Pass::Ptr mergeReLUAndBias();
-    Pass::Ptr mergeEltwiseAndReLU();
+    Pass::Ptr mergeEltwiseAndReLUDynamic();
+    Pass::Ptr mergeEltwiseAndReLUStatic();
     Pass::Ptr replaceWithSCReLU();
     Pass::Ptr replaceWithReduceMean();
 
@@ -245,6 +246,8 @@ public:
     Pass::Ptr replaceGemmByConv();
 
     Pass::Ptr propagateDynamism();
+
+    Pass::Ptr annotateMemoryTypes();
 
 protected:
     StageBuilder::Ptr _stageBuilder;

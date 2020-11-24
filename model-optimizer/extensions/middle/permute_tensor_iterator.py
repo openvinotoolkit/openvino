@@ -186,7 +186,7 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
         assert len(data_output_port) == 1
         data_input_port = data_input_port[0]
         data_output_port = data_output_port[0]
-        # Verify that they are really connected to Transpose layers (guarantied by port numbers of TI, see the pattern)
+        # Verify that they are really connected to Transpose layers (guaranteed by port numbers of TI, see the pattern)
         assert ti.in_edge(0)['external_port_id'] == ti.input_port_map[data_input_port]['external_port_id']
         assert ti.out_edge(0)['external_port_id'] == ti.output_port_map[data_output_port]['external_port_id']
 

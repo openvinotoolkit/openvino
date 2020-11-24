@@ -68,8 +68,8 @@ benchmark_app [OPTION]
 Options:
 
     -h, --help                Print a usage message
+    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.	
     -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
-    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
     -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
                               Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
                               Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. 
@@ -116,6 +116,8 @@ If a model has mixed input types, input folder should contain all required files
 To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
 > **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> 
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ## Examples of Running the Tool
 
@@ -141,11 +143,11 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    
    * On CPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png  -d CPU -api async --progress true
    ```
    * On FPGA:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d HETERO:FPGA,CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png -d HETERO:FPGA,CPU -api async --progress true
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
@@ -155,7 +157,7 @@ Below are fragments of sample output for CPU and FPGA devices:
 
 * For CPU:
    ```
-   [Step 8/9] Measuring performance (Start inference asyncronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
+   [Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
    Progress: [....................] 100.00% done
 
    [Step 9/9] Dumping statistics report

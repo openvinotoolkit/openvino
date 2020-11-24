@@ -76,9 +76,7 @@ public:
     }
 
     ExecutableNetwork LoadNetwork(CNNNetwork network, const std::map<std::string, std::string>& config) {
-        IExecutableNetwork::Ptr ret;
-        CALL_STATEMENT(actual->LoadNetwork(ret, network, config));
-        return ExecutableNetwork(ret, actual);
+        CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config), actual));
     }
 
     void AddExtension(InferenceEngine::IExtensionPtr extension) {
@@ -94,24 +92,17 @@ public:
         CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(modelFileName, config), actual));
     }
 
-    /**
-     * @copybrief IInferencePlugin::QueryNetwork
-     *
-     * Wraps IInferencePlugin::QueryNetwork
-     *
-     * @param network A network object to query
-     * @param config A configuration map
-     * @param res Query results
-     */
-    void QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
-                      QueryNetworkResult& res) const {
-        CALL_STATEMENT(actual->QueryNetwork(network, config, res));
+    QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                    const std::map<std::string, std::string>& config) const {
+        QueryNetworkResult res;
+        CALL_STATEMENT(res = actual->QueryNetwork(network, config));
         if (res.rc != OK) THROW_IE_EXCEPTION << res.resp.msg;
+        return res;
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string> &config) {
-        CALL_STATEMENT(return actual->ImportNetwork(networkModel, config));
+        CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, config), actual));
     }
 
     Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
@@ -120,21 +111,21 @@ public:
 
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                                   RemoteContext::Ptr context) {
-        CALL_STATEMENT(return actual->LoadNetwork(network, config, context));
+        CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config, context), actual));
     }
 
     RemoteContext::Ptr CreateContext(const ParamMap& params) {
         CALL_STATEMENT(return actual->CreateContext(params));
     }
 
-    RemoteContext::Ptr GetDefaultContext() {
-        CALL_STATEMENT(return actual->GetDefaultContext());
+    RemoteContext::Ptr GetDefaultContext(const ParamMap& params) {
+        CALL_STATEMENT(return actual->GetDefaultContext(params));
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config) {
-        CALL_STATEMENT(return actual->ImportNetwork(networkModel, context, config));
+        CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, context, config), actual));
     }
 
     Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {

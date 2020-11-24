@@ -14,6 +14,7 @@
  limitations under the License.
 """
 from extensions.ops.scatter import ScatterElementsUpdate
+from extensions.ops.scatternd import ScatterNDUpdate
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -38,4 +39,14 @@ class ScatterElementsExtractor(FrontExtractorOp):
     def extract(cls, node):
         axis = onnx_attr(node, 'axis', 'i', default=0)
         ScatterElementsUpdate.update_node_stat(node, {'axis': axis})
+        return cls.enabled
+
+
+class ScatterNDExtractor(FrontExtractorOp):
+    op = 'ScatterND'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        ScatterNDUpdate.update_node_stat(node, {})
         return cls.enabled

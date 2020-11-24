@@ -8,130 +8,20 @@
 #include <vector>
 #include <utility>
 
-#include <gna-api.h>
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_output_desc.hpp"
 #include "gna_plugin_log.hpp"
+#include "serial/headers/latest/gna_model_header.hpp"
 #if GNA_LIB_VER == 2
 #include "gna2-model-api.h"
 #endif
 
-#pragma pack(push, 1)
-
-/**
- * version history
- * 1.0 - basic support
- * 1.1 - added memory information
- * 2.0 - for use with GNA2 library
- * 2.1 - multiple i/o support
- */
-#if GNA_LIB_VER == 2
-#define HEADER_MAJOR 2
-#define HEADER_MINOR 1
-#else
-#define HEADER_MAJOR 1
-#define HEADER_MINOR 2
-#endif
-
-
-/**
- * @brief Header version 2.1
- */
-struct ModelHeader {
-    /**
-     *@brief MagicNumber – GNAM in ascii table, equals to hex 0x474e414d
-     */
-    char gnam[4];
-    /**
-     * @brief if header size is not equal to sizeof ModelHeader - some reserved data append in the end of header
-     * usually it is an indicator of working with version of model different that is current export function produce
-     */
-    uint32_t headerSize = 0u;
-    struct Version {
-        /**
-         * @details Version of format Major – unsigned int, ex: 0x0001
-         * every change in the header or in the layers definition should be reflected in version change
-         * for backward compatibility new parsers can read old versions of model with certain restrictions
-         */
-        uint16_t major = 0u;
-        /**
-         * @details Version of Format Minor – unsigned int,  corresponding to build revision for example
-         * changes in minor version are not affected layout of model
-         */
-        uint32_t minor = 0u;
-    } version;
-    /**
-     * @brief Memory required to be allocated using GNAAlloc()
-     */
-    uint64_t gnaMemSize = 0ull;
-    /**
-     * @brief Number of GNA Layers
-     */
-    uint64_t layersCount = 0ull;
-    /**
-     * @brief Grouping level
-     */
-    uint32_t nGroup = 0u;
-    /**
-     * Convolution related setting - they are affecting input transformation
-     */
-    uint32_t nRotateRows = 0u;
-    uint32_t nRotateColumns = 0u;
-    bool doRotateInput = false;
-
-    uint32_t nInputs = 0u;
-    uint32_t nOutputs = 0u;
-
-    /**
-     * Reserved Data might be here
-     */
-};
-#pragma pack(pop)
 
 /**
  * @brief implements serialisation tasks for GNAGraph
  */
 class GNAModelSerial {
  public:
-    /*
-     * In runtime endpoint mostly same as in serial version, except of descriptor field
-     */
-    struct RuntimeEndPoint {
-        /**
-         * if scale factor is different then pased into infer , network might need to be requantized
-         */
-        float scaleFactor = 0;
-        /**
-         * Pointer descriptor
-         */
-        void* descriptor_ptr = nullptr;
-        /**
-         * Endpoint resolution in bytes.
-         */
-        uint32_t element_size = 0;
-        /**
-         * Number of elements
-         */
-        uint32_t elements_count = 0;
-        /**
-         * Offset in bytes of pointer descriptor
-        */
-        uint64_t descriptor_offset = 0ull;
-
-        intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
-
-        RuntimeEndPoint() = default;
-        RuntimeEndPoint(double scaleFactor,
-                    void* descriptor_ptr,
-                    uint32_t element_size,
-                    uint32_t elements_count,
-                    intel_dnn_orientation_t orientation) : scaleFactor(scaleFactor),
-                                    descriptor_ptr(descriptor_ptr),
-                                    element_size(element_size),
-                                    elements_count(elements_count),
-                                    orientation(orientation) {
-        }
-    };
     using MemoryType = std::vector<std::pair<void*, uint32_t>>;
 
 private:
@@ -140,14 +30,19 @@ private:
 #else
     intel_nnet_type_t *ptr_nnet;
 #endif
-    std::vector<RuntimeEndPoint> inputs;
-    std::vector<RuntimeEndPoint> outputs;
+    std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> inputs;
+    std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> outputs;
+    std::vector<std::string> inputNames;
+    std::vector<std::string> outputNames;
     uint32_t nRotateRows = 0;
     uint32_t nRotateColumns = 0;
     bool doRotateInput = false;
+    uint32_t nRotateOutputRows = 0;
+    uint32_t nRotateOutputColumns = 0;
+    bool doRotateOutput = false;
 
     MemoryType states, *pstates = nullptr;
-    ModelHeader modelHeader;
+    GNAPluginNS::HeaderLatest::ModelHeader modelHeader;
 
     void ImportInputs(std::istream &is,
             void* basePtr,
@@ -173,6 +68,13 @@ private:
         const InferenceEngine::OutputsDataMap& outputsDataMap) : gna2Model(model),
             inputs(serializeInputs(inputsDataMap, inputDesc)),
             outputs(serializeOutputs(outputsDataMap, outputsDesc)) {
+        for (auto const& input : inputsDataMap) {
+            inputNames.push_back(input.first);
+        }
+
+        for (auto const& input : outputsDataMap) {
+            outputNames.push_back(input.first);
+        }
     }
 
 #else
@@ -210,6 +112,13 @@ private:
       return *this;
     }
 
+    GNAModelSerial& SetOutputRotation(uint32_t nRotateOutputRows, uint32_t nRotateOutputColumns, bool do_rotate_outputs) {
+        this->nRotateOutputColumns = nRotateOutputColumns;
+        this->nRotateOutputRows = nRotateOutputRows;
+        this->doRotateOutput = do_rotate_outputs;
+        return *this;
+    }
+
     /**
      * mark certain part of gna_blob as state (in future naming is possible)
      * @param descriptor_ptr
@@ -226,7 +135,7 @@ private:
      * @param is - opened input stream
      * @return
      */
-    static ModelHeader ReadHeader(std::istream &is);
+    static GNAPluginNS::HeaderLatest::ModelHeader ReadHeader(std::istream &is);
 
     /**
      * @brief Import model from FS into preallocated buffer,
@@ -254,12 +163,12 @@ private:
                 size_t gnaGraphSize,
                 std::ostream &os) const;
 
-    static std::vector<GNAModelSerial::RuntimeEndPoint> serializeOutputs(const InferenceEngine::OutputsDataMap& outputsDataMap,
+    static std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> serializeOutputs(const InferenceEngine::OutputsDataMap& outputsDataMap,
             const std::vector<GNAPluginNS::OutputDesc>& outputsDesc);
 
 
-    static std::vector<GNAModelSerial::RuntimeEndPoint> serializeInputs(const InferenceEngine::InputsDataMap& inputsDataMap,
+    static std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> serializeInputs(const InferenceEngine::InputsDataMap& inputsDataMap,
                                                                         const std::shared_ptr<GNAPluginNS::InputDesc>);
 
-    void setHeader(ModelHeader header);
+    void setHeader(GNAPluginNS::HeaderLatest::ModelHeader header);
 };

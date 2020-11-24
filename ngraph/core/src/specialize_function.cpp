@@ -16,7 +16,7 @@
 
 #include "ngraph/specialize_function.hpp"
 #include <pass/constant_folding.hpp>
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/assign.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/tensor_iterator.hpp"
@@ -120,6 +120,11 @@ std::shared_ptr<Function>
         new_results[i] = std::static_pointer_cast<op::Result>(m[new_results[i].get()]);
         new_results[i]->set_friendly_name(name);
     }
+    SinkVector new_sinks = f->get_sinks();
+    for (size_t i = 0; i < new_sinks.size(); i++)
+    {
+        new_sinks[i] = std::static_pointer_cast<op::Sink>(m[new_sinks[i].get()]);
+    }
 
-    return std::make_shared<Function>(new_results, new_parameters);
+    return std::make_shared<Function>(new_results, new_sinks, new_parameters);
 }

@@ -16,7 +16,10 @@
 
 #include "gtest/gtest.h"
 
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/ngraph.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -208,30 +211,6 @@ TEST(autobroadcast, broadcast_with_leading_dim1)
 
     EXPECT_NE(ab_rhs, rhs);
     EXPECT_EQ(getShapeFromParam(ab_rhs), s1345);
-}
-
-TEST(autobroadcast, make_node_2_args)
-{
-    Shape s21{2, 1};
-    Shape s23{2, 3};
-    auto lhs = getParamFromShape(s21);
-    auto rhs = getParamFromShape(s23);
-
-    shared_ptr<Node> op = builder::make_with_numpy_broadcast<op::Add>(lhs, rhs);
-    EXPECT_NE(op, nullptr);
-}
-
-TEST(autobroadcast, make_node_3_args)
-{
-    Shape s21{2, 1};
-    Shape s23{2, 3};
-
-    auto predicates = make_shared<op::Parameter>(element::boolean, s23);
-    auto lhs = getParamFromShape(s21);
-    auto rhs = getParamFromShape(s23);
-
-    shared_ptr<Node> op = builder::make_with_numpy_broadcast<op::Select>(predicates, lhs, rhs);
-    EXPECT_NE(op, nullptr);
 }
 
 TEST(autobroadcast, numpy_broadcast_for_matmul_op_2d)

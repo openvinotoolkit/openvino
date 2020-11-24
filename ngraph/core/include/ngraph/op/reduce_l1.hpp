@@ -39,7 +39,6 @@ namespace ngraph
                 ///
                 /// \param arg The tensor to be reduced.
                 /// \param reduction_axes The axis positions (0-based) to be eliminated.
-                /// \param p The scalar defining the order of normalization.
                 /// \param keep_dims If set to true it holds axes that are used for reduction.
                 ReduceL1(const Output<Node>& arg,
                          const Output<Node>& reduction_axes,

@@ -17,19 +17,12 @@ The following section provides information on how to distribute a model across a
 The structure should hold:
 1.	A pointer to an inference request.
 2.	An ID to keep track of the request.
-```cpp
-struct Request {
-    InferenceEngine::InferRequest::Ptr inferRequest;
-    int frameidx;
-};
-```
+
+@snippet openvino/docs/snippets/movidius-programming-guide.cpp part0
 
 ### Declare a Vector of Requests
 
-```cpp
-// numRequests is the number of frames (max size, equal to the number of VPUs in use)
-vector<Request> request(numRequests);
-```
+@snippet openvino/docs/snippets/movidius-programming-guide.cpp part1
 
 Declare and initialize 2 mutex variables:
 1.	For each request
@@ -41,15 +34,9 @@ Conditional variable indicates when at most 8 requests are done at a time.
 
 For inference requests, use the asynchronous IE API calls:
 
-```cpp
-// initialize infer request pointer – Consult IE API for more detail.
-request[i].inferRequest = executable_network.CreateInferRequestPtr();
-```
+@snippet openvino/docs/snippets/movidius-programming-guide.cpp part2
 
-```cpp
-// Run inference
-request[i].inferRequest->StartAsync();
-```
+@snippet openvino/docs/snippets/movidius-programming-guide.cpp part3
 
 
 ### Create a Lambda Function
@@ -58,10 +45,7 @@ Lambda Function enables the parsing and display of results.
 
 Inside the Lambda body use the completion callback function:
 
-```cpp
-request[i].inferRequest->SetCompletionCallback
-(nferenceEngine::IInferRequest::Ptr context)
-```
+@snippet openvino/docs/snippets/movidius-programming-guide.cpp part4
 
 ## Additional Resources
 

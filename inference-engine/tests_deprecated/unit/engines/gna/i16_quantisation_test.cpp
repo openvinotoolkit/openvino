@@ -5,7 +5,7 @@
 #include <vector>
 #include <gtest/gtest.h>
 #include <legacy/layer_transform.hpp>
-#include <gna-api-types-xnn.h>
+#include "backend/gna_types.h"
 #include "frontend/model_quantizer.hpp"
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
@@ -137,8 +137,8 @@ TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
     auto quantParams = getInjectedData<QuantizedLayerParams>(affineLayerPtr);
 
 
-    ASSERT_FLOAT_EQ(quantParams->_dst_quant.scale, 100);
-    ASSERT_FLOAT_EQ(quantParams->_weights_quant.scale, 100);
+    ASSERT_FLOAT_EQ(quantParams->_dst_quant.GetScale(), 100);
+    ASSERT_FLOAT_EQ(quantParams->_weights_quant.GetScale(), 100);
 }
 
 TEST_F(I16QuantisationTest, OnlyAffine_NoActivationInsertion) {

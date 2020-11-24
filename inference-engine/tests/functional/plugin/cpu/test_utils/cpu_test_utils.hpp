@@ -18,9 +18,12 @@ namespace CPUTestUtils {
         nchw,
         nChw8c,
         nChw16c,
+        nhwc,
         ncdhw,
         nCdhw8c,
         nCdhw16c,
+        ndhwc,
+        x,
         undef
     } cpu_memory_format_t;
 

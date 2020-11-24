@@ -25,7 +25,7 @@
 
 #include <backend/dnn_types.h>
 #include <gna_plugin_policy.hpp>
-#include <gna-api.h>
+#include <backend/gna_types.h>
 #include <gna/gna_config.hpp>
 #include <gna_plugin.hpp>
 #include <gna_lib_ver_selector.hpp>
@@ -292,7 +292,7 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         return *this;
     }
 
-    GNAPropagateMatcher & exact_nnet_structure(intel_nnet_type_t * pNet) {
+    GNAPropagateMatcher & exact_nnet_structure(gna_nnet_type_t * pNet) {
 
         getMatcher().type = GnaPluginTestEnvironment::exactNNetStructure;
         original_nnet = pNet;
@@ -415,7 +415,7 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         return * this;
     }
 
-    GNAPropagateMatcher & to(intel_nnet_type_t *savedNet) {
+    GNAPropagateMatcher & to(gna_nnet_type_t *savedNet) {
         this->savedNet = savedNet;
         return *this;
     }
@@ -427,8 +427,8 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
 
  protected:
     void match();
-    intel_nnet_type_t * original_nnet = nullptr;
-    intel_nnet_type_t * savedNet = nullptr;
+    gna_nnet_type_t * original_nnet = nullptr;
+    gna_nnet_type_t * savedNet = nullptr;
 };
 
 

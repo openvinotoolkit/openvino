@@ -16,53 +16,27 @@
 
 #pragma once
 
-#include "ngraph/log.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/util.hpp"
+#include "ngraph/pass/pass.hpp"
 
 namespace ngraph
 {
     namespace pass
     {
-        class ConstantFolding;
-        bool revalidate_and_ensure_static(std::shared_ptr<ngraph::Node> n);
-    }
-}
+        /**
+         * @brief Constant folding iterates over the function and tries to evaluate nodes
+         *        with constant inputs. Such nodes are then replaced with new Constants containing
+         *        the result of a folded operation.
+         */
+        class NGRAPH_API ConstantFolding : public FunctionPass
+        {
+        public:
+            NGRAPH_RTTI_DECLARATION;
+            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
-class NGRAPH_API ngraph::pass::ConstantFolding : public ngraph::pass::GraphRewrite
-{
-public:
-    ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap())
-        : GraphRewrite()
-    {
-        m_cfmap = cfmap;
-        m_enable_shape_inference = true;
-        construct_constant_quantize();
-        construct_constant_dequantize();
-        construct_constant_convert();
-        construct_constant_arithmetic_reduction();
-        construct_constant_logical_reduction();
-        construct_constant_gather_with_subgraph();
-        construct_constant_scatter_elements_update();
-        construct_constant_select();
-        construct_constant_one_hot();
-        construct_constant_default();
-    }
+        private:
+            void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
+                                                    const Output<Node>& replacement);
+        };
 
-private:
-    void construct_constant_quantize();
-    void construct_constant_dequantize();
-    void construct_constant_convert();
-    void construct_constant_arithmetic_reduction();
-    void construct_constant_logical_reduction();
-    void construct_constant_gather_with_subgraph();
-    void construct_constant_scatter_elements_update();
-    void construct_constant_select();
-    void construct_constant_one_hot();
-    void construct_constant_default();
-
-    bool cf_is_disabled(const std::shared_ptr<Node>&);
-
-    ngraph::BuildNodeExecutorMap m_cfmap;
-};
+    } // namespace pass
+} // namespace ngraph

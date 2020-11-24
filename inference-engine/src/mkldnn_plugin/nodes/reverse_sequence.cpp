@@ -59,7 +59,9 @@ public:
             srcStrides = layer->insData[REVERSESEQUENCE_DATA].lock()->getTensorDesc().getBlockingDesc().getStrides();
             work_amount_dst = srcStrides[0] * src_dims[0];
 
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+            addConfig(layer,
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

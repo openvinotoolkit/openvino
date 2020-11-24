@@ -84,34 +84,21 @@ shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& 
 
 bool op::DetectionOutput::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("attrs", m_attrs);
-    return true;
-}
-
-constexpr DiscreteTypeInfo AttributeAdapter<op::DetectionOutputAttrs>::type_info;
-
-AttributeAdapter<op::DetectionOutputAttrs>::AttributeAdapter(op::DetectionOutputAttrs& ref)
-    : m_ref(ref)
-{
-}
-
-bool AttributeAdapter<op::DetectionOutputAttrs>::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("num_classes", m_ref.num_classes);
-    visitor.on_attribute("background_label_id", m_ref.background_label_id);
-    visitor.on_attribute("top_k", m_ref.top_k);
-    visitor.on_attribute("variance_encoded_in_target", m_ref.variance_encoded_in_target);
-    visitor.on_attribute("keep_top_k", m_ref.keep_top_k);
-    visitor.on_attribute("code_type", m_ref.code_type);
-    visitor.on_attribute("share_location", m_ref.share_location);
-    visitor.on_attribute("nms_threshold", m_ref.nms_threshold);
-    visitor.on_attribute("confidence_threshold", m_ref.confidence_threshold);
-    visitor.on_attribute("clip_after_nms", m_ref.clip_after_nms);
-    visitor.on_attribute("clip_before_nms", m_ref.clip_before_nms);
-    visitor.on_attribute("decrease_label_id", m_ref.decrease_label_id);
-    visitor.on_attribute("normalized", m_ref.normalized);
-    visitor.on_attribute("input_height", m_ref.input_height);
-    visitor.on_attribute("input_width", m_ref.input_width);
-    visitor.on_attribute("objectness_score", m_ref.objectness_score);
+    visitor.on_attribute("num_classes", m_attrs.num_classes);
+    visitor.on_attribute("background_label_id", m_attrs.background_label_id);
+    visitor.on_attribute("top_k", m_attrs.top_k);
+    visitor.on_attribute("variance_encoded_in_target", m_attrs.variance_encoded_in_target);
+    visitor.on_attribute("keep_top_k", m_attrs.keep_top_k);
+    visitor.on_attribute("code_type", m_attrs.code_type);
+    visitor.on_attribute("share_location", m_attrs.share_location);
+    visitor.on_attribute("nms_threshold", m_attrs.nms_threshold);
+    visitor.on_attribute("confidence_threshold", m_attrs.confidence_threshold);
+    visitor.on_attribute("clip_after_nms", m_attrs.clip_after_nms);
+    visitor.on_attribute("clip_before_nms", m_attrs.clip_before_nms);
+    visitor.on_attribute("decrease_label_id", m_attrs.decrease_label_id);
+    visitor.on_attribute("normalized", m_attrs.normalized);
+    visitor.on_attribute("input_height", m_attrs.input_height);
+    visitor.on_attribute("input_width", m_attrs.input_width);
+    visitor.on_attribute("objectness_score", m_attrs.objectness_score);
     return true;
 }

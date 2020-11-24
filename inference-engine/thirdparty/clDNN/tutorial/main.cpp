@@ -29,8 +29,8 @@
 * @subpage c8 <br>
 *
 */
-#include <../api/CPP/engine.hpp>
-#include <../api/CPP/topology.hpp>
+#include <../api/engine.hpp>
+#include <../api/topology.hpp>
 
 
 cldnn::engine   chapter_1();                                    // Engine, layout, tensor, memory, data and input

@@ -37,8 +37,6 @@ set (SRC
     pass/fused_op_decomposition.hpp
     pass/implicit_broadcast_elimination.cpp
     pass/implicit_broadcast_elimination.hpp
-    pass/like_replacement.cpp
-    pass/like_replacement.hpp
     pass/liveness.cpp
     pass/liveness.hpp
     pass/opset0_downgrade.cpp
@@ -51,22 +49,34 @@ set (SRC
     pass/shape_relevance.hpp
     )
 
+disable_deprecated_warnings()
+
 add_library(ngraph_backend SHARED ${SRC})
+
+if(COMMAND ie_faster_build)
+    ie_faster_build(ngraph_backend
+        UNITY
+    )
+endif()
+
+if(COMMAND ie_add_vs_version_file)
+    ie_add_vs_version_file(NAME ngraph_backend
+                           FILEDESCRIPTION "nGraph backend library")
+endif()
+
 target_compile_definitions(ngraph_backend
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
 target_link_libraries(ngraph_backend PUBLIC ngraph 
+                                            ngraph::builder
                                             ngraph::reference)
 if (NOT WIN32)
-    target_link_libraries(ngraph_backend PRIVATE dl)
+    target_link_libraries(ngraph_backend PRIVATE ${CMAKE_DL_LIBS})
 endif()
 target_compile_definitions(ngraph_backend PRIVATE BACKEND_DLL_EXPORTS)
 target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(interpreter)
-
-if (NGRAPH_IE_ENABLE)
-    add_subdirectory(ie)
-endif()
+add_subdirectory(ie)

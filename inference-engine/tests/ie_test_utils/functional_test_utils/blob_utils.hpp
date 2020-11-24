@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include "blob_factory.hpp"
 #include "blob_transform.hpp"
+#include "ie_compound_blob.h"
 #include "precision_utils.h"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -66,7 +67,7 @@ static void inline compareRawBuffers(const dType *res, const dType *ref,
         case CompareType::ABS:
             for (size_t i = 0; i < refSize; i++) {
                 float absDiff = std::abs(res[i] - ref[i]);
-                ASSERT_LT(absDiff, thr1) << "Relative comparison of values ref: " << ref[i] << " and res: "
+                ASSERT_LE(absDiff, thr1) << "Relative comparison of values ref: " << ref[i] << " and res: "
                                                << res[i] << " , index in blobs: " << i << " failed!";
             }
             break;
@@ -74,7 +75,7 @@ static void inline compareRawBuffers(const dType *res, const dType *ref,
             for (size_t i = 0; i < refSize; i++) {
                 float absDiff = std::abs(res[i] - ref[i]);
                 float relDiff = absDiff / std::max(res[i], ref[i]);
-                ASSERT_LT(relDiff, thr2) << "Relative comparison of values ref: " << ref[i] << " and res: "
+                ASSERT_LE(relDiff, thr2) << "Relative comparison of values ref: " << ref[i] << " and res: "
                                                << res[i] << " , index in blobs: " << i << " failed!";
             }
             break;
@@ -83,7 +84,7 @@ static void inline compareRawBuffers(const dType *res, const dType *ref,
                 float absDiff = std::abs(res[i] - ref[i]);
                 if (absDiff > thr1) {
                     float relDiff = absDiff / std::max(res[i], ref[i]);
-                    ASSERT_LT(relDiff, thr2) << "Comparison of values ref: " << ref[i] << " and res: "
+                    ASSERT_LE(relDiff, thr2) << "Comparison of values ref: " << ref[i] << " and res: "
                                                    << res[i] << " , index in blobs: " << i << " failed!";
                 }
             }
@@ -234,7 +235,7 @@ compareBlobData(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Bl
         float absDiff = std::abs(resVal - refVal);
         if (absDiff > max_diff) {
             float relDiff = absDiff / std::max(res_ptr[i], ref_ptr[i]);
-            ASSERT_LT(relDiff, max_diff) << "Relative comparison of values ref: " << ref_ptr[i] << " and res: "
+            ASSERT_LE(relDiff, max_diff) << "Relative comparison of values ref: " << ref_ptr[i] << " and res: "
                                          << res_ptr[i] << " , index in blobs: " << i << " failed!" << assertDetails;
         }
     }
@@ -455,11 +456,12 @@ InferenceEngine::Blob::Ptr inline createAndFillBlobWithFloatArray(const Inferenc
 InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::TensorDesc &td,
         const uint32_t range = 10,
         const int32_t start_from = 0,
-        const int32_t resolution = 1) {
+        const int32_t resolution = 1,
+        const int seed = 1) {
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution); break;
+#define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::U8)
@@ -467,6 +469,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::Tenso
         CASE(InferenceEngine::Precision::I8)
         CASE(InferenceEngine::Precision::I16)
         CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::U64)
         CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::I32)
         CASE(InferenceEngine::Precision::BOOL)
@@ -597,4 +600,46 @@ static short reducePrecisionBitwiseS(const float in) {
     return s;
 }
 }  // namespace Bf16TestUtils
+
+enum class BlobKind {
+    Simple,
+    Compound,
+    BatchOfSimple
+};
+
+inline std::ostream& operator<<(std::ostream& os, BlobKind kind) {
+    switch (kind) {
+    case BlobKind::Simple:
+        return os << "Simple";
+    case BlobKind::Compound:
+        return os << "Compound";
+    case BlobKind::BatchOfSimple:
+        return os << "BatchOfSimple";
+    default:
+        THROW_IE_EXCEPTION << "Test does not support the blob kind";
+  }
+}
+
+inline InferenceEngine::Blob::Ptr makeBlobOfKind(const InferenceEngine::TensorDesc& td, BlobKind blobKind) {
+    using namespace ::InferenceEngine;
+    switch (blobKind) {
+    case BlobKind::Simple:
+        return createAndFillBlob(td);
+    case BlobKind::Compound:
+        return make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>{});
+    case BlobKind::BatchOfSimple: {
+        const auto subBlobsNum = td.getDims()[0];
+        auto subBlobDesc = td;
+        subBlobDesc.getDims()[0] = 1;
+        std::vector<Blob::Ptr> subBlobs;
+        for (size_t i = 0; i < subBlobsNum; i++) {
+            subBlobs.push_back(makeBlobOfKind(subBlobDesc, BlobKind::Simple));
+        }
+        return make_shared_blob<BatchedBlob>(subBlobs);
+    }
+    default:
+        THROW_IE_EXCEPTION << "Test does not support the blob kind";
+    }
+}
+
 }  // namespace FuncTestUtils

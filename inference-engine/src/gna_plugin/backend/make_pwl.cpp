@@ -4,10 +4,12 @@
 
 #include <vector>
 #include <iostream>
+#include <cmath>
 
 #include <runtime/pwl.h>
 #include <gna_slope_scale.h>
 #include "dnn_types.h"
+#include "backend/gna_types.h"
 #include "round_float_define.hpp"
 
 void make_gna_pwl(const DnnActivation  fun,
@@ -16,7 +18,7 @@ void make_gna_pwl(const DnnActivation  fun,
                   const double u_bound,
                   const double in_scale,
                   const double out_scale,
-                  std::vector<intel_pwl_segment_t> &gna_pwl) {
+                  std::vector<gna_pwl_segment_t> &gna_pwl) {
     pwl_gna_slope_scale_t s;
     uint32_t pwl_size = static_cast<int32_t>(pwl.size());
     gnalog() << "make_gna_pwl\n";
@@ -412,12 +414,12 @@ void make_gna_pwl(const DnnActivation  fun,
                         y_upper = tmp;
                     }
 
-                    int64_t x_lower_new = FLOAT_TO_INT32((x_lower / in_scale) / abs(pow_scale) * in_scale);
-                    int64_t x_upper_new = FLOAT_TO_INT32((x_upper / in_scale) / abs(pow_scale) * in_scale);
+                    int64_t x_lower_new = FLOAT_TO_INT32((x_lower / in_scale) / std::fabs(pow_scale) * in_scale);
+                    int64_t x_upper_new = FLOAT_TO_INT32((x_upper / in_scale) / std::fabs(pow_scale) * in_scale);
                     x_lower = static_cast<int32_t>(x_lower_new);
                     x_upper = static_cast<int32_t>(x_upper_new);
                     if (x_lower_new < INT32_MIN) {
-                        int16_t offset_lower = abs(x_lower_new - INT32_MIN) / in_scale * out_scale;
+                        int16_t offset_lower = std::abs(x_lower_new - INT32_MIN) / in_scale * out_scale;
                         x_lower = INT32_MIN;
                         y_lower = y_lower + offset_lower;
                     }

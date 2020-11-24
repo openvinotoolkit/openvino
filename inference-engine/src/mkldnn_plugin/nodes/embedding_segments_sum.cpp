@@ -3,6 +3,7 @@
 //
 
 #include "embedding_bag_sum.hpp"
+#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -51,7 +52,7 @@ public:
                 _indices[i] = static_cast<size_t>(src[i]);
         } else if (inputs[INDICES_IDX]->getTensorDesc().getPrecision().size() == sizeof(UINT64)) {
             const UINT64* src = inputs[INDICES_IDX]->cbuffer().as<const UINT64*>();
-            memcpy(_indices.data(), src, inputs[INDICES_IDX]->byteSize());
+            cpu_memcpy(_indices.data(), src, inputs[INDICES_IDX]->byteSize());
         }
 
         // Initialize segments ids
@@ -61,7 +62,7 @@ public:
                 _segmentIds[i] = static_cast<size_t>(src[i]);
         } else if (inputs[SEGMENT_ID_IDX]->getTensorDesc().getPrecision().size() == sizeof(UINT64)) {
             const UINT64* src = inputs[SEGMENT_ID_IDX]->cbuffer().as<const UINT64*>();
-            memcpy(_segmentIds.data(), src, inputs[SEGMENT_ID_IDX]->byteSize());
+            cpu_memcpy(_segmentIds.data(), src, inputs[SEGMENT_ID_IDX]->byteSize());
         }
 
         if (inputs.size() > NUM_SEGMENTS_IDX) {

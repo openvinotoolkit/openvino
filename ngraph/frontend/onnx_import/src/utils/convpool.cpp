@@ -99,6 +99,12 @@ namespace ngraph
                 return detail::get_attribute_value(node, "dilations", kernel_rank);
             }
 
+            ngraph::op::RoundingType get_rounding_type(const Node& node)
+            {
+                return static_cast<ngraph::op::RoundingType>(
+                    node.get_attribute_value<std::int64_t>("ceil_mode", 0));
+            }
+
             ngraph::op::PadType get_auto_pad(const Node& node)
             {
                 // Default value means use explicitly provided padding values.
@@ -111,10 +117,10 @@ namespace ngraph
                             {"SAME_UPPER", ngraph::op::PadType::SAME_UPPER},
                             {"SAME_LOWER", ngraph::op::PadType::SAME_LOWER},
                             {"NOTSET", ngraph::op::PadType::NOTSET},
-                            {"", ngraph::op::PadType::NOTSET},
                         };
 
-                    const std::string& pad_str{node.get_attribute_value<std::string>("auto_pad")};
+                    const std::string& pad_str{
+                        node.get_attribute_value<std::string>("auto_pad", "NOTSET")};
                     const auto pad_val_it = auto_pad_values.find(pad_str);
                     CHECK_VALID_NODE(node,
                                      pad_val_it != auto_pad_values.end(),

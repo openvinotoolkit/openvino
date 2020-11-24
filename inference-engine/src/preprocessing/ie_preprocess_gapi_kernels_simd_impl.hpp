@@ -783,6 +783,134 @@ inline void copyRow_32F_impl(const float in[], float out[], int length) {
     }
 }
 
+// Resize (bi-linear, 32FC1)
+static inline void calcRowLinear_32FC1(float *dst[],
+                                       const float *src0[],
+                                       const float *src1[],
+                                       const float  alpha[],
+                                       const int    mapsx[],
+                                       const float  beta[],
+                                       const Size& inSz,
+                                       const Size& outSz,
+                                               int lpi) {
+    bool xRatioEq1 = inSz.width == outSz.width;
+    bool yRatioEq1 = inSz.height == outSz.height;
+
+#if CPU_SIMD
+    const int nlanes = v_float32::nlanes;
+#endif
+
+    if (!xRatioEq1 && !yRatioEq1) {
+        for (int line = 0; line < lpi; ++line) {
+            float beta0 = beta[line];
+            float beta1 = 1 - beta0;
+
+            int x = 0;
+
+#if CPU_SIMD
+            for (; x <= outSz.width - nlanes; x += nlanes) {
+                v_float32 alpha0 = vx_load(&alpha[x]);
+                //  v_float32 alpha1 = 1.f - alpha0;
+
+                v_float32 low1, high1, s00, s01;
+                v_gather_pairs(src0[line], mapsx, x, low1, high1);
+                v_deinterleave(low1, high1, s00, s01);
+
+                //  v_float32 res0 = s00*alpha0 + s01*alpha1;
+                v_float32 res0 = v_fma(s00 - s01, alpha0, s01);
+                
+                v_float32 low2, high2, s10, s11;
+                v_gather_pairs(src1[line], mapsx, x, low2, high2);
+                v_deinterleave(low2, high2, s10, s11);
+
+                //  v_float32 res1 = s10*alpha0 + s11*alpha1;
+                v_float32 res1 = v_fma(s10 - s11, alpha0, s11);
+                
+                //  v_float32 d = res0*beta0 + res1*beta1;
+                v_float32 d = v_fma(res0 - res1, beta0, res1);
+
+                vx_store(&dst[line][x], d);
+            }
+#endif
+
+            for (; x < outSz.width; ++x) {
+                float alpha0 = alpha[x];
+                float alpha1 = 1 - alpha0;
+                int   sx0 = mapsx[x];
+                int   sx1 = sx0 + 1;
+                float res0 = src0[line][sx0] * alpha0 + src0[line][sx1] * alpha1;
+                float res1 = src1[line][sx0] * alpha0 + src1[line][sx1] * alpha1;
+                dst[line][x] = beta0 * res0 + beta1 * res1;
+            }
+        }
+
+    } else if (!xRatioEq1) {
+        GAPI_DbgAssert(yRatioEq1);
+
+        for (int line = 0; line < lpi; ++line) {
+            int x = 0;
+
+#if CPU_SIMD
+            for (; x <= outSz.width - nlanes; x += nlanes) {
+                v_float32 alpha0 = vx_load(&alpha[x]);
+                //  v_float32 alpha1 = 1.f - alpha0;
+                                
+                v_float32 low, high, s00, s01;
+                v_gather_pairs(src0[line], mapsx, x, low, high);
+                v_deinterleave(low, high, s00, s01);
+
+                //  v_float32 d = s00*alpha0 + s01*alpha1;
+                v_float32 d = v_fma(s00 - s01, alpha0, s01);
+                
+                vx_store(&dst[line][x], d);
+            }
+#endif
+
+            for (; x < outSz.width; ++x) {
+                float alpha0 = alpha[x];
+                float alpha1 = 1 - alpha0;
+                int   sx0 = mapsx[x];
+                int   sx1 = sx0 + 1;
+                dst[line][x] = src0[line][sx0] * alpha0 + src0[line][sx1] * alpha1;
+            }
+        }
+
+    } else if (!yRatioEq1) {
+        GAPI_DbgAssert(xRatioEq1);
+        int length = inSz.width;  // == outSz.width
+
+        for (int line = 0; line < lpi; ++line) {
+            float beta0 = beta[line];
+            float beta1 = 1 - beta0;
+
+            int x = 0;
+
+#if CPU_SIMD
+            for (; x <= length - nlanes; x += nlanes) {
+                v_float32 s0 = vx_load(&src0[line][x]);
+                v_float32 s1 = vx_load(&src1[line][x]);
+
+                //  v_float32 d = s0*beta0 + s1*beta1;
+                v_float32 d = v_fma(s0 - s1, beta0, s1);
+
+                vx_store(&dst[line][x], d);
+            }
+#endif
+
+            for (; x < length; ++x) {
+                dst[line][x] = beta0 * src0[line][x] + beta1 * src1[line][x];
+            }
+        }
+
+    } else {
+        GAPI_DbgAssert(xRatioEq1 && yRatioEq1);
+        int length = inSz.width;  // == outSz.width
+        for (int line = 0; line < lpi; ++line) {
+            memcpy(dst[line], src0[line], length * sizeof(float));
+        }
+    }
+}
+
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

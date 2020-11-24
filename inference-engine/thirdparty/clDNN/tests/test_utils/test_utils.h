@@ -168,6 +168,36 @@ std::vector<T> generate_random_1d(size_t a, int min, int max, int k = 8) {
     return v;
 }
 
+template<typename Type>
+std::vector<Type> generate_random_norepetitions_1d(size_t size, int min, int max, float bound = 0.45) {
+    // Rerurn repeatless vector with size = size in range(min, max)
+    static std::default_random_engine generator(random_seed);
+    std::uniform_int_distribution<int> distribution(min, max);
+    std::uniform_real_distribution<float> to_bound_dist(0, bound);
+    std::set<int> repeatless;
+    std::vector<float> v(size, 0);
+    std::vector<Type> res(size);
+    int i = 0;
+    int temp;
+    if (max - min >= int(size) - 1){
+        while (repeatless.size() < size) {
+            temp = distribution(generator);
+            if (repeatless.find(temp) == repeatless.end()) {
+                repeatless.insert(temp);
+                v[i] = (float)temp;
+                i++;
+            }
+        }
+        for (size_t k = 0; k < v.size(); k++) {
+            v[k] += to_bound_dist(generator);
+            res[k] = static_cast<Type>(v[k]);
+        }
+    } else {
+        throw "Array size is bigger than size of range(min, max). Unable to generate array of unique integer numbers";
+    }
+    return res;
+}
+
 template<typename T>
 std::vector<std::vector<T>> generate_random_2d(size_t a, size_t b, int min, int max, int k = 8) {
     std::vector<std::vector<T>> v(a);

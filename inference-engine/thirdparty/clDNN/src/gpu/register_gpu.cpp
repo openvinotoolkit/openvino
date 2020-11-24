@@ -68,6 +68,7 @@ void register_implementations_gpu() {
     REGISTER_GPU(reverse_sequence);
     REGISTER_GPU(roi_pooling);
     REGISTER_GPU(scale);
+    REGISTER_GPU(scatter_update);
     REGISTER_GPU(select);
     REGISTER_GPU(shuffle_channels);
     REGISTER_GPU(softmax);

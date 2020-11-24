@@ -23,41 +23,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            /// \brief Max-reduction operation.
-            class NGRAPH_API Max : public util::ArithmeticReduction
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"Max", 0};
-
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a "max" reduction operation.
-                Max() = default;
-
-                /// \brief Constructs a max-reduction operation.
-                ///
-                /// \param arg The tensor to be reduced.
-                /// \param reduction_axes The axis positions (0-based) to be elimaxated.
-                Max(const Output<Node>& arg, const AxisSet& reduction_axes);
-
-                /// \brief Constructs a "max" reduction operation.
-                ///
-                /// \param arg The tensor to be reduced.
-                /// \param reduction_axes The axis positions (0-based) to be elimaxated.
-                Max(const Output<Node>& arg, const Output<Node>& reduction_axes);
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                /// \return The default value for Max.
-                virtual std::shared_ptr<Node> get_default_value() const override;
-
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-            };
-        }
-
         namespace v1
         {
             class NGRAPH_API ReduceMax : public util::ArithmeticReductionKeepDims
@@ -83,7 +48,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         }
-
-        using v0::Max;
     }
 }

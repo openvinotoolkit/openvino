@@ -19,7 +19,12 @@ struct NV12toRGBTestGAPI: public TestParams<std::tuple<cv::Size, double>> {};
 struct I420toRGBTestGAPI: public TestParams<std::tuple<cv::Size, double>> {};
 struct ResizeRoiTestGAPI: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, cv::Rect, double>> {};
 struct ResizeRGB8URoiTestGAPI: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, cv::Rect, double>> {};
-struct U16toF32TestGAPI: public TestParams<std::tuple<cv::Size, double>> {};
+struct ConvertDepthTestGAPI: public TestParams<std::tuple<
+                            int,  // input matrix depth
+                            int,  // output matrix depth
+                            cv::Size,
+                            double>>   // tolerance
+{};
 //------------------------------------------------------------------------------
 
 struct ResizeTestIE: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, double>> {};
@@ -43,9 +48,16 @@ struct ColorConvertYUV420TestIE:
                                              double>>                       // tolerance
 {};
 
+struct PrecisionConvertTestIE: public TestParams<std::tuple<cv::Size,
+                                                            int,     // input  matrix depth
+                                                            int,     // output matrix depth
+                                                            double>> // tolerance
+{};
+
 //------------------------------------------------------------------------------
 
-using PreprocParams = std::tuple< InferenceEngine::Precision     // input-output data type
+using PreprocParams = std::tuple< std::pair<InferenceEngine::Precision     // input data type
+                                           , InferenceEngine::Precision>   // output data type
                                 , InferenceEngine::ResizeAlgorithm // resize algorithm, if needed
                                 , InferenceEngine::ColorFormat // input color format, if needed
                                 , InferenceEngine::Layout        // input tensor layout

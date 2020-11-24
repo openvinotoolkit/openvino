@@ -28,6 +28,8 @@
 #include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/shape_util.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 
 namespace ngraph
@@ -144,13 +146,14 @@ namespace ngraph
                 // Inputs are 2D and below, perform dot directly
                 if (arg0_rank <= 2 && arg1_rank <= 2)
                 {
-                    return dot(arg0_update,
-                               arg1_update,
-                               out,
-                               wip_arg0_shape,
-                               wip_arg1_shape,
-                               out_shape,
-                               1);
+                    dot(arg0_update,
+                        arg1_update,
+                        out,
+                        wip_arg0_shape,
+                        wip_arg1_shape,
+                        out_shape,
+                        1);
+                    return;
                 }
 
                 // Check and perform auto-broadcast if needed
@@ -194,11 +197,12 @@ namespace ngraph
                         if (!broadcast_axes.empty())
                         {
                             arg0_broadcast_vec.reserve(shape_size(arg0_br_target_shape));
-                            broadcast(arg0_update,
-                                      arg0_broadcast_vec.data(),
+                            broadcast(reinterpret_cast<const char*>(arg0_update),
+                                      reinterpret_cast<char*>(arg0_broadcast_vec.data()),
                                       wip_arg0_shape,
                                       arg0_br_target_shape,
-                                      broadcast_axes);
+                                      broadcast_axes,
+                                      sizeof(T));
 
                             arg0_update = arg0_broadcast_vec.data();
                             wip_arg0_shape = arg0_br_target_shape;
@@ -213,11 +217,12 @@ namespace ngraph
                         if (!broadcast_axes.empty())
                         {
                             arg1_broadcast_vec.reserve(shape_size(arg1_br_target_shape));
-                            broadcast(arg1_update,
-                                      arg1_broadcast_vec.data(),
+                            broadcast(reinterpret_cast<const char*>(arg1_update),
+                                      reinterpret_cast<char*>(arg1_broadcast_vec.data()),
                                       wip_arg1_shape,
                                       arg1_br_target_shape,
-                                      broadcast_axes);
+                                      broadcast_axes,
+                                      sizeof(T));
 
                             arg1_update = arg1_broadcast_vec.data();
                             wip_arg1_shape = arg1_br_target_shape;
@@ -272,3 +277,5 @@ namespace ngraph
         }
     }
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_END

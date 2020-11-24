@@ -9,7 +9,6 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_memcpy.h>
 #include <algorithm>
 #include <set>
 #include <cmath>
@@ -42,10 +41,6 @@ void MKLDNNQuantizeNode::init() {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (getParentEdgesAtPort(i).size() != 1)
             THROW_IE_EXCEPTION << "Quantize layer " << getName() << " has unsupported number of parent edges at port " << i;
-    }
-
-    if (getParentEdgesAtPort(0)[0]->getDims().ndims() < 1ul || getParentEdgesAtPort(0)[0]->getDims().ndims() > 5ul) {
-        THROW_IE_EXCEPTION << "Unsupported number of dimensions for input at edge 0 in Quantize layer " << getName();
     }
 
     auto initAxisIdx = [&](size_t edgeIdx) {
@@ -125,6 +120,14 @@ void MKLDNNQuantizeNode::init() {
             THROW_IE_EXCEPTION << "Unsupported input sizes for Quantize layer with name " << getName();
     }
 
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant())
+            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has non const input on " << i << " port";
+        auto prec = getCnnLayer()->insData[i].lock()->getPrecision();
+        if (prec != Precision::FP32)
+            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has unsupported precision " << prec << " on " << i << " port";
+    }
+
     auto inputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
     auto inputLowData = inputLowBlob->buffer().as<float*>();
 
@@ -149,6 +152,13 @@ void MKLDNNQuantizeNode::init() {
 
         for (int i = 0; i < outputHighAxisSize; i++) {
             if (outputHighData[i] != 1.f && outputHighData[i] != 0.f) {
+                binarization = false;
+                break;
+            }
+        }
+
+        for (ptrdiff_t i = 0; i < std::max(inputLowAxisSize, inputHighAxisSize); i++) {
+            if (inputLowData[isInputLowBroadcasted ? 0 : i] != inputHighData[isInputHighBroadcasted ? 0 : i]) {
                 binarization = false;
                 break;
             }
@@ -305,6 +315,10 @@ std::vector<mkldnn::memory::format> MKLDNNQuantizeNode::getDataFormats() const {
 }
 
 void MKLDNNQuantizeNode::getSupportedDescriptors() {
+    if (getParentEdgesAtPort(0)[0]->getDims().ndims() < 1ul || getParentEdgesAtPort(0)[0]->getDims().ndims() > 5ul) {
+        THROW_IE_EXCEPTION << "Unsupported number of dimensions for input at edge 0 in Quantize layer " << getName();
+    }
+
     mkldnn::memory::data_type idt = MKLDNNExtensionUtils::IEPrecisionToDataType(getInputPrecision());
     mkldnn::memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
     mkldnn::memory::data_type ddt = MKLDNNExtensionUtils::IEPrecisionToDataType(getOutputPrecision());
@@ -518,7 +532,17 @@ void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
-    ops.append_quantization(quantizeAlgorithm , cropLow, cropHigh, inputScale, inputShift, outputScale, outputShift);
+    if (!isPostOpDataInitialized) {
+        isPostOpDataInitialized = true;
+        cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
+        cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
+        inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
+        inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
+        outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
+        outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+    }
+
+    ops.append_quantization(quantizeAlgorithm, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
 }
 
 bool MKLDNNQuantizeNode::created() const {

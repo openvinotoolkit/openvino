@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/reduce_l2.hpp"
+#include "itt.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/reduce_l2.hpp"
 #include "ngraph/shape_util.hpp"
@@ -45,7 +45,7 @@ shared_ptr<Node> op::v4::ReduceL2::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v4::ReduceL2>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-namespace
+namespace reduce_l2
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg,
@@ -83,5 +83,6 @@ bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::ReduceL2::evaluate");
-    return evaluate_reduce_l2(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    return reduce_l2::evaluate_reduce_l2(
+        inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

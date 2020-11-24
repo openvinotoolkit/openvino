@@ -20,10 +20,8 @@ import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.test_ops import convolution2d
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_34323
 
 
-@xfail_issue_34323
 def test_convolution_2d():
 
     # input_x should have shape N(batch) x C x H x W
@@ -214,7 +212,6 @@ def test_convolution_backprop_data():
     )
 
 
-@xfail_issue_34323
 def test_convolution_v1():
     input_tensor = np.arange(-128, 128, 1, dtype=np.float32).reshape(1, 1, 16, 16)
     filters = np.ones(9, dtype=np.float32).reshape(1, 1, 3, 3)

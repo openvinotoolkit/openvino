@@ -18,7 +18,7 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import xfail_issue_35925, xfail_issue_36437
+from tests import xfail_issue_35925
 
 reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
 reduce_axis_parameters = [
@@ -96,7 +96,6 @@ def test_reduce_l1(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
-@xfail_issue_35925
 def test_reduce_l1_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -108,7 +107,7 @@ def test_reduce_l1_default_axes():
     assert np.array_equal(expected.shape, ng_result.shape)
     assert np.allclose(expected, ng_result)
 
-    expected = np.sum(np.abs(input_data), keepdims=False)
+    expected = np.array([np.sum(np.abs(input_data), keepdims=False)])
     node = onnx.helper.make_node("ReduceL1", inputs=["x"], outputs=["y"], keepdims=0)
     ng_result = np.array(run_node(node, [input_data]).pop())
     assert np.array_equal(expected.shape, ng_result.shape)
@@ -135,7 +134,6 @@ def test_reduce_l2(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
-@xfail_issue_35925
 def test_reduce_l2_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -147,7 +145,7 @@ def test_reduce_l2_default_axes():
     assert np.array_equal(expected.shape, ng_result.shape)
     assert np.allclose(expected, ng_result)
 
-    expected = np.sqrt(np.sum(np.square(input_data), keepdims=False))
+    expected = np.array([np.sqrt(np.sum(np.square(input_data), keepdims=False))])
     node = onnx.helper.make_node("ReduceL2", inputs=["x"], outputs=["y"], keepdims=0)
     ng_result = np.array(run_node(node, [input_data]).pop())
     assert np.array_equal(expected.shape, ng_result.shape)
@@ -270,7 +268,6 @@ def test_reduce_sum_square_default_axes():
     assert np.allclose(expected, ng_result)
 
 
-@xfail_issue_36437
 def test_reduce_argmin():
     def argmin(ndarray, axis, keepdims=False):
         res = np.argmin(ndarray, axis=axis)
@@ -294,7 +291,6 @@ def test_reduce_argmin():
     )
 
 
-@xfail_issue_36437
 def test_reduce_argmax():
     def argmax(ndarray, axis, keepdims=False):
         res = np.argmax(ndarray, axis=axis)

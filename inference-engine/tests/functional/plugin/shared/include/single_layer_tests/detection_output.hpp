@@ -57,7 +57,7 @@ using DetectionOutputParams = std::tuple<
     std::string // Device name
 >;
 
-class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, public LayerTestsUtils::LayerTestsCommon {
+class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, virtual public LayerTestsUtils::LayerTestsCommon {
   public:
     static std::string getTestCaseName(testing::TestParamInfo<DetectionOutputParams> obj);
     ngraph::op::DetectionOutputAttrs attrs;

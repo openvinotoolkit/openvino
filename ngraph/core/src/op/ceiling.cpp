@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/ceiling.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/util/eval_copy.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/ceiling.hpp"
@@ -38,7 +38,7 @@ shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Ceiling>(new_args.at(0));
 }
 
-namespace
+namespace ceiling
 {
     // function used by TYPE_CASE
     template <element::Type_t ET>
@@ -95,5 +95,5 @@ namespace
 bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Ceiling::evaluate");
-    return evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

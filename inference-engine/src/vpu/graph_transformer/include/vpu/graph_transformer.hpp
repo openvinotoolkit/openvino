@@ -109,6 +109,8 @@ struct CompilationConfig final {
     bool enableReplaceWithReduceMean = true;
     bool enableTensorIteratorUnrolling = false;
     bool forcePureTensorIterator = false;
+    bool enableMemoryTypesAnnotation = false;
+    bool enableWeightsAnalysis = true;
 
     //
     // Deprecated options
@@ -161,28 +163,17 @@ struct CompiledGraph final {
 // compileNetwork
 //
 
-CompiledGraph::Ptr compileNetwork(
-        ie::ICNNNetwork& network,
-        Platform platform,
-        const CompilationConfig& config,
-        const Logger::Ptr& log,
-        const ie::ICore* core);
+CompiledGraph::Ptr compileNetwork(const ie::ICNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+    const ie::ICore* core);
 
-CompiledGraph::Ptr compileSubNetwork(
-        ie::ICNNNetwork& network,
-        const CompilationConfig& subConfig,
-        const ie::ICore* core);
+CompiledGraph::Ptr compileSubNetwork(const ie::ICNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core);
 
 //
 // getSupportedLayers
 //
 
-std::set<std::string> getSupportedLayers(
-        const ie::ICNNNetwork& network,
-        Platform platform,
-        const CompilationConfig& config,
-        const Logger::Ptr& log,
-        const ie::ICore* core);
+std::set<std::string> getSupportedLayers(const ie::ICNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+    const ie::ICore* core);
 
 //
 // Blob version and checks

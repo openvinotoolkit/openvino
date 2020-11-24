@@ -82,7 +82,6 @@ class FuseTransposesSequenceTest(unittest.TestCase):
                              }, nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=False)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
@@ -126,7 +125,6 @@ class FuseTransposesSequenceTest(unittest.TestCase):
                              }, nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=False)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),

@@ -41,6 +41,7 @@ const auto CldnnTensorFromIEDims = [](const InferenceEngine::SizeVector& dims, i
 inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     switch (p) {
     case Precision::I16:
+    case Precision::U16:
     case Precision::FP32:
         return cldnn::data_types::f32;
     case Precision::FP16:
@@ -130,6 +131,7 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
 
 inline cldnn::format defaultFormatForDims(size_t dimensions) {
     switch (dimensions) {
+    case 0:
     case 1:
     case 2:
     case 3:

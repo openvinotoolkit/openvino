@@ -17,7 +17,7 @@
 #include <cmath>
 #include <cstdio>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -538,6 +538,12 @@ AxisSet op::Constant::get_axis_set_val() const
         output_axis_set.insert(axis > 0 ? axis : 0);
     }
     return output_axis_set;
+}
+
+void op::Constant::set_data_shape(const Shape& shape)
+{
+    NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
+    m_shape = shape;
 }
 
 shared_ptr<Node> op::Constant::clone_with_new_inputs(const OutputVector& new_args) const

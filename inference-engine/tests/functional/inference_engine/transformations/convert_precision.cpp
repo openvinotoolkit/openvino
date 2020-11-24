@@ -261,7 +261,7 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
         auto res_1 = std::make_shared<opset4::Result>(gru_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
@@ -285,8 +285,8 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
 
         ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
         ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
-        ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(tensor_iterator->get_body()->to_function()));
-        ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(tensor_iterator->get_body()->to_function()));
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(tensor_iterator->get_body()));
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(tensor_iterator->get_body()));
     }
 }
 
@@ -560,4 +560,65 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
     }
 
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+}
+
+template <typename From, typename To>
+void constant_convert_test(element::Type_t type_from, element::Type_t type_to, From value, To expected) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+    {
+        auto c = opset4::Constant::create(type_from, Shape{}, {value});
+        f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(type_from, type_to);
+        manager.run_passes(f);
+    }
+    auto ops = f->get_ordered_ops();
+    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
+    ASSERT_NE(c, nullptr);
+
+    auto actual = c->cast_vector<To>()[0];
+    ASSERT_EQ(expected, actual);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I64MinToI32) {
+    constant_convert_test(element::Type_t::i64, element::Type_t::i32,
+                        std::numeric_limits<int64_t>::min(),
+                        std::numeric_limits<int32_t>::min());
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I64MaxToI32) {
+    constant_convert_test(element::Type_t::i64, element::Type_t::i32,
+                        std::numeric_limits<int64_t>::max(),
+                        std::numeric_limits<int32_t>::max());
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U64MinToI32) {
+    constant_convert_test(element::Type_t::u64, element::Type_t::i32,
+                        std::numeric_limits<uint64_t>::min(), 0);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U64MaxToI32) {
+    constant_convert_test(element::Type_t::u64, element::Type_t::i32,
+                        std::numeric_limits<uint64_t>::max(),
+                        std::numeric_limits<int32_t>::max());
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U64ToI32) {
+    constant_convert_test(element::Type_t::u64, element::Type_t::i32, 42, 42);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32MinToI32) {
+    constant_convert_test(element::Type_t::u32, element::Type_t::i32,
+                        std::numeric_limits<uint32_t>::min(), 0);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32MaxToI32) {
+    constant_convert_test(element::Type_t::u32, element::Type_t::i32,
+                        std::numeric_limits<uint32_t>::max(),
+                        std::numeric_limits<int32_t>::max());
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32ToI32) {
+    constant_convert_test(element::Type_t::u32, element::Type_t::i32, 42, 42);
 }

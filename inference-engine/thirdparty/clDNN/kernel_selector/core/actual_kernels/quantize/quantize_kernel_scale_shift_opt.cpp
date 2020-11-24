@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,18 +40,18 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
-    k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -61,38 +61,28 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
 }
 
 CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& params, const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
     auto output = params.output;
 
     if (output.GetLayout() == DataLayout::b_fs_yx_fsv16) {
-        runInfo.gws0 = output.Y().v * output.X().v;
-        runInfo.gws1 = Align(output.Feature().v, sub_group_size);
-        runInfo.gws2 = output.Batch().v;
+        dispatchData.gws[0] = output.Y().v * output.X().v;
+        dispatchData.gws[1] = Align(output.Feature().v, sub_group_size);
+        dispatchData.gws[2] = output.Batch().v;
 
-        runInfo.lws0 = 1;
-        runInfo.lws1 = sub_group_size;
-        runInfo.lws2 = 1;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = sub_group_size;
+        dispatchData.lws[2] = 1;
     } else {
-        auto global = GetTensorFriendlyWorkGroups(output);
-        auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-        runInfo.gws0 = global[0];
-        runInfo.gws1 = global[1];
-        runInfo.gws2 = global[2];
-
-        runInfo.lws0 = local[0];
-        runInfo.lws1 = local[1];
-        runInfo.lws2 = local[2];
+        dispatchData.gws = GetTensorFriendlyWorkGroups(output);
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     }
 
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& params, const CommonDispatchData& runInfo) const {
-    JitConstants jit = Parent::GetJitConstants(params, runInfo);
+JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16) {
         jit.AddConstant(MakeJitConstant("GWS_BATCH", 2));

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -247,9 +247,11 @@ std::string toString(NormalizeMode mode);
 std::string toString(MVNMode mode);
 std::string toString(WeightsLayout layout);
 std::string toString(ConcatAxis a);
-std::string toString(TileAxis a);
 std::string toString(GatherAxis a);
+std::string toString(ScatterUpdateAxis a);
 std::string toString(ResampleType type);
+std::string toString(CoordinateTransformationMode mode);
+std::string toString(NearestMode mode);
 std::string toString(const BorderType type);
 std::string toString(const Tensor::Dim& dim);
 std::string toString(const DataTensor& tensor);

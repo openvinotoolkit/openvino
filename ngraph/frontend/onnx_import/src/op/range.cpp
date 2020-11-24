@@ -32,7 +32,8 @@ namespace ngraph
                     const Output<ngraph::Node> start{node.get_ng_inputs().at(0)};
                     const Output<ngraph::Node> stop{node.get_ng_inputs().at(1)};
                     const Output<ngraph::Node> step{node.get_ng_inputs().at(2)};
-                    return {std::make_shared<default_opset::Range>(start, stop, step)};
+                    return {std::make_shared<default_opset::Range>(
+                        start, stop, step, node.get_ng_inputs().at(0).get_element_type())};
                 }
             } // namespace set_1
 

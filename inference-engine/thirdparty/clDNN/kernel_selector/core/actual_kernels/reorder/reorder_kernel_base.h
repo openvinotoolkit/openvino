@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <vector>
 
@@ -94,9 +94,9 @@ struct reorder_weights_params : public Params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ReorderKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class ReorderKernelBase : public common_kernel_base {
+class ReorderKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~ReorderKernelBase() {}
 
     using DispatchData = CommonDispatchData;
@@ -106,6 +106,7 @@ protected:
     virtual JitConstants GetJitConstants(const reorder_params& params) const;
     virtual DispatchData SetDefault(const reorder_weights_params& params) const;
     virtual DispatchData SetDefault(const reorder_params& params) const;
+    virtual bool Validate(const Params&, const optional_params&) const { return true; };
     KernelsData GetCommonKernelsData(const reorder_weights_params& params,
                                      const optional_params&,
                                      float estimated_time) const;

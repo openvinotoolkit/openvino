@@ -224,7 +224,7 @@ public:
                (precisionInfo.value == Precision::Q78) || (precisionInfo.value == Precision::I16) ||
                (precisionInfo.value == Precision::I8) || (precisionInfo.value == Precision::I32) ||
                (precisionInfo.value == Precision::I64) || (precisionInfo.value == Precision::BIN) ||
-               (precisionInfo.value == Precision::CUSTOM);
+               (precisionInfo.value == Precision::BF16) || (precisionInfo.value == Precision::CUSTOM);
     }
 
 protected:

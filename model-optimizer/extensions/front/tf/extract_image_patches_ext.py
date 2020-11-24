@@ -13,11 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
-from extensions.ops.reorgyolo import ReorgYoloOp
+from extensions.ops.ExtractImagePatches import ExtractImagePatches
+from mo.front.common.partial_infer.utils import convert_tf_padding_to_str
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
-
+from mo.front.tf.extractors.utils import tf_int_list
 
 class ExtractImagePatchesExtractor(FrontExtractorOp):
     op = 'ExtractImagePatches'
@@ -25,8 +26,13 @@ class ExtractImagePatchesExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        node['batch_dims'] = 0
-        node['channel_dims'] = 3
-        node['spatial_dims'] = [1, 2]
-        ReorgYoloOp.update_node_stat(node, {'stride': np.array(node.pb.attr['strides'].list.i[1])})
-        return cls.enabled
+
+        attrs = {
+            'spatial_dims': int64_array([1, 2]),
+            'sizes': tf_int_list(node.pb.attr['ksizes'].list),
+            'strides': tf_int_list(node.pb.attr['strides'].list),
+            'rates': tf_int_list(node.pb.attr['rates'].list),
+            'auto_pad': convert_tf_padding_to_str(node.pb.attr['padding'].s.decode()),
+        }
+
+        ExtractImagePatches.update_node_stat(node, attrs)

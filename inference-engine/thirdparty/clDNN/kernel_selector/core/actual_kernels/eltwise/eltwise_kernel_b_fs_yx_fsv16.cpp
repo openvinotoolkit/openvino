@@ -26,8 +26,11 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableDifferentTypes();
     k.EnableBatching();
     k.EnableTensorPitches();
     k.EnableTensorOffset();
@@ -68,7 +71,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::MakeLoadJitConstants(const eltwise_par
                     if (params.inputs[input.index].LogicalSize() == params.output.Feature().v &&
                         params.inputs[input.index].LogicalSize() == params.inputs[input.index].Feature().v) {
                         jit.AddConstant(MakeJitConstant(name,
-                                                        "UNIT_BLOCK_READ(input" + std::to_string(input.index) +
+                                                        "BLOCK_READN(INPUT" + std::to_string(input.index) + "_TYPE, 1, input" + std::to_string(input.index) +
                                                         ", INPUT"+std::to_string(input.index)+"_GET_INDEX(b, f_block*16, y, x))"));
                     } else if (params.inputs[input.index].LogicalSize() == 1) {
                         jit.AddConstant(MakeJitConstant(name,
@@ -132,10 +135,20 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
-    jit.Merge(MakeActivationJitConstants(params.activations, GetAccumulatorType(params), "_TYPED"));
+    jit.Merge(MakeActivationJitConstants(params.activations, params.output.GetDType(), "_TYPED"));
 
     if (params.output.Feature().v % 16 != 0)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", params.output.Feature().v % 16));
+
+    if (!params.fused_ops.empty()) {
+        kernel_selector::Datatype input_dt = GetAccumulatorType(params);
+
+        FusedOpsConfiguration conf = {"", {"b", "f_block*16", "y", "x"}, "res", input_dt, blockSize};
+        conf.load_type = FusedOpsConfiguration::LoadType::LT_ALIGNED_READ;
+        conf.vec_axis = Tensor::DataChannelName::X;
+
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
 
     return jit;
 }
@@ -163,6 +176,12 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
 
     auto input0 = ewParams.inputs[0];
 
+    for (size_t i = 1; i < ewParams.inputs.size(); i++) {
+        if (input0.GetDType() != ewParams.inputs[i].GetDType()) {
+            return false;
+        }
+    }
+
     // Check that padding before features doesn't miss-align the blocks
     auto feature_block_size = 16;
     if (input0.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
@@ -181,23 +200,23 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
 }
 
 EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv16::SetDefault(const eltwise_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    kd.gws0 = Align(params.output.Feature().v, 16);
-    kd.gws1 = CeilDiv(params.output.X().v, GetBlockSize(params)) * params.output.Y().v;
-    kd.gws2 = params.output.Batch().v;
+    dispatchData.gws[0] = Align(params.output.Feature().v, 16);
+    dispatchData.gws[1] = CeilDiv(params.output.X().v, GetBlockSize(params)) * params.output.Y().v;
+    dispatchData.gws[2] = params.output.Batch().v;
 
-    kd.lws0 = 16;
-    kd.lws1 = 16;
-    while (kd.lws1 > 1) {
-        if (kd.gws1 % kd.lws1 == 0)
+    dispatchData.lws[0] = 16;
+    dispatchData.lws[1] = 16;
+    while (dispatchData.lws[1] > 1) {
+        if (dispatchData.gws[1] % dispatchData.lws[1] == 0)
             break;
-        kd.lws1--;
+        dispatchData.lws[1]--;
     }
-    kd.lws2 = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_1;
-    return kd;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
+    return dispatchData;
 }
 
 KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -212,19 +231,20 @@ KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, co
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    DispatchData runInfo = SetDefault(newParams);
+    DispatchData dispatchData = SetDefault(newParams);
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-    kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+    kernel.workGroups.global = dispatchData.gws;
+    kernel.workGroups.local = dispatchData.lws;
 
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
-                                   false);
+                                   false,
+                                   GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = runInfo.efficiency;
+    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

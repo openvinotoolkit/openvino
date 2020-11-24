@@ -25,10 +25,12 @@ ParamsKey DeconvolutionKernel_imad_ref::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputWeightsType(WeightsType::UINT8);
 
@@ -39,7 +41,6 @@ ParamsKey DeconvolutionKernel_imad_ref::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
-    k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableAllOutputLayout();
 
     k.EnableDifferentTypes();
@@ -59,27 +60,19 @@ WeightsLayout DeconvolutionKernel_imad_ref::GetPreferredWeightsLayout(const deco
 }
 
 DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_ref::SetDefault(const deconvolution_params& params) const {
-    auto dispatch = Parent::SetDefault(params);
+    DispatchData dispatchData = Parent::SetDefault(params);
 
-    std::vector<size_t> global = {
+    dispatchData.gws = {
          params.output.Feature().v,
          params.output.X().v * params.output.Y().v * params.output.Z().v,
          params.output.Batch().v
     };
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    dispatch.gws0 = global[0];
-    dispatch.gws1 = global[1];
-    dispatch.gws2 = global[2];
+    dispatchData.efficiency = FORCE_PRIORITY_9;
 
-    dispatch.lws0 = local[0];
-    dispatch.lws1 = local[1];
-    dispatch.lws2 = local[2];
-
-    dispatch.efficiency = FORCE_PRIORITY_9;
-
-    return dispatch;
+    return dispatchData;
 }
 
 JitConstants DeconvolutionKernel_imad_ref::GetJitConstants(const deconvolution_params& params) const {

@@ -123,11 +123,7 @@ namespace ngraph
         {
             AttributeAdapter<AT> adapter(value);
             start_structure(name);
-            // todo: it's workaround, remove after fixing #35906
-            if (get_name_with_context().find("the_proposal") != std::string::npos)
-                on_adapter(name, adapter);
-            else
-                on_adapter(get_name_with_context(), adapter);
+            on_adapter(get_name_with_context(), adapter);
             finish_structure();
         }
         /// \returns The nested context of visits

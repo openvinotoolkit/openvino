@@ -100,6 +100,7 @@ namespace ngraph
     NGRAPH_API
     NodeVector as_node_vector(const OutputVector& values);
     /// Returns a ResultVector referencing values.
+    NGRAPH_API
     ResultVector as_result_vector(const OutputVector& values);
 
     /// Alias useful for cloning
@@ -154,9 +155,11 @@ namespace ngraph
 
     protected:
         /// \brief Construct an unitialized Node
-        Node() {}
+        Node() = default;
         /// \brief Copying a node
         Node(const Node&);
+        /// \brief Assignment operator
+        Node& operator=(const Node&);
 
         /// \brief Construct an unitialized Node
         /// \param output_size Number of outputs for this node
@@ -230,9 +233,6 @@ namespace ngraph
         void set_output_size(size_t output_size);
 
         void revalidate_and_infer_types() { validate_and_infer_types(); }
-        // Called after transition
-        void delayed_validate_and_infer_types();
-
         /// \brief Get the string name for the type of the node, such as `Add` or `Multiply`.
         ///        The class name, must not contain spaces as it is used for codegen.
         /// \returns A const reference to the node's type name

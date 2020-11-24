@@ -18,21 +18,17 @@ import json
 import numpy as np
 import pytest
 
+from _pyngraph import VariantInt, VariantString
+
 import ngraph as ng
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, PartialShape, Shape, Type, VariantInt, VariantString
+from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_34323,
-                   xfail_issue_35929,
-                   xfail_issue_35926,
+from tests import (xfail_issue_35929,
                    xfail_issue_36476,
-                   xfail_issue_36478,
-                   xfail_issue_36479,
                    xfail_issue_36480)
-
-from openvino.inference_engine import IENetwork
 
 
 def test_ngraph_function_api():
@@ -64,14 +60,14 @@ def test_ngraph_function_api():
     [
         np.float32,
         pytest.param(np.float64, marks=xfail_issue_35929),
-        pytest.param(np.int8, marks=xfail_issue_36479),
+        np.int8,
         np.int16,
         np.int32,
-        pytest.param(np.int64, marks=xfail_issue_35926),
-        pytest.param(np.uint8, marks=xfail_issue_36479),
-        pytest.param(np.uint16, marks=xfail_issue_36479),
+        np.int64,
+        np.uint8,
+        np.uint16,
         pytest.param(np.uint32, marks=xfail_issue_36476),
-        pytest.param(np.uint64, marks=xfail_issue_36478),
+        np.uint64,
     ],
 )
 def test_simple_computation_on_ndarrays(dtype):
@@ -117,9 +113,8 @@ def test_serialization():
         pass
 
 
-@xfail_issue_34323
 def test_broadcast_1():
-    input_data = np.array([1, 2, 3])
+    input_data = np.array([1, 2, 3], dtype=np.int32)
 
     new_shape = [3, 3]
     expected = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]
@@ -127,18 +122,16 @@ def test_broadcast_1():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 def test_broadcast_2():
-    input_data = np.arange(4)
+    input_data = np.arange(4, dtype=np.int32)
     new_shape = [3, 4, 2, 4]
     expected = np.broadcast_to(input_data, new_shape)
     result = run_op_node([input_data], ng.broadcast, new_shape)
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 def test_broadcast_3():
-    input_data = np.array([1, 2, 3])
+    input_data = np.array([1, 2, 3], dtype=np.int32)
     new_shape = [3, 3]
     axis_mapping = [0]
     expected = [[1, 1, 1], [2, 2, 2], [3, 3, 3]]
@@ -147,10 +140,9 @@ def test_broadcast_3():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 @pytest.mark.parametrize(
     "destination_type, input_data",
-    [(bool, np.zeros((2, 2), dtype=int)), ("boolean", np.zeros((2, 2), dtype=int))],
+    [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
 )
 def test_convert_to_bool(destination_type, input_data):
     expected = np.array(input_data, dtype=bool)
@@ -162,9 +154,9 @@ def test_convert_to_bool(destination_type, input_data):
 @pytest.mark.parametrize(
     "destination_type, rand_range, in_dtype, expected_type",
     [
-        pytest.param(np.float32, (-8, 8), np.int32, np.float32, marks=xfail_issue_34323),
+        pytest.param(np.float32, (-8, 8), np.int32, np.float32),
         pytest.param(np.float64, (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
-        pytest.param("f32", (-8, 8), np.int32, np.float32, marks=xfail_issue_34323),
+        pytest.param("f32", (-8, 8), np.int32, np.float32),
         pytest.param("f64", (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
     ],
 )
@@ -177,7 +169,7 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_34323
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -200,7 +192,7 @@ def test_convert_to_int(destination_type, expected_type):
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_34323
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -286,9 +278,8 @@ def test_backend_config():
     runtime.set_config(dummy_config)
 
 
-@xfail_issue_34323
 def test_result():
-    node = [[11, 10], [1, 8], [3, 4]]
+    node = np.array([[11, 10], [1, 8], [3, 4]])
     result = run_op_node([node], ng.result)
     assert np.allclose(result, node)
 
@@ -408,7 +399,7 @@ def test_variants():
 
 
 def test_runtime_info():
-    test_shape = PartialShape([1, 3, 22, 22])
+    test_shape = PartialShape([1, 1, 1, 1])
     test_type = Type.f32
     test_param = Parameter(test_type, test_shape)
     relu_node = ng.relu(test_param)
@@ -417,15 +408,4 @@ def test_runtime_info():
     relu_node.set_friendly_name("testReLU")
     runtime_info_after = relu_node.get_rt_info()
 
-    assert runtime_info == runtime_info_after
-
-    params = [test_param]
-    results = [relu_node]
-
-    ng_function = Function(results, params, "testFunc")
-
-    capsule = Function.to_capsule(ng_function)
-    cnn_network = IENetwork(capsule)
-    cnn_layer = cnn_network.layers["testReLU"]
-    assert cnn_layer is not None
-    assert cnn_layer.affinity == "test_affinity"
+    assert runtime_info_after["affinity"] == "test_affinity"
