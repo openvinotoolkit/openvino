@@ -150,9 +150,11 @@ class InstallCMakeLibs(install_lib):
         if os.environ.get('ngraph_DIR') is not None:
             root_dir = pathlib.Path(os.environ['ngraph_DIR'])
 
-        lib_ext = ".so"
-        if "linux" in sys.platform or sys.platform == "darwin":
+        lib_ext = ""
+        if "linux" in sys.platform:
             lib_ext = ".so"
+        elif sys.platform == "darwin":
+            lib_ext = ".dylib"
         elif sys.platform == "win32":
             lib_ext = ".dll"
 
