@@ -185,8 +185,6 @@ namespace opset1_upgrade
         return replacement_node;
     }
 
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Xor> node)
     {
         auto replacement_node = make_shared<op::v1::LogicalXor>(

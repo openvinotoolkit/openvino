@@ -17,7 +17,6 @@
 #pragma once
 
 #include <cstddef>
-#include <ngraph/runtime/opt_kernel/broadcast.hpp>
 #include <ngraph/runtime/reference/mean.hpp>
 #include <ngraph/runtime/reference/multiply.hpp>
 #include <ngraph/runtime/reference/sqrt.hpp>
@@ -51,27 +50,17 @@ namespace ngraph
 
                 if (normalize_variance)
                 {
-                    std::vector<T> multiply_val(shape_size(in_shape));
-                    multiply(out, out, multiply_val.data(), shape_size(in_shape));
-                    sum(multiply_val.data(), tmp_buffer.data(), in_shape, reduction_axes, true);
-                    std::vector<T> broadcast_sum(shape_size(in_shape));
-                    broadcast(tmp_buffer.data(),
-                              broadcast_sum.data(),
-                              reduced_shape,
-                              in_shape,
-                              reduction_axes);
+                    tmp_buffer.resize(shape_size(in_shape));
+                    std::vector<T> mean_value(shape_size(reduced_shape));
+                    multiply(out, out, tmp_buffer.data(), shape_size(in_shape));
+                    mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes, true);
 
-                    size_t n = 1;
-                    for (auto i : reduction_axes)
-                    {
-                        n *= in_shape[i];
-                    }
                     for (size_t i = 0; i < shape_size(in_shape); ++i)
                     {
-                        out[i] /= std::sqrt(broadcast_sum[i] / n + eps);
+                        out[i] /= (std::sqrt(mean_value.front()) + eps);
                     }
                 }
             }
         } // namespace reference
-    }     // namespace runtime
+    } // namespace runtime
 } // namespace ngraph
