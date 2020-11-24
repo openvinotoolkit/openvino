@@ -372,7 +372,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     context = m_defaultContext;
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network, conf), context, conf);
+    InferenceEngine::CNNNetwork transformedNetwork(CloneAndTransformNetwork(network, conf));
+    return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
 }
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
@@ -395,7 +396,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network, conf), casted, conf);
+    InferenceEngine::CNNNetwork transformedNetwork(CloneAndTransformNetwork(network, conf));
+    return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
 }
 
 RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {

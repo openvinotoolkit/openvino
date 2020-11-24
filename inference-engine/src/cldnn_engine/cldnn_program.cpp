@@ -396,8 +396,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
     bool fqFound = false;
 
     bool baselineIsFP16 = false;
-    InputsDataMap inputsMap;
-    network.getInputsInfo(inputsMap);
+    InputsDataMap inputsMap = network.getInputsInfo();
     if (!inputsMap.empty()) {
         auto input0 = getInputTo(inputsMap.begin()->second->getInputData());
         if (!input0.empty() && (input0.begin()->second->params.count("lpt_back_to_fp16") != 0)) {

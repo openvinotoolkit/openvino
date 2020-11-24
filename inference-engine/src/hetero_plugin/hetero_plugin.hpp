@@ -41,7 +41,7 @@ public:
     ExecutableNetwork ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
 
 
-    void SetAffinity(InferenceEngine::CNNNetwork& network, const Configs &config);
+    void SetAffinity(const InferenceEngine::CNNNetwork& network, const Configs &config);
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback,
         const Configs & localConfig) const;
