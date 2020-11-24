@@ -424,7 +424,7 @@ example from the `mo/ops/pooling.py` file:
         ]
 ```
 
-The `backend_attrs` function returns a list of records which can be of one of the following formats:
+The `backend_attrs` function returns a list of records. A record can be of one of the following formats:
 1. A string defining the attribute to be saved to the IR. If the value of the attribute is `None` then the attribute is
 not saved. Example of this case are `rounding_type` and `auto_pad`.
 2. A tuple where the first element is a string defining the name of the attribute as it will appear in the IR and the
@@ -563,7 +563,7 @@ The diagram below shows anchor transformations, some of built-in transformations
 
 ![Transformations Graph](../../../img/MO_transformations_graph.png)
 
-User defined transformations are be executed after corresponding `Start` and before corresponding `Finish` anchor
+User defined transformations are executed after corresponding `Start` and before corresponding `Finish` anchor
 transformations by default (if `run_before()` and `run_after()` methods have not been overridden).
 
 > **NOTE**: The `PreMiddleStart` and `PostMiddleStart` anchors were introduced due to historical reasons to refactor
@@ -574,11 +574,194 @@ There are several types of front phase transformations:
 
 1. Pattern-defined transformation triggered for each sub-graph of the original graph isomorphic to the specified
 pattern.
-2. Transformation triggered for node with specific `op` attribute value.
-3. Manually enabled transformation defined with a JSON configuration file (for TensorFlow\* and ONNX\* models only):
+2. Transformation triggered for a node with specific `op` attribute value.
+3. Generic front transformation.
+4. Manually enabled transformation defined with a JSON configuration file (for TensorFlow\* and ONNX\* models only)
+specified using `--transformations_config` command line parameter:
     1. Node name defined sub-graph transformation.
     2. Start/end node names defined sub-graph transformation.
     3. Generic graph transformation.
+
+#### Pattern-Defined Front Phase Transformations <a name="pattern-defined-front-phase-transformations"></a>
+This type of transformation is implemented using `mo.front.common.replacement.FrontReplacementSubgraph` and
+`mo.front.common.replacement.FrontReplacementPattern` as base classes and works the following way.
+1. Developer defines a sub-graph to be matched by specifying a list of nodes with attributes and edges connecting them
+(edges may also have attributes).
+2. Model Optimizer search for all sub-graphs of the original graph isomorphic to the specified sub-graph (pattern).
+3. Model Optimizer executes developer-defined function performing graph transformation for each instance of a matched
+sub-graph. Developer can override different functions in the base transformation class and the Model Optimizer works
+slightly differently.
+   1. Override method `replace_sub_graph(self, graph, match)`. In this case Model Optimizer only executes the overridden
+   function, pass the `graph` object and a dictionary describing the matched sub-graph. A developer is responsible for
+   writing the transformation and connecting the newly created nodes to the rest of the graph.
+   2. Override method `generate_sub_graph(self, graph, match)`. This case is not recommended to use because it is the
+   most complicated and can be effectively replaced with one of two previous approaches and therefore it is not
+   explained in this section. The explanation of this function is provided in the [Node Name Defined Sub-Graph
+   Transformations](#node-name-defined-sub-graph-transformations) section.
+
+The sub-graph pattern is defined in the `pattern()` function. This function should return a dictionary with two keys:
+`nodes` and `edges`:
+* The value for the `nodes` key is a list of tuples with two elements.
+   * The first element is an alias name for a node which will be used to define edges between nodes and in the
+   transformation function.
+   * The second element is a dictionary with attributes. The key is a name of an attribute which should exist in the
+   node. The value for the attribute can be some specific value to match or a function which gets a single parameter -
+   the attribute value from the node. The function should return the result of attribute comparison with a dedicated
+   value.
+* The value for the `edges` key is a list of tuples with two or three elements.
+   * The first element is the alias name of the node producing a tensor.
+   * The second element is the alias name of the node consuming the tensor.
+   * The third element (optional) is the dictionary with expected edge attributes. Usually this dictionary contains
+   attributes like `in` and `out` defining input and output ports.
+
+Consider the example of a front transformation performing fusing of the sub-graph defining Mish activation function into
+a single operation implemented in the `extensions/front/Mish_fusion.py`:
+
+```py
+from extensions.front.Softplus_fusion import SoftplusFusion
+from extensions.ops.activation_ops import Mish
+from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.front.subgraph_matcher import SubgraphMatch
+from mo.graph.graph import Graph, rename_nodes
+
+
+class MishFusion(FrontReplacementSubgraph):
+    """
+    The transformation looks for the pattern with Softplus defining the Mish function: Mish(x) = x * tanh(SoftPlus(x)).
+    """
+    enabled = True  # transformation is enabled
+
+    def run_after(self):  # run this transformation after "SoftplusFusion" transformation
+        return [SoftplusFusion]
+
+    def pattern(self):  # define pattern according to formulae x * tanh(SoftPlus(x)).
+        return dict(
+            nodes=[
+                ('mul', dict(op='Mul')),
+                ('tanh', dict(op='Tanh')),
+                ('softplus', dict(op='SoftPlus')),
+            ],
+            edges=[
+                ('softplus', 'tanh'),
+                ('tanh', 'mul'),
+            ])
+
+    def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):  # entry point for the transformation
+        mul = match['mul']  # get the Node corresponding to matched "mul" node
+        mul_name = mul.soft_get('name', mul.id)
+        softplus = match['softplus']  # get the Node corresponding to the matched "softplus" node
+
+        # determine the input port of Mul which gets the 'input' node output
+        input_port_idx = int(mul.in_port(0).get_connection().get_source().node.soft_get('op') == 'Tanh')
+
+        # check that the same tensor provided as input to Mul and SoftPlus
+        if mul.in_port(input_port_idx).get_source() != softplus.in_port(0).get_source():
+            return
+
+        mish = Mish(graph, {}).create_node()  # create Mish operation
+        mish.in_port(0).connect(mul.in_port(input_port_idx).get_source())  # connect input to the Mish
+        mul.out_port(0).get_connection().set_source(mish.out_port(0))  # reconnect outgoing edge from "mul" to Mish
+
+        # rename the created Mish operation to have the name of the "mul" node which produced the value equal to the
+        # Mish output
+        rename_nodes([(mul, mul_name + '/TBR'), (mish, mul_name)])
+```
+
+#### Specific Operation Front Phase Transformations <a name="specific-operation-front-phase-transformations"></a>
+This type of transformation is implemented using `mo.front.common.replacement.FrontReplacementOp` as base class and
+works the following way.
+1. Developer defines an operation type to trigger the transformation.
+2. Model Optimizer search for all nodes in the graph with the attribute `op` equal to the specified value.
+3. Model Optimizer executes developer-defined function performing graph transformation for each instance of a matched
+node. Developer can override different functions in the base transformation class and the Model Optimizer works
+slightly differently.
+   1. Override method `replace_sub_graph(self, graph, match)`. In this case Model Optimizer only executes the overridden
+   function, pass the `graph` object and a dictionary with a single key `op` with the matched node as value. A developer
+   is responsible for writing the transformation and connecting the newly created nodes to the rest of the graph.
+   2. Override method `replace_op(self, graph, node)`. In this case Model Optimizer executes the overridden function,
+   pass the `graph` object and a matched node as `node` parameter. If the function returns an `id` of some node then the
+   `Node` with this `id` is connected to the consumers of the matched node. Then the matched node is removed from the
+   graph.
+
+The `FrontReplacementOp` class provides a simpler mechanism to match a singe operation with specific value of `op`
+(write an attribute `op` in the class instead of defining a `pattern()` function) attribute and perform the
+transformation.
+
+Consider an example transformation from the file is `extensions/front/Pack.py`  which replaces operation `Pack` from
+the TensorFlow\*:
+```py
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.replacement import FrontReplacementOp
+from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.graph.graph import Node, Graph, rename_nodes
+from mo.ops.concat import Concat
+from mo.ops.unsqueeze import Unsqueeze
+
+
+class Pack(FrontReplacementOp):
+    op = "Pack"  # trigger transformation for all nodes in the graph with attribute op = "Pack"
+    enabled = True  # transformation is enabled
+
+    def replace_op(self, graph: Graph, node: Node):  # entry point for the transformation
+        # create a Concat operation with a number of inputs equal to a number of inputs to Pack
+        out_node = Concat(graph, {'axis': node.axis, 'in_ports_count': len(node.in_ports())}).create_node()
+        pack_name = node.soft_get('name', node.id)
+
+        for ind in node.in_ports():
+            # add dimension of size 1 to all inputs of the Pack operation and add them as Concat inputs
+            unsqueeze_node = create_op_with_const_inputs(graph, Unsqueeze, {1: int64_array([node.axis])},
+                                                         {'name': node.soft_get('name', node.id) + '/Unsqueeze'})
+            node.in_port(ind).get_connection().set_destination(unsqueeze_node.in_port(0))
+            unsqueeze_node.out_port(0).connect(out_node.in_port(ind))
+
+        # rename the created Concat operation to have the name of the "pack" node which produced the value equal to the
+        # Concat output
+        rename_nodes([(node, pack_name + '/TBR'), (out_node, pack_name)])
+        return [out_node.id]  # reconnect the Pack operation consumers  to get input from Concat instead
+```
+
+#### Generic Front Phase Transformations <a name="generic-front-phase-transformations"></a>
+Model Optimizer provides mechanism to implement generic front phase transformation. This type of transformation is
+implemented using `mo.front.common.replacement.FrontReplacementSubgraph` or
+`mo.front.common.replacement.FrontReplacementPattern` as base classes. The only condition to execute the transformation
+is to check that it is enabled. Then model Optimizer executes the method `find_and_replace_pattern(self, graph)` and
+provide the `Graph` object as input.
+
+Consider the example of a generic front transformation from file `extensions/front/SqueezeNormalize.py` performing
+normalization of the [Squeeze](../../../ops/shape/Squeeze_1.md) operation.
+
+```python
+import logging as log
+
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.replacement import FrontReplacementPattern
+from mo.graph.graph import Graph
+from mo.ops.const import Const
+from mo.utils.error import Error
+
+
+class SqueezeNormalize(FrontReplacementPattern):
+    """
+    Normalizes inputs of the Squeeze layers. The layers should have two inputs: the input with data and input with the
+    dimensions to squeeze. If the second input is omitted then all dimensions of size 1 should be removed.
+    """
+    enabled = True  # the transformation is enabled
+
+    def find_and_replace_pattern(self, graph: Graph):  # the function is called unconditionally
+        for squeeze_node in graph.get_op_nodes(op='Squeeze'):  # iterate over all nodes with op='Squeeze'
+            if len(squeeze_node.in_nodes()) == 1 and squeeze_node.has_valid('squeeze_dims'):
+                dims_node = Const(graph, {'name': squeeze_node.id + '/Dims',
+                                          'value': int64_array(squeeze_node.squeeze_dims)}).create_node()
+                squeeze_node.in_port(1).connect(dims_node.out_port(0))
+                del squeeze_node['squeeze_dims']
+            elif len(squeeze_node.in_nodes()) == 2:
+                log.debug('The Squeeze node "{}" is already normalized'.format(squeeze_node.name))
+            else:
+                raise Error('The Squeeze layer "{}" should either have 2 inputs or one input and an "squeeze_dims" '
+                            'attribute'.format(squeeze_node.soft_get('name')))
+```
+
+Refer to the `mo/front/common/replacement.py` for implementation details on how these front phase transformations work.
 
 ### Middle Phase Transformations <a name="middle-phase-transformations"></a>
 
