@@ -13,240 +13,226 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
 import unittest
 from argparse import Namespace
 
 import numpy as np
 
 from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
-from mo.graph.graph import Node
+from extensions.middle.ScaleInput import ScaleInput
 from mo.utils.cli_parser import get_mean_scale_dictionary, parse_tuple_pairs
-from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, result, connect, connect_data, \
+    valued_const_with_data
 
-nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
-                    'node_1_data': {'value': None, 'kind': 'data', 'data_type': None},
-                    'node_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
-                    'concat': {'type': 'Concat', 'value': None, 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
-                    'node_3_data': {'value': None, 'kind': 'data', 'data_type': None},
-                    # Placeholders
-                    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-                    'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-                    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-                    'pl_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-                    'pl_1_data': {'value': None, 'kind': 'data', 'data_type': None},
-                    'pl_2': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-                    'pl_2_data': {'value': None, 'kind': 'data', 'data_type': None},
-                    'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-                    # ScaleShift layer
-                    'scaleshift_1': {'type': 'ScaleShift', 'kind': 'op', 'op': 'ScaleShift'},
-                    'scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'data'},
-                    'scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'data'},
-                    'scaleshift_1_data': {'value': None, 'shape': None, 'kind': 'data'},
-                    # Mul op
-                    'mul_1': {'type': None, 'kind': 'op', 'op': 'Mul'},
-                    'mul_1_w': {'value': None, 'shape': None, 'kind': 'data'},
-                    'mul_1_data': {'value': None, 'shape': None, 'kind': 'data'},
-                    'op_output': {'kind': 'op', 'op': 'Result', 'infer': lambda x: None}
-                    }
+nodes = {
+    **regular_op_with_shaped_data('parameter', [1, 3, 227, 227],
+                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+    **regular_op_with_shaped_data('parameter_2', [1, 3, 227, 227],
+                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+
+    **regular_op_with_shaped_data('mul_scale', [1, 3, 227, 227], {'type': 'Multiply', 'op': 'Mul'}),
+    **regular_op_with_shaped_data('add_mean', [1, 3, 227, 227], {'type': 'Add', 'op': 'Add'}),
+
+    **valued_const_with_data('scale', np.array([1. / 1., 1. / 2., 1. / 3.]).reshape((1, 3, 1, 1))),
+    **valued_const_with_data('mean', np.array([-1., -2., -3.]).reshape((1, 3, 1, 1))),
+
+    **regular_op_with_shaped_data('shape_of', [4], {'type': 'ShapeOf', 'op': 'ShapeOf'}),
+    **regular_op_with_shaped_data('op', [1, 3, 227, 227], {}),
+    **result('result'),
+    **result('result_2'),
+}
 
 
 class AddMeanScaleValuesTest(unittest.TestCase):
-    def test_add_mean_scale_values_with_data_name(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_2'),
-                             ('node_2', 'op_output')
-                             ],
-                            {'node_2': {'shape': None, 'data_type': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Parameter', 'name': 'data',
-                                        'data_type': None}
-                             },
-                            nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
-        mean_values = parse_tuple_pairs('(124,117,104)')
-        scale_values = parse_tuple_pairs('')
+    def test_mean_values_with_data_name(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+        ])
 
-        # input = 'data'
+        mean_values = parse_tuple_pairs('(1,2,3)')
+        scale_values = parse_tuple_pairs('')
         mean_scale = get_mean_scale_dictionary(mean_values, scale_values, None)
         argv = Namespace(mean_scale_values=mean_scale)
-        graph.graph['cmd_params'] = argv
-        self.assertEqual(len(graph), 3)
-        AddMeanScaleValues().find_and_replace_pattern(graph)
-        self.assertEqual(len(graph), 6)
 
-    def test_add_mean_scale_values_without_data_name(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_2'),
-                             ('node_2', 'op_output')
-                             ],
-                            {'node_2': {'shape': None, 'data_type': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Parameter', 'name': 'data',
-                                        'data_type': None}
-                             },
-                            nodes_with_edges_only=True)
+        graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
         graph.graph['layout'] = 'NCHW'
-        mean_values = parse_tuple_pairs('(124,117,104)')
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_mean_values_without_data_name(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+        ])
+
+        mean_values = parse_tuple_pairs('(1,2,3)')
         scale_values = parse_tuple_pairs('')
-        # input = None
         mean_scale = get_mean_scale_dictionary(mean_values, scale_values, None)
         argv = Namespace(mean_scale_values=mean_scale)
-        graph.graph['cmd_params'] = argv
-        self.assertEqual(len(graph), 3)
-        AddMeanScaleValues().find_and_replace_pattern(graph)
-        self.assertEqual(len(graph), 6)
 
-    def test_add_mean_scale_values1(self):
-        graph = build_graph(nodes_attributes,
-                            [('pl_1', 'pl_1_data'), ('pl_2', 'pl_2_data')],
-                            {'pl_1_data': {'shape': np.array([1, 3, 38, 38]), 'infer': None},
-                             'pl_2_data': {'shape': np.array([1, 6]), 'infer': None},
-                             'pl_1': {'shape': np.array([1, 3, 38, 38])},
-                             'pl_2': {'shape': np.array([1, 6])},
-                             },
-                            nodes_with_edges_only=True)
+        graph = build_graph(nodes, [*connect('parameter', 'result')], {'parameter': {'name': 'None'}},
+                            nodes_with_edges_only=True, cli=argv)
         graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_mean_values_explicit_and_optimized(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+            *connect('parameter_2', 'result_2'),
+        ])
+
+        argv = Namespace(mean_scale_values={'parameter': {'mean': np.array([1., 2., 3.])},
+                                            'parameter_2': {'mean': np.array([0., 0., 0.])}})
+        graph = build_graph(nodes, [*connect('parameter', 'result'), *connect('parameter_2', 'result_2')],
+                            nodes_with_edges_only=True, cli=argv)
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_mean_values_explicit_and_scale_values_optimized(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values={'parameter': {'scale': np.array([1.]), 'mean': np.array([1., 2., 3.])}})
+        graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_mean_values_optimized_and_scale_values_explicit(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
+
         argv = Namespace(
-            mean_scale_values={'pl_1': {'mean': np.array([1., 2., 3.])}, 'pl_2': {'mean': np.array([0., 0., 0.])}})
-        graph.graph['cmd_params'] = argv
-        graph.graph['cmd_params'] = argv
-        AddMeanScaleValues().find_and_replace_pattern(graph)
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
-
-        self.assertEqual(add_op_cnt, 1, "Found more than one Add op in graph")
-        self.assertEqual(mul_op_cnt, 0, "Found Mul op in graph")
-
-    def test_optimize_scale_and_add_mean_values(self):
-        graph = build_graph(
-            nodes_attributes,
-            [
-                ('pl_1', 'pl_1_data')
-            ],
-            {
-                'pl_1_data': {
-                    'shape': np.array([1, 3, 38, 38]),
-                    'infer': None
-                },
-                'pl_1': {
-                    'shape': np.array([1, 3, 38, 38])
-                }
-            },
-            nodes_with_edges_only=True
-        )
+            mean_scale_values={'parameter': {'scale': np.array([1., 2., 3.]), 'mean': np.array([0., 0., 0.])}})
+        graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
         graph.graph['layout'] = 'NCHW'
-        argv = Namespace(mean_scale_values={'pl_1': {'scale': np.array([1.]), 'mean': np.array([1., 2., 3.])}})
-        graph.graph['cmd_params'] = argv
+
         AddMeanScaleValues().find_and_replace_pattern(graph)
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
 
-        self.assertEqual(add_op_cnt, 1, "Found more than one Add op in graph")
-        self.assertEqual(mul_op_cnt, 0, "Found Mul op in graph")
+    def test_mean_values_explicit_and_scale_values_explicit(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
 
-    def test_optimize_mean_and_add_scale_values(self):
-        graph = build_graph(
-            nodes_attributes,
-            [
-                ('pl_1', 'pl_1_data')
-            ],
-            {
-                'pl_1_data': {
-                    'shape': np.array([1, 3, 38, 38]),
-                    'infer': None
-                },
-                'pl_1': {
-                    'shape': np.array([1, 3, 38, 38])
-                }
-            },
-            nodes_with_edges_only=True
-        )
-        graph.graph['layout'] = 'NCHW'
-        argv = Namespace(mean_scale_values={'pl_1': {'scale': np.array([1.43]), 'mean': np.array([0., 0., 0.])}})
-        graph.graph['cmd_params'] = argv
-        AddMeanScaleValues().find_and_replace_pattern(graph)
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
-
-        self.assertEqual(add_op_cnt, 0, "Found more than one Add op in graph")
-        self.assertEqual(mul_op_cnt, 1, "Found Mul op in graph")
-
-    def test_add_mean_scale_values3(self):
-        graph = build_graph(nodes_attributes,
-                            [('pl_1', 'pl_1_data')],
-                            {'pl_1_data': {'shape': np.array([1, 3, 38, 38]), 'infer': None},
-                             'pl_1': {'shape': np.array([1, 3, 38, 38])},
-                             },
-                            nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
         argv = Namespace(mean_scale_values=[[np.array([1., 2., 3.]), np.array([1., 2., 3.])]])
-        graph.graph['cmd_params'] = argv
+        graph = build_graph(nodes, [*connect('parameter', 'result')],
+                            nodes_with_edges_only=True, cli=argv)
+        graph.graph['layout'] = 'NCHW'
+
         AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
 
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
-
-        self.assertEqual(add_op_cnt, 1, "Found more than one Add op in graph")
-        self.assertEqual(mul_op_cnt, 1, "Found more than one Nul op in graph")
-
-    def test_add_mean_scale_values_cut_graph(self):
+    def test_mean_values_explicit_and_scale_values_explicit_on_cutted_graph(self):
         """
         Test case when user cutted start of the network and specified mean/scale value to the new input node 'node_3'.
         """
-        graph = build_graph(nodes_attributes,
-                            [('pl_1', 'pl_1_data'),
-                             ('pl_2', 'pl_2_data'),
-                             ('pl_2_data', 'node_3'),
-                             ('node_3', 'node_3_data'),
-                             ('pl_1_data', 'node_1'),
-                             ('node_3_data', 'node_1'),
-                             ],
-                            {'pl_1_data': {'shape': np.array([1, 3, 38, 38]), 'infer': None},
-                             'pl_2_data': {'shape': np.array([1, 3, 38, 38]), 'infer': None},
-                             'pl_2': {'initial_node_name': 'node_3', 'shape': np.array([1, 3, 38, 38])},
-                             'pl_1': {'shape': np.array([1, 3, 38, 38])},
-                             },
-                            nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+
+            *connect('parameter_2', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'op'),
+            *connect('op', 'result_2'),
+        ])
+
         argv = Namespace(
-            mean_scale_values={'pl_1': {'mean': np.array([1, 2, 3])}, 'node_3': {'scale': np.array([1, 2, 3])}})
-        graph.graph['cmd_params'] = argv
+            mean_scale_values={'parameter': {'mean': np.array([1, 2, 3])}, 'op': {'scale': np.array([1, 2, 3])}})
+        graph = build_graph(
+            nodes, [*connect('parameter', 'result'), *connect('parameter_2', 'op'), *connect('op', 'result_2')],
+            {'parameter_2': {'initial_node_name': 'op'}}, nodes_with_edges_only=True, cli=argv)
+        graph.graph['layout'] = 'NCHW'
         AddMeanScaleValues().find_and_replace_pattern(graph)
 
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
+        self.assertTrue(flag, resp)
 
-        self.assertEqual(add_op_cnt, 1, "There should be exactly one Add op")
-        self.assertEqual(mul_op_cnt, 1, "There should be exactly one Mul op")
-        self.assertEqual(Node(graph, 'pl_2').out_node().out_node().op, 'Mul', "The Mul op should be added after pl_2")
-        self.assertEqual(Node(graph, 'pl_1').out_node().out_node().op, 'Add', "The Add op should be added after pl_1")
+    def test_mean_values_explicit_and_scale_values_explicit_with_shape_of(self):
+        graph_ref = build_graph(nodes,
+                                [
+                                    *connect('parameter', '0:add_mean'),
+                                    *connect('mean', '1:add_mean'),
+                                    *connect('add_mean', '0:mul_scale'),
+                                    *connect('scale', '1:mul_scale'),
+                                    *connect('mul_scale', 'result'),
+                                    *connect_data('parameter', 'shape_of'),
+                                    *connect('shape_of', 'result_2'),
+                                ],
+                                nodes_with_edges_only=True)
+
+        argv = Namespace(
+            mean_scale_values={'parameter': {'mean': np.array([1, 2, 3]), 'scale': np.array([1, 2, 3])}})
+        graph = build_graph(nodes,
+                            [
+                                *connect('parameter', 'result'),
+                                *connect_data('parameter', 'shape_of'),
+                                *connect('shape_of', 'result_2'),
+                            ],
+                            nodes_with_edges_only=True, cli=argv)
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+
+class ScaleInputTests(unittest.TestCase):
+    def test_scale_input(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ], {'scale': {'shape': [1, 1, 1, 1], 'value': np.array(1/255)},
+            'scale_d': {'shape': [1, 1, 1, 1], 'value': np.array(1/255)}})
+
+        graph = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True, cli=Namespace(scale=255))
+        graph.graph['layout'] = 'NCHW'
+
+        ScaleInput().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result')
+        self.assertTrue(flag, resp)
+
+    def test_scale_input_2(self):
+        graph_ref = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True)
+        graph = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True, cli=Namespace(scale=1))
+        graph.graph['layout'] = 'NCHW'
+
+        ScaleInput().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result')
+        self.assertTrue(flag, resp)
