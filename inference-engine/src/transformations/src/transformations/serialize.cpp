@@ -220,7 +220,9 @@ std::string get_opset_name(
 // discrepancies discoverd, translations needs to be added here.
 std::string translate_type_name(std::string name) {
     const std::unordered_map<std::string, std::string> translator = {
-        {"Constant", "Const"}};
+        {"Constant", "Const"},
+        {"Relu", "ReLU"},
+        {"Softmax", "SoftMax"}};
     if (translator.count(name) > 0) {
         name = translator.at(name);
     }
@@ -341,6 +343,12 @@ void ngfunction_2_irv10(
         }
         layer_type_attribute.set_value(
             translate_type_name(node_type_name).c_str());
+
+        const auto data_attr_size =
+            std::distance(data.attributes().begin(), data.attributes().end());
+        if (data_attr_size == 0) {
+            layer.remove_child(data);
+        }
 
         // <layers/data> constant atributes (special case)
         if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {

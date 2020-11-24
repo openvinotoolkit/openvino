@@ -205,8 +205,8 @@ class LayerInfo {
     bool isConcat() const noexcept {
         return isOfType("concat");
     }
-    bool isFakeQnatize() const noexcept {
-        return isOfType("FakeQnatize");
+    bool isFakeQuantize() const noexcept {
+        return isOfType("FakeQuantize");
     }
     bool isNonFunctional() const noexcept {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
