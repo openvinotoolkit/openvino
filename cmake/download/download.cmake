@@ -6,12 +6,20 @@ function (Download from to fatal result output sha256)
 
   if((NOT EXISTS "${to}"))
     message(STATUS "Downloading from ${from} to ${to} ...")
-    file(DOWNLOAD ${from} ${to}
-      TIMEOUT 3600
-      LOG log
-      STATUS status
-      SHOW_PROGRESS
-      EXPECTED_HASH SHA256=${sha256})
+    if ("${SHA256}" STREQUAL "skip")
+      file(DOWNLOAD ${from} ${to}
+           TIMEOUT 3600
+           LOG log
+           STATUS status
+           SHOW_PROGRESS)
+     else()
+       file(DOWNLOAD ${from} ${to}
+            TIMEOUT 3600
+            LOG log
+            STATUS status
+            SHOW_PROGRESS
+            EXPECTED_HASH SHA256=${sha256})
+     endif()
 
     set (${output} ${status} PARENT_SCOPE)
   else()
