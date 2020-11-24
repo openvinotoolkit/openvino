@@ -1131,8 +1131,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_resize10_import_only)
     Shape expected_output_shape{4, 6, 6, 4};
     EXPECT_EQ(resize_fn->get_output_size(), 1);
     EXPECT_EQ(resize_fn->get_output_shape(0), expected_output_shape);
-    EXPECT_EQ(count_ops_of_type<op::v0::Interpolate>(resize_fn), 1);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(resize_fn), 1);
+    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(resize_fn), 1);
+    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(resize_fn), 2);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_empty_constant_as_input)
