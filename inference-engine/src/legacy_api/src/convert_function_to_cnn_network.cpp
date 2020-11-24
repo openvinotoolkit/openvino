@@ -900,21 +900,40 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"MVN"}, [](const std::shared_ptr<::ngraph::Node> &node,
+    addSpecificCreator({"MVN"}, [](const std::shared_ptr<::ngraph::Node>& node,
                     const std::map<std::string, std::string> &params) -> CNNLayerPtr {
-          LayerParams attrs = {node->get_friendly_name(), "MVN",
-                               details::convertPrecision(node->get_output_element_type(0))};
-          auto res = std::make_shared<InferenceEngine::MVNLayer>(attrs);
-          // below code needs to be changed after PR 3226 is merged and use
-          // CNNLayer.getBoolStrParamAsIntStr
-          auto v = params.at("normalize_variance");
-          res->params["normalize_variance"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
-          res->params["eps"] = params.at("eps");
-          auto ra = details::split(params.at("reduction_axes"), ",");
-          // 1 is the channel axis:
-          res->params["across_channels"] = Builder::asString(stoi(ra[1]) > 0);
+        LayerParams attrs = {node->get_friendly_name(), "MVN",
+                            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::MVNLayer>(attrs);
+        // below code needs to be changed after PR 3226 is merged and use
+        // CNNLayer.getBoolStrParamAsIntStr
+        auto v = params.at("normalize_variance");
+        res->params["normalize_variance"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
+        res->params["eps"] = params.at("eps");
+        auto ra = details::split(params.at("reduction_axes"), ",");
+        // 1 is the channel axis:
+        res->params["across_channels"] = Builder::asString(stoi(ra[1]) > 0);
 
-          return res;
+        return res;
+    });
+
+    addSpecificCreator({"NormalizeIE"}, [](const std::shared_ptr<::ngraph::Node> &node, const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Normalize",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::NormLayer>(attrs);
+        
+        res->params = params;
+        auto v = res->params["channel_shared"];
+        res->params["channel_shared"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
+        v = res->params["across_spatial"];
+        res->params["across_spatial"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
+
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        if (auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode)) {
+            res->blobs["weights"] = InferenceEngine::details::shareWeights(castedLayer);
+        }
+
+        return res;
     });
 }
 
@@ -966,7 +985,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GRN>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::MaxPool>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Minimum>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::OneHotIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PRelu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),

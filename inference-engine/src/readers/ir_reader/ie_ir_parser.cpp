@@ -429,7 +429,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::MaxPool>>("MaxPool"),
         std::make_shared<LayerCreator<ngraph::op::v1::Minimum>>("Minimum"),
         std::make_shared<LayerCreator<ngraph::op::v1::NonMaxSuppression>>("NonMaxSuppression"),
-        std::make_shared<LayerCreator<ngraph::op::NormalizeL2>>("NormalizeL2"),
         std::make_shared<LayerCreator<ngraph::op::v1::OneHot>>("OneHot"),
         std::make_shared<LayerCreator<ngraph::op::PRelu>>("PReLU"),
         std::make_shared<LayerCreator<ngraph::op::Relu>>("ReLU"),
@@ -1680,31 +1679,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::OneHot>::c
         THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
 
     return std::make_shared<ngraph::op::v1::OneHot>(inputs[0], inputs[1], inputs[2], inputs[3], GetInt64Attr(dn, "axis"));
-}
-
-// NormalizeL2 layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::NormalizeL2>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    float eps = GetFloatAttr(dn, "eps");
-    std::string eps_mode = GetStrAttr(dn, "eps_mode");
-    ngraph::op::EpsMode em;
-    if (eps_mode == "add") {
-        em = ngraph::op::EpsMode::ADD;
-    } else if (eps_mode == "max") {
-        em = ngraph::op::EpsMode::MAX;
-    } else {
-        THROW_IE_EXCEPTION << "NormalizeL2 unsupported eps_mode: " << eps_mode;
-    }
-
-    return std::make_shared<ngraph::op::NormalizeL2>(inputs[0], inputs[1], eps, em);
 }
 
 // HardSigmoid layer
