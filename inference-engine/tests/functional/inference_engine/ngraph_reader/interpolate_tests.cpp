@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" precision="I64" version="opset1">
-            <data offset="0" size="16"/>
+            <data element_type="i64" offset="0" shape="2" size="16"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>2</dim>
@@ -127,7 +127,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate2Network) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" precision="I64" version="opset1">
-            <data offset="0" size="32"/>
+            <data element_type="i64" offset="0" shape="4" size="32"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>4</dim>
@@ -237,7 +237,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
             </output>
         </layer>
         <layer id="1" name="output_shape" type="Const" precision="I32" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i32" offset="0" shape="2" size="8"/>
             <output>
                 <port id="1" precision="I32">
                     <dim>2</dim>
@@ -245,7 +245,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
             </output>
         </layer>
         <layer id="2" name="scales" type="Const" precision="FP32" version="opset1">
-            <data offset="8" size="8"/>
+            <data element_type="f32" offset="8" shape="2" size="8"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>2</dim>
@@ -253,7 +253,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
             </output>
         </layer>
         <layer id="3" name="axes" type="Const" precision="I32" version="opset1">
-            <data offset="16" size="8"/>
+            <data element_type="i32" offset="16" shape="2" size="8"/>
             <output>
                 <port id="1" precision="I32">
                     <dim>2</dim>

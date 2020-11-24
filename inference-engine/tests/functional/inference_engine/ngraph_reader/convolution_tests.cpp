@@ -21,7 +21,7 @@ TEST_F(NGraphReaderTests, ReadConvolutionNetwork) {
             </output>
         </layer>
         <layer id="1" name="embedded_input__const" type="Const" version="opset1">
-            <data offset="0" size="139392"/>
+            <data element_type="f32" offset="0" shape="96,3,11,11" size="139392"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>96</dim>
