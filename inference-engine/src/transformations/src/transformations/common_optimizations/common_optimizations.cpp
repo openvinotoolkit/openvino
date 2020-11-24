@@ -106,10 +106,13 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
-    manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->set_name("ngraph::pass::ConvFusions");
+
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
