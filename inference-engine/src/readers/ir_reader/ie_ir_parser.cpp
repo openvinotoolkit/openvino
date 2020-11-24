@@ -17,7 +17,6 @@
 #include <string>
 #include <vector>
 #include <ngraph/op/strided_slice.hpp>
-#include <ngraph/op/not_equal.hpp>
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -422,7 +421,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
-        std::make_shared<LayerCreator<ngraph::op::v1::NotEqual>>("NotEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::FloorMod>>("FloorMod"),
         std::make_shared<LayerCreator<ngraph::op::LRN>>("LRN"),
         std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell"),
@@ -965,15 +963,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Equal>::cr
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 2);
     return std::make_shared<ngraph::op::v1::Equal>(inputs[0], inputs[1]);
-}
-
-// NotEqual layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::NotEqual>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::NotEqual>(inputs[0], inputs[1]);
 }
 
 // FloorMod layer
