@@ -84,8 +84,12 @@ std::pair<bool, std::string> compare_functions(
      * - Do not check nodes attributes (requires visitor mechanism to be completed)
      */
 
-    const auto& f1_results = f1->get_results();
-    const auto& f2_results = f2->get_results();
+    auto f1_results = f1->get_results();
+    auto f2_results = f2->get_results();
+    auto compare_nodes_by_name = [](const std::shared_ptr<ngraph::Node> & l, const std::shared_ptr<ngraph::Node> & r)
+            { return l->get_friendly_name() < r->get_friendly_name(); };
+    std::sort(f1_results.begin(), f1_results.end(), compare_nodes_by_name);
+    std::sort(f2_results.begin(), f2_results.end(), compare_nodes_by_name);
     if (f1_results.size() != f2_results.size()) {
         return { false, "Number of results is different: " + std::to_string(f1_results.size()) + " and " + std::to_string(f2_results.size()) };
     }
