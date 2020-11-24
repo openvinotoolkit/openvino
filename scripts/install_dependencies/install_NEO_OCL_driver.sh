@@ -80,6 +80,60 @@ do
     esac
 done
 
+_install_prerequisites_centos()
+{
+    # yum doesn't accept timeout in seconds as parameter
+    echo
+    echo "Note: if yum becomes non-responsive, try aborting the script and run:"
+    echo "      sudo -E $0"
+    echo
+
+    CMDS=("yum -y install numactl-libs numactl ocl-icd ocl-icd-devel")
+
+    for cmd in "${CMDS[@]}"; do
+        echo "$cmd"
+        eval "$cmd"
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: failed to run $cmd" >&2
+            echo "Problem (or disk space)?" >&2
+            echo ". Verify that you have enough disk space, and run the script again." >&2
+            exit $EXIT_FAILURE
+        fi
+    done
+
+}
+
+_install_prerequisites_ubuntu()
+{
+    CMDS=("apt-get -y update"
+          "apt-get -y install libnuma1 ocl-icd-libopencl1")
+
+    for cmd in "${CMDS[@]}"; do
+        echo "$cmd"
+        eval "$cmd"
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: failed to run $cmd" >&2
+            echo "Problem (or disk space)?" >&2
+            echo "                sudo -E $0" >&2
+            echo "2. Verify that you have enough disk space, and run the script again." >&2
+            exit $EXIT_FAILURE
+        fi
+    done
+}
+
+install_prerequisites()
+{
+    if [[ $DISTRO == "centos" ]]; then
+        echo "Installing prerequisites..."
+        _install_prerequisites_centos
+    elif [[ $DISTRO == "ubuntu" ]]; then
+        echo "Installing prerequisites..."
+        _install_prerequisites_ubuntu
+    else
+        echo Unknown OS
+    fi
+}
+
 _deploy_rpm()
 {
     # On a CentOS 7.2 machine with Intel Parallel Composer XE 2017
@@ -98,7 +152,6 @@ _deploy_deb()
     echo "$cmd"
     eval "$cmd"
 }
-
 
 _install_user_mode_centos()
 {
@@ -383,7 +436,7 @@ _check_distro_version()
             exit $EXIT_FAILURE
         fi
     elif [[ $DISTRO == ubuntu ]]; then
-        UBUNTU_VERSION=$(lsb_release -r -s) 
+        UBUNTU_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "[0-9]{2}.[0-9]{2}") 
         if [[ $UBUNTU_VERSION != '18.04' && $UBUNTU_VERSION != '20.04' ]]; then
             echo "Warning: This runtime can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
             echo "More info https://github.com/intel/compute-runtime/releases" >&2
@@ -465,6 +518,7 @@ check_current_driver()
 install()
 {   
     uninstall_user_mode
+    install_prerequisites
     download_packages
     install_user_mode
     add_user_to_video_group
