@@ -347,10 +347,10 @@ public:
     IRBuilder_v10 &AddLayer(const std::string &name, const std::string &type,
                             std::map<std::string, std::string> specific_attributes = {},
                             const std::string &opset = "opset1") {
-        m_ir_net->addLayer({{"name",    name},
-                            {"type",    type},
-                            {"version", opset}});
-        m_latest_layer_name = name;
+        auto layer = m_ir_net->addLayer({{"name",    name},
+                                        {"type",    type},
+                                        {"version", opset}});
+        m_latest_layer_id = layer.getLayerId();
         if (type == "Const") {
             if (specific_attributes.find("offset") == specific_attributes.end()) {
                 specific_attributes["offset"] = std::to_string(m_offset);
@@ -362,22 +362,20 @@ public:
             m_offset += std::strtol(specific_attributes["size"].c_str(), nullptr, 10);
         }
         if (!specific_attributes.empty()) {
-            m_ir_net->getLayerByName(m_latest_layer_name).addSpecificAttributes("data", specific_attributes);
+            m_ir_net->getLayerById(m_latest_layer_id).addSpecificAttributes("data", specific_attributes);
         }
         return *this;
     }
 
     IRBuilder_v10 &AddOutPort(InferenceEngine::Precision::ePrecision precision, const std::vector<size_t> &shape) {
-        m_ir_net->getLayerByName(m_latest_layer_name).addOutPort(shape,
-                                                                 {{"precision", InferenceEngine::Precision(
-                                                                         precision).name()}});
+        m_ir_net->getLayerById(m_latest_layer_id).addOutPort(shape,
+                                                             {{"precision", InferenceEngine::Precision(precision).name()}});
         return *this;
     }
 
     IRBuilder_v10 &AddInPort(InferenceEngine::Precision::ePrecision precision, const std::vector<size_t> &shape) {
-        m_ir_net->getLayerByName(m_latest_layer_name).addInPort(shape,
-                                                                {{"precision", InferenceEngine::Precision(
-                                                                        precision).name()}});
+        m_ir_net->getLayerById(m_latest_layer_id).addInPort(shape,
+                                                            {{"precision", InferenceEngine::Precision(precision).name()}});
         return *this;
     }
 
@@ -391,7 +389,7 @@ public:
     }
 
     Layer &getLayer() {
-        return m_ir_net->getLayerByName(m_latest_layer_name);
+        return m_ir_net->getLayerById(m_latest_layer_id);
     }
 
     std::string serialize() {
@@ -401,7 +399,7 @@ public:
 private:
     size_t m_offset = 0;  // for Constant nodes
 
-    std::string m_latest_layer_name;
+    size_t m_latest_layer_id;
     std::shared_ptr<IRNet> m_ir_net;
 };
 

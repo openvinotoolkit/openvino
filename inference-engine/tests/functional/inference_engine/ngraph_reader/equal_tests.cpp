@@ -44,7 +44,7 @@ TEST_F(NGraphReaderTests, ReadEqualNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="Identity/sink_port_0" type="Result" version="opset1">
+        <layer id="3" name="PartitionedCall/functional_1/tf_op_layer_Equal/Equal" type="Result" version="opset1">
             <input>
                 <port id="0">
                     <dim>256</dim>
@@ -158,7 +158,7 @@ TEST_F(NGraphReaderTests, ReadEqualBroadcastNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="Identity/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="PartitionedCall/functional_1/tf_op_layer_Equal/Equal" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>8</dim>

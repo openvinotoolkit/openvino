@@ -62,7 +62,7 @@ TEST_F(NGraphReaderTests, ReadLSTMCellNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="LSTMCell" type="LSTMCell" version="opset1" precision="FP32"> 
+        <layer id="6" name="LSTMCell" type="LSTMCell" version="opset1" precision="FP32">
             <data hidden_size="256" element_type="f32"/>
             <input>
                 <port id="0" precision="FP32">
@@ -100,7 +100,7 @@ TEST_F(NGraphReaderTests, ReadLSTMCellNetwork) {
             </port>
         </output>
         </layer>
-		<layer id="7" name="485/sink_port_0" type="Result" version="opset1">
+		<layer id="7" name="LSTMCell.0" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -108,7 +108,7 @@ TEST_F(NGraphReaderTests, ReadLSTMCellNetwork) {
 				</port>
 			</input>
 		</layer>
-		<layer id="8" name="485/sink_port_1" type="Result" version="opset1">
+		<layer id="8" name="LSTMCell.1" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>

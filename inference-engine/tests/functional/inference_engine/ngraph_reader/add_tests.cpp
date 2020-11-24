@@ -75,7 +75,7 @@ TEST_F(NGraphReaderTests, ReadAddBcastNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="5" name="sum/sink_port_0" type="Result" version="opset1">
+		<layer id="5" name="sum" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>3</dim>
@@ -226,7 +226,7 @@ TEST_F(NGraphReaderTests, ReadAddNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="sum/sink_port_0" type="Result" version="opset1">
+		<layer id="3" name="sum" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>3</dim>

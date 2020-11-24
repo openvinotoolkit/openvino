@@ -52,7 +52,7 @@ TEST_F(NGraphReaderTests, ReadPSROIPoolingNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="detector/bbox/ps_roi_pooling/sink_port_0" type="Result" version="opset1">
+        <layer id="3" name="detector/bbox/ps_roi_pooling" type="Result" version="opset1">
             <input>
                 <port id="0">
                     <dim>200</dim>
