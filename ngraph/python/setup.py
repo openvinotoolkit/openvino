@@ -59,7 +59,9 @@ with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
 class CMakeExtension(Extension):
     """Build extension stub."""
 
-    def __init__(self, name, sources=[]):
+    def __init__(self, name, sources=None):
+        if sources is None:
+            sources = []
         super().__init__(name=name, sources=sources)
 
 
