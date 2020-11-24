@@ -27,29 +27,20 @@ OpenVINO™ provides the following methods for runtime model reshaping:
 
 * **Set a new input shape** with the `InferenceEngine::CNNNetwork::reshape` method.<br>
    The `InferenceEngine::CNNNetwork::reshape` method updates input shapes and propagates them down to the outputs of the model through all intermediate layers. 
-   You can reshape a model multiple times like in this application scheme:
-   ```
-   ReadNetwork -> reshape(input_1_shape) -> LoadNetwork -> infer(input_1)
-              \
-               -> reshape(input_2_shape) -> LoadNetwork -> infer(input_2)
-   ```
    > **NOTES**:
    > - Starting with the 2021.1 release, the Model Optimizer converts topologies keeping shape-calculating sub-graphs by default, which enables correct shape propagation during reshaping.
    > - Older versions of IRs are not guaranteed to reshape successfully. Please regenerate them with the Model Optimizer of the latest version of OpenVINO™.<br>
    > - If an ONNX model does not have a fully defined input shape and the model was imported with the ONNX importer, reshape the model before loading it to the plugin.
 * **Set a new batch dimension value** with the `InferenceEngine::CNNNetwork::setBatchSize` method.<br>     
    The meaning of a model batch may vary depending on the model design.
-   The `InferenceEngine::CNNNetwork::setBatchSize` method deduces the index of a batch dimension based only on the input rank. 
+   Batch dimension assumed to be placed on the 0 index for all inputs of the model.
    This method does not work for models with a non-zero index batch placement or models with inputs without a batch dimension. 
-   The batch-setting algorithm does not involve the shape inference mechanism.
-   Batch of input and output shapes for all layers is set to a new batch value without layer validation.
-   It may cause both positive and negative side effects.
-   Due to the limitations described above, the current method is not recommended to use.
-   If you need to set a new batch size for the model, use the `CNNNetwork::reshape` method instead.
+   The `InferenceEngine::CNNNetwork::setBatchSize` method transforms the model before new shape propagation to relax hard-coded batch dimension in the model if any.
 
-Do not use runtime reshaping methods simultaneously, especially do not call the `CNNNetwork::reshape` method after you use `InferenceEngine::CNNNetwork::setBatchSize`.
-The `InferenceEngine::CNNNetwork::setBatchSize` method causes irreversible conversion of the internal model representation into the legacy model representation.
-The method does not use nGraph for shape inference which leads to reduced reshape opportunities and may affect the performance of the model.
+You can change input shapes of a model multiple times using `InferenceEngine::CNNNetwork::reshape` and `InferenceEngine::CNNNetwork::setBatchSize` methods in any order.
+If a model has hard-coded batch dimension, use `InferenceEngine::CNNNetwork::setBatchSize` first to change the batch and then call `InferenceEngine::CNNNetwork::reshape` to update other dimensions if needed.
+
+Once input shape of the `InferenceEngine::CNNNetwork` is set call `InferenceEngine::Core::LoadNetwork` method to get `InferenceEngine::ExecutableNetwork` object for inference with updated shapes.
 
 There are other approaches to reshape the model during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](../nGraph_DG/build_function.md).
 
