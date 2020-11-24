@@ -254,7 +254,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                     return false;
 
                 auto zeroPointsBlob = dynamic_cast<TBlob<uint8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
+                if (zeroPointsBlob == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot cast to TBlob internal zero points blob";
+
                 auto zeroPointsData = zeroPointsBlob->buffer().as<uint8_t*>();
+                if (zeroPointsData == nullptr)
+                    THROW_IE_EXCEPTION << "zeroPointsBlob has not allocated buffer";
 
                 for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[1]; j++) {
                     convNode->inputZeroPoints.push_back(zeroPointsData[j]);
@@ -302,7 +307,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                     return false;
 
                 auto zeroPointsBlob = dynamic_cast<TBlob<int8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
+                if (zeroPointsBlob == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot cast to TBlob internal zero points blob";
+
                 auto zeroPointsData = zeroPointsBlob->buffer().as<int8_t*>();
+                if (zeroPointsData == nullptr)
+                    THROW_IE_EXCEPTION << "zeroPointsBlob has not allocated buffer";
 
                 for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[0]; j++) {
                     convNode->weightsZeroPoints.push_back(static_cast<float>(zeroPointsData[j]));
@@ -338,8 +348,14 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
             weightsLayer = getCreatorLayer(weightsLayer->insData[0].lock()).lock();
         }
 
+
         auto weightsBlob = dynamic_cast<TBlob<int8_t>*>(weightsLayer->blobs["custom"].get());
+        if (weightsBlob == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast to TBlob internal weights blob";
+
         auto weightsPtr = weightsBlob->buffer().as<int8_t*>();
+        if (weightsPtr == nullptr)
+            THROW_IE_EXCEPTION << "weightsBlob has not allocated buffer";
 
         ptrdiff_t G = convLayer->_group;
         ptrdiff_t OC = weightsLayer->outData[0]->getDims()[0] / G;
