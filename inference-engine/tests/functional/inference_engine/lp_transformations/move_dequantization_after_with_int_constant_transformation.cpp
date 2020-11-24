@@ -175,7 +175,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     MoveDequantizationAfterWithIntConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),

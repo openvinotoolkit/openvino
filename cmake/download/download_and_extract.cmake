@@ -41,22 +41,23 @@ function (DownloadAndExtractPlatformSpecific
   archive_name_android
   unpacked_path
   result_path
-  folder)
+  folder
+  sha256)
 
   GetNameAndUrlToDownload(archive_name RELATIVE_URL ${archive_name_unified} ${archive_name_win} ${archive_name_lin} ${archive_name_mac} ${archive_name_android} )
   if (NOT archive_name OR NOT RELATIVE_URL)
     return()
   endif()
-  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} TRUE FALSE TRUE)
+  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} TRUE FALSE TRUE ${sha256})
   set (${result_path} ${result_path2} PARENT_SCOPE)
 
 endfunction(DownloadAndExtractPlatformSpecific)
 
 #download from common folder
-function (DownloadAndExtract component archive_name unpacked_path result_path folder)
+function (DownloadAndExtract component archive_name unpacked_path result_path folder sha256)
   set (RELATIVE_URL  "${archive_name}")
   set(fattal TRUE)
-  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} ${fattal} result TRUE)
+  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} ${fattal} result TRUE ${sha256})
 
   if (NOT ${result})
     DownloadAndExtractPlatformSpecific(${component} ${archive_name} ${archive_name} ${archive_name} ${unpacked_path} ${result_path2} ${folder})
@@ -67,9 +68,9 @@ function (DownloadAndExtract component archive_name unpacked_path result_path fo
 endfunction(DownloadAndExtract)
 
 
-function (DownloadAndExtractInternal URL archive_path  unpacked_path folder fattal resultExt)
+function (DownloadAndExtractInternal URL archive_path  unpacked_path folder fattal resultExt sha256)
   set (status "ON")
-  DownloadAndCheck(${URL} ${archive_path} ${fattal} result1)
+  DownloadAndCheck(${URL} ${archive_path} ${fattal} result1 ${sha256})
   if ("${result1}" STREQUAL "ARCHIVE_DOWNLOAD_FAIL")
     #check alternative url as well
     set (status "OFF")
@@ -105,11 +106,11 @@ function (ExtractWithVersion URL archive_path unpacked_path folder result)
   set (${result} ${status} PARENT_SCOPE)
 endfunction (ExtractWithVersion)
 
-function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal resultExt)
+function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal resultExt sha256)
   debug_message("checking wether archive downloaded : ${archive_path}")
   set (downloadStatus "NOTOK")
   if (NOT EXISTS ${archive_path})
-    DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result)
+    DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256})
     if (${result})
       set (downloadStatus "OK")
     endif()
@@ -118,7 +119,7 @@ function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal
     if (ENABLE_UNSAFE_LOCATIONS)
       ExtractWithVersion(${URL} ${archive_path} ${unpacked_path} ${folder} result)
       if(NOT ${result})
-        DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result)
+        DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256})
         if (${result})
           set (downloadStatus "OK")
         endif()
@@ -126,7 +127,7 @@ function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal
     else()
       debug_message("archive found on FS : ${archive_path}, however we cannot check it's checksum and think that it is invalid")
       file(REMOVE_RECURSE "${archive_path}")
-      DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result)
+      DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256})
       if (${result})
         set (downloadStatus "OK")
       endif()
@@ -146,10 +147,9 @@ endfunction(DownloadOrExtractInternal)
 
 file(REMOVE ${CMAKE_BINARY_DIR}/dependencies_64.txt)
 
-function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked_path result_path folder fattal resultExt use_alternatives)
+function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked_path result_path folder fattal resultExt use_alternatives sha256)
   set (archive_path ${TEMP}/download/${archive_name})
   set (status "ON")
-  set (on_master FALSE)
 
   if(DEFINED IE_PATH_TO_DEPS)
     set(URL "${IE_PATH_TO_DEPS}/${RELATIVE_URL}")
@@ -169,17 +169,10 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
   debug_message ("checking that unpacked directory exist: ${unpacked_path}")
 
   if (NOT EXISTS ${unpacked_path})
-    DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} status)
+    DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} status ${sha256})
   else(NOT EXISTS ${unpacked_path})
     #path exists, so we would like to check what was unpacked version
     set (version_file ${unpacked_path}/ie_dependency.info)
-
-    if (DEFINED TEAMCITY_GIT_BRANCH)
-      if(${TEAMCITY_GIT_BRANCH} STREQUAL "master")
-        set(on_master TRUE)
-        debug_message ("On master branch, update data in DL_SDK_TEMP if necessary")
-      endif()
-    endif()
 
     if (NOT EXISTS ${version_file} AND NOT ${ENABLE_ALTERNATIVE_TEMP})
       clean_message(FATAL_ERROR "error: Dependency doesn't contain version file. Please select actions: \n"
@@ -201,7 +194,7 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
       endif()
 
     if (NOT EXISTS ${version_file} OR NOT ${dependency_url} STREQUAL ${URL})
-      if (${use_alternatives} AND ALTERNATIVE_PATH AND NOT ${on_master})
+      if (${use_alternatives} AND ALTERNATIVE_PATH)
         #creating alternative_path
         string(REPLACE ${TEMP} ${ALTERNATIVE_PATH} unpacked_path ${unpacked_path})
         string(REPLACE ${TEMP} ${ALTERNATIVE_PATH} archive_path ${archive_path})
@@ -218,7 +211,7 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
    endif()
   endif()
 
-  if (${use_alternatives} OR ${on_master})
+  if (${use_alternatives})
     set (${resultExt} "${status}" PARENT_SCOPE)
     set (${result_path} ${unpacked_path} PARENT_SCOPE)
   endif()

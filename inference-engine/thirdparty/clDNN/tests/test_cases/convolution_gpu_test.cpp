@@ -7661,7 +7661,7 @@ template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_test_base {
 public:
     virtual topology build_topology(const cldnn::engine& engine) {
-        auto input_lay = layout(input_type(), format::bfyx, input_size());
+        auto input_lay = layout(input_type(), format::bfyx, input_size(), padding_size());
         auto wei_lay = layout(weights_type(), format::bfyx, weights_size());
 
         auto wei_mem = memory::allocate(engine, wei_lay);
@@ -7739,7 +7739,7 @@ public:
 
         auto net = network(prog, 0);
 
-        auto input_lay = layout(input_type(), format::bfyx, input_size());
+        auto input_lay = layout(input_type(), format::bfyx, input_size(), padding_size());
         auto input_mem = memory::allocate(engine, input_lay);
         std::vector<InputT> input_flat(input_lay.get_linear_size(), static_cast<InputT>(0));
         for (size_t bi = 0; bi < batch_num(); ++bi)
@@ -8026,7 +8026,7 @@ class convolution_random_test_fsv4_input : public convolution_random_test_base<I
 public:
     using parent = convolution_random_test_base<InputT, WeightsT, OutputT>;
     topology build_topology(const cldnn::engine& engine) override {
-        auto input_lay = layout(this->input_type(), format::b_fs_yx_fsv4, this->input_size());
+        auto input_lay = layout(this->input_type(), format::b_fs_yx_fsv4, this->input_size(), this->padding_size());
         auto wei_lay = layout(this->weights_type(), format::bfyx, this->weights_size());
 
         auto wei_mem = memory::allocate(engine, wei_lay);
@@ -8099,7 +8099,7 @@ public:
 
         auto net = network(prog, 0);
 
-        auto input_lay = layout(this->input_type(), format::b_fs_yx_fsv4,  this->input_size());
+        auto input_lay = layout(this->input_type(), format::b_fs_yx_fsv4,  this->input_size(), this->padding_size());
         auto input_mem = memory::allocate(engine, input_lay);
         std::vector<InputT> input_flat(input_lay.get_linear_size(), static_cast<InputT>(0));
         for (size_t bi = 0; bi < this->batch_num(); ++bi)
