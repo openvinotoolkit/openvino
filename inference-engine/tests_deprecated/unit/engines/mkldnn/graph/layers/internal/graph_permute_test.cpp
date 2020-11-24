@@ -250,6 +250,7 @@ protected:
             Core core;
             CNNNetwork network;
             ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
+            network.getOutputsInfo().begin()->second->setPrecision(Precision::FP32);
 
             MKLDNNGraphTestClass graph;
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();

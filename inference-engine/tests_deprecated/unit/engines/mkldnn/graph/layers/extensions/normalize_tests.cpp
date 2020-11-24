@@ -53,12 +53,12 @@ void ref_normalize(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::T
     int C = static_cast<int>(src.getTensorDesc().getDims()[1]);
     int H = static_cast<int>(src.getTensorDesc().getDims()[2]);
     int W = static_cast<int>(src.getTensorDesc().getDims()[3]);
-            
+
     float eps = prm.eps;
-    
+
     const data_t *src_data = src.readOnly();
     data_t *dst_data = dst.data();
-    
+
     for (int b = 0; b < B; b++) {
         const data_t *src_data_b = src_data + b * C * H * W;
         data_t *dst_data_b = dst_data + b * C * H * W;
@@ -181,7 +181,7 @@ class MKLDNNCPUExtNormalizeTests: public TestsCommon, public WithParamInterface<
         REPLACE_WITH_NUM(model, "_IH_", p.in.h);
         REPLACE_WITH_NUM(model, "_IC_", p.in.c);
         REPLACE_WITH_NUM(model, "_IN_", p.in.n);
-        
+
         REPLACE_WITH_NUM(model, "_AS_", p.across_spatial);
         REPLACE_WITH_NUM(model, "_CS_", p.channel_shared);
 
@@ -505,6 +505,7 @@ protected:
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
             ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
+            network.getOutputsInfo().begin()->second->setPrecision(Precision::FP32);
 
             MKLDNNGraphTestClass graph;
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
