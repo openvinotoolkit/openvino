@@ -73,6 +73,10 @@ class TestMatMulValuePropagation(unittest.TestCase):
         ([1, 3, 5, 8, 8], np.arange(1, 1 + 8 * 8 * 3 * 5).reshape((1, 3, 5, 8, 8)),
          [4, 8], np.arange(-2, -2 + 4 * 8).reshape((4, 8)),
          True, True),
+
+        ([2], np.zeros((2)), [2], np.zeros((2)), False, False),
+        ([2], np.zeros((2)), [1, 2, 3], np.zeros((1, 2, 3)), False, False),
+        ([1, 2, 3], np.zeros((1, 2, 3)), [3], np.zeros((3)), False, False),
     ])
     def test_value_propagation(self, a_shape, a_value, b_shape, b_value, transpose_a, transpose_b):
         graph = build_graph(
