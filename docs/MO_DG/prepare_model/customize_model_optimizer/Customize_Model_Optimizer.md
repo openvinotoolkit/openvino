@@ -66,6 +66,10 @@ file using Python bindings provided with the framework and builds in-memory repr
 There is a separate loader for each supported framework. These loaders are implemented in the
 `extensions/load/<FRAMEWORK>/loader.py` files of the Model Optimizer.
 
+> **NOTE**: Model Optimizer uses a special parser for Caffe models built on top of `caffe.proto` file. In case of model
+> loading failure, the Model Optimizer throws an error adn requests to prepare the parser that can read the model. For
+> more information, refer to Model Optimizer, <a href="MO_FAQ.html#FAQ1">FAQ #1</a>.
+
 The result of the model loading step is a `Graph` object which can be depicted like in the following example:
 
 ![Graph After Load](../../../img/MO_graph_after_loader.svg)
@@ -96,6 +100,14 @@ Caffe) has a dictionary with extractors for specific operation types. The key in
 operation to trigger the extractor for and the value is the function to perform attributes extracting. The function has
 one parameter – node to extract the attributes from. This is a legacy and non-extensible approach so should be avoided.
 It will be removed in the future versions of the Model Optimizer.
+
+3.  Caffe specific extractor using the `CustomLayersMapping.xml` described in the [Legacy Mode for Caffe* Custom Layers
+](Legacy_Mode_for_Caffe_Custom_Layers.md). This approach is deprecated and will be removed in the future releases.
+
+The order of running the extractors is the following:
+* Registered in `CustomLayersMapping.xml` (for Caffe models only).
+* Registered as a Model Optimizer extension.
+* Registered as a built-in Model Optimizer extractor.
 
 The result of the operations attributes extracting step can be depicted like in the following example:
 
@@ -1088,70 +1100,4 @@ implemented using `mo.back.replacement.BackReplacementPattern` as a base class a
 Middle Phase Transformations](#generic-middle-phase-transformations).
 
 Refer to the `extensions/back/GatherNormalizer.py` for the example of such type of transformations.
-
-
-
-
-The list of known layers is different for each of supported frameworks. To see the layers supported by your framework, refer to the [corresponding section](../Supported_Frameworks_Layers.md).
-
-Custom layers are layers that are not included into a list of known layers. If your topology contains any layers that are not in the list of known layers, the Model Optimizer classifies them as custom.
-
-## Caffe\* Models with Custom Layers <a name="caffe-models-with-custom-layers"></a>
-
-You have two options if your Caffe\* model has custom layers:
-
-*   **Register the custom layers as extensions to the Model Optimizer**. For instructions, see [Extending Model Optimizer with New Primitives](Extending_Model_Optimizer_with_New_Primitives.md). When your custom layers are registered as extensions, the Model Optimizer generates a valid and optimized Intermediate Representation. You only need to write a small chunk of Python\* code that lets the Model Optimizer:
-
-    *   Generate a valid Intermediate Representation according to the rules you specified
-    *   Be independent from the availability of Caffe on your computer
-	
-*   **Register the custom layers as Custom and use the system Caffe to calculate the output shape of each Custom Layer**, which is required by the Intermediate Representation format. For this method, the Model Optimizer requires the Caffe Python interface on your system. When registering the custom layer in the `CustomLayersMapping.xml` file, you can specify if layer parameters should appear in Intermediate Representation or if they should be skipped. To read more about the expected format and general structure of this file, see [Legacy Mode for Caffe* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md). This approach has several limitations:
-
-    *   If your layer output shape depends on dynamic parameters, input data or previous layers parameters, calculation of output shape of the layer via Caffe can be incorrect. In this case, you need to patch Caffe on your own.
-	
-    *   If the calculation of output shape of the layer via Caffe fails inside the framework, Model Optimizer is unable to produce any correct Intermediate Representation and you also need to investigate the issue in the implementation of layers in the Caffe and patch it.
-	
-    *   You are not able to produce Intermediate Representation on any machine that does not have Caffe installed. If you want to use Model Optimizer on multiple machines, your topology contains Custom Layers and you use `CustomLayersMapping.xml` to fallback on Caffe, you need to configure Caffe on each new machine. 
-	
-	For these reasons, it is best to use the Model Optimizer extensions for Custom Layers: you do not depend on the framework and fully control the workflow.
-
-If your model contains Custom Layers, it is important to understand the internal workflow of Model Optimizer. Consider the following example.
-
-**Example**:
-
-The network has:
-
-*   One input layer (#1)
-*   One output Layer (#5)
-*   Three internal layers (#2, 3, 4)
-
-The custom and standard layer types are:
-
-*   Layers #2 and #5 are implemented as Model Optimizer extensions.
-*   Layers #1 and #4 are supported in Model Optimizer out-of-the box.
-*   Layer #3 is neither in the list of supported layers nor in extensions, but is specified in CustomLayersMapping.xml.
-
-> **NOTE**: If any of the layers are not in one of three categories described above, the Model Optimizer fails with an appropriate message and a link to the corresponding question in [Model Optimizer FAQ](../Model_Optimizer_FAQ.md).
-
-The general process is as shown:
-
-![Example custom layer network](../../img/mo_caffe_priorities.png)
-
-1.  The example model is fed to the Model Optimizer that **loads the model** with the special parser, built on top of `caffe.proto` file. In case of failure, Model Optimizer asks you to prepare the parser that can read the model. For more information, refer to Model Optimizer, <a href="MO_FAQ.html#FAQ1">FAQ #1</a>.
-
-2.  Model Optimizer **extracts the attributes of all layers**. In particular, it goes through the list of layers and attempts to find the appropriate extractor. In order of priority, Model Optimizer checks if the layer is:
-    
-    *   Registered in `CustomLayersMapping.xml`
-    *   Registered as a Model Optimizer extension
-    *   Registered as a standard Model Optimizer layer
-    
-    When the Model Optimizer finds a satisfying condition from the list above, it extracts the attributes according to the following rules:
-    
-    *   For bullet #1 - either takes all parameters or no parameters, according to the content of `CustomLayersMapping.xml`
-    *   For bullet #2 - takes only the parameters specified in the extension
-    *   For bullet #3 - takes only the parameters specified in the standard extractor
-	
-3.  Model Optimizer **calculates the output shape of all layers**. The logic is the same as it is for the priorities. **Important:** the Model Optimizer always takes the first available option.
-
-4.  Model Optimizer **optimizes the original model and produces the Intermediate Representation**.
 
