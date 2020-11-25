@@ -2031,9 +2031,9 @@ void MKLDNNGraphOptimizer::FuseClampAndQuantize(MKLDNNGraph &graph) {
         std::vector<float> newCropLow(cropLowData.size());
         std::vector<float> newCropHigh(cropHighData.size());
         for (int i = 0; i < cropLowData.size(); i++)
-            newCropLow[i] = std::max(cropLowData[i], eltwiseNode->getBeta());
+            newCropLow[i] = std::max(cropLowData[i], eltwiseNode->getAlpha());
         for (int i = 0; i < cropHighData.size(); i++)
-            newCropHigh[i] = std::min(cropHighData[i], eltwiseNode->getAlpha());
+            newCropHigh[i] = std::min(cropHighData[i], eltwiseNode->getBeta());
 
         quantizeNode->setCropLow(newCropLow);
         quantizeNode->setCropHigh(newCropHigh);
