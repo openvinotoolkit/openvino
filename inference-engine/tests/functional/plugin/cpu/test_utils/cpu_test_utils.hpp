@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation7
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,13 +37,19 @@ namespace CPUTestUtils {
 
 class CPUTestsBase {
 public:
+    typedef std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUInfo;
+
+public:
     static std::string getTestCaseName(CPUSpecificParams params);
     static const char *cpu_fmt2str(cpu_memory_format_t v);
     static cpu_memory_format_t cpu_str2fmt(const char *str);
     static std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts);
     static std::string impls2str(const std::vector<std::string> &priority);
+    static CPUInfo makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
+                               std::vector<cpu_memory_format_t> outFmts,
+                               std::vector<std::string> priority);
 
-    std::map<std::string, std::shared_ptr<ngraph::Variant>> getCPUInfo() const;
+    CPUInfo getCPUInfo() const;
     void CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
 
 protected:

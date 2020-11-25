@@ -132,20 +132,8 @@ std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
     return result.str();
 }
 
-std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUTestsBase::getCPUInfo() const {
-    std::map<std::string, std::shared_ptr<ngraph::Variant>> cpuInfo;
-
-    if (!inFmts.empty()) {
-        cpuInfo.insert({"InputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(inFmts))});
-    }
-    if (!outFmts.empty()) {
-        cpuInfo.insert({"OutputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(outFmts))});
-    }
-    if (!priority.empty()) {
-        cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
-    }
-
-    return cpuInfo;
+CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
+    return makeCPUInfo(inFmts, outFmts, priority);
 }
 
 std::string CPUTestsBase::getPrimitiveType() const {
@@ -160,6 +148,23 @@ std::string CPUTestsBase::getPrimitiveType() const {
         isaType = "ref";
     }
     return isaType;
+}
+
+CPUTestsBase::CPUInfo
+CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<cpu_memory_format_t> outFmts, std::vector<std::string> priority) {
+    CPUInfo cpuInfo;
+
+    if (!inFmts.empty()) {
+        cpuInfo.insert({"InputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(inFmts))});
+    }
+    if (!outFmts.empty()) {
+        cpuInfo.insert({"OutputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(outFmts))});
+    }
+    if (!priority.empty()) {
+        cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
+    }
+
+    return cpuInfo;
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
