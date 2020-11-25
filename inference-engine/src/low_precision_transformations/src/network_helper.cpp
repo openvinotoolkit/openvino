@@ -808,7 +808,10 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
     return FakeQuantizeDequantization(dataNode, convert, subtract, multiply);
 }
 
-void NetworkHelper::normalizeDequantization(FakeQuantizeDequantization& dequantization) {
+FakeQuantizeDequantization NetworkHelper::normalizeDequantization(const FakeQuantizeDequantization& dequantization) {
+    if (dequantization.empty()) {
+        return dequantization;
+    }
     if (dequantization.multiply != nullptr && as_type_ptr<ngraph::opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0))) {
         std::shared_ptr<Node> leftParent = dequantization.multiply->get_input_node_shared_ptr(0);
         std::shared_ptr<Node> rightParent = dequantization.multiply->get_input_node_shared_ptr(1);
@@ -823,6 +826,7 @@ void NetworkHelper::normalizeDequantization(FakeQuantizeDequantization& dequanti
                 dequantization.subtract->clone_with_new_inputs({rightParent, leftParent}));
         *dequantization.subtract = *normalized_subtract;
     }
+    return dequantization;
 }
 
 FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization) {

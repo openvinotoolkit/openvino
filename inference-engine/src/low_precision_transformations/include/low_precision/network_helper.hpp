@@ -116,7 +116,7 @@ public:
 
     static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul, const bool inPlace = false);
 
-    static void normalizeDequantization(FakeQuantizeDequantization& dequatnization);
+    static FakeQuantizeDequantization normalizeDequantization(const FakeQuantizeDequantization& dequantization);
 
     static std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
 
