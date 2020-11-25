@@ -85,11 +85,11 @@ namespace ngraph
 
                 const auto indices_offsets = [&] {
                     std::vector<size_t> offsets{slice_size};
-                    const auto beg_s = next(rbegin(params_shape), slice_shape.size());
-                    const auto end_s = next(beg_s, indices_shape.back() - 1);
-                    for (auto s = beg_s; s != end_s; ++s)
+                    const auto dims_begin = next(rbegin(params_shape), slice_shape.size());
+                    const auto dims_end = next(dims_begin, indices_shape.back() - 1);
+                    for (auto dim = dims_begin; dim != dims_end; ++dim)
                     {
-                        const auto o = offsets.back() * *s;
+                        const auto o = offsets.back() * *dim;
                         offsets.push_back(o);
                     }
 
@@ -102,13 +102,13 @@ namespace ngraph
 
                 const auto batch_offset = indices_offsets.front() * params_shape[batch_dims];
 
-                const Shape k_1_indecies(next(begin(indices_shape), batch_dims),
-                                         prev(end(indices_shape)));
+                const Shape k_1_indices(next(begin(indices_shape), batch_dims),
+                                        prev(end(indices_shape)));
 
                 const Shape k_1_params(next(begin(params_shape), batch_dims),
                                        prev(end(params_shape)));
 
-                const auto number_of_slices_to_copy_in_one_batch = shape_size(k_1_indecies);
+                const auto number_of_slices_to_copy_in_one_batch = shape_size(k_1_indices);
 
                 const auto coordinates_size = indices_shape.back();
 
