@@ -54,6 +54,20 @@ void op::ROIPooling::validate_and_infer_types()
         " and: ",
         coords_et);
 
+    NODE_VALIDATION_CHECK(this,
+                          m_output_size.size() == 2,
+                          "The dimension of pooled size is expected to be equal to 2. Got: ",
+                          m_output_size.size());
+
+    NODE_VALIDATION_CHECK(this,
+                          m_output_size[0] > 0 && m_output_size[1] > 0,
+                          "Pooled size attributes pooled_h and pooled_w should should be "
+                          "non-negative integers. Got: ",
+                          m_output_size[0],
+                          " and: ",
+                          m_output_size[1],
+                          "respectively");
+
     NODE_VALIDATION_CHECK(
         this,
         m_spatial_scale > 0,
@@ -66,51 +80,60 @@ void op::ROIPooling::validate_and_infer_types()
         "Pooling method attribute should be either \'max\' or \'bilinear\'. Got: ",
         m_method);
 
-    if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
+    const auto& feat_maps_ps = get_input_partial_shape(0);
+    NODE_VALIDATION_CHECK(this,
+                          feat_maps_ps.rank().compatible(4),
+                          "Expected a 4D tensor for the feature maps input. Got: ",
+                          feat_maps_ps);
+
+    const auto& coords_ps = get_input_partial_shape(1);
+    NODE_VALIDATION_CHECK(this,
+                          coords_ps.rank().compatible(2),
+                          "Expected a 2D tensor for the ROIs input with box coordinates. Got: ",
+                          coords_ps);
+
+    if (coords_ps.rank().is_static())
     {
-        Shape input_shape = get_input_partial_shape(0).to_shape();
-        Shape coords_shape = get_input_partial_shape(1).to_shape();
-        NODE_VALIDATION_CHECK(this,
-                              input_shape.size() == 4,
-                              "ROIPooling expects 4 dimensions for feature maps input. Got: ",
-                              input_shape.size());
-
-        NODE_VALIDATION_CHECK(this,
-                              coords_shape.size() == 2,
-                              "ROIPooling expects 2 dimensions for box coordinates. Got: ",
-                              coords_shape.size());
-
-        const auto coords_second_dim = coords_shape[1];
+        const auto coords_second_dim = coords_ps[1];
         NODE_VALIDATION_CHECK(
             this,
-            coords_second_dim == 5,
+            coords_second_dim.compatible(5),
             "The second dimension of ROIs input should contain batch id and box coordinates. ",
             "This dimension is expected to be equal to 5. Got: ",
             coords_second_dim);
-
-        NODE_VALIDATION_CHECK(this,
-                              input_shape.size() - 2 == m_output_size.size(),
-                              "Spatial dimensions on input: ",
-                              input_shape.size() - 2,
-                              " doesn't match dimensions on requested output_size: ",
-                              m_output_size.size());
-
-        NODE_VALIDATION_CHECK(this,
-                              coords_shape[0] > 0 && coords_shape[1] > 0,
-                              "Pooled size attributes pooled_h and pooled_w should should be "
-                              "non-negative integers. Got: ",
-                              coords_shape[0],
-                              " and: ",
-                              coords_shape[1],
-                              "respectively");
-
-        Shape output_shape{coords_shape[0], input_shape[1]};
-        output_shape.insert(output_shape.end(), m_output_size.begin(), m_output_size.end());
-        set_output_type(0, feat_maps_et, output_shape);
     }
-    else
+
+    // output shape should be {NUM_ROIS, C, pooled_h, pooled_w}
+    auto output_shape = PartialShape{{Dimension::dynamic(),
+                                      Dimension::dynamic(),
+                                      Dimension{static_cast<int64_t>(m_output_size[0])},
+                                      Dimension{static_cast<int64_t>(m_output_size[1])}}};
+
+    if (coords_ps.rank().is_static() && coords_ps[0].is_static())
     {
-        set_output_type(0, feat_maps_et, PartialShape::dynamic());
+        output_shape[0] = coords_ps[0];
+    }
+
+    if (feat_maps_ps.rank().is_static() && feat_maps_ps[1].is_static())
+    {
+        output_shape[1] = feat_maps_ps[1];
+    }
+
+    set_output_size(1);
+    set_output_type(0, feat_maps_et, output_shape);
+
+    // if channel dimension, C, not known
+    // feature maps input is used by shape specialization pass
+    if (feat_maps_ps.rank().is_static() && feat_maps_ps[1].is_dynamic())
+    {
+        set_input_is_relevant_to_shape(0);
+    }
+
+    // if number of ROIs, NUM_ROIS, not known
+    // coordinate input is used by shape specialization pass
+    if (coords_ps.rank().is_static() && coords_ps[0].is_dynamic())
+    {
+        set_input_is_relevant_to_shape(1);
     }
 }
 

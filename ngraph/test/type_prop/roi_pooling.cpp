@@ -29,6 +29,39 @@ TEST(type_prop, roi_pooling_basic_shape_inference)
     ASSERT_EQ(op->get_shape(), (Shape{4, 3, 2, 2}));
 }
 
+TEST(type_prop, roi_pooling_dynamic_channels_dim)
+{
+    const auto feat_maps =
+        make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension(), 6, 6});
+    const auto rois = make_shared<op::Parameter>(element::f32, Shape{4, 5});
+    const auto op = make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "max");
+    ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape{4, Dimension(), 2, 2}));
+}
+
+TEST(type_prop, roi_pooling_dynamic_num_rois_dim)
+{
+    const auto feat_maps = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6, 6});
+    const auto rois = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(), 5});
+    const auto op = make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f);
+    ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape{Dimension(), 3, 2, 2}));
+}
+
+TEST(type_prop, roi_pooling_dynamic_rank_feat_maps)
+{
+    const auto feat_maps = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto rois = make_shared<op::Parameter>(element::f32, Shape{4, 5});
+    const auto op = make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f);
+    ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape{4, Dimension(), 2, 2}));
+}
+
+TEST(type_prop, roi_pooling_dynamic_rank_rois)
+{
+    const auto feat_maps = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6, 6});
+    const auto rois = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto op = make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f);
+    ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape{Dimension(), 3, 2, 2}));
+}
+
 TEST(type_prop, roi_pooling_incompatible_input_rank)
 {
     const auto feat_maps = make_shared<op::Parameter>(element::f32, Shape{1, 3, 2, 6, 6});
