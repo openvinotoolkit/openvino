@@ -20,6 +20,12 @@ using namespace single_layer_tests;
 using namespace Extensions;
 using namespace ::Cpu;
 
+namespace {
+
+OV_CC_DOMAINS(MVNTests);
+
+}   // namespace
+
 struct mvn_test_params {
     vector<size_t> dims;
 
@@ -528,10 +534,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_MVN",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_MVN>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(MVNTests, FakeLayer_MVN, "FakeLayer_MVN", Cpu::ImplFactory<FakeLayerImpl_MVN>);
                 manager->AddExtension(defaultExt);
             }
             graph.CreateGraph(network, manager);

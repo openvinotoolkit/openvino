@@ -23,6 +23,12 @@ using namespace single_layer_tests;
 using namespace Extensions;
 using namespace ::Cpu;
 
+namespace {
+
+OV_CC_DOMAINS(NormalizeTests);
+
+}   // namespace
+
 struct normalize_test_params {
     struct {
         size_t n;
@@ -510,10 +516,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_Normalize",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_Normalize>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(NormalizeTests, FakeLayer_Normalize, "FakeLayer_Normalize", Cpu::ImplFactory<FakeLayerImpl_Normalize>);
                 manager->AddExtension(defaultExt);
             }
             graph.CreateGraph(network, manager);

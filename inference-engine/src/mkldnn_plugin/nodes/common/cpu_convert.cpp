@@ -5,10 +5,14 @@
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
+#include <mkldnn_selective_build.h>
 #include <type_traits>
+#include <tuple>
 #include <ie_parallel.hpp>
 
 using namespace InferenceEngine;
+
+namespace {
 
 template<typename srcType, typename dstType>
 void convert(const void *srcPtr, void *dstPtr, const size_t size) {
@@ -24,45 +28,41 @@ void convert(const void *srcPtr, void *dstPtr, const size_t size) {
     }
 }
 
-template <typename srcType>
-void convertFrom(const void *srcPtr, void *dstPtr, Precision dstPrc, const size_t size) {
-    switch (dstPrc) {
-        case Precision::U8:
-            convert<srcType, PrecisionTrait<Precision::U8>::value_type>(srcPtr, dstPtr, size);
-            break;
-        case Precision::I8:
-            convert<srcType, PrecisionTrait<Precision::I8>::value_type>(srcPtr, dstPtr, size);
-            break;
-        case Precision::U16:
-            convert<srcType, PrecisionTrait<Precision::U16>::value_type>(srcPtr, dstPtr, size);
-            break;
-        case Precision::I16:
-            convert<srcType, PrecisionTrait<Precision::I16>::value_type>(srcPtr, dstPtr, size);
-            break;
-        case Precision::I32:
-            convert<srcType, PrecisionTrait<Precision::I32>::value_type>(srcPtr, dstPtr, size);
-            break;
-        case Precision::U64:
-            convert<srcType, PrecisionTrait<Precision::U64>::value_type>(srcPtr, dstPtr, size);
-            break;
-        case Precision::I64:
-            convert<srcType, PrecisionTrait<Precision::I64>::value_type>(srcPtr, dstPtr, size);
-            break;
-        case Precision::FP32:
-            convert<srcType, PrecisionTrait<Precision::FP32>::value_type>(srcPtr, dstPtr, size);
-            break;
-        case Precision::BF16:
-            convert<srcType, MKLDNNPlugin::bfloat16_t>(srcPtr, dstPtr, size);
-            break;
-        case Precision::BOOL:
-            convert<srcType, PrecisionTrait<Precision::BOOL>::value_type>(srcPtr, dstPtr, size);
-            break;
-        default:
-            THROW_IE_EXCEPTION << "cpu_convert can't convert to: " << dstPrc << " precision";
+template <Precision::ePrecision p>
+struct PrecisionInfo {
+    using value_type = PrecisionTrait<p>::value_type;
+};
+
+template <>
+struct PrecisionInfo<Precision::BF16> {
+    using value_type = MKLDNNPlugin::bfloat16_t;
+};
+
+struct ConvertContext {
+    const void *srcPtr;
+    void *dstPtr;
+    size_t size;
+    bool converted;
+};
+
+template<typename T>
+struct ConvertPrecision {
+    using src_t = typename std::tuple_element<0, T>::type;
+    using dst_t = typename std::tuple_element<1, T>::type;
+
+    void operator()(ConvertContext & ctx) {
+        convert<src_t, dst_t>(ctx.srcPtr, ctx.dstPtr, ctx.size);
+        ctx.converted = true;
     }
-}
+};
+
+}   // namespace
+
+#define MKLDNN_CNV(ST, DT) OV_CASE2(Precision::ST, Precision::DT, PrecisionInfo<Precision::ST>::value_type, PrecisionInfo<Precision::DT>::value_type)
 
 void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc, const size_t size) {
+    using namespace MKLDNNPlugin;
+
     if (srcPtr == nullptr || dstPtr == nullptr)
         THROW_IE_EXCEPTION << "cpu_convert has null data pointer";
 
@@ -71,38 +71,42 @@ void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision d
         return;
     }
 
-    switch (srcPrc) {
-        case Precision::U8:
-            convertFrom<PrecisionTrait<Precision::U8>::value_type>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        case Precision::I8:
-            convertFrom<PrecisionTrait<Precision::I8>::value_type>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        case Precision::U16:
-            convertFrom<PrecisionTrait<Precision::U16>::value_type>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        case Precision::I16:
-            convertFrom<PrecisionTrait<Precision::I16>::value_type>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        case Precision::I32:
-            convertFrom<PrecisionTrait<Precision::I32>::value_type>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        case Precision::U64:
-            convertFrom<PrecisionTrait<Precision::U64>::value_type>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        case Precision::I64:
-            convertFrom<PrecisionTrait<Precision::I64>::value_type>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        case Precision::FP32:
-            convertFrom<PrecisionTrait<Precision::FP32>::value_type>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        case Precision::BF16:
-            convertFrom<MKLDNNPlugin::bfloat16_t>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        case Precision::BOOL:
-            convertFrom<PrecisionTrait<Precision::BOOL>::value_type>(srcPtr, dstPtr, dstPrc, size);
-            break;
-        default:
-            THROW_IE_EXCEPTION << "cpu_convert can't convert from: " << srcPrc << " precision";
-    }
+    ConvertContext ctx = { srcPtr, dstPtr, size, false };
+
+    OV_SWITCH(MKLDNNPlugin, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc),
+    MKLDNN_CNV(U8, I8),    MKLDNN_CNV(U8, U16),    MKLDNN_CNV(U8, I16),
+    MKLDNN_CNV(U8, I32),   MKLDNN_CNV(U8, U64),    MKLDNN_CNV(U8, I64),
+    MKLDNN_CNV(U8, FP32),  MKLDNN_CNV(U8, BF16),   MKLDNN_CNV(U8, BOOL),
+    MKLDNN_CNV(I8, U8),    MKLDNN_CNV(I8, U16),    MKLDNN_CNV(I8, I16),
+    MKLDNN_CNV(I8, I32),   MKLDNN_CNV(I8, U64),    MKLDNN_CNV(I8, I64),
+    MKLDNN_CNV(I8, FP32),  MKLDNN_CNV(I8, BF16),   MKLDNN_CNV(I8, BOOL),
+    MKLDNN_CNV(U16, U8),   MKLDNN_CNV(U16, I8),    MKLDNN_CNV(U16, I16),
+    MKLDNN_CNV(U16, I32),  MKLDNN_CNV(U16, U64),   MKLDNN_CNV(U16, I64),
+    MKLDNN_CNV(U16, FP32), MKLDNN_CNV(U16, BF16),  MKLDNN_CNV(U16, BOOL),
+    MKLDNN_CNV(I16, U8),   MKLDNN_CNV(I16, I8),    MKLDNN_CNV(I16, U16),
+    MKLDNN_CNV(I16, I32),  MKLDNN_CNV(I16, U64),   MKLDNN_CNV(I16, I64),
+    MKLDNN_CNV(I16, FP32), MKLDNN_CNV(I16, BF16),  MKLDNN_CNV(I16, BOOL),
+    MKLDNN_CNV(I32, U8),   MKLDNN_CNV(I32, I8),    MKLDNN_CNV(I32, U16),
+    MKLDNN_CNV(I32, I16),  MKLDNN_CNV(I32, U64),   MKLDNN_CNV(I32, I64),
+    MKLDNN_CNV(I32, FP32), MKLDNN_CNV(I32, BF16),  MKLDNN_CNV(I32, BOOL),
+    MKLDNN_CNV(U64, U8),   MKLDNN_CNV(U64, I8),    MKLDNN_CNV(U64, U16),
+    MKLDNN_CNV(U64, I16),  MKLDNN_CNV(U64, I32),   MKLDNN_CNV(U64, I64),
+    MKLDNN_CNV(U64, FP32), MKLDNN_CNV(U64, BF16),  MKLDNN_CNV(U64, BOOL),
+    MKLDNN_CNV(I64, U8),   MKLDNN_CNV(I64, I8),    MKLDNN_CNV(I64, U16),
+    MKLDNN_CNV(I64, I16),  MKLDNN_CNV(I64, I32),   MKLDNN_CNV(I64, U64),
+    MKLDNN_CNV(I64, FP32), MKLDNN_CNV(I64, BF16),  MKLDNN_CNV(I64, BOOL),
+    MKLDNN_CNV(FP32, U8),  MKLDNN_CNV(FP32, I8),   MKLDNN_CNV(FP32, U16),
+    MKLDNN_CNV(FP32, I16), MKLDNN_CNV(FP32, I32),  MKLDNN_CNV(FP32, U64),
+    MKLDNN_CNV(FP32, I64), MKLDNN_CNV(FP32, BF16), MKLDNN_CNV(FP32, BOOL),
+    MKLDNN_CNV(BF16, U8),  MKLDNN_CNV(BF16, I8),   MKLDNN_CNV(BF16, U16),
+    MKLDNN_CNV(BF16, I16), MKLDNN_CNV(BF16, I32),  MKLDNN_CNV(BF16, U64),
+    MKLDNN_CNV(BF16, I64), MKLDNN_CNV(BF16, FP32), MKLDNN_CNV(BF16, BOOL),
+    MKLDNN_CNV(BOOL, U8),  MKLDNN_CNV(BOOL, I8),   MKLDNN_CNV(BOOL, U16),
+    MKLDNN_CNV(BOOL, I16), MKLDNN_CNV(BOOL, I32),  MKLDNN_CNV(BOOL, U64),
+    MKLDNN_CNV(BOOL, I64), MKLDNN_CNV(BOOL, FP32), MKLDNN_CNV(BOOL, BF16));
+
+    if (!ctx.converted)
+        THROW_IE_EXCEPTION << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
 }
+
+#undef MKLDNN_CNV
