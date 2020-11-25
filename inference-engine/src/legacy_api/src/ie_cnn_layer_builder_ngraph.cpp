@@ -42,7 +42,6 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph/enum_names.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include "legacy/graph_transformer.h"
