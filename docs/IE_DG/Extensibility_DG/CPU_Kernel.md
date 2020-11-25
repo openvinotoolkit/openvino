@@ -65,5 +65,5 @@ InferenceEngine::IExtension::getImplementation returns the kernel implementation
 
 Use the `AddExtension` method of the general plugin interface to load your primitives:
 
-@snippet openvino/docs/snippets/CPU_Kernel.cpp part0
+@snippet snippets/CPU_Kernel.cpp part0
 
