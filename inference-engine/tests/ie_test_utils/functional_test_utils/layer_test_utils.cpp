@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <fstream>
@@ -7,6 +7,8 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <pugixml.hpp>
+
+#include "ngraph/variant.hpp"
 #include "layer_test_utils.hpp"
 #include "plugin_config.hpp"
 
@@ -406,6 +408,33 @@ void LayerTestsCommon::Validate() {
     << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
     Compare(expectedOutputs, actualOutputs);
+}
+
+std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto function = execGraph.getFunction();
+
+    for (const auto& op : function->get_ops()) {
+        const auto name = op->get_friendly_name();
+        if (name == layerName) {
+            const auto& rtInfo = op->get_rt_info();
+            const auto& it = rtInfo.find("runtimePrecision");
+
+            if (it == rtInfo.end()) {
+                // WA: CPU impl doesn't contain runtimePrecision attribute
+                const auto& it1 = rtInfo.find("primitiveType");
+                const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it1->second);
+                const std::string kernel = rtPrecisionPtr->get();
+                const std::string kernelPrecision = kernel.substr(kernel.find_last_of("_") + 1ul);
+                return kernelPrecision;
+            } else {
+                const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+                return rtPrecisionPtr->get();
+            }
+        }
+    }
+
+    return "";
 }
 
 void LayerTestsCommon::SetRefMode(RefMode mode) {

@@ -21,6 +21,8 @@ public:
     ngraph::Shape weightsConstShape;
     std::vector<float> weightsConstValues;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    std::string layerName;
+    std::string expectedKernelType;
 };
 
 typedef std::tuple<
@@ -37,6 +39,8 @@ public:
 
 protected:
     void SetUp() override;
+
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions

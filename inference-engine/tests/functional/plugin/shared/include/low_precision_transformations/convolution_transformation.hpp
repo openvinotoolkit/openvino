@@ -19,6 +19,8 @@ public:
     bool asymmetricQuantizationOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     bool asymmetricQuantizationOnWeights;
+    std::string layerName;
+    std::string expectedKernelType;
 };
 
 typedef std::tuple<
@@ -37,6 +39,8 @@ public:
 
 protected:
     void SetUp() override;
+
+    void Run() override;
 
 private:
     void validateNGraph();

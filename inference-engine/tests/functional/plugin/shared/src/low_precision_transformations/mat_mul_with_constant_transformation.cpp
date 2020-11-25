@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,15 @@ void MatMulWithConstantTransformation::SetUp() {
         testValues.fqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+}
+
+void MatMulWithConstantTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<2>(GetParam());
+    const auto actualType = getRuntimePrecision(params.layerName);
+
+    EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {

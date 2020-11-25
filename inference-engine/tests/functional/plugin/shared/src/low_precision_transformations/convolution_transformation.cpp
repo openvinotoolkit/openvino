@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,14 @@ void ConvolutionTransformation::SetUp() {
         param.fakeQuantizeOnWeights);
 
     validateNGraph();
+}
+
+void ConvolutionTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<4>(GetParam());
+    const auto actualType = getRuntimePrecision(params.layerName);
+    EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 void ConvolutionTransformation::validateNGraph() {
