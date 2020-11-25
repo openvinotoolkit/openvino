@@ -252,7 +252,7 @@ protected:
      */
     virtual void* getHandle() const noexcept = 0;
 
-    /// cond
+    /// private
     template <typename>
     friend class TBlobProxy;
 };
@@ -475,6 +475,7 @@ protected:
      */
     void* getHandle() const noexcept override = 0;
 
+    /// private
     template <typename>
     friend class TBlobProxy;
 };
@@ -794,7 +795,6 @@ protected:
      * @brief Creates a blob from the existing blob with a given ROI
      * @param origBlob An original blob
      * @param roi A ROI object
-     * @return A ROI blob pointing to a subregion of `origBlob`
      */
     TBlob(const TBlob& origBlob, const ROI& roi) :
             MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)),
