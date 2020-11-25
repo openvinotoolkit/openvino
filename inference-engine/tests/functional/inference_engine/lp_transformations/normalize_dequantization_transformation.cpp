@@ -163,7 +163,7 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     NormalizeDequantizationTransformation,
         ::testing::ValuesIn(testValues),
     NormalizeDequantizationTransformation::getTestCaseName);
