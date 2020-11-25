@@ -49,27 +49,8 @@ TEST_F(NGraphReaderTests, ReadParameterNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="activation" id="1" type="ReLU" precision="FP32">
-            <input>
-                <port id="1">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
     </layers>
     <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
     </edges>
 </net>
 )V0G0N";
