@@ -10,7 +10,9 @@
 
 *Reshape* layer takes two input tensors: the tensor to be resized and the output tensor shape. The values in the second tensor could be -1, 0 and any positive integer number. The two special values -1 and 0:
    * `0` means "copy the respective dimension *(left aligned)* of the input tensor" if `special_zero` is set to `true`; otherwise it is a normal dimension and is applicable to empty tensors.
-   * `-1` means that this dimension is calculated to keep the overall elements count the same as in the input tensor. Not more than one `-1` can be used in a reshape operation. This special value has a lower priority than the `0` one so it is calculated later.
+   * `-1` means that this dimension is calculated to keep the overall elements count the same as in the input tensor. Not more than one `-1` can be used in a reshape operation. 
+
+If `special_zero` is set to `true` index of `0` cannot be larger than the rank of the input tensor. 
 
 **Attributes**:
 
