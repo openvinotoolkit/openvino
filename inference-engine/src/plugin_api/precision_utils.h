@@ -140,6 +140,7 @@ f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, 
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
+ * @return     A saturated value
  */
 template <class OutT, class InT, typename std::enable_if<
         std::is_integral<OutT>::value && std::is_integral<InT>::value &&
@@ -166,6 +167,7 @@ inline OutT saturate_cast(const InT& value) {
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
+ * @return     A saturated value
  */
 template <class OutT, class InT, typename std::enable_if<
         std::is_integral<OutT>::value && std::is_integral<InT>::value &&
@@ -193,6 +195,7 @@ inline OutT saturate_cast(const InT& value) {
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
+ * @return     A saturated value
  */
 template <class InT>
 inline InT saturate_cast(const InT& value) {

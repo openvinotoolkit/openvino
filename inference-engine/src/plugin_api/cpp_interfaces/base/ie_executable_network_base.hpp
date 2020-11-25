@@ -113,6 +113,13 @@ private:
     ~ExecutableNetworkBase() = default;
 };
 
+/**
+ * @brief Create an execuable network public C++ object wrapper based on internal inplementation
+ * @ingroup ie_dev_api_exec_network_api
+ * @param impl An internal implementation for executable network
+ * @tparam T A type of internal implementation
+ * @return C++ wrapper for executable network
+ */
 template <class T>
 inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
     typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {
