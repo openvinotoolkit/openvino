@@ -7,24 +7,28 @@
 #include <memory>
 
 #include "cpp_interfaces/exception2status.hpp"
-#include "cpp_interfaces/impl/ie_memory_state_internal.hpp"
+#include "cpp_interfaces/impl/ie_variable_state_internal.hpp"
 #include "ie_imemory_state.hpp"
 
 namespace InferenceEngine {
 
 /**
- * @brief default implementation for IVariableState
- * @ingroup ie_dev_api_mem_state_api
+ * @brief Default implementation for IVariableState
+ * @tparam T Minimal CPP implementation of IVariableStateInternal (e.g. VariableStateInternal)
+ * @ingroup ie_dev_api_variable_state_api
  */
 template <class T>
 class VariableStateBase : public IVariableState {
-protected:
     std::shared_ptr<T> impl;
 
 public:
+    /**
+     * @brief Constructor with actual underlying implementation.
+     * @param impl Underlying implementation of type IVariableStateInternal
+     */
     explicit VariableStateBase(std::shared_ptr<T> impl): impl(impl) {
         if (impl == nullptr) {
-            THROW_IE_EXCEPTION << "VariableStateBase implementation not defined";
+            THROW_IE_EXCEPTION << "VariableStateBase implementation is not defined";
         }
     }
 
