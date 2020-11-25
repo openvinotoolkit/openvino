@@ -16,3 +16,4 @@ addIeTargetTest(
         LABELS
             GNA
 )
+target_compile_definitions(${TARGET_NAME} PRIVATE BINARY_EXPORT_MODELS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/backward_compatibility/models/")
