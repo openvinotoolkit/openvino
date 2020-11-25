@@ -93,11 +93,11 @@ TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
         <layer id="2" name="scales" precision="FP32" type="Const">
             <output>
                 <port id="0">
-                    <dim>4</dim>
+                    <dim>2</dim>
                 </port>
             </output>
             <blobs>
-                <custom offset="32" size="16"/>
+                <custom offset="32" size="8"/>
             </blobs>
         </layer>
         <layer id="3" name="axes" precision="I64" type="Const">
@@ -123,7 +123,7 @@ TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
                     <dim>2</dim>
                 </port>
                 <port id="2">
-                    <dim>4</dim>
+                    <dim>2</dim>
                 </port>
                 <port id="3">
                     <dim>2</dim>
@@ -147,7 +147,7 @@ TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
     </edges>
 </net>
 )V0G0N";
-    compareIRs(model, modelV5, 48, [](Blob::Ptr& weights) {
+    compareIRs(model, modelV5, 40, [](Blob::Ptr& weights) {
                 auto *i64data = weights->buffer().as<int64_t *>();
                 i64data[0] = 50;
                 i64data[1] = 60;
@@ -155,10 +155,8 @@ TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
                 i64data[3] = 3;
 
                 auto *fdata = reinterpret_cast<float *>(i64data + 4);
-                fdata[0] = 1.0;
-                fdata[1] = 1.0;
-                fdata[2] = 50.0 / 48.0;
-                fdata[3] = 60.0 / 80.0;
+                fdata[0] = 50.0 / 48.0;
+                fdata[1] = 60.0 / 80.0;
             });
 }
 
