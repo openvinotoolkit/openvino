@@ -5,8 +5,9 @@
 #pragma once
 
 #include <cstdint>
-#include "backend/dnn_types.h"
+#include <serial/headers/2dot2/gna_model_header.hpp>
 #include "serial/headers/2dot1/gna_model_header.hpp"
+#include "backend/dnn_types.h"
 
 #pragma pack(push, 1)
 
@@ -75,6 +76,17 @@ struct ModelHeader {
         nRotateColumns = old.nRotateColumns;
         nInputs = old.nInputs;
         nOutputs = old.nOutputs;
+        version.minor = old.version.minor;
+    }
+    ModelHeader(GNAPluginNS::Header2dot2::ModelHeader const&old) {
+        gnaMemSize = old.gnaMemSize;
+        layersCount = old.layersCount;
+        nGroup = old.nGroup;
+        nRotateRows = old.nRotateRows;
+        nRotateColumns = old.nRotateColumns;
+        nInputs = old.nInputs;
+        nOutputs = old.nOutputs;
+        version.minor = old.version.minor;
     }
 };
 #pragma pack(pop)
