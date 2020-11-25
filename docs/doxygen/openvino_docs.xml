@@ -6,7 +6,7 @@
         <!-- GET STARTED category -->
         <tab type="usergroup" title="GET STARTED" url="index.html">
             <!-- Install Directly -->
-            <tab type="usergroup" title="Install Directly" url=""><!--automatically generated-->
+            <tab type="usergroup" title="Installation Guides" url=""><!--automatically generated-->
                 <tab type="usergroup" title="Linux" url="@ref openvino_docs_install_guides_installing_openvino_linux">
                     <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Linux* OS" url="@ref openvino_docs_install_guides_installing_openvino_linux"/>
                     <tab type="user" title="[DEPRECATED] Install Intel® Distribution of OpenVINO™ toolkit for Linux with FPGA Support" url="@ref openvino_docs_install_guides_installing_openvino_linux_fpga"/>
@@ -17,13 +17,15 @@
                 </tab>
                 <tab type="user" title="macOS" url="@ref openvino_docs_install_guides_installing_openvino_macos"/>
                 <tab type="user" title="Raspbian OS" url="@ref openvino_docs_install_guides_installing_openvino_raspbian"/>
+                <tab type="user" title="DL Workbench Installation Guide" url="./workbench_docs_Workbench_DG_Install_Workbench.html"/><!-- Link to the original Workbench topic -->
             </tab> 
             <!-- Install From Images and Repositories -->  
-            <tab type="usergroup" title="Install From Images and Repositories" url=""><!--automatically generated-->
+            <tab type="usergroup" title="Install From Images and Repositories" url="@ref openvino_docs_install_guides_installing_openvino_images">
                 <tab type="usergroup" title="Docker" url="@ref openvino_docs_install_guides_installing_openvino_docker_linux">
                     <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Linux* from a Docker* Image" url="@ref openvino_docs_install_guides_installing_openvino_docker_linux"/>
                     <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Windows* from a Docker* Image" url="@ref openvino_docs_install_guides_installing_openvino_docker_windows"/>
                 </tab>
+                <tab type="user" title="Docker with DL Workbench" url="./workbench_docs_Workbench_DG_Install_from_Docker_Hub.html"/><!-- Link to the original Workbench topic -->
                 <tab type="user" title="APT" url="@ref openvino_docs_install_guides_installing_openvino_apt"/>
                 <tab type="user" title="YUM" url="@ref openvino_docs_install_guides_installing_openvino_yum"/>
                 <tab type="user" title="Anaconda Cloud" url="@ref openvino_docs_install_guides_installing_openvino_conda"/>
@@ -37,6 +39,7 @@
                 <tab type="user" title="Linux" url="@ref openvino_docs_get_started_get_started_linux"/>
                 <tab type="user" title="Windows" url="@ref openvino_docs_get_started_get_started_windows"/>
                 <tab type="user" title="macOS" url="@ref openvino_docs_get_started_get_started_macos"/>
+                <tab type="user" title="Get Started with OpenVINO via DL Workbench" url="@ref openvino_docs_get_started_get_started_dl_workbench"/>
                 <tab type="user" title="Legal Information" url="@ref openvino_docs_Legal_Information"/>
             </tab>
             <!-- Configuration for Hardware -->
@@ -126,8 +129,8 @@
                 <tab type="user" title="Automatic Speech Recognition C++ Sample" url="@ref openvino_inference_engine_samples_speech_sample_README"/>
                 <tab type="user" title="Neural Style Transfer C++ Sample" url="@ref openvino_inference_engine_samples_style_transfer_sample_README"/>
                 <tab type="user" title="Neural Style Transfer Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_style_transfer_sample_README"/>
-                <tab type="user" title="Benchmark C++ App" url="@ref openvino_inference_engine_samples_benchmark_app_README"/>
-                <tab type="user" title="Benchmark Python* App" url="@ref openvino_inference_engine_tools_benchmark_tool_README"/>
+                <tab type="user" title="Benchmark C++ Tool" url="@ref openvino_inference_engine_samples_benchmark_app_README"/>
+                <tab type="user" title="Benchmark Python* Tool" url="@ref openvino_inference_engine_tools_benchmark_tool_README"/>
             </tab>
 
             <!-- DL Streamer Examples -->
