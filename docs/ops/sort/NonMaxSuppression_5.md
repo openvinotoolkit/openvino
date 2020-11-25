@@ -74,6 +74,8 @@ class must not exceed `max_output_boxes_per_class`.
 
 *   **3**: `valid_outputs` - 1D tensor with 1 element of type *T_IND* representing the total number of selected boxes. Optional.
 
+Plugins which do not support dynamic output tensors produce `selected_indices` and `selected_scores` tensors of shape `[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]` which is an upper bound for the number of possible selected boxes. Output tensor elements following the really selected boxes are filled with value -1.
+
 **Types**
 
 * *T*: floating point type.
