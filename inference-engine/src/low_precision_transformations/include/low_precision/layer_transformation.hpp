@@ -167,13 +167,15 @@ public:
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
                 bool supportAsymmetricQuantization = false,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
-                std::vector<element::Type> precisionsOnWeights = { element::i8 }) :
+                std::vector<element::Type> precisionsOnWeights = { element::i8 },
+                element::Type deqPrecision = element::f32) :
                 updatePrecisions(updatePrecisions),
                 quantizedTensorAlignmentOnActivations(quantizedTensorAlignmentOnActivations),
                 quantizedTensorAlignmentOnWeights(quantizedTensorAlignmentOnWeights),
                 supportAsymmetricQuantization(supportAsymmetricQuantization),
                 precisionsOnActivations(precisionsOnActivations),
-                precisionsOnWeights(precisionsOnWeights) {
+                precisionsOnWeights(precisionsOnWeights),
+                deqPrecision(deqPrecision) {
             if (precisionsOnActivations.size() == 0ul) {
                 THROW_TRANSFORMATION_EXCEPTION << "precisions on activations are not specisifed";
             }
@@ -219,6 +221,7 @@ public:
         bool supportAsymmetricQuantization;
         std::vector<element::Type> precisionsOnActivations;
         std::vector<element::Type> precisionsOnWeights;
+        element::Type deqPrecision;
     };
 
     class PrecisionDetails {
@@ -293,6 +296,7 @@ protected:
     bool supportAsymmetricQuantization;
     std::vector<element::Type> precisionsOnActivations;
     std::vector<element::Type> precisionsOnWeights;
+    element::Type deqPrecision;
 
     // absolute value, used to determine quantization interval asymmetry
     float quantizationIntervalAsymmetryThreshold;

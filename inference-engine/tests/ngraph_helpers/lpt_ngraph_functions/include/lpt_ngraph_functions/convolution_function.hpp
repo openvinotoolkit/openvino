@@ -19,6 +19,7 @@ namespace subgraph {
 class ConvolutionFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type netPrecision,
         const ngraph::element::Type inputPrecision,
         const ngraph::Shape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
@@ -45,6 +46,7 @@ public:
         bool isCorrect);
 
     static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type netPrecision,
         const ngraph::element::Type inputPrecision,
         const ngraph::Shape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,

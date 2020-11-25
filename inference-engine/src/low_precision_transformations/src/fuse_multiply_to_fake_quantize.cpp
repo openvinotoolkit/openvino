@@ -53,7 +53,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
             outputLowConst,
             outputHighConst,
             fakeQuantize->get_levels()),
-        multiply->get_output_element_type(0));
+        outputLowConst->get_output_element_type(0));
 
     replace_node(multiply, newFakeQuantize);
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);

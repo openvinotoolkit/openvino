@@ -288,7 +288,7 @@ std::shared_ptr<Node> NetworkHelper::getConstantInput(std::shared_ptr<Node> node
 }
 
 std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter(std::shared_ptr<Node> node) {
-    std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(node);
+    std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(std::move(node));
     if (!multiply) {
         THROW_IE_LPT_EXCEPTION(*multiply) << "Unexpected operation type";
     }
@@ -298,19 +298,26 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
         if (!constant1 || constant1->output(0).get_target_inputs().size() != 1) {
             return multiply;
         }
+
         auto nextMultiplyInput = *multiply->output(0).get_target_inputs().begin();
-        auto nextMultiply = as_type_ptr<opset1::Multiply>(nextMultiplyInput.get_node()->shared_from_this());
+        auto nextMultiply = as_type_ptr<op::TypeRelaxed<opset1::Multiply>>(nextMultiplyInput.get_node()->shared_from_this());
         if (nextMultiply) {
             auto constant2 = getConstantInput(nextMultiply);
             if (!constant2 || constant2->output(0).get_target_inputs().size() != 1) {
                 return multiply;
             }
 
+            auto newInput = multiply->input_value(1 - constant1->output(0).get_target_inputs().begin()->get_index());
             auto newConst = fold<opset1::Multiply>(constant1, constant2);
+            auto inputPrecision0 = nextMultiply->get_origin_input_type(0);
+            auto inputPrecision1 = nextMultiply->get_origin_input_type(1);
+            auto outputPrecision = nextMultiply->get_overridden_output_type(0);
             auto newMultiply =
-                    std::make_shared<opset1::Multiply>(
-                            multiply->input_value(1 - constant1->output(0).get_target_inputs().begin()->get_index()),
-                            newConst->output(0));
+                    std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+                            std::vector<element::Type>{ inputPrecision0, inputPrecision1 },
+                            std::vector<element::Type>{ outputPrecision },
+                            ngraph::op::TemporaryReplaceOutputType(newInput, inputPrecision0).get(),
+                            ngraph::op::TemporaryReplaceOutputType(newConst, inputPrecision1).get());
             copy_runtime_info(multiply, newMultiply);
             replace_node(nextMultiply, newMultiply);
             return newMultiply;
@@ -544,7 +551,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     std::shared_ptr<Node> shift = hasZeroPoint ?
         std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), shifts) :
         nullptr;
-    std::shared_ptr<Node> scale = std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), scales);
+    std::shared_ptr<Node> scale = std::make_shared<opset1::Constant>(element::f32, outputLow.get_shape(), scales);
 
     auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), minValues);
     auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), maxValues);
@@ -630,9 +637,12 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         ngraph::copy_runtime_info({ newFQ, sub }, sub);
     }
 
-    const std::shared_ptr<ngraph::opset1::Multiply> dequantize = std::make_shared<DequantizationMultiply>(
-        sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub,
-        scale);
+    const auto dequantize =
+        std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+            std::vector<element::Type>{ element::f32, element::f32 },
+            std::vector<element::Type>{ scale->get_output_element_type(0) },
+            ngraph::op::TemporaryReplaceOutputType(sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(scale, element::f32).get());
     dequantize->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationMultiply");
     ngraph::copy_runtime_info({ newFQ, dequantize }, dequantize);
 

@@ -110,12 +110,12 @@ std::shared_ptr<Node> makeDequantization(
             multiply = dequantizationOperations.multiply.constantIndex == 1ul ?
                 std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
                     std::vector<element::Type>{element::f32, element::f32},
-                    std::vector<element::Type>{ element::f32 },
+                    std::vector<element::Type>{ dequantizationOperations.multiply.outPrecision },
                     ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
                     ngraph::op::TemporaryReplaceOutputType(constant, element::f32).get()) :
                 std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
                     std::vector<element::Type>{element::f32, element::f32},
-                    std::vector<element::Type>{ element::f32 },
+                    std::vector<element::Type>{ dequantizationOperations.multiply.outPrecision },
                     ngraph::op::TemporaryReplaceOutputType(constant, element::f32).get(),
                     ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get());
         }
