@@ -38,8 +38,8 @@ namespace InferenceEngine {
  * @defgroup ie_dev_api_async_infer_request_api Asynchronous Inference Request base classes
  * @brief A set of base and helper classes to implement asynchronous inference request class
  * 
- * @defgroup ie_dev_api_mem_state_api Memory state base classes
- * @brief A set of base and helper classes to implement memory state
+ * @defgroup ie_dev_api_variable_state_api Variable state base classes
+ * @brief A set of base and helper classes to implement variable state
  * 
  * @defgroup ie_dev_api_threading Threading utilities
  * @brief Threading API providing task executors for asynchronous operations

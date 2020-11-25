@@ -10,8 +10,8 @@
 #pragma once
 
 #include <cpp/ie_executable_network.hpp>
-#include <cpp_interfaces/base/ie_memory_state_base.hpp>
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include <cpp_interfaces/base/ie_variable_state_base.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -33,7 +33,7 @@ class ExecutableNetworkBase : public IExecutableNetwork {
 public:
     /**
      * @brief Constructor with actual underlying implementation.
-     * @param impl Underplying implementation of type IExecutableNetworkInternal
+     * @param impl Underlying implementation of type IExecutableNetworkInternal
      */
     explicit ExecutableNetworkBase(std::shared_ptr<T> impl) {
         if (impl.get() == nullptr) {

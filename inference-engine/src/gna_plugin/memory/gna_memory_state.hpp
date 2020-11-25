@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <utility>
-#include <cpp_interfaces/impl/ie_memory_state_internal.hpp>
+#include <cpp_interfaces/impl/ie_variable_state_internal.hpp>
 #include "gna_plugin.hpp"
 
 namespace  GNAPluginNS {

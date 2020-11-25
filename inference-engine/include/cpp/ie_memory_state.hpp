@@ -25,8 +25,9 @@ class VariableState {
 
 public:
     /**
-     * constructs VariableState from the initialized shared_pointer
+     * @brief constructs VariableState from the initialized shared_pointer
      * @param pState Initialized shared pointer
+     * @param plg Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
      */
     explicit VariableState(IVariableState::Ptr pState, details::SharedObjectLoader::Ptr plg = {}) : actual(pState), plugin(plg) {
         if (actual == nullptr) {
@@ -59,7 +60,7 @@ public:
      * @copybrief IVariableState::GetState
      *
      * Wraps IVariableState::GetState
-     * @return A blob representing a last state 
+     * @return A blob representing a state 
      */
     Blob::CPtr GetState() const {
         Blob::CPtr stateBlob;
@@ -67,7 +68,14 @@ public:
         return stateBlob;
     }
 
-    INFERENCE_ENGINE_DEPRECATED("Use GetState function instead")
+    /**
+     * @deprecated
+     * @copybrief IVariableState::GetLastState
+     *
+     * Wraps IVariableState::GetLastState
+     * @return A blob representing a last state 
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use VariableState::GetState function instead")
     Blob::CPtr GetLastState() const {
         return GetState();
     }
