@@ -143,6 +143,8 @@ public:
      * @brief By default, returns the total number of elements (a product of all the dims or 1 for scalar)
      *
      * Return value and its interpretation heavily depend on the blob type
+     *
+     * @return The total number of elements
      */
     virtual size_t size() const noexcept {
         if (tensorDesc.getLayout() == Layout::SCALAR) return 1;
@@ -151,6 +153,7 @@ public:
 
     /**
      * @brief Returns the size of the current Blob in bytes.
+     * @return Blob's size in bytes
      */
     virtual size_t byteSize() const noexcept {
         return size() * element_size();
@@ -177,6 +180,8 @@ public:
      * @brief Releases previously allocated data.
      *
      * Abstract method.
+     *
+     * @return `True` if deallocation happens successfully, `false` otherwise.
      */
     virtual bool deallocate() noexcept = 0;
 
@@ -323,6 +328,7 @@ public:
 
     /**
      * @brief Returns the total number of elements, which is a product of all the dimensions
+     * @return The total number of elements
      */
     size_t size() const noexcept override {
         if (tensorDesc.getLayout() == Layout::SCALAR) return 1;
