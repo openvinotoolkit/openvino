@@ -132,23 +132,23 @@ void visit_exec_graph_node(pugi::xml_node& data, std::string& node_type_name,
     }
 }
 
-std::vector<std::shared_ptr<Node>> get_ordered_ops(const ngraph::Function& f) {
+NodeVector get_ordered_ops(const ngraph::Function& f) {
     // Breadth-first traversal starting from graph outputs
-    std::vector<std::shared_ptr<Node>> ordered;
+    NodeVector ordered;
     std::queue<std::shared_ptr<Node>> visit_queue;
     std::unordered_set<Node*> visited;
 
-    auto results = f.get_results();
+    const auto &results = f.get_results();
     for (auto result = results.crbegin(); result != results.crend(); ++result) {
         visit_queue.push(*result);
         visited.insert(result->get());
     }
 
     while (visit_queue.size()) {
-        auto node = visit_queue.front();
-        auto inputs = node->inputs();
+        const auto &node = visit_queue.front();
+        const auto &inputs = node->inputs();
         for (auto input = inputs.crbegin(); input != inputs.crend(); ++input) {
-            auto source_output =
+            const auto source_output =
                 input->get_source_output().get_node_shared_ptr();
             if (visited.find(source_output.get()) == visited.end()) {
                 visit_queue.push(source_output);
