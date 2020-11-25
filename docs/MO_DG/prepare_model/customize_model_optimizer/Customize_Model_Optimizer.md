@@ -98,7 +98,7 @@ There is a separate loader for each supported framework. These loaders are imple
 
 > **NOTE**: Model Optimizer uses a special parser for Caffe models built on top of `caffe.proto` file. In case of model
 > loading failure, the Model Optimizer throws an error adn requests to prepare the parser that can read the model. For
-> more information, refer to Model Optimizer, <a href="MO_FAQ.html#FAQ1">FAQ #1</a>.
+> more information, refer to [Model Optimizer Frequently Asked Questions #1](../Model_Optimizer_FAQ.md).
 
 The result of the model loading step is a `Graph` object which can be depicted like in the following example:
 
@@ -131,8 +131,9 @@ operation to trigger the extractor for and the value is the function to perform 
 one parameter – node to extract the attributes from. This is a legacy and non-extensible approach so should be avoided.
 It will be removed in the future versions of the Model Optimizer.
 
-3.  Caffe specific extractor using the `CustomLayersMapping.xml` described in the [Legacy Mode for Caffe* Custom Layers
-](Legacy_Mode_for_Caffe_Custom_Layers.md). This approach is deprecated and will be removed in the future releases.
+3.  Caffe specific extractor using the `CustomLayersMapping.xml` described in the
+[Legacy Mode for Caffe* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md). This approach is deprecated and will be
+removed in the future releases.
 
 The order of running the extractors is the following:
 * Registered in `CustomLayersMapping.xml` (for Caffe models only).
