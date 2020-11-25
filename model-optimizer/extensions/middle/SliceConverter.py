@@ -30,27 +30,28 @@ from mo.ops.const import Const
 from mo.ops.strided_slice import StridedSlice
 
 
-def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape, axes, node_name):
-    # the value for 'ends' might be maximum/minimum possible value of int64. This
+def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape: np.ndarray, axes: np.ndarray, node_name: str):
+    # the value for 'starts' or 'ends' might be maximum/minimum possible value of int64. This
     # value must be converted to maximum/minimum of int32 because such big values do not fit into the int32 which is
     # supported by the StridedSlice layer
-    clamp = create_op_with_const_inputs(graph, Clamp, port_value_dict={1: np.iinfo(np.int32).min,
-                                                                       2: np.iinfo(np.int32).max},
-                                        op_attrs=dict(name=node_name + '/Clamp'))
+    clamp = create_op_with_const_inputs(
+        graph, Clamp, port_value_dict={1: np.iinfo(np.int32).min, 2: np.iinfo(np.int32).max},
+        op_attrs=dict(name=node_name + '/Clamp'))
     clamp.in_port(0).connect(slice_border_port)
     cast = Cast(graph, dict(name=node_name + '/CastToI64', dst_type=np.int64)).create_node()
     cast.in_port(0).connect(clamp.out_port(0))
     concat = Concat(graph, dict(name=node_name + '/Concat', axis=0)).create_node()
     for value_idx, port_idx in enumerate(axes):
         concat.add_input_port(port_idx)
-        value = create_op_with_const_inputs(graph, Gather, port_value_dict={1: int64_array([value_idx]),
-                                                                            2: 0},
-                                            op_attrs={'name': node_name + '/Gather'})
+        value = create_op_with_const_inputs(
+            graph, Gather, port_value_dict={1: int64_array([value_idx]), 2: int64_array(0)},
+            op_attrs={'name': node_name + '/Gather'})
         cast.out_port(0).connect(value.in_port(0))
         value.out_port(0).connect(concat.in_port(port_idx))
     for port_idx in range(len(shape)):
         if not concat.is_in_port_connected(port_idx):
             concat.add_input_port(port_idx)
+            # This border value would be ignored in StridedSlice because of the begin_mask\end_mask
             const = Const(graph, dict(name=node_name + '/Const', value=int64_array([0]))).create_node()
             const.out_port(0).connect(concat.in_port(port_idx))
 
@@ -59,16 +60,12 @@ def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape, axes
 
 class ConvertSlice(MiddleReplacementPattern):
     """
-    This class converts Slice operation to StridedSlice
+    This class converts a Slice operation to StridedSlice in reshape-able way by parsing the 'start' and 'end'
+    parameters based on the 'axes' parameter
     """
 
     enabled = True
     force_clean_up = True
-    op = "Slice"
-
-    def run_after(self):
-        from extensions.middle.pass_separator import MiddleStart
-        return [MiddleStart]
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(op='Slice'):
