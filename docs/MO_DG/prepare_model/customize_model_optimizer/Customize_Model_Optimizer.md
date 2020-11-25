@@ -53,7 +53,7 @@ recommended.
 Further details and examples related to a model representation in memory are given in the sections below and provided in
 the context for a better explanation.
 
-## Model Conversion Pipeline
+## Model Conversion Pipeline <a name="model-conversion-pipeline"></a>
 The model conversion pipeline can be represented with the following diagram:
 
 ![Model Conversion pipeline](../../../img/MO_conversion_pipeline.svg)
@@ -572,15 +572,16 @@ transformations by default (if `run_before()` and `run_after()` methods have not
 ### Front Phase Transformations <a name="front-phase-transformations"></a>
 There are several types of front phase transformations:
 
-1. Pattern-defined transformation triggered for each sub-graph of the original graph isomorphic to the specified
-pattern.
-2. Transformation triggered for a node with specific `op` attribute value.
-3. Generic front transformation.
-4. Manually enabled transformation defined with a JSON configuration file (for TensorFlow\* and ONNX\* models only)
-specified using `--transformations_config` command line parameter:
-    1. Node name pattern defined sub-graph transformation.
-    2. Start/end node names defined sub-graph transformation.
-    3. Generic graph transformation.
+1. [Pattern-Defined Front Phase Transformations](#pattern-defined-front-phase-transformations) triggered for each
+sub-graph of the original graph isomorphic to the specified pattern.
+2. [Specific Operation Front Phase Transformations](#specific-operation-front-phase-transformations) triggered for the
+node with specific `op` attribute value.
+3. [Generic Front Phase Transformations](#generic-front-phase-transformations).
+4. Manually enabled transformation defined with a JSON configuration file (for TensorFlow\*, ONNX\* and MXNet\* models
+only) specified using `--transformations_config` command line parameter:
+    1. [Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformation).
+    2. [Front Phase Transformations Using Start and End Points](#start-end-points-front-phase-transformations).
+    3. [Generic Front Phase Transformations Enabled with Transformations Configuration File](#generic-transformations-config-front-phase-transformations).
 
 #### Pattern-Defined Front Phase Transformations <a name="pattern-defined-front-phase-transformations"></a>
 This type of transformation is implemented using `mo.front.common.replacement.FrontReplacementSubgraph` and
@@ -724,13 +725,14 @@ class Pack(FrontReplacementOp):
 Model Optimizer provides mechanism to implement generic front phase transformation. This type of transformation is
 implemented using `mo.front.common.replacement.FrontReplacementSubgraph` or
 `mo.front.common.replacement.FrontReplacementPattern` as base classes. The only condition to execute the transformation
-is to check that it is enabled. Then model Optimizer executes the method `find_and_replace_pattern(self, graph)` and
+is to check that it is enabled. Then the Model Optimizer executes the method `find_and_replace_pattern(self, graph)` and
 provide the `Graph` object as input.
 
-Consider the example of a generic front transformation from file `extensions/front/SqueezeNormalize.py` performing
+Consider the example of a generic front transformation from a file `extensions/front/SqueezeNormalize.py` performing
 normalization of the [Squeeze](../../../ops/shape/Squeeze_1.md) operation. In older version of the operation the list of
 axes to squeeze was an attribute, but now it is a separate input. For backward compatibility the Model Optimizer
-operation supports both semantics.
+operation supports both semantics but before IR generation the operation should normalized according to the
+specification.
 
 ```py
 import logging as log
@@ -818,25 +820,31 @@ Consider the following possible configuration file template for the Inception Bl
 The configuration file contains list of dictionaries. Each dictionary defines one transformation. Each transformation is
 defined with several parameters:
 
-*   `id` (mandatory) is a unique identifier of the transformation. It is used in the Python\* code that implements
-the transformation to link the class and the transformation description from the configuration file.
-
-*   `match_kind` (mandatory) is a string that specifies what matching algorithm is used. For the node name pattern case
+* `id` (mandatory) is a unique identifier of the transformation. It is used in the Python\* code that implements the
+transformation to link the class and the transformation description from the configuration file.
+* `match_kind` (mandatory) is a string that specifies what matching algorithm is used. For the node name pattern case
  the value should be equal to `scope`. Another possible values are described in the dedicated sections below.
-
-*   `instances` (mandatory) specifies instances of the sub-graph to be matched. It contains a list of node names
-prefixes patterns for the match kind of type `scope`.
-
-*   `custom_attributes` (optional) is a dictionary with attributes that can be used in the transformation code.
+* `instances` (mandatory) specifies instances of the sub-graph to be matched. It contains a list of node names prefixes
+patterns for the match kind of type `scope`.
+* `custom_attributes` (optional) is a dictionary with attributes that can be used in the transformation code.
 
 After running the Model Optimizer with additional parameter `--tensorflow_custom_operations_config_update` pointing to
 the template configuration file the content of the file should be updated with two new sections `inputs` and `outputs`.
-The file content will be the following:
+The file content after the update is the following:
 ```json
 [
     {
         "id": "InceptionBlockTransformation",
-        ...
+        "custom_attributes": {
+            "attr1_key": "attr1_value",
+            "attr2_key": 123456
+        },
+        "instances": [
+            ".*InceptionV4/Mixed_5b",
+            ".*InceptionV4/Mixed_5c",
+            ".*InceptionV4/Mixed_5d"
+        ],
+        "match_kind": "scope",
         "inputs": [
             [
                 {
@@ -894,36 +902,195 @@ Refer to [Converting TensorFlow* Object Detection API Models](../convert_model/t
 for more examples of this type of transformations.
 
 #### Front Phase Transformations Using Start and End Points <a name="start-end-points-front-phase-transformations"></a>
-TO BE REFACTORED
-In this scenario, for the matching algorithm user defines the sub-graph via a set of "start" and "end" nodes.
-Given the set, the Model Optimizer performs the following steps:
-1. Starts graph traversal from every _start_ nodes following the direction of the graph edges.
-The search stops in _end_   nodes or in case of nodes without further children. All visited nodes are added to the matched sub-graph.
-2. Starts another graph traversal from each non-start node of the sub-graph, i.e. every node except nodes from "start" set.
-In this step the edges are traversed in the opposite edge direction. All newly visited nodes are added to the
-   matched sub-graph. This step is needed to add nodes required for calculation values of internal nodes of the
+This type of transformation is implemented using `mo.front.tf.replacement.FrontReplacementFromConfigFileSubGraph` as a
+base class and works the following way.
+1. Developer prepares a JSON configuration file which defines the sub-graph to match using two lists of node names:
+"start" and "end" nodes.
+2. Model Optimizer executes developer-defined transformation **only** when an user specifies the path to the
+configuration file using the command line parameter `--transformations_config`.Model Optimizer performs the following
+steps to match the sub-graph:
+   1. Starts graph traversal from every start node following the direction of the graph edges. The search stops in end
+   node or in case of node without children. All visited nodes are added to the matched sub-graph.
+   2. Starts another graph traversal from each non-start node of the sub-graph, i.e. every node except nodes from the
+   "start" list. In this step the edges are traversed in the opposite edge direction. All newly visited nodes are added
+   to the matched sub-graph. This step is needed to add nodes required for calculation values of internal nodes of the
    matched sub-graph.
-3. Checks that all "end" nodes were reached from "input" nodes. If no then exit with error.
-4. Check that there are no "Placeholder" operations among added nodes. If it is not true then some side branch of
-   the sub-graph (added in step 2) depends on inputs of the network. Such configuration is not correct so exit with error.
+   3. Checks that all "end" nodes were reached from "start" nodes. If no then exit with error.
+   4. Check that there are no [Parameter](../../../ops/infrastructure/Parameter_1.md) operations among added nodes. If
+   they exist then the sub-graph depends on the inputs of the model. Such configuration is considered incorrect so the
+   Model Optimizer exits with an error.
 
-This algorithm finds all nodes "between" start and end nodes. Also nodes needed for calculation of non-input nodes of the
-matched sub-graph produce _constant_ values because they do not depend on input of the network.
-**This sub-graph match has a limitation that each start node must have only one input**. Therefore, it is not possible
-to specify, for example, convolution node as input because it has two inputs: data tensor and tensor with weights.
+This algorithm finds all nodes "between" start and end nodes and nodes needed for calculation of non-input nodes of the
+matched sub-graph produce constant values because they do not depend on input of the network.
 
-For example of replacement with points, please refer to the case-study of the
-[Converting TensorFlow* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md)
+The example of a JSON configuration file for a transformation with start and end points is
+`extensions/front/tf/ssd_support_api_v1.15.json`:
 
+```json
+[
+    {
+        "custom_attributes": {
+            "code_type": "caffe.PriorBoxParameter.CENTER_SIZE",
+            "pad_mode": "caffe.ResizeParameter.CONSTANT",
+            "resize_mode": "caffe.ResizeParameter.WARP",
+            "clip_before_nms": false,
+            "clip_after_nms": true
+        },
+        "id": "ObjectDetectionAPISSDPostprocessorReplacement",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "detection_boxes",
+                "detection_scores",
+                "num_detections"
+            ],
+            "start_points": [
+                "Postprocessor/Shape",
+                "Postprocessor/scale_logits",
+                "Postprocessor/Tile",
+                "Postprocessor/Reshape_1",
+                "Postprocessor/Cast_1"
+            ]
+        },
+        "match_kind": "points"
+    }
+]
+```
+
+The format of the file is similar to the one provided as an example in the [Node Name Pattern Front Phase
+Transformations](#node-name-pattern-front-phase-transformations). There difference is in the value of the "match_kind"
+parameter which should be eqaul to "points" and the format of the "instances" parameter which should be a dictionary
+with two keys "start_points" and "end_points" defining start and end node names correspondingly.
+
+"include_inputs_to_sub_graph" and "include_outputs_to_sub_graph" parameters are redundant and should be always equal to
+"true".
+
+> **NOTE**: This sub-graph match algorithm has a limitation that each start node must have only one input. Therefore, it
+> is not possible to specify, for example, [Convolution](../../../ops/convolution/Convolution_1.md) node as input
+> because it has two inputs: data tensor and tensor with weights.
+
+For other examples of transformations with points, please refer to the
+[Converting TensorFlow* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md).
+
+#### Generic Front Phase Transformations Enabled with Transformations Configuration File<a name="generic-transformations-config-front-phase-transformations"></a>
+This type of transformations works similarly to the [Generic Front Phase Transformations](#generic-front-phase-transformations)
+but require a JSON configuration file to enable it similarly to
+[Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformation) and
+[Front Phase Transformations Using Start and End Points](#start-end-points-front-phase-transformations).
+
+The base class for this type of transformations is type of transformation is
+`mo.front.common.replacement.FrontReplacementFromConfigFileGeneral`. The Model Optimizer executes the method
+`transform_graph(self, graph, replacement_descriptions)` and provides the `Graph` object and dictionary with values
+parsed from the `custom_attributes` field of the JSON configuration file.
+
+The example of the configuration file for this type of transformations is `extensions/front/tf/yolo_v1_tiny.json`:
+
+```json
+[
+  {
+    "id": "TFYOLO",
+    "match_kind": "general",
+    "custom_attributes": {
+      "classes": 20,
+      "coords": 4,
+      "num": 2,
+      "do_softmax": 0
+    }
+  }
+]
+```
+and the corresponding transformation file is `./extensions/front/YOLO.py`:
+
+```py
+from extensions.front.no_op_eraser import NoOpEraser
+from extensions.front.standalone_const_eraser import StandaloneConstEraser
+from extensions.ops.regionyolo import RegionYoloOp
+from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
+from mo.graph.graph import Node, Graph
+from mo.ops.result import Result
+from mo.utils.error import Error
+
+
+class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
+    """
+    Replaces all Result nodes in graph with YoloRegion->Result nodes chain.
+    YoloRegion node attributes are taken from configuration file
+    """
+    replacement_id = 'TFYOLO'  # the identifier matching the "id" attribute in the JSON file
+
+    def run_after(self):
+        return [NoOpEraser, StandaloneConstEraser]
+
+    def transform_graph(self, graph: Graph, replacement_descriptions):
+        op_outputs = [n for n, d in graph.nodes(data=True) if 'op' in d and d['op'] == 'Result']
+        for op_output in op_outputs:
+            last_node = Node(graph, op_output).in_node(0)
+            op_params = dict(name=last_node.id + '/YoloRegion', axis=1, end_axis=-1)
+            op_params.update(replacement_descriptions)
+            region_layer = RegionYoloOp(graph, op_params)
+            region_layer_node = region_layer.create_node([last_node])
+            # here we remove 'axis' from 'dim_attrs' to avoid permutation from axis = 1 to axis = 2
+            region_layer_node.dim_attrs.remove('axis')
+            Result(graph).create_node([region_layer_node])
+            graph.remove_node(op_output)
+```
+
+The configuration file has only 3 parameters: identifier of the transformation "id", "match_kind" which should be equal to
+"general" and the dictionary with custom attributes "custom_attributes" accessible in the transformation.
 
 ### Middle Phase Transformations <a name="middle-phase-transformations"></a>
+There are two types of middle phase transformations:
+
+1. [Pattern-Defined Middle Phase Transformations](#pattern-defined-middle-phase-transformations) triggered for each
+sub-graph of the original graph isomorphic to the specified pattern.
+2. [Generic Middle Phase Transformations](#generic-middle-phase-transformations).
+
+#### Pattern-Defined Middle Phase Transformations <a name="pattern-defined-middle-phase-transformations"></a>
+This type of transformation is implemented using `mo.middle.replacement.MiddleReplacementPattern` as a base class and
+works similarly to the [Pattern-Defined Front Phase Transformations](#pattern-defined-middle-phase-transformations).
+The are two differences:
+1. The transformation entry function name is `replace_pattern(self, graph, match)`.
+2. The pattern defining the graph should contain data nodes because the structure of the graph is different between
+front and middle phases. Refer to the [Partial Inference](#partial-inference) section for more information about the
+graph structure changes.
+
+Refer to the `extensions/middle/L2NormToNorm.py` for the example of a pattern-defined middle transformation.
+
+#### Generic Middle Phase Transformations <a name="generic-middle-phase-transformations"></a>
+Model Optimizer provides mechanism to implement generic middle phase transformations. This type of transformation is
+implemented using `mo.middle.replacement.MiddleReplacementPattern` as a base class and works similarly to the [Generic
+Front Phase Transformations](#generic-front-phase-transformations). The only difference is that the transformation entry
+function name is `find_and_replace_pattern(self, graph: Graph)`.
+
+Refer to the `extensions/middle/CheckForCycle.py` for the example of such type of transformations.
 
 ### Back Phase Transformations <a name="back-phase-transformations"></a>
+There are two types of back phase transformations:
 
-The detailed solutions for the examples above are given later, the next subsection shows what is common in all three examples.
+1. [Pattern-Defined Back Phase Transformations](#pattern-defined-back-phase-transformations) triggered for each
+sub-graph of the original graph isomorphic to the specified pattern.
+2. [Generic Back Phase Transformations](#generic-back-phase-transformations).
+
+> **NOTE**: The graph layout during the back phase is always NCHW. However during the front and middle phases it could
+> be NHWC if the original model was using it. Refer to [Model Conversion Pipeline](#model-conversion-pipeline) for more
+> details.
+
+#### Pattern-Defined Back Phase Transformations <a name="pattern-defined-back-phase-transformations"></a>
+This type of transformation is implemented using `mo.back.replacement.MiddleReplacementPattern` as a base class and
+works the same way as [Pattern-Defined Front Phase Transformations](#pattern-defined-middle-phase-transformations).
+
+Refer to the `extensions/back/ShufflenetReLUReorder.py` for the example of a pattern-defined back transformation.
+
+#### Generic Back Phase Transformations <a name="generic-back-phase-transformations"></a>
+Model Optimizer provides mechanism to implement generic back phase transformations. This type of transformation is
+implemented using `mo.back.replacement.BackReplacementPattern` as a base class and works the same way as [Generic
+Middle Phase Transformations](#generic-middle-phase-transformations).
+
+Refer to the `extensions/back/GatherNormalizer.py` for the example of such type of transformations.
 
 
-Model Optimizer searches for each layer of the input model in the list of known layers before building the model's internal representation, optimizing the model, and producing the Intermediate Representation.
+
 
 The list of known layers is different for each of supported frameworks. To see the layers supported by your framework, refer to the [corresponding section](../Supported_Frameworks_Layers.md).
 
