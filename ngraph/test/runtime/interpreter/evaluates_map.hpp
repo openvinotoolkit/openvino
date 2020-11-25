@@ -16,6 +16,7 @@
 #pragma once
 #include "int_backend_visibility.hpp"
 #include "ngraph/node.hpp"
+
 namespace ngraph
 {
     namespace runtime

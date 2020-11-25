@@ -15,6 +15,10 @@
 //*****************************************************************************
 
 #include "evaluates_map.hpp"
+
+#include "backend.hpp"
+#include "ngraph/ops.hpp"
+
 #include <interpreter/reference/mod.hpp>
 #include <ngraph/runtime/reference/abs.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
@@ -35,7 +39,7 @@
 #include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
-#include "ngraph/ops.hpp"
+#include <ngraph/runtime/reference/tensor_iterator.hpp>
 #include "ngraph/runtime/reference/avg_pool.hpp"
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
@@ -1290,6 +1294,86 @@ namespace
             break;
         default: return false;
         }
+        return true;
+    }
+
+    namespace ti_v0
+    {
+        runtime::reference::custom_evaluate_function evaluate =
+            [](const std::shared_ptr<ngraph::Function>& function,
+               const HostTensorVector& inputs,
+               HostTensorVector& outputs) -> void {
+            const auto& parameters = function->get_parameters();
+            const auto& parametersNumber = parameters.size();
+            const auto& inputsNumber = inputs.size();
+            NGRAPH_CHECK(parametersNumber == inputsNumber,
+                         "Got function (",
+                         function->get_friendly_name(),
+                         ") with ",
+                         parametersNumber,
+                         " parameters, but ",
+                         inputsNumber,
+                         " input blobs");
+
+            auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+            for (const auto& parameter : parameters)
+            {
+                const auto& parameterIndex = function->get_parameter_index(parameter);
+                const auto& parameterShape = parameter->get_shape();
+                const auto& parameterType = parameter->get_element_type();
+                const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
+
+                const auto& input = inputs[parameterIndex];
+                const auto& inputSize = input->get_size_in_bytes();
+                NGRAPH_CHECK(parameterSize == inputSize,
+                             "Got parameter (",
+                             parameter->get_friendly_name(),
+                             ") of size ",
+                             parameterSize,
+                             " bytes, but corresponding input with index ",
+                             parameterIndex,
+                             " has ",
+                             inputSize,
+                             " bytes");
+
+                auto tensor = std::make_shared<runtime::HostTensor>(parameterType, parameterShape);
+                tensor->write(input->get_data_ptr(), parameterSize);
+                inputTensors.push_back(tensor);
+            }
+
+            const auto& results = function->get_results();
+            std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
+            outputTensors.reserve(results.size());
+            for (size_t i = 0; i < results.size(); ++i)
+            {
+                outputTensors.push_back(std::make_shared<HostTensor>());
+            }
+            runtime::Backend::set_backend_shared_library_search_directory("");
+            auto backend = runtime::Backend::create("INTERPRETER");
+            auto handle = backend->compile(function);
+            handle->call_with_validate(outputTensors, inputTensors);
+
+            outputs.reserve(outputTensors.size());
+            for (const auto& tensor : outputTensors)
+            {
+                auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
+                outputs.push_back(host_tensor);
+            }
+        };
+    } // namespace ti_v0
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::TensorIterator>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        runtime::reference::tensor_iterator(op->get_num_iterations(),
+                                            op->get_function(),
+                                            op->get_output_descriptions(),
+                                            op->get_input_descriptions(),
+                                            outputs,
+                                            inputs,
+                                            ti_v0::evaluate);
         return true;
     }
 
