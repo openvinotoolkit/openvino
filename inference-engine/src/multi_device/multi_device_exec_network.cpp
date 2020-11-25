@@ -119,8 +119,10 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
     if (workerRequestPtr != nullptr) {
         IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequests};
         _thisWorkerInferRequest = workerRequestPtr;
-        auto captchuredTask = std::move(inferPipelineTask);
-        captchuredTask();
+        {
+            auto capturedTask = std::move(inferPipelineTask);
+            capturedTask();
+        }
         idleGuard.Release();
     } else {
         _inferPipelineTasks.push(std::move(inferPipelineTask));
