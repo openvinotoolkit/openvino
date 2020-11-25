@@ -125,6 +125,7 @@ public:
 
     /**
      * @brief Returns the tensor description
+     * @return A const reference to a tensor descriptor
      */
     virtual const TensorDesc& getTensorDesc() const noexcept {
         return tensorDesc;
@@ -132,6 +133,7 @@ public:
 
     /**
      * @brief Returns the tensor description
+     * @return A reference to a tensor descriptor
      */
     virtual TensorDesc& getTensorDesc() noexcept {
         return tensorDesc;
@@ -243,6 +245,7 @@ protected:
      */
     virtual void* getHandle() const noexcept = 0;
 
+    /// cond
     template <typename>
     friend class TBlobProxy;
 };
