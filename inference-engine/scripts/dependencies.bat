@@ -66,7 +66,9 @@ if not "%HDDL%"=="" (
 
 echo PATH=%PATH%
 
-EXIT /B %ERRORLEVEL%
+endlocal & set PATH=%PATH%
+
+exit /B %ERRORLEVEL%
 
 :DownloadFile
 set DEPENDENCY=%~1
@@ -81,7 +83,7 @@ if not "%DEPENDENCY_URL%"=="" (
 			powershell -command "iwr -outf '%DL_SDK_TEMP%\test_dependencies\%DEPENDENCY%\_%DEPENDENCY_FILE%' %DEPENDENCY_URL%"
 			call "C:\Program Files\7-Zip\7z.exe" x -y %DL_SDK_TEMP%\test_dependencies\%DEPENDENCY%\_%DEPENDENCY_FILE% -o%DL_SDK_TEMP%\test_dependencies\%DEPENDENCY%\%DEPENDENCY_FILE%
 			if !ERRORLEVEL! equ 0 goto :DownloadFileContinue
-			TIMEOUT /T 15
+			timeout /T 15
 		)
 	)
 )
