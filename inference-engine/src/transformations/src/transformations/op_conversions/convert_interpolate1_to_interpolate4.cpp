@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolate1ToInterpolate4, "ConvertInterpolate1ToInterpolate4", 0);
 
 ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4() {
-    auto interpolate1 = ngraph::pattern::wrap_type<ngraph::opset1::Interpolate>({ngraph::pattern::any_input(), ngraph::pattern::any_input()});
+    auto interpolate1 = ngraph::pattern::wrap_type<ngraph::opset1::Interpolate>({pattern::any_input(), pattern::any_input()});
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto interpolationV0 = std::dynamic_pointer_cast<ngraph::op::v0::Interpolate>(m.get_match_root());
         if (!interpolationV0) {
@@ -61,7 +61,7 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         auto interpolateV4 = std::make_shared<ngraph::op::v4::Interpolate>(interpolationV0->input_value(0), interpolationV0->input_value(1),
                                                                            scalesConstant, axisConstant, attrsV4);
 
-        interpolateV4->set_friendly_name(interpolationV0->get_friendly_name() + ".V4");
+        interpolateV4->set_friendly_name(interpolationV0->get_friendly_name());
         ngraph::copy_runtime_info(interpolationV0, interpolateV4);
         ngraph::replace_node(interpolationV0, interpolateV4);
         return true;
