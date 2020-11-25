@@ -485,9 +485,9 @@ Model Optimizer runs specific extractor for each operation in the model during t
 There are several types of Model Optimizer extractor extensions:
 1. The generic one which is described in this section.
 2. The special extractor for Caffe\* models with Python layers. This kind of extractor is described in the
-[Extending the Model Optimizer with Caffe* Python Layers](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers).
+[Extending the Model Optimizer with Caffe* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md).
 3. The special extractor for MXNet\* models with custom operations. This kind of extractor is described in the
-[Extending the Model Optimizer for Custom MXNet* Operations](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives).
+[Extending the Model Optimizer for Custom MXNet* Operations](Extending_MXNet_Model_Optimizer_with_New_Primitives.md).
 4. The special extractor and fallback to Caffe\* for shape inference is described in the [Legacy Mode for Caffe* Custom
 Layers](Legacy_Mode_for_Caffe_Custom_Layers.md).
 
