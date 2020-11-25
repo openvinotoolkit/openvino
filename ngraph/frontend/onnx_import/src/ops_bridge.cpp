@@ -60,7 +60,7 @@
 #include "onnx_import/op/flatten.hpp"
 #include "onnx_import/op/floor.hpp"
 #include "onnx_import/op/gather.hpp"
-// #include "onnx_import/op/gather_nd.hpp"
+#include "onnx_import/op/gather_nd.hpp"
 #include "onnx_import/op/gemm.hpp"
 #include "onnx_import/op/global_average_pool.hpp"
 #include "onnx_import/op/global_max_pool.hpp"
@@ -81,7 +81,7 @@
 #include "onnx_import/op/lrn.hpp"
 #include "onnx_import/op/lstm.hpp"
 #include "onnx_import/op/matmul.hpp"
-#include "onnx_import/op/matmul_integer.hpp"
+//#include "onnx_import/op/matmul_integer.hpp"
 #include "onnx_import/op/max.hpp"
 #include "onnx_import/op/max_pool.hpp"
 #include "onnx_import/op/mean.hpp"
@@ -98,7 +98,7 @@
 #include "onnx_import/op/pad.hpp"
 #include "onnx_import/op/pow.hpp"
 #include "onnx_import/op/prelu.hpp"
-#include "onnx_import/op/qlinear_matmul.hpp"
+//#include "onnx_import/op/qlinear_matmul.hpp"
 // #include "onnx_import/op/quant_conv.hpp"
 #include "onnx_import/op/quantize_linear.hpp"
 #include "onnx_import/op/range.hpp"
@@ -343,7 +343,7 @@ namespace ngraph
             REGISTER_OPERATOR("Flatten", 1, flatten);
             REGISTER_OPERATOR("Floor", 1, floor);
             REGISTER_OPERATOR("Gather", 1, gather);
-            // REGISTER_OPERATOR("GatherND", 1, gather_nd);
+            REGISTER_OPERATOR("GatherND", 1, gather_nd);
             REGISTER_OPERATOR("Gemm", 1, gemm);
             REGISTER_OPERATOR("Gemm", 6, gemm);
             REGISTER_OPERATOR("GlobalAveragePool", 1, global_average_pool);
@@ -360,12 +360,13 @@ namespace ngraph
             REGISTER_OPERATOR("Less", 1, less);
             REGISTER_OPERATOR("Log", 1, log);
             REGISTER_OPERATOR("LogSoftmax", 1, log_softmax);
-            // REGISTER_OPERATOR("Loop", 1, loop); // Loop operator disabled for the 2021.1 release
+            REGISTER_OPERATOR("LogSoftmax", 13, log_softmax);
+            REGISTER_OPERATOR("Loop", 1, loop);
             REGISTER_OPERATOR("LpNormalization", 1, lp_norm);
             REGISTER_OPERATOR("LRN", 1, lrn);
             REGISTER_OPERATOR("LSTM", 1, lstm);
             REGISTER_OPERATOR("MatMul", 1, matmul);
-            REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
+            // REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
             REGISTER_OPERATOR("MaxPool", 1, max_pool);
             REGISTER_OPERATOR("Max", 1, max);
             REGISTER_OPERATOR("Max", 8, max);
@@ -388,7 +389,7 @@ namespace ngraph
             REGISTER_OPERATOR("Pow", 1, pow);
             REGISTER_OPERATOR("PRelu", 1, prelu);
             // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
-            REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
+            // REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
             REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
             REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
             REGISTER_OPERATOR("Range", 1, range);

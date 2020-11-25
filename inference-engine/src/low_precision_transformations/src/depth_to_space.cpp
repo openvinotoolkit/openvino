@@ -2,67 +2,55 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/depth_to_space.hpp"
+#include "low_precision/depth_to_space.hpp"
 
 #include <algorithm>
-#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "low_precision_transformations/common/ie_lpt_exception.hpp"
-#include "low_precision_transformations/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace ngraph;
+using namespace ngraph::pass;
+using namespace ngraph::pass::low_precision;
 
-void DepthToSpaceTransformation::transform(TransformationContext& context, CNNLayer& layer) const {
-    if (!canBeTransformed(context, layer)) {
-        return;
-    }
-
-    if ((layer.insData.size() == 0) || layer.insData.size() > 2) {
-        THROW_IE_EXCEPTION << "layer inputs '" << layer.insData.size() << "' is not correct";
-    }
-
-    if (!CaselessEq<std::string>()(layer.type, "DepthToSpace")) {
-        THROW_IE_EXCEPTION << "layer '" << layer.name << "' is not correct";
-    }
-
-    TransparentBaseTransformation::transform(context, layer);
+void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
+    addPattern(
+        pass,
+        context,
+        make_op_pattern<opset1::DepthToSpace>({ make_op_label<ngraph::opset1::Multiply>() }));
 }
 
-bool DepthToSpaceTransformation::isPrecisionPreserved(const CNNLayer& layer) const noexcept {
+bool DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+    const std::shared_ptr<Node> depthToSpace = separateInStandaloneBranch(m.get_match_root());
+    if (!canBeTransformed(context, depthToSpace)) {
+        return false;
+    }
+    moveDequantizationAfter(context, depthToSpace, NetworkHelper::getDequantization(depthToSpace), true);
     return true;
 }
 
-bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& context, const CNNLayer& layer) const {
-    if (!TransparentBaseTransformation::canBeTransformed(context, layer)) {
+bool DepthToSpaceTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return true;
+}
+
+bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    if (!LayerTransformation::canBeTransformed(context, layer)) {
         return false;
     }
 
-    const std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(layer);
-    if (parents.size() != 1) {
-        return false;
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+    if (dequantization.multiply != nullptr) {
+        auto multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+        if (!NetworkHelper::isScalarLike(multiplyConst)) {
+            return false;
+        }
     }
 
-    if (parents[0]->type != "ScaleShift") {
-        return false;
-    }
-
-    const std::vector<size_t> inputDims = parents[0]->outData[0]->getDims();
-    if (inputDims.size() < 3) {
-        return false;
-    }
-
-    const size_t inputChannels = CNNNetworkHelper::getInputChannelsCount(layer);
-    const size_t outputChannels = CNNNetworkHelper::getOutputChannelsCount(layer);
-    if (inputChannels != outputChannels) {
-        std::vector<float> scales;
-        std::vector<float> shifts;
-        fillFromDequantizationLayer(*parents[0], scales, shifts);
-
-        if (!DequantizationDetails::isPerTensor(scales, shifts)) {
+    if (dequantization.subtract != nullptr) {
+        auto subtractConst = as_type_ptr<opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(1));
+        if (!NetworkHelper::isScalarLike(subtractConst)) {
             return false;
         }
     }

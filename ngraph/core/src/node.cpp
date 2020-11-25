@@ -227,25 +227,10 @@ void Node::set_argument(size_t position, const Output<Node>& argument)
     get_input_descriptor(position).replace_output(output_descriptor);
 }
 
-// While we are still doing validation and type inference in the constructor, this is true
-// The #define can be commented out to debug doing validation/inference after construction.
-// When that is working, these two functions will be removed.
-#define IN_TRANSITION
-
 void Node::constructor_validate_and_infer_types()
 {
-#ifdef IN_TRANSITION
     validate_and_infer_types();
-#endif
 }
-
-void Node::delayed_validate_and_infer_types()
-{
-#ifndef IN_TRANSITION
-    validate_and_infer_types();
-#endif
-}
-#undef IN_TRANSITION
 
 void Node::set_output_size(size_t n)
 {

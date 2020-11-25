@@ -50,25 +50,11 @@ def run_cmd(args: list, log=None, verbose=True):
     return proc.returncode, ''.join(output)
 
 
-def read_stats(stats_path, stats: dict):
-    """Read statistics from a file and extend provided statistics"""
-    with open(stats_path, "r") as file:
-        parsed_data = yaml.safe_load(file)
-    return dict((step_name, stats.get(step_name, []) + [duration])
-                for step_name, duration in parsed_data.items())
-
-
 def aggregate_stats(stats: dict):
     """Aggregate provided statistics"""
     return {step_name: {"avg": statistics.mean(duration_list),
                         "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
-
-
-def write_aggregated_stats(stats_path, stats: dict):
-    """Write aggregated statistics to a file in YAML format"""
-    with open(stats_path, "w") as file:
-        yaml.safe_dump(stats, file)
 
 
 def prepare_executable_cmd(args: dict):
@@ -96,10 +82,18 @@ def run_timetest(args: dict, log=None):
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
             return retcode, {}
 
-        stats = read_stats(tmp_stats_path, stats)
+        # Read raw statistics
+        with open(tmp_stats_path, "r") as file:
+            raw_data = yaml.safe_load(file)
+        log.debug("Raw statistics after run of executable #{}: {}".format(run_iter, raw_data))
+
+        # Combine statistics from several runs
+        stats = dict((step_name, stats.get(step_name, []) + [duration])
+                     for step_name, duration in raw_data.items())
 
     # Aggregate results
     aggregated_stats = aggregate_stats(stats)
+    log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
     return 0, aggregated_stats
 
@@ -154,7 +148,8 @@ if __name__ == "__main__":
 
     if args.stats_path:
         # Save aggregated results to a file
-        write_aggregated_stats(args.stats_path, aggr_stats)
+        with open(args.stats_path, "w") as file:
+            yaml.safe_dump(aggr_stats, file)
         logging.info("Aggregated statistics saved to a file: '{}'".format(
             args.stats_path.resolve()))
     else:

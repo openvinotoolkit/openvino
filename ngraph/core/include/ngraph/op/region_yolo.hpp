@@ -79,7 +79,7 @@ namespace ngraph
                 int m_axis;
                 int m_end_axis;
             };
-        }
+        } // namespace v0
         using v0::RegionYolo;
-    }
-}
+    } // namespace op
+} // namespace ngraph

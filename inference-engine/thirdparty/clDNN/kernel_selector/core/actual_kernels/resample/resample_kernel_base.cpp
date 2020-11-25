@@ -58,40 +58,29 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
 }
 
 ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_selector::resample_params &arg) const {
-    DispatchData runInfo;
-    std::vector<size_t> global;
-    std::vector<size_t> local;
+    DispatchData dispatchData;
     const auto& out = arg.output;
 
     if (arg.resampleType == ResampleType::NEAREST_NEIGHBOR)
-        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
     else if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX)
-        global = {Align(out.X().v, 32), out.Y().v, out.Batch().v};
+        dispatchData.gws = { Align(out.X().v, 32), out.Y().v, out.Batch().v };
     else if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP)
-        global = {out.X().v * out.Y().v, CeilDiv(out.Feature().v, GetFeatureBlockSize(arg)), out.Batch().v * out.Z().v};
+        dispatchData.gws = { out.X().v * out.Y().v, CeilDiv(out.Feature().v, GetFeatureBlockSize(arg)), out.Batch().v * out.Z().v };
     else
-        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
 
-    local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
 
     if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) {
-        local[0] = 32;
-        local[1] = 1;
-        local[2] = 1;
+        dispatchData.lws[0] = 32;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
+    dispatchData.efficiency = FORCE_PRIORITY_7;
 
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    runInfo.efficiency = FORCE_PRIORITY_7;
-    runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
-
-    return runInfo;
+    return dispatchData;
 }
 
 bool ResampleKernelBase::Validate(const Params& p, const optional_params& o) const {
@@ -227,16 +216,16 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
     KernelData kd = KernelData::Default<resample_params>(params);
     resample_params& newParams = *static_cast<resample_params*>(kd.params.get());
 
-    auto runInfo = SetDefault(newParams);
+    auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = runInfo.efficiency;
+    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

@@ -18,7 +18,7 @@ from mo.graph.graph import Graph, Node, rename_nodes
 from mo.ops.flatten import FlattenONNX
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
-from mo.ops.softmax import LogSoftmax
+from mo.ops.log_softmax import LogSoftmax
 
 
 class LogSoftmaxONNXFrontReplacer(FrontReplacementOp):

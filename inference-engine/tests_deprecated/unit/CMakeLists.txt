@@ -6,6 +6,8 @@ cmake_policy(SET CMP0054 NEW)
 
 set(TARGET_NAME InferenceEngineUnitTests)
 
+disable_deprecated_warnings()
+
 # rpath enabled for unit tests only
 SET (CMAKE_SKIP_RPATH OFF)
 
@@ -118,6 +120,11 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 
+# because IE unit tests use plugin and IE object files compiled with LTO
+if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+endif()
+
 ## Mock macros doesn't use "override" specificator
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-error=inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-error=inconsistent-missing-override >)
@@ -135,9 +142,9 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     ${GNA_TEST_ENGINE}
 
     # dynamic libraries
-    inference_engine_lp_transformations
     inference_engine_transformations
-    inference_engine_ir_v7_reader)
+    inference_engine_ir_v7_reader
+    inference_engine_lp_transformations)
 
 if(TARGET libGNAStubs)
     target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)

@@ -6,12 +6,12 @@
 
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
-# include <legacy/ie_ngraph_utils.hpp>
-# include <cpp/ie_cnn_network.h>
+# include <ngraph/op/util/sub_graph_base.hpp>
+# include <ie_ngraph_utils.hpp>
 #endif  // IR_READER_V10
 
 #include <ie_blob.h>
-#include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 #include <ie_iextension.h>
 #include <xml_parse_utils.h>
 
@@ -30,14 +30,14 @@ class IParser {
 public:
     using Ptr = std::shared_ptr<IParser>;
     virtual ~IParser() = default;
-    virtual std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) = 0;
+    virtual std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights) = 0;
 };
 
 class IRParser {
 public:
     explicit IRParser(size_t version);
     IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts);
-    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream);
+    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights);
     virtual ~IRParser() = default;
 
 private:
@@ -47,7 +47,7 @@ private:
 class CNNParser : public IParser {
 public:
     CNNParser() = default;
-    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) override;
+    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights) override;
 };
 
 #ifdef IR_READER_V10
@@ -55,10 +55,11 @@ public:
 class V10Parser : public IParser {
 public:
     explicit V10Parser(const std::vector<IExtensionPtr>& exts);
-    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) override;
+    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights) override;
 
 private:
     std::map<std::string, ngraph::OpSet> opsets;
+    const std::vector<IExtensionPtr> _exts;
 
     struct GenericLayerParams {
         struct LayerPortData {
@@ -102,6 +103,10 @@ private:
         std::string type;
 
     protected:
+        static std::shared_ptr<ngraph::Node> fillSubGraphLayer(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
+                                                        const Blob::CPtr& weights,
+                                                        const GenericLayerParams& layerParsePrms,
+                                                        std::shared_ptr<ngraph::op::util::SubGraphOp> subgraph_op);
         explicit LayerBaseCreator(const std::string& type): type(type) {}
         std::string getType() {
             return type;
@@ -147,7 +152,7 @@ private:
     public:
         virtual ~LayerBaseCreator() {}
         virtual std::shared_ptr<ngraph::Node> createLayer(const ngraph::OutputVector& inputs,
-                                                          const pugi::xml_node& node, std::istream& binStream,
+                                                          const pugi::xml_node& node, const Blob::CPtr& weights,
                                                           const GenericLayerParams& layerParsePrms) = 0;
 
         bool shouldCreate(const std::string& nodeType) const;
@@ -159,7 +164,7 @@ private:
     public:
         explicit LayerCreator(const std::string& type): LayerBaseCreator(type) {}
         std::shared_ptr<ngraph::Node> createLayer(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
-                                                  std::istream& binStream,
+                                                  const Blob::CPtr& weights,
                                                   const GenericLayerParams& layerParsePrms) override;
         ngraph::NodeTypeInfo getNodeType() const override {
             return T::type_info;
@@ -167,17 +172,17 @@ private:
     };
 
     std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
-                                             std::istream& binStream, const GenericLayerParams& params);
+                                             const Blob::CPtr& weights, const GenericLayerParams& params);
 
     GenericLayerParams parseGenericParams(const pugi::xml_node& node);
-    void parsePreProcess(CNNNetwork& network, const pugi::xml_node& root, std::istream& binStream);
+    void parsePreProcess(CNNNetwork& network, const pugi::xml_node& root, const Blob::CPtr& weights);
 
     std::map<std::string, DataPtr> portsToData;
     std::map<std::string, GenericLayerParams> layersParseInfo;
 
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
-        explicit XmlDeserializer(const pugi::xml_node& node): node(node) {}
+        explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights): node(node), weights(weights) {}
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -238,7 +243,7 @@ private:
             } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
                 if (!getStrAttribute(node.child("data"), name, val)) return;
                 static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
-            }  else {
+            } else {
                 THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                                    << " parameter";
             }
@@ -251,12 +256,55 @@ private:
             stringToType<double>(val, value);
             adapter.set(value);
         }
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override  {
+            std::string value;
+            pugi::xml_node dn = node.child("data");
+            auto type = XMLParseUtils::GetStrAttr(node, "type");
+
+            if (dn.empty())
+                THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
+
+            if (getStrAttribute(dn, name, value)) {
+                auto data = static_cast<char*>(adapter.get_ptr());
+                size_t length = std::min(value.size(), adapter.size());
+                value.copy(data, length);
+            } else if (name == "value" && type == "Const") {
+                std::vector<int64_t> shape;
+                std::string el_type_str;
+
+                size_t offset = XMLParseUtils::GetUInt64Attr(dn, "offset");
+                size_t size = XMLParseUtils::GetUInt64Attr(dn, "size");
+                if (!getStrAttribute(dn, "element_type", el_type_str)) return;
+                if (!getParameters<int64_t>(dn, "shape", shape)) return;
+
+                ngraph::element::Type el_type = details::convertPrecision(el_type_str);
+
+                size_t length = weights->byteSize();
+                if (!length)
+                    THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
+                if (length < offset + size)
+                    THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
+                if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
+                    THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
+
+                auto data = static_cast<char*>(adapter.get_ptr());
+                char* weights_data = weights->cbuffer().as<char*>() + offset;
+
+                std::memcpy(data, weights_data, size);
+            }
+        }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val))
                 return;
             int64_t value;
             stringToType<int64_t>(val, value);
+            adapter.set(value);
+        }
+
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+            std::vector<int32_t> value;
+            if (!getParameters<int32_t>(node.child("data"), name, value)) return;
             adapter.set(value);
         }
 
@@ -274,6 +322,7 @@ private:
 
     private:
         const pugi::xml_node node;
+        const Blob::CPtr& weights;
 
         bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
             if (!node) return false;

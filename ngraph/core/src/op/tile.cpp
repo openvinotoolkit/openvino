@@ -115,11 +115,18 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
     {
         output_shape[i] = data_shape[i] * repeats_val[i];
     }
+
+    if (!output->get_is_allocated())
+    {
+        output->set_shape(output_shape);
+    }
+
     runtime::reference::tile(data->get_data_ptr<const char>(),
                              output->get_data_ptr<char>(),
                              data->get_shape(),
                              output_shape,
-                             data->get_element_type().size());
+                             data->get_element_type().size(),
+                             repeats_val);
 
     return true;
 }
