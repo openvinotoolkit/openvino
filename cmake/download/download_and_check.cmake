@@ -30,7 +30,7 @@ function (DownloadAndCheck from to fatal result sha256)
             TIMEOUT 2000
             RESULT_VARIABLE status_code)
           file(SHA256 ${to} CHECKSUM)
-          if (NOT "${SHA256}" STREQUAL "skip" AND NOT ${CHECKSUM} STREQUAL ${sha256})
+          if (NOT ${CHECKSUM} STREQUAL ${sha256})
             message(FATAL_ERROR "Hash mismatch:\n"
               "expected: ${sha256}\n"
               "got: ${CHECKSUM}")
