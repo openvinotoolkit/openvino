@@ -163,9 +163,11 @@ public:
      * @deprecated Cast to MemoryBlob and use its API instead.
      * Blob class can represent compound blob, which do not refer to the only solid memory.
      *
-     * @brief Returns the number of bytes per element.
+     * @brief Provides the number of bytes per element.
      *
      * The overall Blob capacity is size() * element_size(). Abstract method.
+     *
+     * @return Returns the number of bytes per element
      */
     virtual size_t element_size() const noexcept = 0;
 
@@ -257,7 +259,7 @@ protected:
 
 /**
  * @brief Helper cast function to work with shared Blob objects
- *
+ * @param blob A blob to cast
  * @return shared_ptr to the type T. Returned shared_ptr shares ownership of the object with the
  *         input Blob::Ptr
  */
@@ -270,7 +272,7 @@ std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
 
 /**
  * @brief Helper cast function to work with shared Blob objects
- *
+ * @param blob A blob to cast
  * @return shared_ptr to the type const T. Returned shared_ptr shares ownership of the object with
  *         the input Blob::Ptr
  */

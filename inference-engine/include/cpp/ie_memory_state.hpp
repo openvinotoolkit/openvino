@@ -71,8 +71,8 @@ public:
     }
 
     /**
-     * @deprecated
      * @copybrief IVariableState::GetLastState
+     * @deprecated Use IVariableState::SetState instead
      *
      * Wraps IVariableState::GetLastState
      * @return A blob representing a last state 
@@ -93,7 +93,7 @@ public:
     }
 };
 
-/*
+/**
  * @brief For compatibility reasons.
  */
 using MemoryState = VariableState;

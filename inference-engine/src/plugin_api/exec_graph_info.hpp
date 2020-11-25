@@ -134,7 +134,7 @@ public:
      *
      * @param[in]  visitor  An attribute visitor
      *
-     * @return     Returns `true` is operation has completed successfully
+     * @return     Returns `true` if an operation has completed successfully
      */
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
         return true;

@@ -130,6 +130,11 @@ public:
     bool operator!=(const BlockingDesc& rhs) const;
 
 protected:
+    /**
+     * @brief Fills tensor descriptor based on blocking dimensions and specific order
+     * @param blocked_dims A vector representing blocking dimensions
+     * @param order A vector with specific dims order
+     */
     void fillDesc(const SizeVector& blocked_dims, const SizeVector& order);
 
 private:

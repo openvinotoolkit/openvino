@@ -81,8 +81,9 @@ public:
     virtual StatusCode GetState(Blob::CPtr& state, ResponseDesc* resp) const noexcept = 0;
 };
 
-/*
+/**
  * @brief For compatibility reasons.
  */
 using IMemoryState = IVariableState;
+
 }  // namespace InferenceEngine
