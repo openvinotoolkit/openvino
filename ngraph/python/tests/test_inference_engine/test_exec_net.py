@@ -3,7 +3,7 @@ import os
 import pytest
 import warnings
 
-from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork, DataPtr
+from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork, DataPtr, InputInfoPtr, InputInfoCPtr
 
 
 def image_path():
@@ -56,9 +56,10 @@ def test_input_info(device):
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(network=net, device_name=device, config={})
     print("val")
-    #assert isinstance(exec_net.input_info['data'], InputInfoPtr)
-    assert exec_net.input_info['data'].name == "data"
-    assert exec_net.input_info['data'].precision == "FP32"
+    assert not(isinstance(exec_net.input_info['data'], InputInfoPtr))
+    assert isinstance(exec_net.input_info['data'], InputInfoCPtr)
+    # assert exec_net.input_info['data'].name == "data"
+    # assert exec_net.input_info['data'].precision == "FP32"
     assert isinstance(exec_net.input_info['data'].input_data, DataPtr)
     del exec_net
     del ie_core

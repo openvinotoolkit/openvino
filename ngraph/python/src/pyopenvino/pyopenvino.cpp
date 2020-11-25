@@ -25,7 +25,6 @@
 #include "inference_engine/ie_version.hpp"
 #include "inference_engine/ie_parameter.hpp"
 #include "inference_engine/ie_input_info.hpp"
-#include "inference_engine/ie_const_input_info.hpp"
 #include "inference_engine/ie_data.hpp"
 
 #include <string>
@@ -88,5 +87,4 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Parameter(m);
     regclass_Data(m);
     regclass_InputInfo(m);
-    regclass_ConstInputInfo(m);
 }
