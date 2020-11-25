@@ -19,7 +19,6 @@ namespace InferenceEngine {
  */
 template <class T>
 class VariableStateBase : public IVariableState {
-protected:
     std::shared_ptr<T> impl;
 
 public:
