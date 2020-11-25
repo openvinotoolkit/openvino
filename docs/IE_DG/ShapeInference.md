@@ -13,8 +13,8 @@ OpenVINO™ provides the following methods for runtime model reshaping:
 
 * **Set a new batch dimension value** with the `InferenceEngine::CNNNetwork::setBatchSize` method.<br>     
    The meaning of a model batch may vary depending on the model design.
-   This method doesn't deduce batch placement for inputs of the model from the model architecture.
-   It assumes batch is placed under the index 0 in the shape for all the inputs and uses `InferenceEngine::CNNNetwork::reshape` method to propagate updated shapes through the model.
+   This method does not deduce batch placement for inputs from the model architecture.
+   It assumes that the batch is placed at the zero index in the shape for all inputs and uses the `InferenceEngine::CNNNetwork::reshape` method to propagate updated shapes through the model.
 
    The method transforms the model before a new shape propagation to relax a hard-coded batch dimension in the model, if any.
 
@@ -23,10 +23,10 @@ OpenVINO™ provides the following methods for runtime model reshaping:
    * Input without a batch dimension
    * scalar, 1D, 3D input or input without a batch dimension
 
-   `InferenceEngine::CNNNetwork::setBatchSize` method is a high level API method which wraps `InferenceEngine::CNNNetwork::reshape` method call and works for trivial models from the batch placement standpoint.
-   Please use `InferenceEngine::CNNNetwork::reshape` for all the other models.
+   The `InferenceEngine::CNNNetwork::setBatchSize` method is a high-level API method that wraps the `InferenceEngine::CNNNetwork::reshape` method call and works for trivial models from the batch placement standpoint.
+   Use `InferenceEngine::CNNNetwork::reshape` for other models.
 
-   Using `InferenceEngine::CNNNetwork::setBatchSize` method for models with a non-zero index batch placement or models with inputs without a batch dimension may lead to undefined behaviour.
+   Using the `InferenceEngine::CNNNetwork::setBatchSize` method for models with a non-zero index batch placement or for models with inputs that do not have a batch dimension may lead to undefined behaviour.
     
 You can change input shapes multiple times using the `InferenceEngine::CNNNetwork::reshape` and `InferenceEngine::CNNNetwork::setBatchSize` methods in any order.
 If a model has a hard-coded batch dimension, use `InferenceEngine::CNNNetwork::setBatchSize` first to change the batch, then call `InferenceEngine::CNNNetwork::reshape` to update other dimensions, if needed.
