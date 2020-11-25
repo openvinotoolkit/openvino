@@ -33,7 +33,7 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
     #if TBB_INTERFACE_VERSION >= 12010// TBB has hybrid CPU aware task_arena api
     auto core_types = oneapi::tbb::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
-        const auto little_cores = *core_types.begin();
+        const auto little_cores = core_types.front();
         // check that hwloc recognizes the relative cores efficiency
         if (oneapi::tbb::info::efficiency(little_cores) != -1) {
             // assuming the Little cores feature no hyper-threading
