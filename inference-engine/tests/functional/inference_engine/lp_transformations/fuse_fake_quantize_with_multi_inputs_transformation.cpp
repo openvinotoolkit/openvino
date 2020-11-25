@@ -136,7 +136,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     FuseFakeQuantizeWithMultiInputsTransformation,
     ::testing::ValuesIn(testValues),
     FuseFakeQuantizeWithMultiInputsTransformation::getTestCaseName);

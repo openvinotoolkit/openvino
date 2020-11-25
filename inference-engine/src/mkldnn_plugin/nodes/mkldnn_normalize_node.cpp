@@ -708,13 +708,10 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
     if (inData == nullptr) {
         THROW_IE_EXCEPTION << errPrefix << "has nullable input data.";
     }
-    const auto& layout = inData->getLayout();
     const auto& inDims = inData->getDims();
-    size_t channels = 1lu;
-    if (layout == Layout::NCHW || layout == Layout::NC)
-        channels = inDims[1];
-    else
-        THROW_IE_EXCEPTION << errPrefix << "has unsupported layout: '" << layout << "'.";
+    if (inDims.size() < 2)
+        THROW_IE_EXCEPTION << errPrefix << "has unsupported layout: '" << inData->getLayout() << "'.";
+    const size_t channels = inDims[1];
     const auto weightsSize = tweights->size();
     if (weightsSize != channels) {
         if (weightsSize == 1) {
@@ -727,7 +724,12 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
     weights_prec = tweights->getTensorDesc().getPrecision();
 
     if (weights_prec == Precision::FP32) {
-        weights_blob = tweights;
+        TensorDesc td(Precision::FP32, tweights->getTensorDesc().getDims(), tweights->getTensorDesc().getLayout());
+        weights_blob = make_shared_blob<float>(td);
+        weights_blob->allocate();
+        float* src = layer->blobs.at("weights")->buffer();
+        float* dst = weights_blob->wmap();
+        memcpy(dst, src, layer->blobs.at("weights")->byteSize());
     } else if (weights_prec == Precision::BF16) {
         MKLDNNPlugin::BF16Transformer transformer;
         weights_blob = transformer.convertBF16ToFloat(tweights);

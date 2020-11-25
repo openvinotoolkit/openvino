@@ -135,16 +135,12 @@ xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "While validating node 'v1::<name> (sizes[0]:i64{4},"
                                       "Convert_29306[0]:f32{4}) -> (dynamic?)' with friendly_name '<name>':"
                                       "Argument element types are inconsistent.")
-xfail_issue_42297 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Conv): Conv__7398>':"
-                                      "Check 'data.get_partial_shape().rank().is_static()'"
-                                      " failed at ngraph/frontend/onnx_import/src/op/conv.cpp:102:"
-                                      "The input data tensor's rank has to be known (static)")
-xfail_issue_41814 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop):"
-                                      " generic_loop_Loop__121>':"
-                                      "While validating ONNX node '<Node(TopK):"
-                                      " map_1/while/select_bboxes/sort_bboxes_10/TopKV2>':"
-                                      "Check 'tensor_rank.is_static()' failed at"
-                                      " ngraph/core/src/validation_util.cpp:882:")
+xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+                                      "If")
+xfail_issue_43439 = xfail_test(reason="Check 'tensor_rank.is_static()' failed at "
+                                      "ngraph/core/src/validation_util.cpp:884:"
+                                      "map_1/while/select_bboxes/sort_bboxes_10/TopKV2 "
+                                      "Rank must be static in order to normalize negative axis=-1")
 xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
                                       "While validating node 'v1::OneHot OneHot_<number>"
                                       "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
@@ -175,7 +171,6 @@ xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "NegativeLogLikelihoodLoss")
 
 # Model ONNX Zoo issues:
-xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismatch")
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
                                       "('Expected %s parameters, received %s.', 1, 3)")
 xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::Transpose 315,"
@@ -211,3 +206,10 @@ xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of ty
 xfail_issue_43380 = xfail_test(reason="RuntimeError: Sorting not possible, due to existed loop")
 xfail_issue_43382 = xfail_test(reason="Testing models which have upper bound output shape is not supported")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
+
+
+xfail_issue_39704 = xfail_test(reason="ResNet101_DUC_HDC - AssertionError: zoo models results mismatch")
+xfail_issue_43208 = xfail_test(reason="GPT-2 - AssertionError: zoo models results mismatch")
+xfail_issue_43209 = xfail_test(reason="GPT-2-LM-HEAD - AssertionError: zoo models results mismatch")
+xfail_issue_43213 = xfail_test(reason="RetinaNet Resnet101 - AssertionError: zoo models results mismatch")
+xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
