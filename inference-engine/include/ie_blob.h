@@ -782,6 +782,12 @@ protected:
         return _handle.get();
     }
 
+    /**
+     * @brief Creates a blob from the existing blob with a given ROI
+     * @param origBlob An original blob
+     * @param roi A ROI object
+     * @return A ROI blob pointing to a subregion of `origBlob`
+     */
     TBlob(const TBlob& origBlob, const ROI& roi) :
             MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)),
             _allocator(origBlob._allocator) {
