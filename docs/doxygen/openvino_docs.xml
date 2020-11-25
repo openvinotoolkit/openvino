@@ -39,6 +39,7 @@
                 <tab type="user" title="Linux" url="@ref openvino_docs_get_started_get_started_linux"/>
                 <tab type="user" title="Windows" url="@ref openvino_docs_get_started_get_started_windows"/>
                 <tab type="user" title="macOS" url="@ref openvino_docs_get_started_get_started_macos"/>
+                <tab type="user" title="Get Started with OpenVINO via DL Workbench" url="@ref openvino_docs_get_started_get_started_dl_workbench"/>
                 <tab type="user" title="Legal Information" url="@ref openvino_docs_Legal_Information"/>
                 <tab type="user" title="Introduction to DL Workbench" url="./openvino_docs_get_started_get_started_dl_workbench.html"/><!-- Link to the original Workbench topic -->
             </tab>
@@ -129,8 +130,8 @@
                 <tab type="user" title="Automatic Speech Recognition C++ Sample" url="@ref openvino_inference_engine_samples_speech_sample_README"/>
                 <tab type="user" title="Neural Style Transfer C++ Sample" url="@ref openvino_inference_engine_samples_style_transfer_sample_README"/>
                 <tab type="user" title="Neural Style Transfer Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_style_transfer_sample_README"/>
-                <tab type="user" title="Benchmark C++ App" url="@ref openvino_inference_engine_samples_benchmark_app_README"/>
-                <tab type="user" title="Benchmark Python* App" url="@ref openvino_inference_engine_tools_benchmark_tool_README"/>
+                <tab type="user" title="Benchmark C++ Tool" url="@ref openvino_inference_engine_samples_benchmark_app_README"/>
+                <tab type="user" title="Benchmark Python* Tool" url="@ref openvino_inference_engine_tools_benchmark_tool_README"/>
             </tab>
 
             <!-- DL Streamer Examples -->
