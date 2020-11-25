@@ -11,7 +11,7 @@ The open source version is available in the [OpenVINO™ toolkit GitHub reposito
 
 To learn about how to use the Inference Engine API for your application, see the [Integrating Inference Engine in Your Application](Integrate_with_customer_application_new_API.md) documentation.
 
-For complete API Reference, see the [API Reference](usergroup29.html) section.
+For complete API Reference, see the [Inference Engine API References](./api_references.html) section.
 
 Inference Engine uses a plugin architecture. Inference Engine plugin is a software component that contains complete implementation for inference on a certain Intel&reg; hardware device: CPU, GPU, VPU, etc. Each plugin implements the unified API and provides additional hardware-specific APIs.
 
