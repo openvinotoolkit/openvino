@@ -80,8 +80,7 @@ data = [
   * **Description**: Which axis to gather on. Negative value means counting dimensions from the back. 
   * **Range of values**: `[-r, r-1]` where `r = rank(data)`.
   * **Type**: int
-  * **Default value**: 0
-  * **Required**: *no*
+  * **Required**: *yes*
 
 
 **Inputs**:
