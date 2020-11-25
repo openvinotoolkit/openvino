@@ -126,6 +126,16 @@ public:
             testValues.result.dequantization2,
             testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter);
+
+        //referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReference(
+        //    precision,
+        //    shape,
+        //    testValues.result.fakeQuantize1,
+        //    testValues.result.fakeQuantize2,
+        //    testValues.result.precisionBeforeOp,
+        //    testValues.result.dequantizationOperations1,
+        //    testValues.result.precisionAfterOperation,
+        //    testValues.result.dequantizationOperations2);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
@@ -151,7 +161,7 @@ TEST_P(ConcatTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    //ngraph::element::f16
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {

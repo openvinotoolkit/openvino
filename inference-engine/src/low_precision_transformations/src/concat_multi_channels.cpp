@@ -116,7 +116,8 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
             dataPrecision.min,
             dataPrecision.max,
             dataPrecision.precision == currentDataPrecision.precision ? currentDataPrecision.hasZeroPoint : true,
-            updatePrecisions);
+            updatePrecisions,
+            deqPrecision);
         dequantizations[fakeQuantizeLayer->get_friendly_name()] = fakeQuantizeDequantization;
 
         // 2. update FakeQuantize - one time action

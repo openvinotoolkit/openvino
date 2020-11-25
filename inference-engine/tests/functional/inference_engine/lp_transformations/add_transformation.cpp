@@ -22,6 +22,7 @@
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
@@ -46,6 +47,8 @@ public:
         std::vector<float> constValues;
         std::string operationType;
 
+        Expected() = default;
+
         Expected(const ngraph::element::Type& precision1,
                  ngraph::builder::subgraph::DequantizationOperations dequantization1,
                  const ngraph::element::Type& precision2,
@@ -68,6 +71,11 @@ public:
     std::string additionalLayer;
 };
 
+typedef std::tuple <
+    ngraph::element::Type,
+    AddTransformationTestValues
+> AddTransformationParams;
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
     os << "{ ";
@@ -81,13 +89,14 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
     return os;
 }
 
-class AddTransformation : public LayerTransformation, public testing::WithParamInterface<AddTransformationTestValues> {
+class AddTransformation : public LayerTransformation, public testing::WithParamInterface<AddTransformationParams> {
 public:
     void SetUp() override {
-        const AddTransformationTestValues testValues = GetParam();
+        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const AddTransformationTestValues& testValues = std::get<1>(GetParam());
 
         actualFunction = AddFunction::getOriginal(
-            testValues.precision,
+            precision,
             testValues.inputShape,
             testValues.broadcast,
             testValues.params,
@@ -101,32 +110,33 @@ public:
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
-            low_precision::LayerTransformation::Params(testValues.params));
+                low_precision::LayerTransformation::Params(testValues.params));
         transform.transform(actualFunction);
 
         referenceFunction = AddFunction::getReference(
-            testValues.precision,
-            testValues.inputShape,
-            testValues.broadcast,
-            testValues.params,
-            testValues.expected.precision1,
-            testValues.expected.dequantization1,
-            testValues.expected.precision2,
-            testValues.expected.dequantization2,
-            testValues.expected.dequantizationAfter,
-            // Constant operations after transformations are on 1 input only
-            testValues.constInput == -1 ? -1 : 1,
-            testValues.expected.constValues,
-            testValues.additionalLayer,
-            testValues.expected.operationType);
+                precision,
+                testValues.inputShape,
+                testValues.broadcast,
+                testValues.params,
+                testValues.expected.precision1,
+                testValues.expected.dequantization1,
+                testValues.expected.precision2,
+                testValues.expected.dequantization2,
+                testValues.expected.dequantizationAfter,
+                // Constant operations after transformations are on 1 input only
+                testValues.constInput == -1 ? -1 : 1,
+                testValues.expected.constValues,
+                testValues.additionalLayer,
+                testValues.expected.operationType);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<AddTransformationTestValues> obj) {
-        const AddTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<AddTransformationParams> obj) {
+        const element::Type precision = std::get<0>(obj.param);
+        const AddTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
         result <<
-            testValues.precision << "_" <<
+            precision << "_" <<
             testValues.inputShape << "_" <<
             testValues.broadcast << "_" <<
             testValues.actual.precision1 << "_" <<
@@ -145,6 +155,11 @@ TEST_P(AddTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+const std::vector<ngraph::element::Type> netPrecision = {
+    element::f32,
+    //element::f16
+};
 
 const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     // Multiply with zero on the first branch
@@ -647,129 +662,131 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         "group_convolution"
     },
 
-    // Actual:
-    //
-    // Parameter          Parameter Constant
-    //  |U8                 |U8      |U8
-    //  |                   |        |
-    // Convert Constant    Convert  Convert
-    //  \FP32  /FP32        \FP32   /FP32
-    //   \    /              \     /
-    //  Subtract  Constant  Subtract  Constant
-    //     \FP32   /FP32       \FP32  /FP32
-    //      \     /             \    /
-    //      Multiply           Multiply
-    //             \FP32      /FP32
-    //              \        /
-    //                 Add
-    // Transformed:
-    //
-    // Parameter
-    //   |U8
-    //   |
-    // Convert  Constant
-    //   \FP32   /FP32
-    //    \     /
-    //   Subtract    Constant
-    //      \FP32    /FP32
-    //       \      /
-    //      Multiply
-    {
-        ngraph::element::f32,
-        ngraph::Shape{1, 4, 16, 16},
-        false,
-        1,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {7.f},
-                { 10.f }
-            },
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                { {3.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
-                { 5.f }
-            },
-            {10.f}
-        },
-        {
-            ngraph::element::u8,
-            { {ngraph::element::f32}, {}, {}},
-            ngraph::element::u8,
-            { },
-            { {},  {}, {10.f} },
-            {3.5f},
-            "Subtract"
-        },
-        ""
-    },
+    //// Actual:
+    ////
+    //// Parameter          Parameter Constant
+    ////  |U8                 |U8      |U8
+    ////  |                   |        |
+    //// Convert Constant    Convert  Convert
+    ////  \FP32  /FP32        \FP32   /FP32
+    ////   \    /              \     /
+    ////  Subtract  Constant  Subtract  Constant
+    ////     \FP32   /FP32       \FP32  /FP32
+    ////      \     /             \    /
+    ////      Multiply           Multiply
+    ////             \FP32      /FP32
+    ////              \        /
+    ////                 Add
+    //// Transformed:
+    ////
+    //// Parameter
+    ////   |U8
+    ////   |
+    //// Convert  Constant
+    ////   \FP32   /FP32
+    ////    \     /
+    ////   Subtract    Constant
+    ////      \FP32    /FP32
+    ////       \      /
+    ////      Multiply
+    //{
+    //    ngraph::element::f32,
+    //    ngraph::Shape{1, 4, 16, 16},
+    //    false,
+    //    1,
+    //    LayerTransformation::createParamsU8I8(),
+    //    {
+    //        ngraph::element::u8,
+    //        {
+    //            {ngraph::element::f32},
+    //            {7.f},
+    //            { 10.f }
+    //        },
+    //        ngraph::element::u8,
+    //        {
+    //            {ngraph::element::f32},
+    //            { {3.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
+    //            { 5.f }
+    //        },
+    //        {10.f}
+    //    },
+    //    {
+    //        ngraph::element::u8,
+    //        { {ngraph::element::f32}, {}, {}},
+    //        ngraph::element::u8,
+    //        { },
+    //        { {},  {}, {10.f} },
+    //        {3.5f},
+    //        "Subtract"
+    //    },
+    //    ""
+    //},
 
-    // Actual:
-    //
-    // Constant Constant   Parameter
-    //  |U8      |U8        |U8
-    //  |        |          |
-    // Convert Convert    Convert  Constant
-    //  \FP32  /FP32        \FP32   /FP32
-    //   \    /              \     /
-    //  Subtract  Constant  Subtract  Constant
-    //     \FP32   /FP32       \FP32  /FP32
-    //      \     /             \    /
-    //      Multiply           Multiply
-    //             \FP32      /FP32
-    //              \        /
-    //                 Add
-    // Transformed:
-    //
-    // Parameter
-    //   |U8
-    //   |
-    // Convert  Constant
-    //   \FP32   /FP32
-    //    \     /
-    //   Subtract    Constant
-    //      \FP32    /FP32
-    //       \      /
-    //      Multiply
-    {
-        ngraph::element::f32,
-        ngraph::Shape{1, 4, 16, 16},
-        false,
-        0,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                { {7.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
-                { 10.f }
-            },
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                { 3.f },
-                { 5.f }
-            },
-            { 10.f }
-        },
-        {
-            ngraph::element::u8,
-            { {ngraph::element::f32}, {}, {}},
-            ngraph::element::u8,
-            { },
-            { {},  {}, { 5.f } },
-            { -3.f },
-            "Subtract"
-        },
-        ""
-    },
+    //// Actual:
+    ////
+    //// Constant Constant   Parameter
+    ////  |U8      |U8        |U8
+    ////  |        |          |
+    //// Convert Convert    Convert  Constant
+    ////  \FP32  /FP32        \FP32   /FP32
+    ////   \    /              \     /
+    ////  Subtract  Constant  Subtract  Constant
+    ////     \FP32   /FP32       \FP32  /FP32
+    ////      \     /             \    /
+    ////      Multiply           Multiply
+    ////             \FP32      /FP32
+    ////              \        /
+    ////                 Add
+    //// Transformed:
+    ////
+    //// Parameter
+    ////   |U8
+    ////   |
+    //// Convert  Constant
+    ////   \FP32   /FP32
+    ////    \     /
+    ////   Subtract    Constant
+    ////      \FP32    /FP32
+    ////       \      /
+    ////      Multiply
+    //{
+    //    ngraph::element::f32,
+    //    ngraph::Shape{1, 4, 16, 16},
+    //    false,
+    //    0,
+    //    LayerTransformation::createParamsU8I8(),
+    //    {
+    //        ngraph::element::u8,
+    //        {
+    //            {ngraph::element::f32},
+    //            { {7.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
+    //            { 10.f }
+    //        },
+    //        ngraph::element::u8,
+    //        {
+    //            {ngraph::element::f32},
+    //            { 3.f },
+    //            { 5.f }
+    //        },
+    //        { 10.f }
+    //    },
+    //    {
+    //        ngraph::element::u8,
+    //        { {ngraph::element::f32}, {}, {}},
+    //        ngraph::element::u8,
+    //        { },
+    //        { {},  {}, { 5.f } },
+    //        { -3.f },
+    //        "Subtract"
+    //    },
+    //    ""
+    //},
 };
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     AddTransformation,
-    ::testing::ValuesIn(addTransformationTestValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecision),
+        ::testing::ValuesIn(addTransformationTestValues)),
     AddTransformation::getTestCaseName);
