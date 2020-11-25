@@ -561,7 +561,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
             output.remove_target_input(input);
             auto result = std::make_shared<ngraph::op::Result>(output);
             ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
-            auto parameter = std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_shape());
+            auto parameter = std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_partial_shape());
             ngraph::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
             input.replace_source_output(parameter->output(0));
             results.push_back(result);
