@@ -912,7 +912,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<InferenceEngine::ConvolutionLayer>(attrs);
         res->params = params;
 
-        auto & rt_info = node->get_rt_info();
+        auto && rt_info = node->get_rt_info();
         bool keep_constants(false);
         if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
             keep_constants = attr->get();
@@ -922,7 +922,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto shape = node->get_input_shape(1);
         shape.erase(shape.begin(), shape.begin() + 2);
 
-        res->params["kernel"] = Builder::asString(dynamic_cast<std::vector<size_t>&>(shape));
+        res->params["kernel"] = Builder::asString(static_cast<std::vector<size_t>&>(shape));
         res->params["output"] = Builder::asString(node->get_shape()[1]);
 
         // forward auto_pad only when its value is different than explicit
