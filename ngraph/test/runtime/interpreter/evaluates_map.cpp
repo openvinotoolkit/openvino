@@ -24,6 +24,7 @@
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
+#include <ngraph/runtime/reference/non_max_suppression.hpp>
 #include <ngraph/runtime/reference/one_hot.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
@@ -34,7 +35,6 @@
 #include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
-#include <ngraph/runtime/reference/non_max_suppression.hpp>
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/reference/avg_pool.hpp"
 #include "ngraph/runtime/reference/convolution.hpp"
@@ -42,12 +42,12 @@
 #include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/detection_output.hpp"
-#include "ngraph/runtime/reference/hard_sigmoid.hpp"
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
 #include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
 #include "ngraph/runtime/reference/embedding_segments_sum.hpp"
 #include "ngraph/runtime/reference/fake_quantize.hpp"
 #include "ngraph/runtime/reference/gather_tree.hpp"
+#include "ngraph/runtime/reference/hard_sigmoid.hpp"
 #include "ngraph/runtime/reference/log_softmax.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
 #include "ngraph/runtime/reference/mvn.hpp"
@@ -294,6 +294,248 @@ namespace
         return true;
     }
 
+    namespace nms_v5
+    {
+        using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
+
+        struct InfoForNMS5
+        {
+            int64_t max_output_boxes_per_class;
+            float iou_threshold;
+            float score_threshold;
+            float soft_nms_sigma;
+            Shape out_shape;
+            Shape boxes_shape;
+            Shape scores_shape;
+            std::vector<float> boxes_data;
+            std::vector<float> scores_data;
+            size_t out_shape_size;
+            bool sort_result_descending;
+            ngraph::element::Type output_type;
+        };
+
+        constexpr size_t boxes_port = 0;
+        constexpr size_t scores_port = 1;
+        constexpr size_t max_output_boxes_port = 2;
+        constexpr size_t iou_threshold_port = 3;
+        constexpr size_t score_threshold_port = 4;
+        constexpr size_t soft_nms_sigma_port = 5;
+
+        PartialShape
+            infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                         int64_t max_output_boxes_per_class)
+        {
+            const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
+            const auto scores_ps = inputs[scores_port]->get_partial_shape();
+
+            // NonMaxSuppression produces triplets
+            // that have the following format: [batch_index, class_index, box_index]
+            PartialShape result = {Dimension::dynamic(), 3};
+
+            if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
+            {
+                const auto num_boxes_boxes = boxes_ps[1];
+                if (num_boxes_boxes.is_static() && scores_ps[0].is_static() &&
+                    scores_ps[1].is_static())
+                {
+                    const auto num_boxes = num_boxes_boxes.get_length();
+                    const auto num_classes = scores_ps[1].get_length();
+
+                    result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                                scores_ps[0].get_length();
+                }
+            }
+
+            return result;
+        }
+
+        std::vector<float> get_floats(const std::shared_ptr<HostTensor>& input, const Shape& shape)
+        {
+            size_t input_size = shape_size(shape);
+            std::vector<float> result(input_size);
+
+            switch (input->get_element_type())
+            {
+            case element::Type_t::bf16:
+            {
+                bfloat16* p = input->get_data_ptr<bfloat16>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = float(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::f16:
+            {
+                float16* p = input->get_data_ptr<float16>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = float(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::f32:
+            {
+                float* p = input->get_data_ptr<float>();
+                memcpy(result.data(), p, input_size * sizeof(float));
+            }
+            break;
+            default:
+                throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5");
+                break;
+            }
+
+            return result;
+        }
+
+        void normalize_corner(float* boxes, const Shape& boxes_shape)
+        {
+            size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+            for (size_t i = 0; i < total_num_of_boxes; ++i)
+            {
+                float* current_box = boxes + 4 * i;
+
+                float y1 = current_box[0];
+                float x1 = current_box[1];
+                float y2 = current_box[2];
+                float x2 = current_box[3];
+
+                float ymin = std::min(y1, y2);
+                float ymax = std::max(y1, y2);
+                float xmin = std::min(x1, x2);
+                float xmax = std::max(x1, x2);
+
+                current_box[0] = ymin;
+                current_box[1] = xmin;
+                current_box[2] = ymax;
+                current_box[3] = xmax;
+            }
+        }
+
+        void normalize_center(float* boxes, const Shape& boxes_shape)
+        {
+            size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+            for (size_t i = 0; i < total_num_of_boxes; ++i)
+            {
+                float* current_box = boxes + 4 * i;
+
+                float x_center = current_box[0];
+                float y_center = current_box[1];
+                float width = current_box[2];
+                float height = current_box[3];
+
+                float y1 = y_center - height / 2.0;
+                float x1 = x_center - width / 2.0;
+                float y2 = y_center + height / 2.0;
+                float x2 = x_center + width / 2.0;
+
+                current_box[0] = y1;
+                current_box[1] = x1;
+                current_box[2] = y2;
+                current_box[3] = x2;
+            }
+        }
+
+        void normalize_box_encoding(float* boxes,
+                                    const Shape& boxes_shape,
+                                    const V5BoxEncoding box_encoding)
+        {
+            if (box_encoding == V5BoxEncoding::CORNER)
+            {
+                normalize_corner(boxes, boxes_shape);
+            }
+            else
+            {
+                normalize_center(boxes, boxes_shape);
+            }
+        }
+
+        std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes,
+                                              const Shape& boxes_shape,
+                                              const V5BoxEncoding box_encoding)
+        {
+            auto result = get_floats(boxes, boxes_shape);
+            normalize_box_encoding(result.data(), boxes_shape, box_encoding);
+            return result;
+        }
+
+        std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores,
+                                               const Shape& scores_shape)
+        {
+            auto result = get_floats(scores, scores_shape);
+            return result;
+        }
+
+        InfoForNMS5 get_info_for_nms5_eval(const std::shared_ptr<op::v5::NonMaxSuppression>& nms5,
+                                           const std::vector<std::shared_ptr<HostTensor>>& inputs)
+        {
+            InfoForNMS5 result;
+
+            result.max_output_boxes_per_class = nms5->max_boxes_output_from_input();
+            result.iou_threshold = nms5->iou_threshold_from_input();
+            result.score_threshold = nms5->score_threshold_from_input();
+            result.soft_nms_sigma = nms5->soft_nms_sigma_from_input();
+
+            auto selected_indices_shape =
+                infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
+            result.out_shape = selected_indices_shape.to_shape();
+
+            result.boxes_shape = inputs[boxes_port]->get_shape();
+            result.scores_shape = inputs[scores_port]->get_shape();
+
+            result.boxes_data = prepare_boxes_data(
+                inputs[boxes_port], result.boxes_shape, nms5->get_box_encoding());
+            result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
+
+            result.out_shape_size = shape_size(result.out_shape);
+
+            result.sort_result_descending = nms5->get_sort_result_descending();
+
+            result.output_type = nms5->get_output_type();
+
+            return result;
+        }
+
+    } // namespace nms_v5
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v5::NonMaxSuppression>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        auto info = nms_v5::get_info_for_nms5_eval(op, inputs);
+
+        std::vector<int64_t> selected_indices(info.out_shape_size);
+        std::vector<float> selected_scores(info.out_shape_size);
+        int64_t valid_outputs = 0;
+
+        runtime::reference::non_max_suppression(info.boxes_data.data(),
+                                                info.boxes_shape,
+                                                info.scores_data.data(),
+                                                info.scores_shape,
+                                                info.max_output_boxes_per_class,
+                                                info.iou_threshold,
+                                                info.score_threshold,
+                                                info.soft_nms_sigma,
+                                                selected_indices.data(),
+                                                info.out_shape,
+                                                selected_scores.data(),
+                                                info.out_shape,
+                                                &valid_outputs,
+                                                info.sort_result_descending);
+
+        auto selected_scores_type =
+            (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
+
+        runtime::reference::nms5_postprocessing(outputs,
+                                                info.output_type,
+                                                selected_indices,
+                                                selected_scores,
+                                                valid_outputs,
+                                                selected_scores_type);
+        return true;
+    }
+
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::LRN>& op,
                   const HostTensorVector& outputs,
@@ -481,6 +723,7 @@ namespace
                                    inputs[1]->get_data_ptr<T>(),
                                    outputs[0]->get_data_ptr<T>(),
                                    inputs[0]->get_shape(),
+                                   inputs[1]->get_shape(),
                                    op->get_auto_broadcast());
         return true;
     }
@@ -983,15 +1226,15 @@ namespace
     {
         switch (inputs[2]->get_element_type())
         {
-            case element::Type_t::i64:
-            case element::Type_t::u64:
-                rnn_seq_v5::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
-                break;
-            case element::Type_t::i32:
-            case element::Type_t::u32:
-                rnn_seq_v5::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
-                break;
-            default: return false;
+        case element::Type_t::i64:
+        case element::Type_t::u64:
+            rnn_seq_v5::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+            break;
+        case element::Type_t::i32:
+        case element::Type_t::u32:
+            rnn_seq_v5::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+            break;
+        default: return false;
         }
         return true;
     }
@@ -1037,15 +1280,15 @@ namespace
     {
         switch (inputs[3]->get_element_type())
         {
-            case element::Type_t::i64:
-            case element::Type_t::u64:
-                lstm_seq_v5::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
-                break;
-            case element::Type_t::i32:
-            case element::Type_t::u32:
-                lstm_seq_v5::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
-                break;
-            default: return false;
+        case element::Type_t::i64:
+        case element::Type_t::u64:
+            lstm_seq_v5::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+            break;
+        case element::Type_t::i32:
+        case element::Type_t::u32:
+            lstm_seq_v5::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+            break;
+        default: return false;
         }
         return true;
     }
@@ -1088,15 +1331,15 @@ namespace
     {
         switch (inputs[2]->get_element_type())
         {
-            case element::Type_t::i64:
-            case element::Type_t::u64:
-                gru_seq_v5::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
-                break;
-            case element::Type_t::i32:
-            case element::Type_t::u32:
-                gru_seq_v5::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
-                break;
-            default: return false;
+        case element::Type_t::i64:
+        case element::Type_t::u64:
+            gru_seq_v5::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+            break;
+        case element::Type_t::i32:
+        case element::Type_t::u32:
+            gru_seq_v5::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+            break;
+        default: return false;
         }
         return true;
     }
@@ -1302,6 +1545,10 @@ namespace
         }
         for (size_t i = 1; i < node->outputs().size(); i++)
         {
+            if (is_type<op::v5::NonMaxSuppression>(node) && i == 1)
+            {
+                continue;
+            }
             if (element_type != node->get_output_element_type(i))
             {
                 throw std::logic_error("Output node element types is not equal");

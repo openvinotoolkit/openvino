@@ -39,7 +39,7 @@ namespace ngraph
                      double eps)
             {
                 auto reduced_shape = reduce(in_shape, reduction_axes, true);
-                std::vector<T> tmp_buffer(shape_size(reduced_shape));
+                std::vector<T> tmp_buffer(shape_size(in_shape));
                 mean(arg, tmp_buffer.data(), in_shape, reduction_axes, true);
                 subtract(arg,
                          tmp_buffer.data(),
@@ -50,17 +50,27 @@ namespace ngraph
 
                 if (normalize_variance)
                 {
-                    tmp_buffer.resize(shape_size(in_shape));
-                    std::vector<T> mean_value(shape_size(reduced_shape));
                     multiply(out, out, tmp_buffer.data(), shape_size(in_shape));
+                    std::vector<T> mean_value(shape_size(reduced_shape));
                     mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes, true);
 
-                    for (size_t i = 0; i < shape_size(in_shape); ++i)
-                    {
-                        out[i] /= (std::sqrt(mean_value.front()) + eps);
-                    }
+                    add(mean_value.data(),
+                        std::vector<T>(shape_size(reduced_shape), eps).data(),
+                        tmp_buffer.data(),
+                        reduced_shape,
+                        reduced_shape,
+                        op::AutoBroadcastSpec::NUMPY);
+                    sqrt(tmp_buffer.data(), tmp_buffer.data(), shape_size(reduced_shape));
+
+                    divide(out,
+                           tmp_buffer.data(),
+                           out,
+                           in_shape,
+                           reduced_shape,
+                           op::AutoBroadcastSpec::NUMPY,
+                           true);
                 }
             }
         } // namespace reference
-    } // namespace runtime
+    }     // namespace runtime
 } // namespace ngraph
