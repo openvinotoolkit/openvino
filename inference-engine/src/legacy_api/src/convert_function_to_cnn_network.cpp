@@ -910,9 +910,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto v = params.at("normalize_variance");
         res->params["normalize_variance"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
         res->params["eps"] = params.at("eps");
-        auto ra = details::split(params.at("reduction_axes"), ",");
-        // 1 is the channel axis:
-        res->params["across_channels"] = Builder::asString(stoi(ra[1]) > 0);
+        v = params.at("across_channels");
+        res->params["across_channels"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
 
         return res;
     });
