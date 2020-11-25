@@ -3,7 +3,9 @@
 //
 
 /**
- * @file
+ * @brief A header file that provides wrapper classes for IVariableState
+ *
+ * @file ie_memory_state.hpp
  */
 
 #pragma once
@@ -95,4 +97,5 @@ public:
  * @brief For compatibility reasons.
  */
 using MemoryState = VariableState;
+
 }  // namespace InferenceEngine
