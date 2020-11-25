@@ -28,7 +28,7 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
 
         std::vector<float> scales;
         for (std::size_t i = 0; i < inp_shape.size(); ++i) {
-            scales.emplace_back(static_cast<float>(inp_shape.at(i))/out_shape.at(i));
+            scales.emplace_back(static_cast<float>(out_shape.at(i))/inp_shape.at(i));
         }
         auto scalesConstant = ngraph::op::Constant::create(ngraph::element::f32, {scales.size()}, scales);
         auto axisConstant = ngraph::op::Constant::create(ngraph::element::i64, {attrsV0.axes.size()},
