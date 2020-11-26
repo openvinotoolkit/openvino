@@ -30,7 +30,7 @@ void convert(const void *srcPtr, void *dstPtr, const size_t size) {
 
 template <Precision::ePrecision p>
 struct PrecisionInfo {
-    using value_type = PrecisionTrait<p>::value_type;
+    using value_type = typename PrecisionTrait<p>::value_type;
 };
 
 template <>

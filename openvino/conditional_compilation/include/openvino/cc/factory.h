@@ -137,7 +137,15 @@ private:
         return std::to_string(val);
     }
 
-    using map_t = std::unordered_map<Key, builder_t>;
+    template <typename K>
+    struct EnumClassHash {
+        std::size_t operator()(K t) const {
+            return static_cast<std::size_t>(t);
+        }
+    };
+
+    using hash_t = typename std::conditional<std::is_enum<Key>::value, EnumClassHash<Key>, std::hash<Key>>::type;
+    using map_t = std::unordered_map<Key, builder_t, hash_t>;
 
     const std::string name;
     map_t builders;
