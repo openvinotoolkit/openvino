@@ -21,14 +21,11 @@ addIeTargetTest(
             "${XLINK_INCLUDE}"
             "${XLINK_PLATFORM_INCLUDE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/base"
-            $<TARGET_PROPERTY:ngraphFunctions,INTERFACE_INCLUDE_DIRECTORIES>
         LINK_LIBRARIES
             vpu_graph_transformer_test_static
             unitTestUtils
             mvnc
-            ${NGRAPH_LIBRARIES}
-            ngraph_backend
-            interpreter_backend
+            ngraphFunctions
             inference_engine_lp_transformations # for ngraphFunctions
         ADD_CPPLINT
         LABELS

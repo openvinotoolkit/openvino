@@ -7,7 +7,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
 namespace ngraph {

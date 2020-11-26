@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/low_precision_transformations/round_function.hpp"
-
 #include <ngraph/opsets/opset1.hpp>
+
+#include "lpt_ngraph_functions/round_function.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
+
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 
 using namespace ngraph::pass::low_precision;
 

@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ngraphFunctions)
+set(TARGET_NAME lptNgraphFunctions)
 
 list(APPEND EXPORT_DEPENDENCIES
-        ${NGRAPH_LIBRARIES}
-        ngraph_backend
-        interpreter_backend
+        ngraphFunctions
+        inference_engine_lp_transformations
+        inference_engine_legacy
         )
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -22,9 +22,11 @@ addIeTarget(
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
-            PUBLIC
+            PRIVATE
                 ${EXPORT_DEPENDENCIES}
         ADD_CPPLINT
+        DEPENDENCIES
+            ngraphFunctions
         DEVELOPER_PACKAGE
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}

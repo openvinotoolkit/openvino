@@ -1,13 +1,13 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2019-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME lptNgraphFunctions)
+set(TARGET_NAME ngraphFunctions)
 
 list(APPEND EXPORT_DEPENDENCIES
-        ngraphFunctions
-        inference_engine_lp_transformations
-        inference_engine_legacy
+        ${NGRAPH_LIBRARIES}
+        ngraph_backend
+        interpreter_backend
         )
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
