@@ -111,25 +111,22 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
         std::lock_guard<std::mutex> lock(_mutex);
         return _devicePriorities;
     }();
-    WorkerInferRequest* workerRequestPtr = nullptr;
-    NotBusyWorkerRequests* idleWorkerRequests = nullptr;
     for (auto&& device : devices) {
-        idleWorkerRequests = &(_idleWorkerRequests[device.deviceName]);
-        if (idleWorkerRequests->try_pop(workerRequestPtr)) {
-            break;
+        WorkerInferRequest* workerRequestPtr = nullptr;
+        NotBusyWorkerRequests& idleWorkerRequests = _idleWorkerRequests[device.deviceName];
+        if (idleWorkerRequests.try_pop(workerRequestPtr)) {
+            IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
+            _thisWorkerInferRequest = workerRequestPtr;
+            {
+                auto capturedTask = std::move(inferPipelineTask);
+                capturedTask();
+            }
+            idleGuard.Release();
+            return;
         }
     }
-    if (workerRequestPtr != nullptr) {
-        IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequests};
-        _thisWorkerInferRequest = workerRequestPtr;
-        {
-            auto capturedTask = std::move(inferPipelineTask);
-            capturedTask();
-        }
-        idleGuard.Release();
-    } else {
-        _inferPipelineTasks.push(std::move(inferPipelineTask));
-    }
+    // no vacant requests this time, storing the task to the queue
+    _inferPipelineTasks.push(std::move(inferPipelineTask));
 }
 
 void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
@@ -141,7 +138,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         std::lock_guard<std::mutex> lock(_mutex);
         _devicePriorities.clear();
     }
-    /* NOTE: The only threads that use `MultiDeviceExecutableNetwork` are worker infer requests' threads.
+    /* NOTE: The only threads that use `MultiDeviceExecutableNetwork` worker infer requests' threads.
      *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
      */
     for (auto&& networkValue : _networksPerDevice) {
