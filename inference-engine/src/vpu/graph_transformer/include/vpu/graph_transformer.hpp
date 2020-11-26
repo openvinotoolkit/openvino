@@ -61,6 +61,7 @@ struct CompilationConfig final {
     bool mergeHwPoolToConv = true;
     bool hwDilation = false;
     bool forceDeprecatedCnnConversion = false;
+    bool enableEarlyEltwiseReLUFusion = true;
 
     std::map<std::string, std::vector<int>> ioStrides;
 
