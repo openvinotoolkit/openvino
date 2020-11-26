@@ -69,6 +69,7 @@ KERNEL(fc)(
     const uint dst_index = GET_DATA_INDEX(OUTPUT, b, ofm, 0, 0);
     const uint bias_index = ofm;
 #endif
+
 #if BIAS_TERM
     ACTIVATION_TYPE dequantized = dotProd + biases[bias_index];
 #else

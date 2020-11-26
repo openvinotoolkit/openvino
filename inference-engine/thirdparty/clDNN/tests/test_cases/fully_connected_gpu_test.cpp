@@ -1117,52 +1117,52 @@ INSTANTIATE_TEST_CASE_P(smoke_bfyx_b2,
                         ::testing::Combine(
                             // Batch 1 is disabled due to sporadic failures in `fully_connected_gpu_bs_f_bsv16_b1`
                             // - there are nans in output.
-                            ::testing::Values(1),
                             ::testing::Values(2),
-                            ::testing::Values(1),
-                            ::testing::Values(1),
-                            ::testing::Values(2),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(3, 32),
                             ::testing::Values(format::bfyx),
                             ::testing::Values(format::any),
                             ::testing::Values("")), );
 
-// INSTANTIATE_TEST_CASE_P(smoke_bfyx_b2,
-//                         fully_connected_random_test_f16,
-//                         ::testing::Combine(
-//                             // Batch 1 is disabled due to sporadic failures in `fully_connected_gpu_bs_f_bsv16_b1`
-//                             // - there are nans in output.
-//                             ::testing::Values(2),
-//                             ::testing::Values(3, 32),
-//                             ::testing::Values(1, 3),
-//                             ::testing::Values(1, 3),
-//                             ::testing::Values(3, 32),
-//                             ::testing::Values(format::bfyx),
-//                             ::testing::Values(format::any),
-//                             ::testing::Values("")), );
-// 
-// INSTANTIATE_TEST_CASE_P(smoke,
-//                         fully_connected_random_test_f16,
-//                         ::testing::Combine(
-//                             ::testing::Values(1, 2),
-//                             ::testing::Values(3, 32),
-//                             ::testing::Values(1, 3),
-//                             ::testing::Values(1, 3),
-//                             ::testing::Values(3, 32),
-//                             ::testing::Values(format::yxfb),
-//                             ::testing::Values(format::any),
-//                             ::testing::Values("")), );
-// 
-// INSTANTIATE_TEST_CASE_P(smoke_bfyx_batched,
-//                         fully_connected_random_test_f16,
-//                         ::testing::Combine(
-//                             ::testing::Values(2, 8),
-//                             ::testing::Values(3, 32),
-//                             ::testing::Values(1, 3),
-//                             ::testing::Values(1, 3),
-//                             ::testing::Values(3, 32),
-//                             ::testing::Values(format::bfyx),
-//                             ::testing::Values(format::bfyx),
-//                             ::testing::Values("")), );
+INSTANTIATE_TEST_CASE_P(smoke_bfyx_b2,
+                        fully_connected_random_test_f16,
+                        ::testing::Combine(
+                            // Batch 1 is disabled due to sporadic failures in `fully_connected_gpu_bs_f_bsv16_b1`
+                            // - there are nans in output.
+                            ::testing::Values(2),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_f16,
+                        ::testing::Combine(
+                            ::testing::Values(1, 2),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::yxfb),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+INSTANTIATE_TEST_CASE_P(smoke_bfyx_batched,
+                        fully_connected_random_test_f16,
+                        ::testing::Combine(
+                            ::testing::Values(2, 8),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values("")), );
 
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
