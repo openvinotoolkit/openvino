@@ -19,13 +19,17 @@
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace ngraph::test;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 template <typename T>
 struct RangeTest
@@ -36,6 +40,8 @@ struct RangeTest
     Shape expected_result_shape;
     std::vector<T> expected_result;
 };
+
+// ------------------------------ V0 ------------------------------
 
 // TODO(amprocte): We should test this with more than just int32, but there is a bug in the
 // handling of element type-changing that is currently blocking doing that easily.
@@ -82,4 +88,28 @@ NGRAPH_TEST(${BACKEND_NAME}, range)
 
         ASSERT_EQ(results, test.expected_result);
     }
+}
+
+// ------------------------------ V4 ------------------------------
+
+NGRAPH_TEST(${BACKEND_NAME}, range_v4_trunc_inputs)
+{
+    auto start = make_shared<op::Parameter>(element::f32, Shape{});
+    auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+    auto step = make_shared<op::Parameter>(element::f32, Shape{});
+
+    auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
+    auto f = make_shared<Function>(range, ParameterVector{start, stop, step});
+
+    std::vector<float> start_vect{1.2};
+    std::vector<float> stop_vect{11.3};
+    std::vector<float> step_vect{1.6f};
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(f);
+    test_case.add_input<float>(Shape{}, start_vect);
+    test_case.add_input<float>(Shape{}, stop_vect);
+    test_case.add_input<float>(Shape{}, step_vect);
+    test_case.add_expected_output<int32_t>(Shape{10},
+                                           std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    test_case.run();
 }

@@ -21,6 +21,8 @@
 using namespace std;
 using namespace ngraph;
 
+// ------------------------------ V0 ------------------------------
+
 TEST(type_prop, range_nonconst_ok)
 {
     auto start = make_shared<op::Parameter>(element::i32, Shape{});
@@ -522,3 +524,342 @@ INSTANTIATE_TEST_CASE_P(type_prop,
                                           RangeParams{-1, 1, 0.25, PartialShape{8}},
                                           RangeParams{-1, 0.875, 0.25, PartialShape{8}}),
                         PrintToDummyParamName());
+
+// ------------------------------ V4 ------------------------------
+
+TEST(type_prop, range_v4_invalid_inputs_elem_type)
+{
+    // invalid element type for start scalar
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::boolean, Shape{});
+        auto stop = make_shared<op::Parameter>(element::i32, Shape{});
+        auto step = make_shared<op::Parameter>(element::i32, Shape{});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
+        FAIL() << "Exception expected";
+    }
+    catch (ngraph::NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("'start' input scalar should be a numeric type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Unknown exception was thrown";
+    }
+
+    // invalid element type for stop scalar
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::dynamic, Shape{});
+        auto stop = make_shared<op::Parameter>(element::boolean, Shape{});
+        auto step = make_shared<op::Parameter>(element::i32, Shape{});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
+        FAIL() << "Exception expected";
+    }
+    catch (ngraph::NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("'stop' input scalar should be a numeric type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Unknown exception was thrown";
+    }
+
+    // invalid element type for step scalar
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::i32, Shape{});
+        auto stop = make_shared<op::Parameter>(element::undefined, Shape{});
+        auto step = make_shared<op::Parameter>(element::boolean, Shape{});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
+        FAIL() << "Exception expected";
+    }
+    catch (const ngraph::NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("'step' input scalar should be a numeric type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Unknown exception was thrown";
+    }
+}
+
+TEST(type_prop, range_v4_invalid_output_elem_type)
+{
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::f16, Shape{1});
+        auto stop = make_shared<op::Parameter>(element::f16, Shape{});
+        auto step = make_shared<op::Parameter>(element::f16, Shape{});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::boolean);
+    }
+    catch (const ngraph::NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("output tensor type should be a numeric type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Unknown exception was thrown";
+    }
+}
+
+TEST(type_prop, range_v4_invalid_inputs_non_scalar)
+{
+    // start input not a scalar
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::f32, Shape{1});
+        auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+        auto step = make_shared<op::Parameter>(element::f32, Shape{});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "Exception expected";
+    }
+    catch (const ngraph::NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'start' input is not a scalar"));
+    }
+    catch (...)
+    {
+        FAIL() << "Unknown exception was thrown";
+    }
+
+    // stop input not a scalar
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::f32, Shape{});
+        auto stop = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+        auto step = make_shared<op::Parameter>(element::f32, Shape{});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "Exception expected";
+    }
+    catch (const ngraph::NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'stop' input is not a scalar"));
+    }
+    catch (...)
+    {
+        FAIL() << "Unknown exception was thrown";
+    }
+
+    // step input not a scalar
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::f32, Shape{});
+        auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+        auto step = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "Exception expected";
+    }
+    catch (const ngraph::NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'step' input is not a scalar"));
+    }
+    catch (...)
+    {
+        FAIL() << "Unknown exception was thrown";
+    }
+}
+
+TEST(type_prop, range_v4_invalid_inputs_plus_inf)
+{
+    // invalid start input scalar, +inf
+    try
+    {
+        auto start = make_shared<op::Constant>(
+            element::f32, Shape{}, std::vector<float>{std::numeric_limits<float>::infinity()});
+        auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+        auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "+Infinity start not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
+    }
+    catch (...)
+    {
+        FAIL() << "Test failed for unexpected reason";
+    }
+
+    // invalid stop input scalar, +inf
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::f32, Shape{});
+        auto stop = make_shared<op::Constant>(
+            element::f32, Shape{}, std::vector<float>{std::numeric_limits<float>::infinity()});
+        auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "+Infinity stop not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
+    }
+    catch (...)
+    {
+        FAIL() << "Test failed for unexpected reason";
+    }
+
+    // invalid step input scalar, +inf
+    try
+    {
+        auto start = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{3});
+        auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+        auto step = make_shared<op::Constant>(
+            element::f32, Shape{}, std::vector<float>{std::numeric_limits<float>::infinity()});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "+Infinity step not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be nan or infinite.");
+    }
+    catch (...)
+    {
+        FAIL() << "Test failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, range_v4_invalid_inputs_minus_inf)
+{
+    // invalid start input scalar, -inf
+    try
+    {
+        auto start = make_shared<op::Constant>(
+            element::f32, Shape{}, std::vector<float>{-std::numeric_limits<float>::infinity()});
+        auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+        auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "-Infinity start not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
+    }
+    catch (...)
+    {
+        FAIL() << "Test failed for unexpected reason";
+    }
+
+    // invalid stop input scalar, -inf
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::f32, Shape{});
+        auto stop = make_shared<op::Constant>(
+            element::f32, Shape{}, std::vector<float>{-std::numeric_limits<float>::infinity()});
+        auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "-Infinity stop not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
+    }
+    catch (...)
+    {
+        FAIL() << "Test failed for unexpected reason";
+    }
+
+    // invalid step input scalar, -inf
+    try
+    {
+        auto start = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{3});
+        auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+        auto step = make_shared<op::Constant>(
+            element::f32, Shape{}, std::vector<float>{-std::numeric_limits<float>::infinity()});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "-Infinity step not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be nan or infinite.");
+    }
+    catch (...)
+    {
+        FAIL() << "Test failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, range_v4_invalid_inputs_nan)
+{
+    // invalid start input scalar, nan
+    try
+    {
+        auto start =
+            make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{std::nanf("")});
+        auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+        auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "NaN start not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
+    }
+    catch (...)
+    {
+        FAIL() << "Test failed for unexpected reason";
+    }
+
+    // invalid stop input scalar, nan
+    try
+    {
+        auto start = make_shared<op::Parameter>(element::f32, Shape{});
+        auto stop =
+            make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{std::nanf("")});
+        auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "NaN stop not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
+    }
+    catch (...)
+    {
+        FAIL() << "Test failed for unexpected reason";
+    }
+
+    // invalid step input scalar, nan
+    try
+    {
+        auto start = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+        auto step =
+            make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{std::nanf("")});
+        auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+        FAIL() << "NaN step not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be nan or infinite.");
+    }
+    catch (...)
+    {
+        FAIL() << "Test failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, range_v4_zero_output_elem_pos_step)
+{
+    auto start = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{5});
+    auto stop = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+    auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+    auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+    // if step is positive and start >= stop, number of output elements is zero
+    ASSERT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape{Dimension(0)}));
+}
+
+TEST(type_prop, range_v4_zero_output_elem_neg_step)
+{
+    auto start = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+    auto stop = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{5});
+    auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{-1});
+    auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
+    // if step is negative and start <= stop, number of output elements is zero
+    ASSERT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape{Dimension(0)}));
+}
