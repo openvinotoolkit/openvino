@@ -93,8 +93,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                         auto capturedTask = std::move(workerRequestPtr->_task);
                         capturedTask();
                     }
+                    // try to return the request to the idle list (fails if the overall object destruction has began)
                     if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                        // try pop the task, as we know there is at least one idle request
                         if (_inferPipelineTasks.try_pop(workerRequestPtr->_task)) {
+                            // if succeeded, let's schedule that
                             ScheduleToWorkerInferRequest(std::move(workerRequestPtr->_task));
                         }
                     }
@@ -138,14 +141,11 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         std::lock_guard<std::mutex> lock(_mutex);
         _devicePriorities.clear();
     }
-    /* NOTE: The only threads that use `MultiDeviceExecutableNetwork` Context are those that are used by Worker infer requests.
-     *       But AsyncInferRequest destructor should waits for all asynchronous tasks that are used by the request
+    /* NOTE: The only threads that use `MultiDeviceExecutableNetwork` are worker infer requests' threads.
+     *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
      */
-    auto devices = [&] {
-        std::lock_guard<std::mutex> lock(_mutex);
-        return _devicePriorities;
-    }();
     for (auto&& networkValue : _networksPerDevice) {
+        // stop accepting any idle requests back (for re-scheduling)
         _idleWorkerRequests.at(networkValue.first).set_capacity(0);
     }
     _workerRequests.clear();
