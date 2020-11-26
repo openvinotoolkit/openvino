@@ -127,9 +127,6 @@ class BuildCMakeExt(build_ext):
 
         self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
-                    "-DENABLE_CLDNN=OFF",
-                    "-DENABLE_OPENCV=OFF",
-                    "-DENABLE_VPU=OFF",
                     "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
                     "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"])
 
