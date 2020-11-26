@@ -8,13 +8,13 @@ if(NOT ENABLE_DOCKER)
     # Detect nGraph
     find_package(ngraph QUIET)
     if(NOT ngraph_FOUND)
-        set(ngraph_DIR ${CMAKE_BUILD_DIR}/ngraph)
+        set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
     endif()
 
     # Detect InferenceEngine
     find_package(InferenceEngine QUIET)
     if(NOT InferenceEngine_FOUND)
-        set(InferenceEngine_DIR ${CMAKE_BUILD_DIR})
+        set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
     endif()
 
     if (NGRAPH_ONNX_IMPORT_ENABLE)
