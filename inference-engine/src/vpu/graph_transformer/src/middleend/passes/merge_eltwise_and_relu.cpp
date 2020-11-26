@@ -9,6 +9,8 @@
 
 #include <vpu/middleend/sw/utility.hpp>
 
+#include <vpu/compile_env.hpp>
+
 namespace vpu {
 
 namespace {
@@ -28,15 +30,18 @@ private:
 };
 
 void PassImpl::run(const Model& model) {
-    if (m_mode == MergeMode::DYNAMIC_NETWORK) {
-        VPU_PROFILE(mergeEltwiseAndReLUDynamic);
-        if (model->isStatic()) {
-            return;
-        }
-    } else if (m_mode == MergeMode::STATIC_NETWORK) {
-        VPU_PROFILE(mergeEltwiseAndReLUStatic);
-        if (model->isDynamic()) {
-            return;
+    const bool enableEarlyEltwiseReLUFusion = CompileEnv::get().config.enableEarlyEltwiseReLUFusion;
+    if (enableEarlyEltwiseReLUFusion) {
+        if (m_mode == MergeMode::DYNAMIC_NETWORK) {
+            VPU_PROFILE(mergeEltwiseAndReLUDynamic);
+            if (model->isStatic()) {
+                return;
+            }
+        } else if (m_mode == MergeMode::STATIC_NETWORK) {
+            VPU_PROFILE(mergeEltwiseAndReLUStatic);
+            if (model->isDynamic()) {
+                return;
+            }
         }
     }
 
@@ -80,7 +85,8 @@ void PassImpl::run(const Model& model) {
             auto reluInput = reluStage->input(0);
             auto reluOutput = reluStage->output(0);
 
-            if (model->isDynamic() || reluInput->strides() == reluOutput->strides() || reluOutput->checkStrides(StridesRequirement::compact())) {
+            const auto stridesAreSupported = reluInput->strides() == reluOutput->strides() || reluOutput->checkStrides(StridesRequirement::compact());
+            if ((enableEarlyEltwiseReLUFusion && (stridesAreSupported || model->isDynamic())) || (!enableEarlyEltwiseReLUFusion && stridesAreSupported)) {
                 auto reluStageType = reluStage->type();
                 auto reluStageName = reluStage->name();
 
