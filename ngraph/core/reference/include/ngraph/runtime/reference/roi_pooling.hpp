@@ -47,8 +47,6 @@ namespace ngraph
                 // ROIs shape: {NUM_ROIS, 5}
                 const int num_rois = rois_shape[0];
 
-                std::fill_n(output, shape_size(output_shape), std::numeric_limits<T>::lowest());
-
                 for (unsigned int roi_num = 0; roi_num < num_rois; roi_num++)
                 {
                     // ROI tuple: [roi_batch_id, roi_w_start, roi_h_start, roi_w_end, roi_h_end]
@@ -111,10 +109,8 @@ namespace ngraph
 
                                     // Define an empty pooling region to be zero
                                     bool is_empty = (h_end <= h_start) || (w_end <= w_start);
-                                    if (is_empty)
-                                    {
-                                        output[pool_index] = 0;
-                                    }
+                                    output[pool_index] =
+                                        is_empty ? 0 : std::numeric_limits<T>::lowest();
 
                                     for (unsigned int h = h_start; h < h_end; h++)
                                     {
