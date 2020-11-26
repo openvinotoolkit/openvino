@@ -157,8 +157,7 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     InferenceEngine::Core ie;
-    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
-    auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+    InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::make2InputSubtract());
 
     ie.SetConfig(config, deviceName);
     InferenceEngine::QueryNetworkResult refResult = ie.QueryNetwork(network, deviceName);
@@ -224,15 +223,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
-    const FuncTestUtils::TestModel::TestModel models[] = {
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32,
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16
-    };
     std::vector<InferenceEngine::CNNNetwork> networks;
-    for (auto & model : models) {
-        networks.emplace_back(ie.ReadNetwork(model.model_xml_str, model.weights_blob));
-    }
-
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
@@ -253,15 +244,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
-    const FuncTestUtils::TestModel::TestModel models[] = {
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32,
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16
-    };
     std::vector<InferenceEngine::CNNNetwork> networks;
-    for (auto & model : models) {
-        networks.emplace_back(ie.ReadNetwork(model.model_xml_str, model.weights_blob));
-    }
-
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
@@ -314,18 +297,17 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
 
     std::atomic<unsigned int> counter{0u};
 
-    // TODO: replace with subgraph builders after fixing *-31414
-    const std::vector<FuncTestUtils::TestModel::TestModel> models = {
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32,
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16
-    };
+    std::vector<InferenceEngine::CNNNetwork> networks;
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
 
     runParallel([&] () {
         auto value = counter++;
         InferenceEngine::Core ie;
         ie.SetConfig(config, deviceName);
-        auto model = models[value % models.size()];
-        auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
-        (void)ie.LoadNetwork(network, deviceName);
+        (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
     }, numIterations, numThreads);
 }
