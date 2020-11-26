@@ -602,8 +602,10 @@ graph cleanup removes nodes of the graph not reachable from the model inputs. De
 `True` should be re-inferred after the transformation. Model Optimizer sets this attribute automatically for nodes which
 input(s) were changed during the transformation or developer can set this attribute manually in the transformation.
 Default value is `False`.
-6. Method `run_before()` returns a list of transformation classes which this transformation should be executed before.
-7. Method `run_after()` returns a list of transformation classes which this transformation should be executed after.
+5. Attribute `graph_condition` specifies a list of functions with one parameter -- `Graph` object. The transformation
+is executed if and only if all functions return `True`. If the attribute is not set then no check is performed.
+7. Method `run_before()` returns a list of transformation classes which this transformation should be executed before.
+8. Method `run_after()` returns a list of transformation classes which this transformation should be executed after.
 
 > **NOTE**: Some of the transformation types have specific class attributes and methods which are explained in the
 > dedicated sections of this document.

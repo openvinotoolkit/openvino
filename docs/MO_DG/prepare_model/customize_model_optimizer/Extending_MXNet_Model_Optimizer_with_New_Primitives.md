@@ -2,7 +2,7 @@
 
 This section provides instruction on how to support a custom MXNet operation (or as it called in the MXNet documentation
 "operator" or "layer") which is not a part of the MXNet operation set. For example, if the operator is implemented using
-the following [guide](https://mxnet.apache.org/versions/1.7.0/api/faq/new_op.html)).
+the following [guide](https://mxnet.apache.org/versions/1.7.0/api/faq/new_op.html).
 
 This section describes a procedure on how to extract operator attributes in the Model Optimizer. The rest of the
 operation enabling pipeline and documentation on how to support MXNet operations from standard MXNet operation set is
@@ -10,15 +10,15 @@ described in the main document [Customize_Model_Optimizer](Customize_Model_Optim
 
 ## Writing Extractor for Custom MXNet Operation
 Custom MXNet operations have an attribute `op` (defining the type of the operation) equal to `Custom` and attribute
-`op_type` which is an operation type defined by an user. In order to extract attributes for such an operation it is
-necessary to implement extractor class inherited from the `MXNetCustomFrontExtractorOp` class instead of
-`FrontExtractorOp` class used for standard framework operations. The `op` class attribute value should be set to the
-`op_type` value so the extractor is triggered for this kind of operation.
+`op_type` which is an operation type defined by an user. Implement extractor class inherited from the
+`MXNetCustomFrontExtractorOp` class instead of `FrontExtractorOp` class used for standard framework operations in order
+to extract attributes for such kind of operations. The `op` class attribute value should be set to the `op_type` value
+so the extractor is triggered for this kind of operation.
 
-Here is the example of the extractor for the custom operation registered with type (`op_type` value) equal to
+There is the example of the extractor for the custom operation registered with type (`op_type` value) equal to
 `MyCustomOp` having attribute `my_attribute` of the floating point type with default value `5.6`. In this sample we
 assume that we have already created the `CustomOp` class (inherited from `Op` class) for the Model Optimizer operation
-for this MXNet custom operation as described at the [Customize_Model_Optimizer](Customize_Model_Optimizer.md).
+for this MXNet custom operation as described in the [Customize_Model_Optimizer](Customize_Model_Optimizer.md).
 
 ```py
 from extension.ops.custom_op import CustomOp  # implementation of the MO operation class
