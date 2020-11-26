@@ -45,7 +45,7 @@
 #endif
 
 #ifndef INFERENCE_ENGINE_C_API_CALLBACK
-#define INFERENCE_ENGINE_C_API_CALLBACK
+    #define INFERENCE_ENGINE_C_API_CALLBACK
 #endif
 
 typedef struct ie_core ie_core_t;
@@ -59,39 +59,39 @@ typedef struct ie_blob ie_blob_t;
  * @brief Represents an API version information that reflects the set of supported features
  */
 typedef struct ie_version {
-    char *api_version;
-}ie_version_t;
+    char *api_version;  //!< A string representing Inference Engine version
+} ie_version_t;
 
 /**
  * @struct ie_core_version
  * @brief  Represents version information that describes devices and the inference engine runtime library
  */
 typedef struct ie_core_version {
-    size_t major;
-    size_t minor;
-    const char *device_name;
-    const char *build_number;
-    const char *description;
-}ie_core_version_t;
+    size_t major;             //!< A major version
+    size_t minor;             //!< A minor version
+    const char *device_name;  //!< A device name
+    const char *build_number; //!< A build number
+    const char *description;  //!< A device description
+} ie_core_version_t;
 
 /**
  * @struct ie_core_versions
  * @brief Represents all versions information that describes all devices and the inference engine runtime library
  */
 typedef struct ie_core_versions {
-    ie_core_version_t *versions;
-    size_t num_vers;
-}ie_core_versions_t;
+    ie_core_version_t *versions; //!< An array of device versions
+    size_t num_vers;             //!< A number of versions in the array
+} ie_core_versions_t;
 
 /**
  * @struct ie_config
  * @brief Represents configuration information that describes devices
  */
 typedef struct ie_config {
-    const char *name;
-    const char *value;
-    struct ie_config *next;
-}ie_config_t;
+    const char *name;       //!< A configuration key
+    const char *value;      //!< A configuration value
+    struct ie_config *next; //!< A pointer to the next configuration value
+} ie_config_t;
 
 /**
  * @struct ie_param
@@ -99,12 +99,12 @@ typedef struct ie_config {
  */
 typedef struct ie_param {
     union {
-    char *params;
-    unsigned int number;
-    unsigned int range_for_async_infer_request[3];
-    unsigned int range_for_streams[2];
+        char *params;
+        unsigned int number;
+        unsigned int range_for_async_infer_request[3];
+        unsigned int range_for_streams[2];
     };
-}ie_param_t;
+} ie_param_t;
 
 /**
  * @struct ie_param_config
@@ -113,57 +113,57 @@ typedef struct ie_param {
 typedef struct ie_param_config {
     char *name;
     ie_param_t *param;
-}ie_param_config_t;
+} ie_param_config_t;
 
 /**
  * @struct desc
  * @brief Represents detailed information for an error
  */
 typedef struct desc {
-    char msg[256];
-}desc_t;
+    char msg[256]; //!< A description message
+} desc_t;
 
 /**
  * @struct dimensions
  * @brief Represents dimensions for input or output data
  */
 typedef struct dimensions {
-    size_t ranks;
-    size_t dims[8];
-}dimensions_t;
+    size_t ranks;   //!< A runk representing a number of dimensions
+    size_t dims[8]; //!< An array of dimensions
+} dimensions_t;
 
 /**
  * @enum layout_e
  * @brief Layouts that the inference engine supports
  */
 typedef enum {
-    ANY = 0,    // "any" layout
+    ANY = 0,       //!< "ANY" layout
 
     // I/O data layouts
-    NCHW = 1,
-    NHWC = 2,
-    NCDHW = 3,
-    NDHWC = 4,
+    NCHW = 1,      //!< "NCHW" layout
+    NHWC = 2,      //!< "NHWC" layout
+    NCDHW = 3,     //!< "NCDHW" layout
+    NDHWC = 4,     //!< "NDHWC" layout
 
     // weight layouts
-    OIHW = 64,
+    OIHW = 64,     //!< "OIHW" layout
 
     // Scalar
-    SCALAR = 95,
+    SCALAR = 95,   //!< "SCALAR" layout
 
     // bias layouts
-    C = 96,
+    C = 96,        //!< "C" layout
 
     // Single image layout (for mean image)
-    CHW = 128,
+    CHW = 128,     //!< "CHW" layout
 
     // 2D
-    HW = 192,
-    NC = 193,
-    CN = 194,
+    HW = 192,      //!< "HW" layout
+    NC = 193,      //!< "NC" layout
+    CN = 194,      //!< "CN" layout
 
-    BLOCKED = 200,
-}layout_e;
+    BLOCKED = 200, //!< "BLOCKED" layout
+} layout_e;
 
 /**
  * @enum precision_e
@@ -185,7 +185,7 @@ typedef enum {
     U32 = 74,   /**< 32bit unsigned integer value */
     BIN = 71,   /**< 1bit integer value */
     CUSTOM = 80 /**< custom precision has it's own name and size of elements */
-}precision_e;
+} precision_e;
 
 /**
  * @struct tensor_desc
@@ -195,31 +195,31 @@ typedef struct tensor_desc {
     layout_e layout;
     dimensions_t dims;
     precision_e precision;
-}tensor_desc_t;
+} tensor_desc_t;
 
 /**
  * @enum colorformat_e
  * @brief Extra information about input color format for preprocessing
  */
 typedef enum {
-    RAW = 0u,    ///< Plain blob (default), no extra color processing required
-    RGB,         ///< RGB color format
-    BGR,         ///< BGR color format, default in DLDT
-    RGBX,        ///< RGBX color format with X ignored during inference
-    BGRX,        ///< BGRX color format with X ignored during inference
-    NV12,        ///< NV12 color format represented as compound Y+UV blob
-    I420,        ///< I420 color format represented as compound Y+U+V blob
-}colorformat_e;
+    RAW = 0u,    //!< Plain blob (default), no extra color processing required
+    RGB,         //!< RGB color format
+    BGR,         //!< BGR color format, default in DLDT
+    RGBX,        //!< RGBX color format with X ignored during inference
+    BGRX,        //!< BGRX color format with X ignored during inference
+    NV12,        //!< NV12 color format represented as compound Y+UV blob
+    I420,        //!< I420 color format represented as compound Y+U+V blob
+} colorformat_e;
 
 /**
  * @enum resize_alg_e
  * @brief Represents the list of supported resize algorithms.
  */
 typedef enum {
-    NO_RESIZE = 0,
-    RESIZE_BILINEAR,
-    RESIZE_AREA
-}resize_alg_e;
+    NO_RESIZE = 0,    //!< "No resize" mode
+    RESIZE_BILINEAR,  //!< "Bilinear resize" mode
+    RESIZE_AREA       //!< "Area resize" mode
+} resize_alg_e;
 
 /**
  * @enum IEStatusCode
@@ -242,19 +242,19 @@ typedef enum {
     NOT_ALLOCATED = -10,
     INFER_NOT_STARTED = -11,
     NETWORK_NOT_READ = -12
-}IEStatusCode;
+} IEStatusCode;
 
 /**
  * @struct roi_t
  * @brief This structure describes roi data.
  */
 typedef struct roi {
-    size_t id;     // ID of a roi
-    size_t posX;   // W upper left coordinate of roi
-    size_t posY;   // H upper left coordinate of roi
-    size_t sizeX;  // W size of roi
-    size_t sizeY;  // H size of roi
-}roi_t;
+    size_t id;     //!< ID of a roi
+    size_t posX;   //!< W upper left coordinate of roi
+    size_t posY;   //!< H upper left coordinate of roi
+    size_t sizeX;  //!< W size of roi
+    size_t sizeY;  //!< H size of roi
+} roi_t;
 
 /**
  * @struct input_shape
@@ -263,7 +263,7 @@ typedef struct roi {
 typedef struct input_shape {
     char *name;
     dimensions_t shape;
-}input_shape_t;
+} input_shape_t;
 
 /**
  * @struct input_shapes
@@ -272,7 +272,7 @@ typedef struct input_shape {
 typedef struct input_shapes {
     input_shape_t *shapes;
     size_t shape_num;
-}input_shapes_t;
+} input_shapes_t;
 
 /**
  * @struct ie_blob_buffer
@@ -280,10 +280,10 @@ typedef struct input_shapes {
  */
 typedef struct ie_blob_buffer {
     union {
-    void *buffer;  // buffer can be written
-    const void *cbuffer;  // cbuffer is read-only
+    void *buffer;         //!< buffer can be written
+    const void *cbuffer;  //!< cbuffer is read-only
     };
-}ie_blob_buffer_t;
+} ie_blob_buffer_t;
 
 /**
  * @struct ie_complete_call_back
@@ -292,7 +292,7 @@ typedef struct ie_blob_buffer {
 typedef struct ie_complete_call_back {
     void (INFERENCE_ENGINE_C_API_CALLBACK *completeCallBackFunc)(void *args);
     void *args;
-}ie_complete_call_back_t;
+} ie_complete_call_back_t;
 
 /**
  * @struct ie_available_devices
@@ -301,7 +301,7 @@ typedef struct ie_complete_call_back {
 typedef struct ie_available_devices {
     char **devices;
     size_t num_devices;
-}ie_available_devices_t;
+} ie_available_devices_t;
 
 /**
  * @brief Returns number of version that is exported. Use the ie_version_free() to free memory.
@@ -317,7 +317,7 @@ INFERENCE_ENGINE_C_API(void) ie_version_free(ie_version_t *version);
 
 /**
  * @brief Release the memory allocated by ie_param_t.
- * @param version A pointer to the ie_param_t to free memory.
+ * @param param A pointer to the ie_param_t to free memory.
  */
 INFERENCE_ENGINE_C_API(void) ie_param_free(ie_param_t *param);
 
@@ -662,6 +662,7 @@ INFERENCE_ENGINE_C_API(void) ie_network_free(ie_network_t **network);
 /**
  * @brief Get name of network.
  * @ingroup Network
+ * @param network A pointer to the instance of the ie_network_t to get a name from.
  * @param name Name of the network.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -729,7 +730,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_layout(co
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_input_layout(ie_network_t *network, const char *input_name, const layout_e l);
 
 /**
- * @Gets dimensions/shape of the input data with reversed order.
+ * @brief Gets dimensions/shape of the input data with reversed order.
  * @ingroup Network
  * @param network A pointer to ie_network_t instance.
  * @param input_name Name of input data.
@@ -743,11 +744,10 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_dims(cons
  * @ingroup Network
  * @param network A pointer to ie_network_t instance.
  * @param input_name Name of input data.
- * @parm resize_alg_result The pointer to the resize algorithm used for input blob creation.
+ * @param resize_alg_result The pointer to the resize algorithm used for input blob creation.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_resize_algorithm(const ie_network_t *network, const char *input_name, \
-        resize_alg_e *resize_alg_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_resize_algorithm(const ie_network_t *network, const char *input_name, resize_alg_e *resize_alg_result);
 
 /**
  * @brief Sets resize algorithm to be used during pre-processing
@@ -1014,7 +1014,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_layout(const ie_bl
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_precision(const ie_blob_t *blob, precision_e *prec_result);
 
 /**
- * @Releases the memory occupied by the ie_blob_t pointer.
+ * @brief Releases the memory occupied by the ie_blob_t pointer.
  * @ingroup Blob
  * @param blob A pointer to the blob pointer to release memory.
  */
