@@ -42,7 +42,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
         {1, 440}
 };
 const std::vector<std::vector<std::vector<size_t>>> constShapes = {
-        {{1}, {2048, 1}}
+        {{1}, {1024, 1}}
 };
 
 const std::vector<std::vector<std::vector<size_t>>> constShapes_int16 = {
