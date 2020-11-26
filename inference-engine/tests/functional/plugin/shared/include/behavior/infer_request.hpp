@@ -634,8 +634,10 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngraph::Function
-    // return function which computes around 20ms on GNA SW
-    function = LayerTestsDefinitions::Basic_LSTM_S::GetNetwork(3000, 380);
+    // return ngrpah::Function
+    // GetNetwork(3000, 380) make inference around 20ms on GNA SW
+    // so increases chances for getting RESULT_NOT_READY
+    function = LayerTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38);
     InferenceEngine::CNNNetwork cnnNet(function);
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
