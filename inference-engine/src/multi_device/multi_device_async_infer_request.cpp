@@ -22,6 +22,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
     _multiDeviceExecutableNetwork{multiDeviceExecutableNetwork},
     _inferRequest{inferRequest},
     _needPerfCounters{needPerfCounters} {
+    // this executor starts the inference while  the task (checking the result) is passed to the next stage
     struct ThisRequestExecutor : public ITaskExecutor {
         explicit ThisRequestExecutor(MultiDeviceAsyncInferRequest* _this_) : _this{_this_} {}
         void run(Task task) override {
@@ -32,22 +33,38 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         MultiDeviceAsyncInferRequest* _this = nullptr;
     };
     _pipeline = {
-        {_multiDeviceExecutableNetwork, [this] {
-            _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
-            _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
+        // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
+        { /*TaskExecutor*/ std::make_shared<ImmediateExecutor>(), /*task*/ [this] {
+               // by default, no preferred device:
+               _multiDeviceExecutableNetwork->_thisPreferredDeviceName = "";
+               // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
+               for (const auto &it : _multiDeviceExecutableNetwork->GetInputsInfo()) {
+                   Blob::Ptr b;
+                   _inferRequest->GetBlob(it.first.c_str(), b);
+                   auto r = b->as<RemoteBlob>();
+                   if (r) {
+                       _multiDeviceExecutableNetwork->_thisPreferredDeviceName = r->getDeviceName();
+                       break;
+                   }
+               }
         }},
-        {std::make_shared<ThisRequestExecutor>(this), [this] {
-            auto status = _workerInferRequest->_status;
-            if (InferenceEngine::StatusCode::OK != status) {
-                if (nullptr != InferenceEngine::CurrentException()) {
-                    std::rethrow_exception(InferenceEngine::CurrentException());
-                } else {
-                    THROW_IE_EXCEPTION << InferenceEngine::details::as_status << status;
-                }
-            }
-            if (_needPerfCounters) {
-                _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
-            }
+        // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
+        {
+         /*TaskExecutor*/ _multiDeviceExecutableNetwork, /*task*/ [this] {
+               _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
+               _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
+        }},
+        // set the device-agnostic blobs to the actual (device-specific) request first
+        { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
+              auto status = _workerInferRequest->_status;
+              if (InferenceEngine::StatusCode::OK != status) {
+                  if (nullptr != InferenceEngine::CurrentException())
+                      std::rethrow_exception(InferenceEngine::CurrentException());
+                  else
+                      THROW_IE_EXCEPTION << InferenceEngine::details::as_status << status;
+              }
+              if (_needPerfCounters)
+                  _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
         }}
     };
 }

@@ -117,17 +117,20 @@ public:
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::RemoteContext::Ptr GetContext() const override;
     ~MultiDeviceExecutableNetwork() override;
 
-    void ScheduleToWorkerInferRequest(InferenceEngine::Task);
+    void ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
 
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
+    static thread_local std::string                             _thisPreferredDeviceName;
     std::atomic_bool                                            _terminate = {false};
-    std::mutex                                                  _mutex;
+    mutable std::mutex                                          _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
     const std::vector<DeviceInformation>                        _devicePrioritiesInitial;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
     ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
+    DeviceMap<std::unique_ptr<ThreadSafeQueue<InferenceEngine::Task>>> _inferPipelineTasksDeviceSpecific;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
