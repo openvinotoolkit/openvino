@@ -15,15 +15,15 @@
  limitations under the License.
 """
 from __future__ import print_function
-import sys
-import os
 from argparse import ArgumentParser, SUPPRESS
 import cv2
-import numpy as np
 import logging as log
-from openvino.inference_engine import IECore
+import numpy as np
+import os
+import sys
 
 import ngraph as ng
+from openvino.inference_engine import IECore
 
 def build_argparser():
     parser = ArgumentParser(add_help=False)
@@ -32,7 +32,7 @@ def build_argparser():
     args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.",
                       required=True, type=str)
     args.add_argument("-i", "--input", help="Required. Path to an image file.",
-                      required=True, type=str, nargs="+")
+                      required=True, type=str)
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. "
                            "Absolute path to a shared library with the kernels implementations.",
@@ -78,26 +78,30 @@ def main():
     # --------------------------- 3. Read and preprocess input --------------------------------------------
 
     print("inputs number: " + str(len(net.input_info.keys())))
+    assert len(net.input_info.keys()) == 1, 'Sample supports clean SSD network with one input and one output'
+    input_name = list(net.input_info.keys())[0]
 
     for input_key in net.input_info:
         print("input shape: " + str(net.input_info[input_key].input_data.shape))
         print("input key: " + input_key)
         if len(net.input_info[input_key].input_data.layout) == 4:
             n, c, h, w = net.input_info[input_key].input_data.shape
-
-    images = np.ndarray(shape=(n, c, h, w))
+            assert n == 1, 'Sample only supports topologies with one input image'
+    
+    h_new, w_new = cv2.imread(args.input).shape[:-1]
+    images = np.ndarray(shape=(n, c, h_new, w_new))
     images_hw = []
     for i in range(n):
-        image = cv2.imread(args.input[i])
+        image = cv2.imread(args.input)
         ih, iw = image.shape[:-1]
         images_hw.append((ih, iw))
         log.info("File was added: ")
-        log.info("        {}".format(args.input[i]))
-        if (ih, iw) != (h, w):
-            log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
-            image = cv2.resize(image, (w, h))
+        log.info("        {}".format(args.input))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
+    
+    net.reshape({input_name: [n, c, h_new, w_new]})
+    print(net.input_info['data'].input_data.shape)
 
     # -----------------------------------------------------------------------------------------------------
 
@@ -190,7 +194,7 @@ def main():
                 print()
 
     for imid in classes:
-        tmp_image = cv2.imread(args.input[imid])
+        tmp_image = cv2.imread(args.input)
         for box in boxes[imid]:
             cv2.rectangle(tmp_image, (box[0], box[1]), (box[2], box[3]), (232, 35, 244), 2)
         cv2.imwrite("out.bmp", tmp_image)
