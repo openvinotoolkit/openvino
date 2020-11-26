@@ -33,7 +33,7 @@ a temporary memory block for model decryption, and use
 For more information, see the `InferenceEngine::Core` Class
 Reference Documentation.
 
-@snippet openvino/docs/snippets/protecting_model_guide.cpp part0
+@snippet snippets/protecting_model_guide.cpp part0
 
 Hardware-based protection, such as Intel&reg; Software Guard Extensions
 (Intel&reg; SGX), can be utilized to protect decryption operation secrets and
@@ -47,7 +47,7 @@ Currently there are no possibility to read external weights from memory for ONNX
 The `ReadNetwork(const std::string& model, const Blob::CPtr& weights)` function
 should be called with `weights` passed as an empty `Blob`.
 
-@snippet openvino/docs/snippets/protecting_model_guide.cpp part1
+@snippet snippets/protecting_model_guide.cpp part1
 
 [deploy_encrypted_model]: img/deploy_encrypted_model.png
 
