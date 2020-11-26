@@ -7,11 +7,10 @@
 **Short description**: *GatherElements* takes elements from input `data` tensor at positions specified in `indices`.
 
 **Detailed description** *GatherElements* takes elements from `data` tensor at positions specified in `indices`. `data` 
-and `indices` tensors have the same rank `r >= 1`. Optional attribute `axis` (by default `axis` is 0) determines 
+and `indices` tensors have the same rank `r >= 1`. Optional attribute `axis` determines 
 along which axis elements with indices specified in `indices` are taken. `indices` tensor has the same shape as `data` 
 except for `axis` dimension. Output consists of values (gathered from the `data`) for each element in `indices` 
-and has the same shape as `indices`. Operation can be expressed through GatherND-5 from opset but in this case execution 
-will be slower.
+and has the same shape as `indices`.
 
 For instance, in the 3D case (`r = 3`), the output is determined by the following equations:
 ```
@@ -75,6 +74,7 @@ data = [
       ],
   ]
 ```
+
 **Attributes**:
 * *axis* 
   * **Description**: Which axis to gather on. Negative value means counting dimensions from the back. 
