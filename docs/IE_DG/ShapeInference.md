@@ -94,7 +94,7 @@ The algorithm for resizing network is the following:
 
 Here is a code example:
 
-@snippet openvino/docs/snippets/ShapeInference.cpp part0
+@snippet snippets/ShapeInference.cpp part0
 
 Shape Inference feature is used in [Smart classroom sample](@ref omz_demos_smart_classroom_demo_README).
 

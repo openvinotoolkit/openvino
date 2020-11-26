@@ -12,12 +12,31 @@
 #define IR_SERIALIZATION_MODELS_PATH ""
 #endif
 
-class SerializationTest : public ::testing::Test {
-protected:
-    std::string test_name =
-        ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::string m_out_xml_path = test_name + ".xml";
-    std::string m_out_bin_path = test_name + ".bin";
+typedef std::tuple<std::string> SerializationParams;
+
+class SerializationTest: public CommonTestUtils::TestsCommon,
+                         public testing::WithParamInterface<SerializationParams> {
+public:
+    std::string m_out_xml_path;
+    std::string m_out_bin_path;
+
+    void SetUp() override {
+        const auto & model_path = IR_SERIALIZATION_MODELS_PATH + std::get<0>(GetParam());
+
+        const std::string test_name = "test"; //  ::testing::UnitTest::GetInstance()->current_test_info()->name();
+        m_out_xml_path = test_name + ".xml";
+        m_out_bin_path = test_name + ".bin";
+
+        InferenceEngine::Core ie;
+        auto expected = ie.ReadNetwork(model_path);
+        expected.serialize(m_out_xml_path, m_out_bin_path);
+        auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+        bool success;
+        std::string message;
+        std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction());
+        ASSERT_TRUE(success) << message;
+    }
 
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());
@@ -25,177 +44,21 @@ protected:
     }
 };
 
-TEST_F(SerializationTest, BasicModel_MO) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.xml";
-    const std::string weights = IR_SERIALIZATION_MODELS_PATH "add_abc.bin";
-
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model, weights);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
+TEST_P(SerializationTest, CompareFunctions) {
 }
 
-TEST_F(SerializationTest, BasicModel_ONNXImporter) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.prototxt";
+INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
+        testing::Values(std::make_tuple("add_abc.xml"),
+                        std::make_tuple("split_equal_parts_2d.xml"),
+                        std::make_tuple("addmul_abc.xml"),
+                        std::make_tuple("add_abc_initializers.xml"),
+                        std::make_tuple("experimental_detectron_roi_feature_extractor.xml"),
+                        std::make_tuple("experimental_detectron_detection_output.xml"),
+                        std::make_tuple("nms5.xml"),
+                        std::make_tuple("shape_of.xml")));
 
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
-}
-
-TEST_F(SerializationTest, ModelWithMultipleOutputs_MO) {
-    const std::string model =
-        IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.xml";
-    const std::string weights =
-        IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.bin";
-
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model, weights);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    // Compare function does not support models with multiple outputs
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_FALSE(success) << message;
-}
-
-TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
-    const std::string model =
-        IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.prototxt";
-
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    // Compare function does not support models with multiple outputs
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_FALSE(success) << message;
-}
-
-TEST_F(SerializationTest, ModelWithMultipleLayers_MO) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "addmul_abc.xml";
-    const std::string weights = IR_SERIALIZATION_MODELS_PATH "addmul_abc.bin";
-
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model, weights);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
-}
-
-TEST_F(SerializationTest, ModelWithMultipleLayers_ONNXImporter) {
-    const std::string model =
-        IR_SERIALIZATION_MODELS_PATH "addmul_abc.prototxt";
-
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
-}
-
-TEST_F(SerializationTest, ModelWithConstants_MO) {
-    const std::string model =
-        IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.xml";
-    const std::string weights =
-        IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.bin";
-
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model, weights);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
-}
-
-TEST_F(SerializationTest, ModelWithConstants_ONNXImporter) {
-    const std::string model =
-        IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.prototxt";
-
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
-}
-
-TEST_F(SerializationTest, ExperimentalDetectronROIFeatureExtractor_MO) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH
-        "experimental_detectron_roi_feature_extractor.xml";
-
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
-}
-
-TEST_F(SerializationTest, ExperimentalDetectronDetectionOutput_MO) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH
-        "experimental_detectron_detection_output.xml";
-
-    InferenceEngine::Core ie;
-    auto expected = ie.ReadNetwork(model);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
-}
+INSTANTIATE_TEST_CASE_P(ONNXSerialization, SerializationTest,
+        testing::Values(std::make_tuple("add_abc.prototxt"),
+                        std::make_tuple("split_equal_parts_2d.prototxt"),
+                        std::make_tuple("addmul_abc.prototxt"),
+                        std::make_tuple("add_abc_initializers.prototxt")));
