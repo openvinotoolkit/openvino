@@ -4,7 +4,7 @@
 
 **Category**: Sequence processing
 
-**Short description**: *CTCGreedyDecoderSeqLen* performs greedy decoding on the logits given in input (best path).
+**Short description**: *CTCGreedyDecoderSeqLen* performs greedy decoding on the logits given in input (best path) uses 1D tensor with sequence lengths.
 
 **Detailed description**:
 
@@ -17,28 +17,27 @@ p(C|X) = \prod_{t=1}^{T} p(c_{t}|X)
 
 Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor `sequence_length`.
 
-Operation different between CTCGreedyDecoderSeqLen and CTCGreedyDecoder. 
-The main difference is CTCGreedyDecoder uses `sequence_mask` as second input. 2D input floating point tensor with sequence masks for each sequence in the batch. The lengths of sequences are coded as values 1 and 0. CTCGreedyDecoderSeqLen uses 1D integer tensor with sequence lengths in second input.
+The main difference between CTCGreedyDecoder and CTCGreedyDecoderSeqLen is in second input. CTCGreedyDecoder uses 2D input floating point tensor with sequence masks for each sequence in the batch while CTCGreedyDecoderSeqLen uses 1D integer tensor with sequence lengths.
 
 **Attributes**
 
 * *merge_repeated*
 
   * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation.
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 **Inputs**
 
-* **1**: `data` - Input tensor with a batch of sequences. Type of elements is any supported floating point type. Shape of the tensor is `[T, N, C]`, where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. A tensor of type *T_F*. **Required.**
+* **1**: `data` - input tensor of type *T_F* of shape `[T, N, C]` with a batch of sequences. Where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required.**
 
 * **2**: `sequence_length` - 1D input integer tensor with sequence lengths and having size batch. A tensor of type *T_I*. **Required.**
 
 **Output**
 
-* **1**: Output tensor with shape `[N, T]` and integer elements containing final sequence class indices. A final sequence can be shorter that the size `T` of the tensor, all elements that do not code sequence classes are filled with -1. Type of elements is *T_I*.
+* **1**: Output tensor of type *T_I* with shape `[N, T]` and containing final sequence class indices. A final sequence can be shorter than the size `T` of the tensor, all elements than do not code sequence classes are filled with -1.
 
 **Types**
 
