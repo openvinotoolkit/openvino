@@ -520,21 +520,23 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
             ngraphNode->constructor_validate_and_infer_types();
     }
 
-    // Create GenericIE operation for backward compatibility
-    if (!ngraphNode && (params.version == "experimental" || params.version == "extension")) {
-        // Try to create Generic node for backward compatibility
-        std::set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput"};
-        std::string type = params.type;
-        if (experimental_detectrons.count(type) != 0) {
-            auto opset = opsets.at("opset6");
-            ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
-            ngraphNode->set_friendly_name(params.name);
-            ngraphNode->set_arguments(inputs);
-            XmlDeserializer visitor(node, weights);
-            if (ngraphNode->visit_attributes(visitor))
-                ngraphNode->constructor_validate_and_infer_types();
-        }
+    // Check that operation is ExperimentalDetectron*
+    std::string type = params.type;
+    const std::set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput"};
+    bool isDetectron = experimental_detectrons.count(type) != 0;
+    if (!ngraphNode && params.version == "experimental" && isDetectron) {
+        auto opset = opsets.at("opset6");
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
+        ngraphNode->set_friendly_name(params.name);
+        ngraphNode->set_arguments(inputs);
+        XmlDeserializer visitor(node, weights);
+        if (ngraphNode->visit_attributes(visitor))
+            ngraphNode->constructor_validate_and_infer_types();
+    }
 
+    // Create GenericIE operation for backward compatibility
+    if (!ngraphNode && !isDetectron && (params.version == "experimental" || params.version == "extension")) {
+        // Try to create Generic node for backward compatibility
         std::map<std::string, Parameter> parameters;
         pugi::xml_node dn = node.child("data");
         if (dn) {
