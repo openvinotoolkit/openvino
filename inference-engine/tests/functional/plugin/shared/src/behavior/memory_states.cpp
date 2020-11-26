@@ -46,28 +46,29 @@ TEST_P(VariableStateTest, smoke_VariableState_QueryState) {
 TEST_P(VariableStateTest, smoke_VariableState_SetState) {
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
-    const float new_state_val = 13.0f;
-    for (auto&& state : executableNet.QueryState()) {
-        state.Reset();
-        auto state_val = state.GetState();
+    std::vector<float> new_state_val = { 4096.f, 0.5f };
+    auto& states = executableNet.QueryState();
+    for (size_t i = 0; i < states.size(); ++i) {
+        states[i].Reset();
+        auto state_val = states[i].GetState();
         auto element_count = state_val->size();
 
-        std::vector<float> new_state_data(element_count, new_state_val);
+        std::vector<float> new_state_data(element_count, new_state_val[i]);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
             { state_val->getTensorDesc().getPrecision(), {1, element_count}, state_val->getTensorDesc().getLayout() },
             new_state_data.data(), new_state_data.size());
 
-        state.SetState(stateBlob);
+        states[i].SetState(stateBlob);
     }
 
-    for (auto&& state : executableNet.QueryState()) {
-        auto lastState = state.GetState();
+    for (size_t i = 0; i < states.size(); ++i) {
+        auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
         auto last_state_data = lastState->cbuffer().as<float*>();
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
-        for (int i = 0; i < last_state_size; i++) {
-            EXPECT_NEAR(new_state_val, last_state_data[i], 1e-5);
+        for (int j = 0; j < last_state_size; j++) {
+            EXPECT_NEAR(new_state_val[i], last_state_data[j], 1e-5);
         }
     }
     IE_SUPPRESS_DEPRECATED_END
@@ -76,23 +77,23 @@ TEST_P(VariableStateTest, smoke_VariableState_SetState) {
 TEST_P(VariableStateTest, smoke_VariableState_Reset) {
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
-    const float new_state_val = 13.0f;
-    for (auto&& state : executableNet.QueryState()) {
-        state.Reset();
-        auto state_val = state.GetState();
+    std::vector<float> new_state_val = { 4096.f, 0.5f };
+    auto& states = executableNet.QueryState();
+    for (size_t i = 0; i < states.size(); ++i) {
+        states[i].Reset();
+        auto state_val = states[i].GetState();
         auto element_count = state_val->size();
 
-        std::vector<float> new_state_data(element_count, new_state_val);
+        std::vector<float> new_state_data(element_count, new_state_val[i]);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
             { state_val->getTensorDesc().getPrecision(), {1, element_count}, state_val->getTensorDesc().getLayout() },
             new_state_data.data(), new_state_data.size());
 
-        state.SetState(stateBlob);
+        states[i].SetState(stateBlob);
     }
 
     executableNet.QueryState().front().Reset();
-
-    auto states = executableNet.QueryState();
+    new_state_val.front() = 0.0f;
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
@@ -100,14 +101,8 @@ TEST_P(VariableStateTest, smoke_VariableState_Reset) {
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
-        if (i == 0) {
-            for (int j = 0; j < last_state_size; ++j) {
-                EXPECT_NEAR(0, last_state_data[j], 1e-5);
-            }
-        } else {
-            for (int j = 0; j < last_state_size; ++j) {
-                EXPECT_NEAR(13.0f, last_state_data[j], 1e-5);
-            }
+        for (int j = 0; j < last_state_size; j++) {
+            EXPECT_NEAR(new_state_val[i], last_state_data[j], 1e-5);
         }
     }
     IE_SUPPRESS_DEPRECATED_END
@@ -131,28 +126,29 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_SetState) {
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
-    const float new_state_val = 13.0f;
-    for (auto&& state : inferReq.QueryState()) {
-        state.Reset();
-        auto state_val = state.GetState();
+    std::vector<float> new_state_val = { 4096.0f, 0.5f };
+    auto& states = executableNet.QueryState();
+    for (size_t i = 0; i < states.size(); ++i) {
+        states[i].Reset();
+        auto state_val = states[i].GetState();
         auto element_count = state_val->size();
 
-        std::vector<float> new_state_data(element_count, new_state_val);
+        std::vector<float> new_state_data(element_count, new_state_val[i]);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
             { state_val->getTensorDesc().getPrecision(), {1, element_count}, state_val->getTensorDesc().getLayout() },
             new_state_data.data(), new_state_data.size());
 
-        state.SetState(stateBlob);
+        states[i].SetState(stateBlob);
     }
 
-    for (auto&& state : inferReq.QueryState()) {
-        auto lastState = state.GetState();
+    for (size_t i = 0; i < states.size(); ++i) {
+        auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
         auto last_state_data = lastState->cbuffer().as<float*>();
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
-        for (int i = 0; i < last_state_size; i++) {
-            EXPECT_NEAR(new_state_val, last_state_data[i], 1e-5);
+        for (int j = 0; j < last_state_size; j++) {
+            EXPECT_NEAR(new_state_val[i], last_state_data[j], 1e-5);
         }
     }
 }
@@ -161,23 +157,24 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
-    const float new_state_val = 13.0f;
-    for (auto&& state : inferReq.QueryState()) {
-        state.Reset();
-        auto state_val = state.GetState();
+    std::vector<float> new_state_val = { 4096.f, 0.5f };
+    auto& states = executableNet.QueryState();
+    for (size_t i = 0; i < states.size(); ++i) {
+        states[i].Reset();
+        auto state_val = states[i].GetState();
         auto element_count = state_val->size();
 
-        std::vector<float> new_state_data(element_count, new_state_val);
+        std::vector<float> new_state_data(element_count, new_state_val[i]);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
             { state_val->getTensorDesc().getPrecision(), {1, element_count}, state_val->getTensorDesc().getLayout() },
             new_state_data.data(), new_state_data.size());
 
-        state.SetState(stateBlob);
+        states[i].SetState(stateBlob);
     }
 
     inferReq.QueryState().front().Reset();
+    new_state_val.front() = 0.0f;
 
-    auto states = inferReq.QueryState();
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
@@ -185,14 +182,8 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
-        if (i == 0) {
-            for (int j = 0; j < last_state_size; ++j) {
-                EXPECT_NEAR(0, last_state_data[j], 1e-5);
-            }
-        } else {
-            for (int j = 0; j < last_state_size; ++j) {
-                EXPECT_NEAR(13.0f, last_state_data[j], 1e-5);
-            }
+        for (int j = 0; j < last_state_size; j++) {
+            EXPECT_NEAR(new_state_val[i], last_state_data[j], 1e-5);
         }
     }
 }

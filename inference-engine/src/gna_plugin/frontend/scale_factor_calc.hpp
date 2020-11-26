@@ -61,7 +61,15 @@ private :
     const double pow_domain = 16;
     const float MAX_VALUE = MAX_VAL_2B_FEAT;
     const float MEMORY_INIT_MAX_VALUE = 8.0f;
+    const float WEIGHTS_SCALE_FACTOR = 8.0f;
+    const size_t MAX_NUM_MEMORY_LAYER_VISITS = 3;
 
+    /**
+    * @brief Function to compare two floating points with epsilon
+    * @param p1 First floating point value to compare
+    * @param p2 Second floating point value to compare
+    * @return Returns true if two floating points are equal
+    */
     static bool fp32eq(float p1, float p2) {
         return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
     }
@@ -69,9 +77,10 @@ private :
     /**
      * @brief Calculates and updates scale factor for activation layers
      * @param cnnLayer Input layar for which scale factor is calculated
+     * @param result Return paramater with a layer that scale factor calculator needs to restart from
      * @return Returns true if a scale factor was successfully calculated
      */
-    bool updateActivationLayerScale(InferenceEngine::CNNLayer* cnnLayer) {
+    bool updateActivationLayerScale(InferenceEngine::CNNLayer* cnnLayer, ScaleFactorUpdateResult& result) {
         auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
         auto layerInfo = LayerInfo(*cnnLayer);
         auto inputMinValue = quant->_src_quant.GetMinValues().front();
@@ -166,6 +175,42 @@ private :
             scaleFactor = quant->_dst_quant.GetLevels() / maxAbsOutValue;
         }
 
+        if (layerInfo.isIdentity() || layerInfo.isRelu() || layerInfo.isSign() ||
+            layerInfo.isAbs() || layerInfo.isClamp()) {
+            auto prevLayer = CNNNetPrevLayer(cnnLayer);
+            while (LayerInfo(prevLayer).isNonFunctional() && CNNNetHasPrevLayer(prevLayer.get())) {
+                prevLayer = CNNNetPrevLayer(prevLayer);
+            }
+
+            if (prevLayer == nullptr || prevLayer.get() == cnnLayer || LayerInfo(prevLayer).isNonFunctional()) {
+                THROW_IE_EXCEPTION << "Activation layer '" << cnnLayer->name << "' does not have functional previous layer\n";
+            }
+
+            if (LayerInfo(prevLayer).isWeightable() &&
+                (!fp32eq(quant->_dst_quant.GetScale(), scaleFactor) || layerInfo.isSign())) {
+                auto wl = dynamic_cast<InferenceEngine::WeightableLayer*>(prevLayer.get());
+                if (!wl) {
+                    THROW_GNA_EXCEPTION << "Incorrect Weightable Layer pointer\n";
+                }
+
+                auto prevLayerQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+                auto maxWeightsVal = std::max(std::abs(prevLayerQuant->_weights_quant.GetMinValues().front()),
+                    std::abs(prevLayerQuant->_weights_quant.GetMaxValues().front()));
+                auto srcToDstRatio = prevLayerQuant->_src_quant.GetScale() / scaleFactor;
+                if ((fp32eq(maxWeightsVal, 1.0f) &&
+                    fp32eq(prevLayerQuant->_weights_quant.GetScale(), 1.0f) &&
+                    srcToDstRatio < WEIGHTS_SCALE_FACTOR) || layerInfo.isSign()) {
+
+                    gnalog() << "[INFO] Updating weights scale factor for '" << prevLayer->name << "' layer. Change from "
+                        << prevLayerQuant->_weights_quant.GetScale() << " to " << WEIGHTS_SCALE_FACTOR << "\n";
+
+                    prevLayerQuant->_weights_quant.SetScale(WEIGHTS_SCALE_FACTOR);
+                    prevLayerQuant->_dst_quant.SetScale(prevLayerQuant->_src_quant.GetScale() * prevLayerQuant->_weights_quant.GetScale());
+                    result = ScaleFactorUpdateResult(prevLayer.get());
+                }
+            }
+        }
+
         if (quant->_dst_quant.IsScaleSet() && !fp32eq(quant->_dst_quant.GetScale(), scaleFactor)) {
             gnalog() << "[INFO] Updating scale factor for '" << cnnLayer->name << "' layer. Change from "
                 << quant->_dst_quant.GetScale() << " to " << scaleFactor << "\n";
@@ -204,6 +249,14 @@ private :
             return true;
         }
 
+        static std::map<std::string, size_t> visitedMemoryLayers;
+        if (visitedMemoryLayers.find(cnnLayer->name) == visitedMemoryLayers.end()) {
+            visitedMemoryLayers[cnnLayer->name] = 0;
+        }
+        auto &visitCount = visitedMemoryLayers[cnnLayer->name];
+        ++visitCount;
+        gnalog() << "[INFO] Memory layer '" << cnnLayer->name << "' was visited " << visitCount << " times\n";
+
         auto prevLayer = CNNNetPrevLayer(cnnLayer);
         auto prevLayerQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
         // locating corresponding memory layers with same ID
@@ -223,7 +276,7 @@ private :
                 continue;
             }
 
-            if (quantSibling->_dst_quant.IsScaleSet()) {
+            if (visitCount > MAX_NUM_MEMORY_LAYER_VISITS && quantSibling->_dst_quant.IsScaleSet()) {
                 // means we already restarted propagation input memory layer
                 // need to search for requantiseable layer prior memory output layer
                 InferenceEngine::CNNLayerPtr restartedLayer;
@@ -283,6 +336,7 @@ private :
                 << "'" << std::endl;
 
             // try updating memory input layer scale factor and restart from it
+            quant->_src_quant = quant->_dst_quant = prevLayerQuant->_dst_quant;
             quantSibling->_src_quant = quantSibling->_dst_quant = prevLayerQuant->_dst_quant;
             result = ScaleFactorUpdateResult(input.get());
             return true;
@@ -428,7 +482,7 @@ private :
         }
 
         quant->_dst_quant = quant->_src_quant;
-        if (1) {
+        if (0) {
             auto inputs = poolingLayer->insData.begin()->lock();
             auto outputs = *poolingLayer->outData.begin();
 
@@ -573,7 +627,7 @@ private :
         } else if (!layerInfo.isActivation() && layerInfo.isPower()) {
             return updatePowerLayerScale(cnnLayer, weightsSize);
         } else if (layerInfo.isActivation()) {
-            return updateActivationLayerScale(cnnLayer);
+            return updateActivationLayerScale(cnnLayer, result);
         } else if (layerInfo.isPooling()) {
             return updatePoolingLayerScale(cnnLayer);
         } else if (layerInfo.isInput()) {
@@ -677,13 +731,15 @@ public:
 
                 if (LayerInfo(in0).has32BOutput() ||
                     (LayerInfo(in0).isNonFunctional() && (LayerInfo(eltwiseFunctionalPrev).has32BOutput()))) {
+                        LayerInfo(findPrevFunctional(in0)).has32BOutput())) {
                     std::swap(in0, in1);
                     std::swap(quantParams0, quantParams1);
                 }
-
-                // this path might result in significant data loss
-                quantData->_bias_quant.SetScale(quantParams1->_dst_quant.GetScale() / quantParams0->_dst_quant.GetScale());
-                quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale() / quantParams0->_dst_quant.GetScale());
+          
+                // Weights are used to do scaling of input 0
+                auto dstScale1 = static_cast<double>(quantParams1->_dst_quant.GetScale());
+                auto dstScale0 = static_cast<double>(quantParams0->_dst_quant.GetScale());
+                quantData->_weights_quant.SetScale(dstScale1 / dstScale0);
 
                 auto scaleFactor = quantParams1->_dst_quant.GetScale();
                 if (quantData->_dst_quant.IsScaleSet() && !fp32eq(quantData->_dst_quant.GetScale(), scaleFactor)) {
@@ -692,6 +748,7 @@ public:
                 }
                 quantData->_dst_quant.SetScale(scaleFactor);
 
+                // min and max output value estimation
                 std::vector<float> vals;
                 if(eltwiseLayer->_operation == InferenceEngine::EltwiseLayer::Sum) {
                     vals.push_back(min0 + min1);
@@ -717,11 +774,18 @@ public:
                 quantData->_dst_quant.SetMinValues({ minVal });
                 quantData->_dst_quant.SetMaxValues({ maxVal });
 
-                // eltwise will always work in int16
-                double reducer = quantData->_weights_quant.GetScale() / std::numeric_limits<int16_t>::max();
-                reducer = std::max(1.0, reducer);
+                // Assuming that weights are encoded as int16. The maximum value cannot
+                // maximum value of int16, otherwise it will overflow.
+                auto weightsScale = std::abs(quantData->_weights_quant.GetScale());
+                if (static_cast<int32_t>(weightsScale + 0.5) > std::numeric_limits<int16_t>::max()) {
+                    // The way to reduce weight scale factor is to either:
+                    // 1) descrese scale factor of input 1 (int32 input) - descrese precision of input 0 values
+                    // 2) increase scale factor of input 0 - it will result in saturation of input 1 values
+                    // The first method is selected below
 
-                if (!fp32eq(reducer, 1.0f) && reducer > 1.0) {
+                    auto reducer = static_cast<double>(weightsScale) / std::numeric_limits<int16_t>::max();
+                    reducer = std::max(1.0, reducer);
+
                     gnawarn() << "[WARNING] Possible saturation of output results for '" << eltwiseLayer->name << "' layer."
                         << " Attempting to reduce scale factors for input layers.\n";
 
@@ -761,16 +825,14 @@ public:
 
                         if (info.isWeightable() ||
                             (info.isPower() && !info.isActivation())) {
-                            if (quantParams->_src_quant.GetScale() < quantParams->_weights_quant.GetScale()) {
-                                auto newWeightScale = quantParams->_weights_quant.GetScale() / reductionFactor;
-                                gnalog() << "[WARNING] Output scale for '" << layer->name << "' is reduced. "
-                                    << "Layer new weight scale: " << newWeightScale
-                                    << ", old weight scale: " << quantParams->_weights_quant.GetScale()
-                                    << "\n";
-                                quantParams->_weights_quant.SetScale(newWeightScale);
-                                quantParams->_dst_quant.SetScale(quantParams->_weights_quant.GetScale() * quantParams->_src_quant.GetScale());
-                                result = ScaleFactorUpdateResult(layer);
-                            }
+                            auto newWeightScale = quantParams->_weights_quant.GetScale() / reductionFactor;
+                            gnalog() << "[WARNING] Output scale for '" << layer->name << "' is reduced. "
+                                << "Layer new weight scale: " << newWeightScale
+                                << ", old weight scale: " << quantParams->_weights_quant.GetScale()
+                                << "\n";
+                            quantParams->_weights_quant.SetScale(newWeightScale);
+                            quantParams->_dst_quant.SetScale(quantParams->_weights_quant.GetScale()* quantParams->_src_quant.GetScale());
+                            result = ScaleFactorUpdateResult(layer);
                             return true;
                         } else if (info.isActivation()) {
                             auto newOutputScale = quantParams->_dst_quant.GetScale() / reductionFactor;
@@ -791,8 +853,7 @@ public:
                             quantParams->_dst_quant.SetScale(newOutputScale);
                             result = ScaleFactorUpdateResult(layer);
                             return true;
-                        }
-                        else if (info.isMemory() || info.isInput()) {
+                        } else if (info.isMemory() || info.isInput()) {
                             layersToCheck.erase(layersToCheck.begin());
                             continue;
                         }
@@ -807,7 +868,43 @@ public:
                     }
 
                     THROW_GNA_EXCEPTION << "Scale factor for '" << eltwiseLayer->name << "' layer cannot be reduced\n";
+                } else if (quantParams1->_dst_quant.GetScale() < quantParams0->_dst_quant.GetScale() ||
+                    (std::abs(fmod(weightsScale, 1.0f)) > 0.05f && std::abs(fmod(weightsScale, 1.0f)) < 0.95f)) {
+                    // Weights scale cannot be represented as integer without loss of precision.
+                    // It is important to preserve remainder especially for small weight scales.
+                    // If such case happen, input 0 scale has to be reduced.
+                    auto newScale = static_cast<double>(quantParams1->_dst_quant.GetScale());
+                    if (weightsScale > 1) {
+                        auto roundedWeightScale = ceil(static_cast<double>(weightsScale));
+                        newScale = newScale / roundedWeightScale;
+                    }
+
+                    if (fp32eq(newScale, quantParams0->_dst_quant.GetScale())) {
+                        return true;
+                    }
+
+                    auto prevLayer = in0;
+                    while (prevLayer != nullptr) {
+                        auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+                        LayerInfo info(prevLayer);
+                        if (info.isActivation() || info.isConst() || info.isMemory()) {
+                            gnalog() << "[WARNING] Output scale for '" << prevLayer->name << "' is reduced. "
+                                << "Layer new output scale: " << newScale
+                                << ", old output scale: " << quantParams->_dst_quant.GetScale()
+                                << "\n";
+                            quantParams->_dst_quant.SetScale(newScale);
+                            result = ScaleFactorUpdateResult(prevLayer.get());
+                            return true;
+                        }
+                        else if (info.isNonFunctional() || info.isSplit()) {
+                            prevLayer = CNNNetPrevLayer(prevLayer);
+                            continue;
+                        }
+
+                        THROW_GNA_EXCEPTION << "Scale factor for '" << eltwiseLayer->name << "' layer cannot be reduced\n";
+                    }
                 }
+                
                 break;
             }
             default : THROW_GNA_EXCEPTION << "Unsupported Eltwise layer for quantisation: " << eltwiseLayer->_operation;
@@ -832,8 +929,71 @@ public:
             return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
         };
 
+        auto ignoreLayerQuantParams = [concatLayer](InferenceEngine::CNNLayerPtr& layer) -> bool {
+            auto prevLayer = layer;
+            while (prevLayer) {
+                auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
+                if (!quantParams->_dst_quant.IsScaleSet()) {
+                    // Quantization parameters are not yet calculated for thus layer
+                    // Default values are used and they should be ignored
+                    return true;
+                }
+
+                GNAPluginNS::LayerInfo info(prevLayer);
+                if (info.isInput() || info.isConst() || info.isConcat()) {
+                    return false;
+                }
+
+                if (info.isMemory()) {
+                    // search for output layer that corresponds to input memory layer to requanitize it
+                    InferenceEngine::CNNLayerSet outputLayers;
+                    std::unordered_set<InferenceEngine::CNNLayer*> allLayers;
+
+                    InferenceEngine::CNNLayerPtr layerPtr(concatLayer, [](InferenceEngine::CNNLayer*) {});
+
+                    InferenceEngine::details::UnorderedDFS(
+                        allLayers, layerPtr,
+                        [&](InferenceEngine::CNNLayerPtr layer) {
+                            if (layer->outData.empty()) {
+                                outputLayers.insert(layer);
+                            }
+                        },
+                        false);
+
+                    for (auto&& output : outputLayers) {
+                        LayerInfo ll(output);
+                        if (!ll.isMemory() ||
+                            !InferenceEngine::details::CaselessEq<std::string>()(output->params["id"], prevLayer->params["id"])) {
+                            continue;
+                        }
+
+                        auto prevLayer2 = CNNNetPrevLayer(output);
+                        if (prevLayer2.get() == concatLayer) {
+                            // Memory assign layer is connected to the same concat layer as memory read
+                            return true;
+                        }
+
+                        GNAPluginNS::LayerInfo info2(prevLayer2);
+                        if (info2.isNonFunctional() || info2.isCopy()) {
+                            prevLayer2 = CNNNetPrevLayer(prevLayer2);
+                        }
+
+                        break;
+                        
+                    }
+
+                    return false;
+                }
+
+                prevLayer = CNNNetPrevLayer(prevLayer);
+            }
+
+            return false;
+        };
+
         auto concatQuantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
         std::vector<InferenceEngine::CNNLayerPtr> inputLayers;
+        std::vector<bool> ignoreLayers;
         auto minInputValue = std::numeric_limits<float>::max();
         auto maxInputValue = std::numeric_limits<float>::min();
         for (auto inputIdx = 0; inputIdx != concatLayer->insData.size(); inputIdx++) {
@@ -847,7 +1007,12 @@ public:
                     << "Min: " << quantParamsIn->_src_quant.GetMinValues().size()
                     << ", max: " << quantParamsIn->_src_quant.GetMaxValues().size();
             }
-            
+
+            ignoreLayers.push_back(ignoreLayerQuantParams(inputLayers[inputIdx]));
+            if (ignoreLayers[inputIdx]) {
+                continue;
+            }
+
             minInputValue = std::min(minInputValue, quantParamsIn->_dst_quant.GetMinValues().front());
             maxInputValue = std::max(maxInputValue, quantParamsIn->_dst_quant.GetMaxValues().front());
         }
@@ -904,46 +1069,31 @@ public:
             }
         }
 
-        auto checkIfScaleFactorIsSet = [](InferenceEngine::CNNLayerPtr& layer) -> bool {
-            auto prevLayer = layer;
-            while (prevLayer) {
-                auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
-                if (!quantParams->_dst_quant.IsScaleSet()) {
-                    return false;
-                }
-                GNAPluginNS::LayerInfo info(prevLayer);
-                if (info.isInput() || info.isConst() || info.isMemory()) {
-                    break;
-                }
-
-                prevLayer = CNNNetPrevLayer(prevLayer);
-            }
-
-            return true;
-        };
-
         // find a source quant value
         // - 1st candidate - input layer
         // - 2nd candidate - non-input layer with minimum scale factor
         if (firstInputIt != inputLayers.end()) {
             sourceQuantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*firstInputIt);
         } else {
-            sourceQuantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayers.front());
-            for (auto& layer : inputLayers) {
-                if (!checkIfScaleFactorIsSet(layer)) {
+            for (size_t i = 0; i < inputLayers.size(); ++i) {
+                if (ignoreLayers[i]) {
                     continue;
                 }
 
-                auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+                auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayers[i]);
 
                 auto inputMaxValue = std::max(std::abs(quantParams->_dst_quant.GetMinValues().front()),
                     std::abs(quantParams->_dst_quant.GetMaxValues().front()));
 
-                auto sourceMaxValue = std::max(std::abs(sourceQuantParams->_dst_quant.GetMinValues().front()),
-                    std::abs(sourceQuantParams->_dst_quant.GetMaxValues().front()));
+                auto sourceMinVal = sourceQuantParams ? sourceQuantParams->_dst_quant.GetMinValues().front(): 0;
+                auto sourceMaxVal = sourceQuantParams ? sourceQuantParams->_dst_quant.GetMaxValues().front(): 0;
+                auto sourceMaxValue = std::max(std::abs(sourceMinVal), std::abs(sourceMaxVal));
 
                 if (inputMaxValue > sourceMaxValue) sourceQuantParams = quantParams;
             }
+
+            sourceQuantParams = sourceQuantParams == nullptr ?
+                InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayers.front()) : sourceQuantParams;
         }
 
         std::set<size_t> concatIdxToUpdate;
@@ -1004,8 +1154,7 @@ public:
             auto restarLayerInfo = LayerInfo(restartedLayer);
             if (restarLayerInfo.isActivation()) {
                 // requantize activation by just changing it's output scale factor
-                if (checkIfScaleFactorIsSet(restartedLayer) &&
-                    quantDataForConcatInput->_dst_quant.GetScale() < sourceQuantParams->_dst_quant.GetScale()) {
+                if (quantDataForConcatInput->_dst_quant.GetScale() < sourceQuantParams->_dst_quant.GetScale()) {
                     gnalog() << "[WARNING] Possible output saturation. '"
                         << restartedLayer->name << "' layer scale factor change from "
                         << quantDataForConcatInput->_dst_quant.GetScale() << " to "
@@ -1060,12 +1209,23 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
     uint16_t const _scale_change_threshold_150 = 150;
     uint16_t const _scale_change_threshold_200 = 200;
 
-    const float CONV_MAX_VALUE_GUANRDBAND = 1.2f;
+    const float MAX_VALUE_GUARDBAND = 1.0f;
 
+    /**
+    * @brief Function to compare two floating points with epsilon
+    * @param p1 First floating point value to compare
+    * @param p2 Second floating point value to compare
+    * @return Returns true if two floating points are equal
+    */
     static bool fp32eq(float p1, float p2) {
         return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
     }
 
+    /**
+    * @brief Function to find minimum and maximum values in an array
+    * @param A Array to search for min and max values
+    * @return Returns a pair of two FP values where minimum is first value and maximum second
+    */
     std::pair<float, float> findMinMaxValues(const std::vector<float>& A) {
         auto minValue = std::numeric_limits<float>::max();
         auto maxValue = std::numeric_limits<float>::min();
@@ -1077,6 +1237,11 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
         return { minValue, maxValue };
     }
 
+    /**
+    * @brief Function returns NCHW order of dimensions in given layout
+    * @param layout Input layout
+    * @return Returns an array of dimension indicies
+    */
     std::vector<std::size_t> getFromIRDimsOrderNCHW(InferenceEngine::Layout layout) {
         std::vector<std::size_t> order;
         switch (layout) {
@@ -1091,6 +1256,13 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
         return order;
     }
 
+    /**
+    * @brief Function transponses provided floating point matrix
+    * @param ptr_matrix Input matrix
+    * @param num_rows Number of rows in input matrix
+    * @param num_cols Number of columns in input matrix
+    * @return Returns trasponsed matrix
+    */
     auto transposeMatrix(float* ptr_matrix, size_t num_rows, size_t num_cols) {
         size_t element_size = sizeof(float);
         std::vector<float> temp_buffer(num_rows * num_cols);
@@ -1105,9 +1277,19 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
         return temp_buffer;
     }
 
+    /**
+    * @brief Function simulates affine transformation W * I + B
+    * @param weights Weights matrix (W)
+    * @param input Input matrix (I)
+    * @param biases Biases (B)
+    * @param numRowsA Number of rows in weights matrix
+    * @param numColA Number of columnts in weights matrix
+    * @param numRowsB Number of rows in input matrix
+    * @param numColB Number of columnts in input matrix
+    * @return Returns result of affine transformation
+    */
     auto simulateAffine(const std::vector<float>& weights, const std::vector<float>& input, const std::vector<float>& biases,
-        size_t numRowsA, size_t numColA, float scaleFactorA,
-        size_t numRowsB, size_t numColB, float scaleFactorB) {
+        size_t numRowsA, size_t numColA, size_t numRowsB, size_t numColB) {
         if (numColA != numRowsB) {
             THROW_GNA_EXCEPTION << "Invalid number of rows in weights";
         }
@@ -1118,11 +1300,11 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
         for (size_t rowC = 0; rowC < numRowsC; ++rowC) {
             for (size_t colC = 0; colC < numColC; ++colC) {
                 auto& sum = result[rowC * numColC + colC];
-                sum = biases.empty() ? 0.0f : biases[rowC * numColC + colC];
+                sum = biases.empty() ? 0.0f : biases[rowC];
                 for (size_t colA = 0; colA < numColA; ++colA) {
-                    int32_t valA = weights[rowC * numColA + colA] * scaleFactorA;
-                    int32_t valB = input[colA * numColB + colC] * scaleFactorB;
-                    sum += valA * valB / (scaleFactorA * scaleFactorB);
+                    auto valA = weights[rowC * numColA + colA];
+                    auto valB = input[colA * numColB + colC];
+                    sum += valA * valB;
                 }
             }
         }
@@ -1130,38 +1312,35 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
         return result;
     }
 
-    auto convertNHWCtoNCHW(std::vector<float>& input,
-        size_t width, size_t height, size_t channelNum, size_t batchSize) {
-        std::vector<float> tmp(input.size());
-        for (int n = 0; n < batchSize; n++) {
-            for (int c = 0; c < channelNum; c++) {
-                for (int h = 0; h < height; h++) {
-                    for (int w = 0; w < width; w++) {
-                        size_t dstIdx = n * channelNum * width * height +
-                            c * width * height +
-                            h * width +
-                            w;
-                        size_t srcIdx = n * channelNum * width * height +
-                            h * width * channelNum +
-                            w * channelNum +
-                            c;
-                        tmp[dstIdx] = input[srcIdx];
-                    }
-                }
-            }
-        }
-
-        return tmp;
-    }
-
+    /**
+    * @brief Function simulates convolutin operation
+    * @param src_buffer Input matrix
+    * @param kernels_data Kernel matrix
+    * @param bias_data Biases
+    * @param strideX Stride in X dimension
+    * @param strideY Stride in Y dimension
+    * @param strideZ Stride in Z dimension
+    * @param paddingX Padding in X dimension
+    * @param paddingY Padding in Y dimension
+    * @param paddingZ Padding in Z dimension
+    * @param inputWidth Width of input matrix
+    * @param inputHeight Height of input matrix
+    * @param inputChannels Depth of input matrix
+    * @param outputWidth Width of output matrix
+    * @param outputHeight Height of output matrix
+    * @param outputChannels Depth of output matrix
+    * @param kernelWidth Width of kernel matrix
+    * @param kernelHeight Height of kernel matrix
+    * @return Returns result of convolutin transformation
+    */
     auto simulateConvolution(const std::vector<float>& src_buffer,
         const std::vector<float>& kernels_data,
         const std::vector<float>& bias_data,
         size_t strideX, size_t strideY, size_t strideZ,
         size_t paddingX, size_t paddingY, size_t paddingZ,
-        size_t inputWidth, size_t inputHeight, size_t inputChannels, float inputScaleFactor,
+        size_t inputWidth, size_t inputHeight, size_t inputChannels,
         size_t outputWidth, size_t outputHeight, size_t outputChannels,
-        size_t kernelWidth, size_t kernelHeight, float kernelScaleFactor) {
+        size_t kernelWidth, size_t kernelHeight) {
         std::vector<float> dst_data(outputWidth * outputHeight * outputChannels, 0.0f);
 
         if (inputHeight != 1 || outputHeight != 1) {
@@ -1173,8 +1352,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 for (uint32_t ow = 0; ow < outputWidth; ++ow) {
                     size_t oidx = oc * outputHeight * outputWidth + oh * outputWidth + ow;
                     if (!bias_data.empty()) {
-                        dst_data[oidx] = static_cast<int32_t>(bias_data[oc] * inputScaleFactor * kernelScaleFactor) /
-                            (inputScaleFactor * kernelScaleFactor);
+                        dst_data[oidx] = bias_data[oc];
                     }
 
                     for (size_t ic = 0; ic < inputChannels; ++ic) {
@@ -1194,11 +1372,9 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                                     kh * kernelWidth +
                                     kw;
 
-                                int32_t inputVal = src_buffer[inputIdx] * inputScaleFactor;
-                                int32_t kernelVal = kernels_data[kernelIdx] * kernelScaleFactor;
-                                dst_data[oidx] += static_cast<double>(inputVal * kernelVal) /
-                                    (inputScaleFactor * kernelScaleFactor);
-
+                                auto inputVal = src_buffer[inputIdx];
+                                auto kernelVal = kernels_data[kernelIdx];
+                                dst_data[oidx] += inputVal * kernelVal;
                             }
                         }
                     }
@@ -1236,6 +1412,9 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 << ", max: " << quant->_src_quant.GetMaxValues().size();
         }
 
+        auto maxAbsInputVal = std::max(std::abs(quant->_src_quant.GetMinValues().front()),
+            std::abs(quant->_src_quant.GetMaxValues().front()));
+
         // TODO: pass 8 bits somehow
         if (!quant->_weights_quant.IsScaleSet()) {
             size_t scaleRange = 0;
@@ -1263,12 +1442,10 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 weightsScaleFactor = 1.0f;
             }
 
-            if (fp32eq(minWeightsVal, maxWeightsVal) && fp32eq(minWeightsVal, 1.0f) /*||
-                LayerInfo(wl).isCropAffined() || LayerInfo(wl).isConcatAlignFilter()*/) {
+            if (fp32eq(minWeightsVal, maxWeightsVal) && fp32eq(minWeightsVal, 1.0f) ||
+                LayerInfo(wl).isCropAffined() || LayerInfo(wl).isConcatAlignFilter()) {
                 // If all values in weights are equal to -1, 0 and 1 only 1 level is required
                 // to describe all possible weight values.
-                // However scale factor equal to 8 is smallest scale factor allowing to create PWL
-                // for sign function
                 weightsScaleFactor = 1.0f;
             }
 
@@ -1302,10 +1479,14 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * MAX_OUT_MULTIPLIER);
             }
 
+            auto inputs = wl->insData.begin()->lock();
+            //double maxVal = inputs[1] * quant->_weights_quant.GetScale() * maxAbsVal * quant->_src_quant.GetScale() * maxAbsInputVal;
+            //if (maxVal > std::numeric_limits<int32_t>::max()) {
+            //}
+
             double weights_reducer = 1.0;
             auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer *>(wl);
             if (conv) {
-                auto inputs = wl->insData.begin()->lock();
                 auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());                
                 auto in_width = FROM_IR_DIM(inputs, in_order[3]);
                 weights_reducer = MAX_VAL_2B_FEAT * weightsScaleFactor * in_width / std::numeric_limits<int32_t>::max();
@@ -1343,8 +1524,6 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             }
         }
 
-        auto maxAbsInputVal = std::max(std::abs(quant->_src_quant.GetMinValues().front()),
-            std::abs(quant->_src_quant.GetMaxValues().front()));
         auto maxAbsWeightsVal = std::max(std::abs(quant->_weights_quant.GetMinValues().front()),
             std::abs(quant->_weights_quant.GetMaxValues().front()));
         auto maxOutputScaledVal = maxAbsInputVal * quant->_src_quant.GetScale() *
@@ -1371,7 +1550,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 std::vector<float> res;
 
                 std::uniform_real_distribution<float> dist(min, max);
-                for (int i = 0; i < vec_len; i++)
+                for (size_t i = 0; i < vec_len; i++)
                     res.emplace_back(static_cast<float>(dist(gen)));
 
                 return res;
@@ -1403,14 +1582,13 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 }
 
                 // simulate GNA affine layer
-                auto result = simulateAffine(weights, input, biases,
-                    num_rows_out, num_rows_in, quant->_weights_quant.GetScale(),
-                    num_rows_in, num_columns_in, quant->_src_quant.GetScale());
+                auto result = simulateAffine(weights, input, biases, num_rows_out, num_rows_in, 
+                    num_rows_in, num_columns_in);
 
                 // find minimum and maximum values
                 auto outputValue = findMinMaxValues(result);
-                quant->_dst_quant.SetMinValues({ outputValue.first });
-                quant->_dst_quant.SetMaxValues({ outputValue.second });
+                quant->_dst_quant.SetMinValues({ outputValue.first * MAX_VALUE_GUARDBAND });
+                quant->_dst_quant.SetMaxValues({ outputValue.second * MAX_VALUE_GUARDBAND });
             } else if (LayerInfo(wl).isConvolution()) {
                 // calculate minimum and maximum value from layer by simulating GNA convolution layer
                 auto convLayer = dynamic_cast<InferenceEngine::ConvolutionLayer*>(wl);
@@ -1456,10 +1634,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                     auto kernel = std::vector<float>(convLayer->_kernel_x * in_channels);
                     memcpy(&kernel[0], convLayer->_weights->cbuffer().as<float*>() + k * kernel.size(), kernel.size() * sizeof(float));
 
-                    kernel = transposeMatrix(&kernel[0], in_channels, convLayer->_kernel_x);
-                    //if (inputs->getLayout() == InferenceEngine::Layout::NHWC) {
-                    //    kernel = convertNHWCtoNCHW(kernel, convLayer->_kernel_x, 1, in_channels, 1);
-                    //}
+                    //kernel = transposeMatrix(&kernel[0], in_channels, convLayer->_kernel_x);
                     convertedKernels.insert(convertedKernels.end(), kernel.begin(), kernel.end());
                 }
 
@@ -1474,14 +1649,14 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 auto result = simulateConvolution(input, convertedKernels, biases,
                     convLayer->_stride_x, convLayer->_stride_y, 1,
                     convLayer->_padding_x, convLayer->_padding_y, 0,
-                    in_width, in_height, in_channels, quantDataForInputLayer->_dst_quant.GetScale(),
+                    in_width, in_height, in_channels,
                     out_width, out_height, out_channels,
-                    convLayer->_kernel_x, 1, quant->_weights_quant.GetScale());
+                    convLayer->_kernel_x, 1);
 
                 // find minimum and maximum values
                 auto outputValue = findMinMaxValues(result);
-                quant->_dst_quant.SetMinValues({ outputValue.first * CONV_MAX_VALUE_GUANRDBAND });
-                quant->_dst_quant.SetMaxValues({ outputValue.second * CONV_MAX_VALUE_GUANRDBAND });
+                quant->_dst_quant.SetMinValues({ outputValue.first * MAX_VALUE_GUARDBAND });
+                quant->_dst_quant.SetMaxValues({ outputValue.second * MAX_VALUE_GUARDBAND });
             } else {
                 auto minWeightsVal = quant->_weights_quant.GetMinValues().front();
                 auto maxWeightsVal = quant->_weights_quant.GetMaxValues().front();

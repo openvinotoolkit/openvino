@@ -23,7 +23,8 @@ typedef std::tuple<
     InferenceEngine::Precision,         // Network Precision
     std::string,                        // Target Device
     std::map<std::string, std::string>, // Configuration
-    ngraph::helpers::EltwiseTypes       // Type of eltwise
+    ngraph::helpers::EltwiseTypes,      // Type of eltwise
+    std::pair<float, float>             // Min and Max const value
 > eltwiseParams;
 
 namespace LayerTestsDefinitions {
@@ -36,7 +37,8 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
             std::string targetDevice;
             std::map<std::string, std::string> configuration;
             ngraph::helpers::EltwiseTypes eltwiseType;
-            std::tie(netPrecision, targetDevice, configuration, eltwiseType) = obj.param;
+            std::pair<float, float> minMaxConst;
+            std::tie(netPrecision, targetDevice, configuration, eltwiseType, minMaxConst) = obj.param;
 
             std::ostringstream result;
             result << "netPRC=" << netPrecision.name() << "_";
@@ -45,6 +47,7 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
                 result << "_configItem=" << configItem.first << "_" << configItem.second;
             }
             result << "_eltwiseType=" << eltwiseType;
+            result << "_constMinMax=" << minMaxConst.first << "_" << minMaxConst.second;
             return result.str();
         }
 
@@ -52,7 +55,8 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
         void SetUp() override {
             InferenceEngine::Precision netPrecision;
             ngraph::helpers::EltwiseTypes eltwiseType;
-            std::tie(netPrecision, targetDevice, configuration, eltwiseType) = this->GetParam();
+            std::pair<float, float> minMaxConst;
+            std::tie(netPrecision, targetDevice, configuration, eltwiseType, minMaxConst) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
             outPrc = InferenceEngine::Precision::FP32;
@@ -63,7 +67,7 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
             auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, outFormShapes1);
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
 
-            auto constant1 = ngraph::builder::makeConstant<float>(ngPrc, { 1, 1, 1, 12 }, {}, true);
+            auto constant1 = ngraph::builder::makeConstant<float>(ngPrc, { 1, 1, 1, 12 }, {}, true, minMaxConst.second, minMaxConst.first, 0);
             auto eltwise = ngraph::builder::makeEltwise(reshape1, constant1, eltwiseType);
 
             std::vector<size_t> outFormShapes2 = { 1, 72 };
@@ -83,7 +87,7 @@ public:
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         ngraph::helpers::EltwiseTypes eltwiseType;
-        std::tie(netPrecision, targetDevice, configuration, eltwiseType) = obj.param;
+        std::tie(netPrecision, targetDevice, configuration, eltwiseType, std::ignore) = obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
@@ -99,7 +103,7 @@ protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
         ngraph::helpers::EltwiseTypes eltwiseType;
-        std::tie(netPrecision, targetDevice, configuration, eltwiseType) = this->GetParam();
+        std::tie(netPrecision, targetDevice, configuration, eltwiseType, std::ignore) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         outPrc = InferenceEngine::Precision::FP32;
@@ -139,15 +143,12 @@ protected:
     const std::vector<std::map<std::string, std::string>> configs = {
         {
             {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-            {"GNA_SCALE_FACTOR_0", "1638.4"}
         }
     };
 
     const std::vector<std::map<std::string, std::string>> configsMultiple = {
         {
             {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-            {"GNA_SCALE_FACTOR_0", "1638.4"},
-            {"GNA_SCALE_FACTOR_1", "1638.4"}
         }
     };
 
@@ -157,12 +158,21 @@ protected:
         ngraph::helpers::EltwiseTypes::ADD
     };
 
+    const std::vector<std::pair<float, float>> minMaxValues = {
+        {0, 1},
+        {0, 10},
+        {1, 10},
+        {0, 20},
+        {0, 64},
+    };
+
     INSTANTIATE_TEST_CASE_P(smoke_Eltwise4d, Eltwise4dBroadcast,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
-            ::testing::ValuesIn(eltwiseOpTypes)),
+            ::testing::ValuesIn(eltwiseOpTypes),
+            ::testing::ValuesIn(minMaxValues)),
         Eltwise4dBroadcast::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Eltwise4d, Eltwise4dMultipleInput,
@@ -170,7 +180,8 @@ protected:
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configsMultiple),
-            ::testing::ValuesIn(eltwiseOpTypes)),
+            ::testing::ValuesIn(eltwiseOpTypes),
+            ::testing::ValuesIn(std::vector<std::pair<float, float>> {})),
         Eltwise4dMultipleInput::getTestCaseName);
 
 } // namespace LayerTestsDefinitions

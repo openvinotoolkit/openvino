@@ -21,7 +21,6 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
 std::map<std::string, std::string> additional_config = {
     {"GNA_COMPACT_MODE", "NO"},
     {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-    {"GNA_SCALE_FACTOR_0", "2000.0"},
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_Concat4D_Basic, Concat4DLayerTest,
