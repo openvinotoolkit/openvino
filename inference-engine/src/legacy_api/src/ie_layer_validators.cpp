@@ -12,7 +12,6 @@
 
 #include <ie_iextension.h>
 #include "debug.h"
-#include "xml_parse_utils.h"
 
 #include <legacy/ie_layers.h>
 #include "ie_layer_validators.hpp"
