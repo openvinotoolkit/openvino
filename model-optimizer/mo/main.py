@@ -227,36 +227,44 @@ def prepare_ir(argv: argparse.Namespace):
     elif is_kaldi:
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_onnx:
+    elif is_onnx and argv.use_legacy_frontend:
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    graph = unified_pipeline(argv)
+
+    if not(is_onnx and not argv.use_legacy_frontend):
+        graph = unified_pipeline(argv)
+    else:
+        from openvino.inference_engine import IECore
+        ie = IECore()
+        graph = ie.read_network(model=argv.input_model)
+        #TODO: provide real shapes here
+        print('Placeholder shapes:' + str(argv.placeholder_shapes))
+        print('Placeholder shapes:' + str(argv.user_shapes))
+        graph.reshape({'input:0': [1, 3, 224, 224]})
     return graph
 
 
-def emit_ir(graph: Graph, argv: argparse.Namespace):
-    NormalizeTI().find_and_replace_pattern(graph)
-    for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
-    for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
+def emit_ir(graph, argv: argparse.Namespace):
+    if argv.use_legacy_frontend:
+        NormalizeTI().find_and_replace_pattern(graph)
+        for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
+        for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
-    prepare_emit_ir(graph=graph,
-                    data_type=graph.graph['cmd_params'].data_type,
-                    output_dir=argv.output_dir,
-                    output_model_name=argv.model_name,
-                    mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
-                    input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
-                    meta_info=get_meta_info(argv))
+        prepare_emit_ir(graph=graph,
+                        data_type=graph.graph['cmd_params'].data_type,
+                        output_dir=argv.output_dir,
+                        output_model_name=argv.model_name,
+                        mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
+                        input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
+                        meta_info=get_meta_info(argv))
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-
         orig_model_name = os.path.join(output_dir, argv.model_name)
-        from openvino.inference_engine import IECore
-        ie = IECore()
-        net = ie.read_network(model=orig_model_name + ".xml", weights=orig_model_name + ".bin")
-        net.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
+        if not argv.use_legacy_frontend:
+            graph.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
+            print('[ SUCCESS ] Converted with ONNX Importer')
 
-        print('\n[ SUCCESS ] Serialize-Read-Serialize')
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
         print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))

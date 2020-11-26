@@ -616,6 +616,12 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
 
     onnx_group = parser.add_argument_group('ONNX*-specific parameters')
 
+    onnx_group.add_argument("--use_legacy_frontend",
+                            help="Switch back to the original (legacy) frontend for ONNX model conversion. " +
+                                "By default, ONNX Importer is used as a converter.",
+                            default=False,
+                            action='store_true')
+
     return parser
 
 
