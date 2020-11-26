@@ -58,12 +58,11 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(
-        std::vector<element::Type>({ element::f32, element::f32 }), std::vector<element::Type>({}),
-        ngraph::op::TemporaryReplaceOutputType(dequantization1.subtract != nullptr ? subtract : dequantization1.data, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(dequantization2.subtract != nullptr ? dequantization2.subtract : dequantization2.data, element::f32).get(),
+        std::vector<element::Type>({ deqPrecision, deqPrecision }), std::vector<element::Type>({ deqPrecision }),
+        ngraph::op::TemporaryReplaceOutputType(dequantization1.subtract != nullptr ? subtract : dequantization1.data, deqPrecision).get(),
+        ngraph::op::TemporaryReplaceOutputType(dequantization2.subtract != nullptr ? dequantization2.subtract : dequantization2.data, deqPrecision).get(),
         matMul->get_transpose_a(),
         matMul->get_transpose_b());
-    NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMatMul, matMul->get_output_element_type(0));
     NetworkHelper::copyInfo(matMul, newMatMul);
 
     auto transpose = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
@@ -89,12 +88,14 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         transpose(dequantization2.multiply->get_input_node_shared_ptr(1)) :
         dequantization2.multiply->get_input_node_shared_ptr(1);
 
-    const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<DequantizationMultiply>(
-        newMatMul,
-        NetworkHelper::toScalarIfPossible(
+    const auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+        std::vector<element::Type>{ deqPrecision, deqPrecision },
+        std::vector<element::Type>{ dequantization1.multiply->get_output_element_type(0) },
+        ngraph::op::TemporaryReplaceOutputType(newMatMul, deqPrecision).get(),
+        ngraph::op::TemporaryReplaceOutputType(NetworkHelper::toScalarIfPossible(
             fold<ngraph::opset1::Multiply>(
                 NetworkHelper::toScalar(as_type_ptr<opset1::Constant>(const1)),
-                const2)));
+                const2)), deqPrecision).get());
     replace_node(matMul, newMultiply);
     ngraph::copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
