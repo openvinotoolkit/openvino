@@ -46,7 +46,7 @@ public:
      * This method need to be called to find output names for using them later
      * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
      *
-     * @param out Reference to the ::ConstOutputsDataMap object
+     * @param out Reference to the InferenceEngine::ConstOutputsDataMap object
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
@@ -55,11 +55,11 @@ public:
     /**
      * @brief Gets the executable network input Data node information.
      *
-     * The received info is stored in the given ::ConstInputsDataMap object.
+     * The received info is stored in the given InferenceEngine::ConstInputsDataMap object.
      * This method need to be called to find out input names for using them later
      * when calling InferenceEngine::InferRequest::SetBlob
      *
-     * @param inputs Reference to ::ConstInputsDataMap object.
+     * @param inputs Reference to InferenceEngine::ConstInputsDataMap object.
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */

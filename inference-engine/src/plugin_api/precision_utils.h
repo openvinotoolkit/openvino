@@ -38,8 +38,8 @@ namespace InferenceEngine {
  * @defgroup ie_dev_api_async_infer_request_api Asynchronous Inference Request base classes
  * @brief A set of base and helper classes to implement asynchronous inference request class
  * 
- * @defgroup ie_dev_api_mem_state_api Memory state base classes
- * @brief A set of base and helper classes to implement memory state
+ * @defgroup ie_dev_api_variable_state_api Variable state base classes
+ * @brief A set of base and helper classes to implement variable state
  * 
  * @defgroup ie_dev_api_threading Threading utilities
  * @brief Threading API providing task executors for asynchronous operations
@@ -140,6 +140,7 @@ f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, 
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
+ * @return     A saturated value
  */
 template <class OutT, class InT, typename std::enable_if<
         std::is_integral<OutT>::value && std::is_integral<InT>::value &&
@@ -166,6 +167,7 @@ inline OutT saturate_cast(const InT& value) {
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
+ * @return     A saturated value
  */
 template <class OutT, class InT, typename std::enable_if<
         std::is_integral<OutT>::value && std::is_integral<InT>::value &&
@@ -193,6 +195,7 @@ inline OutT saturate_cast(const InT& value) {
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
+ * @return     A saturated value
  */
 template <class InT>
 inline InT saturate_cast(const InT& value) {

@@ -7,7 +7,7 @@ There are two options of using custom layer configuration file:
 * Include a section with your kernels into the global automatically-loaded `cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml` file, which is hosted in the `<INSTALL_DIR>/deployment_tools/inference_engine/bin/intel64/{Debug/Release}` folder
 * Call the `InferenceEngine::Core::SetConfig()` method from your application with the `InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE` key and the configuration file name as a value before loading the network that uses custom layers to the plugin:
 
-@snippet openvino/docs/snippets/GPU_Kernel.cpp part0
+@snippet snippets/GPU_Kernel.cpp part0
 
 All Inference Engine samples, except trivial `hello_classification`,
 feature a dedicated command-line option `-c` to load custom kernels. For example, to load custom layers for the classification sample, run the command below:
@@ -227,7 +227,7 @@ floating-point, and integer kernel parameters. To get the dump, add the
 following line to your code that configures the GPU plugin to output the
 custom kernels:
 
-@snippet openvino/docs/snippets/GPU_Kernel.cpp part1
+@snippet snippets/GPU_Kernel.cpp part1
 
 When the Inference Engine compiles the kernels for the specific network,
 it also outputs the resulting code for the custom kernels. In the

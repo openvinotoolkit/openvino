@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 
 class MockIVariableStateInternal : public InferenceEngine::IVariableStateInternal {
  public:

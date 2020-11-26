@@ -10,7 +10,7 @@
 
 #include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
-#include <cpp_interfaces/base/ie_memory_state_base.hpp>
+#include <cpp_interfaces/base/ie_variable_state_base.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
 #include "ie_profiling.hpp"
@@ -29,7 +29,7 @@ class InferRequestBase : public IInferRequest {
 public:
     /**
      * @brief Constructor with actual underlying implementation.
-     * @param impl Underplying implementation of type IAsyncInferRequestInternal
+     * @param impl Underlying implementation of type IAsyncInferRequestInternal
      */
     explicit InferRequestBase(std::shared_ptr<T> impl): _impl(impl) {}
 

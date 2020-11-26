@@ -168,7 +168,7 @@ public:
     /**
      * @brief Compares stored object with the given one
      * @param pointer An pointer to compare with.
-     * @return true if objects are equal, false otherwise
+     * @return `true` if objects are equal, `false` otherwise
      */
     bool operator==(const T* pointer) const {
         // special case with nullptr
@@ -177,8 +177,9 @@ public:
 
     /**
      * @brief Compares the object with the one stored in the memory.
-     *
-     * @return true if objects are equal, false otherwise
+     * @param pointer A pointer to compare with
+     * @param lm A compared LockedMemory object
+     * @return `true` if objects are equal, `false` otherwise
      */
     friend bool operator==(const T* pointer, const LockedMemory<T>& lm) {
         return lm.operator==(pointer);
@@ -266,8 +267,8 @@ public:
 
     /**
      * @brief Compares stored object with the given one
-     *
-     * @return true if objects are equal, false otherwise
+     * @param pointer A pointer to compare with
+     * @return `true` if objects are equal, `false` otherwise
      */
     bool operator==(const void* pointer) const {
         // special case with nullptr
@@ -276,8 +277,9 @@ public:
 
     /**
      * @brief Compares the object with the one stored in the memory
-     *
-     * @return true if objects are equal, false otherwise
+     * @param pointer A pointer to compare with
+     * @param lm A compared LockedMemory object
+     * @return `true` if objects are equal, `false` otherwise
      */
     friend bool operator==(const void* pointer, const LockedMemory<void>& lm) {
         return lm.operator==(pointer);
@@ -362,8 +364,8 @@ public:
 
     /**
      * @brief Compares stored object with the given one
-     *
-     * @return true if objects are equal, false otherwise
+     * @param pointer A pointer to compare with
+     * @return `true` if objects are equal, `false` otherwise
      */
     bool operator==(const T* pointer) const {
         // special case with nullptr
@@ -372,8 +374,9 @@ public:
 
     /**
      * @brief Compares the object with the one stored in the memory
-     *
-     * @return true if objects are equal, false otherwise
+     * @param pointer A pointer to compare with
+     * @param lm A compared LockedMemory object
+     * @return `true` if objects are equal, `false` otherwise
      */
     friend bool operator==(const T* pointer, const LockedMemory<const T>& lm) {
         return lm.operator==(pointer);

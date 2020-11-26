@@ -17,8 +17,10 @@
         </tab>
         <!-- API References -->
         <tab type="usergroup" title="API REFERENCE">
-            <!-- IE Developer Package -->
-            <tab type="modules" visible="yes" title="Inference Engine Plugin API Reference"/>
+            <!-- IE Plugin API -->
+            <tab type="user" url="group__ie__dev__api.html" visible="yes" title="Inference Engine Plugin API Reference"/>
+            <!-- IE Transformations API -->
+            <tab type="user" url="group__ie__transformation__api.html" visible="yes" title="Inference Engine Transformations API Reference"/>
         </tab>
         <tab type="usergroup" title="MAIN OPENVINO™ DOCS" url="../index.html"/>
     </navindex>

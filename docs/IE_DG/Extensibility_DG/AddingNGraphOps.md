@@ -20,7 +20,7 @@ To add your custom nGraph operation, create a new class that extends `ngraph::Op
 
 Based on that, declaration of a operation class can look as follows:
 
-@snippet op.hpp op:header
+@snippet template_extension/op.hpp op:header
 
 ### Class Fields
 
@@ -33,37 +33,37 @@ The provided implementation has several fields:
 
 nGraph operation contains two constructors: a default constructor, which allows to create operation without attributes and a constructor that creates and validates operation with specified inputs and attributes.
 
-@snippet op.cpp op:ctor
+@snippet template_extension/op.cpp op:ctor
 
 ### `validate_and_infer_types()`
 
 `ngraph::Node::validate_and_infer_types` method validates operation attributes and calculates output shapes using attributes of operation.
 
-@snippet op.cpp op:validate
+@snippet template_extension/op.cpp op:validate
 
 ### `clone_with_new_inputs()`
 
 `ngraph::Node::clone_with_new_inputs` method creates a copy of nGraph operation with new inputs.
 
-@snippet op.cpp op:copy
+@snippet template_extension/op.cpp op:copy
 
 ### `visit_attributes()`
 
 `ngraph::Node::visit_attributes` method allows to visit all operation attributes.
 
-@snippet op.cpp op:visit_attributes
+@snippet template_extension/op.cpp op:visit_attributes
 
 ### `evaluate()`
 
 `ngraph::Node::evaluate` method allows to apply constant folding to an operation.
 
-@snippet op.cpp op:evaluate
+@snippet template_extension/op.cpp op:evaluate
 
 ## Register Custom Operations in Extension Class
 
 To add custom operations to the [Extension](Extension.md) class, create an operation set with custom operations and implement the `InferenceEngine::IExtension::getOpSets` method:
 
-@snippet extension.cpp extension:getOpSets
+@snippet template_extension/extension.cpp extension:getOpSets
 
 This method returns a map of opsets that exist in the extension library.
 

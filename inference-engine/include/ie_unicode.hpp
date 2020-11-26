@@ -29,6 +29,8 @@ namespace InferenceEngine {
 /**
  * @deprecated Use OS-native conversion utilities
  * @brief Conversion from possibly-wide character string to a single-byte chain.
+ * @param str A possibly-wide character string
+ * @return A single-byte character string
  */
 INFERENCE_ENGINE_DEPRECATED("Use OS-native conversion utilities")
 inline std::string fileNameToString(const file_name_t& str) {
@@ -47,6 +49,8 @@ inline std::string fileNameToString(const file_name_t& str) {
 /**
  * @deprecated Use OS-native conversion utilities
  * @brief Conversion from single-byte character string to a possibly-wide one
+ * @param str A single-byte character string
+ * @return A possibly-wide character string
  */
 INFERENCE_ENGINE_DEPRECATED("Use OS-native conversion utilities")
 inline file_name_t stringToFileName(const std::string& str) {
