@@ -862,15 +862,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Gemm", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::GemmLayer>(attrs);
-
-        auto transpUppercaseFirstChar = [](const std::string& transpose) -> std::string {
-            std::string value = transpose;
-            value.at(0) = ::toupper(value.at(0));
-            return value;
-        };
-
-        res->params["transpose_a"] = transpUppercaseFirstChar(params.at("transpose_a"));
-        res->params["transpose_b"] = transpUppercaseFirstChar(params.at("transpose_b"));
+        res->params = params;
         return res;
     });
 
