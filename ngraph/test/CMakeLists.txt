@@ -54,7 +54,6 @@ set(SRC
     control_dependencies.cpp
     convert_u1_to_string.cpp
     coordinate.cpp
-    coordinate_range.cpp
     copy.cpp
     element_type.cpp
     eval.cpp
