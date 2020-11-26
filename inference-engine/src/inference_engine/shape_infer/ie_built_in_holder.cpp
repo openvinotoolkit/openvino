@@ -7,7 +7,6 @@
 #include <string>
 
 #include "shape_infer/ie_built_in_holder.hpp"
-#include "shape_infer/ie_detectionoutput_onnx_shape_infer.hpp"
 #include "shape_infer/ie_priorgridgenerator_onnx_shape_infer.hpp"
 #include "shape_infer/ie_proposal_onnx_shape_infer.hpp"
 #include "shape_infer/ie_proposal_shape_infer.hpp"
@@ -68,7 +67,6 @@ public:
 #define REG_SHAPE_INFER_FOR_TYPE(__prim, __type) \
     static ImplRegisterBase<__prim> __bi_reg__##__type(#__type)
 
-REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronDetectionOutputShapeProp, ExperimentalDetectronDetectionOutput);
 REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronPriorGridGeneratorShapeProp, ExperimentalDetectronPriorGridGenerator);
 REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronGenerateProposalsSingleImageShapeProp, ExperimentalDetectronGenerateProposalsSingleImage);
 REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronROIFeatureExtractorShapeProp, ExperimentalDetectronROIFeatureExtractor);
