@@ -96,223 +96,223 @@ Now consider how to cut some parts of the model off. This chapter uses the first
 If you want to cut your model at the end, you have the following options:
 
 1. The following command cuts off the rest of the model after the `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`, making this node the last in the model:
-	```sh
-	python3 mo.py --input_model=inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
-	```
-	The resulting Intermediate Representation has three layers:
-	```xml
-	<?xml version="1.0" ?>
-	<net batch="1" name="model" version="2">
-		<layers>
-			<layer id="3" name="input" precision="FP32" type="Input">
-				<output>
-					<port id="0">...</port>
-				</output>
-			</layer>
-			<layer id="5" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution" precision="FP32" type="Convolution">
-				<data dilation-x="1" dilation-y="1" group="1" kernel-x="7" kernel-y="7" output="64" pad-x="2" pad-y="2" stride="1,1,2,2" stride-x="2" stride-y="2"/>
-				<input>
-					<port id="0">...</port>
-				</input>
-				<output>
-					<port id="3">...</port>
-				</output>
-				<blobs>
-					<weights offset="0" size="37632"/>
-					<biases offset="37632" size="256"/>
-				</blobs>
-			</layer>
-			<layer id="6" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
-				<input>
-					<port id="0">...</port>
-				</input>
-				<output>
-					<port id="1">...</port>
-				</output>
-			</layer>
-		</layers>
-		<edges>
-			<edge from-layer="3" from-port="0" to-layer="5" to-port="0"/>
-			<edge from-layer="5" from-port="3" to-layer="6" to-port="0"/>
-		</edges>
-	</net>
-	```
-	As you can see in the TensorBoard picture, the original model has more nodes than Intermediate Representation. Model Optimizer has fused batch normalization `InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm` to the convolution `InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`, and it is not present in the final Intermediate Representation. This is not an effect of the `--output` option, it is usual behavior of the Model Optimizer for batch normalizations and convolutions. The effect of the `--output` is that the `ReLU` layer becomes the last one in the converted model.
+```sh
+python3 mo.py --input_model=inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
+```
+   The resulting Intermediate Representation has three layers:
+```xml
+<?xml version="1.0" ?>
+<net batch="1" name="model" version="2">
+	<layers>
+		<layer id="3" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">...</port>
+			</output>
+		</layer>
+		<layer id="5" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution" precision="FP32" type="Convolution">
+			<data dilation-x="1" dilation-y="1" group="1" kernel-x="7" kernel-y="7" output="64" pad-x="2" pad-y="2" stride="1,1,2,2" stride-x="2" stride-y="2"/>
+			<input>
+				<port id="0">...</port>
+			</input>
+			<output>
+				<port id="3">...</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="37632"/>
+				<biases offset="37632" size="256"/>
+			</blobs>
+		</layer>
+		<layer id="6" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
+			<input>
+				<port id="0">...</port>
+			</input>
+			<output>
+				<port id="1">...</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="3" from-port="0" to-layer="5" to-port="0"/>
+		<edge from-layer="5" from-port="3" to-layer="6" to-port="0"/>
+	</edges>
+</net>
+```
+   As you can see in the TensorBoard picture, the original model has more nodes than Intermediate Representation. Model Optimizer has fused batch normalization `InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm` to the convolution `InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`, and it is not present in the final Intermediate Representation. This is not an effect of the `--output` option, it is usual behavior of the Model Optimizer for batch normalizations and convolutions. The effect of the `--output` is that the `ReLU` layer becomes the last one in the converted model.
 
 2. The following command cuts the edge that comes from 0 output port of the `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` and the rest of the model, making this node the last one in the model:
-	```sh
-	python3 mo.py --input_model=inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0
-	```
-	The resulting Intermediate Representation has three layers, which are the same as in the previous case:
-	```xml
-	<?xml version="1.0" ?>
-	<net batch="1" name="model" version="2">
-		<layers>
-			<layer id="3" name="input" precision="FP32" type="Input">
-				<output>
-					<port id="0">...</port>
-				</output>
-			</layer>
-			<layer id="5" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution" precision="FP32" type="Convolution">
-				<data dilation-x="1" dilation-y="1" group="1" kernel-x="7" kernel-y="7" output="64" pad-x="2" pad-y="2" stride="1,1,2,2" stride-x="2" stride-y="2"/>
-				<input>
-					<port id="0">...</port>
-				</input>
-				<output>
-					<port id="3">...</port>
-				</output>
-				<blobs>
-					<weights offset="0" size="37632"/>
-					<biases offset="37632" size="256"/>
-				</blobs>
-			</layer>
-			<layer id="6" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
-				<input>
-					<port id="0">...</port>
-				</input>
-				<output>
-					<port id="1">...</port>
-				</output>
-			</layer>
-		</layers>
-		<edges>
-			<edge from-layer="3" from-port="0" to-layer="5" to-port="0"/>
-			<edge from-layer="5" from-port="3" to-layer="6" to-port="0"/>
-		</edges>
-	</net>
-	```
-	This type of cutting is useful to cut edges in case of multiple output edges.
+```sh
+python3 mo.py --input_model=inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0
+```
+   The resulting Intermediate Representation has three layers, which are the same as in the previous case:
+```xml
+<?xml version="1.0" ?>
+<net batch="1" name="model" version="2">
+	<layers>
+		<layer id="3" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">...</port>
+			</output>
+		</layer>
+		<layer id="5" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution" precision="FP32" type="Convolution">
+			<data dilation-x="1" dilation-y="1" group="1" kernel-x="7" kernel-y="7" output="64" pad-x="2" pad-y="2" stride="1,1,2,2" stride-x="2" stride-y="2"/>
+			<input>
+				<port id="0">...</port>
+			</input>
+			<output>
+				<port id="3">...</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="37632"/>
+				<biases offset="37632" size="256"/>
+			</blobs>
+		</layer>
+		<layer id="6" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
+			<input>
+				<port id="0">...</port>
+			</input>
+			<output>
+				<port id="1">...</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="3" from-port="0" to-layer="5" to-port="0"/>
+		<edge from-layer="5" from-port="3" to-layer="6" to-port="0"/>
+	</edges>
+</net>
+```
+   This type of cutting is useful to cut edges in case of multiple output edges.
 
 3. The following command cuts the edge that comes to 0 input port of the `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` and the rest of the model including `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`, deleting this node and making the previous node `InceptionV1/InceptionV1/Conv2d_1a_7x7/Conv2D` the last in the model:
-	```sh
-	python3 mo.py --input_model=inception_v1.pb -b 1 --output=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
-	```
-	The resulting Intermediate Representation has two layers, which are the same as the first two layers in the previous case:
-	```xml
-	<?xml version="1.0" ?>
-	<net batch="1" name="inception_v1" version="2">
-		<layers>
-			<layer id="0" name="input" precision="FP32" type="Input">
-				<output>
-					<port id="0">...</port>
-				</output>
-			</layer>
-			<layer id="1" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Conv2D" precision="FP32" type="Convolution">
-				<data auto_pad="same_upper" dilation-x="1" dilation-y="1" group="1" kernel-x="7" kernel-y="7" output="64" pad-b="3" pad-r="3" pad-x="2" pad-y="2" stride="1,1,2,2" stride-x="2" stride-y="2"/>
-				<input>
-					<port id="0">...</port>
-				</input>
-				<output>
-					<port id="3">...</port>
-				</output>
-				<blobs>
-					<weights offset="0" size="37632"/>
-					<biases offset="37632" size="256"/>
-				</blobs>
-			</layer>
-		</layers>
-		<edges>
-			<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-		</edges>
-	</net>
-	```
+```sh
+python3 mo.py --input_model=inception_v1.pb -b 1 --output=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
+```
+   The resulting Intermediate Representation has two layers, which are the same as the first two layers in the previous case:
+```xml
+<?xml version="1.0" ?>
+<net batch="1" name="inception_v1" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">...</port>
+			</output>
+		</layer>
+		<layer id="1" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Conv2D" precision="FP32" type="Convolution">
+			<data auto_pad="same_upper" dilation-x="1" dilation-y="1" group="1" kernel-x="7" kernel-y="7" output="64" pad-b="3" pad-r="3" pad-x="2" pad-y="2" stride="1,1,2,2" stride-x="2" stride-y="2"/>
+			<input>
+				<port id="0">...</port>
+			</input>
+			<output>
+				<port id="3">...</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="37632"/>
+				<biases offset="37632" size="256"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+	</edges>
+</net>
+```
 
 ### Cutting from the Beginning
 
 If you want to go further and cut the beginning of the model, leaving only the `ReLU` layer, you have the following options:
 
-	1.  You can use the following command line, where `--input` and `--output` specify the same node in the graph:
-	```sh
-	python3 mo.py --input_model=inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
-	```
-	The resulting Intermediate Representation looks as follows:
-	```xml
-	<xml version="1.0">
-	<net batch="1" name="model" version="2">
-		<layers>
-			<layer id="0" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu/placeholder_port_0" precision="FP32" type="Input">
-				<output>
-					<port id="0">...</port>
-				</output>
-			</layer>
-			<layer id="2" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
-				<input>
-					<port id="0">...</port>
-				</input>
-				<output>
-					<port id="1">...</port>
-				</output>
-			</layer>
-		</layers>
-		<edges>
-			<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-		</edges>
-	</net>
-	```
-	`Input` layer is automatically created to feed the layer that is converted from the node specified in `--input`, which is `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` in this case. Model Optimizer does not replace the `ReLU` node by the `Input` layer, it produces such Intermediate Representation to make the node be the first executable node in the final Intermediate Representation. So the Model Optimizer creates enough `Inputs` to feed all input ports of the node that is passed in `--input`.<br>
-	Even though `--input_shape` is not specified in the command line, the shapes for layers are inferred from the beginning of the original TensorFlow* model to the point at which the new input is defined. It has the same shape [1,64,112,112] as the model converted as a whole or without cutting off the beginning.
+1.  You can use the following command line, where `--input` and `--output` specify the same node in the graph:
+```sh
+python3 mo.py --input_model=inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
+```
+   The resulting Intermediate Representation looks as follows:
+```xml
+<xml version="1.0">
+<net batch="1" name="model" version="2">
+	<layers>
+		<layer id="0" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu/placeholder_port_0" precision="FP32" type="Input">
+			<output>
+				<port id="0">...</port>
+			</output>
+		</layer>
+		<layer id="2" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
+			<input>
+				<port id="0">...</port>
+			</input>
+			<output>
+				<port id="1">...</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+	</edges>
+</net>
+```
+   `Input` layer is automatically created to feed the layer that is converted from the node specified in `--input`, which is `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` in this case. Model Optimizer does not replace the `ReLU` node by the `Input` layer, it produces such Intermediate Representation to make the node be the first executable node in the final Intermediate Representation. So the Model Optimizer creates enough `Inputs` to feed all input ports of the node that is passed in `--input`.<br>
+Even though `--input_shape` is not specified in the command line, the shapes for layers are inferred from the beginning of the original TensorFlow* model to the point at which the new input is defined. It has the same shape [1,64,112,112] as the model converted as a whole or without cutting off the beginning.
 
 2. You can cut edge incoming to layer by port number. To specify incoming port use notation `--input=port:input_node`. 
 So, to cut everything before `ReLU` layer, cut edge incoming in port 0 of `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` node:
-	```sh
-	python3 mo.py --input_model=inception_v1.pb -b 1 --input=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
-	```
-	The resulting Intermediate Representation looks as follows:
-	```xml
-	<xml version="1.0">
-	<net batch="1" name="model" version="2">
-		<layers>
-			<layer id="0" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu/placeholder_port_0" precision="FP32" type="Input">
-				<output>
-					<port id="0">...</port>
-				</output>
-			</layer>
-			<layer id="2" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
-				<input>
-					<port id="0">...</port>
-				</input>
-				<output>
-					<port id="1">...</port>
-				</output>
-			</layer>
-		</layers>
-		<edges>
-			<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-		</edges>
-	</net>
-	```
-	`Input` layer is automatically created to feed the layer that is converted from the node specified in `--input`, which is `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` in this case. Model Optimizer does not replace the `ReLU` node by the `Input` layer, it produces such Intermediate Representation to make the node be the first executable node in the final Intermediate Representation. So the Model Optimizer creates enough `Inputs` to feed all input ports of the node that is passed in `--input`.<br>
-	Even though `--input_shape` is not specified in the command line, the shapes for layers are inferred from the beginning of the original TensorFlow* model to the point at which the new input is defined. It has the same shape [1,64,112,112] as the model converted as a whole or without cutting off the beginning.
+```sh
+python3 mo.py --input_model=inception_v1.pb -b 1 --input=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
+```
+   The resulting Intermediate Representation looks as follows:
+```xml
+<xml version="1.0">
+<net batch="1" name="model" version="2">
+	<layers>
+		<layer id="0" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu/placeholder_port_0" precision="FP32" type="Input">
+			<output>
+				<port id="0">...</port>
+			</output>
+		</layer>
+		<layer id="2" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
+			<input>
+				<port id="0">...</port>
+			</input>
+			<output>
+				<port id="1">...</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+	</edges>
+</net>
+```
+   `Input` layer is automatically created to feed the layer that is converted from the node specified in `--input`, which is `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` in this case. Model Optimizer does not replace the `ReLU` node by the `Input` layer, it produces such Intermediate Representation to make the node be the first executable node in the final Intermediate Representation. So the Model Optimizer creates enough `Inputs` to feed all input ports of the node that is passed in `--input`.<br>
+Even though `--input_shape` is not specified in the command line, the shapes for layers are inferred from the beginning of the original TensorFlow* model to the point at which the new input is defined. It has the same shape [1,64,112,112] as the model converted as a whole or without cutting off the beginning.
 
 3. You can cut edge outcoming from layer by port number. To specify outcoming port use notation `--input=input_node:port`.
 So, to cut everything before `ReLU` layer, cut edge from `InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1` node to `ReLU`:
-	```sh
-	python3 mo.py --input_model=inception_v1.pb -b 1 --input=InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
-	```
-	The resulting Intermediate Representation looks as follows:
-	```xml
-	<xml version="1.0">
-	<net batch="1" name="model" version="2">
-		<layers>
-			<layer id="0" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1/placeholder_out_port_0" precision="FP32" type="Input">
-				<output>
-					<port id="0">...</port>
-				</output>
-			</layer>
-			<layer id="1" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
-				<input>
-					<port id="0">...</port>
-				</input>
-				<output>
-					<port id="1">...</port>
-				</output>
-			</layer>
-		</layers>
-		<edges>
-			<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-		</edges>
-	</net>
-	```
+```sh
+python3 mo.py --input_model=inception_v1.pb -b 1 --input=InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu
+```
+   The resulting Intermediate Representation looks as follows:
+```xml
+<xml version="1.0">
+<net batch="1" name="model" version="2">
+	<layers>
+		<layer id="0" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1/placeholder_out_port_0" precision="FP32" type="Input">
+			<output>
+				<port id="0">...</port>
+			</output>
+		</layer>
+		<layer id="1" name="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu" precision="FP32" type="ReLU">
+			<input>
+				<port id="0">...</port>
+			</input>
+			<output>
+				<port id="1">...</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+	</edges>
+</net>
+```
 
 ## Shape Override for New Inputs
 
