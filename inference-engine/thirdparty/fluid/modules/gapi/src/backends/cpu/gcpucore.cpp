@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -342,6 +342,14 @@ GAPI_OCV_KERNEL(GCPUSum, cv::gapi::core::GSum)
     }
 };
 
+GAPI_OCV_KERNEL(GCPUCountNonZero, cv::gapi::core::GCountNonZero)
+{
+    static void run(const cv::Mat& in, int& out)
+    {
+        out = cv::countNonZero(in);
+    }
+};
+
 GAPI_OCV_KERNEL(GCPUAddW, cv::gapi::core::GAddW)
 {
     static void run(const cv::Mat& in1, double alpha, const cv::Mat& in2, double beta, double gamma, int dtype, cv::Mat& out)
@@ -617,7 +625,7 @@ GAPI_OCV_KERNEL(GCPUParseYolo, cv::gapi::nn::parsers::GParseYolo)
     }
 };
 
-GAPI_OCV_KERNEL(GCPUSize, cv::gapi::core::GSize)
+GAPI_OCV_KERNEL(GCPUSize, cv::gapi::streaming::GSize)
 {
     static void run(const cv::Mat& in, cv::Size& out)
     {
@@ -626,7 +634,7 @@ GAPI_OCV_KERNEL(GCPUSize, cv::gapi::core::GSize)
     }
 };
 
-GAPI_OCV_KERNEL(GCPUSizeR, cv::gapi::core::GSizeR)
+GAPI_OCV_KERNEL(GCPUSizeR, cv::gapi::streaming::GSizeR)
 {
     static void run(const cv::Rect& in, cv::Size& out)
     {
@@ -679,6 +687,7 @@ cv::gapi::GKernelPackage cv::gapi::core::cpu::kernels()
          , GCPUAbsDiff
          , GCPUAbsDiffC
          , GCPUSum
+         , GCPUCountNonZero
          , GCPUAddW
          , GCPUNormL1
          , GCPUNormL2

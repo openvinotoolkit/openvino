@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -234,6 +234,11 @@ GScalar sum(const GMat& src)
     return core::GSum::on(src);
 }
 
+GOpaque<int> countNonZero(const GMat& src)
+{
+    return core::GCountNonZero::on(src);
+}
+
 GMat addWeighted(const GMat& src1, double alpha, const GMat& src2, double beta, double gamma, int dtype)
 {
     return core::GAddW::on(src1, alpha, src2, beta, gamma, dtype);
@@ -383,14 +388,14 @@ GMat warpAffine(const GMat& src, const Mat& M, const Size& dsize, int flags,
     return core::GWarpAffine::on(src, M, dsize, flags, borderMode, borderValue);
 }
 
-GOpaque<Size> size(const GMat& src)
+GOpaque<Size> streaming::size(const GMat& src)
 {
-    return core::GSize::on(src);
+    return streaming::GSize::on(src);
 }
 
-GOpaque<Size> size(const GOpaque<Rect>& r)
+GOpaque<Size> streaming::size(const GOpaque<Rect>& r)
 {
-    return core::GSizeR::on(r);
+    return streaming::GSizeR::on(r);
 }
 
 } //namespace gapi
