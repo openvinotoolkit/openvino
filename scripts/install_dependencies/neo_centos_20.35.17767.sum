@@ -1,0 +1,8 @@
+788b50f5863de8e7cbc57161b84b2ece3b53b6f1 intel-opencl-20.35.17767-1.el7.x86_64.rpm
+8911903f1f239ffbb44df45a52fff984792c34f3 level-zero-1.0.0-1.el7.x86_64.rpm
+2221b991603220399e2d4f2f35f264a821e3c58e level-zero-devel-1.0.0-1.el7.x86_64.rpm
+60bf7cda89b455c996ebb4ed3216eaeb233e590f intel-igc-opencl-1.0.4756-1.el7.x86_64.rpm
+56ce16749f14fd972e91cabd24e6277d144076ee intel-igc-opencl-devel-1.0.4756-1.el7.x86_64.rpm
+eda3b0a38b6d1e96413551cf84e675316bca4134 intel-igc-core-1.0.4756-1.el7.x86_64.rpm
+d9fbc3f38fb2e069d7ccd0a23aef0746c34d5468 intel-gmmlib-20.2.4-1.el7.x86_64.rpm
+20bcedde32611489cf63e429eabd40c2197886b4 intel-gmmlib-devel-20.2.4-1.el7.x86_64.rpm

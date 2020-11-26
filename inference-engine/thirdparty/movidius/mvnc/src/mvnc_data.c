@@ -212,7 +212,7 @@ static ncStatus_t patchSetWdSwitchCommand(char **firmware, size_t *length, const
 // 0x98 the write command for 8bit
 // {0x00, 0x0c, 0x20, 0x70} == 0x70200c00 the address of memory type for ddrInit application
 const char g_setMemTypeCommandMX[] = {0x98, 0x00, 0x0c, 0x20, 0x70};
-const char g_callCommand[] = {0xba, 0x24, 0xe7, 0x21, 0x70};
+const char g_callCommand[] = {0xba, 0x78, 0xe9, 0x00, 0x70};
 
 static ncStatus_t patchSetMemTypeCommand(char **firmware, size_t *length, const char memType) {
     CHECK_HANDLE_CORRECT(firmware);
