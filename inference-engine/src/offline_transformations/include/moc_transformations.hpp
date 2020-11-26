@@ -35,6 +35,8 @@
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 
+#include <disable_constant_folding.hpp>
+
 //namespace ngraph {
 //namespace pass {
 
@@ -51,12 +53,18 @@ public:
     explicit MOCTransformations(bool cf) : m_cf(cf) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
-        std::cout << "Hello MOC! " << (m_cf ? "CF enabled" : "CF disabled") << std::endl;
+        std::cout << "Hello MOC! " << (m_cf ? "ShapeOf disabled" : "ShapeOf enabled") << std::endl;
+
         ngraph::pass::Manager manager(get_pass_config());
-        auto pass_config = manager.get_pass_config();
+
+        auto disable_cf = manager.register_pass<ngraph::pass::GraphRewrite>();
         if (!m_cf) {
-            pass_config->disable<ngraph::pass::ConstantFolding>();
+            disable_cf->add_matcher<ngraph::pass::DisableShapeOfConstantFolding>();
+        } else {
+            disable_cf->add_matcher<ngraph::pass::DisablePriorBoxConstantFolding>();
+            disable_cf->add_matcher<ngraph::pass::DisablePriorBoxClusteredConstantFolding>();
         }
+        disable_cf->set_name("ngraph::pass::DisableConstantFolding");
 
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
@@ -93,6 +101,8 @@ public:
         fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
         fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
         fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
+
+        manager.register_pass<ngraph::pass::EnableShapeOfConstantFolding>();
         manager.run_passes(f);
 
         return true;
