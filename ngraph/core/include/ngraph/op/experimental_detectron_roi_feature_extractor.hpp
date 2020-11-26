@@ -28,36 +28,26 @@ namespace ngraph
     {
         namespace v6
         {
-            class NGRAPH_API ExperimentalDetectronDetectionOutput : public Op
+            class NGRAPH_API ExperimentalDetectronROIFeatureExtractor : public Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
 
                 struct Attributes
                 {
-                    float score_threshold;
-                    float nms_threshold;
-                    float max_delta_log_wh;
-                    int num_classes;
-                    int post_nms_count;
-                    int max_detections_per_image;
-                    bool class_agnostic_box_regression;
-                    std::vector<float> deltas_weights;
+                    int output_dim = 0;
+                    std::vector<int> pyramid_scales;
+                    int sampling_ratio = 0;
+                    bool aligned = false;
                 };
 
-                ExperimentalDetectronDetectionOutput() = default;
-                /// \brief Constructs a ExperimentalDetectronDetectionOutput operation.
+                ExperimentalDetectronROIFeatureExtractor() = default;
+                /// \brief Constructs a ExperimentalDetectronROIFeatureExtractor operation.
                 ///
-                /// \param input_rois  Input rois
-                /// \param input_deltas Input deltas
-                /// \param input_scores Input scores
-                /// \param input_im_info Input image info
+                /// \param args  The outputs producing the input tensors.
                 /// \param attrs  Attributes attributes
-                ExperimentalDetectronDetectionOutput(const Output<Node>& input_rois,
-                                                     const Output<Node>& input_deltas,
-                                                     const Output<Node>& input_scores,
-                                                     const Output<Node>& input_im_info,
-                                                     const Attributes& attrs);
+                ExperimentalDetectronROIFeatureExtractor(const OutputVector& args,
+                                                         const Attributes& attrs);
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
@@ -70,6 +60,6 @@ namespace ngraph
                 Attributes m_attrs;
             };
         } // namespace v6
-        using v6::ExperimentalDetectronDetectionOutput;
+        using v6::ExperimentalDetectronROIFeatureExtractor;
     } // namespace op
 } // namespace ngraph

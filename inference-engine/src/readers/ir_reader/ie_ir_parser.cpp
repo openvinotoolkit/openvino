@@ -71,6 +71,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
     opsets["opset3"] = ngraph::get_opset3();
     opsets["opset4"] = ngraph::get_opset4();
     opsets["opset5"] = ngraph::get_opset5();
+    opsets["opset6"] = ngraph::get_opset6();
 
     // Load custom opsets
     for (const auto& ext : exts) {
@@ -462,7 +463,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
 
     // Check that operation in default opsets
     auto isDefaultOpSet = [](const std::string& version) -> bool {
-        for (size_t i = 1; i <= 5; i++) {
+        for (size_t i = 1; i <= 6; i++) {
             std::string opset_name = "opset" + std::to_string(i);
             if (version == opset_name)
                 return true;
@@ -522,6 +523,18 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     // Create GenericIE operation for backward compatibility
     if (!ngraphNode && (params.version == "experimental" || params.version == "extension")) {
         // Try to create Generic node for backward compatibility
+        std::set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput"};
+        std::string type = params.type;
+        if (experimental_detectrons.count(type) != 0) {
+            auto opset = opsets.at("opset6");
+            ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
+            ngraphNode->set_friendly_name(params.name);
+            ngraphNode->set_arguments(inputs);
+            XmlDeserializer visitor(node, weights);
+            if (ngraphNode->visit_attributes(visitor))
+                ngraphNode->constructor_validate_and_infer_types();
+        }
+
         std::map<std::string, Parameter> parameters;
         pugi::xml_node dn = node.child("data");
         if (dn) {

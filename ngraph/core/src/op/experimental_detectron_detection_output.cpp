@@ -44,8 +44,8 @@ bool op::ExperimentalDetectronDetectionOutput::visit_attributes(AttributeVisitor
     visitor.on_attribute("score_threshold", m_attrs.score_threshold);
     visitor.on_attribute("nms_threshold", m_attrs.nms_threshold);
     visitor.on_attribute("max_delta_log_wh", m_attrs.max_delta_log_wh);
-    visitor.on_attribute("classes_num", m_attrs.classes_num);
-    visitor.on_attribute("max_detections_per_class", m_attrs.max_detections_per_class);
+    visitor.on_attribute("num_classes", m_attrs.num_classes);
+    visitor.on_attribute("post_nms_count", m_attrs.post_nms_count);
     visitor.on_attribute("max_detections_per_image", m_attrs.max_detections_per_image);
     visitor.on_attribute("class_agnostic_box_regression", m_attrs.class_agnostic_box_regression);
     visitor.on_attribute("deltas_weights", m_attrs.deltas_weights);
