@@ -10,11 +10,15 @@
 
 *MVN* subtracts mean value from the input blob:
 \f[
-o_{i} = i_{i} - \frac{\sum{i_{k}}}{C * H * W}
+o_{i} = i_{i} - ReduceMean(i_{k}, axes)
 \f]
-If *normalize_variance* is set to 1, the output blob is divided by variance:
+If *normalize_variance* is set to `true`, the output blob is divided by variance. In the case of `eps_mode` equal to `inside_sqrt`:
 \f[
-o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2+\epsilon}+\epsilon}
+o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}}
+\f]
+And in the case of `eps_mode` equal to `outside_sqrt`:
+\f[
+o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
 \f]
 
 **Attributes**
@@ -31,17 +35,17 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2+\epsilon}+\epsilon}
 
 * *eps*
 
-  * **Description**: *eps* is the number to be added to the variance inside sqrt to avoid division by zero when normalizing the value. For example, *epsilon* equal to 0.001 means that 0.001 is added to the variance.
+  * **Description**: *eps* is the number to be added to the variance to avoid division by zero when normalizing the value.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
   * **Default value**: None
   * **Required**: *yes*
 
-* *how_eps_applied*
+* *eps_mode*
 
   * **Description**: Choose where to add epsilon.
   * **Range of values**:
-    * `in_sqrt` -- add epsilon inside sqrt
+    * `inside_sqrt` -- add epsilon inside sqrt
     * `outside_sqrt` -- add epsilon outside of sqrt
   * **Type**: `string`
   * **Default value**: None
@@ -61,7 +65,7 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2+\epsilon}+\epsilon}
 
 * *T*: any floating point type.
 
-* *T_IND*: any integer type.
+* *T_IND*: int64 or int32+.
 
 **Example**
 
