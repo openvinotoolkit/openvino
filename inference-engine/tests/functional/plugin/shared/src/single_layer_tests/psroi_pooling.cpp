@@ -120,13 +120,9 @@ namespace LayerTestsDefinitions {
         std::vector<size_t> inputShape;
         std::vector<size_t> coordsShape;
         size_t outputDim;
-        size_t groupSize;
-        float spatialScale;
-        size_t spatialBinsX;
-        size_t spatialBinsY;
-        std::string mode;
         InferenceEngine::Precision netPrecision;
-        std::tie(inputShape, coordsShape, outputDim, groupSize, spatialScale, spatialBinsX, spatialBinsY, mode, netPrecision, targetDevice) = this->GetParam();
+        std::tie(inputShape, coordsShape, outputDim, groupSize_, spatialScale_,
+                 spatialBinsX_, spatialBinsY_, mode_, netPrecision, targetDevice) = this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape, coordsShape});
@@ -135,19 +131,13 @@ namespace LayerTestsDefinitions {
         std::shared_ptr<ngraph::Node> psroiPooling = std::make_shared<ngraph::op::v0::PSROIPooling>(paramOuts[0],
                                                                                                     paramOuts[1],
                                                                                                     outputDim,
-                                                                                                    groupSize,
-                                                                                                    spatialScale,
-                                                                                                    spatialBinsX,
-                                                                                                    spatialBinsY,
-                                                                                                    mode);
+                                                                                                    groupSize_,
+                                                                                                    spatialScale_,
+                                                                                                    spatialBinsX_,
+                                                                                                    spatialBinsY_,
+                                                                                                    mode_);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(psroiPooling)};
         function = std::make_shared<ngraph::Function>(results, params, "psroi_pooling");
-
-        groupSize_ = groupSize;
-        spatialScale_ = spatialScale;
-        spatialBinsX_ = spatialBinsX;
-        spatialBinsY_ = spatialBinsY;
-        mode_ = mode;
     }
 
     TEST_P(PSROIPoolingLayerTest, CompareWithRefs) {
