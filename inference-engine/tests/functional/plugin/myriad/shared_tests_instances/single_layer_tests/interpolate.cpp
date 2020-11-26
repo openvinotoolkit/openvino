@@ -39,6 +39,7 @@ const std::vector<std::vector<size_t>> targetShapes2x = {
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
         ngraph::op::v4::Interpolate::InterpolateMode::linear,
+        ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {

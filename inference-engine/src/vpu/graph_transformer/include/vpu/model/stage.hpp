@@ -275,8 +275,8 @@ VPU_DECLARE_ENUM(BroadcastMode,
 VPU_DECLARE_ENUM(InterpolateMode,
     Nearest = 0,
     Linear = 1,
-    LinearOnnx = 2,
-    Cubic = 2
+    Cubic = 2,
+    LinearOnnx = 3
 )
 VPU_DECLARE_ENUM(InterpolateCoordTransMode,
     HalfPixel = 0,
