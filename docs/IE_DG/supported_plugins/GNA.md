@@ -69,8 +69,8 @@ Limitations include:
 - Only 1D convolutions are natively supported in the models converted from:
 	- [Kaldi](../../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md) framework
 	- [TensorFlow](../../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md) framework. For TensorFlow models, use the `--disable_nhwc_to_nchw` option when running the Model Optimizer.
-- The number of output channels for convolutions must be a multiple of four.
-- Permute layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than eight.
+- The number of output channels for convolutions must be a multiple of 4.
+- Permute layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
 
 #### Experimental Support for 2D Convolutions
 
@@ -101,7 +101,7 @@ Unlike other plugins supporting low-precision execution, the GNA plugin calculat
 The plugin supports the configuration parameters listed below.
 The parameters are passed as `std::map<std::string, std::string>` on `InferenceEngine::Core::LoadNetwork` or `InferenceEngine::SetConfig`.
 
-You can change the `KEY_GNA_DEVICE_MODE` parameter at run time using `InferenceEngine::ExecutableNetwork::SetConfig`, which works for any value excluding `GNA_SW_FP32`. This allows switching the
+You can change the `KEY_GNA_DEVICE_MODE` parameter at run time using `InferenceEngine::ExecutableNetwork::SetConfig`, which works for any value excluding `GNA_SW_FP32`. This enables you to switch the
 execution between software emulation mode and hardware emulation mode after the model is loaded.
 
 The parameter names below correspond to their usage through API keys, such as `GNAConfigParams::KEY_GNA_DEVICE_MODE` or `PluginConfigParams::KEY_PERF_COUNT`.
@@ -120,7 +120,7 @@ When specifying key values as raw strings, that is, when using Python API, omit 
 ## How to Interpret Performance Counters
 
 As a result of collecting performance counters using `InferenceEngine::InferRequest::GetPerformanceCounts`, you can find various performance data about execution on GNA.
-Returned map stores a counter description as a key, and a counter value in the `realTime_uSec` field of the `InferenceEngineProfileInfo` structure. Current GNA implementation calculates counters for the whole utterance scoring and does not provide per-layer information. The API allows to retrieve counter units in cycles, you can convert cycles to seconds as follows:
+Returned map stores a counter description as a key, and a counter value in the `realTime_uSec` field of the `InferenceEngineProfileInfo` structure. Current GNA implementation calculates counters for the whole utterance scoring and does not provide per-layer information. The API enables you to retrieve counter units in cycles, you can convert cycles to seconds as follows:
 
 ```
 seconds = cycles / frequency
@@ -184,7 +184,7 @@ newConfig[GNAConfigParams::KEY_GNA_DEVICE_MODE] = Parameter("GNA_SW_EXACT");
 executableNet.SetConfig(newConfig);
 
 ```
-2. Resubmit and switch back to GNA_HW when the competing application has finished.
+2. Resubmit and switch back to GNA_HW expecting that the competing application has finished.
 
 ## See Also
 
