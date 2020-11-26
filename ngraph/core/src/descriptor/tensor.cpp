@@ -85,16 +85,6 @@ const Shape& descriptor::Tensor::get_shape() const
     }
 }
 
-void descriptor::Tensor::set_pool_offset(size_t offset)
-{
-    m_pool_offset = offset;
-}
-
-size_t descriptor::Tensor::get_pool_offset() const
-{
-    return m_pool_offset;
-}
-
 size_t descriptor::Tensor::size() const
 {
     return shape_size(get_shape()) * m_element_type.size();
