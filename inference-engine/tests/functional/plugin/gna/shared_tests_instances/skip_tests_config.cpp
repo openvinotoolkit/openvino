@@ -45,5 +45,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationConcatsEltwise.*CS=35.*)",
         // TODO: Issue: 40960
         R"(.*(ConstantResultSubgraphTest).*)",
+        // TODO: Issue: 29577
+        R"(.*CoreThreadingTests.smoke_QueryNetwork.*)"
     };
 }
