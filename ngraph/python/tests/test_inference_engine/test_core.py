@@ -13,11 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-from openvino.inference_engine import IECore, ie_api
 import numpy as np
-import ngraph as ng
-from openvino.inference_engine import IENetwork, ExecutableNetwork
+import ngraph as ng 
 from ngraph.impl import Function
+from openvino.inference_engine import IECore, TensorDesc, Blob, IENetwork, ExecutableNetwork
 import os
 
 
@@ -34,6 +33,24 @@ def model_path(is_myriad=False):
 test_net_xml, test_net_bin = model_path()
 
 
+def test_blobs():
+    input_shape = [1, 3, 4, 4]
+    input_data_float32 = (np.random.rand(*input_shape) - 0.5).astype(np.float32)
+
+    td = TensorDesc("FP32", input_shape, "NCHW")
+
+    input_blob_float32 = Blob(td, input_data_float32)
+
+    assert np.all(np.equal(input_blob_float32.buffer(), input_data_float32))
+
+    input_data_int16 = (np.random.rand(*input_shape) + 0.5).astype(np.int16)
+
+    td = TensorDesc("I16", input_shape, "NCHW")
+
+    input_blob_i16 = Blob(td, input_data_int16)
+
+    assert np.all(np.equal(input_blob_i16.buffer(), input_data_int16))
+
 def test_ie_core_class():
     input_shape = [1, 3, 4, 4]
     param = ng.parameter(input_shape, np.float32, name="parameter")
@@ -46,9 +63,9 @@ def test_ie_core_class():
 
     ie_core = IECore()
     ie_core.set_config({}, device_name='CPU')
-    executable_network = ie_core.load_network(cnn_network, 'CPU')
+    executable_network = ie_core.load_network(cnn_network, 'CPU', {})
 
-    td = ie_api.TensorDesc("FP32", input_shape, "NCHW")
+    td = TensorDesc("FP32", input_shape, "NCHW")
 
     # from IPython import embed; embed()
 
@@ -57,15 +74,12 @@ def test_ie_core_class():
 
     expected_output = np.maximum(0.0, input_data)
 
-    input_blob = ie_api.Blob(td, input_data) # , 0)
+    input_blob = Blob(td, input_data)
 
     request.set_input({'parameter': input_blob})
     request.infer()
 
     result = request.get_blob('relu').buffer()
-
-    print(input_blob.buffer())
-    print(result)
 
     assert np.allclose(result, expected_output)
 

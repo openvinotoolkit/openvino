@@ -30,20 +30,23 @@
 
 namespace py = pybind11;
 
-template <typename T>
-void regclass_Blob(py::module m)
-{
-    py::class_<InferenceEngine::TBlob<T>, std::shared_ptr<InferenceEngine::TBlob<T>>> cls(m,
-                                                                                          "Blob");
+void regclass_Blob(py::module m);
 
-    cls.def(py::init(
-        [](const InferenceEngine::TensorDesc& tensorDesc, py::array_t<T> arr) {
-            auto size = arr.size(); // or copy from tensorDesc getDims product?
-            // py::print(arr.dtype()); // validate tensorDesc with this???
-            // assert arr.size() == TensorDesc.getDims().product? ??? 
-            T* ptr = const_cast<T*>(arr.data(0)); // Note: obligatory removal of const!
-            return std::make_shared<InferenceEngine::TBlob<T>>(tensorDesc, ptr, size);
-        }));
+template <typename T>
+void regclass_TBlob(py::module m, std::string typestring)
+{
+    auto pyclass_name = py::detail::c_str((std::string("TBlob") + typestring));
+
+    py::class_<InferenceEngine::TBlob<T>, std::shared_ptr<InferenceEngine::TBlob<T>>> cls(
+        m, pyclass_name);
+
+    cls.def(py::init([](const InferenceEngine::TensorDesc& tensorDesc, py::array_t<T> arr) {
+        auto size = arr.size(); // or copy from tensorDesc getDims product?
+        // py::print(arr.dtype()); // validate tensorDesc with this???
+        // assert arr.size() == TensorDesc.getDims().product? ???
+        T* ptr = const_cast<T*>(arr.data(0)); // Note: obligatory removal of const!
+        return std::make_shared<InferenceEngine::TBlob<T>>(tensorDesc, ptr, size);
+    }));
 
     cls.def(py::init(
         [](const InferenceEngine::TensorDesc& tensorDesc, py::array_t<T> arr, size_t size = 0) {
@@ -52,7 +55,7 @@ void regclass_Blob(py::module m)
                 size = arr.size(); // or copy from tensorDesc getDims product?
             }
             // py::print(arr.dtype()); // validate tensorDesc with this???
-            // assert arr.size() == TensorDesc.getDims().product? ??? 
+            // assert arr.size() == TensorDesc.getDims().product? ???
             T* ptr = const_cast<T*>(arr.data(0)); // Note: obligatory removal of const!
             return std::make_shared<InferenceEngine::TBlob<T>>(tensorDesc, ptr, size);
         }));
