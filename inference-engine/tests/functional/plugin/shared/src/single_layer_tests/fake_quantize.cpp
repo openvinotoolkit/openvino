@@ -145,7 +145,7 @@ TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
         return;
     }
 
-    size_t nIterations = (inputDataMax - inputDataMin) / inputDataResolution;
+    size_t nIterations = 1;
     for (; nIterations != 0; nIterations--) {
         UpdateSeed();
         Infer();
