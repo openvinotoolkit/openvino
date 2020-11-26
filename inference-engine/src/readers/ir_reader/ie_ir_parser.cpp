@@ -398,7 +398,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
         std::make_shared<LayerCreator<ngraph::op::Clamp>>("Clamp"),
-        std::make_shared<LayerCreator<ngraph::op::Constant>>("Const"),
         std::make_shared<LayerCreator<ngraph::op::Convert>>("Convert"),
         std::make_shared<LayerCreator<ngraph::op::CTCGreedyDecoder>>("CTCGreedyDecoder"),
         std::make_shared<LayerCreator<ngraph::op::v1::DeformableConvolution>>("DeformableConvolution"),
@@ -504,15 +503,18 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     // Try to create operation from loaded opsets
     if (!ngraphNode && opsets.count(params.version)) {
         auto opset = opsets.at(params.version);
-
-        if (!opset.contains_type(params.type)) {
-            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
+        std::string type = params.type;
+        if (type == "Const") {
+            type = "Constant";
+        }
+        if (!opset.contains_type(type)) {
+            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
 
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
         ngraphNode->set_friendly_name(params.name);
         ngraphNode->set_arguments(inputs);
-        XmlDeserializer visitor(node);
+        XmlDeserializer visitor(node, weights);
         if (ngraphNode->visit_attributes(visitor))
             ngraphNode->constructor_validate_and_infer_types();
     }
@@ -1235,44 +1237,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Broadcast>
         return std::make_shared<ngraph::op::v1::Broadcast>(inputs[0], inputs[1], inputs[2]);
     }
     THROW_IE_EXCEPTION << "Invalid number of inputs: " << layerParsePrms.inputPorts.size();
-}
-
-// Constant layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 0);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    size_t offset = GetUInt64Attr(dn, "offset");
-    size_t size = GetUInt64Attr(dn, "size");
-
-    size_t length = weights->byteSize();
-    if (!length)
-        THROW_IE_EXCEPTION << "Cannot read network! The model requires weights data! "
-            << "Bin file cannot be found! Please specify the path to bin file.";
-    if (static_cast<size_t>(length) < offset + size)
-        THROW_IE_EXCEPTION << "Cannot create " << getType() << " layer with name: " << layerParsePrms.name
-                           << ". Layer has incorrect weights!";
-
-    auto port = layerParsePrms.outputPorts[0];
-    ngraph::Shape shape(port.dims);
-    ngraph::element::Type el_type(port.precision);
-    if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
-        THROW_IE_EXCEPTION << "Cannot create Constant op " << layerParsePrms.name << " size attribute and shape size are inconsistent!";
-
-    char* data = weights->cbuffer().as<char*>() + offset;
-
-    using SharedBuffer = ngraph::runtime::SharedBuffer<const Blob::CPtr>;
-
-    auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
-    auto constant = std::make_shared<ngraph::op::Constant>(port.precision, shape, buffer);
-
-    return constant;
 }
 
 // Power layer

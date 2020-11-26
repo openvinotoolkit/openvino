@@ -10,7 +10,7 @@
 std::vector<std::string> disabledTestPatterns() {
     return {
         // TODO: Issue 26264
-        R"(.*(MaxPool|AvgPool).*S\(1\.2\).*Rounding=CEIL.*)",
+        R"(.*(MaxPool|AvgPool).*S\(1\.2\).*Rounding=ceil.*)",
         // TODO: Issue 31841
         R"(.*(QuantGroupConvBackpropData3D).*)",
         // TODO: Issue 31843
@@ -25,9 +25,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: failed to downgrade to opset v0 in interpreter backend
         R"(.*Gather.*axis=-1.*)",
         // TODO: Issue 33151
-        R"(.*Reduce.*type=Logical.*)",
         R"(.*Reduce.*axes=\(1\.-1\).*)",
-        R"(.*Reduce.*axes=\(0\.3\)_type=Prod.*)",
         // TODO: Issue: 34518
         R"(.*RangeLayerTest.*)",
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
@@ -35,6 +33,9 @@ std::vector<std::string> disabledTestPatterns() {
 #if (defined(_WIN32) || defined(_WIN64))
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
+        // TODO: Issue: 43793
+        R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
+        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
         // TODO: Issue: 40957
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
