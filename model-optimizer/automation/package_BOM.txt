@@ -676,7 +676,6 @@ extensions/ops/rank.py
 extensions/ops/ReduceOps.py
 extensions/ops/regionyolo.py
 extensions/ops/reorgyolo.py
-extensions/ops/resample.py
 extensions/ops/resize.py
 extensions/ops/resize_factor_utils.py
 extensions/ops/Reverse.py
