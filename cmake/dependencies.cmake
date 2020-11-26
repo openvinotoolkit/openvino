@@ -6,24 +6,18 @@ set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 
 include(dependency_solver)
 
-if(CMAKE_CROSSCOMPILING AND NGRAPH_ONNX_IMPORT_ENABLE)
-    if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
-        set(HOST_X86_64 ON)
-    endif()
-
+if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
     set(protoc_version "3.7.1")
-    if(CMAKE_HOST_SYSTEM_NAME MATCHES Linux)
-        RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
-                           ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
-                           TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64")
-        debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
-    else()
-        message(FATAL_ERROR "Unsupported host system (${CMAKE_HOST_SYSTEM_NAME}) and arch (${CMAKE_HOST_SYSTEM_PROCESSOR}) for cross-compilation")
-    endif()
+
+    RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
+        ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
+        TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64"
+        SHA256 "a1bedd5c05ca51e49f8f254faa3d7331e05b3a806c151fb111d582f154d0fee8"
+    )
+    debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
 
     reset_deps_cache(SYSTEM_PROTOC)
 
-    message("${SYSTEM_PROTOC_ROOT}/bin")
     find_program(
         SYSTEM_PROTOC
         NAMES protoc
