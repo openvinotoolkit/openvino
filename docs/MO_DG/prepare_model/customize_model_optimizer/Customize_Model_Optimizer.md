@@ -588,13 +588,22 @@ Model Optimizer provides various base classes to implement [Front Phase Transfor
 [Middle Phase Transformations](#middle-phase-transformations) and [Back Phase Transformations](#back-phase-transformations).
 All classes have the following common class attributes and methods:
 1. Attribute `enabled` specifies whether the transformation is enabled or not. The value can be changed during runtime
-to enable or disable execution of the transformation during a model conversion.
+to enable or disable execution of the transformation during a model conversion. Default value is `True`.
 2. Attribute `id` specifies a unique transformation string identifier. This transformation identified can be used to
 enable (disable) the transformation by setting environment variable `MO_ENABLED_TRANSFORMS` (`MO_DISABLED_TRANSFORMS`)
 with a comma separated list of `id`s. The environment variables override the value of the `enabled` attribute of the
-transformation.
-3. Method `run_before()` returns a list of transformation classes which this transformation should be executed before.
-4. Method `run_after()` returns a list of transformation classes which this transformation should be executed after.
+transformation. Optional attribute.
+3. Attribute `run_not_recursively` specifies whether the transformation should be executed in the sub-graphs, for
+example, body of the [TensorIterator](../../../ops/infrastructure/TensorIterator_1.md) and
+[Loop](../../../ops/infrastructure/Loop_5.md). Default value is `True`.
+4. Attribute `force_clean_up` specifies whether the graph clean up should be executed after the transformation. The
+graph cleanup removes nodes of the graph not reachable from the model inputs. Default value is `False`.
+5. Attribute `force_shape_inference` specifies whether the nodes marked with attribute `need_shape_inference` equal to
+`True` should be re-inferred after the transformation. Model Optimizer sets this attribute automatically for nodes which
+input(s) were changed during the transformation or developer can set this attribute manually in the transformation.
+Default value is `False`.
+6. Method `run_before()` returns a list of transformation classes which this transformation should be executed before.
+7. Method `run_after()` returns a list of transformation classes which this transformation should be executed after.
 
 > **NOTE**: Some of the transformation types have specific class attributes and methods which are explained in the
 > dedicated sections of this document.
