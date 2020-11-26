@@ -13,13 +13,13 @@ endif()
 
 include(dependency_solver)
 
-set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma248x)
+set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1508)
+set(FIRMWARE_PACKAGE_VERSION 1522)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
@@ -31,7 +31,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
 
     set(firmware_name_full ${firmware_name}.mvcmd)
     # Handle PCIe elf firmware for Windows
-    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma248x")
+    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma2x8x")
         set(firmware_name_full ${firmware_name}.elf)
     endif ()
 
@@ -69,7 +69,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
     set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/${firmware_name}.mvcmd")
 
     # Handle PCIe elf firmware for Windows
-    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma248x")
+    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma2x8x")
         set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/${firmware_name}.elf")
     endif ()
 
