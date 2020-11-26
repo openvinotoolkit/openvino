@@ -917,8 +917,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"NormalizeIE"}, [](const std::shared_ptr<::ngraph::Node> &node, const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        // Output type for normalize is the same as the type of the first input
         LayerParams attrs = {node->get_friendly_name(), "Normalize",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->get_input_element_type(0))};
         auto res = std::make_shared<InferenceEngine::NormLayer>(attrs);
         
         res->params = params;
