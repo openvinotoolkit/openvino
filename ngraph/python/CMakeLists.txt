@@ -18,7 +18,7 @@ cmake_minimum_required (VERSION 3.13)
 
 project (pyngraph)
 
-if(NOT DEFINED IE_MAIN_SOURCE_DIR)
+if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage)
     find_package(ngraph REQUIRED)    
 endif()
@@ -68,7 +68,7 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 target_include_directories(_${PROJECT_NAME} PRIVATE src)
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
 
-if(InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
 
     install(TARGETS _${PROJECT_NAME} 
