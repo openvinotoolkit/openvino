@@ -249,3 +249,8 @@ endfunction()
 set_ci_build_number()
 
 include(vs_version/vs_version)
+
+# Code style utils
+
+include(cpplint/cpplint)
+include(clang_format/clang_format)
