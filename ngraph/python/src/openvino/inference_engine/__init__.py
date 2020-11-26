@@ -28,4 +28,4 @@ from openvino.pyopenvino import Blob
 
 from openvino.inference_engine.ie_api import BlobPatch
 # Patching for Blob class
-Blob = BlobPatc
+Blob = BlobPatch
