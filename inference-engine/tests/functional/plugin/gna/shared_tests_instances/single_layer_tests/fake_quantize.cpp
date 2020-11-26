@@ -54,10 +54,10 @@ const std::vector<size_t> levels = {16, 255, 256};
 const std::vector<std::vector<float>> fqArgs = {{}};
 const std::vector<std::vector<float>> inputParams = {{-10, 10, 0.1}, {}};
 
-const std::vector<float> fqInputMin = {0, 1, 2, 3, 4, 5};
-const std::vector<float> fqInputMax = {10, 9, 8, 7, 6};
-const std::vector<float> fqOutputMin = {1, 2, 3, 4};
-const std::vector<float> fqOutputMax = {8, 7, 6, 5};
+const std::vector<float> fqInputMin = {0, 3};
+const std::vector<float> fqInputMax = {10, 7};
+const std::vector<float> fqOutputMin = {1, 3};
+const std::vector<float> fqOutputMax = {7, 6};
 
 std::vector<std::vector<float>> getInputOutputShapes(const std::vector<float> inputsMin,
         const std::vector<float> inputsMax,
