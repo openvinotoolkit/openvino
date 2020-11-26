@@ -12,6 +12,7 @@ set(LINK_LIBRARIES
     ngraphFunctions
     inference_engine_transformations
     openvino::itt
+    openvino::conditional_compilation
 )
 set(DEPENDENCIES
     mock_engine
