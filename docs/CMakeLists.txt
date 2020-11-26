@@ -190,8 +190,8 @@ function(build_docs)
 
     add_custom_target(plugin_api
                       DEPENDS ie_docs
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BUILD}
+                      WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating Plugin API Reference"
                       VERBATIM)
 
