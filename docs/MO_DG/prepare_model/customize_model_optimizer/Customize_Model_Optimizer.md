@@ -356,9 +356,9 @@ Refer to the `mo/graph/graph.py` for more details.
 transformations**.
 
 The main benefit of using Model Optimizer Graph API is that it hides some internal implementation details (the fact that
-the graph contains data nodes) and provides API to perform safe and predictable graph manipulations. This is achieved
-with introduction of concepts of ports and connections. This chapter is dedicated to the Model Optimizer Graph API and
-does not cover 2 other non-recommended APIs. Refer to the next two sections for more details.
+the graph contains data nodes), provides API to perform safe and predictable graph manipulations and adds operation
+semantic to the graph. This is achieved with introduction of concepts of ports and connections. This chapter is
+dedicated to the Model Optimizer Graph API and does not cover other two non-recommended APIs.
 
 ### Ports <a name="intro-ports"></a>
 
@@ -427,7 +427,7 @@ situations when the graph contains data nodes (middle/back phases) and not just 
 also automatically create data node or re-uses existing data node. If the method is used during the front phase and
 data nodes do not exist the method creates edge and properly sets `in` and `out` edge attributes.
 
-For example, applying the following two methods to the graph above will result in the following:
+For example, applying the following two methods to the graph above will result in the graph depicted below:
 
 ```py
 op4.in_port(1).disconnect()
@@ -440,6 +440,38 @@ op3.out_port(0).connect(op4.in_port(1))
 `mo/graph/port.py` for a full list of available methods.
 
 ### Connections <a name="intro-conneсtions"></a>
+Connection is an concept introduced to easily and reliably perform graph modifications. Connection corresponds to a
+link between a source output port with one or more destination input ports or a link between a destination input port
+and source output port producing data. So each port is connected with one or more ports with help of a connection.
+Model Optimizer uses the `mo.graph.connection.Connection` class to represent a connection.
+
+There is only one method `get_connection()` of the `Port` class to get the instance of the corresponding `Connection`
+object. If the port is not connected then the returned value is `None`.
+
+For example, the method `op3.out_port(0).get_connection()` returns a `Connection` object encapsulating edges from node
+"Op3" to data node "data_3_0" and two edges from data node "data_3_0" to two ports of the node "Op4".
+
+The `Connection` class provides methods to get source and destination(s) ports the connection corresponds to:
+* `connection.get_source()` - returns an output `Port` object producing the tensor.
+* `connection.get_destinations()` - returns a list of input `Port`s consuming the data.
+* `connection.get_destination()` - returns a single input `Port` consuming the data. If there are multiple consumers
+then the exception is raised.
+
+The `Connection` class provides methods to modify the graph by changing source/destination of a connection. For example,
+the function call `op3.out_port(0).get_connection().set_source(op1.out_port(0))` changes source port of edges consuming
+data from port `op3.out_port(0)` to `op1.out_port(0)`. The transformed graph from the sample above is the depicted
+below:
+
+![Connection example 1](../../../img/MO_connection_example_1.png)
+
+Another example is the method `connection.set_destination(dest_port)`. It disconnects `dest_port` and all input ports
+the connection is currently connected and connect the connection source port to the `dest_port`.
+
+Note that connections work seamlessly during front/middle/back phases and hide the fact that the graph structure is
+different.
+
+> **NOTE**: Refer to the `Connection` class implementation in the `mo/graph/connection.py` for a full list of available
+methods.
 
 ## Model Optimizer Extensions <a name="extensions"></a>
 Model Optimizer extensions allow to inject some logic to the model conversion pipeline without changing the Model
