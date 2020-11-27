@@ -446,6 +446,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         if (outputInfo.second->getPrecision() == Precision::I64) {
             outputInfo.second->setPrecision(Precision::I32);
         } else if (outputInfo.second->getPrecision() != Precision::FP32 &&
+            outputInfo.second->getPrecision() != Precision::FP16 &&
             outputInfo.second->getPrecision() != Precision::I32) {
             outputInfo.second->setPrecision(Precision::FP32);
         }
