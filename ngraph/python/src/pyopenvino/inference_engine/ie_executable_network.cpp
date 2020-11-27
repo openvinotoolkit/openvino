@@ -14,31 +14,50 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
+
 #include <cpp/ie_executable_network.hpp>
+#include <ie_input_info.hpp>
 
 #include "pyopenvino/inference_engine/ie_executable_network.hpp"
-#include "../../../pybind11/include/pybind11/pybind11.h"
+#include "pyopenvino/inference_engine/ie_input_info.hpp"
 
+using PyConstInputsDataMap =
+    std::map<std::string, std::shared_ptr<const InferenceEngine::InputInfo>>;
+
+PYBIND11_MAKE_OPAQUE(PyConstInputsDataMap);
 
 namespace py = pybind11;
 
 void regclass_ExecutableNetwork(py::module m)
 {
-    py::class_<InferenceEngine::ExecutableNetwork, std::shared_ptr<InferenceEngine::ExecutableNetwork>> cls(m, "ExecutableNetwork");
+    py::class_<InferenceEngine::ExecutableNetwork,
+               std::shared_ptr<InferenceEngine::ExecutableNetwork>>
+        cls(m, "ExecutableNetwork");
 
     cls.def("create_infer_request", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
 
     cls.def("get_exec_graph_info", &InferenceEngine::ExecutableNetwork::GetExecGraphInfo);
 
-//    cls.def("get_idle_request_id", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
-//
-//    cls.def("wait", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
+    //    cls.def("get_idle_request_id", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
+    //
+    //    cls.def("wait", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
+
+    auto py_const_inputs_data_map = py::bind_map<PyConstInputsDataMap>(m, "PyConstInputsDataMap");
 
     cls.def_property_readonly("input_info", [](InferenceEngine::ExecutableNetwork& self) {
-        return self.GetInputsInfo();
+        PyConstInputsDataMap inputs;
+        const InferenceEngine::ConstInputsDataMap& inputsInfo = self.GetInputsInfo();
+        for (const auto& in : inputsInfo)
+        {
+            inputs[in.first] = in.second;
+        }
+        return inputs;
     });
 
     cls.def_property_readonly("outputs", &InferenceEngine::ExecutableNetwork::GetOutputsInfo);
 
-//    cls.def_property_readonly("requests", &InferenceEngine::ExecutableNetwork::name);
+    //    cls.def_property_readonly("requests", &InferenceEngine::ExecutableNetwork::name);
 }

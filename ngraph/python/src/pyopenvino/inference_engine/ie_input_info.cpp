@@ -16,8 +16,8 @@
 
 #include <ie_input_info.hpp>
 
-#include "../../../pybind11/include/pybind11/pybind11.h"
 #include <pybind11/stl.h>
+#include "../../../pybind11/include/pybind11/pybind11.h"
 #include "common.hpp"
 #include "pyopenvino/inference_engine/ie_input_info.hpp"
 
@@ -42,6 +42,7 @@ void regclass_InputInfo(py::module m)
         cls_const(m, "InputInfoCPtr");
 
     cls_const.def(py::init<>());
+
     cls_const.def_property_readonly("input_data",
                                     [](const ConstWrapper<const InferenceEngine::InputInfo>& self) {
                                         return self.cref().getInputData();
