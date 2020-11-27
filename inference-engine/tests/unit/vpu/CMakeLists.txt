@@ -13,7 +13,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADDITIONAL_SOURCE_DIRS
             # because ngraphFunctions sources need to be compiled with LTO as well
-            "${IE_TESTS_ROOT}/ngraph_functions/src"
+            "${IE_TESTS_ROOT}/ngraph_helpers/ngraph_functions/src"
         INCLUDES
             "${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin"
             "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius"
@@ -21,11 +21,14 @@ addIeTargetTest(
             "${XLINK_INCLUDE}"
             "${XLINK_PLATFORM_INCLUDE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/base"
+            $<TARGET_PROPERTY:ngraphFunctions,INTERFACE_INCLUDE_DIRECTORIES>
         LINK_LIBRARIES
             vpu_graph_transformer_test_static
             unitTestUtils
             mvnc
-            ngraphFunctions
+            ${NGRAPH_LIBRARIES}
+            ngraph_backend
+            interpreter_backend
             inference_engine_lp_transformations # for ngraphFunctions
         ADD_CPPLINT
         LABELS
