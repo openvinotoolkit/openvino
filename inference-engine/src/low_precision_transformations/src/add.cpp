@@ -94,14 +94,8 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         return false;
     }
 
-    FakeQuantizeDequantization dequantizationLeft = NetworkHelper::getDequantization(op, 0);
-    if (!dequantizationLeft.empty()) {
-        dequantizationLeft = NetworkHelper::normalizeDequantization(dequantizationLeft);
-    }
-    FakeQuantizeDequantization dequantizationRight = NetworkHelper::getDequantization(op, 1);
-    if (!dequantizationRight.empty()) {
-        dequantizationRight = NetworkHelper::normalizeDequantization(dequantizationRight);
-    }
+    FakeQuantizeDequantization dequantizationLeft = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, 0));
+    FakeQuantizeDequantization dequantizationRight = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, 1));
 
     std::shared_ptr<Node> addNode = separateInStandaloneBranch(op);
     std::shared_ptr<opset1::Add> add = as_type_ptr<opset1::Add>(addNode);
