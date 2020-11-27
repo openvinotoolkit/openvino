@@ -37,7 +37,7 @@
 #include "layers/gna_layer_info.hpp"
 #include "gna_upstream_iterator.hpp"
 #include "frontend/quantization.h"
-
+#include "gna_groups.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -77,8 +77,9 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     IE_ASSERT(diagLayer != nullptr);
 
     // TODO: diagonal size
-    auto dimsIndex = nextLayer->outData[0]->getTensorDesc().getDims().size() - 1;
-    std::vector<float> weightsValues(nextLayer->outData[0]->getTensorDesc().getDims()[dimsIndex], fillValue);
+    size_t weightsSize = LayerInfo(prevLayer).has32BOutput() ? weightsSize = nextLayer->outData[0]->getDims().back() :
+                                                               Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
+    std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(
             TensorDesc(
@@ -91,7 +92,6 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
 
     auto diagonalWithQuant = quantized ?
                              InferenceEngine::injectData<QuantizedLayerParams>(diagLayer) : diagLayer;
-
     getCreatorLayer(dataPtr) = diagonalWithQuant;
     diagonalWithQuant->outData.push_back(dataPtr);
     // actual insertion
@@ -259,6 +259,10 @@ void HandleMultipleActivationsForTheLayerPass::run() {
                 LayerInfo info(inputTo.second);
 
                 if (info.isActivation()) {
+                    if (!activations.empty() && odata->getDims()[0] != 1) {
+                        THROW_GNA_EXCEPTION << "Unsupported batch size " << odata->getDims()[0]
+                                            << " for diagonal layer insertion";
+                    }
                     activations.insert(inputTo.second);
                 }
             }
@@ -1404,28 +1408,30 @@ void SubstituteScaleShiftBroadCastPass::run() {
         }
 
         bool was_reshaped = reshaped_data.count(insData->getName()) != 0;
+        bool reshape_batch = HasTo2DReshapeData(l);
         InferenceEngine::SizeVector dataDims;
         if (was_reshaped) {
             dataDims = reshaped_data[insData->getName()];
         } else {
-            dataDims = insData->getDims();
+            dataDims = HasTo2DReshapeData(l) ? Get2DReshapedData(insData, 8)->getDims() : insData->getDims();
         }
 
         if (dataDims.size() <= 2) {
             // NC or C cannot do broadcast
             continue;
         }
+
         auto batchSize = dataDims[0];
         auto nElements = product(begin(dataDims), end(dataDims)) / batchSize;
         auto weightsElements = scaleShift->_weights->size();
         auto weightsBytes = scaleShift->_weights->byteSize();
 
-        if (nElements == weightsElements) {
+        if (!reshape_batch && nElements == weightsElements) {
             continue;
         }
 
         // only 3d scaleshift supported where number of c is arbitrary
-        auto lastD = dataDims[dataDims.size() - 1];
+        auto lastD = reshape_batch ? dataDims[1] : dataDims.back();
         if (lastD != weightsElements) {
             THROW_GNA_EXCEPTION << "Unsupported layer: " << l->name
                                 << " should have last dim(" << lastD << ") equal to weights(" << weightsElements << ") length";
