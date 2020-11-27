@@ -67,6 +67,8 @@ namespace divide
             break;
             TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec, pythondiv);
             break;
+            TYPE_CASE(bf16)(arg0, arg1, out, broadcast_spec, pythondiv);
+            break;
         default: rc = false; break;
         }
         return rc;

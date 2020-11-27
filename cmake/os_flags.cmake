@@ -253,10 +253,12 @@ if(WIN32)
         ie_add_compiler_flags(/Qdiag-disable:161,177,556,1744,1879,2586,2651,3180,11075,15335)
     endif()
 
-    # Debug information flags
-
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Z7")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7")
+    # Debug information flags, by default CMake adds /Zi option
+    # but provides no way to specify CMAKE_COMPILE_PDB_NAME on root level
+    # In order to avoid issues with ninja we are replacing default flag instead of having two of them
+    # and observing warning D9025 about flag override
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 else()
     # TODO: enable for C sources as well
     # ie_add_compiler_flags(-Werror)

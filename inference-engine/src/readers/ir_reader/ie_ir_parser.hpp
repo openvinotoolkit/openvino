@@ -243,6 +243,11 @@ private:
             } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
                 if (!getStrAttribute(node.child("data"), name, val)) return;
                 static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::CoordinateDiff>>(&adapter)) {
+                std::vector<size_t> shape;
+                if (!getParameters<size_t>(node.child("data"), name, shape)) return;
+                std::vector<std::ptrdiff_t> coord_diff(shape.begin(), shape.end());
+                static_cast<ngraph::CoordinateDiff&>(*a) = ngraph::CoordinateDiff(coord_diff);
             } else {
                 THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                                    << " parameter";

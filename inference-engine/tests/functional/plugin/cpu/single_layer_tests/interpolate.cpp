@@ -78,21 +78,17 @@ protected:
                                                                          scalesInput,
                                                                          axesInput,
                                                                          interpolateAttributes);
-        interpolate->get_rt_info() = CPUTestsBase::setCPUInfo(inFmts, outFmts, priority);
+        interpolate->get_rt_info() = getCPUInfo();
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
         function = std::make_shared<ngraph::Function>(results, params, "interpolate");
     }
-
-    std::vector<cpu_memory_format_t> inFmts, outFmts;
-    std::vector<std::string> priority;
-    std::string selectedType;
 };
 
 TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Interpolate", inFmts, outFmts, selectedType);
+    CheckCPUImpl(executableNetwork, "Interpolate");
 }
 
 namespace {

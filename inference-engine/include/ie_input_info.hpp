@@ -125,6 +125,7 @@ public:
 
     /**
      * @brief Returns the tensor descriptor
+     * @return A const reference to a tensor descriptor
      */
     const TensorDesc& getTensorDesc() const {
         if (!_inputData) {
