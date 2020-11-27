@@ -146,7 +146,7 @@ void dumpGraph(InferenceEngine::ICNNNetwork &network,
 
 }   // namespace
 
-void HeteroExecutableNetwork::InitCNNImpl(const InferenceEngine::ICNNNetwork& network_) {
+void HeteroExecutableNetwork::InitCNNImpl(const InferenceEngine::CNNNetwork& network_) {
     auto networkPtr = cloneNet(network_);
     auto& network = *networkPtr;
 
@@ -171,7 +171,7 @@ void HeteroExecutableNetwork::InitCNNImpl(const InferenceEngine::ICNNNetwork& ne
     if (allEmpty) {
         auto it = _config.find("TARGET_FALLBACK");
         if (it != _config.end()) {
-            _heteroPlugin->SetAffinity(network, _config);
+            _heteroPlugin->SetAffinity(InferenceEngine::CNNNetwork(networkPtr), _config);
         } else {
             THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
         }
@@ -319,7 +319,7 @@ void HeteroExecutableNetwork::InitCNNImpl(const InferenceEngine::ICNNNetwork& ne
 template<typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
-void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& network_) {
+void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::CNNNetwork& network_) {
     auto function = network_.getFunction();
     auto clonedFunction = ngraph::clone_function(*function);
     auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
@@ -631,10 +631,8 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
         std::move(std::begin(nextSubgraphs), std::end(nextSubgraphs), std::back_inserter(orderedSubgraphs));
     } while (!allSubgraphs.empty());
 
-    InputsDataMap externalInputsData;
-    network_.getInputsInfo(externalInputsData);
-    OutputsDataMap externalOutputsData;
-    network_.getOutputsInfo(externalOutputsData);
+    InputsDataMap externalInputsData = network_.getInputsInfo();
+    OutputsDataMap externalOutputsData = network_.getOutputsInfo();
     networks.resize(orderedSubgraphs.size());
     std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
     std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
@@ -691,9 +689,9 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     }
 }
 
-HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&    network,
-                                                 const Engine::Configs&                 config,
-                                                 Engine*                                plugin):
+HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
+                                                 const Engine::Configs&             config,
+                                                 Engine*                            plugin):
     InferenceEngine::ExecutableNetworkThreadSafeDefault(
         nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
     _heteroPlugin{plugin},

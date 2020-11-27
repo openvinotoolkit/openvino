@@ -80,14 +80,11 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
 // ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
-InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork & network,
+InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork & network,
                                                                            const ConfigMap &config) {
     auto cfg = Configuration{ config, _cfg };
-    InferenceEngine::InputsDataMap networkInputs;
-    InferenceEngine::OutputsDataMap networkOutputs;
-
-    network.getInputsInfo(networkInputs);
-    network.getOutputsInfo(networkOutputs);
+    InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();
+    InferenceEngine::OutputsDataMap networkOutputs = network.getOutputsInfo();
 
     // TODO: check with precisions supported by Template device
 
@@ -138,7 +135,7 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
 // ! [plugin:import_network_impl]
 
 // ! [plugin:query_network]
-QueryNetworkResult Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config) const {
+QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork &network, const ConfigMap& config) const {
     QueryNetworkResult res;
     Configuration cfg{config, _cfg, false};
 

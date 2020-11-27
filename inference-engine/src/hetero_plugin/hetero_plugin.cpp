@@ -45,7 +45,7 @@ Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs & loc
 
 }  // namespace
 
-InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork&    network,
+InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&    network,
                                                                            const Configs&                   config) {
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
@@ -62,7 +62,6 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const
         std::all_of(std::begin(metaDevices), std::end(metaDevices),
                     [&] (const DeviceMetaInformationMap::value_type& metaDevice) -> bool {
                         auto& deviceName = metaDevice.first;
-                        auto clonedNetwork = cloneNetwork(network);
                         try { GetCore()->QueryNetwork(network, deviceName, metaDevice.second); }
                         catch (const InferenceEngine::details::InferenceEngineException & ex) {
                             std::string message = ex.what();
@@ -74,9 +73,9 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const
             auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
             IE_ASSERT(cnnNetworkImpl != nullptr);
             return std::make_shared<HeteroExecutableNetwork>(
-                *cnnNetworkImpl, mergeConfigs(_config, config), this);
+                InferenceEngine::CNNNetwork(cnnNetworkImpl), mergeConfigs(_config, config), this);
         } else {
-            return std::make_shared<HeteroExecutableNetwork>(*cloneNetwork(network), mergeConfigs(_config, config), this);
+            return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
         }
     } else {
         return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
@@ -157,10 +156,10 @@ void HeteroLayerColorer::operator()(const CNNLayerPtr layer,
     node_properties.emplace_back("fillcolor", deviceColorMap[device]);
 }
 
-void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network, const Configs &config) {
+void Engine::SetAffinity(const InferenceEngine::CNNNetwork &network, const Configs &config) {
     QueryNetworkResult qr = QueryNetwork(network, config);
 
-    details::CNNNetworkIterator i(&network);
+    details::CNNNetworkIterator i(network);
     while (i != details::CNNNetworkIterator()) {
         CNNLayer::Ptr layer = *i;
         auto it = qr.supportedLayersMap.find(layer->name);
@@ -177,7 +176,7 @@ void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network, const Configs &c
 
     if (dumpDot(config) || dumpDot(_config)) {
         std::unordered_set<std::string> devicesSet;
-        details::CNNNetworkIterator i(&network);
+        details::CNNNetworkIterator i(network);
         while (i != details::CNNNetworkIterator()) {
             CNNLayer::Ptr layer = *i;
             if (!layer->affinity.empty()) {
@@ -190,11 +189,12 @@ void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network, const Configs &c
         stream << "hetero_affinity_" << network.getName() << ".dot";
 
         std::ofstream file(stream.str());
-        saveGraphToDot(network, file, HeteroLayerColorer{devices});
+        saveGraphToDot(static_cast<const InferenceEngine::ICNNNetwork&>(network),
+                       file, HeteroLayerColorer{devices});
     }
 }
 
-QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config) const {
+QueryNetworkResult Engine::QueryNetwork(const CNNNetwork &network, const Configs& config) const {
     QueryNetworkResult qr;
 
     if (GetCore() == nullptr) {
@@ -211,12 +211,11 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork &network, const Config
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, tconfig);
 
     std::map<std::string, QueryNetworkResult> queryResults;
-    auto queryNetwork = [&] (const InferenceEngine::ICNNNetwork & networkObject) {
+    auto queryNetwork = [&] (const InferenceEngine::CNNNetwork & networkObject) {
         // go over devices and call query network
         for (auto&& metaDevice : metaDevices) {
             auto& deviceName = metaDevice.first;
-            auto clonedNetwork = cloneNetwork(networkObject);
-            queryResults[deviceName] = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second);
+            queryResults[deviceName] = GetCore()->QueryNetwork(networkObject, deviceName, metaDevice.second);
         }
         return queryResults;
     };
@@ -226,8 +225,7 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork &network, const Config
         std::all_of(std::begin(metaDevices), std::end(metaDevices),
                     [&] (const DeviceMetaInformationMap::value_type& metaDevice) -> bool {
                         auto& deviceName = metaDevice.first;
-                        auto clonedNetwork = cloneNetwork(network);
-                        try { GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second); }
+                        try { GetCore()->QueryNetwork(network, deviceName, metaDevice.second); }
                         catch (const InferenceEngine::details::InferenceEngineException & ex) {
                             std::string message = ex.what();
                             return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
@@ -239,7 +237,7 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork &network, const Config
                 THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
             } else {
                 auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
-                queryNetwork(*cnnNetworkImpl);
+                queryNetwork(InferenceEngine::CNNNetwork(cnnNetworkImpl));
             }
         } else {
             queryNetwork(network);

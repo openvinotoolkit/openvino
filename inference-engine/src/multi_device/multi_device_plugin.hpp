@@ -20,19 +20,18 @@ public:
     MultiDeviceInferencePlugin();
     ~MultiDeviceInferencePlugin() override = default;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
                                                                        const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
-    Parameter GetConfig(const std::string& name,
-                        const std::map<std::string, Parameter> & options) const override;
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork&       network,
+    Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter> & options) const override;
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork&        network,
                                                      const std::map<std::string, std::string>& config) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
     std::vector<MultiDevicePlugin::DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
-                                                  const std::map<std::string, std::string> & config) const;
+                                                                       const std::map<std::string, std::string> & config) const;
 
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,

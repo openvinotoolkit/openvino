@@ -30,13 +30,14 @@ private:
 
 public:
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-                                                const InferenceEngine::ICNNNetwork &network,
+                                                const InferenceEngine::CNNNetwork &network,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
         plgPtr = plg;
-        return std::make_shared<GNAExecutableNetwork>(*cloneNetwork(network), plg);
+        InferenceEngine::CNNNetwork clonedNetwork(cloneNetwork(network));
+        return std::make_shared<GNAExecutableNetwork>(clonedNetwork, plg);
     }
 
     void SetConfig(const std::map<std::string, std::string> &config) override {
@@ -69,7 +70,7 @@ public:
         return GetCurrentPlugin()->GetName();
     }
 
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override {
         auto plg = GetCurrentPlugin();
         try {

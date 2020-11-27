@@ -147,7 +147,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     }
 }
 
-ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
                                                                               const std::map<std::string, std::string>& config) {
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with MULTI device via InferencEngine::Core object";
@@ -173,9 +173,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     for (auto& p : metaDevices) {
         auto & deviceName = p.deviceName;
         auto & deviceConfig = p.config;
-        executableNetworkPerDevice.insert({ deviceName, GetCore()->LoadNetwork(
-            CNNNetwork{ICNNNetwork::Ptr{const_cast<ICNNNetwork*>(&network),
-                                        [](ICNNNetwork*){}}}, deviceName, deviceConfig) });
+        executableNetworkPerDevice.insert({ deviceName, GetCore()->LoadNetwork(network, deviceName, deviceConfig) });
         multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
     }
     if (executableNetworkPerDevice.empty())
@@ -191,7 +189,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
                                                           enablePerfCounters);
 }
 
-QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                        network,
+QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&                         network,
                                                             const std::map<std::string, std::string>& config) const {
     QueryNetworkResult queryResult;
 
@@ -214,8 +212,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&  
     auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
     std::unordered_set<std::string> supportedLayers;
     for (auto&& value : metaDevices) {
-        auto deviceQr = GetCore()->QueryNetwork(CNNNetwork{ICNNNetwork::Ptr{const_cast<ICNNNetwork*>(&network),
-                                                           [](ICNNNetwork*){}}}, value.deviceName, value.config);
+        auto deviceQr = GetCore()->QueryNetwork(network, value.deviceName, value.config);
         std::unordered_set<std::string> deviceSupportedLayers;
         for (auto&& layerQr : deviceQr.supportedLayersMap) {
             deviceSupportedLayers.emplace(layerQr.first);

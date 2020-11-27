@@ -326,11 +326,10 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     }
 };
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                const std::map<std::string, std::string> &config) {
     // verification of supported input
-    InferenceEngine::InputsDataMap _networkInputs;
-    network.getInputsInfo(_networkInputs);
+    InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
     CLDNNPlugin::Config conf = _impl->m_config;
@@ -373,14 +372,14 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     context = m_defaultContext;
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network, conf), context, conf);
+    InferenceEngine::CNNNetwork transformedNetwork(CloneAndTransformNetwork(network, conf));
+    return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
 }
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                RemoteContext::Ptr context,
                                                                const std::map<std::string, std::string> &config) {
-    InferenceEngine::InputsDataMap _networkInputs;
-    network.getInputsInfo(_networkInputs);
+    InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
     auto casted = std::dynamic_pointer_cast<ClContext>(context);
@@ -397,7 +396,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network, conf), casted, conf);
+    InferenceEngine::CNNNetwork transformedNetwork(CloneAndTransformNetwork(network, conf));
+    return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
 }
 
 RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
@@ -430,7 +430,7 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     _impl->m_config.UpdateFromMap(config);
 }
 
-QueryNetworkResult clDNNEngine::QueryNetwork(const ICNNNetwork& network,
+QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                                              const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
     GetDeviceInfo(config);      // Verify device id
