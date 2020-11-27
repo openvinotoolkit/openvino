@@ -502,32 +502,23 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     }
 
     // Try to create operation from loaded opsets
-    if (!ngraphNode && opsets.count(params.version)) {
-        auto opset = opsets.at(params.version);
-        std::string type = params.type;
+    auto params_copy = params;
+    const std::set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput"};
+    if (experimental_detectrons.count(type) != 0) {
+        params_copy.version = "opset6";
+    }
+    if (!ngraphNode && opsets.count(params_copy.version)) {
+        auto opset = opsets.at(params_copy.version);
+        std::string type = params_copy.type;
         if (type == "Const") {
             type = "Constant";
         }
         if (!opset.contains_type(type)) {
-            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
+            THROW_IE_EXCEPTION << "Opset " << params_copy.version << " doesn't contain the operation with type: " << type;
         }
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
-        ngraphNode->set_friendly_name(params.name);
-        ngraphNode->set_arguments(inputs);
-        XmlDeserializer visitor(node, weights);
-        if (ngraphNode->visit_attributes(visitor))
-            ngraphNode->constructor_validate_and_infer_types();
-    }
-
-    // Check that operation is ExperimentalDetectron*
-    std::string type = params.type;
-    const std::set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput"};
-    bool isDetectron = experimental_detectrons.count(type) != 0;
-    if (!ngraphNode && params.version == "experimental" && isDetectron) {
-        auto opset = opsets.at("opset6");
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
-        ngraphNode->set_friendly_name(params.name);
+        ngraphNode->set_friendly_name(params_copy.name);
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights);
         if (ngraphNode->visit_attributes(visitor))
@@ -535,7 +526,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     }
 
     // Create GenericIE operation for backward compatibility
-    if (!ngraphNode && !isDetectron && (params.version == "experimental" || params.version == "extension")) {
+    if (!ngraphNode && (params.version == "experimental" || params.version == "extension")) {
         // Try to create Generic node for backward compatibility
         std::map<std::string, Parameter> parameters;
         pugi::xml_node dn = node.child("data");
