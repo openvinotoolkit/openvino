@@ -254,7 +254,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                     return false;
 
                 auto zeroPointsBlob = dynamic_cast<TBlob<uint8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
+                if (zeroPointsBlob == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot cast to TBlob internal zero points blob";
+
                 auto zeroPointsData = zeroPointsBlob->buffer().as<uint8_t*>();
+                if (zeroPointsData == nullptr)
+                    THROW_IE_EXCEPTION << "zeroPointsBlob has not allocated buffer";
 
                 for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[1]; j++) {
                     convNode->inputZeroPoints.push_back(zeroPointsData[j]);
@@ -302,7 +307,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                     return false;
 
                 auto zeroPointsBlob = dynamic_cast<TBlob<int8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
+                if (zeroPointsBlob == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot cast to TBlob internal zero points blob";
+
                 auto zeroPointsData = zeroPointsBlob->buffer().as<int8_t*>();
+                if (zeroPointsData == nullptr)
+                    THROW_IE_EXCEPTION << "zeroPointsBlob has not allocated buffer";
 
                 for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[0]; j++) {
                     convNode->weightsZeroPoints.push_back(static_cast<float>(zeroPointsData[j]));
@@ -338,8 +348,14 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
             weightsLayer = getCreatorLayer(weightsLayer->insData[0].lock()).lock();
         }
 
+
         auto weightsBlob = dynamic_cast<TBlob<int8_t>*>(weightsLayer->blobs["custom"].get());
+        if (weightsBlob == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast to TBlob internal weights blob";
+
         auto weightsPtr = weightsBlob->buffer().as<int8_t*>();
+        if (weightsPtr == nullptr)
+            THROW_IE_EXCEPTION << "weightsBlob has not allocated buffer";
 
         ptrdiff_t G = convLayer->_group;
         ptrdiff_t OC = weightsLayer->outData[0]->getDims()[0] / G;
@@ -2296,8 +2312,8 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
         graph.DropNode(parentNode);
         graph.DropNode(childNode);
 
-        auto inDesc = parentParentNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
-        auto outDesc = childChildNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+        auto inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+        auto outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
 
         auto inPrec = inDesc.getPrecision();
         auto outPrec = outDesc.getPrecision();
@@ -2317,13 +2333,12 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
             }
         }
 
-        graph.InsertReorder(edge, reorderlayerName, reorderInDesc, reorderOutDesc, true);
+        auto reorderNode = graph.InsertReorder(edge, reorderlayerName, reorderInDesc, reorderOutDesc, true);
 
         // case 2
         if (inPrec != outPrec) {
-            auto reorderNode = parentParentNode->getChildEdgeAt(0)->getChild();
-            auto reorderInDesc2 = TensorDesc(reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc);
-            auto reorderOutDesc2 = TensorDesc(childChildNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc);
+            auto reorderInDesc2 = TensorDesc(reorderOutDesc);
+            auto reorderOutDesc2 = TensorDesc(outDesc);
 
             std::string reorderLayerName2 = reorderNode->getName() + "_" +
                                     MKLDNNExtensionUtils::getReorderArgs(reorderInDesc2, reorderOutDesc2) + "_" + childChildNode->getName();
