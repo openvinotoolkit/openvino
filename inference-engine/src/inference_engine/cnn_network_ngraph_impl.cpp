@@ -150,6 +150,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
         if (output.second->getPrecision() == Precision::I64) {
             output.second->setPrecision(Precision::I32);
         } else if (output.second->getPrecision() != Precision::FP32 &&
+            output.second->getPrecision() != Precision::FP16 &&
             output.second->getPrecision() != Precision::I32) {
             output.second->setPrecision(Precision::FP32);
         }
