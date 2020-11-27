@@ -134,7 +134,7 @@ Output <Node> output = node->output(0);
 auto pshape = data.get_partial_shape();
 auto el_type = data.get_element_type();
 
-// Ggetting parent for input port
+// Getting parent for input port
 Output <Node> parent_output;
 parent_output = data.get_source_output();
 
