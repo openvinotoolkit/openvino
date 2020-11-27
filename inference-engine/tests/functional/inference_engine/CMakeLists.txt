@@ -163,6 +163,10 @@ function(ie_headers_compilation_with_custom_flags)
         target_compile_definitions(${target_name} PRIVATE ${IE_TEST_DEFINITIONS})
     endif()
 
+    if(WIN32)
+        set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
+    endif()
+
     add_dependencies(${TARGET_NAME} ${target_name})
 endfunction()
 
