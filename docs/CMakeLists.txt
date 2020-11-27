@@ -29,6 +29,9 @@ if(NOT ENABLE_DOCKER)
     foreach(target_name IN LISTS all_docs_targets)
         if (TARGET ${target_name})
             set_target_properties(${target_name} PROPERTIES FOLDER docs)
+            if(WIN32)
+                set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
+            endif()
         endif()
     endforeach()
 endif()
@@ -67,10 +70,10 @@ function(build_docs)
 
     file(GLOB_RECURSE doc_source_files
         LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg" 
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg"
         "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.md"
         "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.png"
         "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.gif"
