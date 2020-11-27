@@ -62,6 +62,7 @@ private :
     const float MAX_VALUE = MAX_VAL_2B_FEAT;
     const float MEMORY_INIT_MAX_VALUE = 8.0f;
     const float WEIGHTS_SCALE_FACTOR = 8.0f;
+    const float MAX_SCALE_FACTOR = 2048.0f;
     const size_t MAX_NUM_MEMORY_LAYER_VISITS = 3;
 
     /**
@@ -175,8 +176,7 @@ private :
             scaleFactor = quant->_dst_quant.GetLevels() / maxAbsOutValue;
         }
 
-        if (layerInfo.isIdentity() || layerInfo.isRelu() || layerInfo.isSign() ||
-            layerInfo.isAbs() || layerInfo.isClamp()) {
+        if (layerInfo.isIdentity() || layerInfo.isRelu() || layerInfo.isSign() || layerInfo.isAbs() || layerInfo.isClamp()) {
             auto prevLayer = CNNNetPrevLayer(cnnLayer);
             while (LayerInfo(prevLayer).isNonFunctional() && CNNNetHasPrevLayer(prevLayer.get())) {
                 prevLayer = CNNNetPrevLayer(prevLayer);
@@ -205,11 +205,25 @@ private :
                         << prevLayerQuant->_weights_quant.GetScale() << " to " << WEIGHTS_SCALE_FACTOR << "\n";
 
                     prevLayerQuant->_weights_quant.SetScale(WEIGHTS_SCALE_FACTOR);
-                    prevLayerQuant->_dst_quant.SetScale(prevLayerQuant->_src_quant.GetScale() * prevLayerQuant->_weights_quant.GetScale());
+                    prevLayerQuant->_dst_quant.SetScale(prevLayerQuant->_src_quant.GetScale() *
+                        prevLayerQuant->_weights_quant.GetScale());
                     result = ScaleFactorUpdateResult(prevLayer.get());
                 }
             }
         }
+
+        if (1 && scaleFactor > 2048.0f) {
+            auto testSlope = gna_slope(1.0, quant->_src_quant.GetScale(), scaleFactor / 2);
+            auto testScale = testSlope.slope * testSlope.slope_scale;
+
+            auto slope = gna_slope(1.0, quant->_src_quant.GetScale(), scaleFactor);
+            auto defaultScale = slope.slope * slope.slope_scale;
+
+            if (testScale < defaultScale) {
+                scaleFactor = scaleFactor / 2;
+            }
+        }
+
 
         if (quant->_dst_quant.IsScaleSet() && !fp32eq(quant->_dst_quant.GetScale(), scaleFactor)) {
             gnalog() << "[INFO] Updating scale factor for '" << cnnLayer->name << "' layer. Change from "
@@ -1209,7 +1223,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
     uint16_t const _scale_change_threshold_150 = 150;
     uint16_t const _scale_change_threshold_200 = 200;
 
-    const float MAX_VALUE_GUARDBAND = 1.0f;
+    const float MAX_VALUE_GUARDBAND = 1.2f;
 
     /**
     * @brief Function to compare two floating points with epsilon
@@ -1479,18 +1493,14 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * MAX_OUT_MULTIPLIER);
             }
 
-            auto inputs = wl->insData.begin()->lock();
-            //double maxVal = inputs[1] * quant->_weights_quant.GetScale() * maxAbsVal * quant->_src_quant.GetScale() * maxAbsInputVal;
-            //if (maxVal > std::numeric_limits<int32_t>::max()) {
-            //}
-
             double weights_reducer = 1.0;
             auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer *>(wl);
             if (conv) {
+                auto inputs = wl->insData.begin()->lock();
                 auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());                
                 auto in_width = FROM_IR_DIM(inputs, in_order[3]);
                 weights_reducer = MAX_VAL_2B_FEAT * weightsScaleFactor * in_width / std::numeric_limits<int32_t>::max();
-
+                
                 weights_reducer = std::max(1.0, weights_reducer);
 
                 if (weights_reducer > 1.0f) {
@@ -1682,6 +1692,28 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 auto outputValue = findMinMaxValues(vals);
                 quant->_dst_quant.SetMinValues({ outputValue.first });
                 quant->_dst_quant.SetMaxValues({ outputValue.second });
+            }
+        }
+
+        auto maxAbsOutput = std::max(std::abs(quant->_dst_quant.GetMinValues().front()),
+            std::abs(quant->_dst_quant.GetMaxValues().front()));
+        auto maxOutVal = maxAbsOutput * quant->_dst_quant.GetScale();
+        if (0 && maxOutVal > std::numeric_limits<int32_t>::max()) {
+            auto weights_reducer = static_cast<double>(maxOutVal) / std::numeric_limits<int32_t>::max();
+            weights_reducer = std::max(1.0, weights_reducer);
+
+            if (weights_reducer > 1.0f) {
+                gnalog() << "[WARNING] Kernel for convolution layer '" << wl->name
+                    << "' will be requantized. Weights scale factor change from "
+                    << quant->_weights_quant.GetScale() << " to "
+                    << quant->_weights_quant.GetScale() / weights_reducer << "\n";
+                quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weights_reducer);
+            }
+
+            auto scaleFactor = quant->_weights_quant.GetScale() * quant->_src_quant.GetScale();
+            if (quant->_dst_quant.IsScaleSet() && !fp32eq(quant->_dst_quant.GetScale(), scaleFactor)) {
+                gnalog() << "[INFO] Updating scale factor for '" << wl->name << "' layer. Change from "
+                    << quant->_dst_quant.GetScale() << " to " << scaleFactor << "\n";
             }
         }
 
