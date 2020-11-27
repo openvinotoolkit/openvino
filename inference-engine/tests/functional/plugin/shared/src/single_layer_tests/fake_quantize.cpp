@@ -85,6 +85,9 @@ void FakeQuantizeLayerTest::SetUp() {
         inputDataMax = inputArg[1];
         inputDataResolution = inputArg[2];
     }
+    if (fqDirectArg.size() != 0) {
+        threshold = (fqDirectArg[3] - fqDirectArg[2]) / levels;
+    }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
