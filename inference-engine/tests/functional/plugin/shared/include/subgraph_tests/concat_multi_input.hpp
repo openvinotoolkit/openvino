@@ -24,7 +24,14 @@ namespace LayerTestsDefinitions {
 
 class ConcatMultiInput : public testing::WithParamInterface<concatMultiParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
+private:
+    std::vector<size_t> paramSize;
+    ngraph::element::Type ngPrc;
+    std::vector<std::vector<size_t>> inputShapes;
+
 public:
+    void GenerateStridedSliceModel();
+    void GenerateConstOnlyModel();
     static std::string getTestCaseName(testing::TestParamInfo<concatMultiParams> obj);
 
 protected:

@@ -476,7 +476,8 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
                 if (LayerInfo(*cnnLayer).isActivation() ||
                     LayerInfo(*cnnLayer).isCopy() ||
                     LayerInfo(*cnnLayer).isNonFunctional() ||
-                    LayerInfo(*cnnLayer).isPermute()) {
+                    LayerInfo(*cnnLayer).isPermute() ||
+                    LayerInfo(*cnnLayer).isConst()) {
                 // precision of activation layers is always equal input precision
                 for (auto &&outData : cnnLayer->outData) {
                     outData->setPrecision(Desc::mandatory().getInputPrecision());
@@ -485,8 +486,12 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
         }
         cnnLayer->precision = Desc::mandatory().getInputPrecision();
 
-        if (cnnLayer->type == "Const") {
-            if (cnnLayer->blobs["custom"]->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
+        if (LayerInfo(*cnnLayer).isConst()) {
+            auto initial_precision = cnnLayer->blobs["custom"]->getTensorDesc().getPrecision();
+            // TODO I32 must be handled separately when it'll be supported
+            IE_ASSERT(initial_precision != InferenceEngine::Precision::I32);
+
+            if (initial_precision == InferenceEngine::Precision::FP16) {
                 cnnLayer->blobs["custom"] = make_fp32_blob(cnnLayer->blobs["custom"]);
             }
             auto const_scale_factor = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer)->_dst_quant.GetScale();
