@@ -214,5 +214,3 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef T*get_buffer[T](CBlob &)
 
     cdef string get_version()
-
-    cdef void ApplyMOCTransformations(IENetwork network, bool cf)
