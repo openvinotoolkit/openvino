@@ -28,6 +28,67 @@ namespace ngraph
     {
         namespace reference
         {
+            namespace
+            {
+                template <bool check>
+                using Required = typename std::enable_if<check, bool>::type;
+
+                template <typename It>
+                struct IsRandomAccessIt
+                {
+                    static constexpr bool value =
+                        std::is_same<typename It::iterator_category,
+                                     std::random_access_iterator_tag>::value;
+                };
+
+                template <typename Iterator, Required<IsRandomAccessIt<Iterator>::value> = true>
+                class Span
+                {
+                public:
+                    Span(Iterator begin, Iterator end)
+                        : m_begin{begin}
+                        , m_end{end}
+                    {
+                    }
+
+                    Iterator begin() const { return m_begin; }
+                    Iterator end() const { return m_end; };
+                    typename Iterator::value_type operator[](size_t idx) const
+                    {
+                        return *next(m_begin, idx);
+                    }
+
+                    typename Iterator::difference_type size() const
+                    {
+                        return std::distance(m_begin, m_end);
+                    }
+
+                private:
+                    Iterator m_begin;
+                    Iterator m_end;
+                };
+
+                template <typename Iterator>
+                Span<Iterator> span(Iterator begin, Iterator end)
+                {
+                    return Span<Iterator>{begin, end};
+                };
+
+                std::vector<size_t> get_indices_offsets(const size_t* params,
+                                                        const size_t indices_size,
+                                                        const size_t last_offset)
+                {
+                    auto i = indices_size - 1;
+                    std::vector<size_t> offsets(indices_size, last_offset);
+                    while (i-- > 0)
+                    {
+                        offsets[i] = params[i * -1] * offsets[i + 1];
+                    }
+
+                    return offsets;
+                }
+            } // namespace
+
             ///
             /// Implementation find maximum length of *slice* of input *params* which might be
             /// copied to *out* index by index.
@@ -79,34 +140,22 @@ namespace ngraph
                         "params_shape should have enough rank to be index by indices"};
                 }
 
-                const auto slice_shape = Shape(
-                    next(begin(params_shape), first_slice_index_in_params), end(params_shape));
+                const auto slice_shape =
+                    span(next(begin(params_shape), first_slice_index_in_params), end(params_shape));
                 const auto slice_size = shape_size(slice_shape);
 
-                const auto indices_offsets = [&] {
-                    std::vector<size_t> offsets{slice_size};
-                    const auto dims_begin = next(rbegin(params_shape), slice_shape.size());
-                    const auto dims_end = next(dims_begin, indices_shape.back() - 1);
-                    for (auto dim = dims_begin; dim != dims_end; ++dim)
-                    {
-                        const auto o = offsets.back() * *dim;
-                        offsets.push_back(o);
-                    }
+                const auto dims_begin = next(rbegin(params_shape), slice_shape.size());
 
-                    std::reverse(begin(offsets), end(offsets));
-                    return offsets;
-                }();
-
-                // algo sanity check - we need element offset in params for each axes
-                assert(indices_shape.back() == indices_offsets.size());
+                const auto indices_offsets =
+                    get_indices_offsets(&*dims_begin, indices_shape.back(), slice_size);
 
                 const auto batch_offset = indices_offsets.front() * params_shape[batch_dims];
 
-                const Shape k_1_indices(next(begin(indices_shape), batch_dims),
-                                        prev(end(indices_shape)));
+                const auto k_1_indices =
+                    span(next(begin(indices_shape), batch_dims), prev(end(indices_shape)));
 
-                const Shape k_1_params(next(begin(params_shape), batch_dims),
-                                       prev(end(params_shape)));
+                const auto k_1_params =
+                    span(next(begin(params_shape), batch_dims), prev(end(params_shape)));
 
                 const auto number_of_slices_to_copy_in_one_batch = shape_size(k_1_indices);
 
