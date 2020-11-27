@@ -12,7 +12,7 @@
 
 #include <transformations/init_node_info.hpp>
 #include "low_precision/variadic_split.hpp"
-#include "ngraph_functions/low_precision_transformations/variadic_split_function.hpp"
+#include "lpt_ngraph_functions/variadic_split_function.hpp"
 
 namespace LayerTestsDefinitions {
 std::string VariadicSplitTransformation::getTestCaseName(testing::TestParamInfo<VariadicSplitTransformationParams> obj) {
