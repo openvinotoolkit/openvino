@@ -25,7 +25,7 @@ Install Cython in the Python installation, or virtualenv that you are planning t
 
     pip3 install cython
 
- ### Configure and Build as a part of OpenVINO™ Toolkit
+ ### Configure and Build as a part of OpenVINO™ Toolkit on Linux and macOS
 
 The following section illustrates how to build and install OpenVINO™ in a workspace directory specified
 by the `${OPENVINO_BASEDIR}` variable. Set this variable to a directory of your choice: 
@@ -66,7 +66,7 @@ variable. For example:
 -DPYTHON_EXECUTABLE=$(which python3.8)
 ```   
 
-#### Build an nGraph Python Wheel
+#### Build an nGraph Python Wheel on Linux and macOS
 
 You can build the Python wheel running the following command:
 
@@ -91,7 +91,7 @@ In order to build OpenVINO™ and the nGraph Python wheel on Windows, you need t
 
 Once Python is installed, you also need to install Cython using `pip install cython`.
 
-### Configure and Build as a Part of OpenVINO™ Toolkit
+### Configure and Build as a Part of OpenVINO™ Toolkit on Windows
 
 The following section illustrates how to build and install OpenVINO™ in a workspace directory specified by the `OPENVINO_BASEDIR` variable. Set this variable to a directory of your choice:
     
@@ -137,7 +137,7 @@ Set up the OpenVINO™ environment in order to add a module path to `PYTHONPATH`
 
     %OPENVINO_BASEDIR%\openvino_dist\bin\setupvars.bat
 
-#### Build an nGraph Python Wheel
+#### Build an nGraph Python Wheel on Windows
 
 Build the Python wheel package:
 
