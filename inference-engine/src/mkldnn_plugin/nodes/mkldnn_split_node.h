@@ -17,7 +17,6 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
@@ -34,9 +33,9 @@ private:
     size_t axis = 1;
 
     struct {
-        std::vector<size_t> sizeData;
-        std::vector<size_t> srcShifts;
-        size_t srcStride;
+        std::vector<size_t> dataSize;
+        std::vector<size_t> srcDataOffsets;
+        size_t srcDataStride;
         size_t countStrides;
     } optimizedParams;
 };
