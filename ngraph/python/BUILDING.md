@@ -14,25 +14,25 @@ On Ubuntu* 20.04 LTS you can use the following instructions to install the requi
     apt install git wget build-essential cmake
     apt install python3 python3-dev python3-pip python3-virtualenv python-is-python3
 
-On macOS you can use [Homebrew](https://brew.sh) to install required packages:
+On macOS, you can use [Homebrew](https://brew.sh) to install required packages:
 
     brew install cmake
     brew install automake
     brew install libtool
     brew install python3
 
-Install Cython in the Python installation, or virtualenv which you are planning to use:
+Install Cython in the Python installation, or virtualenv that you are planning to use:
 
     pip3 install cython
 
  ### Configure and Build as a part of OpenVINO™ Toolkit
 
-The following section will illustrate how to build and install OpenVINO™ in a workspace directory specified
-by the `${OPENVINO_BASEDIR}` variable. Let's start by setting this variable to a directory of your choice: 
+The following section illustrates how to build and install OpenVINO™ in a workspace directory specified
+by the `${OPENVINO_BASEDIR}` variable. Set this variable to a directory of your choice: 
 
     export OPENVINO_BASEDIR=/path/to/my/workspace
 
-Now we can clone OpenVINO™, configure it using `cmake` and build using `make`. Please note that we're disabling
+Now you can clone the OpenVINO™ repository, configure it using `cmake` and build using `make`. Please note that we're disabling
 the building of a few modules by setting the `ENABLE_*` flag to `OFF`. In order to build the OpenVINO™ Python APIs
 set the mentioned flags to `ON`. Note the `CMAKE_INSTALL_PREFIX`, which defaults to `/usr/local/` if not set.
 
@@ -53,13 +53,13 @@ set the mentioned flags to `ON`. Note the `CMAKE_INSTALL_PREFIX`, which defaults
     make -j 4
     make install
 
-Python module will be installed under `${OPENVINO_BASEDIR}/openvino_dist/python/python<version>/` folder. 
-Set up OpenVINO environment in order to add module path to `PYTHONPATH`:
+The Python module is installed in the `${OPENVINO_BASEDIR}/openvino_dist/python/python<version>/` folder. 
+Set up the OpenVINO™ environment in order to add the module path to `PYTHONPATH`:
 
     source ${OPENVINO_BASEDIR}/openvino_dist/bin/setupvars.sh
 
-If you would like to use a specific version of Python, or use a virtual environment you can set the `PYTHON_EXECUTABLE` 
-variable. Examples: 
+If you would like to use a specific version of Python, or use a virtual environment, you can set the `PYTHON_EXECUTABLE` 
+variable. For example: 
 
 ```
 -DPYTHON_EXECUTABLE=/path/to/venv/bin/python
@@ -68,7 +68,7 @@ variable. Examples:
 
 #### Build an nGraph Python Wheel
 
-We can build the Python wheel by issuing the following command:
+You can build the Python wheel running the following command:
 
     cd "${OPENVINO_BASEDIR}/openvino/ngraph/python"
     python3 setup.py bdist_wheel
@@ -87,18 +87,18 @@ You can now install the wheel in your Python environment:
 
 ### Prerequisites
 
-In order to build OpenVINO™ and the nGraph Python wheel on Windows, you will need to install Visual Studio and Python. 
+In order to build OpenVINO™ and the nGraph Python wheel on Windows, you need to install Microsoft Visual Studio* and Python. 
 
-Once Python is installed, you will also need to install Cython using `pip install cython`.
+Once Python is installed, you also need to install Cython using `pip install cython`.
 
 ### Configure and Build as a Part of OpenVINO™ Toolkit
 
-The following section will illustrate how to build and install OpenVINO™ in a workspace directory specified by the `OPENVINO_BASEDIR` variable. Let's start by setting this variable to a directory of your choice:
+The following section illustrates how to build and install OpenVINO™ in a workspace directory specified by the `OPENVINO_BASEDIR` variable. Set this variable to a directory of your choice:
     
     set OPENVINO_BASEDIR=/path/to/my/workspace
 
-Configure the build with a `cmake` invocation similar to the following. Note that you'll need to set the `-G` and 
-`-DCMAKE_CXX_COMPILER` to match the version and location of your Visual Studio installation.
+Configure the build with a `cmake` invocation similar to the following. Note that need to set `-G` and 
+`-DCMAKE_CXX_COMPILER` to match the version and location of your Microsoft Visual Studio installation.
 
 ```
 cmake .. ^
@@ -116,7 +116,7 @@ cmake .. ^
 ```
 
 There are a couple of things to notice here. One is that the full path to the x64 version of
-MSVC compiler has to be specified. This is because DNNL requires a 64-bit version and cmake may
+MSVC compiler has to be specified. This is because DNNL requires a 64-bit version and `cmake` may
 fail to detect it correctly.
 
 If you want to specify an exact Python version, use the following options:
@@ -126,11 +126,11 @@ If you want to specify an exact Python version, use the following options:
 -DPYTHON_INCLUDE_DIR="C:\Program Files\Python37\include" ^
 ```
 
-In order to build and install OpenVINO, build the `install` target:
+In order to build and install OpenVINO™, build the `install` target:
 
     cmake --build . --target install --config Release -j 8
 
-In this step OpenVINO™ will be built and installed to the directory specified above. You can
+In this step, OpenVINO™ is built and installed to the directory specified above. You can
 adjust the number of threads used in the building process to your machine's capabilities.
 
 Set up the OpenVINO™ environment in order to add a module path to `PYTHONPATH`:
@@ -144,7 +144,7 @@ Build the Python wheel package:
     cd "%OPENVINO_BASEDIR%/openvino/ngraph/python"
     python setup.py bdist_wheel
 
-The final wheel should be located in `ngraph\python\dist` directory.
+The final wheel should be located in the `ngraph\python\dist` directory.
 
     dir openvino\ngraph\python\dist\
     10/09/2020  04:06 PM         4,010,943 ngraph_core-0.0.0-cp38-cp38-win_amd64.whl
