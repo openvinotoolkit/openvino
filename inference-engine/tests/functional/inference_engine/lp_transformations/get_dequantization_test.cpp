@@ -9,10 +9,10 @@
 #include <gtest/gtest.h>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/get_dequantization_function.hpp"
+#include "lpt_ngraph_functions/get_dequantization_function.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "low_precision/network_helper.hpp"
 
 
