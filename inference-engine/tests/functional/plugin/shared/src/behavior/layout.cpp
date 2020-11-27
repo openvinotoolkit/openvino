@@ -26,7 +26,7 @@ std::string LayoutTest::getTestCaseName(testing::TestParamInfo<LayoutParams> obj
 
 void LayoutTest::SetUp()  {
     std::tie(netPrecision, targetDevice, configuration, layout, inputShapes) = this->GetParam();
-    function = ngraph::builder::subgraph::make2InputSubtract(inputShapes, netPrecision);
+    function = ngraph::builder::subgraph::make2InputSubtract(inputShapes, FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision));
 }
 
 void LayoutTest::TearDown()  {

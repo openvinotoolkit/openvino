@@ -8,6 +8,7 @@ set(TARGET_NAME funcSharedTests)
 list(APPEND EXPORT_DEPENDENCIES
         funcTestUtils
         ngraphFunctions
+        lptNgraphFunctions
         )
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")

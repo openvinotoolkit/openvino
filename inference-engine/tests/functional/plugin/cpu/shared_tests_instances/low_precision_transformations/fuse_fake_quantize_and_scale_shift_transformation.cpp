@@ -6,7 +6,7 @@
 
 #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ngraph_functions/low_precision_transformations/fuse_fake_quantize_and_scale_shift_function.hpp"
+#include "lpt_ngraph_functions/fuse_fake_quantize_and_scale_shift_function.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph::pass::low_precision;

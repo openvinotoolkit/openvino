@@ -12,8 +12,8 @@
 #include <low_precision/variadic_split.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-#include "ngraph_functions/low_precision_transformations/variadic_split_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/variadic_split_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {

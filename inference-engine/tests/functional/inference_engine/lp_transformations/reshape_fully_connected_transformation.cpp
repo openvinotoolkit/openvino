@@ -14,7 +14,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include "layer_transformation.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/reshape_fully_connected_function.hpp"
+#include "lpt_ngraph_functions/reshape_fully_connected_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;

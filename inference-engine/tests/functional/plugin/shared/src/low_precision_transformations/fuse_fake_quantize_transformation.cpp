@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/fuse_fake_quantize_function.hpp"
+#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
 
 namespace LayerTestsDefinitions {
 
