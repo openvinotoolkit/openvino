@@ -81,7 +81,8 @@ public:
     }
 
 private:
-    void mvn_pln(const float* src_data, float* dst_data, const InferenceEngine::SizeVector& dims);
+    template <typename in_data_t, typename out_data_t>
+    void mvn_pln(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
 
     template <typename in_data_t, typename out_data_t>
     void mvn_blk(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);

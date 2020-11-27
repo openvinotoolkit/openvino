@@ -27,7 +27,7 @@ public:
 
             Precision inIdxPrecision = layer->insData[GATHER_INDEXES].lock()->getTensorDesc().getPrecision();
             if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32 && inIdxPrecision != Precision::FP16)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only FP32, FP16 or I32 are supported!";
+                inIdxPrecision = Precision::I32;
 
             axis = layer->GetParamAsInt("axis");
 
@@ -52,7 +52,7 @@ public:
 
             LayerConfig config;
             DataConfig dataConfigIdx, dataConfigDct;
-            Precision dataPrecision = layer->outData[0]->getTensorDesc().getPrecision();
+            Precision dataPrecision = layer->insData[GATHER_DICTIONARY].lock()->getTensorDesc().getPrecision();
             dataConfigDct.desc = TensorDesc(dataPrecision, dictionary_dims,
                     layer->insData[GATHER_DICTIONARY].lock()->getTensorDesc().getLayoutByDims(dictionary_dims));
             config.inConfs.push_back(dataConfigDct);

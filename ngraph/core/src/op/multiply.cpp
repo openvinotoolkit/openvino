@@ -80,6 +80,8 @@ namespace multiplyop
             break;
             TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
             break;
+            TYPE_CASE(bf16)(arg0, arg1, out, broadcast_spec);
+            break;
         default: rc = false; break;
         }
         return rc;

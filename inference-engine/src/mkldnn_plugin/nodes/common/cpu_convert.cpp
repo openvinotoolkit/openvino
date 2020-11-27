@@ -4,13 +4,14 @@
 
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
+#include "utils/bfloat16.hpp"
 #include <type_traits>
 #include <ie_parallel.hpp>
 
 using namespace InferenceEngine;
 
 template<typename srcType, typename dstType>
-void convert(void *srcPtr, void *dstPtr, const size_t size) {
+void convert(const void *srcPtr, void *dstPtr, const size_t size) {
     if (std::is_same<srcType, dstType>::value) {
         cpu_memcpy(dstPtr, srcPtr, size*sizeof(dstType));
     } else {
@@ -24,7 +25,7 @@ void convert(void *srcPtr, void *dstPtr, const size_t size) {
 }
 
 template <typename srcType>
-void convertFrom(void *srcPtr, void *dstPtr, Precision dstPrc, const size_t size) {
+void convertFrom(const void *srcPtr, void *dstPtr, Precision dstPrc, const size_t size) {
     switch (dstPrc) {
         case Precision::U8:
             convert<srcType, PrecisionTrait<Precision::U8>::value_type>(srcPtr, dstPtr, size);
@@ -50,6 +51,9 @@ void convertFrom(void *srcPtr, void *dstPtr, Precision dstPrc, const size_t size
         case Precision::FP32:
             convert<srcType, PrecisionTrait<Precision::FP32>::value_type>(srcPtr, dstPtr, size);
             break;
+        case Precision::BF16:
+            convert<srcType, MKLDNNPlugin::bfloat16_t>(srcPtr, dstPtr, size);
+            break;
         case Precision::BOOL:
             convert<srcType, PrecisionTrait<Precision::BOOL>::value_type>(srcPtr, dstPtr, size);
             break;
@@ -58,7 +62,7 @@ void convertFrom(void *srcPtr, void *dstPtr, Precision dstPrc, const size_t size
     }
 }
 
-void cpu_convert(void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc, const size_t size) {
+void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc, const size_t size) {
     if (srcPtr == nullptr || dstPtr == nullptr)
         THROW_IE_EXCEPTION << "cpu_convert has null data pointer";
 
@@ -91,6 +95,9 @@ void cpu_convert(void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc,
             break;
         case Precision::FP32:
             convertFrom<PrecisionTrait<Precision::FP32>::value_type>(srcPtr, dstPtr, dstPrc, size);
+            break;
+        case Precision::BF16:
+            convertFrom<MKLDNNPlugin::bfloat16_t>(srcPtr, dstPtr, dstPrc, size);
             break;
         case Precision::BOOL:
             convertFrom<PrecisionTrait<Precision::BOOL>::value_type>(srcPtr, dstPtr, dstPrc, size);

@@ -48,13 +48,12 @@ public:
                   layer->insData[RANGE_LIMIT].lock()->getTensorDesc().getPrecision() == Precision::FP32 &&
                   layer->insData[RANGE_DELTA].lock()->getTensorDesc().getPrecision() == Precision::FP32 &&
                   layer->outData[0]->getTensorDesc().getPrecision() == Precision::FP32)) {
-                THROW_IE_EXCEPTION << layer->name <<
-                    " 'Start', 'Limit', 'Delta' input scalars and output tensor should have same precision" <<
-                    "and only FP32 and I32 are supported!";
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                    DataConfigurator(ConfLayout::PLN, Precision::FP32) }, { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
+            } else {
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
+                                 { DataConfigurator(ConfLayout::PLN) });
             }
-
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                             { DataConfigurator(ConfLayout::PLN) });
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

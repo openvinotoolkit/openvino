@@ -5,6 +5,7 @@
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_eltwise_node.h"
 #include <mkldnn_extension_utils.h>
+#include "utils/bfloat16.hpp"
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include "jit_uni_eltwise.hpp"
@@ -23,6 +24,10 @@ using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
+
+static inline bool isFloatCompatible(memory::data_type type) {
+    return memory::f32 == type || memory::bf16 == type;
+}
 
 template <cpu_isa_t isa>
 struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_kernel, public jit_generator {
@@ -119,6 +124,10 @@ private:
             case memory::s32:
                 uni_vmovups(vmm_src, op);
                 break;
+            case memory::bf16:
+                uni_vpmovzxwd(vmm_src, op);
+                uni_vpslld(vmm_src, vmm_src, 16);
+                break;
             case memory::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
@@ -128,8 +137,7 @@ private:
             default:
                 assert(!"unknown dst_dt");
         }
-
-        if (src_dt != memory::f32)
+        if (!isFloatCompatible(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 };
@@ -239,7 +247,7 @@ private:
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        int step = vlen / sizeof(float);
+        int step = jcp_.src_dt == memory::bf16 ? 16 : (vlen / sizeof(float));
         L(main_loop_label);
         {
             cmp(reg_work_amount, step);
@@ -322,7 +330,7 @@ private:
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        int step = vlen / sizeof(float);
+        int step = jcp_.src_dt == memory::bf16 ? 16 : (vlen / sizeof(float));
         L(main_loop_label);
         {
             cmp(reg_work_amount, step);
@@ -520,6 +528,10 @@ private:
             case memory::s32:
                 uni_vmovups(vmm_src, op);
                 break;
+            case memory::bf16:
+                uni_vpmovzxwd(vmm_src, op);
+                uni_vpslld(vmm_src, vmm_src, 16);
+                break;
             case memory::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
@@ -529,8 +541,7 @@ private:
             default:
                 assert(!"unknown dst_dt");
         }
-
-        if (src_dt != memory::f32)
+        if (!isFloatCompatible(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -539,6 +550,10 @@ private:
             case memory::f32:
             case memory::s32:
                 movss(xmm_src, op);
+                break;
+            case memory::bf16:
+                pinsrw(xmm_src, op, 0x0);
+                uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             case memory::s8:
                 movsx(reg_tmp_32, op);
@@ -552,7 +567,7 @@ private:
                 assert(!"unknown dst_dt");
         }
 
-        if (src_dt != data_type::f32) {
+        if (!isFloatCompatible(src_dt)) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
@@ -563,6 +578,9 @@ private:
 
         if (dst_dt == memory::f32) {
             uni_vmovups(op, vmm_dst);
+        } else if (dst_dt == memory::bf16) {
+            vcvtneps2bf16(ymm_dst, vmm_dst);
+            vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
@@ -596,7 +614,7 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (dst_dt != data_type::f32) {
+        if (!isFloatCompatible(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
@@ -604,6 +622,10 @@ private:
             case memory::f32:
             case memory::s32:
                 movss(op, xmm_dst);
+                break;
+            case memory::bf16:
+                uni_vpsrld(xmm_dst, xmm_dst, 16);
+                pextrw(op, xmm_dst, 0x0);
                 break;
             case memory::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -653,7 +675,7 @@ private:
                         || quantization_injectors[quantization_inj_idx] == nullptr)
                     assert(!"Invalid quantization injectors.");
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
+                bool do_rounding = do_dequantization || isFloatCompatible(dst_dt) || i != p.len_ - 1;
 
                 int s_idx = vmm_val.getIdx();
 
@@ -747,15 +769,20 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr, true);
 
     Precision inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
-    inputPrecision = inputPrecision == Precision::BF16 ? Precision(Precision::FP32) : inputPrecision;
     Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
-    outputPrecision = outputPrecision == Precision::BF16 ? Precision(Precision::FP32) : outputPrecision;
 
     if (!fusedWith.empty()) {
         auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
         if (lastFusedLayer) {
             outputPrecision = lastFusedLayer->outData[0]->getPrecision();
         }
+    }
+
+    if (inputPrecision == Precision::BF16 || outputPrecision == Precision::BF16) {
+        if (!mayiuse(avx512_core_bf16))
+            inputPrecision = outputPrecision = Precision::FP32;
+        else
+            inputPrecision = outputPrecision = Precision::BF16;
     }
 
     auto isOneOf = [&](InferenceEngine::Precision precision, std::vector<InferenceEngine::Precision> precisions) {
@@ -766,10 +793,10 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
         }
         return false;
     };
-    if (!isOneOf(inputPrecision, {Precision::FP32, Precision::I8, Precision::U8})) {
+    if (!isOneOf(inputPrecision, {Precision::FP32, Precision::BF16, Precision::I8, Precision::U8})) {
         THROW_IE_EXCEPTION << "Unsupported input precision. " << getName();
     }
-    if (!isOneOf(outputPrecision, {Precision::FP32, Precision::I8, Precision::U8})) {
+    if (!isOneOf(outputPrecision, {Precision::FP32, Precision::BF16, Precision::I8, Precision::U8})) {
         THROW_IE_EXCEPTION << "Unsupported output precision. " << getName();
     }
     if (!isOneOf(weights_prec, {Precision::FP32, Precision::BF16})) {
@@ -918,6 +945,8 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
         } else if (input_prec == Precision::FP32) {
             auto src_data = reinterpret_cast<const float *>(src_ptr);
             normalize_function<float, uint8_t>(src_data, dst_data, dims);
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
         }
     } else if (output_prec == Precision::I8) {
         auto dst_data = reinterpret_cast<int8_t *>(dst_ptr);
@@ -930,6 +959,8 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
         } else if (input_prec == Precision::FP32) {
             auto src_data = reinterpret_cast<const float *>(src_ptr);
             normalize_function<float, int8_t>(src_data, dst_data, dims);
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
         }
     } else if (output_prec == Precision::FP32) {
         auto dst_data = reinterpret_cast<float *>(dst_ptr);
@@ -942,7 +973,15 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
         } else if (input_prec == Precision::FP32) {
             auto src_data = reinterpret_cast<const float *>(src_ptr);
             normalize_function<float, float>(src_data, dst_data, dims);
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
         }
+    } else if (output_prec == Precision::BF16) {
+        auto dst_data = reinterpret_cast<bfloat16_t*>(dst_ptr);
+        auto src_data = reinterpret_cast<const bfloat16_t*>(src_ptr);
+        normalize_function<bfloat16_t, bfloat16_t>(src_data, dst_data, dims);
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
     }
 }
 

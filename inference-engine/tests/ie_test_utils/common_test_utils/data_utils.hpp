@@ -7,6 +7,7 @@
 #include <utility>
 
 #include <gtest/gtest.h>
+#include <ngraph/type/bfloat16.hpp>
 #include <ngraph/type/float16.hpp>
 
 #include <ie_blob.h>
@@ -177,8 +178,10 @@ void inline fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint3
     for (size_t i = 0; i < blob->size(); i++) {
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
-        if (typeid(dataType) == typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
+        if (PRC == InferenceEngine::Precision::FP16) {
             rawBlobDataPtr[i] = ngraph::float16(value).to_bits();
+        } else if (PRC == InferenceEngine::Precision::BF16) {
+            rawBlobDataPtr[i] = ngraph::bfloat16(value).to_bits();
         } else {
             rawBlobDataPtr[i] = value;
         }
@@ -237,4 +240,27 @@ void inline fill_data_random<InferenceEngine::Precision::FP16>(InferenceEngine::
     fill_data_random_float<InferenceEngine::Precision::FP16>(blob, range, start_from, k, seed);
 }
 
+template<>
+void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::Blob::Ptr &blob,
+                                                               const uint32_t range,
+                                                               int32_t start_from,
+                                                               const int32_t k, const int seed) {
+    fill_data_random_float<InferenceEngine::Precision::BF16>(blob, range, start_from, k, seed);
+}
+
+template<typename T>
+typename std::enable_if<std::is_signed<T>::value, T>::type
+static ie_abs(const T &val) {
+    return std::abs(val);
+}
+
+template<typename T>
+typename std::enable_if<std::is_unsigned<T>::value, T>::type
+static ie_abs(const T &val) {
+    return val;
+}
+
+static ngraph::bfloat16 ie_abs(const ngraph::bfloat16& val) {
+    return ngraph::bfloat16::from_bits(val.to_bits() ^ 0x8000);
+}
 }  // namespace CommonTestUtils

@@ -4,10 +4,8 @@
 
 #include "base.hpp"
 
-#include <cmath>
 #include <string>
 #include <vector>
-#include "ie_parallel.hpp"
 #include "ie_precision.hpp"
 #include "common/cpu_convert.h"
 

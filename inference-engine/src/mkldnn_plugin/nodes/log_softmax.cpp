@@ -51,7 +51,7 @@ public:
             for (size_t i = (axis + 1); i < dims.size(); i++)
                 reduced_axis_stride *= dims[i];
 
-            addConfig(layer, { { ConfLayout::PLN, false, 0 } }, { { ConfLayout::PLN, false, 0 } });
+            addConfig(layer, { { ConfLayout::PLN, false, 0, Precision::FP32 } }, { { ConfLayout::PLN, false, 0, Precision::FP32 } });
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

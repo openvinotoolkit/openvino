@@ -31,8 +31,12 @@ public:
 
             broadcast = layer->GetParamAsString("auto_broadcast", "numpy");
 
-            if (layer->insData[THEN].lock()->getTensorDesc().getPrecision() != layer->insData[ELSE].lock()->getTensorDesc().getPrecision())
-                THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has different precisions on 'Then' and 'Else' inputs";
+            auto inputPrecision = layer->insData[THEN].lock()->getTensorDesc().getPrecision();
+            if (inputPrecision == Precision::BF16 || layer->insData[ELSE].lock()->getTensorDesc().getPrecision() == Precision::BF16) {
+                inputPrecision = Precision::BF16;
+            } else if (layer->insData[THEN].lock()->getTensorDesc().getPrecision() != layer->insData[ELSE].lock()->getTensorDesc().getPrecision()) {
+                THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has different precisions on 'Then' and 'Else' inputs ";
+            }
 
             const auto& conditionPrecision = layer->insData[CONDITION].lock()->getTensorDesc().getPrecision();
             if (conditionPrecision != Precision::BOOL && conditionPrecision != Precision::I32  && conditionPrecision != Precision::U8)
@@ -100,7 +104,7 @@ public:
                 inConfig.inPlace = -1;
                 inConfig.constant = false;
 
-                Precision inPrecision = layer->insData[i].lock()->getTensorDesc().getPrecision();
+                Precision inPrecision = i == CONDITION ? conditionPrecision : inputPrecision;
                 const SizeVector& inDims = layer->insData[i].lock()->getTensorDesc().getDims();
                 inConfig.desc = TensorDesc(inPrecision, inDims, InferenceEngine::TensorDesc::getLayoutByDims(inDims));
 
@@ -110,9 +114,8 @@ public:
             DataConfig outConfig;
             outConfig.inPlace = -1;
             outConfig.constant = false;
-            Precision outPrecision = layer->insData[1].lock()->getTensorDesc().getPrecision();
             const SizeVector& outDims = layer->outData[0]->getTensorDesc().getDims();
-            outConfig.desc = TensorDesc(outPrecision, outDims, InferenceEngine::TensorDesc::getLayoutByDims(outDims));
+            outConfig.desc = TensorDesc(inputPrecision, outDims, InferenceEngine::TensorDesc::getLayoutByDims(outDims));
             config.outConfs.push_back(outConfig);
 
             config.dynBatchSupport = false;

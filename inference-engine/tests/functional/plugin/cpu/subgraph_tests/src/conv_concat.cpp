@@ -99,7 +99,7 @@ void ConvConcatSubgraphTest::SetUp() {
         }
     }
     for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-        convolutionNodes[conv]->get_rt_info() = setCPUInfo(inFmts, outFmts, priority);
+        convolutionNodes[conv]->get_rt_info() = getCPUInfo();
     }
 
     auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{convolutionNodes[0], convolutionNodes[1]}, axis);
@@ -112,7 +112,7 @@ TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, pluginTypeNode, inFmts, outFmts, selectedType);
+    CheckCPUImpl(executableNetwork, pluginTypeNode);
 };
 
 /* ============= Common Convolution Params ============= */

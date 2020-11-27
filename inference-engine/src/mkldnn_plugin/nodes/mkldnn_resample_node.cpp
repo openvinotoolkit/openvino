@@ -12,6 +12,7 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "utils/bfloat16.hpp"
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include <algorithm>
@@ -32,6 +33,14 @@ using namespace Xbyak;
 
 
 #define GET_OFF(field) offsetof(jit_resample_call_args, field)
+
+static inline bool isFloatCompatible(Precision prc) {
+    return Precision::FP32 == prc || Precision::BF16 == prc;
+}
+
+static inline bool isFloatCompatible(memory::data_type type) {
+    return memory::f32 == type || memory::bf16 == type;
+}
 
 template <cpu_isa_t isa>
 struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_kernel, public jit_generator {
@@ -73,7 +82,7 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
         if (isa == cpu::avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        int blk_size = vlen / sizeof(float);
+        int blk_size = jcp_.src_dt == memory::bf16 ? 16 : (vlen / sizeof(float));
         if (isa == cpu::sse42)
             blk_size *= 2;
 
@@ -197,11 +206,15 @@ private:
             case memory::u8:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
+            case memory::bf16:
+                uni_vpmovzxwd(vmm_src, op);
+                uni_vpslld(vmm_src, vmm_src, 16);
+                break;
             default:
                 assert(!"unknown dst_dt");
         }
 
-        if (src_dt != memory::f32)
+        if (!isFloatCompatible(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -211,6 +224,9 @@ private:
 
         if (dst_dt == memory::f32) {
             uni_vmovups(op, vmm_dst);
+        } else if (dst_dt == memory::bf16) {
+            vcvtneps2bf16(ymm_dst, vmm_dst);
+            vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
@@ -262,8 +278,7 @@ private:
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
-
+                bool do_rounding = do_dequantization || isFloatCompatible(dst_dt) || i != p.len_ - 1;
                 int s_idx = vmm_val.getIdx();
 
                 quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
@@ -320,12 +335,11 @@ void MKLDNNResampleNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (inputPrecision == Precision::BF16) {
-        inputPrecision = Precision::FP32;
-    }
-
-    if (outputPrecision == Precision::BF16) {
-        outputPrecision = Precision::FP32;
+    if (inputPrecision == Precision::BF16 || outputPrecision == Precision::BF16) {
+        if (!mayiuse(avx512_core_bf16))
+            inputPrecision = outputPrecision = Precision::FP32;
+        else
+            inputPrecision = outputPrecision = Precision::BF16;
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
@@ -358,7 +372,7 @@ void MKLDNNResampleNode::initSupportedPrimitiveDescriptors() {
             pushDesc(memory::ndhwc);
         }
 
-        if (inputPrecision == Precision::FP32 && outputPrecision == Precision::FP32) {
+        if (isFloatCompatible(inputPrecision) && isFloatCompatible(outputPrecision)) {
             if (getParentEdgeAt(0)->getDims().ndims() == 4) {
                 if (mayiuse(cpu::avx512_common)) {
                     pushDesc(memory::nChw16c);
@@ -456,9 +470,6 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
 
     Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
 
-    const auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-
     SizeVector src_dim = getParentEdgeAt(0)->getDesc().getDims();
     SizeVector dst_dim = getChildEdgeAt(0)->getDesc().getDims();
 
@@ -479,7 +490,17 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
 
     if (type == "caffe.ResampleParameter.NEAREST") {
         if (layout == NCHW || layout == NCDHW) {
-            NearestNeighbor_PLN(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+            if (output_prec == Precision::FP32) {
+                auto src_data = reinterpret_cast<const float*>(srcMemPtr->GetData());
+                auto dst_data = reinterpret_cast<float*>(dstMemPtr->GetData());
+                NearestNeighbor_PLN<float, float>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+            } else if (output_prec == Precision::BF16) {
+                auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+                auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
+                NearestNeighbor_PLN<bfloat16_t, bfloat16_t>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
+            }
         } else {
             if (output_prec == Precision::U8) {
                 auto dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetData());
@@ -492,6 +513,8 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
                 } else if (input_prec == Precision::FP32) {
                     auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
                     NearestNeighbor_BLK<float, uint8_t>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+                } else {
+                    THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
                 }
             } else if (output_prec == Precision::I8) {
                 auto dst_data = reinterpret_cast<int8_t *>(dstMemPtr->GetData());
@@ -504,6 +527,8 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
                 } else if (input_prec == Precision::FP32) {
                     auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
                     NearestNeighbor_BLK<float, int8_t>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+                } else {
+                    THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
                 }
             } else if (output_prec == Precision::FP32) {
                 auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
@@ -516,7 +541,15 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
                 } else if (input_prec == Precision::FP32) {
                     auto src_data = reinterpret_cast<float *>(srcMemPtr->GetData());
                     NearestNeighbor_BLK<float, float>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+                } else {
+                    THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
                 }
+            } else if (output_prec == Precision::BF16) {
+                auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+                auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
+                NearestNeighbor_BLK<bfloat16_t, bfloat16_t>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
             }
         }
     } else if (type == "caffe.ResampleParameter.LINEAR") {
@@ -535,12 +568,22 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
             auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
             auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
             LinearInterpolation<float, float>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW, kernel_width, isDownsample && antialias);
+        } else if (input_prec == Precision::BF16) {
+            auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+            auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
+            LinearInterpolation<bfloat16_t, bfloat16_t>(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW, kernel_width,
+                isDownsample && antialias);
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
         }
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported resample parameter type: " << type;
     }
 }
 
 // f32 and no fused, f32->input is f32, no fuse->output is f32
-void MKLDNNResampleNode::NearestNeighbor_PLN(const float *in_ptr_, float *out_ptr_, int B, int C, int ID, int IH, int IW,
+template <typename in_data_t, typename out_data_t>
+void MKLDNNResampleNode::NearestNeighbor_PLN(const in_data_t *in_ptr_, out_data_t *out_ptr_, int B, int C, int ID, int IH, int IW,
                                              float fx, float fy, float fz, int OD, int OH, int OW) {
     std::vector<int> index_buffer(OD * OH * OW);
     for (int oz = 0; oz < OD; oz++) {
@@ -560,8 +603,8 @@ void MKLDNNResampleNode::NearestNeighbor_PLN(const float *in_ptr_, float *out_pt
     }
     if (resample_nearest_kernel) {
         parallel_for2d(B, C, [&](size_t b, size_t c) {
-            const float *in_ptr = in_ptr_ + IW * IH * ID * C * b + IW * IH * ID * c;
-            float *out_ptr = out_ptr_ + OW * OH * OD * C * b + OW * OH * OD * c;
+            const in_data_t *in_ptr = in_ptr_ + IW * IH * ID * C * b + IW * IH * ID * c;
+            out_data_t *out_ptr = out_ptr_ + OW * OH * OD * C * b + OW * OH * OD * c;
 
             // for OW*OH*OD
             auto arg = jit_resample_call_args();
@@ -580,8 +623,8 @@ void MKLDNNResampleNode::NearestNeighbor_PLN(const float *in_ptr_, float *out_pt
         });
     } else {
         parallel_for2d(B, C, [&](size_t b, size_t c) {
-            const float *in_ptr = in_ptr_ + IW * IH * ID * C * b + IW * IH * ID * c;
-            float *out_ptr = out_ptr_ + OW * OH * OD * C * b + OW * OH * OD * c;
+            const in_data_t *in_ptr = in_ptr_ + IW * IH * ID * C * b + IW * IH * ID * c;
+            out_data_t *out_ptr = out_ptr_ + OW * OH * OD * C * b + OW * OH * OD * c;
 
             for (int i_dst = 0; i_dst < OW * OH * OD; i_dst++) {
                 out_ptr[i_dst] = in_ptr[index_buffer[i_dst]];
@@ -646,7 +689,7 @@ void MKLDNNResampleNode::NearestNeighbor_BLK(const in_data_t *in_ptr_, out_data_
                                 for (int c = tail; c < C; c++) {
                                     float dst_value = static_cast<float>(in_ptr_dhw[c]);
                                     apply_post_ops_scalar(dst_value, c);
-                                    if (output_prec == Precision::FP32) {
+                                    if (isFloatCompatible(output_prec)) {
                                         out_ptr_dhw[c] = dst_value;
                                     } else if (output_prec == Precision::U8) {
                                         out_ptr_dhw[c] = (dst_value >= 0) ? lroundf(dst_value) : 0;
@@ -671,7 +714,7 @@ void MKLDNNResampleNode::NearestNeighbor_BLK(const in_data_t *in_ptr_, out_data_
                             for (int c = 0; c < C; c++) {
                                 float dst_value = static_cast<float>(in_ptr_dhw[c]);
                                 apply_post_ops_scalar(dst_value, c);
-                                if (output_prec == Precision::FP32) {
+                                if (isFloatCompatible(output_prec)) {
                                     out_ptr_dhw[c] = dst_value;
                                 } else if (output_prec == Precision::U8) {
                                     out_ptr_dhw[c] = (dst_value >= 0) ? lroundf(dst_value) : 0;
@@ -723,7 +766,7 @@ void MKLDNNResampleNode::NearestNeighbor_BLK(const in_data_t *in_ptr_, out_data_
                                 for (int blk = 0; blk < blk_size; blk++) {
                                     float dst_value = static_cast<float>(in_ptr_cbdhw[blk]);
                                     apply_post_ops_scalar(dst_value, cb * blk_size + blk);
-                                    if (output_prec == Precision::FP32) {
+                                    if (isFloatCompatible(output_prec)) {
                                         out_ptr_cbdhw[blk] = dst_value;
                                     } else if (output_prec == Precision::U8) {
                                         out_ptr_cbdhw[blk] = (dst_value >= 0) ? lroundf(dst_value) : 0;
@@ -749,8 +792,8 @@ void MKLDNNResampleNode::LinearInterpolation(const in_data_t *in_ptr_, out_data_
                                              float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias) {
     if (IW == OW && IH == OH && ID == OD) {
         size_t size = B * C * ID * IH * IW;
-        if (input_prec == Precision::FP32) {
-            size *= sizeof(float);
+        if (isFloatCompatible(input_prec)) {
+            size *= sizeof(in_data_t);
         }
         cpu_memcpy(out_ptr_, in_ptr_, size);
         return;
@@ -816,7 +859,7 @@ void MKLDNNResampleNode::LinearInterpolation(const in_data_t *in_ptr_, out_data_
                             out_ptr_ncdh[ox] = 0;
                         } else {
                             float dst_value = sum / wsum;
-                            if (output_prec == Precision::FP32) {
+                            if (isFloatCompatible(output_prec)) {
                                 out_ptr_ncdh[ox] = dst_value;
                             } else if (output_prec == Precision::U8) {
                                 out_ptr_ncdh[ox] = (dst_value >= 0) ? lroundf(dst_value) : 0;
@@ -846,7 +889,7 @@ inline void MKLDNNResampleNode::apply_post_ops_scalar(float &dst_value, int inde
         } else if (post_op.is_quantization()) {
             bool do_dequantization = post_op.quantization.alg ==
                                      alg_kind::quantization_quantize_dequantize;
-            bool do_rounding = do_dequantization || output_prec == Precision::FP32 ||
+            bool do_rounding = do_dequantization || isFloatCompatible(output_prec) ||
                                i != p.len_ - 1;
 
             auto quant = post_op.quantization;

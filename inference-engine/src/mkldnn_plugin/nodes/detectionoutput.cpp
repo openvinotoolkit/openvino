@@ -112,8 +112,8 @@ public:
             _num_priors_actual = InferenceEngine::make_shared_blob<int>({Precision::I32, num_priors_actual_size, C});
             _num_priors_actual->allocate();
 
-            std::vector<DataConfigurator> in_data_conf(layer->insData.size(), DataConfigurator(ConfLayout::PLN));
-            addConfig(layer, in_data_conf, {DataConfigurator(ConfLayout::PLN)});
+            std::vector<DataConfigurator> in_data_conf(layer->insData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
+            addConfig(layer, in_data_conf, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

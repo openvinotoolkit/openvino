@@ -12,6 +12,7 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "utils/bfloat16.hpp"
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include <algorithm>
@@ -30,6 +31,15 @@ using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
+
+// some utility functions
+static inline bool isFloatCompatible(Precision prc) {
+    return Precision::FP32 == prc || Precision::BF16 == prc;
+}
+
+static inline bool isFloatCompatible(memory::data_type type) {
+    return memory::f32 == type || memory::bf16 == type;
+}
 
 // normalize_variance = false : src->mean
 // normalize_variance = true : src+mean->variance:sqr(x-mean)
@@ -88,13 +98,13 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
                 load_vector(vmm_val, ptr[reg_src], jcp_.src_dt);
 
                 if (jcp_.normalize_variance) {
-                    if (jcp_.src_dt != memory::f32)
+                    if (!isFloatCompatible(jcp_.src_dt))
                         uni_vcvtdq2ps(vmm_val, vmm_val);
 
                     uni_vsubps(vmm_val, vmm_val, vmm_mean);
                     uni_vfmadd231ps(vmm_variance, vmm_val, vmm_val);
                 } else {
-                    if (jcp_.src_dt != memory::f32)
+                    if (!isFloatCompatible(jcp_.src_dt))
                         uni_vpaddd(vmm_sum, vmm_sum, vmm_val);
                     else
                         uni_vaddps(vmm_sum, vmm_sum, vmm_val);
@@ -138,7 +148,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
                     uni_vmovups(ptr[reg_variance], vmm_variance);
                 } else {
-                    if (jcp_.src_dt != memory::f32)
+                    if (!isFloatCompatible(jcp_.src_dt))
                         uni_vcvtdq2ps(vmm_sum, vmm_sum);
 
                     if (!jcp_.planar_layout && !jcp_.across_channels) {
@@ -198,6 +208,10 @@ private:
                 break;
             case memory::u8:
                 uni_vpmovzxbd(vmm_src, op);
+                break;
+            case memory::bf16:
+                uni_vpmovzxwd(vmm_src, op);
+                uni_vpslld(vmm_src, vmm_src, 16);
                 break;
             default:
                 assert(!"unknown dst_dt");
@@ -348,11 +362,15 @@ private:
             case memory::u8:
                 uni_vpmovzxbd(vmm_src, op);
                 break;
+            case memory::bf16:
+                uni_vpmovzxwd(vmm_src, op);
+                uni_vpslld(vmm_src, vmm_src, 16);
+                break;
             default:
                 assert(!"unknown dst_dt");
         }
 
-        if (src_dt != memory::f32)
+        if (!isFloatCompatible(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -362,6 +380,9 @@ private:
 
         if (dst_dt == memory::f32) {
             uni_vmovups(op, vmm_dst);
+        } else if (dst_dt == memory::bf16) {
+            vcvtneps2bf16(ymm_dst, vmm_dst);
+            uni_vmovups(op, ymm_dst);
         } else if (dst_dt == memory::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
@@ -413,7 +434,7 @@ private:
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
+                bool do_rounding = do_dequantization || isFloatCompatible(dst_dt) || i != p.len_ - 1;
                 int s_idx = vmm_val.getIdx();
 
                 quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
@@ -475,8 +496,17 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     if (getParentEdgeAt(0)->getDims().ndims() < 4 || getParentEdgeAt(0)->getDims().ndims() > 5
         || across_channels != 0 || normalize_variance != 1) {
-        inputPrecision = Precision::FP32;
-        outputPrecision = Precision::FP32;
+        if (!isFloatCompatible(inputPrecision)) {
+            inputPrecision = Precision::FP32;
+        }
+        if (!isFloatCompatible(outputPrecision)) {
+            outputPrecision = Precision::FP32;
+        }
+    }
+
+    if (!mayiuse(avx512_core_bf16)) {
+        if (outputPrecision == Precision::BF16)
+            outputPrecision = Precision::FP32;
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
@@ -498,39 +528,50 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
 
-    auto pushDesc = [&](memory::format format) {
+    auto pushDesc = [&](memory::format format, impl_desc_type impl_type) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), outputDataType, format);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, format});
+        supportedPrimitiveDescriptors.push_back({config, impl_type, format});
     };
+
+    impl_desc_type impl_type;
+    if (mayiuse(cpu::avx512_common)) {
+        impl_type = impl_desc_type::jit_avx512;
+    } else if (mayiuse(cpu::avx2)) {
+        impl_type = impl_desc_type::jit_avx2;
+    } else if (mayiuse(cpu::sse42)) {
+        impl_type = impl_desc_type::jit_sse42;
+    } else {
+        impl_type = impl_desc_type::ref;
+    }
 
     if (across_channels == 0 && normalize_variance == 1) {
         if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-            pushDesc(memory::nhwc);
+            pushDesc(memory::nhwc, impl_type);
         } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-            pushDesc(memory::ndhwc);
+            pushDesc(memory::ndhwc, impl_type);
         }
     }
 
-    if (inputPrecision == Precision::FP32 && outputPrecision == Precision::FP32) {
-        if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-            if (mayiuse(cpu::avx512_common)) {
-                pushDesc(memory::nChw16c);
-            } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
-                pushDesc(memory::nChw8c);
+    if (isFloatCompatible(inputPrecision) && isFloatCompatible(outputPrecision)) {
+        if (impl_desc_type::jit_avx512 == impl_type) {
+            if (getParentEdgeAt(0)->getDims().ndims() == 4) {
+                pushDesc(memory::nChw16c, impl_type);
+            } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
+                pushDesc(memory::nCdhw16c, impl_type);
             }
-        } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-            if (mayiuse(cpu::avx512_common)) {
-                pushDesc(memory::nCdhw16c);
-            } else if (mayiuse(cpu::avx2) || mayiuse(cpu::sse42)) {
-                pushDesc(memory::nCdhw8c);
+        } else if (impl_desc_type::jit_avx2 ==  impl_type || impl_desc_type::jit_sse42 == impl_type) {
+            if (getParentEdgeAt(0)->getDims().ndims() == 4) {
+                pushDesc(memory::nChw8c, impl_type);
+            } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
+                pushDesc(memory::nCdhw8c, impl_type);
             }
         }
 
         if (fusedWith.empty()) {
             if (canBeInplace)
                 config.inConfs[0].inPlace = 0;
-            pushDesc(MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims()));
+            pushDesc(MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims()), impl_type);
         }
     }
 }
@@ -614,11 +655,32 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
 
     Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
 
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-
     if (layout == C || layout == NC || layout == CHW || layout == NCHW || layout == NCDHW) {
-        mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+        if (input_prec == Precision::FP32) {
+            auto src_data = reinterpret_cast<float*>(srcMemPtr->GetData());
+            if (output_prec == Precision::FP32) {
+                auto dst_data = reinterpret_cast<float*>(dstMemPtr->GetData());
+                mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else if (output_prec == Precision::BF16) {
+                auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
+                mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
+            }
+        } else if (input_prec == Precision::BF16) {
+            auto src_data = reinterpret_cast<bfloat16_t*>(srcMemPtr->GetData());
+            if (output_prec == Precision::FP32) {
+                auto dst_data = reinterpret_cast<float*>(dstMemPtr->GetData());
+                mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else if (output_prec == Precision::BF16) {
+                auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
+                mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
+            }
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
+        }
     } else {
         if (output_prec == Precision::U8) {
             auto dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetData());
@@ -631,6 +693,11 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
             } else if (input_prec == Precision::FP32) {
                 auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
                 mvn_blk<float, uint8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else if (input_prec == Precision::BF16) {
+                auto src_data = reinterpret_cast<const bfloat16_t *>(srcMemPtr->GetData());
+                mvn_blk<bfloat16_t, uint8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
             }
         } else if (output_prec == Precision::I8) {
             auto dst_data = reinterpret_cast<int8_t *>(dstMemPtr->GetData());
@@ -643,6 +710,11 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
             } else if (input_prec == Precision::FP32) {
                 auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
                 mvn_blk<float, int8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else if (input_prec == Precision::BF16) {
+                auto src_data = reinterpret_cast<const bfloat16_t *>(srcMemPtr->GetData());
+                mvn_blk<bfloat16_t, int8_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
             }
         } else if (output_prec == Precision::FP32) {
             auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
@@ -655,7 +727,31 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
             } else if (input_prec == Precision::FP32) {
                 auto src_data = reinterpret_cast<float *>(srcMemPtr->GetData());
                 mvn_blk<float, float>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else if (input_prec == Precision::BF16) {
+                auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+                mvn_blk<bfloat16_t, float>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
             }
+        } else if (output_prec == Precision::BF16) {
+            auto dst_data = reinterpret_cast<bfloat16_t*>(dstMemPtr->GetData());
+            if (input_prec == Precision::U8) {
+                auto src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetData());
+                mvn_blk<uint8_t, bfloat16_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else if (input_prec == Precision::I8) {
+                auto src_data = reinterpret_cast<const int8_t *>(srcMemPtr->GetData());
+                mvn_blk<int8_t, bfloat16_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else if (input_prec == Precision::FP32) {
+                auto src_data = reinterpret_cast<float *>(srcMemPtr->GetData());
+                mvn_blk<float, bfloat16_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else if (input_prec == Precision::BF16) {
+                auto src_data = reinterpret_cast<const bfloat16_t*>(srcMemPtr->GetData());
+                mvn_blk<bfloat16_t, bfloat16_t>(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
+            }
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
         }
     }
 }
@@ -673,7 +769,8 @@ std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(co
     return shapes;
 }
 
-void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVector& dims) {
+template <typename in_data_t, typename out_data_t>
+void MKLDNNMVNNode::mvn_pln(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
     size_t blk_size = 1;  // blk size in vmm
     if (mayiuse(cpu::avx512_common)) {
         blk_size = 16;
@@ -705,7 +802,7 @@ void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVe
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + cc;
                     arg.sum = static_cast<float*>(&mean_internal);
-                    arg.src_stride = static_cast<size_t>(blk_size * sizeof(float));
+                    arg.src_stride = static_cast<size_t>(blk_size * sizeof(in_data_t));
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);
                     (*mvn_mean_kernel)(&arg);
                     for (size_t tail = tail_across_channels; tail < C2; tail++) {
@@ -737,7 +834,7 @@ void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVe
                         arg.src = src_data + cc;
                         arg.mean = static_cast<float*>(&mean);
                         arg.variance = static_cast<float*>(&variance_internal);
-                        arg.src_stride = static_cast<size_t>(blk_size * sizeof(float));
+                        arg.src_stride = static_cast<size_t>(blk_size * sizeof(in_data_t));
                         arg.work_amount = static_cast<size_t>(C2 / blk_size);
                         (*mvn_variance_kernel)(&arg);
 
@@ -766,8 +863,8 @@ void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVe
                         arg.dst = dst_data + cc;
                         arg.mean = static_cast<float*>(&mean);
                         arg.variance = static_cast<float*>(&variance);
-                        arg.src_stride = static_cast<size_t>(blk_size * sizeof(float));
-                        arg.dst_stride = static_cast<size_t>(blk_size * sizeof(float));
+                        arg.src_stride = static_cast<size_t>(blk_size * sizeof(in_data_t));
+                        arg.dst_stride = static_cast<size_t>(blk_size * sizeof(out_data_t));
                         arg.work_amount = static_cast<size_t>(C2 / blk_size);
                         (*mvn_kernel)(&arg);
 
@@ -792,8 +889,8 @@ void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVe
                         arg.src = src_data + cc;
                         arg.dst = dst_data + cc;
                         arg.mean = static_cast<float*>(&mean);
-                        arg.src_stride = static_cast<size_t>(blk_size * sizeof(float));
-                        arg.dst_stride = static_cast<size_t>(blk_size * sizeof(float));
+                        arg.src_stride = static_cast<size_t>(blk_size * sizeof(in_data_t));
+                        arg.dst_stride = static_cast<size_t>(blk_size * sizeof(out_data_t));
                         arg.work_amount = static_cast<size_t>(C2 / blk_size);
                         (*mvn_kernel)(&arg);
 
@@ -823,8 +920,8 @@ void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVe
                     arg.src = src_data + cc;
                     arg.dst = dst_data + cc;
                     arg.sum = static_cast<float*>(&mean);
-                    arg.src_stride = static_cast<size_t>(blk_size * sizeof(float));
-                    arg.dst_stride = static_cast<size_t>(blk_size * sizeof(float));
+                    arg.src_stride = static_cast<size_t>(blk_size * sizeof(in_data_t));
+                    arg.dst_stride = static_cast<size_t>(blk_size * sizeof(out_data_t));
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);
                     (*mvn_mean_kernel)(&arg);
 
@@ -1227,7 +1324,7 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                                             } else if (post_op.is_quantization()) {
                                                 bool do_dequantization = post_op.quantization.alg ==
                                                                          alg_kind::quantization_quantize_dequantize;
-                                                bool do_rounding = do_dequantization || output_prec == Precision::FP32 ||
+                                                bool do_rounding = do_dequantization || isFloatCompatible(output_prec) ||
                                                                    i != p.len_ - 1;
 
                                                 auto quant = post_op.quantization;
@@ -1251,7 +1348,7 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                                             }
                                         }
                                     }
-                                    if (output_prec == Precision::FP32) {
+                                    if (isFloatCompatible(output_prec)) {
                                         dst_data[ch + w * src_stride] = dst_value;
                                     } else if (output_prec == Precision::U8) {
                                         dst_data[ch + w * src_stride] = (dst_value >= 0) ? lroundf(dst_value) : 0;
@@ -1300,7 +1397,7 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                                 size_t ch = cd + h * C0;
                                 for (size_t w = 0lu; w < W; w++) {
                                     float dst_value = src_data[ch + w * src_stride] - mean_buffer_ptr[c];
-                                    if (output_prec == Precision::FP32) {
+                                    if (isFloatCompatible(output_prec)) {
                                         dst_data[ch + w * src_stride] = dst_value;
                                     } else if (output_prec == Precision::U8) {
                                         dst_data[ch + w * src_stride] = (dst_value >= 0) ? lroundf(dst_value) : 0;

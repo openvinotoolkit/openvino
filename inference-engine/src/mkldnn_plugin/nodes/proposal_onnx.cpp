@@ -296,9 +296,9 @@ public:
 
             roi_indices_.resize(post_nms_topn_);
             addConfig(layer,
-                      {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                       DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
-                      {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)});
+                      {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                       DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                      {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

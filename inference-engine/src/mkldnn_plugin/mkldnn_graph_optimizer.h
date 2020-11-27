@@ -46,6 +46,7 @@ private:
 #if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
     void DropDoubleReorders(MKLDNNGraph& graph);
     void DropConvertReorder(MKLDNNGraph& graph);
+    void ChangeConvertToReorder(MKLDNNGraph &graph);
 #endif
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);

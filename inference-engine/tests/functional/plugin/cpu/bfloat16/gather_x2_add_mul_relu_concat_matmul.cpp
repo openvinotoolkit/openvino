@@ -37,7 +37,7 @@ protected:
 //                 \           /              /
 //                   Mul(FP32)     ReLU(FP32)
 //                     \        /
-//                       Concat(FP32)    Const
+//                       Concat(BF16)    Const
 //                           \     /
 //                           Matmul(BF16)
 
@@ -116,7 +116,7 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE2: set up safe threshold <= 5% from maximum value of output tensor
-        threshold = 170.02f;  // Max in fp32 network by output:  3887.11
+        threshold = 177.f;  // Max in fp32 network by output:  3887.11
 
         // STAGE3:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
@@ -125,7 +125,7 @@ protected:
         expectedPrecisions["Mul_1"] = "FP32";
         expectedPrecisions["Add_1"] = "FP32";
         expectedPrecisions["Relu_1"] = "FP32";
-        expectedPrecisions["Conc_1"] = "FP32";
+        expectedPrecisions["Conc_1"] = "BF16";
         expectedPrecisions["Matmul_1"] = "BF16";
     }
 };

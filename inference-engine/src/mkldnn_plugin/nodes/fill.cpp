@@ -28,9 +28,6 @@ public:
             if (fill_dims.size() > 1)
                 THROW_IE_EXCEPTION << layer->name << " Fill dimensions vector should be 1 dimension";
 
-            if (layer->insData[FILL_DIMS].lock()->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << layer->name << " Fill dimensions vector should be I32!";
-
             SizeVector value_dims = layer->insData[FILL_VALUE].lock()->getTensorDesc().getDims();
             if (value_dims.size() > 1)
                 THROW_IE_EXCEPTION << layer->name << " Value scalar should have 1 dimension";
@@ -39,12 +36,12 @@ public:
                   layer->outData[0]->getTensorDesc().getPrecision() == Precision::I32) &&
                 !(layer->insData[FILL_VALUE].lock()->getTensorDesc().getPrecision() == Precision::FP32 &&
                   layer->outData[0]->getTensorDesc().getPrecision() == Precision::FP32)) {
-                THROW_IE_EXCEPTION << layer->name <<
-                    " 'Value' input scalars and output tensor should have same precision and only FP32 and I32 are supported!";
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::FP32) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
+            } else {
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN) },
+                                { DataConfigurator(ConfLayout::PLN) });
             }
-
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                             { DataConfigurator(ConfLayout::PLN) });
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

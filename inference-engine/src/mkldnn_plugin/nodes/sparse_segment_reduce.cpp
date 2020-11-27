@@ -38,20 +38,6 @@ public:
             else
                 THROW_IE_EXCEPTION << layer->name << " Incorrect SparseSegmentReduce layer type!";
 
-            // check a precision of input tensors
-            Precision input_data_precision = layer->insData[INPUT_DATA_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_data_precision != Precision::FP32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect precision of the input data. Only FP32 is supported!";
-            }
-            Precision input_indices_precision = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_indices_precision != Precision::FP32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect precision of the input indices. Only FP32 is supported!";
-            }
-            Precision input_segment_ids_precision = layer->insData[INPUT_SEGMENT_IDS_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_segment_ids_precision != Precision::FP32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect precision of segment IDs. Only FP32 is supported!";
-            }
-
             // check shapes of the second and third input tensors
             input_indices_dims = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getDims();
             if (input_indices_dims.size() != 1) {
@@ -63,12 +49,6 @@ public:
             }
             if (input_indices_dims[0] != input_segment_ids_dims[0]) {
                 THROW_IE_EXCEPTION << layer->name << " Shapes for input indices and segment IDs must match.";
-            }
-
-            // check a precision of output tensor
-            Precision output_precision = layer->insData[OUTPUT_PORT].lock()->getTensorDesc().getPrecision();
-            if (output_precision != Precision::FP32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect precision of output data. Only FP32 is supported!";
             }
 
             // check shapes of output tensor
@@ -88,8 +68,8 @@ public:
 
             // confugure layouts of input and output ports
             addConfig(layer,
-                { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                { DataConfigurator(ConfLayout::PLN) });
+                { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                DataConfigurator(ConfLayout::PLN, Precision::FP32) }, { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
         }
         catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
