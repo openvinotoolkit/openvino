@@ -7,18 +7,33 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_e
 
 file(GLOB SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/ie_api_impl.cpp)
+
+file(GLOB OFFLINE_SOURCE
+        ${CMAKE_CURRENT_SOURCE_DIR}/offline_api.pyx
+        ${CMAKE_CURRENT_SOURCE_DIR}/offline_api_impl.cpp)
 
 set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
+set_source_files_properties(${OFFLINE_SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCE})
 set(INSTALLED_TARGETS ${TARGET_NAME})
 
+# build offline_api module
+set(PYX_FILE ${CMAKE_CURRENT_SOURCE_DIR}/offline_api.pyx)
+get_filename_component(PYX_NAME "${PYX_FILE}" NAME_WE)
+cython_add_module(${PYX_NAME} ${PYX_FILE} ${OFFLINE_SOURCE})
+add_dependencies(${PYX_NAME} ${TARGET_NAME})
+target_include_directories(${PYX_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(${PYX_NAME} PRIVATE ${InferenceEngine_LIBRARIES} offline_transformations)
+
+# build other modules
 file(GLOB OTHER_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 list(REMOVE_ITEM OTHER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
+list(REMOVE_ITEM OTHER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/offline_api.pyx")
 
 foreach(PYX_FILE ${OTHER_SOURCES})
     get_filename_component(PYX_NAME "${PYX_FILE}" NAME_WE)

@@ -185,5 +185,4 @@ std::unique_ptr<T> make_unique(Args &&... args) {
 
 std::string get_version();
 
-void ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf);
 };  // namespace InferenceEnginePython

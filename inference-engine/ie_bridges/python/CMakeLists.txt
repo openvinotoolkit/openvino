@@ -18,7 +18,7 @@ elseif(ARCH STREQUAL "i386")
 endif()
 
 if(DEFINED IE_MAIN_SOURCE_DIR)
-    set(InferenceEngine_LIBRARIES inference_engine offline_transformations)
+    set(InferenceEngine_LIBRARIES inference_engine)
 else()
     find_package(InferenceEngineDeveloperPackage REQUIRED)
     set(InferenceEngine_LIBRARIES IE::inference_engine)
