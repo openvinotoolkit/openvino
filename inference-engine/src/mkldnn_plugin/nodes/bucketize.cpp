@@ -41,19 +41,16 @@ public:
             input_precision = input->getTensorDesc().getPrecision();
             if (input_precision != Precision::FP32 && input_precision != Precision::I32 &&
                 input_precision != Precision::I64) {
-                THROW_IE_EXCEPTION << layer->name
-                    << " Incorrect input precision of the input. Only FP32, I32 and I64 are supported!";
+                input_precision = Precision::FP32;
             }
             boundaries_precision = boundaries->getTensorDesc().getPrecision();
             if (boundaries_precision != Precision::FP32 && boundaries_precision != Precision::I32 &&
                 boundaries_precision != Precision::I64) {
-                THROW_IE_EXCEPTION << layer->name
-                    << " Incorrect input precision of the boundaries tensor. Only FP32, I32 and I64 are supported!";
+                boundaries_precision = Precision::FP32;
             }
             output_precision = layer->outData[OUTPUT_TENSOR_PORT]->getTensorDesc().getPrecision();
             if (output_precision != Precision::I32 && output_precision != Precision::I64) {
-                THROW_IE_EXCEPTION << layer->name
-                    << " Incorrect precision of the output tensor. Only I32 and I64 are supported!";
+                output_precision = Precision::I32;
             }
 
             // check dimensions of input tensors
@@ -73,8 +70,8 @@ public:
             num_values = std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), 1, std::multiplies<size_t>());
 
             addConfig(layer,
-            { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-            { DataConfigurator(ConfLayout::PLN) });
+            { DataConfigurator(ConfLayout::PLN, input_precision), DataConfigurator(ConfLayout::PLN, boundaries_precision) },
+            { DataConfigurator(ConfLayout::PLN, output_precision) });
         }
         catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
