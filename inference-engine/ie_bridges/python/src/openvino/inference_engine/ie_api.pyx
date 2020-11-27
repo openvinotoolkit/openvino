@@ -264,10 +264,8 @@ cdef class IECore:
         cdef string model_
         cdef IENetwork net = IENetwork()
         if init_from_buffer:
-            bin_buffer = <uint8_t *> malloc(len(weights))
-            memcpy(bin_buffer, <uint8_t *> weights, len(weights))
             model_ = bytes(model)
-            net.impl = self.impl.readNetwork(model_, bin_buffer, len(weights))
+            net.impl = self.impl.readNetwork(model_, weights, len(weights))
         else:
             weights_ = "".encode()
 
