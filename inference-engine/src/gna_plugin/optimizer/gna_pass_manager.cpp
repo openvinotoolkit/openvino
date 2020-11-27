@@ -1668,11 +1668,17 @@ void FuseMultipleIdentitiesPass::run() {
         };
 
         auto prevLayersReached = CNNNetGetPrevLayersSkip(l, isFunctional);
-        prevLayersReached.erase(std::remove_if(prevLayersReached.begin(),
-                                               prevLayersReached.end(),
-                                               [] (const std::pair<CNNLayerPtr, int> & candidate) {
-            return LayerInfo(candidate.first).isLink();
-        }), prevLayersReached.end());
+        if (!prevLayersReached.empty()) {
+            prevLayersReached.erase(std::remove_if(prevLayersReached.begin(),
+                                                prevLayersReached.end(),
+                                                [] (const std::pair<CNNLayerPtr, int> & candidate) {
+                return LayerInfo(candidate.first).isLink();
+            }), prevLayersReached.end());
+            if (prevLayersReached.empty()) {
+                gnalog() << ", connected to link output only" << std::endl;
+                continue;
+            }
+        }
 
         if (prevLayersReached.size() != 1) {
             std::stringstream layers;
