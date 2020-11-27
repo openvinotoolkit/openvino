@@ -254,6 +254,15 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto out_height = FROM_IR_DIM(outputs, out_order[2]);
     auto out_width = FROM_IR_DIM(outputs, out_order[3]);
 
+    if (in_height > 1 && in_width == 1) {
+        std::swap(in_height, in_width);
+        std::swap(out_height, out_width);
+        std::swap(convolution._kernel_x, convolution._kernel_y);
+        std::swap(convolution._padding_x, convolution._padding_y);
+        std::swap(convolution._stride_x, convolution._stride_y);
+        std::swap(convolution._dilation_x, convolution._dilation_y);
+    }
+
     if (in_batch != 1 || out_batch != 1) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "with batch size not equals 1 is not supported";
     }
