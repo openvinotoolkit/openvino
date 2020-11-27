@@ -706,15 +706,15 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
 
         const auto outputsInfo = cnnNet.getOutputsInfo();
 
-        ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP32)
-                << "FP32 is default presision";
+        ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP16)
+                << "FP16 is default presision";
     }
     {
         SCOPED_TRACE("Manually set output precision");
 
         const auto outputsInfo = cnnNet.getOutputsInfo();
 
-        outputsInfo.at("output")->setPrecision(Precision::FP16);
+        outputsInfo.at("output")->setPrecision(Precision::FP32);
     }
     InferenceEngine::CNNNetwork convertedNetwork;
     {
@@ -729,7 +729,7 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
 
         const auto outputsInfo = convertedNetwork.getOutputsInfo();
 
-        ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP16)
+        ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP32)
                 << "Manually set presision should be left unchanged";
     }
 }
