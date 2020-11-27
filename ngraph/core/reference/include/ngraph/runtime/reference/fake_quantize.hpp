@@ -115,6 +115,8 @@ namespace ngraph
                                const Shape& _out_high_shape,
                                size_t levels)
             {
+                auto initial_round_mode = std::fegetround();
+                std::fesetround(FE_TONEAREST);
                 Shape in_low_shape(_in_low_shape);
                 Shape in_high_shape(_in_high_shape);
                 Shape out_low_shape(_out_low_shape);
@@ -238,6 +240,7 @@ namespace ngraph
                     }
                     increment_current_dim(current_dim, arg_shape, arg_shape.size() - 1);
                 }
+                std::fesetround(initial_round_mode);
             }
         }
     }
