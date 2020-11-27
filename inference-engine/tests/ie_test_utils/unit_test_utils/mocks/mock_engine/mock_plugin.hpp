@@ -18,10 +18,10 @@ public:
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
     InferenceEngine::ExecutableNetwork
-    LoadNetwork(const InferenceEngine::ICNNNetwork &network,
+    LoadNetwork(const InferenceEngine::CNNNetwork &network,
                 const std::map<std::string, std::string> &config) override;
     ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
+    LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                        const std::map<std::string, std::string>& config) override;
 
     std::map<std::string, std::string> config;
