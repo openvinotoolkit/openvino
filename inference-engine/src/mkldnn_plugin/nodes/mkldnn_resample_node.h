@@ -78,7 +78,8 @@ public:
     }
 
 private:
-    void NearestNeighbor_PLN(const float *in_ptr_, float *out_ptr_, int B, int C, int ID, int IH, int IW,
+    template <typename in_data_t, typename out_data_t>
+    void NearestNeighbor_PLN(const in_data_t *in_ptr_, out_data_t *out_ptr_, int B, int C, int ID, int IH, int IW,
                                           float fx, float fy, float fz, int OD, int OH, int OW);
     template <typename in_data_t, typename out_data_t>
     void NearestNeighbor_BLK(const in_data_t *in_ptr_, out_data_t *out_ptr_, int B, int C, int ID, int IH, int IW,
