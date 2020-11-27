@@ -41,7 +41,7 @@ namespace ngraph
                     , m_source_shape{source_shape}
                     , m_reversed_axes{axes_order(source_shape, reversed_axes)}
                     , m_elem_size{elem_size}
-                    , m_memory_strides{memory_stirdes(source_shape)}
+                    , m_memory_strides{memory_strides(source_shape)}
                     , m_memory_index{0}
                 {
                 }
@@ -64,7 +64,7 @@ namespace ngraph
                     }
                 };
 
-                static std::vector<size_t> memory_stirdes(const Shape& s)
+                static std::vector<size_t> memory_strides(const Shape& s)
                 {
                     std::vector<size_t> mem_strides(s.size(), 1);
                     for (size_t i = mem_strides.size() - 1; i-- > 0;)
