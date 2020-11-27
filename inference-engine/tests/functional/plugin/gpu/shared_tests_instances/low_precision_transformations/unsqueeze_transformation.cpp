@@ -24,27 +24,27 @@ namespace {
 
     const std::vector<LayerTestsDefinitions::UnsqueezeTransformationParam> params = {
         {
-            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
+            { 256ul, ngraph::Shape { 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
             { 0.0, 3.0 },
             { 3, 3, 5}
         },
         {
-            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
+            { 256ul, ngraph::Shape { 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
             { 0.0, 1.0 },
             { 3, 3, 3 }
         },
         {
-            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
+            { 256ul, ngraph::Shape { 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
             { 3.0 },
             { 3, 4, 5, 6 }
         },
         {
-            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
+            { 256ul, ngraph::Shape { 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
             { 0.0, 3.0 },
             { 1, 32, 2}
         },
         {
-            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
+            { 256ul, ngraph::Shape { 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
             { 0.0, 1.0 },
             { 46, 128, 2 }
         }
