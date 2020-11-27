@@ -135,7 +135,7 @@ one parameter – node to extract the attributes from. This is a legacy and non-
 It will be removed in the future versions of the Model Optimizer.
 
 3.  Caffe specific extractor using the `CustomLayersMapping.xml` described in the
-[Legacy Mode for Caffe* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md). This approach is deprecated and will be
+[Legacy Mode for Caffe\* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md). This approach is deprecated and will be
 removed in the future releases.
 
 The order of running the extractors is the following:
@@ -157,7 +157,7 @@ Model Optimizer operations.
 ### Front Phase <a name="front-phase"></a>
 Due to legacy reasons the user must specify shapes for all inputs of the model. In contrast, other machine learning
 frameworks allow generation of the model with undefined or partially defined input shapes. As an example, undefined
-dimensions are marked with value `-1` in the TensorFlow* models or have some string names in the ONNX* models.
+dimensions are marked with value `-1` in the TensorFlow\* models or have some string names in the ONNX\* models.
 
 During the front phase the Model Optimizer knows shape of the model inputs and constants only and does not know shapes
 (and even ranks) of the intermediate tensors. But information about shapes may not be needed to implement particular
@@ -169,7 +169,7 @@ OpenVINO&trade; [TopK](../../../ops/sort/TopK_3.md) operation semantic which req
 It is important to mention that sometimes it seems like the transformation cannot be implemented during the front phase
 because the actual values of inputs or shapes are needed. But in fact shapes or values manipulations can be implemented
 using operations which are added to the graph. Consider the transformation
-`extensions/front/onnx/flattenONNX_to_reshape.py` which replaces ONNX* operation
+`extensions/front/onnx/flattenONNX_to_reshape.py` which replaces ONNX\* operation
 [Flatten](https://github.com/onnx/onnx/blob/master/docs/Operators.md#Flatten) with a sub-graph of operations performing
 the following (for the case when `axis` is not equal to 0 and 1):
 
@@ -355,10 +355,12 @@ Refer to the `mo/graph/graph.py` for more details.
 `connection.set_destination(dest_port)` etc. **This is the recommended API to be used in the Model Optimizer
 transformations**.
 
-This chapter is dedicated to the Model Optimizer Graph API and does not cover 2 other non-recommended APIs.
+The main benefit of using Model Optimizer Graph API is that it hides some internal implementation details (the fact that
+the graph contains data nodes) and provides API to perform safe and predictable graph manipulations. This is achieved
+with introduction of concepts of ports and connections. This chapter is dedicated to the Model Optimizer Graph API and
+does not cover 2 other non-recommended APIs. Refer to the next two sections for more details.
 
 ### Ports <a name="intro-ports"></a>
-Model Optimizer Graph API introduces concepts of port and connection.
 
 An operation semantic describes how many inputs and outputs the operation have. For example, operations
 [Parameter](../../../ops/infrastructure/Parameter_1.md) and [Const](../../../ops/infrastructure/Constant_1.md) have no
@@ -392,7 +394,50 @@ Default number of input and output ports to be created for the `Node` is defined
 `add_input_port()` and `add_output_port()`. Port also can be removed using `delete_input_port()` and
 `delete_output_port()` methods.
 
-> **NOTE**: For a full list of available methods refer to the `Node` class implementation in the `mo/graph/graph.py`.
+The `Port` class is just an abstraction which works with edges incoming/outgoing to/from a specific `Node` instance. For
+example, output port with `idx = 1` corresponds to the outgoing edge of a node with an attribute `out = 1`, the input
+port with `idx = 2` corresponds to the incoming edge of a node with an attribute `in = 2`.
+
+Consider an example of a graph part with 4 operation nodes "Op1", "Op2", "Op3" and "Op4" and a number of data nodes
+depicted with light green boxes.
+
+![Ports example 1](../../../img/MO_ports_example_1.png)
+
+Operation nodes have input ports (yellow squares) and output ports (light purple squares). Input ports may not be
+connected as for the input port 2 of node "Op1", while output ports always have a associated data node (after the
+partial inference when the data nodes are added to the graph) which may have no consumers.
+
+Ports can be used to traverse a graph. The method `get_source()` of an input port returns an output port producing the
+tensor the input port consumes. It is important that the method works the same during front/middle and back phases of a
+model conversion even though the graph structure changes (there is no data nodes in the graph during the front phase).
+
+Let's assume that there are 4 instances of `Node` object `op1, op2, op3` and `op4` corresponding to nodes "Op1", "Op2",
+"Op3" and "Op4" correspondingly. The result of `op2.in_port(0).get_source()` and `op4.in_port(1).get_source()` is the
+same object `op1.out_port(1)` of type `Port`.
+
+The method `get_destination()` of an output port returns the input port of the node consuming this tensor. If there are
+multiple consumers of this tensor then the error is raised. The method `get_destinations()` of an output port returns
+list of input ports consuming this tensor.
+
+The method `disconnect()` removes a node incoming edge corresponding to the specific input port. The method removes
+several edges if it is applied during the front phase for a node output port connected with multiple nodes.
+
+The method `port.connect(another_port)` connects output port `port` and input port `another_port`. The method handles
+situations when the graph contains data nodes (middle/back phases) and not just create an edge between two nodes but
+also automatically create data node or re-uses existing data node. If the method is used during the front phase and
+data nodes do not exist the method creates edge and properly sets `in` and `out` edge attributes.
+
+For example, applying the following two methods to the graph above will result in the following:
+
+```py
+op4.in_port(1).disconnect()
+op3.out_port(0).connect(op4.in_port(1))
+```
+
+![Ports example 2](../../../img/MO_ports_example_2.png)
+
+> **NOTE**: Refer to the `Node` class implementation in the `mo/graph/graph.py` and `Port` class implementation in the
+`mo/graph/port.py` for a full list of available methods.
 
 ### Connections <a name="intro-conneсtions"></a>
 
@@ -544,10 +589,10 @@ Model Optimizer runs specific extractor for each operation in the model during t
 There are several types of Model Optimizer extractor extensions:
 1. The generic one which is described in this section.
 2. The special extractor for Caffe\* models with Python layers. This kind of extractor is described in the
-[Extending the Model Optimizer with Caffe* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md).
+[Extending the Model Optimizer with Caffe\* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md).
 3. The special extractor for MXNet\* models with custom operations. This kind of extractor is described in the
-[Extending the Model Optimizer for Custom MXNet* Operations](Extending_MXNet_Model_Optimizer_with_New_Primitives.md).
-4. The special extractor and fallback to Caffe\* for shape inference is described in the [Legacy Mode for Caffe* Custom
+[Extending the Model Optimizer for Custom MXNet\* Operations](Extending_MXNet_Model_Optimizer_with_New_Primitives.md).
+4. The special extractor and fallback to Caffe\* for shape inference is described in the [Legacy Mode for Caffe\* Custom
 Layers](Legacy_Mode_for_Caffe_Custom_Layers.md).
 
 This chapter is focused on the option #1 which provides a generic mechanism for the operation extractor applicable for
@@ -1011,7 +1056,7 @@ the list is important. The i-th element of the list describes the i-th output te
 obtained using call `match.output_node(i)`. The order of elements can be manually changed in the configuration file.
 Model Optimizer uses this order to connect output edges if the sub-graph is replaced with a single node.
 
-Refer to [Converting TensorFlow* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md)
+Refer to [Converting TensorFlow\* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md)
 for more examples of this type of transformations.
 
 ##### Front Phase Transformations Using Start and End Points <a name="start-end-points-front-phase-transformations"></a>
@@ -1084,7 +1129,7 @@ with two keys "start_points" and "end_points" defining start and end node names 
 > because it has two inputs: data tensor and tensor with weights.
 
 For other examples of transformations with points, please refer to the
-[Converting TensorFlow* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md).
+[Converting TensorFlow\* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md).
 
 ##### Generic Front Phase Transformations Enabled with Transformations Configuration File<a name="generic-transformations-config-front-phase-transformations"></a>
 This type of transformations works similarly to the [Generic Front Phase Transformations](#generic-front-phase-transformations)
