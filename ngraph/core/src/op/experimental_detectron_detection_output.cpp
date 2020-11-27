@@ -57,6 +57,8 @@ void op::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
     size_t rois_num = static_cast<size_t>(m_attrs.max_detections_per_image);
     auto input_et = get_input_element_type(0);
 
+    set_output_size(3);
+
     set_output_type(0, input_et, Shape{rois_num, 4});
     set_output_type(1, element::i32, Shape{rois_num});
     set_output_type(2, input_et, Shape{rois_num});
