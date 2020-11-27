@@ -109,8 +109,7 @@ TEST(type_prop, max_pool_default_values)
     const Shape kernel_shape{2, 2};
 
     auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
-    auto mp = make_shared<op::v1::MaxPool>(
-        arg, strides, pads_begin, pads_end, kernel_shape);
+    auto mp = make_shared<op::v1::MaxPool>(arg, strides, pads_begin, pads_end, kernel_shape);
 
     ASSERT_EQ(mp->get_rounding_type(), op::RoundingType::FLOOR);
     ASSERT_EQ(mp->get_auto_pad(), op::PadType::EXPLICIT);
