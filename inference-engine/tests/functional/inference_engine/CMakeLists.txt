@@ -10,6 +10,7 @@ set(LINK_LIBRARIES
     gmock
     funcTestUtils
     ngraphFunctions
+    lptNgraphFunctions
     inference_engine_transformations
     openvino::itt
     openvino::conditional_compilation
@@ -19,6 +20,7 @@ set(DEPENDENCIES
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
     template_extension
+    lptNgraphFunctions
 )
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
