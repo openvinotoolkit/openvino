@@ -11,6 +11,8 @@
   * [Back Phase](#back-phase)
   * [Intermediate Representation Emitting](#ir-emitting)
 * [Graph Traversal and Modification Using `Port`s and `Connection`s](#graph-ports-and-conneсtions)
+  * [Ports](#intro-ports)
+  * [Connections](#intro-connections)
 * [Model Optimizer Extensions](#extensions)
   * [Custom Model Optimizer Operation](#extension-operation)
   * [Operation Extractor](#operation-extractor)
@@ -81,7 +83,8 @@ edge attributes if needed. Meanwhile most manipulations with nodes connections s
 recommended.
 
 Further details and examples related to a model representation in memory are given in the sections below and provided in
-the context for a better explanation.
+the context for a better explanation. Also, refer to the [Graph Traversal and Modification Using `Port`s and
+`Connection`s](#graph-ports-and-conneсtions) for more information about ports and connections.
 
 ## Model Conversion Pipeline <a name="model-conversion-pipeline"></a>
 The model conversion pipeline can be represented with the following diagram:
@@ -325,8 +328,7 @@ attribute `type` or its values is `None` then the Model Optimizer exits with an 
 saved to the node attributes in the IR.
 3. Performs topological sort of the graph and changes `id` attribute of all operation nodes to be sequential integer
 values starting from 0.
-4. Saves all Constants values to the `.bin` file. Constants with the same values are shared between different
-operations.
+4. Saves all Constants values to the `.bin` file. Constants with the same values are shared among different operations.
 5. Generates `.xml` file defining the graph structure. The information about operation inputs and outputs are prepared
 uniformly for all operations regardless of its type. The attributes to be dumped and how they are represented in the XML
 file is defined with the `backend_attrs` or `supported_attrs`. For more information on how the operation attributes are
@@ -336,6 +338,63 @@ For more information about the Intermediate Representation Emitting process refe
 the `mo/pipeline/commom.py` file.
 
 ## Graph Traversal and Modification Using `Port`s and `Connection`s <a name="graph-ports-and-conneсtions"></a>
+There are 3 layers of a graph traversal and transformation API in the Model Optimizer:
+1. The API provided with the `networkx` Python library for the `networkx.MultiDiGraph` class which is the base class for
+the `mo.graph.graph.Graph` object. Refer to the [Model Representation in Memory](#model-representation-in-memory) for
+more details. For example, the following methods belong to this API level: `graph.add_edges_from([list])`,
+`graph.add_node(x, attrs)`, `graph.out_edges(node_id)` etc where `graph` is a an instance of the `networkx.MultiDiGraph`
+class. **This is the lowest-level API and its usage should be avoided in the Model Optimizer transformations**.
+2. The API built around the `mo.graph.graph.Node` class. The `Node` class is the primary class to work with graph nodes
+and their attributes. **However some of the `Node` methods are not recommended to use and some functions defined in the
+`mo.graph.graph` have been deprecated**. Examples of such methods and functions which are:
+`node.in_node(y)`, `node.out_node(x)`, `node.get_outputs()`, `node.insert_node_after(n1, y)`, `create_edge(n1, n2)` etc.
+Refer to the `mo/graph/graph.py` for more details.
+3. The high-level called Model Optimizer Graph API which uses `mo.graph.graph.Graph`, `mo.graph.port.Port` and
+`mo.graph.connection.Connection` classes. For example, the following methods belong to this API level:
+`node.in_port(x)`, `node.out_port(y)`,  `port.get_connection()`, `connection.get_source()`,
+`connection.set_destination(dest_port)` etc. **This is the recommended API to be used in the Model Optimizer
+transformations**.
+
+This chapter is dedicated to the Model Optimizer Graph API and does not cover 2 other non-recommended APIs.
+
+### Ports <a name="intro-ports"></a>
+Model Optimizer Graph API introduces concepts of port and connection.
+
+An operation semantic describes how many inputs and outputs the operation have. For example, operations
+[Parameter](../../../ops/infrastructure/Parameter_1.md) and [Const](../../../ops/infrastructure/Constant_1.md) have no
+inputs and have one output, operation [ReLU](../../../ops/activation/ReLU_1.md) has one input and one output, operation
+[Split](../../../ops/movement/Split_1.md) has 2 inputs and variable number of outputs depending on the value of the
+attribute `num_splits`.
+
+Each operation node in the graph (an instance of the `Node` class) has 0 or more input and output ports (instances of
+the `mo.graph.port.Port` class). Port has several attributes:
+* `node` - the instance of the `Node` object the port belongs to.
+* `idx` - the port number. Input and output ports are numbered independently starting from `0`. Thus operation
+[ReLU](../../../ops/activation/ReLU_1.md) has one input port (with index `0`) and one output port (with index `0`).
+* `type` - the type of the port. Could be equal to either `"in"` or `"out"`.
+* `data` - the object which should be used to get attributes of the corresponding data node. This object has methods
+`get_shape()` / `set_shape()` and `get_value()` / `set_value()` to get/set shape/value of the corresponding data node.
+For example, `in_port.data.get_shape()` returns an input shape of a tensor connected to input port `in_port`
+(`in_port.type == 'in'`), `out_port.data.get_value()` returns a value of a tensor produced from output port `out_port`
+(`out_port.type == 'out'`).
+
+> **NOTE**: Functions `get_shape()` and `get_value()` return `None` until the partial inference phase. Refer to the
+> [Model Conversion Pipeline](#model-conversion-pipeline) for more information about model conversion phases and
+> [Partial Inference](#partial-inference) about partial inference phase.
+
+There are several methods of the `Node` class to get the instance of the corresponding port:
+* `in_port(x)` and `out_port(x)` to get input/output port with number `x`.
+* `in_ports()` and `out_ports()` to get a dictionary where key is a the port number and the value is the corresponding
+input/output port.
+
+Default number of input and output ports to be created for the `Node` is defined with attributes `in_ports_count` and
+`out_ports_count` in the `Op` class instance. However, additional input/output ports can be added using methods
+`add_input_port()` and `add_output_port()`. Port also can be removed using `delete_input_port()` and
+`delete_output_port()` methods.
+
+> **NOTE**: For a full list of available methods refer to the `Node` class implementation in the `mo/graph/graph.py`.
+
+### Connections <a name="intro-conneсtions"></a>
 
 ## Model Optimizer Extensions <a name="extensions"></a>
 Model Optimizer extensions allow to inject some logic to the model conversion pipeline without changing the Model
