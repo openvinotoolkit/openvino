@@ -34,7 +34,7 @@ template <typename T>
 class ngraph::runtime::SharedBuffer : public ngraph::runtime::AlignedBuffer
 {
 public:
-    SharedBuffer(char* data, size_t size, T& shared_object)
+    SharedBuffer(char* data, size_t size, const T& shared_object)
         : _shared_object(shared_object)
     {
         m_allocated_buffer = data;
