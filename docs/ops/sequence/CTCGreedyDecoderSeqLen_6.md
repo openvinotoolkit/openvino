@@ -23,7 +23,7 @@ The main difference between CTCGreedyDecoder and CTCGreedyDecoderSeqLen is in se
 
 * *merge_repeated*
 
-  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation.
+  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation. If value is false the squense A B B * B * B  (where '*' is the blank label) will look like ABB * B * B. But if we set it to true, the squensy will be AB * B * B. A B B sequence will be merged repeted to A B.
   * **Range of values**: true or false
   * **Type**: `boolean`
   * **Default value**: true
@@ -50,7 +50,7 @@ The main difference between CTCGreedyDecoder and CTCGreedyDecoderSeqLen is in se
 **Example**
 
 ```xml
-<layer ... type="CTCGreedyDecoderSeqLen" ...>
+<layer type="CTCGreedyDecoderSeqLen" merge_repeated="true">
     <input>
         <port id="0">
             <dim>20</dim>
@@ -65,6 +65,9 @@ The main difference between CTCGreedyDecoder and CTCGreedyDecoderSeqLen is in se
         <port id="0">
             <dim>8</dim>
             <dim>20</dim>
+       </port>
+	   <port id="1">
+            <dim>8</dim>
        </port>
     </output>
 </layer>
