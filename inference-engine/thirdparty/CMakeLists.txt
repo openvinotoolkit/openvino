@@ -40,10 +40,8 @@ if (ENABLE_CLDNN)
         set(CLDNN__ARCHITECTURE_TARGET "Linux64" CACHE STRING "" FORCE)
     endif()
 
-    add_subdirectory(clDNN EXCLUDE_FROM_ALL)
-    if (ENABLE_TESTS AND ENABLE_CLDNN_TESTS)
-        set_target_properties(clDNN_unit_tests PROPERTIES EXCLUDE_FROM_ALL OFF)
-    endif()
+    add_subdirectory(clDNN)
+
     # disable CLDNN docs build
     set_target_properties(docs PROPERTIES EXCLUDE_FROM_ALL ON FOLDER docs)
 endif()
