@@ -33,11 +33,13 @@ The main difference between CTCGreedyDecoder and CTCGreedyDecoderSeqLen is in se
 
 * **1**: `data` - input tensor of type *T_F* of shape `[T, N, C]` with a batch of sequences. Where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required.**
 
-* **2**: `sequence_length` - 1D input integer tensor with sequence lengths and having size batch. A tensor of type *T_I*. **Required.**
+* **2**: `sequence_length` - 1D input integer tensor with sequence lengths and having size batch. Value of sequence lengths must be less or equal shape `T` of data. A tensor of type *T_I*. **Required.**
 
 **Output**
 
 * **1**: Output tensor of type *T_I* with shape `[N, T]` and containing final sequence class indices. A final sequence can be shorter than the size `T` of the tensor, all elements than do not code sequence classes are filled with -1.
+
+* **2**: Output tensor of type *T_F* with shape `[N]` where `N` is the batch size and containing, for the sequence found, the negative of the sum of the greatest logit at each timeframe.
 
 **Types**
 
