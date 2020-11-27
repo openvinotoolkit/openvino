@@ -5,10 +5,11 @@
 #include <vector>
 #include <string>
 
+#include <ie_system_conf.h>
 #include "functional_test_utils/skip_tests_config.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
-    return {
+    std::vector<std::string> retVector{
         // TODO: Issue 26264
         R"(.*(MaxPool|AvgPool).*S\(1\.2\).*Rounding=ceil.*)",
         // TODO: Issue 31841
@@ -58,4 +59,12 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
     };
+
+    if (!InferenceEngine::with_cpu_x86_bfloat16()) {
+        // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
+        // tests are useless on such platforms
+       retVector.emplace_back(R"(.*BF16.*)");
+    }
+
+    return retVector;
 }

@@ -860,40 +860,43 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         std::string precision_str;
         switch (p) {
         case Precision::FP16:
-          precision_str = "FP16";
-          break;
+            precision_str = "FP16";
+            break;
+        case Precision::BF16:
+            precision_str = "BF16";
+            break;
         case Precision::FP32:
-          precision_str = "FP32";
-          break;
+            precision_str = "FP32";
+            break;
         case Precision::I8:
-          precision_str = "I8";
-          break;
+              precision_str = "I8";
+            break;
         case Precision::I16:
-          precision_str = "I16";
-          break;
+            precision_str = "I16";
+            break;
         case Precision::I32:
-          precision_str = "I32";
-          break;
+            precision_str = "I32";
+            break;
         case Precision::I64:
-          precision_str = "I64";
-          break;
+            precision_str = "I64";
+            break;
         case Precision::U8:
-          precision_str = "U8";
-          break;
+            precision_str = "U8";
+            break;
         case Precision::U16:
-          precision_str = "U16";
-          break;
+            precision_str = "U16";
+            break;
         case Precision::U32:
-          precision_str = "U32";
-          break;
+            precision_str = "U32";
+            break;
         case Precision::U64:
-          precision_str = "U64";
-          break;
+            precision_str = "U64";
+            break;
         case Precision::BOOL:
-          precision_str = "BOOL";
-          break;
+            precision_str = "BOOL";
+            break;
         default:
-          THROW_IE_EXCEPTION << "Unsupported type";
+            THROW_IE_EXCEPTION << "Unsupported type";
         }
 
         res->params["precision"] = precision_str;

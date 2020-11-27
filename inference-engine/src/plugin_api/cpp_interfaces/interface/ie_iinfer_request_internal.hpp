@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_preprocess.hpp>

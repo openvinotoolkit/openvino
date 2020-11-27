@@ -89,11 +89,6 @@ endfunction()
 # they must be built even if samples build is disabled (required for tests and tools).
 ie_build_samples()
 
-file(GLOB_RECURSE SAMPLES_SOURCES samples/*.cpp samples/*.hpp samples/*.h)
-add_cpplint_target(sample_cpplint
-    FOR_SOURCES ${SAMPLES_SOURCES}
-    EXCLUDE_PATTERNS "thirdparty/*" "pugixml/*")
-
 if (ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
