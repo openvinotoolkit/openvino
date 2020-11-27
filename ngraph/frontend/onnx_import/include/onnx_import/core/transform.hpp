@@ -54,7 +54,7 @@ namespace ngraph
             void expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto);
 
             static const std::vector<std::string> legacy_ops_to_fixup = {
-                "DetectionOutput", "FakeQuantize", "GroupNorm", "Normalize", "PriorBox"};
+                "DetectionOutput", "FakeQuantize", "GroupNorm", "Normalize", "PriorBox", "Swish"};
 
             /// \brief Add support for models with custom operators mistakenly registered in
             ///        "ai.onnx" domain.
