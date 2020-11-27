@@ -35,17 +35,17 @@ void CascadeConcat::SetUp() {
     std::tie(input1, input2, input3, netPrecision, multioutput, targetDevice, additional_config) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto input = ngraph::builder::makeParams(ngPrc, {input1[0], input2[0], input2[0]});
+    auto input = ngraph::builder::makeParams(ngPrc, {input1[0], input2[0], input3[0]});
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(input[0]);
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(input[1]);
     auto relu3 = std::make_shared<ngraph::opset1::Relu>(input[2]);
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0),
-                                                                                      relu2->output(0)},
+                                                                                relu2->output(0)},
                                                                                 1);
     auto reshape = ngraph::builder::makeSqueezeUnsqueeze(concat, ngPrc, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
     auto reshape2 = ngraph::builder::makeSqueezeUnsqueeze(reshape, ngPrc, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
     auto concat2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{reshape2->output(0),
-                                                                                       relu3->output(0)},
+                                                                                 relu3->output(0)},
                                                                                  1);
     ngraph::ResultVector results;
     if (multioutput) {

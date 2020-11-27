@@ -34,6 +34,7 @@
 #include "layers/gna_fake_quantize_layer.hpp"
 #include "round_float_define.hpp"
 #include "gna_plugin_policy.hpp"
+#include "gna_groups.hpp"
 
 using namespace InferenceEngine;
 using namespace std;
@@ -522,22 +523,11 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto input = layer->insData[0].lock();
 
     auto outputs = *layer->outData.begin();
-    uint32_t num_rows_in = InferenceEngine::details::product(begin(input->getDims()), end(input->getDims()));
-    uint32_t num_columns_in = 1;
+    auto reshaped_dims = Get2DReshapedData(input, 8)->getDims();
+    uint32_t num_rows_in = reshaped_dims[1];
+    uint32_t num_columns_in = reshaped_dims[0];
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
-
-    if (input->getDims().size() > 2 || input->getDims()[0] >= 8) {
-        for (size_t index_divide = 8; index_divide > 0; index_divide--) {
-            if (num_rows_in % index_divide == 0) {
-                num_rows_in /= index_divide;
-                num_columns_in = index_divide;
-                break;
-            }
-        }
-        num_rows_out = num_rows_in;
-        num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
-    }
 
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
@@ -1116,8 +1106,9 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     auto outputs = *layer->outData.begin();
     auto inputPrecision = quantized ? Precision(Precision::I16) : inputs->getPrecision();
 
-    uint32_t num_rows_in = FROM_IR_DIM(inputs, 1);
-    uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
+    auto input_data = HasTo2DReshapeData(layer) ? Get2DReshapedData(inputs, 8) : inputs;
+    uint32_t num_rows_in = FROM_IR_DIM(input_data, 1);
+    uint32_t num_columns_in = FROM_IR_DIM(input_data, 2);
     uint32_t num_rows_out = isDiag ? num_rows_in : FROM_IR_DIM(outputs, 1);
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
     uint32_t num_padding_out = isDiag ? num_padding : 0;
