@@ -68,16 +68,6 @@ op::v1::MaxPool::MaxPool(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-op::v1::MaxPool::MaxPool(const Output<Node>& arg,
-                         const Strides& strides,
-                         const Shape& pads_begin,
-                         const Shape& pads_end,
-                         const Shape& kernel,
-                         op::RoundingType rounding_type)
-    : v1::MaxPool(arg, strides, pads_begin, pads_end, kernel, rounding_type, op::PadType::EXPLICIT)
-{
-}
-
 bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("strides", m_strides);
