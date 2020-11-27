@@ -57,7 +57,12 @@ void op::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
     size_t rois_num = static_cast<size_t>(m_attrs.max_detections_per_image);
     auto input_et = get_input_element_type(0);
 
-    set_output_size(3);
+    NODE_VALIDATION_CHECK(
+        this,
+        inputs().size() != 4,
+        "Number of inputs of ExperimentalDetectronDetectionOutput must be equal to 4, "
+        "but number of inputs is ",
+        inputs().size());
 
     set_output_type(0, input_et, Shape{rois_num, 4});
     set_output_type(1, element::i32, Shape{rois_num});
