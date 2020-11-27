@@ -217,7 +217,7 @@ if(WIN32)
     # Compiler specific flags
 
     ie_add_compiler_flags(/bigobj)
-    ie_add_compiler_flags(/MP /FS)
+    ie_add_compiler_flags(/MP)
 
     # Disable noisy warnings
 
