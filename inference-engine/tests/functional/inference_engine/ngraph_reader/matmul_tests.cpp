@@ -381,7 +381,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork4) {
             </output>
         </layer>
         <layer id="2" name="fc" precision="FP32" type="Gemm">
-            <data transpose_a="True" transpose_b="True" />
+            <data transpose_a="true" transpose_b="true" />
             <input>
                 <port id="0">
                     <dim>2048</dim>
@@ -529,7 +529,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork5) {
             </output>
         </layer>
         <layer id="3" name="fc" precision="FP32" type="Gemm">
-            <data transpose_a="False" transpose_b="False" />
+            <data transpose_a="false" transpose_b="false" />
             <input>
                 <port id="0">
                     <dim>1</dim>

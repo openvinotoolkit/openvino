@@ -85,7 +85,7 @@ namespace ngraph
 
             private:
                 std::size_t m_levels;
-                AutoBroadcastSpec m_auto_broadcast;
+                AutoBroadcastSpec m_auto_broadcast = op::AutoBroadcastType::NUMPY;
             };
         }
         using v0::FakeQuantize;

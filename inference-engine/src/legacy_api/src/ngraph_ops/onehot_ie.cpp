@@ -35,3 +35,11 @@ shared_ptr<Node> op::OneHotIE::clone_with_new_inputs(const OutputVector& new_arg
     check_new_args_count(this, new_args);
     return make_shared<op::OneHotIE>(new_args.at(0), m_axis, m_depth, m_on_value, m_off_value, m_type);
 }
+
+bool op::OneHotIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("axis", m_axis);
+    visitor.on_attribute("depth", m_depth);
+    visitor.on_attribute("off_value", m_off_value);
+    visitor.on_attribute("on_value", m_on_value);
+    return true;
+}
