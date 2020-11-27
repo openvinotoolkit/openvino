@@ -158,7 +158,7 @@ input blob using `InferenceEngine::ICNNNetwork::setBatchSize`. Increasing batch 
 
 ## Compatibility with Heterogeneous Plugin
 
-Heterogeneous plugin was tested with the Intel® GNA as a primary device and CPU as a secondary device. To run inference of networks with layers unsupported by the GNA plugin, such as Softmax, use the Heterogeneous plugin with the `HETERO:GNA,CPU` configuration. For the list of supported networks, see the [Supported Frameworks](#supported-frameworks).
+Heterogeneous plugin was tested with the Intel® GNA as a primary device and CPU as a secondary device. To run inference of networks with layers unsupported by the GNA plugin, such as Softmax, use the Heterogeneous plugin with the `HETERO:GNA,CPU` configuration.
 
 > **NOTE:** Due to limitation of the Intel® GNA backend library, heterogenous support is limited to cases where in the resulted sliced graph, only one subgraph is scheduled to run on GNA\_HW or GNA\_SW devices.
 
