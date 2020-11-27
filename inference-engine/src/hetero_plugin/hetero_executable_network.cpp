@@ -45,7 +45,7 @@ using namespace InferenceEngine::HeteroConfigParams;
 template<typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
-HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&    network,
+HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork&     network,
                                                  const Engine::Configs&                 config,
                                                  Engine*                                plugin):
     InferenceEngine::ExecutableNetworkThreadSafeDefault(
@@ -364,10 +364,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
         std::move(std::begin(nextSubgraphs), std::end(nextSubgraphs), std::back_inserter(orderedSubgraphs));
     } while (!allSubgraphs.empty());
 
-    InputsDataMap externalInputsData;
-    network.getInputsInfo(externalInputsData);
-    OutputsDataMap externalOutputsData;
-    network.getOutputsInfo(externalOutputsData);
+    InputsDataMap externalInputsData = network.getInputsInfo();
+    OutputsDataMap externalOutputsData = network.getOutputsInfo();
     networks.resize(orderedSubgraphs.size());
     std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
     std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());

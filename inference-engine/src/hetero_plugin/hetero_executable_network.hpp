@@ -37,7 +37,7 @@ public:
     /**
     * @brief constructor
     */
-    HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&         network,
+    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork&          network,
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
     /**
@@ -61,9 +61,8 @@ public:
     void ExportImpl(std::ostream& modelFile) override;
 
 private:
-    void InitCNNImpl(const InferenceEngine::ICNNNetwork&    network);
-
-    void InitNgraph(const InferenceEngine::ICNNNetwork&     network);
+    void InitCNNImpl(const InferenceEngine::CNNNetwork&    network);
+    void InitNgraph(const InferenceEngine::CNNNetwork&     network);
 
     struct NetworkDesc {
         std::string                                 _device;

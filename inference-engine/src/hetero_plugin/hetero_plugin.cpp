@@ -45,7 +45,7 @@ Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs & loc
 
 }  // namespace
 
-InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork&    network,
+InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&    network,
                                                                            const Configs&                   config) {
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
@@ -124,7 +124,7 @@ void Engine::SetConfig(const Configs &configs) {
     }
 }
 
-QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config) const {
+QueryNetworkResult Engine::QueryNetwork(const CNNNetwork &network, const Configs& config) const {
     QueryNetworkResult qr;
 
     if (GetCore() == nullptr) {
