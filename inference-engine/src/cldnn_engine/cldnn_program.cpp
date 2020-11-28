@@ -5822,12 +5822,11 @@ void Program::AddOutputPrimitive(cldnn::topology& topology, std::string outputNa
 
     auto outputReorderID = "reorder:" + outputName + m_postProcessTag;
     Precision precision = outputPrecision == Precision::UNSPECIFIED ? outputData->getPrecision() : outputPrecision;
-    
+
     // Reflect output precision conversion forced during model reading
     if (precision == Precision::I64)
         precision = Precision::I32;
-    else if (precision != Precision::FP32 &&
-             precision != Precision::I32) {
+    else if (precision != Precision::FP32 && precision != Precision::I32) {
         precision = Precision::FP32;
     }
 
