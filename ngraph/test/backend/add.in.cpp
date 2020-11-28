@@ -97,3 +97,33 @@ NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
     test_case.add_expected_output<float>(shape, {48, 64, 80, 96});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, add_large_tensors)
+{
+    Shape shape{10, 10, 10, 10, 10, 10, 10, 3};
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto B = make_shared<op::Parameter>(element::i32, shape);
+    auto T = make_shared<op::v1::Add>(A, B);
+
+    auto f = make_shared<Function>(T, ParameterVector{A, B});
+
+    vector<int32_t> a, b;
+    a.reserve(shape_size(shape));
+    b.reserve(shape_size(shape));
+
+    std::cout << "Generating random input\n";
+    testing::internal::Random random(12345);
+    for (size_t i = 0; i < shape_size(shape); ++i) {
+        a.push_back(random.Generate(1000));
+    }
+    std::cout << "Generating expected results\n";
+    for (const auto& x : a) {
+        b.push_back(x * 2);
+    }
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>(a);
+    test_case.add_input<int32_t>(a);
+    test_case.add_expected_output<int32_t>(shape, b);
+    test_case.run();
+}

@@ -18,6 +18,7 @@
 
 #include <cstddef>
 
+#include "ngraph/runtime/opt_kernel/parallel_executor.hpp"
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape_util.hpp"
 
@@ -28,12 +29,14 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void add(const T* arg0, const T* arg1, T* out, size_t count)
+            void add(const T* arg0, const T* arg1, T* out, const size_t count)
             {
-                for (size_t i = 0; i < count; i++)
-                {
-                    out[i] = arg0[i] + arg1[i];
-                }
+                // for (size_t i = 0; i < count; i++)
+                // {
+                //     out[i] = arg0[i] + arg1[i];
+                // }
+                std::cout << "Simple ref impl\n";
+                parallel::execute(arg0, arg1, out, count, std::plus<T>{});
             }
 
             template <typename T>
@@ -44,11 +47,19 @@ namespace ngraph
                      const Shape& arg1_shape,
                      const op::AutoBroadcastSpec& broadcast_spec)
             {
-                autobroadcast_binop(
-                    arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, [](T x, T y) -> T {
-                        return x + y;
-                    });
+                std::cout << "Ref impl with broadcast\n";
+                if (arg0_shape == arg1_shape)
+                {
+                    reference::add(arg0, arg1, out, shape_size(arg0_shape));
+                }
+                else
+                {
+                    autobroadcast_binop(
+                        arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, [](T x, T y) -> T {
+                            return x + y;
+                        });
+                }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
