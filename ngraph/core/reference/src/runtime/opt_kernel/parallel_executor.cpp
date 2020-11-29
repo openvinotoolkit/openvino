@@ -23,3 +23,16 @@ bool runtime::parallel::forced_single_threaded_execution()
 {
     return getenv_bool("REF_SINGLE_THREADED", false);
 }
+
+size_t runtime::parallel::parallel_tasks_count()
+{
+    const auto c = getenv_int("REF_TASKS_NUMBER", 4);
+    if (c < 1)
+    {
+        return 4;
+    }
+    else
+    {
+        return static_cast<size_t>(c);
+    }
+}

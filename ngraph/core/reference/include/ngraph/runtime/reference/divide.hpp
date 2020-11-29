@@ -21,6 +21,7 @@
 #include <type_traits>
 
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/runtime/opt_kernel/parallel_executor.hpp"
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/bfloat16.hpp"
@@ -110,8 +111,16 @@ namespace ngraph
                         return x / y;
                     }
                 };
-                autobroadcast_binop(
-                    arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, functor);
+                
+                if (arg0_shape == arg1_shape) 
+                {
+                    parallel::execute(arg0, arg1, out, shape_size(arg0_shape), functor);
+                } 
+                else 
+                {
+                    autobroadcast_binop(
+                        arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, functor);
+                }
             }
 
             // In English: return type is void and T must be a standard floating point type, or

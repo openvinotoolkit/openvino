@@ -36,6 +36,8 @@
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
+#include "util/perf/timer.hpp"
+#include "misc.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -100,7 +102,7 @@ NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
 
 NGRAPH_TEST(${BACKEND_NAME}, add_large_tensors)
 {
-    Shape shape{10, 10, 10, 10, 10, 10, 10, 3};
+    Shape shape{10, 10, 10, 10, 10, 10, 10, 5, 5, 2};
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto B = make_shared<op::Parameter>(element::i32, shape);
     auto T = make_shared<op::v1::Add>(A, B);
@@ -110,20 +112,48 @@ NGRAPH_TEST(${BACKEND_NAME}, add_large_tensors)
     vector<int32_t> a, b;
     a.reserve(shape_size(shape));
     b.reserve(shape_size(shape));
+    test::Timer t{"addition of large tensors"};
 
     std::cout << "Generating random input\n";
-    testing::internal::Random random(12345);
-    for (size_t i = 0; i < shape_size(shape); ++i) {
-        a.push_back(random.Generate(1000));
+    {
+        const auto input_gen = t.measure_scope_time("random input generation");
+        testing::internal::Random random(12345);
+        for (size_t i = 0; i < shape_size(shape); ++i)
+        {
+            a.push_back(random.Generate(1000));
+        }
     }
+
     std::cout << "Generating expected results\n";
-    for (const auto& x : a) {
-        b.push_back(x * 2);
+    {
+        const auto expected_output_gen = t.measure_scope_time("expected output generation");
+        for (const auto& x : a)
+        {
+            b.push_back(x * 2);
+        }
     }
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<int32_t>(a);
     test_case.add_input<int32_t>(a);
     test_case.add_expected_output<int32_t>(shape, b);
-    test_case.run();
+
+    std::cout << "Running the test\n";
+    {
+        const auto test_exec = t.measure_scope_time("test execution (multi threaded)");
+        test_case.run();
+    }
+
+    test_case.add_input<int32_t>(a);
+    test_case.add_input<int32_t>(a);
+    test_case.add_expected_output<int32_t>(shape, b);
+
+    std::cout << "Running the test single threaded\n";
+    {
+        set_environment("REF_SINGLE_THREADED", "1", 1);
+        const auto test_exec = t.measure_scope_time("test execution (single threaded)");
+        test_case.run();
+    }
+
+    t.finish();
 }

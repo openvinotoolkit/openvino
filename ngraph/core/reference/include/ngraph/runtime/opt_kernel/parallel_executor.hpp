@@ -42,6 +42,8 @@ namespace ngraph
             //     std::transform(input1.first, input1.last, input2, output, f);
             // }
 
+            size_t parallel_tasks_count();
+
             bool forced_single_threaded_execution();
 
             template <typename T, typename Operation>
@@ -56,8 +58,8 @@ namespace ngraph
                 }
                 else
                 {
-                    std::cout << "Multi threaded execution\n";
-                    const size_t TASKS_COUNT = 8;
+                    const size_t TASKS_COUNT = parallel_tasks_count();
+                    std::cout << "Multi threaded execution " << TASKS_COUNT << std::endl;
                     std::vector<std::future<void>> tasks;
                     tasks.reserve(TASKS_COUNT);
 
