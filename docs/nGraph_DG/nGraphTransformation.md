@@ -17,8 +17,8 @@ Transformations root directory contains two folders:
 * `ngraph_ops` - Contains internal opset operations that are common for plugins.
 * `transformations` - Includes all transformations, utils, runtime info attributes, and pass managers.
 
-All internal operations and transformations located inside [Transformation Library](group__ie__transformation__api.html) are allowed for usage inside plugins.
-All legacy operations and transformations were moved to legacy library and not suggested to use.
+All internal operations and transformations located inside the [Transformation Library](group__ie__transformation__api.html) can be used inside plugins.
+All legacy operations and transformations were moved to a legacy library and are not recommended to be used.
 
 ### Transformation Flow Layers
 Transformation flow in the transformation library has several layers:
@@ -33,7 +33,7 @@ But if some transformation parts can potentially be reused in other transformati
 To decide where to store your transformation code, please follow these rules:
 
 1. If it is a plugin-specific transformation and cannot be reused by other plugins, keep source code inside plugin.
-2. If this transformation relates to opset operation conversion or optimization then keep sources inside the transformation library.
+2. If this transformation relates to opset operation conversion or optimization, keep sources inside the transformation library.
 
 After you decide where to store your transformation code, you can start developing your own nGraph transformation.
 
@@ -96,7 +96,7 @@ Then you need to take the last created operation and put it as a root of the pat
 
 The `Parameter` operation in the example above has type and shape specified. These attributes are needed only to create Parameter operation class and will not be used in pattern matching.
 
-For more pattern examples please follow the [pattern matching](#pattern_matching) section.
+For more pattern examples, refer to the [pattern matching](#pattern_matching) section.
 
 ### Implement callback
 Callback is an action applied to every pattern entrance. In general, callback is the lambda function that takes Matcher object with detected subgraph.
@@ -155,7 +155,7 @@ And then creates map from registered MatcherPasses. That helps to avoid addition
 
 ![graph_rewrite_efficient_search] 
 
-> **NOTE**: GraphRewrite execution algorithm can not set manually and depends only on root nodes registered inside MatcherPasses.
+> **NOTE**: GraphRewrite execution algorithm cannot be set manually and depends only on root nodes registered inside MatcherPasses.
 
 ## Pattern Matching <a name="pattern_matching"></a>
 
@@ -403,22 +403,22 @@ NGRAPH_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transforma
 
 ## Disabling/Enabling specific transformations for plugin X	 <a name="disabling_transformation"></a>
 
-In transformation library we offer to plugins transformations like CommonOptimizations that contains predefined sequence of transformations.
-So we also provide a tool that helps to disable or partially disable particular transformations in transformation pipeline.
-For example, if plugin uses CommonOptimization transformation and want to disable ConvertGELU transformation then inside plugin we have to take PassConfig instance
+In transformation library, we provide plugins transformations like CommonOptimizations, which contains predefined sequence of transformations.
+We also provide a tool that helps to disable or partially disable particular transformations in a transformation pipeline.
+For example, if a plugin uses the CommonOptimization transformation and needs to disable the ConvertGELU transformation, then inside the plugin we have to take the PassConfig instance
 from pass::Manger and call disable method.
 
 @snippet example_ngraph_utils.cpp ngraph:disable_gelu
 
-In some cases we want to disable transformation for some condition:
+In some cases, we need to disable transformation for some condition:
 
 @snippet example_ngraph_utils.cpp ngraph:disable_callback
 
-And in some cases pass::Manager pipelines inside transformations may have transformations disabled by default but enabled insde plugins.
+In some cases, pass::Manager pipelines inside transformations may have transformations disabled by default but enabled inside plugins.
 
 @snippet example_ngraph_utils.cpp ngraph:disabled_by_default
 
-PassConfig instance taken from pass::Manager is shared across all registered transformations including nested transformations. So it doesn't matter where we work with this object (before passes registration or after).
+PassConfig instance taken from pass::Manager is shared across all registered transformations including nested transformations. So it does not matter where we work with this object (before passes registration or after).
 
 ## Transformations testing <a name="transformations_testing"></a>
 
