@@ -426,8 +426,11 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
                     if (GetNextLayers(l).empty())
                         is_output = true;
 
-                    // Condition above is not enough, as network output
+                    // Condition above is not enough, as network output layer
                     // can still be used in other parts of the graph
+                    // (e.g. 1st output form TopK primitive may become network output
+                    // while 2nd output from the same primitive may still be used
+                    // in the graph).
                     if (!is_output) {
                         for (auto layerOutput : l->outData) {
                             for (auto networkOutput : networkOutputs) {
