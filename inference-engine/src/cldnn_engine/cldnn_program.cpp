@@ -405,6 +405,9 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
         }
     }
 
+    OutputsDataMap outputsMap;
+    network.getOutputsInfo(outputsMap);
+
     // [WA part2] Try to find non-quantized layers and convert them back to FP16
     if (config.enableInt8) {
         if (fqFound && baselineIsFP16 && config.enable_fp16_for_quantized_models) {
@@ -417,13 +420,37 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
                 if (layer->outData.empty() || layer->insData.empty())
                     continue;
 
-                auto canReduceOutputPrecision = [](const CNNLayerPtr& l) -> bool {
-                    auto type = LayerTypeFromStr(l->type);
-                    // Don't do conversion for outputs
-                    auto next = GetNextLayers(l);
-                    if (next.empty()) {
-                        return false;
+                auto isOutputLayer = [](const CNNLayerPtr& l, const OutputsDataMap& networkOutputs) -> bool {
+                    bool is_output = false;
+
+                    if (GetNextLayers(l).empty())
+                        is_output = true;
+
+                    // Condition above is not enough, as network output
+                    // can still be used in other parts of the graph
+                    if (!is_output) {
+                        for (auto layerOutput : l->outData) {
+                            for (auto networkOutput : networkOutputs) {
+                               if (layerOutput->getName() == networkOutput.second->getName()) {
+                                   is_output = true;
+                                   break;
+                               }
+                            }
+
+                            if (is_output)
+                                break;
+                        }
                     }
+
+                    return is_output;
+                };
+
+                auto canReduceOutputPrecision = [](const CNNLayerPtr& l, const bool isNetworkOutput) -> bool {
+                    // Don't do the conversion for network outputs
+                    if (isNetworkOutput)
+                        return false;
+
+                    auto type = LayerTypeFromStr(l->type);
 
                     if (type == LayerType::ScaleShift) {
                         // ScaleShift is supposed to return Dequantized values, so in most of the cases we can convert it's output to FP16
@@ -462,9 +489,11 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
                     return result;
                 };
 
+                bool is_network_output = isOutputLayer(layer, outputsMap);
+
                 if (canReducePrecision(layer)) {
-                    convertLayerPrecision<Precision::FP32, Precision::FP16>(layer, GetNextLayers(layer).empty());
-                } else if (canReduceOutputPrecision(layer)) {
+                    convertLayerPrecision<Precision::FP32, Precision::FP16>(layer, is_network_output);
+                } else if (canReduceOutputPrecision(layer, is_network_output)) {
                     for (auto &out_data : layer->outData) {
                         if (out_data->getPrecision() == Precision::FP32)
                             out_data->setPrecision(Precision::FP16);
