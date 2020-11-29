@@ -22,7 +22,6 @@ ngraph::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding() {
         auto shape_of = m.get_match_root();
         auto & rt_info = shape_of->get_rt_info();
         rt_info["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
-        std::cout << "DISABLED CF FOR:" << shape_of->get_friendly_name() << std::endl;
         return false;
     };
 
@@ -37,7 +36,6 @@ ngraph::pass::EnableShapeOfConstantFolding::EnableShapeOfConstantFolding() {
         auto shape_of = m.get_match_root();
         auto & rt_info = shape_of->get_rt_info();
         rt_info.erase("DISABLED_CONSTANT_FOLDING");
-        std::cout << "ENABLED CF FOR:" << shape_of->get_friendly_name() << std::endl;
         return false;
     };
 

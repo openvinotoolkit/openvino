@@ -10,19 +10,17 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <cpp/ie_cnn_network.h>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/common_optimizations/hsigmoid_fusion.hpp>
-#include <transformations/init_node_info.hpp>
 #include <transformations/common_optimizations/remove_filtering_boxes_by_size.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/common_optimizations/algebraic_simplification.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/common_optimizations/mish_fusion.hpp>
 #include <transformations/common_optimizations/softplus_fusion.hpp>
@@ -34,19 +32,14 @@
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
+#include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
 
 #include <disable_constant_folding.hpp>
 
-//namespace ngraph {
-//namespace pass {
 
-class TRANSFORMATIONS_API MOCTransformations;
-
-//}  // namespace pass
-//}  // namespace ngraph
-
-class MOCTransformations: public ngraph::pass::FunctionPass {
+class TRANSFORMATIONS_API MOCTransformations: public ngraph::pass::FunctionPass {
     bool m_cf;
+
 public:
     NGRAPH_RTTI_DECLARATION;
     explicit MOCTransformations(bool cf) : m_cf(cf) {}
