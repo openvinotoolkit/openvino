@@ -62,7 +62,7 @@ function(build_docs)
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
     set(NGRAPH_DIR "${OpenVINO_MAIN_SOURCE_DIR}/ngraph")
     set(NGRAPH_PY_DIR "${NGRAPH_DIR}/python/src/ngraph/")
-    set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/ ${NGRAPH_DIR}/frontend/onnx_import/include")
+    set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
