@@ -1141,6 +1141,9 @@ IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores
 IE_CPU.nonmaxsuppression_two_batches
 IE_CPU.nonmaxsuppression_two_classes
 
+# Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
+IE_CPU.roi_pooling_1x1_bilinear
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
@@ -1504,3 +1507,6 @@ onnx_controlflow_loop_2d_trip_count_dynamic
 
 # Infinitive Loop is not supported
 onnx_controlflow_loop_infinite
+
+# unsupported dynamic ops
+onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis

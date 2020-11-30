@@ -81,8 +81,8 @@ void FP::ApplyDiagonalTransform(intel_dnn_component_t *component) {
         }
     }
     for (uint32_t j = 0; j < n; j++) {
-        float *Bcol = B + j * ldb;
-        float *Ccol = C + j * ldc;
+        float *Bcol = B + j * component->num_rows_in;
+        float *Ccol = C + j * component->num_rows_out;
         cblas_ssbmv1(CblasRowMajor, CblasLower, m, 0, 1.0, A, 1, Bcol, 1, 1.0, Ccol, 1);
     }
 }

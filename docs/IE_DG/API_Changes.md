@@ -2,6 +2,23 @@
 
 The sections below contain detailed list of changes made to the Inference Engine API in recent releases.
 
+## 2021.2
+
+### New API
+
+ **State API**
+
+ * InferRequest::QueryState query state value of network on current infer request
+ * IVariableState class instead of IMemoryState (rename)
+ * IVariableState::GetState instead of IMemoryState::GetLastState (rename)
+
+### Deprecated API
+
+ **State API**
+
+ * ExecutableNetwork::QueryState - use InferRequest::QueryState
+ * IVariableState::GetLastState - use IVariableState::GetState
+
 ## 2021.1
 
 ### Deprecated API
