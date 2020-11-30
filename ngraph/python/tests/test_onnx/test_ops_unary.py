@@ -22,7 +22,6 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 from ngraph.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-<<<<<<< HEAD
 from tests import (xfail_issue_34323,
                    xfail_issue_35930,
                    xfail_issue_36483)
