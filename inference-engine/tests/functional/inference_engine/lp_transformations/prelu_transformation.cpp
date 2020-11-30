@@ -15,8 +15,8 @@
 #include <low_precision/prelu.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-#include "ngraph_functions/low_precision_transformations/prelu_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/prelu_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
