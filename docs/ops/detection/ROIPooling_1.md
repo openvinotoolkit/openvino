@@ -63,7 +63,7 @@ Batch indices must be in the range of `[0, N-1]`.
 
 **Outputs**:
 
-*   **1**: 4D output tensor of shape `[NUM_ROIS, C, pooled_h, pooled_w]` with feature maps of type *T*. Required.
+*   **1**: 4D output tensor of shape `[NUM_ROIS, C, pooled_h, pooled_w]` with feature maps of type *T*.
 
 **Types**
 

@@ -14,6 +14,10 @@
 
 *   **2**: OD or 1D tensor of type *T_SHAPE* with dimensions indices to be set to 1. Values could be negative. *Required*.
 
+**Outputs**:
+
+*   **1**: Tensor with unsqueezed values of type *T*.
+
 **Types**
 
 * *T*: supported type.
