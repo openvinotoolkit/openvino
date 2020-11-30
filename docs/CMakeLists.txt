@@ -205,14 +205,22 @@ function(build_docs)
                       COMMENT "Generating OpenVINO documentation"
                       VERBATIM)
 
-    add_custom_target(docs_check
-                      COMMAND ${Python3_EXECUTABLE} ${LINKCHECKER_EXECUTABLE} ${DOCS_BUILD_DIR}/html/ -f ${DOXYGEN_DIR}/linkchecker_filter.yaml --no_recursive -l ${DOCS_BUILD_DIR}
-                      COMMENT "Check links in generated documentation"
-                      VERBATIM)
-
     set_target_properties(openvino_docs ie_docs c_api py_api preprocess_docs plugin_api
                           ngraph_py_api ngraph_cpp_api
                           PROPERTIES FOLDER docs)
+
+    # added linkcheker
+
+    if(EXISTS "${LINKCHECKER_PY}")
+        add_custom_target(docs_check
+                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER_PY}"
+                                    "${DOCS_BUILD_DIR}/html/" -f "${DOXYGEN_DIR}/linkchecker_filter.yaml"
+                                    --no_recursive -l "${DOCS_BUILD_DIR}"
+                            COMMENT "Check links in generated documentation"
+                            WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
+                            VERBATIM)
+        set_target_properties(docs_check PROPERTIES FOLDER docs)
+    endif()
 
     find_program(browser NAMES xdg-open)
     if(browser)
