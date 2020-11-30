@@ -123,6 +123,35 @@ static void fill_data_bbox(float *data, size_t size, int height, int width, floa
     }
 }
 
+static void fill_data_roi(float *data, size_t size, const uint32_t range, const int height, const int width, const float omega, const int seed = 1) {
+    std::default_random_engine random(seed);
+    std::uniform_int_distribution<int32_t> distribution(0, range);
+    float center_h = (height - 1.0f) / 2;
+    float center_w = (width - 1.0f) / 2;
+    for (size_t i = 0; i < size; i += 5) {
+        data[i] = static_cast<float>(distribution(random));
+        data[i + 1] = std::floor(center_w + width * 0.6f * sin(static_cast<float>(i+1) * omega));
+        data[i + 3] = std::floor(center_w + width * 0.6f * sin(static_cast<float>(i+3) * omega));
+        if (data[i + 3] < data[i + 1]) {
+            std::swap(data[i + 1], data[i + 3]);
+        }
+        if (data[i + 1] < 0)
+            data[i + 1] = 0;
+        if (data[i + 3] > width - 1)
+            data[i + 3] = static_cast<float>(width - 1);
+
+        data[i + 2] = std::floor(center_h + height * 0.6f * sin(static_cast<float>(i+2) * omega));
+        data[i + 4] = std::floor(center_h + height * 0.6f * sin(static_cast<float>(i+4) * omega));
+        if (data[i + 4] < data[i + 2]) {
+            std::swap(data[i + 2], data[i + 4]);
+        }
+        if (data[i + 2] < 0)
+            data[i + 2] = 0;
+        if (data[i + 4] > height - 1)
+            data[i + 4] = static_cast<float>(height - 1);
+    }
+}
+
 /** @brief Fill blob with random data.
  *
  * @param blob Target blob

@@ -34,5 +34,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*DSR_NonMaxSuppression.*NBoxes=(5|20|200).*)",
         // TODO: Issue: 42721
         R"(.*(DSR_GatherND).*)",
+        // TODO: Issue 43781
+        ".*ROIPoolingLayerTest.*"
     };
 }

@@ -25,6 +25,7 @@ NGRAPH_OP(LSTMCell, op::v0)
 NGRAPH_OP(RegionYolo, op::v0)
 NGRAPH_OP(ReorgYolo, op::v0)
 NGRAPH_OP(RNNCell, op::v0)
+NGRAPH_OP(ROIPooling, op::v0)
 #undef ID_SUFFIX
 
 #define ID_SUFFIX(NAME) NAME##_v1
