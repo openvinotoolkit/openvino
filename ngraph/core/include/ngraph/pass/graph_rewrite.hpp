@@ -126,12 +126,34 @@ public:
         m_matchers.push_back(pass);
     }
 
-    template <typename T, class... Args>
+    /// \brief Register given transformation class type to GraphRewrite execution list
+    /// All registered transformations will be executed in a single graph traversal.
+    /// Example below show the basic usage of pass::GraphRewrite
+    ///
+    ///     pass::Manager manager;
+    ///     auto anchor = manager.register_pass<GraphRewrite>();
+    ///     anchor->add_matcher<MatcherPassA>();
+    ///     anchor->add_matcher<MatcherPassB>();
+    ///     anchor->set_name("CommonMathcers");
+    ///     manager.run_passes(f);
+    ///
+    /// For some purposes transformation can be registered and disabled by default.
+    ///
+    ///     anchor->add_matcher<MatcherPassB, false>();
+    ///
+    /// \return shared_ptr to the transformation instance
+    template <typename T, bool Enabled = true, class... Args>
     std::shared_ptr<T> add_matcher(Args&&... args)
     {
         static_assert(std::is_base_of<pass::MatcherPass, T>::value,
                       "pass not derived from MatcherPass");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
+        auto pass_config = get_pass_config();
+        pass->set_pass_config(pass_config);
+        if (!Enabled && !pass_config->is_enabled<T>())
+        {
+            pass_config->disable<T>();
+        }
         m_matchers.push_back(pass);
         return pass;
     }
@@ -145,6 +167,8 @@ public:
                      const ngraph::graph_rewrite_callback& callback);
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
+    void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;
 
 protected:
     bool m_enable_shape_inference = false;

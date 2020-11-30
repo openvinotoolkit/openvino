@@ -20,6 +20,8 @@ using ConvertLikeParamsTuple = typename std::tuple<
         InferenceEngine::Precision,        // Input1 precision
         std::vector<std::vector<size_t>>,  // Input2 shapes
         InferenceEngine::Precision,        // Input2 precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
         std::string>;                      // Device name
 
 class ConvertLikeLayerTest : public testing::WithParamInterface<ConvertLikeParamsTuple>,

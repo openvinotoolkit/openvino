@@ -17,6 +17,27 @@
 #include <string>
 #include <algorithm>
 #include <vector>
+#include <unordered_map>
+#include <iostream>
+
+namespace {
+int getAxisIndex(kernel_selector::InterpolateAxis axis) {
+    switch(axis) {
+    case kernel_selector::InterpolateAxis::BATCH:
+        return 0;
+    case kernel_selector::InterpolateAxis::FEATURE:
+        return 1;
+    case kernel_selector::InterpolateAxis::Z:
+        return 2;
+    case kernel_selector::InterpolateAxis::Y:
+        return 3;
+    case kernel_selector::InterpolateAxis::X:
+        return 4;
+    default:
+        return 0;
+    }
+}
+}  // namespace
 
 namespace kernel_selector {
 
@@ -37,38 +58,29 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
 }
 
 ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_selector::resample_params &arg) const {
-    DispatchData runInfo;
-    std::vector<size_t> global;
-    std::vector<size_t> local;
+    DispatchData dispatchData;
     const auto& out = arg.output;
 
     if (arg.resampleType == ResampleType::NEAREST_NEIGHBOR)
-        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
-    else if (arg.resampleType == ResampleType::BILINEAR_INTERP)
-        global = {Align(out.X().v, 32), out.Y().v, out.Batch().v};
+        dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
+    else if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX)
+        dispatchData.gws = { Align(out.X().v, 32), out.Y().v, out.Batch().v };
     else if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP)
-        global = {out.X().v * out.Y().v, CeilDiv(out.Feature().v, GetFeatureBlockSize(arg)), out.Batch().v * out.Z().v};
+        dispatchData.gws = { out.X().v * out.Y().v, CeilDiv(out.Feature().v, GetFeatureBlockSize(arg)), out.Batch().v * out.Z().v };
+    else
+        dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
 
-    local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
 
-    if (arg.resampleType == ResampleType::BILINEAR_INTERP) {
-        local[0] = 32;
-        local[1] = 1;
-        local[2] = 1;
+    if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) {
+        dispatchData.lws[0] = 32;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
+    dispatchData.efficiency = FORCE_PRIORITY_7;
 
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    runInfo.efficiency = FORCE_PRIORITY_7;
-    runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
-
-    return runInfo;
+    return dispatchData;
 }
 
 bool ResampleKernelBase::Validate(const Params& p, const optional_params& o) const {
@@ -102,41 +114,77 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     const auto& input = params.inputs[0];
     const auto& output = params.output;
     const auto align_corners = params.align_corners;
-    const auto pad_begin = params.pad_begin;
-    const auto pad_end = params.pad_end;
-    const auto x_size_padded = pad_begin + input.X().v + pad_end;
-    const auto y_size_padded = pad_begin + input.Y().v + pad_end;
-    const auto z_size_padded = pad_begin + input.Z().v + pad_end;
-    const auto out_x_size_padded = pad_begin + output.X().v + pad_end;
-    const auto out_y_size_padded = pad_begin + output.Y().v + pad_end;
-    const auto out_z_size_padded = pad_begin + output.Z().v + pad_end;
-    float x_ratio = 0;
-    float y_ratio = 0;
-    float z_ratio = 0;
+    auto pads_begin = params.pads_begin;
+    auto pads_end = params.pads_end;
+    if (pads_begin.size() == 4)
+        pads_begin.insert(std::next(pads_begin.begin(), 2), 0);
+    if (pads_end.size() == 4)
+        pads_end.insert(std::next(pads_end.begin(), 2), 0);
+
+    const auto b_size_padded = pads_begin[0] + input.Batch().v + pads_end[0];
+    const auto f_size_padded = pads_begin[1] + input.Feature().v + pads_end[1];
+    const auto x_size_padded = pads_begin[4] + input.X().v + pads_end[4];
+    const auto y_size_padded = pads_begin[3] + input.Y().v + pads_end[3];
+    const auto z_size_padded = pads_begin[2] + input.Z().v + pads_end[2];
+    const auto out_b_size_padded = output.Batch().v;
+    const auto out_f_size_padded = output.Feature().v;
+    const auto out_x_size_padded = output.X().v;
+    const auto out_y_size_padded = output.Y().v;
+    const auto out_z_size_padded = output.Z().v;
+    std::vector<float> scales(5);
+    std::vector<int32_t> axesUsed(5, 0);
+    bool paddingUsed = false;
+    for (size_t i = 0; i < pads_begin.size(); ++i) {
+        paddingUsed |= (pads_begin[i] != 0 || pads_end[i] != 0);
+    }
 
     if (align_corners) {
-        x_ratio = (out_x_size_padded) > 1 ? static_cast<float>(x_size_padded - 1) / static_cast<float>(out_x_size_padded - 1) : 0.0f;
-        y_ratio = (out_y_size_padded) > 1 ? static_cast<float>(y_size_padded - 1) / static_cast<float>(out_y_size_padded - 1) : 0.0f;
-        z_ratio = (out_z_size_padded) > 1 ? static_cast<float>(z_size_padded - 1) / static_cast<float>(out_z_size_padded - 1) : 0.0f;
+        scales[0] = (out_b_size_padded) > 1
+                        ? static_cast<float>(b_size_padded - 1) / static_cast<float>(out_b_size_padded - 1)
+                        : 0.0f;
+        scales[1] = (out_f_size_padded) > 1
+                        ? static_cast<float>(f_size_padded - 1) / static_cast<float>(out_f_size_padded - 1)
+                        : 0.0f;
+        scales[4] = (out_x_size_padded) > 1
+                        ? static_cast<float>(x_size_padded - 1) / static_cast<float>(out_x_size_padded - 1)
+                        : 0.0f;
+        scales[3] = (out_y_size_padded) > 1
+                        ? static_cast<float>(y_size_padded - 1) / static_cast<float>(out_y_size_padded - 1)
+                        : 0.0f;
+        scales[2] = (out_z_size_padded) > 1
+                        ? static_cast<float>(z_size_padded - 1) / static_cast<float>(out_z_size_padded - 1)
+                        : 0.0f;
     } else {
-        x_ratio = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
-        y_ratio = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
-        z_ratio = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
+        scales[0] = static_cast<float>(b_size_padded) / static_cast<float>(out_b_size_padded);
+        scales[1] = static_cast<float>(f_size_padded) / static_cast<float>(out_f_size_padded);
+        scales[4] = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
+        scales[3] = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
+        scales[2] = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
+    }
+    for (const auto& it : params.axesAndScales) {
+        int idx = getAxisIndex(it.first);
+        axesUsed[idx] = 1;
+        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
+            scales[idx] = 1.f / it.second;
+    }
+    for (size_t i = 0; i < scales.size(); ++i) {
+        if (scales[i] != 1.f)
+            axesUsed[i] = 1;
     }
 
     jit.AddConstants({
         MakeJitConstant(toString(params.resampleType), ""),
-        MakeJitConstant("X_RATIO", x_ratio),
-        MakeJitConstant("Y_RATIO", y_ratio),
-        MakeJitConstant("Z_RATIO", z_ratio),
-        MakeJitConstant("X_RATIO_HALF", x_ratio / 2.0f),
-        MakeJitConstant("Y_RATIO_HALF", y_ratio / 2.0f),
-        MakeJitConstant("Z_RATIO_HALF", z_ratio / 2.0f),
-        MakeJitConstant("PAD_BEGIN", pad_begin),
-        MakeJitConstant("PAD_END", pad_end),
+        MakeJitConstant(toString(params.nearestMode), ""),
+        MakeJitConstant(toString(params.coordTransMode), ""),
+        MakeJitConstant("SCALES", scales),
+        MakeJitConstant("PADS_BEGIN", pads_begin),
+        MakeJitConstant("PADS_END", pads_end),
+        MakeJitConstant("PADDING_USED", (int)paddingUsed),
+        MakeJitConstant("AXES_USED", axesUsed),
         MakeJitConstant("ALIGN_CORNERS", align_corners),
         MakeJitConstant("KERNEL_W", 2),
-        MakeJitConstant("ANTIALIAS", 0)
+        MakeJitConstant("ANTIALIAS", params.antialias),
+        MakeJitConstant("CUBE_COEFF", params.cube_coeff),
     });
 
     size_t feature_block_size = GetFeatureBlockSize(params);
@@ -149,7 +197,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         }
     }
 
-    if (params.resampleType == ResampleType::BILINEAR_INTERP) {
+    if (params.resampleType == ResampleType::BILINEAR_INTERP || params.resampleType == ResampleType::LINEAR_ONNX) {
         if (params.output.X().v % 32 != 0) {
             jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
         }
@@ -168,16 +216,16 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
     KernelData kd = KernelData::Default<resample_params>(params);
     resample_params& newParams = *static_cast<resample_params*>(kd.params.get());
 
-    auto runInfo = SetDefault(newParams);
+    auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = runInfo.efficiency;
+    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

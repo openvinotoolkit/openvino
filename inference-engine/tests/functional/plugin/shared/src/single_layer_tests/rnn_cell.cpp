@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include <transformations/rnn_cell_decomposition.hpp>
+#include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include "single_layer_tests/rnn_cell.hpp"
 
 namespace LayerTestsDefinitions {

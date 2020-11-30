@@ -32,10 +32,14 @@ const auto fqParams = ::testing::Combine(
         ::testing::Values(inputParams)
 );
 
-INSTANTIATE_TEST_CASE_P(FakeQuantize, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(config)),

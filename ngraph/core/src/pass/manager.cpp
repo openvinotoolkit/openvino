@@ -19,6 +19,8 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 
 #include "itt.hpp"
 #include "ngraph/env_util.hpp"
@@ -35,9 +37,51 @@
 using namespace std;
 using namespace ngraph;
 
+namespace ngraph
+{
+    namespace pass
+    {
+        namespace
+        {
+            class PerfCounters
+            {
+                PerfCounters(PerfCounters const&) = delete;
+                PerfCounters& operator=(PerfCounters const&) = delete;
+
+            public:
+                PerfCounters() = default;
+
+                openvino::itt::handle_t operator[](::ngraph::Node::type_info_t const& type_inf)
+                {
+                    std::lock_guard<std::mutex> guard(m_mutex);
+                    auto it = m_counters.find(&type_inf);
+                    if (it != m_counters.end())
+                        return it->second;
+                    return m_counters[&type_inf] = openvino::itt::handle(type_inf.name);
+                }
+
+            private:
+                using key = ::ngraph::Node::type_info_t const*;
+                using value = openvino::itt::handle_t;
+                using counters_map = std::unordered_map<key, value>;
+
+                std::mutex m_mutex;
+                counters_map m_counters;
+            };
+
+            PerfCounters& perf_counters()
+            {
+                static PerfCounters counters;
+                return counters;
+            }
+        }
+    }
+}
+
 pass::Manager::Manager()
     : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
     , m_statistics(getenv_bool("NGRAPH_ENABLE_STATISTICS_TRACING"))
+    , m_pass_config(std::make_shared<PassConfig>())
 {
 }
 
@@ -214,6 +258,11 @@ std::ostream& operator<<(std::ostream& out, const OperationDescription& x)
     return out;
 }
 
+pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config)
+    : m_pass_config(std::move(pass_config))
+{
+}
+
 void pass::Manager::run_passes(shared_ptr<Function> func)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::Manager::run_passes");
@@ -227,11 +276,16 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
     bool function_changed = false;
     for (auto& pass : m_pass_list)
     {
-        pass_timer.start();
-        if (!m_has_default_callback)
+        if (m_pass_config->is_disabled(pass->get_type_info()))
         {
-            pass->set_callback(m_transformation_callback);
+            NGRAPH_DEBUG << "Pass " << pass->get_name() << " is disabled";
+            continue;
         }
+
+        OV_ITT_SCOPED_TASK(itt::domains::nGraphPass_LT,
+                           pass::perf_counters()[pass->get_type_info()]);
+
+        pass_timer.start();
 
         try
         {

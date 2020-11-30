@@ -22,7 +22,6 @@
 #include "backend_visibility.hpp"
 #include "executable.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/pass/pass_config.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/util.hpp"
@@ -110,14 +109,6 @@ public:
     /// \returns compiled function or nullptr on failure
     virtual std::shared_ptr<Executable> compile(std::shared_ptr<Function> func,
                                                 bool enable_performance_data = false) = 0;
-
-    /// \brief Compiles a Function.
-    /// \param func The function to compile
-    /// \param pass_config Configuration object for defining compilation options
-    /// \returns compiled function or nullptr on failure
-    virtual std::shared_ptr<Executable> compile(std::shared_ptr<Function> func,
-                                                ngraph::pass::PassConfig& pass_config,
-                                                bool enable_performance_data = false);
 
     /// \brief Loads a previously saved Executable object from a stream.
     /// \param input_stream the opened input stream containing the saved Executable

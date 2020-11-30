@@ -39,13 +39,16 @@ const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
 };
 
 
-INSTANTIATE_TEST_CASE_P(TopK, TopKLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_TopK, TopKLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(k),
                 ::testing::ValuesIn(axes),
                 ::testing::ValuesIn(modes),
                 ::testing::ValuesIn(sortTypes),
                 ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         TopKLayerTest::getTestCaseName);

@@ -8,12 +8,14 @@
 #include <string>
 #include <map>
 
+#include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
 #include "gna_plugin.hpp"
 
 namespace GNAPluginNS {
 
 class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
+ protected:
     std::shared_ptr<GNAPlugin> plg;
     uint32_t inferRequestIdx = -1;
 
@@ -71,9 +73,9 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     }
 
     /**
-        * @brief methods with _ThreadUnsafe prefix are to implement in plugins
-        * or in default wrapper (e.g. AsyncInferRequestThreadSafeDefault)
-        */
+     * @brief methods with _ThreadUnsafe prefix are to implement in plugins
+     * or in default wrapper (e.g. AsyncInferRequestThreadSafeDefault)
+     */
     void StartAsyncImpl() override {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);
@@ -95,20 +97,29 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str;
         }
 
-        bool qosOK;
         if (millis_timeout == InferenceEngine::IInferRequest::WaitMode::RESULT_READY) {
-            qosOK = plg->Wait(inferRequestIdx);
-        } else {
-            qosOK = plg->WaitFor(inferRequestIdx, millis_timeout);
+            millis_timeout = MAX_TIMEOUT;
         }
+        const auto waitStatus = plg->WaitFor(inferRequestIdx, millis_timeout);
 
-        if (qosOK) {
-            return InferenceEngine::OK;
-        } else {
+        if (waitStatus == GNA_REQUEST_PENDING) {
+            // request is still pending so Wait() is needed once again
+            return InferenceEngine::RESULT_NOT_READY;
+        }
+        if (waitStatus == GNA_REQUEST_ABORTED) {
             // need to preserve invalid state here to avoid next Wait() from clearing it
             inferRequestIdx = -1;
             return InferenceEngine::INFER_NOT_STARTED;
         }
+        return InferenceEngine::OK;
     }
+
+    IE_SUPPRESS_DEPRECATED_START
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
+        auto pluginStates = plg->QueryState();
+        std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
+        return plg->QueryState();
+    }
+    IE_SUPPRESS_DEPRECATED_END
 };
 }  // namespace GNAPluginNS

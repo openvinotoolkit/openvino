@@ -10,8 +10,8 @@
 #pragma once
 
 #include <cpp/ie_executable_network.hpp>
-#include <cpp_interfaces/base/ie_memory_state_base.hpp>
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include <cpp_interfaces/base/ie_variable_state_base.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -33,7 +33,7 @@ class ExecutableNetworkBase : public IExecutableNetwork {
 public:
     /**
      * @brief Constructor with actual underlying implementation.
-     * @param impl Underplying implementation of type IExecutableNetworkInternal
+     * @param impl Underlying implementation of type IExecutableNetworkInternal
      */
     explicit ExecutableNetworkBase(std::shared_ptr<T> impl) {
         if (impl.get() == nullptr) {
@@ -51,7 +51,7 @@ public:
     }
 
     StatusCode CreateInferRequest(IInferRequest::Ptr& req, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->CreateInferRequest(req));
+        TO_STATUS(req = _impl->CreateInferRequest());
     }
 
     StatusCode Export(const std::string& modelFileName, ResponseDesc* resp) noexcept override {
@@ -63,22 +63,25 @@ public:
     }
 
     StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->GetExecGraphInfo(graphPtr));
+        TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
     }
 
-    StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
         try {
             auto v = _impl->QueryState();
             if (idx >= v.size()) {
                 return OUT_OF_BOUNDS;
             }
-            pState = std::make_shared<MemoryStateBase<IMemoryStateInternal>>(v[idx]);
+            pState = std::make_shared<VariableStateBase<IVariableStateInternal>>(v[idx]);
             return OK;
         } catch (const std::exception& ex) {
             return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
         } catch (...) {
             return InferenceEngine::DescriptionBuffer(UNEXPECTED);
         }
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     void Release() noexcept override {
@@ -91,25 +94,32 @@ public:
     }
 
     StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->SetConfig(config, resp));
+        TO_STATUS(_impl->SetConfig(config));
     }
 
     StatusCode GetConfig(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetConfig(name, result, resp));
+        TO_STATUS(result = _impl->GetConfig(name));
     }
 
     StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetMetric(name, result, resp));
+        TO_STATUS(result = _impl->GetMetric(name));
     }
 
     StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetContext(pContext, resp));
+        TO_STATUS(pContext = _impl->GetContext());
     }
 
 private:
     ~ExecutableNetworkBase() = default;
 };
 
+/**
+ * @brief Create an execuable network public C++ object wrapper based on internal inplementation
+ * @ingroup ie_dev_api_exec_network_api
+ * @param impl An internal implementation for executable network
+ * @tparam T A type of internal implementation
+ * @return C++ wrapper for executable network
+ */
 template <class T>
 inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
     typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {

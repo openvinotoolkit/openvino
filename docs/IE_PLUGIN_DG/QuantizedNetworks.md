@@ -3,13 +3,13 @@
 One of the feature of Inference Engine is the support of quantized networks with different precisions: INT8, INT4, etc.
 However, it is up to the plugin to define what exact precisions are supported by the particular HW.
 All quantized networks which can be expressed in IR have a unified representation by means of *FakeQuantize* operation. 
-For more details about low-precision model representation please refer to this [document](LowPrecisionModelRepresentation.md).
+For more details about low-precision model representation please refer to this [document](@ref lp_representation).
 
 ### Interpreting FakeQuantize at runtime
 During the model load each plugin can interpret quantization rules expressed in *FakeQuantize* operations:
 - Independently based on the definition of *FakeQuantize* operation.
 - Using a special library of low-precision transformations (LPT) which applies common rules for generic operations,
-such as Convolution, Fully-Connected, Eltwise, etc., and translates "fake-quantized" models into the models with low-precision operations. For more information about low-precision flow please refer to the following [document](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Int8Inference.html). 
+such as Convolution, Fully-Connected, Eltwise, etc., and translates "fake-quantized" models into the models with low-precision operations. For more information about low-precision flow please refer to the following [document](@ref openvino_docs_IE_DG_Int8Inference). 
 
 Here we provide only a high-level overview of the interpretation rules of FakeQuantize. 
 At runtime each FakeQuantize can be split into two independent operations: **Quantize** and **Dequantize**. 
@@ -45,9 +45,5 @@ Below we define these rules as follows:
 - Symmetric and asymmetric quantization of weights and activations with the support of per-channel scales and zero-points.
 - Non-unified quantization parameters for Eltwise and Concat operations.  
 - Non-quantized network output, i.e. there are no quantization parameters for it.
-
-## Quantized model inference
-
-!!! Need details from the runtime team.
 
 [qdq_propagation]: ../images/qdq_propagation.png

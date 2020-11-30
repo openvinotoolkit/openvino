@@ -32,7 +32,7 @@ const auto extractImagePatchesParamsSet = ::testing::Combine(
         ::testing::ValuesIn(autoPads)
 );
 
-INSTANTIATE_TEST_CASE_P(layers_CPU, ExtractImagePatchesTest,
+INSTANTIATE_TEST_CASE_P(smoke_layers_CPU, ExtractImagePatchesTest,
         ::testing::Combine(
             ::testing::ValuesIn(inDataShape),
             ::testing::ValuesIn(kernels),
@@ -40,6 +40,9 @@ INSTANTIATE_TEST_CASE_P(layers_CPU, ExtractImagePatchesTest,
             ::testing::ValuesIn(rates),
             ::testing::ValuesIn(autoPads),
             ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ExtractImagePatchesTest::getTestCaseName);
 

@@ -38,16 +38,16 @@ ParamsKey ConvolutionKernel_bfyx_Direct_10_10_12::GetSupportedKey() const {
 }
 
 JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convolution_params& cp,
-                                                                     const DispatchData& runInfo) const {
-    JitConstants jit = Parent::GetJitConstants(cp, runInfo);
+                                                                     const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(cp, dispatchData);
 
     jit.AddConstants({
-        MakeJitConstant("ALIGNED_OFM", RoundUp(cp.output.Feature().v / cp.groups, runInfo.gemmStyle.subBlockDimN) * cp.groups),
-        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(cp.output.Feature().v / cp.groups, runInfo.gemmStyle.subBlockDimN)),
-        MakeJitConstant("DX", runInfo.gemmStyle.globalWorkSizeDX),
-        MakeJitConstant("DY", runInfo.gemmStyle.globalWorkSizeDY),
+        MakeJitConstant("ALIGNED_OFM", RoundUp(cp.output.Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN) * cp.groups),
+        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(cp.output.Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN)),
+        MakeJitConstant("DX", dispatchData.gemmStyle.globalWorkSizeDX),
+        MakeJitConstant("DY", dispatchData.gemmStyle.globalWorkSizeDY),
         MakeJitConstant("KERNEL_SLICE_DIV2", (cp.filterSize.x * cp.filterSize.y) / 2),
-        MakeJitConstant("RIGHT_PARTIAL_TILE_K", cp.output.X().v % runInfo.gemmStyle.globalWorkSizeDX),
+        MakeJitConstant("RIGHT_PARTIAL_TILE_K", cp.output.X().v % dispatchData.gemmStyle.globalWorkSizeDX),
         MakeJitConstant("INPUT_BUFFER_WIDTH_PADDED", ""),  // TODO: enable non padding path again
         MakeJitConstant("INPUT_BUFFER_HEIGHT_PADDED", ""),
     });
@@ -55,30 +55,29 @@ JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convo
     return jit;
 }
 
-ConvolutionKernel_bfyx_Direct_10_10_12::Parent::DispatchData ConvolutionKernel_bfyx_Direct_10_10_12::SetDefault(
-    const convolution_params& arg,
-    int) const {
-    Parent::DispatchData runInfo = Parent::SetDefault(arg);
+ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Direct_10_10_12::SetDefault(const convolution_params& arg,
+                                                                                                        int) const {
+    DispatchData dispatchData = Parent::SetDefault(arg);
 
     constexpr uint32_t TILE_N = 16;
 
     if (arg.filterSize.x == 5) {
-        runInfo.gemmStyle = {1, 1, TILE_N, /*GWS DX*/ 4, /*GWS DY*/ 4, 1};
+        dispatchData.gemmStyle = {1, 1, TILE_N, /*GWS DX*/ 4, /*GWS DY*/ 4, 1};
     } else {
-        runInfo.gemmStyle = {1, 1, TILE_N, /*GWS DX*/ 4, /*GWS DY*/ 3, 1};
+        dispatchData.gemmStyle = {1, 1, TILE_N, /*GWS DX*/ 4, /*GWS DY*/ 3, 1};
     }
 
-    runInfo.gws0 = RoundUp(arg.output.X().v, runInfo.gemmStyle.globalWorkSizeDX) / runInfo.gemmStyle.globalWorkSizeDX;
-    runInfo.gws1 = RoundUp(arg.output.Y().v, runInfo.gemmStyle.globalWorkSizeDY) / runInfo.gemmStyle.globalWorkSizeDY;
-    runInfo.gws2 = RoundUp(arg.output.Feature().v / arg.groups, TILE_N) * arg.output.Batch().v * arg.groups;
+    dispatchData.gws[0] = RoundUp(arg.output.X().v, dispatchData.gemmStyle.globalWorkSizeDX) / dispatchData.gemmStyle.globalWorkSizeDX;
+    dispatchData.gws[1] = RoundUp(arg.output.Y().v, dispatchData.gemmStyle.globalWorkSizeDY) / dispatchData.gemmStyle.globalWorkSizeDY;
+    dispatchData.gws[2] = RoundUp(arg.output.Feature().v / arg.groups, TILE_N) * arg.output.Batch().v * arg.groups;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = TILE_N;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = TILE_N;
 
-    runInfo.efficiency = FORCE_PRIORITY_4;
+    dispatchData.efficiency = FORCE_PRIORITY_4;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_bfyx_Direct_10_10_12::Validate(const Params& p, const optional_params& o) const {

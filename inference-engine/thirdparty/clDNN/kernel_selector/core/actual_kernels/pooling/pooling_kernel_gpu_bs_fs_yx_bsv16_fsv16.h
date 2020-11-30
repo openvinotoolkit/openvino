@@ -36,6 +36,6 @@ public:
     }
 
 protected:
-    JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const override;
+    JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
 };
 }  // namespace kernel_selector

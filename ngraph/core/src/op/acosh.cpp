@@ -40,7 +40,7 @@ shared_ptr<Node> op::v3::Acosh::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Acosh>(new_args.at(0));
 }
 
-namespace
+namespace acoshop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
@@ -77,5 +77,5 @@ namespace
 bool op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Acosh::evaluate");
-    return evaluate_acosh(inputs[0], outputs[0]);
+    return acoshop::evaluate_acosh(inputs[0], outputs[0]);
 }

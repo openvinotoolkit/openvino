@@ -6,8 +6,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <map>
+#include <set>
 #include <vector>
 #include <thread>
 
@@ -27,11 +29,21 @@
 #include "gna-api-instrumentation.h"
 #endif
 
+enum GnaWaitStatus : int {
+    GNA_REQUEST_COMPLETED = 0,  // and removed from GNA library queue
+    GNA_REQUEST_ABORTED = 1,    // for QoS purposes
+    GNA_REQUEST_PENDING = 2     // for device busy purposes
+};
 
 /**
  * holds gna - style handle in RAII way
  */
 class GNADeviceHelper {
+    static std::mutex acrossPluginsSync;
+    static std::string decoratedGnaLibVersion() {
+        static std::string gnaLibraryVersion{ ", GNA library version: " + GNADeviceHelper::getGnaLibraryVersion() };
+        return gnaLibraryVersion;
+    }
 #if GNA_LIB_VER == 1
     intel_gna_status_t nGNAStatus = GNA_NOERROR;
     intel_gna_handle_t nGNAHandle = 0;
@@ -50,7 +62,7 @@ class GNADeviceHelper {
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
     uint32_t instrumentationConfigId = 0;
-    std::vector<uint32_t> unwaitedRequestIds;
+    std::set<uint32_t> unwaitedRequestIds;
 #define MAX_TIMEOUT 500000
 #endif
     bool isPerformanceMeasuring = false;
@@ -62,12 +74,13 @@ public:
                             bool isPerformanceMeasuring = false) :
                                     isPerformanceMeasuring(isPerformanceMeasuring) {
 #else
-     explicit GNADeviceHelper(Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation,
+    explicit GNADeviceHelper(Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation,
          uint8_t lib_async_n_threads = 1,
          bool use_openmp = false,
          bool isPerformanceMeasuring = false) :
          gna2HwConsistency(gna2HwConsistency),
-         isPerformanceMeasuring(isPerformanceMeasuring) {
+         isPerformanceMeasuring(isPerformanceMeasuring),
+         nGnaDeviceIndex{selectGnaDevice()} {
 #endif
         open(lib_async_n_threads);
         initGnaPerfCounters();
@@ -103,19 +116,24 @@ public:
     void propagateSync(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
     uint32_t propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
 #if GNA_LIB_VER == 2
-    uint32_t createModel(const Gna2Model& gnaModel) const;
+    uint32_t createModel(Gna2Model& gnaModel) const;
 #else
     uint32_t createModel(const intel_nnet_type_t& intel_nnet_type);
 #endif
     void releaseModel(const uint32_t model_id);
     uint32_t createRequestConfig(const uint32_t model_id);
+    static uint32_t getNumberOfGnaDevices();
+    static uint32_t selectGnaDevice();
     bool hasGnaHw() const {
         return Gna2DeviceVersionSoftwareEmulation != detectedGnaDevVersion;
     }
-    static void checkGna2Status(Gna2Status status);
+    bool isUpTo20GnaDevice() const {
+        return detectedGnaDevVersion <= Gna2DeviceVersion2_0;
+    }
+    static void checkGna2Status(Gna2Status status, const std::string& from);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
 #endif
-    bool wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
+    GnaWaitStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
 
     struct DumpResult {
 #if GNA_LIB_VER == 2
@@ -152,6 +170,7 @@ public:
     void open(uint8_t const n_threads);
 
     void close();
+    static std::string getGnaLibraryVersion();
 #if GNA_LIB_VER == 1
     void checkStatus() const;
 #else
@@ -159,10 +178,13 @@ public:
     static const std::map <Gna2ErrorType, const std::string> errorReasons;
     static const std::map <Gna2OperationType, const std::string> operationTypes;
     static const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string > operandTypes;
+
+    static void enforceLegacyCnns(Gna2Model& gnaModel);
 #endif
     void setOMPThreads(uint8_t const n_threads);
 
     void initGnaPerfCounters() {
+        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
         nGNAPerfResults = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
         nGNAPerfResultsTotal = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
@@ -171,7 +193,7 @@ public:
             gna2InstrumentationPoints,
             instrumentationResults,
             &instrumentationConfigId);
-        checkGna2Status(status);
+        checkGna2Status(status, "Gna2InstrumentationConfigCreate");
 #endif
     }
 };  // NOLINT

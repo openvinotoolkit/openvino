@@ -14,23 +14,26 @@
 #include "debug.h"
 #include "exec_graph_info.hpp"
 #include <ngraph/graph_util.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ie_common.h>
 
 #include "generic_ie.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include <transformations/init_node_info.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include "legacy/convert_function_to_cnn_network.hpp"
 #include "legacy/graph_tools.hpp"
 #include "legacy/details/ie_cnn_network_tools.h"
 #include <legacy/cnn_network_impl.hpp>
-#include "network_serializer_v7.hpp"
+
+#ifdef ENABLE_V7_SERIALIZE
+# include "network_serializer_v7.hpp"
+#endif
 
 using namespace std;
 using namespace InferenceEngine;
@@ -84,8 +87,6 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
     return result;
 }
 
-ICNNNetwork::~ICNNNetwork() {}
-
 CNNNetworkImpl::CNNNetworkImpl() {}
 
 CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
@@ -105,10 +106,6 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.run_passes(graph);
-
-    ::ngraph::pass::Manager ti_manager;
-    ti_manager.register_pass<::ngraph::pass::ApplyTransformationsToTIBody>(manager);
-    ti_manager.run_passes(graph);
 
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }

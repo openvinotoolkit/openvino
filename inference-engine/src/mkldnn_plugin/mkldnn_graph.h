@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ie_parallel.hpp"
-#include "ie_icnn_network.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "mkldnn_memory.h"
 #include "mean_image.h"
@@ -64,6 +64,10 @@ public:
         return graphNodes;
     }
 
+    std::string GetName() {
+        return _name;
+    }
+
     std::vector<MKLDNNEdgePtr>& GetEdges() {
         return graphEdges;
     }
@@ -71,6 +75,11 @@ public:
     std::vector<MKLDNNNodePtr>& GetOutputNodes() {
         return outputNodes;
     }
+
+    std::map<std::string, MKLDNNNodePtr>& GetInputNodes() {
+        return inputNodes;
+    }
+
 
     mkldnn::engine getEngine() const {
         return eng;
@@ -83,7 +92,29 @@ public:
     void DropNode(const MKLDNNNodePtr& node);
     void DropDWConvNode(const MKLDNNNodePtr& node);
 
-    InferenceEngine::ICNNNetwork::Ptr dump() const;
+    /**
+     * @brief Insert Reorder node at the edge-specified location.
+     * The Reorder node must be inserted in case when there are inplace conflicts or the input and output tensor descriptors do not match.
+     * The Reorder node rearranges the elements in memory according to inDesc and outDesc, or reinterprets memory descriptor without
+     * rearrangement of elements if isOptimized is true.
+     * @param edge
+     * pointer to the edge in the graph where Reorder node will be inserted
+     * @param layerName
+     * Reorder layer name
+     * @param inDesc
+     * input tensor descriptor
+     * @param outDesc
+     * output tensor descriptor
+     * @param isOptimized
+     * optimization flag; if isOptimized is true then Reorder node does nothing
+     * @param scales
+     * pointer to the blob containing scales
+     * @return pointer to the new Reorder node.
+     */
+    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc,
+            const InferenceEngine::TensorDesc& outDesc, bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
+
+    InferenceEngine::CNNNetwork dump() const;
 
     template<typename NET>
     static void ApplyUnrollPasses(NET &net);
@@ -131,18 +162,21 @@ protected:
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
+    void InitOptimalPrimitiveDescriptors();
     void InitEdges();
     void Allocate();
     void AllocateWithReuse();
     void CreatePrimitives();
+    void ExecuteConstantNodesOnly();
+    void SetOriginalLayerNames();
 
     void do_before(const std::string &dir, const MKLDNNNodePtr &node);
     void do_after(const std::string &dir, const MKLDNNNodePtr &node);
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend std::shared_ptr<InferenceEngine::ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph);
-    friend std::shared_ptr<InferenceEngine::ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
+    friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);
+    friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
     void dumpToDotFile(std::string file) const;

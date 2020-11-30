@@ -29,7 +29,7 @@ public:
     }
 
 private:
-    static Register<MKLDNNDeformableConvolutionNode> reg;
+    static Registrar<MKLDNNDeformableConvolutionNode> reg;
     bool withBiases = false;
     bool isDW = false;
     bool isMerged = false;

@@ -138,7 +138,7 @@ class ShuffleChannelFusion(BackReplacementPattern):
     We are able to perform the fusion if the pattern satisfies the conditions:
     1. Pattern input 4D shape is the same as pattern output 4D shape
     2. First Reshape splits channel dimension (1 axis) into two dimensions
-    3. Transpose permutes only splitted dimensions
+    3. Transpose permutes only split dimensions
     4. Second Reshape pack them back
 
     Fixes original models reshape-ability (Smart reshape)
@@ -208,7 +208,7 @@ class DepthToSpaceFusion(BackReplacementPattern):
     We are able to perform the fusion if the pattern satisfies the conditions:
     1. Pattern has 6D input and 4D output
     2. First Reshape splits channel dimension (1 axis) into three dimensions [new_depth, block_size, block_size]
-    3. Transpose permutes splitted dimensions with spatial ones
+    3. Transpose permutes split dimensions with spatial ones
     4. Second Reshape pack block size together with spatial dimension
 
     Fixes original models reshape-ability (Smart reshape)

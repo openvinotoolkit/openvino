@@ -5,9 +5,11 @@
 #include <inference_engine.hpp>
 #include <iostream>
 
+#include "common.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
 using namespace InferenceEngine;
+
 
 /**
  * @brief Function that contain executable pipeline which will be called from
@@ -17,6 +19,7 @@ using namespace InferenceEngine;
 int runPipeline(const std::string &model, const std::string &device) {
   auto pipeline = [](const std::string &model, const std::string &device) {
     Core ie;
+    CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
     InferRequest inferRequest;
 
@@ -33,7 +36,6 @@ int runPipeline(const std::string &model, const std::string &device) {
           exeNetwork = ie.ImportNetwork(model, device);
         }
         else {
-          CNNNetwork cnnNetwork;
           {
             SCOPED_TIMER(read_network);
             cnnNetwork = ie.ReadNetwork(model);
@@ -50,6 +52,14 @@ int runPipeline(const std::string &model, const std::string &device) {
     {
       SCOPED_TIMER(first_inference);
       inferRequest = exeNetwork.CreateInferRequest();
+
+      {
+        SCOPED_TIMER(fill_inputs)
+        auto batchSize = cnnNetwork.getBatchSize();
+        batchSize = batchSize != 0 ? batchSize : 1;
+        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+        fillBlobs(inferRequest, inputsInfo, batchSize);
+      }
       inferRequest.Infer();
     }
   };

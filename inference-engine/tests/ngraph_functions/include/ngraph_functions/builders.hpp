@@ -70,6 +70,11 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
 std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
                                              const std::vector<size_t>& shape);
 
+std::shared_ptr<ngraph::Node> makeBroadcast(const ngraph::Output<Node> &in,
+                                            const ngraph::Output<Node> &target_shape,
+                                            const ngraph::op::BroadcastType& mode,
+                                            const ngraph::AxisSet& axis_set = {});
+
 std::shared_ptr<ngraph::Node> makeConvolution(const ngraph::Output<Node> &in,
                                               const element::Type &type,
                                               const std::vector<size_t> &filterSize,
@@ -183,7 +188,7 @@ std::shared_ptr<ngraph::Node> makeBinaryConvolution(const ngraph::Output<Node> &
 std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         const element::Type &type,
                                         size_t numSplits,
-                                        size_t axis);
+                                        int64_t axis);
 
 std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
                                                 const std::vector<size_t> numSplits,
@@ -205,15 +210,15 @@ std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
 
 std::shared_ptr<ngraph::Node> makeBatchToSpace(const ngraph::Output<Node> &in,
                                                const element::Type &type,
-                                               const std::vector<size_t> &blockShape,
-                                               const std::vector<size_t> &cropsBegin,
-                                               const std::vector<size_t> &cropsEnd);
+                                               const std::vector<int64_t> &blockShape,
+                                               const std::vector<int64_t> &cropsBegin,
+                                               const std::vector<int64_t> &cropsEnd);
 
 std::shared_ptr<ngraph::Node> makeSpaceToBatch(const ngraph::Output<Node> &in,
                                                const element::Type &type,
-                                               const std::vector<size_t> &blockShape,
-                                               const std::vector<size_t> &padsBegin,
-                                               const std::vector<size_t> &padsEnd);
+                                               const std::vector<int64_t> &blockShape,
+                                               const std::vector<int64_t> &padsBegin,
+                                               const std::vector<int64_t> &padsEnd);
 
 std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &begin,
@@ -242,7 +247,7 @@ std::shared_ptr<ngraph::Node> makeMinMax(const ngraph::Output<Node> &in1,
 
 std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_probs,
                                            const ngraph::Output<Node> &class_logits,
-                                           const ngraph::Output<Node> &image_shape,
+                                           const std::vector<float>& image_info,
                                            const element::Type &type,
                                            size_t base_size,
                                            size_t pre_nms_topn,
@@ -385,8 +390,8 @@ std::shared_ptr<ngraph::Node> makeConcat(const std::vector<ngraph::Output<Node>>
                                          const int& axis);
 
 std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
-                                      const std::vector<size_t>& padsBegin,
-                                      const std::vector<size_t>& padsEnd,
+                                      const std::vector<int64_t>& padsBegin,
+                                      const std::vector<int64_t>& padsEnd,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode);
 
@@ -402,7 +407,8 @@ std::shared_ptr<ngraph::Node> makeLSTM(const OutputVector& in,
                                            const std::vector<float>& activations_beta = {},
                                            float clip = 0.f,
                                            bool make_sequence = false,
-                                           ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD);
+                                           ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                           ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
 
 std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                       const std::vector<ngraph::Shape>& constants,
@@ -414,7 +420,8 @@ std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                       float clip = 0.f,
                                       bool linear_before_reset = false,
                                       bool make_sequence = false,
-                                      ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD);
+                                      ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                      ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
 
 std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                       const std::vector<ngraph::Shape>& constants,
@@ -424,9 +431,34 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                       const std::vector<float>& activations_beta = {},
                                       float clip = 0.f,
                                       bool make_sequence = false,
-                                      ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD);
+                                      ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                      ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
+
+std::shared_ptr<ngraph::Node> makeGatherND(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const std::size_t batchDims);
 
 std::shared_ptr<ngraph::Node> makeTile(const ngraph::Output<Node>& in,
-                                       const std::vector<size_t>& repeats);
+                                       const std::vector<int64_t>& repeats);
+
+std::shared_ptr<ngraph::Node> makeNormalizeL2(const ngraph::Output<Node>& data,
+                                              const std::vector<int64_t>& axes,
+                                              float eps,
+                                              ngraph::op::EpsMode epsMode);
+
+std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
+                                      const ngraph::Output<Node> &scores,
+                                      const element::Type& maxBoxesPrec,
+                                      const element::Type& thrPrec,
+                                      const int32_t &maxOutBoxesPerClass,
+                                      const float &iouThr,
+                                      const float &scoreThr,
+                                      const float &softNmsSigma,
+                                      const ngraph::op::v5::NonMaxSuppression::BoxEncodingType &boxEncoding,
+                                      const bool &sortResDescend,
+                                      const ngraph::element::Type& outType);
+
 }  // namespace builder
 }  // namespace ngraph

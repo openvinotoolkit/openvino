@@ -4,16 +4,11 @@
 
 set(TARGET_NAME "MKLDNNPlugin")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
 
 set(LAYERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_activation_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_batchnorm_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_bin_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
@@ -21,7 +16,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_crop_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_def_conv_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_depthwise_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_fullyconnected_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gemm_node.cpp
@@ -29,9 +23,9 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_input_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_lrn_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_memory_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pad_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_permute_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pooling_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_power_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_quantize_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.cpp
@@ -64,13 +58,13 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/extract_image_patches.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/fill.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_nd.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_tree.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/grn.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/non_max_suppression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/log_softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/math.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/one_hot.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/pad.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/powerfile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox_clustered.cpp
@@ -98,7 +92,10 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unique.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/emitter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/interp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_eltwise_emitters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_mkldnn_emitters.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax_imp.cpp
@@ -118,6 +115,7 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.cpp
         ${LAYERS}
         ${OS_SPECIFIC_SRC}
 )
@@ -171,8 +169,9 @@ ie_add_plugin(NAME ${TARGET_NAME}
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations
-                      inference_engine_transformations mkldnn)
+
+target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
+                                             inference_engine_transformations inference_engine_lp_transformations)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -191,21 +190,29 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 #  add test object library
 
 add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
+                                                      $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
                                               PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
-set(mkldnn_plugin_object_libraries "${TARGET_NAME}_obj" CACHE INTERNAL "" FORCE)
+set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
+
+# LTO
+
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # install
 

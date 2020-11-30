@@ -50,15 +50,10 @@ inline bool convertWeights(InferenceEngine::CNNLayer* lp) {
     for (auto& dataItem : lp->outData) {
         dataItem->setPrecision(InferenceEngine::Precision::FP32);
     }
-    InferenceEngine::BlobMap newBlobs;
     for (auto& blob_pair : lp->blobs) {
-        auto blob_name = blob_pair.first;
-        auto blob_ptr = blob_pair.second;
+        auto &blob_ptr = blob_pair.second;
         if (blob_ptr->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
-            auto new_blob = make_fp32_blob(blob_ptr);
-            newBlobs[blob_name] = new_blob;
-        } else {
-            newBlobs[blob_name] = blob_ptr;
+            blob_ptr = make_fp32_blob(blob_ptr);
         }
     }
 

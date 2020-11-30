@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_preprocess.hpp>
@@ -85,6 +86,12 @@ public:
     virtual void SetBatch(int batch) = 0;
 
     virtual void SetShape(const char* /*name*/, const SizeVector& /*dims*/) = 0;
+
+    /**
+     * @brief Queries memory states.
+     * @return Returns memory states
+     */
+    virtual std::vector<IVariableStateInternal::Ptr> QueryState() = 0;
 };
 
 }  // namespace InferenceEngine

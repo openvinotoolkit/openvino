@@ -42,6 +42,7 @@ struct configuration {
     throttle_mode_types throttle_mode;
     uint16_t queues_num;
     std::string tuning_cache_path;
+    std::string kernels_cache_path;
 };
 }  // namespace gpu
 }  // namespace cldnn

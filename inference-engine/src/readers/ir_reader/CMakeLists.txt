@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "inference_engine_ir_reader")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
@@ -19,6 +15,13 @@ source_group("src" FILES ${LIBRARY_SRC})
 # Create shared library
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
+
+ie_faster_build(${TARGET_NAME}
+    UNITY
+)
+
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine IR reader plugin")
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
                                                   IR_READER_V10)
@@ -32,6 +35,10 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
                                              inference_engine
                                              pugixml
                                              openvino::itt)
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # code style
 

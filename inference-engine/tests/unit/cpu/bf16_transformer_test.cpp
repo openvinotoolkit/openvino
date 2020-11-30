@@ -6,11 +6,10 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 
-#include <inference_engine.hpp>
-#include <details/ie_cnn_network_tools.h>
-#include <convert_function_to_cnn_network.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <legacy/convert_function_to_cnn_network.hpp>
 #include <bf16transformer.h>
 
 using ngraph::Shape;

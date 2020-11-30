@@ -26,7 +26,7 @@ class ExecutableNetworkInternal;
 
 /**
  * @brief An optimal implementation of IInferRequestInternal interface to avoid duplication in all plugins
- * This base class is recommended to be used as a base class for plugin synchronous inference request implementation. 
+ * This base class is recommended to be used as a base class for plugin synchronous inference request implementation.
  * @ingroup ie_dev_api_infer_request_api
  */
 class InferRequestInternal : virtual public IInferRequestInternal {
@@ -48,7 +48,7 @@ public:
 
     /**
      * @brief The minimal infer function to be implemented by plugins. It infers specified input(s) in synchronous mode
-     * @note 
+     * @note
      *  * This method is used in InferRequestInternal::Infer, which calls the common code first and after uses this
      * plugin dependent implementation.
      *  * Blocks all method of IInferRequest while request is ongoing (running or waiting in queue)
@@ -199,6 +199,11 @@ public:
         }
     }
 
+    void SetBatch(int batch) override {
+        (void)batch;
+        THROW_IE_EXCEPTION << "Dynamic batch is not supported";
+    };
+
     /**
      * @brief      Sets the pointer to executable network internal.
      * @note       Needed to correctly handle ownership between objects.
@@ -220,16 +225,34 @@ public:
         }
     }
 
-    void SetBatch(int batch) override {
-        (void)batch;
-        THROW_IE_EXCEPTION << "Dynamic batch is not supported";
-    };
-
     void SetShape(const char* name, const SizeVector& dims) override {
         (void)name;
         (void)dims;
         THROW_IE_EXCEPTION << "Dynamic shape is not supported";
     };
+
+    std::vector<IVariableStateInternal::Ptr> QueryState() override {
+        // meaning base plugin reports as no state available - plugin owners need to create proper override of this
+        THROW_IE_EXCEPTION << "Plugin doesn't override QueryState";
+        return {};
+    }
+
+protected:
+    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
+    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
+    InferenceEngine::BlobMap _inputs;  //!< A map of network input blobs
+    InferenceEngine::BlobMap _outputs;  //!< A map of network output blobs
+    std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
+    int m_curBatch;  //!< Current batch value used in dynamic batching
+
+    // Shapes that set by real in
+    std::map<std::string, InferenceEngine::SizeVector>      m_realShapes;
+
+    /**
+     * @brief A shared pointer to ExecutableNetworkInternal interface
+     * @note Needed to correctly handle ownership between objects.
+     */
+    std::shared_ptr<ExecutableNetworkInternal> _exeNetwork;
 
     /**
      * @brief Checks and executes input data pre-processing if needed.
@@ -248,25 +271,6 @@ public:
         }
     }
 
-protected:
-    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
-    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
-    InferenceEngine::BlobMap _inputs;  //!< A map of network input blobs
-    InferenceEngine::BlobMap _outputs;  //!< A map of network output blobs
-    std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
-    int m_curBatch;  //!< Current batch value used in dynamic batching
-
-    // Shapes that set by real in
-    std::map<std::string, InferenceEngine::SizeVector>      m_realShapes;
-
-
-
-    /**
-     * @brief A shared pointer to ExecutableNetworkInternal interface
-     * @note Needed to correctly handle ownership between objects.
-     */
-    std::shared_ptr<ExecutableNetworkInternal> _exeNetwork;
-
     /**
      * @brief Helper function to find input or output blob by name
      * @param name A name of input or output blob.
@@ -280,8 +284,8 @@ protected:
     bool findInputAndOutputBlobByName(const char* name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const {
         foundInput = nullptr;
         foundOutput = nullptr;
-        if (_networkInputs.empty() || _networkOutputs.empty()) {
-            THROW_IE_EXCEPTION << "Internal error: network inputs and outputs is not set";
+        if (_networkOutputs.empty()) {
+            THROW_IE_EXCEPTION << "Internal error: network outputs is not set";
         }
         auto foundInputPair = std::find_if(std::begin(_networkInputs), std::end(_networkInputs),
                                            [&](const std::pair<std::string, InputInfo::Ptr>& pair) {
@@ -307,7 +311,7 @@ protected:
      * @brief      Check that @p blob is valid. Throws an exception if it's not.
      *
      * @param[in]  blob     The blob to check
-     * @param[in]  name     The name of input or output depending of if the @p blob is input or output 
+     * @param[in]  name     The name of input or output depending of if the @p blob is input or output
      * @param[in]  isInput  Indicates if @p is input
      * @param[in]  refDims  The reference dims, empty if not specified
      */

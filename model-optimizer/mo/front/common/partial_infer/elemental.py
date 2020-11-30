@@ -30,8 +30,8 @@ def copy_shape_infer(node, value_infer=None):
     Args:
         node: graph node
     """
-    single_output_infer(node, lambda n: n.in_node().shape, value_infer)
+    single_output_infer(node, lambda n: n.in_port(0).data.get_shape(), value_infer)
 
 
 def copy_value(node):
-    return None if node.in_node().value is None else node.in_node().value.copy()
+    return None if node.in_node().value is None else node.in_port(0).data.get_value()

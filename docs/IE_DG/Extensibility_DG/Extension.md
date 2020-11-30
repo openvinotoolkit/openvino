@@ -5,11 +5,11 @@ All extension libraries should be inherited from this interface.
 
 Based on that, declaration of an extension class can look as follows:
 
-@snippet extension.hpp extension:header
+@snippet template_extension/extension.hpp extension:header
 
 The extension library should contain and export the method InferenceEngine::CreateExtension, which creates an `Extension` class:
 
-@snippet extension.cpp extension:CreateExtension
+@snippet template_extension/extension.cpp extension:CreateExtension
 
 Also, an `Extension` object should implement the following methods:
 
@@ -17,9 +17,10 @@ Also, an `Extension` object should implement the following methods:
 
 * InferenceEngine::IExtension::GetVersion returns information about version of the library
 
-@snippet extension.cpp extension:GetVersion
+@snippet template_extension/extension.cpp extension:GetVersion
 
 Implement the  InferenceEngine::IExtension::getOpSets method if the extension contains custom layers. 
 Read the [guide about custom operations](AddingNGraphOps.md) for more information.
 
 To understand how integrate execution kernels to the extension library, read the [guide about development of custom CPU kernels](CPU_Kernel.md).
+To understand how to register custom ONNX operator to the extension library, read the [guide about custom ONNX operators](Custom_ONNX_Ops.md).

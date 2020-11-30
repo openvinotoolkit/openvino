@@ -125,6 +125,7 @@ public:
 
     /**
      * @brief Returns the tensor description
+     * @return A const reference to a tensor descriptor
      */
     virtual const TensorDesc& getTensorDesc() const noexcept {
         return tensorDesc;
@@ -132,6 +133,7 @@ public:
 
     /**
      * @brief Returns the tensor description
+     * @return A reference to a tensor descriptor
      */
     virtual TensorDesc& getTensorDesc() noexcept {
         return tensorDesc;
@@ -141,6 +143,8 @@ public:
      * @brief By default, returns the total number of elements (a product of all the dims or 1 for scalar)
      *
      * Return value and its interpretation heavily depend on the blob type
+     *
+     * @return The total number of elements
      */
     virtual size_t size() const noexcept {
         if (tensorDesc.getLayout() == Layout::SCALAR) return 1;
@@ -149,6 +153,7 @@ public:
 
     /**
      * @brief Returns the size of the current Blob in bytes.
+     * @return Blob's size in bytes
      */
     virtual size_t byteSize() const noexcept {
         return size() * element_size();
@@ -158,9 +163,11 @@ public:
      * @deprecated Cast to MemoryBlob and use its API instead.
      * Blob class can represent compound blob, which do not refer to the only solid memory.
      *
-     * @brief Returns the number of bytes per element.
+     * @brief Provides the number of bytes per element.
      *
      * The overall Blob capacity is size() * element_size(). Abstract method.
+     *
+     * @return Returns the number of bytes per element
      */
     virtual size_t element_size() const noexcept = 0;
 
@@ -175,6 +182,8 @@ public:
      * @brief Releases previously allocated data.
      *
      * Abstract method.
+     *
+     * @return `True` if deallocation happens successfully, `false` otherwise.
      */
     virtual bool deallocate() noexcept = 0;
 
@@ -243,13 +252,14 @@ protected:
      */
     virtual void* getHandle() const noexcept = 0;
 
+    /// private
     template <typename>
     friend class TBlobProxy;
 };
 
 /**
  * @brief Helper cast function to work with shared Blob objects
- *
+ * @param blob A blob to cast
  * @return shared_ptr to the type T. Returned shared_ptr shares ownership of the object with the
  *         input Blob::Ptr
  */
@@ -262,7 +272,7 @@ std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
 
 /**
  * @brief Helper cast function to work with shared Blob objects
- *
+ * @param blob A blob to cast
  * @return shared_ptr to the type const T. Returned shared_ptr shares ownership of the object with
  *         the input Blob::Ptr
  */
@@ -320,6 +330,7 @@ public:
 
     /**
      * @brief Returns the total number of elements, which is a product of all the dimensions
+     * @return The total number of elements
      */
     size_t size() const noexcept override {
         if (tensorDesc.getLayout() == Layout::SCALAR) return 1;
@@ -404,7 +415,7 @@ public:
      *
      * The memory been addressed in the MemoryBlob in general case can be allocated on remote device.
      * This function copies remote memory to the memory in the virtual process space and after
-     * destruction of the LockedMemory it will not upload host memory back, bacause it is expected that
+     * destruction of the LockedMemory it will not upload host memory back, because it is expected that
      * content is not changed.
      *
      * To have an ability change content, you can use rwmap() and wmap() functions.
@@ -428,10 +439,10 @@ public:
      *
      * The memory been addressed in the MemoryBlob in general case can be allocated on remote device.
      * This function does not copy of the content from the device to the memory in the virtual process
-     * space, the content of the memory just after calling of this functin is not specified. After
+     * space, the content of the memory just after calling of this function is not specified. After
      * destruction of the LockedMemory, content will be upload host memory.
      * In the same time there is no abilities to restrict reading from the memory, you need to care of
-     * reading from memory got by wmap(), it might have sence in some cases like filling of content and
+     * reading from memory got by wmap(), it might have sense in some cases like filling of content and
      * before uploading to device
      *
      * To access data stored in the blob, you can use rwmap() and rmap() functions.
@@ -464,6 +475,7 @@ protected:
      */
     void* getHandle() const noexcept override = 0;
 
+    /// private
     template <typename>
     friend class TBlobProxy;
 };
@@ -779,6 +791,11 @@ protected:
         return _handle.get();
     }
 
+    /**
+     * @brief Creates a blob from the existing blob with a given ROI
+     * @param origBlob An original blob
+     * @param roi A ROI object
+     */
     TBlob(const TBlob& origBlob, const ROI& roi) :
             MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)),
             _allocator(origBlob._allocator) {

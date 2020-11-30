@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <map>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
@@ -84,6 +85,13 @@ namespace ngraph
                 instance()._register_operator(name, version, domain, std::move(fn));
             }
 
+            static void unregister_operator(const std::string& name,
+                                            std::int64_t version,
+                                            const std::string& domain)
+            {
+                instance()._unregister_operator(name, version, domain);
+            }
+
             static bool is_operator_registered(const std::string& name,
                                                std::int64_t version,
                                                const std::string& domain)
@@ -122,11 +130,16 @@ namespace ngraph
                                     std::int64_t version,
                                     const std::string& domain,
                                     Operator fn);
+            void _unregister_operator(const std::string& name,
+                                      std::int64_t version,
+                                      const std::string& domain);
             OperatorSet _get_operator_set(const std::string& domain, std::int64_t version);
 
             bool _is_operator_registered(const std::string& name,
                                          std::int64_t version,
                                          const std::string& domain);
+
+            std::mutex lock;
         };
 
         const std::string OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";

@@ -35,6 +35,16 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
         throw std::logic_error("Incorrect value for nt argument. It should be greater than 0 and less than 10.");
     }
 
+    if (FLAGS_m.empty()) {
+        showUsage();
+        throw std::logic_error("Path to a .bin file with weights for the trained model is required but not set. Please set -m option.");
+    }
+
+    if (FLAGS_i.empty()) {
+        showUsage();
+        throw std::logic_error("Path to an image is required but not set. Please set -i option.");
+    }
+
     return true;
 }
 
@@ -272,7 +282,8 @@ int main(int argc, char* argv[]) {
         }
 
         /** Setting batch size using image count **/
-        size_t batchSize = 1;
+        network.setBatchSize(imagesData.size());
+        size_t batchSize = network.getBatchSize();
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
 
         // --------------------------- Prepare output blobs -----------------------------------------------------
@@ -383,8 +394,6 @@ int main(int argc, char* argv[]) {
                 labels.push_back(strLine);
             }
             inputFile.close();
-        } else {
-            throw std::logic_error("Cannot read label file");
         }
 
         ClassificationResult classificationResult(outputBlob, images, batchSize, FLAGS_nt, labels);

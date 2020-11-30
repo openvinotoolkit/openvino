@@ -18,7 +18,6 @@
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
 #include <legacy/graph_tools.hpp>
-#include <legacy/ie_layers_internal.hpp>
 #include <legacy/net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
@@ -27,7 +26,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
-#include "ie_ngraph_utils.hpp"
+#include <ie_ngraph_utils.hpp>
 #include "generic_ie.hpp"
 #include <ngraph/variant.hpp>
 
@@ -102,7 +101,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
     return network;
 }
 
-InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
+InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
     if (m_config.useProfiling) {
         try {
@@ -179,6 +178,7 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 { "tile", "Tile" },
                 { "resample", "Resample" },
                 { "interp", "Interp" },
+                { "reduce", "Reduce" },
                 { "reduce_max", "ReduceMax" },
                 { "reduce_min", "ReduceMin" },
                 { "reduce_mean", "ReduceMean" },
@@ -365,11 +365,13 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
 
         std::map<std::string, std::string> info;
         Precision prec = data_type_to_precision(prim_info.output_layout.data_type);
+        Precision inference_precision = data_type_to_precision(prim_info.runtime_precision);
         info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = prec.name();
         info[ExecGraphInfoSerialization::LAYER_TYPE] = to_IE_type_name(prim_info.type_id);
         info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = prim_info.layout_str;
         info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(prim_info.exec_id);
         info[ExecGraphInfoSerialization::IMPL_TYPE] = prim_info.kernel_id;
+        info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = inference_precision.name();
 
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
         for (auto& fused_id : prim_info.c_fused_ids) {
@@ -466,9 +468,9 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
     return net;
 }
 
-void CLDNNGraph::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
+InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
-    graphPtr = GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
+    return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
 }
 
 

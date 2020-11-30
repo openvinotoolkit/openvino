@@ -68,6 +68,7 @@ public:
             else if (math_func == "Atan") mathFunction = Math::Atan;
             else if (math_func == "Atanh") mathFunction = Math::Atanh;
             else if (math_func == "Ceil") mathFunction = Math::Ceil;
+            else if (math_func == "Ceiling") mathFunction = Math::Ceil;
             else if (math_func == "Cos") mathFunction = Math::Cos;
             else if (math_func == "Cosh") mathFunction = Math::Cosh;
             else if (math_func == "Floor") mathFunction = Math::Floor;
@@ -276,6 +277,7 @@ REG_FACTORY_FOR(MathImpl, Asinh);
 REG_FACTORY_FOR(MathImpl, Atan);
 REG_FACTORY_FOR(MathImpl, Atanh);
 REG_FACTORY_FOR(MathImpl, Ceil);
+REG_FACTORY_FOR(MathImpl, Ceiling);
 REG_FACTORY_FOR(MathImpl, Cos);
 REG_FACTORY_FOR(MathImpl, Cosh);
 REG_FACTORY_FOR(MathImpl, Erf);
