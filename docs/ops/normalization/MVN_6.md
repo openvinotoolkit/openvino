@@ -65,7 +65,7 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
 
 * *T*: any floating point type.
 
-* *T_IND*: int64 or int32+.
+* *T_IND*: int64 or int32.
 
 **Example**
 
