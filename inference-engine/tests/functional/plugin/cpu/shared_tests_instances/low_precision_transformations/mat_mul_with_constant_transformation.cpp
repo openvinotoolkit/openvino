@@ -18,11 +18,13 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} },
         { 32, 10 },
         std::vector<float>(32 * 10, 1.f),
-        { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} }
+        { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
+        "matMul/1",
+        "I8"
     }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, MatMulWithConstantTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),

@@ -14,10 +14,11 @@ Transformation library is independent from Inference Engine target library named
 and is located in the `inference-engine/src/transformations` directory.
 
 Transformations root directory contains two folders:
-* `ngraph_ops` - Contains legacy opset operations needed for nGraph to CNNNetwork conversion.
-> **NOTE**: This operation is prohibited inside new plugins until they are not moved to a separate directory with allowed operations.
+* `ngraph_ops` - Contains internal opset operations that are common for plugins.
 * `transformations` - Includes all transformations, utils, runtime info attributes, and pass managers.
-> **NOTE**: Do not use transformation that belongs to `ngraph::pass::ConvertOpSet1ToLegacy` transformations until they are not moved to a separate directory with allowed transformations.
+
+All internal operations and transformations located inside the [Transformation Library](group__ie__transformation__api.html) can be used inside plugins.
+All legacy operations and transformations were moved to a legacy library and are not recommended to be used.
 
 ### Transformation Flow Layers
 Transformation flow in the transformation library has several layers:
@@ -32,15 +33,15 @@ But if some transformation parts can potentially be reused in other transformati
 To decide where to store your transformation code, please follow these rules:
 
 1. If it is a plugin-specific transformation and cannot be reused by other plugins, keep source code inside plugin.
-2. If this transformation relates to the OpSetXToOpSetY conversion or it is common optimization, keep sources inside the transformation library.
+2. If this transformation relates to opset operation conversion or optimization, keep sources inside the transformation library.
 
 After you decide where to store your transformation code, you can start developing your own nGraph transformation.
 
 ## ngraph::Function and graph representation <a name="ngraph_function"></a>
 
-An nGraph function is a simple thing: it stores shared pointers to `ngraph::op::Result` and `ngraph::op::Parameter` operations that are inputs and outputs of the graph.
-All other operations hold each other via shared pointers: child operation holds its parent (hard link). If the operation has no consumers and it is not a Result operation
-(shared pointer counter is zero), it is destructed and  is not accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
+nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Parameter`, `ngraph::op::Result` and  `ngraph::op::Sink` operations that are inputs, outputs and sinks of the graph.
+Sinks of the graph have no consumers and not included into results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result or Sink operation
+(shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
 
 For examples of how to build an nGraph function, see the [Build nGraph Function](./build_function.md) page.
 
@@ -50,7 +51,7 @@ nGraph has three main transformation types:
 
 * `ngraph::pass::FunctionPass` - straightforward way to work with `ngraph::Function` directly
 * `ngraph::pass::MatcherPass` - pattern-based transformation approach
-* `ngraph::pass::GraphRewrite` - container for matcher passes
+* `ngraph::pass::GraphRewrite` - container for matcher passes needed for efficient execution
 
 ![transformations_structure]
 
@@ -87,14 +88,15 @@ To use `ngraph::pass::MatcherPass`, you need to complete these steps:
 So let's go through each of these steps.
 
 ### Create a pattern
-Pattern is a single root `ngraph::Function`. But the only difference is that you do not need to create a function object, you just need to create and connect nGraph or special pattern operations. Then you need to take the last created operation and put it as a root of the pattern. This root node will be used as a root node in pattern matching.
+Pattern is a single root `ngraph::Function`. But the only difference is that you do not need to create a function object, you just need to create and connect opset or special pattern operations.
+Then you need to take the last created operation and put it as a root of the pattern. This root node will be used as a root node in pattern matching.
 > **NOTE**: Any nodes in a pattern that have no consumers and are not registered as root will not be used in pattern matching. 
 
 @snippet example_ngraph_utils.cpp pattern:simple_example
 
 The `Parameter` operation in the example above has type and shape specified. These attributes are needed only to create Parameter operation class and will not be used in pattern matching.
 
-For instructions on how to match a pattern where `ShapeOf` takes any operation as an input, follow the [pattern matching](#pattern_matching) section.
+For more pattern examples, refer to the [pattern matching](#pattern_matching) section.
 
 ### Implement callback
 Callback is an action applied to every pattern entrance. In general, callback is the lambda function that takes Matcher object with detected subgraph.
@@ -152,6 +154,8 @@ But it is not really efficient when you have a lot of registered passes. So firs
 And then creates map from registered MatcherPasses. That helps to avoid additional cost of applying each MatcherPass for each node.
 
 ![graph_rewrite_efficient_search] 
+
+> **NOTE**: GraphRewrite execution algorithm cannot be set manually and depends only on root nodes registered inside MatcherPasses.
 
 ## Pattern Matching <a name="pattern_matching"></a>
 
@@ -255,7 +259,7 @@ When developing a transformation, you need to follow these transformation rules:
 
 ###1. Operation Set (OpSet)
 
-Use the latest version of OpSet in your transformation. An exception is ConvertOpSetXToOpSetY transformations, where you must use operations from OpSetX and OpSetY.
+Use the latest version of OpSet in your transformation. An exception is op_conversion transformations, where different opsets can be used.
 
 @snippet example_ngraph_utils.cpp ngraph:include
 
@@ -399,33 +403,22 @@ NGRAPH_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transforma
 
 ## Disabling/Enabling specific transformations for plugin X	 <a name="disabling_transformation"></a>
 
-This topic is mostly related to conversion to legacy opset and plugins that are based on CNNNetwork. But this mechanism still can be applied for other cases.
-Let's suppose that plugin X enabled the `opset3::StridedSlice` operation support and you want to disable the `ngraph::pass::ConvertStridedSliceToCrop` transformation for plugin X.
-To do this, you need to create a callback on plugin side and pass it to transformation. And also you need to update particular transformation to use this callback.  
+In transformation library, we provide plugins transformations like CommonOptimizations, which contains predefined sequence of transformations.
+We also provide a tool that helps to disable or partially disable particular transformations in a transformation pipeline.
+For example, if a plugin uses the CommonOptimization transformation and needs to disable the ConvertGELU transformation, then inside the plugin we have to take the PassConfig instance
+from pass::Manger and call disable method.
 
-```cpp
-// Update callback to be able to use m_transformation_callback if this transformation based on GraphRewrite.
-ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
-    ...
-}
+@snippet example_ngraph_utils.cpp ngraph:disable_gelu
 
-// Use transformation_callback not to execute transformation if callback returns true for given node
-if (m_transformation_callback(node)) {
-    return false;
-}
+In some cases, we need to disable transformation for some condition:
 
-// Implement transformation callback and pass it directly to transformation or pass::Manager
-const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-    return std::dynamic_pointer_cast<const ::ngraph::opset3::StridedSlice>(node) != nullptr;
-};
+@snippet example_ngraph_utils.cpp ngraph:disable_callback
 
-// Register transformation and pass callback to pass::Manager
-ngraph::pass::Manager manager;
-manager.register_pass<ngraph::pass::ConvertStridedSliceToCrop>();
-// pass::Manager will set callback to all reistered transformations automatically
-manager.set_callback(transformations_callback);
-manager.run_passes(f);
-```
+In some cases, pass::Manager pipelines inside transformations may have transformations disabled by default but enabled inside plugins.
+
+@snippet example_ngraph_utils.cpp ngraph:disabled_by_default
+
+PassConfig instance taken from pass::Manager is shared across all registered transformations including nested transformations. So it does not matter where we work with this object (before passes registration or after).
 
 ## Transformations testing <a name="transformations_testing"></a>
 

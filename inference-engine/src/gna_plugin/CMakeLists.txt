@@ -64,10 +64,12 @@ target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOU
 set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
+                                 EXCLUDE_FROM_ALL ON)
 
 # install
 
-install(FILES "${GNA_KERNEL_LIBRARY}"
-        DESTINATION ${IE_CPACK_IE_DIR}/external/gna/lib
+file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
+install(FILES ${source_list} 
+         DESTINATION ${IE_CPACK_IE_DIR}/external/gna/lib
         COMPONENT gna)

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/fake_quantize_and_convolution_function.hpp"
+#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -52,6 +52,14 @@ void ConvolutionTransformation::SetUp() {
         param.fakeQuantizeOnWeights);
 
     validateNGraph();
+}
+
+void ConvolutionTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<4>(GetParam());
+    const auto actualType = getRuntimePrecision(params.layerName);
+    EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 void ConvolutionTransformation::validateNGraph() {

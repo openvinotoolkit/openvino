@@ -16,7 +16,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
+#include "lpt_ngraph_functions/convolution_function.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -154,7 +154,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
         // ActualValues
         {
             ngraph::element::f32,
-            {{ngraph::element::f32}, { 128.f }, { 0.02f }},
+            {{}, { 128.f }, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
         },
@@ -214,7 +214,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
         // ActualValues
         {
             ngraph::element::f32,
-            {{ngraph::element::f32}, {}, { 0.02f }},
+            {{}, {}, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
         },
@@ -367,7 +367,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(shapes),

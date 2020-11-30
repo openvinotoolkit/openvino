@@ -23,8 +23,8 @@ struct Version {
      * @brief An API version reflects the set of supported features
      */
     struct {
-        int major;
-        int minor;
+        int major; //!< A major version
+        int minor; //!< A minor version
     } apiVersion;
     /**
      * @brief A null terminated string with build number

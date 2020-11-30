@@ -78,9 +78,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
         }
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "UnrollPasses");
-    MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
-
     OV_ITT_TASK_NEXT(taskChain, "createConstInputs");
     auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, std::string name) {
         LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
@@ -121,6 +118,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                 createConstInputTo(layer, shiftBlob, "biases");
             } else if (scalesBlob != nullptr) {
                 Blob::Ptr biases = make_shared_blob<float>(scalesBlob->getTensorDesc());
+                if (biases == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot make 'biases' shared blob";
                 biases->allocate();
                 auto biasesPtr = biases->buffer().as<float*>();
                 for (size_t i = 0; i < biases->size(); i++)

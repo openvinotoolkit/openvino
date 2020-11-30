@@ -2,8 +2,7 @@
 
 The Compile tool is a C++ application that enables you to dump a loaded executable network blob.
 The tool is delivered as an executable file that can be run on both Linux\* and Windows\*.
-The tool is located in the `<INSTALLROOT>/deployment_tools/inference_engine/lib/intel64/` directory on Linux
-and `<INSTALL_DIR\deployment_tools\inference_engine\bin\intel64\Release>` on Windows.
+The tool is located in the `<INSTALLROOT>/deployment_tools/tools/compile_tool` directory.
 
 The workflow of the Compile tool is as follows:
 

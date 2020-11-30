@@ -37,19 +37,6 @@ std::string NmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsParams> obj)
     return result.str();
 }
 
-void NmsLayerTest::ConfigureNetwork() {
-    const OutputsDataMap &outputMap = cnnNetwork.getOutputsInfo();
-    auto out = outputMap.begin();
-    for (size_t i = 0; i < outputMap.size(); i++) {
-        if (i < 2) {
-            TensorDesc desc(out->second->getTensorDesc().getPrecision(), SizeVector{numOfSelectedBoxes, 3},
-                            TensorDesc::getLayoutByDims(SizeVector{numOfSelectedBoxes, 3}));
-            *(out->second) = *std::make_shared<Data>(out->first, desc);
-        }
-        out++;
-    }
-}
-
 void NmsLayerTest::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
@@ -92,12 +79,22 @@ void NmsLayerTest::Compare(const std::vector<std::vector<std::uint8_t>> &expecte
         const auto &precision = actual->getTensorDesc().getPrecision();
         size_t size = expected.size() / actual->getTensorDesc().getPrecision().size();
         switch (precision) {
-            case Precision::FP32:
+            case Precision::FP32: {
                 LayerTestsCommon::Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer), size, threshold);
+                const auto fBuffer = lockedMemory.as<const float *>();
+                for (int i = size; i < actual->size(); i++) {
+                    ASSERT_TRUE(fBuffer[i] == -1.f) << "Invalid default value: " << fBuffer[i] << " at index: " << i;
+                }
                 break;
-            case Precision::I32:
+            }
+            case Precision::I32: {
                 LayerTestsCommon::Compare(reinterpret_cast<const int32_t *>(expectedBuffer), reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                const auto iBuffer = lockedMemory.as<const int *>();
+                for (int i = size; i < actual->size(); i++) {
+                    ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
+                }
                 break;
+            }
             default:
                 FAIL() << "Comparator for " << precision << " precision isn't supported";
         }
@@ -130,7 +127,10 @@ void NmsLayerTest::SetUp() {
 
     auto nms = builder::makeNms(paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec), convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr,
                                 scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType);
-    function = std::make_shared<Function>(nms, params, "NMS");
+    auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(outType, Shape{1}, {1}));
+    auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(ngPrc, Shape{1}, {1}));
+    auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));
+    function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
 }
 
 TEST_P(NmsLayerTest, CompareWithRefs) {
