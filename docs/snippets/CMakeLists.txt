@@ -54,4 +54,4 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(${TARGET_NAME} PRIVATE onnx_importer)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api ngraph inference_engine_transformations)
