@@ -5,8 +5,6 @@
 #include "ie_metric_helpers.hpp"
 #include "hetero_executable_network.hpp"
 #include "hetero_async_infer_request.hpp"
-#include <legacy/ie_util_internal.hpp>
-#include "hetero_graph_splitter.hpp"
 #include "hetero_itt.hpp"
 #include "xml_parse_utils.h"
 #include <caseless.hpp>
@@ -44,283 +42,19 @@ using namespace HeteroPlugin;
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::HeteroConfigParams;
 
-namespace {
-
-void forward(const CNNLayerPtr& layer, std::deque<InferenceEngine::CNNLayerPtr>& layers) {
-    for (const auto& out : layer->outData) {
-        for (const auto& out_link : getInputTo(out)) {
-            const auto& nextLayer = out_link.second;
-            if (nullptr != nextLayer) {
-                layers.emplace_back(nextLayer);
-            }
-        }
-    }
-}
-
-template<class T>
-void traverse(T& inputs,
-              std::function<void(InferenceEngine::CNNLayerPtr& layer)> apply,
-              std::function<void(const InferenceEngine::CNNLayerPtr& layer, std::deque<InferenceEngine::CNNLayerPtr>& layers)> expand = forward) {
-    std::unordered_set<InferenceEngine::CNNLayerPtr> visitedObjects;
-    std::deque<InferenceEngine::CNNLayerPtr>         layersToCheck;
-
-    layersToCheck.insert(layersToCheck.end(), inputs.begin(), inputs.end());
-
-    while (!layersToCheck.empty()) {
-        auto& layer = layersToCheck.front();
-        if (visitedObjects.insert(layer).second) {
-            apply(layer);
-            expand(layer, layersToCheck);
-        }
-        layersToCheck.pop_front();
-    }
-}
-
-void traverse(InferenceEngine::ICNNNetwork& network,
-              std::function<void(InferenceEngine::CNNLayerPtr& layer)> apply,
-              std::function<void(const InferenceEngine::CNNLayerPtr& layer,
-              std::deque<InferenceEngine::CNNLayerPtr>& layers)> expand = forward) {
-    std::vector<InferenceEngine::CNNLayerPtr> layers;
-
-    InferenceEngine::InputsDataMap inputs;
-    network.getInputsInfo(inputs);
-    for (const auto& input : inputs) {
-        const auto data = input.second->getInputData();
-        for (const auto& to : getInputTo(data)) {
-            const auto nextLayer = to.second;
-            assert(nullptr != nextLayer);
-            layers.emplace_back(nextLayer);
-        }
-    }
-
-    traverse(layers, apply, expand);
-}
-
-std::vector<std::string> getAffinities(InferenceEngine::ICNNNetwork &network) {
-    std::vector<std::string> ret;
-    std::unordered_set<std::string> affinities;
-    traverse(network,
-                   [&](const InferenceEngine::CNNLayerPtr &layer) {
-                       assert(nullptr != layer);
-                       if (!contains(affinities, layer->affinity)) {
-                           affinities.insert(layer->affinity);
-                           ret.push_back(layer->affinity);
-                       }
-                   });
-    return ret;
-}
-
-void dumpGraph(InferenceEngine::ICNNNetwork &network,
-               const std::vector<LayersSet> &subgraphs,
-               std::ostream &stream) {
-    static const std::array<const char *, 9> colors{{"#FFC405",
-                                                     "#20F608",
-                                                     "#F1F290",
-                                                     "#C405FF",
-                                                     "#BCFF05",
-                                                     "#05FFC4",
-                                                     "#FFC405",
-                                                     "#5A5DF0",
-                                                     "#FF2E05"}};
-    auto split_color = [subgraphs](const CNNLayerPtr layer,
-                                   ordered_properties &printed_properties,
-                                   ordered_properties &node_properties) {
-        for (size_t i = 0; i < subgraphs.size(); i++) {
-            for (auto s : subgraphs[i]) {
-                if (s->name == layer->name) {
-                    node_properties.emplace_back(
-                            "fillcolor",
-                            colors[std::min(i, colors.size() - 1)]);
-                    printed_properties.insert(printed_properties.begin(),
-                                              std::pair<std::string, std::string>("subgraph#", std::to_string(i)));
-                    printed_properties.insert(printed_properties.begin(),
-                                              std::pair<std::string, std::string>("device", layer->affinity));
-                    return;
-                }
-            }
-        }
-    };
-
-    saveGraphToDot(network, stream, split_color);
-}
-
-}   // namespace
-
-void HeteroExecutableNetwork::InitCNNImpl(const InferenceEngine::CNNNetwork& network_) {
-    auto networkPtr = cloneNet(network_);
-    auto& network = *networkPtr;
-
-    // going over all network, if all layers are not assigned to devices, apply the default fallback policy
-    details::CNNNetworkIterator i(&network);
-    bool allEmpty = true;
-    while (i != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *i;
-        if (!layer->affinity.empty()) {
-            allEmpty = false;
-            break;
-        }
-        i++;
-    }
-
-    auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
-    bool dumpDotFile = itDumpDotFile != _config.end() ? itDumpDotFile->second == YES : false;
-#ifndef NDEBUG
-    dumpDotFile  = true;
-#endif
-
-    if (allEmpty) {
-        auto it = _config.find("TARGET_FALLBACK");
-        if (it != _config.end()) {
-            _heteroPlugin->SetAffinity(InferenceEngine::CNNNetwork(networkPtr), _config);
-        } else {
-            THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
-        }
-    } else {
-        if (dumpDotFile) {
-            std::unordered_set<std::string> devicesSet;
-            details::CNNNetworkIterator i(&network);
-            while (i != details::CNNNetworkIterator()) {
-                CNNLayer::Ptr layer = *i;
-                if (!layer->affinity.empty()) {
-                    devicesSet.insert(layer->affinity);
-                }
-                i++;
-            }
-            std::vector<std::string> devices{std::begin(devicesSet), std::end(devicesSet)};
-            std::stringstream stream(std::stringstream::out);
-            stream << "hetero_affinity_" << network.getName() << ".dot";
-            std::ofstream file(stream.str().c_str());
-            saveGraphToDot(network, file, HeteroLayerColorer{devices});
-        }
-    }
-
-    details::CNNNetworkIterator el(&network);
-    bool someEmptyAffinity = false;
-    CNNLayer::Ptr layerEmptyAffinity = nullptr;
-    while (el != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *el;
-        if (!CaselessEq<std::string>()(layer->type, "input") &&
-            layer->affinity.empty()) {
-            someEmptyAffinity = true;
-            layerEmptyAffinity = layer;
-            break;
-        }
-        el++;
-    }
-
-    if (allEmpty && someEmptyAffinity) {
-        THROW_IE_EXCEPTION << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
-            layerEmptyAffinity->name << ", Type: " << layerEmptyAffinity->type <<
-            ") were not able to be assigned on any pointed device.\n" <<
-            "It happened because these layers are not supported in plugins by default.\n" <<
-            "You need to implement custom layers to support them.";
-    } else if (someEmptyAffinity) {
-        THROW_IE_EXCEPTION << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
-            layerEmptyAffinity->name << ", Type: " << layerEmptyAffinity->type <<
-            ") were not assigned to any device.\n" <<
-            "It might happen if you assigned layers manually and missed some layers or\n" <<
-            "if you used some automatic assigning mode which decided that these layers are not\n" <<
-            "supported by any plugin";
-    }
-
-    InputsDataMap externalInputsData;
-    network.getInputsInfo(externalInputsData);
-
-    OutputsDataMap externalOutputsData;
-    network.getOutputsInfo(externalOutputsData);
-
-    auto subgraphs = splitGraph(network, getAffinities(network));
-    sortSubgraphs(subgraphs);
-
-    if (dumpDotFile) {
-        std::stringstream stream(std::stringstream::out);
-        stream << "hetero_subgraphs_" << network.getName() << ".dot";
-
-        std::ofstream file(stream.str().c_str());
-        dumpGraph(network, subgraphs, file);
-    }
-
-    std::vector<NetworkDesc> descs;
-    std::vector<CNNLayerPtr> tempLayers;
-    for (auto &&subgraph : subgraphs) {
-        auto affinity = (*subgraph.begin())->affinity;
-        tempLayers.assign(subgraph.begin(), subgraph.end());
-        auto tempNetwork = cloneNet(tempLayers);
-        auto name = network.getName() + "_" + std::to_string(std::distance(subgraphs.data(), &subgraph));
-        tempNetwork->setName(name);
-        // restoring some outputs from original net if they are not marked as output automatically
-        // this might happen if output was set manually for origin network and
-        // it doesn't go to next subgraph
-        for (auto il : tempLayers) {
-            if (externalOutputsData.find(il->name) != externalOutputsData.end()) {
-                tempNetwork->addOutput(il->name);
-            }
-        }
-
-        // update of pre-processing info
-        InputsDataMap clonedInputs;
-        tempNetwork->getInputsInfo(clonedInputs);
-        for (auto &&it : externalInputsData) {
-            auto inp = clonedInputs.find(it.first);
-            if (inp != clonedInputs.end() && nullptr != inp->second) {
-                inp->second->setPrecision(it.second->getPrecision());
-                inp->second->getPreProcess() = it.second->getPreProcess();
-            }
-        }
-
-        // go over all inputs/outputs and right now
-        // set precision for intermediate data (not for external) to FP32
-        for (auto &&it : clonedInputs) {
-            if (externalInputsData.find(it.first) == externalInputsData.end()) {
-                it.second->setPrecision(Precision::FP32);
-            }
-        }
-
-        OutputsDataMap tmpOutputs;
-        tempNetwork->getOutputsInfo(tmpOutputs);
-        for (auto &&o : tmpOutputs) {
-            if (externalOutputsData.find(o.first) == externalOutputsData.end()) {
-                o.second->setPrecision(Precision::FP32);
-            }
-        }
-
-        NetworkDesc desc;
-        desc._device = affinity;
-        desc._clonedNetwork = CNNNetwork{tempNetwork};
-
-        descs.emplace_back(std::move(desc));
-    }
-
-    for (auto &&d : descs) {
-        IExecutableNetwork::Ptr ret;
-
-        auto subnetworkInputs = d._clonedNetwork.getInputsInfo();
-        bool isInputSubnetwork = (subnetworkInputs.end() != std::find_first_of(
-            subnetworkInputs.begin(), subnetworkInputs.end(),
-            externalInputsData.begin(), externalInputsData.end(),
-            [] (const InputsDataMap::value_type& lhs, const InputsDataMap::value_type& rhs) {
-                return lhs.first == rhs.first;
-            }));
-
-        auto cfg = _config;
-        cfg[PluginConfigInternalParams::KEY_SUBNETWORK_WITH_NETWORK_INPUTS] =
-            isInputSubnetwork ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
-
-        auto deviceName = d._device;
-        auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, cfg);
-        assert(metaDevices.size() == 1);
-        auto loadConfig = metaDevices[deviceName];
-        d._network = _heteroPlugin->GetCore()->LoadNetwork(d._clonedNetwork, deviceName, loadConfig);
-    }
-
-    networks = std::move(descs);
-}
-
 template<typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
-void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::CNNNetwork& network_) {
-    auto function = network_.getFunction();
+HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork&     network,
+                                                 const Engine::Configs&                 config,
+                                                 Engine*                                plugin):
+    InferenceEngine::ExecutableNetworkThreadSafeDefault(
+        nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
+    _heteroPlugin{plugin},
+    _name{network.getName()},
+    _config{config} {
+    auto function = network.getFunction();
+    IE_ASSERT(function != nullptr);
     auto clonedFunction = ngraph::clone_function(*function);
     auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
     bool dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
@@ -346,7 +80,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::CNNNetwork& netw
     if (queryNetworkResult.supportedLayersMap.empty()) {
         auto it = _config.find("TARGET_FALLBACK");
         if (it != _config.end()) {
-            queryNetworkResult = _heteroPlugin->QueryNetwork(network_, _config);
+            queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
         } else {
             THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
         }
@@ -380,7 +114,6 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::CNNNetwork& netw
     std::unordered_set<std::string> devices;
     NodeMap<std::string> affinities;
     // Check that all nodes has user or plugin defined affinities
-    std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     for (auto&& node : orderedOps) {
         auto itAffinity = queryNetworkResult.supportedLayersMap.find(node->get_friendly_name());
         if (itAffinity != queryNetworkResult.supportedLayersMap.end()) {
@@ -631,8 +364,8 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::CNNNetwork& netw
         std::move(std::begin(nextSubgraphs), std::end(nextSubgraphs), std::back_inserter(orderedSubgraphs));
     } while (!allSubgraphs.empty());
 
-    InputsDataMap externalInputsData = network_.getInputsInfo();
-    OutputsDataMap externalOutputsData = network_.getOutputsInfo();
+    InputsDataMap externalInputsData = network.getInputsInfo();
+    OutputsDataMap externalOutputsData = network.getOutputsInfo();
     networks.resize(orderedSubgraphs.size());
     std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
     std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
@@ -686,21 +419,6 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::CNNNetwork& netw
         auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, cfg);
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
                                                                  network._device, metaDevices[network._device]);
-    }
-}
-
-HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
-                                                 const Engine::Configs&             config,
-                                                 Engine*                            plugin):
-    InferenceEngine::ExecutableNetworkThreadSafeDefault(
-        nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
-    _heteroPlugin{plugin},
-    _name{network.getName()},
-    _config{config} {
-    if (network.getFunction() == nullptr) {
-        InitCNNImpl(network);
-    } else {
-        InitNgraph(network);
     }
 }
 
@@ -818,7 +536,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
         descs.emplace_back(NetworkDesc{
             deviceName,
-            loaded ? CNNNetwork{cloneNet(static_cast<InferenceEngine::ICNNNetwork&>(cnnnetwork))} : CNNNetwork{},
+            loaded ? cnnnetwork : CNNNetwork{},
             executableNetwork,
         });
     }
@@ -842,38 +560,27 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     }
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");
-    std::map<std::shared_ptr<const ngraph::Function>, ::CNNNetwork> convertedNetworks;
     for (auto&& subnetwork : networks) {
-        auto subnet = subnetwork._clonedNetwork;
-        if (subnet.getFunction()) {
-            subnet = convertedNetworks[subnet.getFunction()] =
-                InferenceEngine::CNNNetwork(
-                    std::make_shared<InferenceEngine::details::CNNNetworkImpl>(subnetwork._clonedNetwork));
-        }
+        auto subnetFunction = subnetwork._clonedNetwork.getFunction();
+        IE_ASSERT(subnetFunction != nullptr);
         auto subnetworkNode = subnetworksNode.append_child("subnetwork");
         subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
         auto subnetworkInputsNode = subnetworkNode.append_child("inputs");
-        auto inputInfo = subnet.getInputsInfo();
-        for (auto&& input : inputInfo) {
+        for (auto&& parameter : subnetFunction->get_parameters()) {
             auto inputNode = subnetworkInputsNode.append_child("input");
-            inputNode.append_attribute("name").set_value(input.first.c_str());
-            inputNode.append_attribute("precision").set_value(input.second->getPrecision().name());
+            inputNode.append_attribute("name").set_value(parameter->get_friendly_name().c_str());
+            inputNode.append_attribute("precision").set_value(parameter->get_output_element_type(0).get_type_name().c_str());
         }
         auto subnetworkOutputsNode = subnetworkNode.append_child("outputs");
-        auto outputInfo = subnet.getOutputsInfo();
-        for (auto&& output : outputInfo) {
+        for (auto&& result : subnetFunction->get_results()) {
             auto outputNode = subnetworkOutputsNode.append_child("output");
-            auto creator = getCreatorLayer(output.second).lock();
-            outputNode.append_attribute("creatorName").set_value(creator->name.c_str());
-            outputNode.append_attribute("name").set_value(output.first.c_str());
-            outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
-            auto& outDatas = creator->outData;
-            auto itData = std::find_if(std::begin(outDatas), std::end(outDatas), [&] (const DataPtr& data) {
-                return  output.first == data->getName();
-            });
-            IE_ASSERT(outDatas.end() != itData);
-            std::uint64_t index = std::distance(std::begin(outDatas), itData);
-            outputNode.append_attribute("index").set_value(std::to_string(index).c_str());
+            auto sourceOutput = result->input_value(0);
+            outputNode.append_attribute("creatorName").set_value(sourceOutput.get_node()->get_friendly_name().c_str());
+            outputNode.append_attribute("name").set_value(
+                (sourceOutput.get_node()->get_friendly_name() +
+                ((sourceOutput.get_node()->get_output_size() == 0) ? "" : std::to_string(sourceOutput.get_index()))).c_str());
+            outputNode.append_attribute("precision").set_value(result->get_input_element_type(0).get_type_name().c_str());
+            outputNode.append_attribute("index").set_value(std::to_string(sourceOutput.get_index()).c_str());
         }
     }
 
@@ -899,9 +606,6 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
 #else
                 pugi::xml_document doc;
                 auto subnet = subnetwork._clonedNetwork;
-                if (subnet.getFunction()) {
-                    subnet = convertedNetworks[subnet.getFunction()];
-                }
                 auto dataSize = static_cast<std::uint64_t>(InferenceEngine::Serialization::FillXmlDoc(subnet, doc));
                 doc.save(heteroModel, nullptr, pugi::format_raw);
                 heteroModel << std::endl;
