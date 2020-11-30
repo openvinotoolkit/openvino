@@ -884,6 +884,10 @@ void InsertCopyLayerPass::run() {
 void FlattenTrivialConcatPass::run() {
     // change all trivial concatenations (concatenation where output buffer is a buffer made by appending input buffers)
     // by reshaping its inputs to 1 x total_input_size and its output to 1 x total_cocat_size and chaning the axis to 1
+    // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used if sizes before
+    // axis are all ones then concat can be changed to 2D for example, lets say all unputs have same shape equal to:
+    // 1, 1, 5, 3 then for axis 0, 1, 2 the change will be made and inputs will be reshaped to 1, 15,
+    // but for shape 2, 1, 5, 3 only axis 0 is valid and inputs will reshape to 1, 30
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     if (getPassManager()->getPolicy().ConcatConversionPolicy == Policy::FlattenTrivialConcatConversion::DISABLED) return;
     if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED) return;
