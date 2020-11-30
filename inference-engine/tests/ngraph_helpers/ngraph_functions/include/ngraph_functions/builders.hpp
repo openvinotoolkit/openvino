@@ -347,6 +347,12 @@ std::shared_ptr<Node> makePooling(const ngraph::Output<Node> &in,
                                   bool excludePad,
                                   const ngraph::helpers::PoolingTypes &poolType);
 
+std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
+                                     const Output<Node>& coords,
+                                     const Shape& output_size,
+                                     const float spatial_scale,
+                                     const ngraph::helpers::ROIPoolingTypes& roi_pool_type);
+
 std::shared_ptr<ngraph::Node> makeScatterUpdate(const ngraph::Output<Node> &in,
                                                 const element::Type& indicesType,
                                                 const std::vector<size_t>& indicesShape,
