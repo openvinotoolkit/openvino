@@ -365,28 +365,28 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/squeezenet1.1/tf/FP16/squeezenet1.1.xml
+    path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml
     name: squeezenet1.1
     precision: FP16
     framework: caffe2
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/squeezenet1.1/tf/FP16/squeezenet1.1.xml
+    path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml
     name: squeezenet1.1
     precision: FP16
     framework: caffe2
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/squeezenet1.1/tf/FP16-INT8/squeezenet1.1.xml
+    path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml
     name: squeezenet1.1
     precision: FP16-INT8
     framework: caffe2
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/squeezenet1.1/tf/FP16-INT8/squeezenet1.1.xml
+    path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml
     name: squeezenet1.1
     precision: FP16-INT8
     framework: caffe2
