@@ -74,15 +74,18 @@ namespace ngraph
                     return Span<Iterator>{begin, end};
                 };
 
-                std::vector<size_t> get_indices_offsets(const size_t* params,
-                                                        const size_t indices_size,
-                                                        const size_t last_offset)
+                template <typename Iterator>
+                std::vector<size_t> get_indices_offsets(const Iterator beg,
+                                                        const Iterator end,
+                                                        size_t last_slice_size)
                 {
-                    auto i = indices_size - 1;
-                    std::vector<size_t> offsets(indices_size, last_offset);
+                    auto next_e = beg;
+                    auto i = std::distance(beg, end);
+                    std::vector<size_t> offsets(i + 1, last_slice_size);
                     while (i-- > 0)
                     {
-                        offsets[i] = params[i * -1] * offsets[i + 1];
+                        offsets[i] = *next_e * offsets[i + 1];
+                        ++next_e;
                     }
 
                     return offsets;
@@ -145,9 +148,9 @@ namespace ngraph
                 const auto slice_size = shape_size(slice_shape);
 
                 const auto dims_begin = next(rbegin(params_shape), slice_shape.size());
+                const auto dims_end = next(dims_begin, indices_shape.back() - 1);
 
-                const auto indices_offsets =
-                    get_indices_offsets(&*dims_begin, indices_shape.back(), slice_size);
+                const auto indices_offsets = get_indices_offsets(dims_begin, dims_end, slice_size);
 
                 const auto batch_offset = indices_offsets.front() * params_shape[batch_dims];
 
