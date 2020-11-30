@@ -17,7 +17,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include "single_layer_tests/trivial_concat.hpp"
+#include "subgraph_tests/trivial_concat.hpp"
 
 namespace LayerTestsDefinitions {
 
