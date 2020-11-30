@@ -111,7 +111,7 @@ function(build_docs)
 
     # Tables of contents
     configure_file(${NGRAPH_CPP_LAYOUT_SOURCE} ${NGRAPH_CPP_LAYOUT_BUILD} @ONLY)
-    configure_file(${NGRAPH_PY_LAYOUT_SOURCE} ${NGRAPG_PY_LAYOUT_BUILD} @ONLY)
+    configure_file(${NGRAPH_PY_LAYOUT_SOURCE} ${NGRAPH_PY_LAYOUT_BUILD} @ONLY)
     configure_file(${IE_LAYOUT_SOURCE} ${IE_LAYOUT_BUILD} @ONLY)
     configure_file(${C_LAYOUT_SOURCE} ${C_LAYOUT_BUILD} @ONLY)
     configure_file(${PY_LAYOUT_SOURCE} ${PY_LAYOUT_BUILD} @ONLY)
