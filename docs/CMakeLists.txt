@@ -184,7 +184,7 @@ function(build_docs)
     # IE dev guide and C++ API
 
     add_custom_target(ie_docs
-                      DEPENDS preprocess_docs
+                      DEPENDS ngraph_cpp_api preprocess_docs
                       COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
