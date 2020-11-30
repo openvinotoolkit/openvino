@@ -91,6 +91,13 @@ enum Layout : uint8_t {
 
     BLOCKED = 200,  //!< A blocked layout
 };
+
+/**
+ * @brief Prints a string representation of InferenceEngine::Layout to a stream
+ * @param out An output stream to send to
+ * @param p A layout value to print to a stream
+ * @return A reference to the `out` stream
+ */
 inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
     switch (p) {
 #define PRINT_LAYOUT(name) \
@@ -131,6 +138,13 @@ enum ColorFormat : uint32_t {
     NV12,      ///< NV12 color format represented as compound Y+UV blob
     I420,      ///< I420 color format represented as compound Y+U+V blob
 };
+
+/**
+ * @brief Prints a string representation of InferenceEngine::ColorFormat to a stream
+ * @param out An output stream to send to
+ * @param fmt A color format value to print to a stream
+ * @return A reference to the `out` stream
+ */
 inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
     switch (fmt) {
 #define PRINT_COLOR_FORMAT(name) \
@@ -235,7 +249,6 @@ struct ResponseDesc {
     char msg[4096] = {};
 };
 
-
 /**
  * @brief Response structure encapsulating information about supported layer
  */
@@ -312,12 +325,13 @@ class NotAllocated : public std::logic_error {
 class InferNotStarted : public std::logic_error {
     using std::logic_error::logic_error;
 };
-}  // namespace InferenceEngine
 
 /** @brief This class represents StatusCode::NETWORK_NOT_READ exception */
 class NetworkNotRead : public std::logic_error {
     using std::logic_error::logic_error;
 };
+
+}  // namespace InferenceEngine
 
 #if defined(_WIN32)
 #define __PRETTY_FUNCTION__ __FUNCSIG__

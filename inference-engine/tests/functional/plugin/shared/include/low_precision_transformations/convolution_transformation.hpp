@@ -8,8 +8,8 @@
 #include <memory>
 
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -19,6 +19,8 @@ public:
     bool asymmetricQuantizationOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     bool asymmetricQuantizationOnWeights;
+    std::string layerName;
+    std::string expectedKernelType;
 };
 
 typedef std::tuple<
@@ -37,6 +39,8 @@ public:
 
 protected:
     void SetUp() override;
+
+    void Run() override;
 
 private:
     void validateNGraph();

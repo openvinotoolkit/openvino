@@ -36,5 +36,9 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue: 41461
             R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
             R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
+            // TODO: Issue: 43511
+            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*OpType=(Prod|Sub).*secondaryInputType=CONSTANT_opType=VECTOR_netPRC=(FP16|FP32).*)",
+            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*OpType=Sum.*secondaryInputType=CONSTANT_opType=VECTOR_netPRC=(FP16|FP32).*)",
+            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*OpType=Sub.*secondaryInputType=CONSTANT_opType=VECTOR_netPRC=I64.*)",
     };
 }

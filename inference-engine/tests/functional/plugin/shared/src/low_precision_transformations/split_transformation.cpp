@@ -12,7 +12,7 @@
 
 #include <transformations/init_node_info.hpp>
 #include "low_precision/split.hpp"
-#include "ngraph_functions/low_precision_transformations/split_function.hpp"
+#include "lpt_ngraph_functions/split_function.hpp"
 
 namespace LayerTestsDefinitions {
 std::string SplitTransformation::getTestCaseName(testing::TestParamInfo<SplitTransformationParams> obj) {

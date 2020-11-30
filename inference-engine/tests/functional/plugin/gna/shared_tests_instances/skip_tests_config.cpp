@@ -43,7 +43,13 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 39358
         R"(.*unaligned.*MultipleConcatTest.*)",
         R"(.*ActivationConcatsEltwise.*CS=35.*)",
+        // TODO: Issue 38974
+        R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.8\).*)",
+        R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.16\).*)",
+        R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.32\).*)",
         // TODO: Issue: 40960
         R"(.*(ConstantResultSubgraphTest).*)",
+        // TODO: Issue: 29577
+        R"(.*CoreThreadingTests.smoke_QueryNetwork.*)"
     };
 }
