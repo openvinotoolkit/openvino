@@ -727,7 +727,7 @@ TEST(eval, evaluate_reshape_v1_pattern_int16)
     ASSERT_EQ(computed_val, expected_val);
 }
 
-TEST(eval, evaluate_reshape_v1_special_shape_neg_zero)
+TEST(eval, evaluate_reshape_v1_special_zero_shape_neg_zero)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{3, 1, 2});
     auto pattern = make_shared<op::Parameter>(element::i64, Shape{2});
