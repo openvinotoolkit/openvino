@@ -82,7 +82,7 @@ void MatMulTransformation::validate() {
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
     const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
 
     const auto output = transformed->get_output_op(0);
