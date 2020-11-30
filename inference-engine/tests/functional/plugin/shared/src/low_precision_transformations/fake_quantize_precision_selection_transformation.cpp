@@ -3,7 +3,7 @@
 //
 
 #include "low_precision_transformations/fake_quantize_precision_selection_transformation.hpp"
-#include "ngraph_functions/low_precision_transformations/fake_quantize_precision_selection_function.hpp"
+#include "lpt_ngraph_functions/fake_quantize_precision_selection_function.hpp"
 
 #include <memory>
 #include <tuple>

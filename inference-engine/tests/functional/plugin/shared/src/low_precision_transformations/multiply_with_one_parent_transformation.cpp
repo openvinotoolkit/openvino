@@ -11,7 +11,7 @@
 
 #include <ie_core.hpp>
 #include "common_test_utils/common_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/multiply_with_one_parent_function.hpp"
+#include "lpt_ngraph_functions/multiply_with_one_parent_function.hpp"
 
 namespace LayerTestsDefinitions {
 
