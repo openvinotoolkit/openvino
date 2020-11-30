@@ -95,8 +95,11 @@ void BlobReader::parse(const std::vector<char>& blob) {
         ie::InputInfo input;
         input.setInputData(std::make_shared<ie::Data>(inputData));
 
-        _networkInputs[input.name()]    = std::make_shared<ie::InputInfo>(input);
+        if (input.name().find("@shape") == std::string::npos) {
+            _networkInputs[input.name()] = std::make_shared<ie::InputInfo>(input);
+        }
         _inputInfo.offset[input.name()] = ioBufferOffset;
+        _inputInfo.descFromPlugin[input.name()] = ieDesc;
     }
 
     auto outputInfoSecOffset = _blobHeader.output_info_section_offset;
@@ -142,8 +145,11 @@ void BlobReader::parse(const std::vector<char>& blob) {
         ie::TensorDesc ieDesc = DataDesc(dataType, dimsOrder, vpuDims).toTensorDesc();
         ie::Data outputData(outputName, ieDesc);
 
-        _networkOutputs[outputData.getName()]    = std::make_shared<ie::Data>(outputData);
+        if (outputData.getName().find("@shape") == std::string::npos) {
+            _networkOutputs[outputData.getName()] = std::make_shared<ie::Data>(outputData);
+        }
         _outputInfo.offset[outputData.getName()] = ioBufferOffset;
+        _outputInfo.descFromPlugin[outputData.getName()] = ieDesc;
     }
 }
 
