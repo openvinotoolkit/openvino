@@ -1,3 +1,15 @@
+resources:
+  repositories:
+  - repository: openvino_contrib
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/openvino_contrib
+
+  - repository: testdata
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/testdata
+
 jobs:
 - job: Lin
   # About 150% of total time
@@ -13,6 +25,8 @@ jobs:
     WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
+    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
+    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
@@ -48,6 +62,17 @@ jobs:
     submodules: recursive
     path: openvino
 
+  - checkout: openvino_contrib
+    clean: true
+    lfs: false
+    submodules: recursive
+    path: openvino_contrib
+
+  - checkout: testdata
+    clean: true
+    lfs: true
+    path: testdata
+
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
@@ -65,7 +90,7 @@ jobs:
   - task: CMake@1
     inputs:
       # CMake must get Python 3.x version by default
-      cmakeArgs: -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DENABLE_TESTS=ON $(REPO_DIR)
+      cmakeArgs: -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DENABLE_TESTS=ON -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
   - script: ninja
@@ -116,28 +141,23 @@ jobs:
     continueOnError: false
 
   - script: |
-      git clone https://github.com/openvinotoolkit/testdata.git
-    workingDirectory: $(WORK_DIR)
-    displayName: 'Clone testdata'
-
-  - script: |
-      export DATA_PATH=$(WORK_DIR)/testdata
-      export MODELS_PATH=$(WORK_DIR)/testdata
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
       python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
     workingDirectory: $(WORK_DIR)
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
 
   - script: |
-      export DATA_PATH=$(WORK_DIR)/testdata
-      export MODELS_PATH=$(WORK_DIR)/testdata
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
       $(BIN_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
 
   - script: |
-      export DATA_PATH=$(WORK_DIR)/testdata
-      export MODELS_PATH=$(WORK_DIR)/testdata
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
       export LD_LIBRARY_PATH=$(BIN_DIR)/lib
       export PYTHONPATH=$(BIN_DIR)/lib/python_api/python3.6
       env
