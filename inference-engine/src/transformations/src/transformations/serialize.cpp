@@ -133,33 +133,48 @@ void visit_exec_graph_node(pugi::xml_node& data, std::string& node_type_name,
 }
 
 NodeVector get_ordered_ops(const ngraph::Function& f) {
-    // Breadth-first traversal starting from graph outputs
-    NodeVector ordered;
-    std::queue<std::shared_ptr<Node>> visit_queue;
+    NodeVector op_order;
+    std::stack<std::shared_ptr<Node>> stack;
     std::unordered_set<Node*> visited;
 
-    const auto &results = f.get_results();
-    for (auto result = results.crbegin(); result != results.crend(); ++result) {
-        visit_queue.push(*result);
-        visited.insert(result->get());
-    }
-
-    while (visit_queue.size()) {
-        const auto &node = visit_queue.front();
-        const auto &inputs = node->inputs();
+    auto has_unvisited_inputs = [](const std::unordered_set<Node*>& visited,
+                                   const std::vector<Input<Node>>& inputs) {
         for (auto input = inputs.crbegin(); input != inputs.crend(); ++input) {
             const auto source_output =
                 input->get_source_output().get_node_shared_ptr();
-            if (visited.find(source_output.get()) == visited.end()) {
-                visit_queue.push(source_output);
-                visited.insert(source_output.get());
+            if (visited.count(source_output.get()) == 0) {
+                return true;
             }
         }
-        ordered.push_back(node);
-        visit_queue.pop();
+        return false;
+    };
+
+    const auto& results = f.get_results();
+    for (auto result = results.crbegin(); result != results.crend(); ++result) {
+        stack.push(*result);
     }
-    std::reverse(ordered.begin(), ordered.end());
-    return ordered;
+
+    while (stack.size()) {
+        auto node = stack.top();
+        stack.pop();
+        visited.insert(node.get());
+        const auto& inputs = node->inputs();
+        if (!has_unvisited_inputs(visited, inputs)) {
+            op_order.push_back(node);
+        } else {
+            stack.push(node);
+            for (auto input = inputs.crbegin(); input != inputs.crend();
+                 ++input) {
+                const auto source_output =
+                    input->get_source_output().get_node_shared_ptr();
+                if (visited.count(source_output.get()) == 0) {
+                    stack.push(source_output);
+                    visited.insert(source_output.get());
+                }
+            }
+        }
+    }
+    return op_order;
 }
 
 const std::unordered_map<ngraph::Node*, int> create_layer_ids(
