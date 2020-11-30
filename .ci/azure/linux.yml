@@ -62,7 +62,7 @@ jobs:
     submodules: recursive
     path: openvino
 
-  - checkout: openvino
+  - checkout: openvino_contrib
     clean: true
     lfs: false
     submodules: recursive
