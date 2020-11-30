@@ -35,4 +35,5 @@ The operation has the same attributes as a regular *Convolution* layer and sever
 
 **Outputs**:
 
-*   **1**: output tensor containing float values. Required.
+*   **1**: output tensor containing float values.
+
