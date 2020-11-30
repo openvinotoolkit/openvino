@@ -61,7 +61,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
     };
 
-    if (!InferenceEngine::with_cpu_x86_bfloat16()) {
+    if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
        retVector.emplace_back(R"(.*BF16.*)");

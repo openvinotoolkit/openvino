@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <limits>
+#include "jit_generator.hpp"
 
 /**
  * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the float data type.
@@ -139,3 +140,80 @@ public:
     static constexpr float_round_style round_style = round_to_nearest;
 };
 } // namespace std
+
+namespace mkldnn {
+namespace impl {
+using namespace mkldnn::impl::utils;
+namespace cpu {
+
+template <cpu_isa_t isa>
+struct bf16_emulation_t {
+    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+
+    bf16_emulation_t(jit_generator* host, Vmm one, Vmm even,
+        Vmm selector, const Xbyak::Reg64 scratch, Vmm tr)
+        : one_(one)
+        , even_(even)
+        , selector_(selector)
+        , tr_(tr)
+        , scratch_(scratch)
+        , host_(host) {}
+
+    void r_vcvtneps2bf16(const Xbyak::Ymm& out, Vmm in) {
+        host_->uni_vpsrld(tr_, in, 16);
+        host_->vpandd(tr_, tr_, one_);
+        host_->uni_vpaddd(tr_, even_, tr_);
+        host_->uni_vpaddd(tr_, in, tr_);
+        host_->vfixupimmps(tr_, in, selector_, 0);
+        host_->vpsrad(tr_, tr_, 16);
+        host_->vpmovdw(out, tr_);
+    }
+
+    void init_vcvtneps2bf16() {
+        const int selector_int32 =
+            /* qnan input to qnan output (presenrving input bits 0..21) */
+            encode_fixup_selector(fixup_input_code_snan_, fixup_output_code_qnan_input_) |
+            /* snan input to qnan output (presenrving input bits 0..21) */
+            encode_fixup_selector(fixup_input_code_qnan_, fixup_output_code_qnan_input_) |
+            /* neg inf input copied to output */
+            encode_fixup_selector(fixup_input_code_ninf_, fixup_output_code_copy_input_) |
+            /* pos inf input copied to output */
+            encode_fixup_selector(fixup_input_code_pinf_, fixup_output_code_copy_input_);
+
+        host_->xor_(scratch_, scratch_);
+        host_->mov(scratch_.cvt32(), 0x1);
+        host_->vpbroadcastd(one_, scratch_.cvt32());
+
+        host_->xor_(scratch_, scratch_);
+        host_->mov(scratch_.cvt32(), 0x7fff);
+        host_->vpbroadcastd(even_, scratch_.cvt32());
+
+        host_->xor_(scratch_, scratch_);
+        host_->mov(scratch_.cvt32(), selector_int32);
+        host_->vpbroadcastd(selector_, scratch_.cvt32());
+    }
+
+private:
+    Vmm one_;
+    Vmm even_;
+    Vmm selector_;
+    Vmm tr_;
+    const Xbyak::Reg64 scratch_;
+    jit_generator* const host_;
+
+    inline int encode_fixup_selector(int input, int output) {
+        return ((output) << (4 * (input)));
+    }
+
+    enum {
+        fixup_input_code_qnan_ = 0,
+        fixup_input_code_snan_ = 1,
+        fixup_input_code_ninf_ = 4,
+        fixup_input_code_pinf_ = 5,
+        fixup_output_code_copy_input_ = 1,
+        fixup_output_code_qnan_input_ = 2,
+    };
+}; // struct bf16_emulation_t
+}  // namespace cpu
+}  // namespace impl
+}  // namespace mkldnn
