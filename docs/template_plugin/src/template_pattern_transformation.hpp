@@ -23,11 +23,13 @@ class ReluReluFusionMatcher;
  */
 class ngraph::pass::DecomposeDivideMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     DecomposeDivideMatcher();
 };
 // ! [graph_rewrite:template_transformation_hpp]
 
 class ngraph::pass::ReluReluFusionMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ReluReluFusionMatcher();
 };

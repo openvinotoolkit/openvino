@@ -14,6 +14,8 @@ using namespace ngraph;
 
 // ! [graph_rewrite:template_transformation_cpp]
 // template_pattern_transformation.cpp
+NGRAPH_RTTI_DEFINITION(ngraph::pass::DecomposeDivideMatcher, "DecomposeDivideMatcher", 0);
+
 ngraph::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
     // Pattern example
     auto input0 = pattern::any_input();
@@ -54,6 +56,8 @@ ngraph::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
 // ! [graph_rewrite:template_transformation_cpp]
 
 // ! [matcher_pass:relu_fusion]
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ReluReluFusionMatcher, "ReluReluFusionMatcher", 0);
+
 ngraph::pass::ReluReluFusionMatcher::ReluReluFusionMatcher() {
     auto m_relu1 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>(pattern::consumers_count(1));
     auto m_relu2 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>({m_relu1});
