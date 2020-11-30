@@ -205,6 +205,11 @@ function(build_docs)
                       COMMENT "Generating OpenVINO documentation"
                       VERBATIM)
 
+    add_custom_target(docs_check
+                      COMMAND ${Python3_EXECUTABLE} ${LINKCHECKER_EXECUTABLE} ${DOCS_BUILD_DIR}/html/ -f ${DOXYGEN_DIR}/linkchecker_filter.yaml --no_recursive -l ${DOCS_BUILD_DIR}
+                      COMMENT "Check links in generated documentation"
+                      VERBATIM)
+
     set_target_properties(openvino_docs ie_docs c_api py_api preprocess_docs plugin_api
                           PROPERTIES FOLDER docs)
 
