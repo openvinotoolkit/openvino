@@ -263,3 +263,59 @@ TEST(type_prop, psroi_pooling_invalid_spatial_bins)
         FAIL() << "Unknown exception was thrown";
     }
 }
+
+TEST(type_prop, psroi_pooling_dynamic_ranks)
+{
+    {
+        auto inputs = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        auto coords = std::make_shared<op::Parameter>(element::f32, Shape{150, 5});
+        auto op = std::make_shared<op::PSROIPooling>(inputs, coords, 2, 6, 0.0625, 0, 0, "average");
+        ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+        ASSERT_EQ(op->get_element_type(), element::f32);
+    }
+    {
+        auto inputs = std::make_shared<op::Parameter>(element::f32, Shape{1, 72, 4, 5});
+        auto coords = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        auto op = std::make_shared<op::PSROIPooling>(inputs, coords, 2, 6, 0.0625, 0, 0, "average");
+        ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+        ASSERT_EQ(op->get_element_type(), element::f32);
+    }
+}
+
+TEST(type_prop, psroi_pooling_dynamic_num_boxes)
+{
+    auto inputs = std::make_shared<op::Parameter>(element::f32, Shape{1, 72, 4, 5});
+    auto coords =
+        std::make_shared<op::Parameter>(element::f32, PartialShape{{Dimension::dynamic(), 5}});
+    auto op = std::make_shared<op::PSROIPooling>(inputs, coords, 2, 6, 0.0625, 0, 0, "average");
+    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{{Dimension::dynamic(), 2, 6, 6}}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
+}
+
+TEST(type_prop, psroi_pooling_static_rank_dynamic_shape)
+{
+    {
+        auto inputs = std::make_shared<op::Parameter>(element::f32,
+                                                      PartialShape{{Dimension::dynamic(),
+                                                                    Dimension::dynamic(),
+                                                                    Dimension::dynamic(),
+                                                                    Dimension::dynamic()}});
+        auto coords = std::make_shared<op::Parameter>(
+            element::f32, PartialShape{{Dimension::dynamic(), Dimension::dynamic()}});
+        auto op = std::make_shared<op::PSROIPooling>(inputs, coords, 2, 6, 0.0625, 0, 0, "average");
+        ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{{Dimension::dynamic(), 2, 6, 6}}));
+        ASSERT_EQ(op->get_element_type(), element::f32);
+    }
+    {
+        auto inputs = std::make_shared<op::Parameter>(element::f32,
+                                                      PartialShape{{Dimension::dynamic(),
+                                                                    Dimension::dynamic(),
+                                                                    Dimension::dynamic(),
+                                                                    Dimension::dynamic()}});
+        auto coords = std::make_shared<op::Parameter>(element::f32,
+                                                      PartialShape{{200, Dimension::dynamic()}});
+        auto op = std::make_shared<op::PSROIPooling>(inputs, coords, 2, 6, 0.0625, 0, 0, "average");
+        ASSERT_EQ(op->get_shape(), (Shape{200, 2, 6, 6}));
+        ASSERT_EQ(op->get_element_type(), element::f32);
+    }
+}
