@@ -1,3 +1,15 @@
+resources:
+  repositories:
+  - repository: openvino_contrib
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/openvino_contrib
+
+  - repository: testdata
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/testdata
+
 jobs:
 - job: Mac
   # About 200% of total time (perfomace of Mac hosts is unstable)
@@ -13,6 +25,8 @@ jobs:
     WORKERS_NUMBER: 3
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
+    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
+    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
@@ -42,6 +56,17 @@ jobs:
     submodules: recursive
     path: openvino
 
+  - checkout: openvino_contrib
+    clean: true
+    lfs: false
+    submodules: recursive
+    path: openvino_contrib
+
+  - checkout: testdata
+    clean: true
+    lfs: true
+    path: testdata
+
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.7'
@@ -63,7 +88,7 @@ jobs:
       # Disable errors with Ninja
       export CXXFLAGS="-Wno-error=unused-command-line-argument"
       export CFLAGS="-Wno-error=unused-command-line-argument"
-      cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON $(REPO_DIR)
+      cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
@@ -111,21 +136,16 @@ jobs:
     continueOnError: false
 
   - script: |
-      git clone https://github.com/openvinotoolkit/testdata.git
-    workingDirectory: $(WORK_DIR)
-    displayName: 'Clone testdata'
-
-  - script: |
-      export DATA_PATH=$(WORK_DIR)/testdata
-      export MODELS_PATH=$(WORK_DIR)/testdata
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
       python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
     workingDirectory: $(WORK_DIR)
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
 
   - script: |
-      export DATA_PATH=$(WORK_DIR)/testdata
-      export MODELS_PATH=$(WORK_DIR)/testdata
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
       $(BIN_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
