@@ -194,4 +194,3 @@ TEST(type_prop, reshape_deduce_special_zero_shape_zero_zero_one_neg)
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{2, 2, 1, 3}));
 }
-

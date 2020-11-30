@@ -734,10 +734,10 @@ TEST(eval, evaluate_reshape_v1_special_zero_shape_neg_zero)
     auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
     auto func = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
     auto result_tensor = make_shared<HostTensor>();
-    ASSERT_TRUE(func->evaluate(
-        {result_tensor},
-        {make_host_tensor<element::Type_t::f32>({3, 1, 2}, {0, 1, 2, 3, 4, 5}),
-         make_host_tensor<element::Type_t::i64>({2}, {-1, 0})}));
+    ASSERT_TRUE(
+        func->evaluate({result_tensor},
+                       {make_host_tensor<element::Type_t::f32>({3, 1, 2}, {0, 1, 2, 3, 4, 5}),
+                        make_host_tensor<element::Type_t::i64>({2}, {-1, 0})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{6, 1}));
     auto computed_val = read_vector<float>(result_tensor);
@@ -752,10 +752,10 @@ TEST(eval, evaluate_reshape_v1_special_zero_shape_neg_zero)
     auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
     auto func = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
     auto result_tensor = make_shared<HostTensor>();
-    ASSERT_TRUE(func->evaluate(
-        {result_tensor},
-        {make_host_tensor<element::Type_t::f32>({3, 1, 2}, {0, 1, 2, 3, 4, 5}),
-         make_host_tensor<element::Type_t::i64>({2}, {0, -1})}));
+    ASSERT_TRUE(
+        func->evaluate({result_tensor},
+                       {make_host_tensor<element::Type_t::f32>({3, 1, 2}, {0, 1, 2, 3, 4, 5}),
+                        make_host_tensor<element::Type_t::i64>({2}, {0, -1})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{3, 2}));
     auto computed_val = read_vector<float>(result_tensor);
@@ -770,10 +770,9 @@ TEST(eval, evaluate_reshape_v1_special_zero_shape_neg_zero_copy_input)
     auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
     auto func = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
     auto result_tensor = make_shared<HostTensor>();
-    ASSERT_TRUE(func->evaluate(
-        {result_tensor},
-        {make_host_tensor<element::Type_t::f32>({3, 1}, {0, 1, 2}),
-         make_host_tensor<element::Type_t::i64>({2}, {0, -1})}));
+    ASSERT_TRUE(func->evaluate({result_tensor},
+                               {make_host_tensor<element::Type_t::f32>({3, 1}, {0, 1, 2}),
+                                make_host_tensor<element::Type_t::i64>({2}, {0, -1})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{3, 1}));
     auto computed_val = read_vector<float>(result_tensor);
