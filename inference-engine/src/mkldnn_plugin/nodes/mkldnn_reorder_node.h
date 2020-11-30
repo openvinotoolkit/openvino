@@ -29,6 +29,10 @@ public:
         this->output = output;
     }
 
+    void setOptimized(bool isOptimized) {
+        this->isOptimized = isOptimized;
+    }
+
     void setDynamicBatchLim(int lim) override;
 
     bool canBeInPlace() const override {
@@ -49,6 +53,8 @@ private:
 
     MKLDNNMemoryPtr dst_blocked;
     MKLDNNMemoryPtr src_blocked;
+
+    bool isOptimized = false;
 
     void createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr);
 };

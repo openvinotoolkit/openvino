@@ -10,14 +10,17 @@ set(LINK_LIBRARIES
     gmock
     funcTestUtils
     ngraphFunctions
+    lptNgraphFunctions
     inference_engine_transformations
     openvino::itt
+    openvino::conditional_compilation
 )
 set(DEPENDENCIES
     mock_engine
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
     template_extension
+    lptNgraphFunctions
 )
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
@@ -160,6 +163,10 @@ function(ie_headers_compilation_with_custom_flags)
         target_compile_definitions(${target_name} PRIVATE ${IE_TEST_DEFINITIONS})
     endif()
 
+    if(WIN32)
+        set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
+    endif()
+
     add_dependencies(${TARGET_NAME} ${target_name})
 endfunction()
 
@@ -216,7 +223,6 @@ else()
     #                                          FLAGS  "/we4996 /W4 /WX"
     #                                          PLUGIN_API)
 endif()
-
 
 # ir serialization functional tests variables
 target_compile_definitions(${TARGET_NAME} PRIVATE IR_SERIALIZATION_MODELS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/ir_serialization/models/")

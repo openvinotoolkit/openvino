@@ -17,7 +17,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/avg_pool_function.hpp"
+#include "lpt_ngraph_functions/avg_pool_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -120,7 +120,7 @@ const std::vector<AvgPoolTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     AvgPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

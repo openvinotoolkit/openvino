@@ -18,8 +18,8 @@
 #include "simple_low_precision_transformer.hpp"
 
 #include <low_precision/add.hpp>
-#include "ngraph_functions/low_precision_transformations/add_function.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/add_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -115,7 +115,7 @@ public:
             testValues.expected.dequantization2,
             testValues.expected.dequantizationAfter,
             // Constant operations after transformations are on 1 input only
-            testValues.constInput == 0 ? 1 : -1,
+            testValues.constInput == -1 ? -1 : 1,
             testValues.expected.constValues,
             testValues.additionalLayer,
             testValues.expected.operationType);
@@ -147,6 +147,54 @@ TEST_P(AddTransformation, CompareFunctions) {
 }
 
 const std::vector<AddTransformationTestValues> addTransformationTestValues = {
+    // Multiply with zero on the first branch
+    {
+        ngraph::element::f32,
+        ngraph::Shape{1, 4, 16, 16},
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { {1.f, 0.f, 2.f, 3.f} }},
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { {1.f, 0.f, 2.f, 3.f} }},
+            { },
+            { }
+        },
+        ""
+    },
+    // Multiply with zero on the second branch
+    {
+        ngraph::element::f32,
+        ngraph::Shape{1, 4, 16, 16},
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { {1.f, 0.f, 2.f, 3.f} }},
+            ngraph::element::f32,
+            { },
+            { }
+        },
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { {1.f, 0.f, 2.f, 3.f} }},
+            ngraph::element::f32,
+            { },
+            { },
+            { }
+        },
+        ""
+    },
     // U8
     {
         ngraph::element::f32,
@@ -509,7 +557,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     AddTransformation,
     ::testing::ValuesIn(addTransformationTestValues),
     AddTransformation::getTestCaseName);

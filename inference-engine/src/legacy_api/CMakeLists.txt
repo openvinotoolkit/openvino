@@ -4,10 +4,12 @@
 
 set(TARGET_NAME "inference_engine_legacy")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
-
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp
+                                 ${PUBLIC_HEADERS_DIR}/*.h)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -21,6 +23,8 @@ if(ENABLE_V7_SERIALIZE)
 endif()
 
 # Create object library
+
+file(TOUCH ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
 
 add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
@@ -43,9 +47,13 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
 
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
+
 # Create shared library
 
-add_library(${TARGET_NAME} SHARED $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+add_library(${TARGET_NAME} SHARED 
+    ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
+    $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Legacy library")
@@ -58,7 +66,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} EXCLUDE_PATTERNS ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 

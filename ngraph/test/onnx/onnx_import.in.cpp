@@ -1018,6 +1018,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max_invalid_axes)
+{
+    EXPECT_THROW(onnx_import::import_onnx_model(
+                     file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_max_invalid_axes.prototxt")),
+                 ngraph::ngraph_error);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_mean)
 {
     auto function = onnx_import::import_onnx_model(
@@ -2148,6 +2155,34 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softplus_infinity)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/swish_with_beta.prototxt"));
+
+    const Shape expected_output_shape{3};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{-0.5f, 0, 0.5f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(expected_output_shape, {-0.2036667, 0.0, 0.2963333});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/swish_without_beta.prototxt"));
+
+    const Shape expected_output_shape{3};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{-0.5f, 0, 0.5f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(expected_output_shape, {-0.18877034, 0.0, 0.31122968});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum_opset8)
 {
     auto function = onnx_import::import_onnx_model(
@@ -3187,4 +3222,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D)
                                           -1.4401896,
                                           -0.44018966});
     test_case.run_with_tolerance_as_fp();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_hard_sigmoid)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/hard_sigmoid.prototxt"));
+
+    const auto inf = std::numeric_limits<float>::infinity();
+    const auto neg_inf = -std::numeric_limits<float>::infinity();
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({inf, neg_inf, 0.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{4}, {1.0f, 0.0f, 0.5f, 0.699999988079071f});
+    test_case.run();
 }

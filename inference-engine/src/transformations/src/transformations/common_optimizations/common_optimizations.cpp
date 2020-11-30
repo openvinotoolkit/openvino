@@ -38,6 +38,7 @@
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
+#include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
@@ -73,11 +74,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::HSigmoidFusion>();
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
-    manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-    manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
-    manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+    decomp->add_matcher<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+    decomp->add_matcher<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
     decomp->add_matcher<ngraph::pass::HSwishDecomposition>();
@@ -110,8 +111,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
-
-    manager.register_pass<ngraph::pass::ConvertPreviousNMSToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();

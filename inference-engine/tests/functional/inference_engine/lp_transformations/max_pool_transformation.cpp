@@ -16,8 +16,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/max_pool_function.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/max_pool_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 
 using namespace testing;
@@ -193,7 +193,7 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     MaxPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(shapes),

@@ -17,7 +17,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#include "ngraph_functions/low_precision_transformations/convert_mul_or_add_finally_with_dequantization_function.hpp"
+#include "lpt_ngraph_functions/convert_mul_or_add_finally_with_dequantization_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -110,7 +110,7 @@ std::vector<ConvertMulOrAddFinallyTransformationWithDequantizationTestValues> te
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ConvertMulOrAddFinallyTransformationWithDequantization,
     ::testing::ValuesIn(testValues),
     ConvertMulOrAddFinallyTransformationWithDequantization::getTestCaseName);

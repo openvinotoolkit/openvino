@@ -110,6 +110,26 @@ Also:
 The resulting IR precision, for instance, `FP16` or `FP32`, directly affects performance. As CPU now supports `FP16` (while internally upscaling to `FP32` anyway) and because this is the best precision for a GPU target, you may want to always convert models to `FP16`. Notice that this is the only precision that Intel&reg; Movidius&trade; Myriad&trade; 2 and Intel&reg; Myriad&trade; X VPUs support.
 
 
+## Multi-Device Execution <a name="multi-device-optimizations"></a>
+OpenVINO&trade; toolkit supports automatic multi-device execution, please see [MULTI-Device plugin description](../IE_DG/supported_plugins/MULTI.md).
+In the next chapter you can find the device-specific tips, while this section covers few recommendations 
+for the multi-device execution:
+-	MULTI usually performs best when the fastest device is specified first in the list of the devices. 
+    This is particularly important when the parallelism is not sufficient 
+    (e.g. the number of request in the flight is not enough to saturate all devices).
+- It is highly recommended to query the optimal number of inference requests directly from the instance of the ExecutionNetwork 
+  (resulted from the LoadNetwork call with the specific multi-device configuration as a parameter). 
+Please refer to the code of the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample for details.    
+-   Notice that for example CPU+GPU execution performs better with certain knobs 
+    which you can find in the code of the same [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample.
+    One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams (which is already a default for the GPU) to amortize slower 
+    inference completion from the device to the host.
+-	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 
+    and device-specific 'worker' requests that are being actually scheduled behind the scene. 
+    To facilitate the copy savings, it is recommended to start the requests in the order that they were created 
+    (with ExecutableNetwork's CreateInferRequest).
+  
+
 ## Device-Specific Optimizations <a name="device-specific-optimizations"></a>
 
 The Inference Engine supports several target devices (CPU, GPU, Intel&reg; Movidius&trade; Myriad&trade; 2 VPU, Intel&reg; Movidius&trade; Myriad&trade; X VPU, Intel® Vision Accelerator Design with Intel® Movidius™ Vision Processing Units (VPU) and FPGA), and each of them has a corresponding plugin. If you want to optimize a specific device, you must keep in mind the following tips to increase the performance.
@@ -123,7 +143,7 @@ The only hint you can get from that is how the major primitives are accelerated 
 Internally, the Inference Engine has a threading abstraction level, which allows for compiling the [open source version](https://github.com/opencv/dldt) with either Intel&reg; Threading Building Blocks (Intel&reg; TBB) which is now default, or OpenMP* as an alternative parallelism solution. When using inference on the CPU, this is particularly important to align threading model with the rest of your application (and any third-party libraries that you use) to avoid oversubscription. For more information, see <a href="#note-on-app-level-threading">Note on the App-Level Threading</a> section.
 
  Since R1 2019, the OpenVINO&trade; toolkit comes pre-compiled with Intel TBB,
- so any  OpenMP* API or environment settings (like `OMP_NUM_THREADS`) has no effect anymore.
+ so any  OpenMP* API or environment settings (like `OMP_NUM_THREADS`) has no effect.
  Certain tweaks (like number of threads used for inference on the CPU) are still possible via  [CPU configuration options](../IE_DG/supported_plugins/CPU.md).
  Finally, the OpenVINO CPU inference is NUMA-aware, please refer to the <a href="#note-on-numa">Tips for inference on NUMA systems</a> section.
 
@@ -332,7 +352,7 @@ In many cases, a network expects a pre-processed image, so make sure you do not 
 - Model Optimizer can efficiently bake the mean and normalization (scale) values into the model (for example, weights of the first convolution). See <a href="#mo-knobs-related-to-performance">Model Optimizer Knobs Related to Performance</a>.
 - If regular 8-bit per channel images are your native media (for instance, decoded frames), do not convert to the `FP32` on your side, as this is something that plugins can accelerate. Use the `InferenceEngine::Precision::U8` as your input format:<br>
 
-@snippet openvino/docs/snippets/dldt_optimization_guide1.cpp part1
+@snippet snippets/dldt_optimization_guide1.cpp part1
 
 Note that in many cases, you can directly share the (input) data with the Inference Engine.
 
@@ -342,15 +362,15 @@ The general approach for sharing data between Inference Engine and media/graphic
 
 For Intel MSS, it is recommended to perform a viable pre-processing, for example, crop/resize, and then convert to RGB again with the [Video Processing Procedures (VPP)](https://software.intel.com/en-us/node/696108). Then lock the result and create an Inference Engine blob on top of that. The resulting pointer can be used for the `SetBlob`:
 
-@snippet openvino/docs/snippets/dldt_optimization_guide2.cpp part2
+@snippet snippets/dldt_optimization_guide2.cpp part2
 
 **WARNING**: The `InferenceEngine::NHWC` layout is not supported natively by most InferenceEngine plugins so internal conversion might happen.
 
-@snippet openvino/docs/snippets/dldt_optimization_guide3.cpp part3
+@snippet snippets/dldt_optimization_guide3.cpp part3
 
 Alternatively, you can use RGBP (planar RGB) output from Intel MSS. This allows to wrap the (locked) result as regular NCHW which is generally friendly for most plugins (unlike NHWC). Then you can use it with `SetBlob` just like in previous example:
 
-@snippet openvino/docs/snippets/dldt_optimization_guide4.cpp part4
+@snippet snippets/dldt_optimization_guide4.cpp part4
 
 The only downside of this approach is that VPP conversion to RGBP is not hardware accelerated (and performed on the GPU EUs). Also, it is available only on LInux.
 
@@ -362,7 +382,7 @@ Again, if the OpenCV and Inference Engine layouts match, the data can be wrapped
 
 **WARNING**: The `InferenceEngine::NHWC` layout is not supported natively by most InferenceEngine plugins so internal conversion might happen.
 
-@snippet openvino/docs/snippets/dldt_optimization_guide5.cpp part5
+@snippet snippets/dldt_optimization_guide5.cpp part5
 
 Notice that original `cv::Mat`/blobs cannot be used simultaneously by the application and the Inference Engine. Alternatively, the data that the pointer references to can be copied to unlock the original data and return ownership to the original API.
 
@@ -372,7 +392,7 @@ Infer Request based API offers two types of request: Sync and Async. The Sync is
 
 More importantly, an infer request encapsulates the reference to the “executable” network and actual inputs/outputs. Now, when you load the network to the plugin, you get a reference to the executable network (you may consider that as a queue). Actual infer requests are created by the executable network:
 
-@snippet openvino/docs/snippets/dldt_optimization_guide6.cpp part6
+@snippet snippets/dldt_optimization_guide6.cpp part6
 
 `GetBlob` is a recommend way to communicate with the network, as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs blobs are mapped to the host (which is fast) if the `GetBlob` is used. But if you called the `SetBlob`, the copy (from/to the blob you have set) into the internal GPU plugin structures will happen.
 
@@ -383,7 +403,7 @@ If your application simultaneously executes multiple infer requests:
 - 	For the CPU, the best solution, you can use the <a href="#cpu-streams">CPU "throughput" mode</a>.
 	-	If latency is of more concern, you can try the `EXCLUSIVE_ASYNC_REQUESTS` [configuration option](../IE_DG/supported_plugins/CPU.md) that limits the number of the simultaneously executed requests for all (executable) networks that share the specific device to just one:<br>
 
-@snippet openvino/docs/snippets/dldt_optimization_guide7.cpp part7
+@snippet snippets/dldt_optimization_guide7.cpp part7
 
 		<br>For more information on the executable networks notation, see <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a>.
 
@@ -407,13 +427,13 @@ You can compare the pseudo-codes for the regular and async-based approaches:
 
 -	In the regular way, the frame is captured with OpenCV and then immediately processed:<br>
 
-@snippet openvino/docs/snippets/dldt_optimization_guide8.cpp part8
+@snippet snippets/dldt_optimization_guide8.cpp part8
 
 ![Intel&reg; VTune&trade; screenshot](../img/vtune_regular.png)
 
 -	In the "true" async mode, the `NEXT` request is populated in the main (application) thread, while the `CURRENT` request is processed:<br>
 
-@snippet openvino/docs/snippets/dldt_optimization_guide9.cpp part9
+@snippet snippets/dldt_optimization_guide9.cpp part9
 
 ![Intel&reg; VTune&trade; screenshot](../img/vtune_async.png)
 

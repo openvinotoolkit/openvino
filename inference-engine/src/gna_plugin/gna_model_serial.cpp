@@ -107,14 +107,17 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
             switch (header.version.minor) {
                 case 1:
                     readBits(tempHeader2dot1, is);
-                    header = Header2dot3::ModelHeader(tempHeader2dot1);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot1);
                     break;
                 case 2:
                 case 3:
-                    readBits(header, is);
+                    readNBytes(&header, sizeof(Header2dot3::ModelHeader), is);
+                    break;
+                case 4:
+                    readNBytes(&header, sizeof(Header2dot4::ModelHeader), is);
                     break;
                 default:
-                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should be equal to 1 or 2 and is: " << header.version.minor;
+                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 4 and is: " << header.version.minor;
             }
             break;
         default:
@@ -172,7 +175,7 @@ void GNAModelSerial::Import(void *basePointer,
             for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 inputNames.push_back(inName.substr(0, nameSize - 1));
             }
@@ -185,7 +188,7 @@ void GNAModelSerial::Import(void *basePointer,
             for (auto inputIndex = 0; inputIndex < modelHeader.nOutputs; inputIndex++) {
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string outName("", nameSize);
+                std::string outName(nameSize, '\0');
                 readNBytes(&outName[0], nameSize, is);
                 outputNames.push_back(outName.substr(0, nameSize - 1));
             }
@@ -331,7 +334,9 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     header.nRotateRows = nRotateRows;
     header.nRotateColumns = nRotateColumns;
     header.doRotateInput = doRotateInput;
-
+    header.nRotateOutputRows = nRotateOutputRows;
+    header.nRotateOutputColumns = nRotateOutputColumns;
+    header.doRotateOutput = doRotateOutput;
 
     writeBits(header, os);
 

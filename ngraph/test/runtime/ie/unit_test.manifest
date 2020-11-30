@@ -237,12 +237,12 @@ IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 
 ## RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
-IE_CPU.onnx_model_lstm_fwd_mixed_seq_const
-IE_CPU.onnx_model_lstm_reverse_mixed_seq_const
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len_const
-IE_CPU.onnx_model_gru_fwd_mixed_seq_len
-IE_CPU.onnx_model_gru_fwd_mixed_seq_len_const
+IE_GPU.onnx_model_lstm_fwd_mixed_seq_const
+IE_GPU.onnx_model_lstm_reverse_mixed_seq_const
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
 
 
 #-------------------------------------------------------------------------------
@@ -1141,6 +1141,9 @@ IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores
 IE_CPU.nonmaxsuppression_two_batches
 IE_CPU.nonmaxsuppression_two_classes
 
+# Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
+IE_CPU.roi_pooling_1x1_bilinear
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
@@ -1504,3 +1507,6 @@ onnx_controlflow_loop_2d_trip_count_dynamic
 
 # Infinitive Loop is not supported
 onnx_controlflow_loop_infinite
+
+# unsupported dynamic ops
+onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis

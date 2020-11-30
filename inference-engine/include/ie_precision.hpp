@@ -61,7 +61,10 @@ public:
     /** @brief Default constructor */
     Precision() = default;
 
-    /** @brief Constructor with specified precision */
+    /**
+     * @brief Constructor with specified precision
+     * @param value A value of ePrecision to create an object from
+     */
     Precision(const Precision::ePrecision value) {  // NOLINT
         precisionInfo = getPrecisionInfo(value);
     }
@@ -70,7 +73,7 @@ public:
      * @brief Custom precision constructor
      *
      * @param bitsSize size of elements
-     * @param name optional name string, used in serialisation
+     * @param name optional: name string, used in serialisation
      */
     explicit Precision(size_t bitsSize, const char* name = nullptr) {
         if (bitsSize == 0) {
@@ -133,39 +136,64 @@ public:
         }
     }
 
-    /** @brief Equality operator with Precision object */
+    /**
+     * @brief Equality operator with Precision object
+     * @param p A value of Precision to compare with
+     * @return `true` if values represent the same precisions, `false` otherwise
+     */
     bool operator==(const Precision& p) const noexcept {
         return precisionInfo.value == p && precisionInfo.bitsSize == p.precisionInfo.bitsSize &&
                areSameStrings(precisionInfo.name, p.precisionInfo.name);
     }
 
-    /** @brief Equality operator with ePrecision enum value */
+    /**
+     * @brief Equality operator with ePrecision enum value
+     * @param p A value of ePrecision to compare with
+     * @return `true` if values represent the same precisions, `false` otherwise
+     */
     bool operator==(const ePrecision p) const noexcept {
         return precisionInfo.value == p;
     }
 
-    /** @brief Inequality operator with ePrecision enum value */
+    /**
+     * @brief Inequality operator with ePrecision enum value
+     * @param p A value of ePrecision to compare with
+     * @return `true` if values represent different precisions, `false` otherwise
+     */
     bool operator!=(const ePrecision p) const noexcept {
         return precisionInfo.value != p;
     }
 
-    /** @brief Assignment operator with ePrecision enum value */
+    /**
+     * @brief Assignment operator with ePrecision enum value
+     * @param p A value of ePrecision enumeration
+     * @return A Precision instance
+     */
     Precision& operator=(const ePrecision p) noexcept {
         precisionInfo = getPrecisionInfo(p);
         return *this;
     }
 
-    /** @brief Cast operator to a bool */
+    /**
+     * @brief Cast operator to a bool
+     * @return `true` if precision is specified, `false` otherwise
+     */
     explicit operator bool() const noexcept {
         return precisionInfo.value != UNSPECIFIED;
     }
 
-    /** @brief Logical negation operator */
+    /**
+     * @brief Logical negation operator
+     * @return `true` if precision is NOT specified, `false` otherwise
+     */
     bool operator!() const noexcept {
         return precisionInfo.value == UNSPECIFIED;
     }
 
-    /** @brief Cast operator to a ePrecision */
+    /**
+     * @brief Cast operator to a ePrecision
+     * @return A casted value of Precision::ePrecision enumeration
+     */
     operator Precision::ePrecision() const noexcept {
         return precisionInfo.value;
     }
@@ -178,12 +206,19 @@ public:
         return precisionInfo.value;
     }
 
-    /** @brief Getter of precision name */
+    /**
+     * @brief Getter of precision name
+     * @return A string representing precision name
+     */
     const char* name() const noexcept {
         return precisionInfo.name;
     }
 
-    /** @brief Creates from string with precision name */
+    /**
+     * @brief Creates Precision from string with precision name
+     * @param str A string representing precision
+     * @return Precision created from string representation
+     */
     static Precision FromStr(const std::string& str) {
         static std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
@@ -260,7 +295,9 @@ protected:
     }
 
     /**
-     * @brief Return PrecisionInfo
+     * @brief Creates PrecisionInfo based on ePrecision
+     * @param v A value of ePrecision emuneration
+     * @return Precision info object
      */
     static PrecisionInfo getPrecisionInfo(ePrecision v) {
 #define CASE(x) \

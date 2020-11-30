@@ -14,6 +14,8 @@ file (GLOB LIBRARY_SRC
 set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src/")
 set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
+    "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
+    "${LEGACY_SRC_ROOT}/ngraph_ops/nms_ie.cpp"
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp)
@@ -81,7 +83,7 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt)
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt openvino::conditional_compilation)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
@@ -101,7 +103,8 @@ ie_faster_build(${TARGET_NAME}_obj
     UNITY
 )
 
-target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
+                                                      $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -135,7 +138,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
+target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt openvino::conditional_compilation ${CMAKE_DL_LIBS} Threads::Threads
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR}
@@ -170,11 +173,13 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt openvino::conditional_compilation ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
                                                inference_engine_transformations
                                        PUBLIC pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+
+set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 
 # LTO
 

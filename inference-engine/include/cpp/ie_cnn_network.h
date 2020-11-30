@@ -45,7 +45,8 @@ public:
      *
      * @param network Pointer to the network object
      */
-    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network): network(network) {
+    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network)
+        : network(network) {
         actual = network.get();
         if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
     }
@@ -123,7 +124,6 @@ public:
      * Wraps ICNNNetwork::setBatchSize
      *
      * @param size Size of batch to set
-     * @return Status code of the operation
      */
     virtual void setBatchSize(const size_t size) {
         CALL_STATUS_FNC(setBatchSize, size);

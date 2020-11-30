@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <fstream>
@@ -7,6 +7,8 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <pugixml.hpp>
+
+#include "ngraph/variant.hpp"
 #include "layer_test_utils.hpp"
 #include "plugin_config.hpp"
 
@@ -237,6 +239,10 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
             Compare<uint64_t>(reinterpret_cast<const uint64_t *>(expectedBuffer),
                               reinterpret_cast<const uint64_t *>(actualBuffer), size, 0);
             break;
+        case InferenceEngine::Precision::BF16:
+            Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
+                    reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, ngraph::bfloat16(threshold));
+            break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
     }
@@ -268,7 +274,7 @@ void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const
     }
 }
 
-void LayerTestsCommon::ConfigureNetwork() const {
+void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
         if (inLayout != InferenceEngine::Layout::ANY) {
             in.second->setLayout(inLayout);
@@ -318,6 +324,9 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
     // IE converts f16 to f32
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(
             function);
+
+    // The same idea for bf16
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
     function->validate_nodes_and_infer_types();
     auto referenceInputs = std::vector<std::vector<std::uint8_t>>(inputs.size());
     for (std::size_t i = 0; i < inputs.size(); ++i) {
@@ -345,14 +354,15 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
         }
     }
 
+    const auto& inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
     std::vector<std::vector<std::uint8_t>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, convertType);
+            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, inType, convertType);
             break;
         }
         case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs);
+            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, inType);
             expectedOutputs = ngraph::helpers::getConstData(foldedFunc, convertType);
             break;
         }
@@ -368,7 +378,7 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
             m.register_pass<ngraph::pass::ConvertSpaceToBatch>();
             m.register_pass<ngraph::pass::ConvertBatchToSpace>();
             m.run_passes(cloned_function);
-            expectedOutputs = ngraph::helpers::interpreterFunction(cloned_function, referenceInputs, convertType);
+            expectedOutputs = ngraph::helpers::interpreterFunction(cloned_function, referenceInputs, inType, convertType);
             break;
         }
     }
@@ -406,6 +416,33 @@ void LayerTestsCommon::Validate() {
     << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
     Compare(expectedOutputs, actualOutputs);
+}
+
+std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto function = execGraph.getFunction();
+
+    for (const auto& op : function->get_ops()) {
+        const auto name = op->get_friendly_name();
+        if (name == layerName) {
+            const auto& rtInfo = op->get_rt_info();
+            const auto& it = rtInfo.find("runtimePrecision");
+
+            if (it == rtInfo.end()) {
+                // WA: CPU impl doesn't contain runtimePrecision attribute
+                const auto& it1 = rtInfo.find("primitiveType");
+                const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it1->second);
+                const std::string kernel = rtPrecisionPtr->get();
+                const std::string kernelPrecision = kernel.substr(kernel.find_last_of("_") + 1ul);
+                return kernelPrecision;
+            } else {
+                const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+                return rtPrecisionPtr->get();
+            }
+        }
+    }
+
+    return "";
 }
 
 void LayerTestsCommon::SetRefMode(RefMode mode) {

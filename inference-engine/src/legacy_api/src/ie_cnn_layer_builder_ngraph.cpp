@@ -9,20 +9,16 @@
 #include <utility>
 
 #include "legacy/ngraph_ops/crop_ie.hpp"
-#include "ngraph_ops/convolution_ie.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "legacy/ngraph_ops/gather_ie.hpp"
 #include "legacy/ngraph_ops/gather_tree_ie.hpp"
 #include "legacy/ngraph_ops/gru_cell_ie.hpp"
 #include "legacy/ngraph_ops/interp.hpp"
-#include "legacy/ngraph_ops/lrn_ie.hpp"
 #include "legacy/ngraph_ops/lstm_cell_ie.hpp"
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
 #include "legacy/ngraph_ops/normalize_ie.hpp"
 #include "legacy/ngraph_ops/nms_ie.hpp"
-#include "legacy/ngraph_ops/onehot_ie.hpp"
-#include "legacy/ngraph_ops/pad_ie.hpp"
 #include "legacy/ngraph_ops/power.hpp"
 #include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
 #include "legacy/ngraph_ops/prior_box_ie.hpp"
@@ -33,6 +29,7 @@
 #include "legacy/ngraph_ops/tile_ie.hpp"
 #include "legacy/ngraph_ops/rnn_cell_ie.hpp"
 #include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
+
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
@@ -343,18 +340,6 @@ CNNLayer::Ptr NodeConverter<ngraph::opset5::Loop>::createLayer(const std::shared
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Constant>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Const",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->blobs["custom"] = shareWeights(castedLayer);
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Convert>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Convert",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -364,6 +349,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Convert>::createLayer(const std::shared_
     switch (p) {
     case Precision::FP16:
         precision_str = "FP16";
+        break;
+    case Precision::BF16:
+        precision_str = "BF16";
         break;
     case Precision::FP32:
         precision_str = "FP32";
@@ -507,22 +495,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::MVN>::createLayer(const std::shared_ptr<
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::LRN_IE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Norm",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::NormLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::LRN_IE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["alpha"] = asString(castedLayer->get_alpha());
-    res->params["beta"] = asString(castedLayer->get_beta());
-    res->params["k"] = asString(castedLayer->get_bias());
-    res->params["local-size"] = asString(castedLayer->get_nsize());
-    res->params["region"] = castedLayer->get_region();
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::CropIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Crop",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -634,15 +606,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Multiply>::createLayer(const std::sh
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::Add>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Eltwise",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
-    res->params["operation"] = "sum";
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Squeeze>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Squeeze",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -661,105 +624,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v0::Unsqueeze>::createLayer(const std::s
     auto castedLayer = ngraph::as_type_ptr<ngraph::op::v0::Unsqueeze>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::FakeQuantize>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "FakeQuantize",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::QuantizeLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::FakeQuantize>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-    res->params["levels"] = asString(castedLayer->get_levels());
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::ConvolutionIE>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Convolution",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ConvolutionLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::ConvolutionIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_pads_begin()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_begin"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_pads_end()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_end"] = value;
-
-    switch (castedLayer->get_auto_pad()) {
-        case ngraph::op::PadType::SAME_UPPER:
-            res->params["auto_pad"] = "same_upper";
-            break;
-        case ngraph::op::PadType::SAME_LOWER:
-            res->params["auto_pad"] = "same_lower";
-            break;
-        case ngraph::op::PadType::VALID:
-            res->params["auto_pad"] = "valid";
-            break;
-        default:
-            break;
-    }
-
-    value.clear();
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["strides"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_dilations()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["dilations"] = value;
-
-    // Restore kernel size and output
-    const auto& shape = castedLayer->get_input_shape(1);
-    res->params["output"] = asString(castedLayer->get_shape()[1]);
-    res->params["group"] = asString(castedLayer->get_group());
-
-    value.clear();
-    for (size_t i = 2; i < shape.size(); i++) {
-        if (!value.empty()) value += ",";
-        value += asString(shape[i]);
-    }
-    res->params["kernel"] = value;
-
-    auto & rt_info = layer->get_rt_info();
-    bool keep_constants(false);
-    if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
-        keep_constants = attr->get();
-    }
-
-    NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
-    if (!keep_constants && converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-
-        if (castedLayer->inputs().size() == 3) {
-            const auto biasNode = castedLayer->input_value(2).get_node_shared_ptr();
-            if (converter.canCreate(biasNode)) {
-                const auto& bias = converter.createLayer(biasNode);
-                res->blobs["biases"] = bias->blobs["custom"];
-                res->_biases = bias->blobs["custom"];
-            }
-        }
-    }
     return res;
 }
 
@@ -828,13 +692,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::DeformableConvolution>::createLayer(
     res->params["group"] = asString(castedLayer->get_group());
     res->params["deformable_group"] = asString(castedLayer->get_deformable_group());
 
-    NodeConverter<ngraph::op::Constant> converter;
     const auto weightsNode = castedLayer->input_value(2).get_node_shared_ptr();
-    if (converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-    }
+    InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
+
     return res;
 }
 
@@ -1043,7 +903,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PRelu>::createLayer(const std::shared_pt
             dataShape = {dataShape[1]};
         }
 
-        Blob::Ptr dataBlb = shareWeights(const_weights);
+        Blob::Ptr dataBlb = InferenceEngine::details::shareWeights(const_weights);
 
         res->blobs["weights"] = dataBlb;
         res->_weights = dataBlb;
@@ -1184,65 +1044,15 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Reshape>::createLayer(const std::sha
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PadIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Pad",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::PadLayer>(params);
-
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::PadIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    switch (castedLayer->get_pad_mode()) {
-    case ngraph::op::PadMode::EDGE:
-        res->params["pad_mode"] = "edge";
-        break;
-    case ngraph::op::PadMode::REFLECT:
-        res->params["pad_mode"] = "reflect";
-        break;
-    case ngraph::op::PadMode::CONSTANT:
-        res->params["pad_mode"] = "constant";
-        res->params["pad_value"] = asString(castedLayer->get_pad_value());
-        break;
-    case ngraph::op::PadMode::SYMMETRIC:
-        res->params["pad_mode"] = "symmetric";
-    }
-    std::string pad;
-    for (const auto& p : castedLayer->get_pads_begin()) {
-        if (!pad.empty()) pad += ",";
-        pad += asString(p);
-    }
-    res->params["pads_begin"] = pad;
-
-    pad.clear();
-    for (const auto& p : castedLayer->get_pads_end()) {
-        if (!pad.empty()) pad += ",";
-        pad += asString(p);
-    }
-    res->params["pads_end"] = pad;
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ScaleShiftIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "ScaleShift",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::ScaleShiftLayer>(params);
 
-    NodeConverter<ngraph::op::Constant> converter;
     const auto weightsNode = layer->input_value(1).get_node_shared_ptr();
-    if (converter.canCreate(weightsNode)) {
-        const auto& weightsLayer = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weightsLayer->blobs["custom"];
-        res->_weights = weightsLayer->blobs["custom"];
-    }
-
+    InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
     const auto biasNode = layer->input_value(2).get_node_shared_ptr();
-    if (converter.canCreate(biasNode)) {
-        const auto& bias = converter.createLayer(biasNode);
-        res->blobs["biases"] = bias->blobs["custom"];
-        res->_biases = bias->blobs["custom"];
-    }
+    InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
 
     return res;
 }
@@ -1695,35 +1505,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::
         keep_constants = attr->get();
     }
 
-    NodeConverter<ngraph::op::Constant> converter;
-
     const auto weightsNode = layer->input_value(1).get_node_shared_ptr();
-    if (!keep_constants && converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-
+    if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
         const auto biasNode = layer->input_value(2).get_node_shared_ptr();
-        if (converter.canCreate(biasNode)) {
-            const auto& bias = converter.createLayer(biasNode);
-            res->blobs["biases"] = bias->blobs["custom"];
-            res->_biases = bias->blobs["custom"];
-        }
+        InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
     }
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::MatMul>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Gemm",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::MatMul>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto res = std::make_shared<InferenceEngine::GemmLayer>(params);
-    res->params["transpose_a"] = castedLayer->get_transpose_a() ? "True" : "False";
-    res->params["transpose_b"] = castedLayer->get_transpose_b() ? "True" : "False";
 
     return res;
 }
@@ -1833,13 +1619,10 @@ CNNLayer::Ptr NodeConverter<ngraph::op::NormalizeIE>::createLayer(const std::sha
     res->params["channel_shared"] = castedLayer->get_channel_shared() ? "1" : "0";
     res->params["across_spatial"] = castedLayer->get_across_spatial() ? "1" : "0";
 
-    NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
-    if (converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-    } else {
-        THROW_IE_EXCEPTION << "Cannot convert weight node for NormalizeIE op";
+    const auto weightsNode = layer->input_value(1).get_node_shared_ptr();
+    if (auto constWeights = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode)) {
+        Blob::Ptr dataBlob = InferenceEngine::details::shareWeights(constWeights);
+        res->blobs["weights"] = dataBlob;
     }
 
     return res;
@@ -1943,21 +1726,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Sqrt>::createLayer(const std::shared_ptr
     LayerParams params = {layer->get_friendly_name(), "Sqrt",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::OneHotIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "OneHot", Precision::FP32};
-
-    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::OneHotIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto res = std::make_shared<InferenceEngine::OneHotLayer>(params);
-    res->params["axis"] = std::to_string(castedLayer->get_axis());
-    res->params["depth"] = std::to_string(castedLayer->get_depth());
-    res->params["on_value"] = std::to_string(castedLayer->get_on_value());
-    res->params["off_value"] = std::to_string(castedLayer->get_off_value());
     return res;
 }
 
