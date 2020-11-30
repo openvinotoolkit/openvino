@@ -676,11 +676,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                           (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
                            input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
 
-            should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt() &&
-                            // fp16/fp32 optimized kernels don't support chaning data type
-                           (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
-                            input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
-                            input_data.get_output_layout().data_type == out_layout.data_type);
+            should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
 
