@@ -21,7 +21,7 @@ from typing import List, Union
 import numpy as np
 
 from ngraph.exceptions import NgraphTypeError
-from ngraph.impl import Node, Shape
+from ngraph.impl import Node, Shape, Output
 from ngraph.impl import Type as NgraphType
 from ngraph.impl.op import Constant
 
@@ -147,6 +147,8 @@ def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constan
 def as_node(input_value: NodeInput) -> Node:
     """! Return input values as nodes. Scalars will be converted to Constant nodes."""
     if issubclass(type(input_value), Node):
+        return input_value
+    if issubclass(type(input_value), Output):
         return input_value
     return make_constant_node(input_value)
 
