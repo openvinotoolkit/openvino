@@ -25,7 +25,7 @@ from mo.ops.op import Op
 
 class MatMul(Op):
     """
-    Operation is specified at https://docs.openvinotoolkit.org/latest/openvino_docs_ops_matrix_MatMul_1.html
+    Operation is specified at docs/ops/matrix/MatMul_1.md
     """
     op = 'MatMul'
 
