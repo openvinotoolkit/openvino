@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "test_model.hpp"
+#include "functional_test_utils/test_model/test_model.hpp"
 #include "common_test_utils/xml_net_builder/ir_net.hpp"
 #include "common_test_utils/xml_net_builder/xml_filler.hpp"
 #include "common_test_utils/common_layers_params.hpp"

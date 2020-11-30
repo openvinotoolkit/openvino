@@ -9,8 +9,8 @@
 #include <pugixml.hpp>
 
 #include "ngraph/variant.hpp"
-#include "layer_test_utils.hpp"
-#include "plugin_config.hpp"
+#include "functional_test_utils/layer_test_utils.hpp"
+#include "functional_test_utils/plugin_config.hpp"
 
 namespace LayerTestsUtils {
 

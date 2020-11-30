@@ -2,21 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
+#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
 
-#include <memory>
-#include <tuple>
 #include <vector>
 #include <string>
-#include <unordered_set>
 
 #include <ie_core.hpp>
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include <legacy/net_pass.h>
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"

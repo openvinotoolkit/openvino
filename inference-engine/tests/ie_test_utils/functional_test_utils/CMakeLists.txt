@@ -14,15 +14,21 @@ list(APPEND EXPORT_DEPENDENCIES
 addIeTarget(
     NAME ${TARGET_NAME}
     TYPE STATIC
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    ROOT "${CMAKE_CURRENT_SOURCE_DIR}"
     ADD_CPPLINT
     DEVELOPER_PACKAGE
+    INCLUDES
+        PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    ADDITIONAL_SOURCE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
     LINK_LIBRARIES
         PUBLIC
             ${EXPORT_DEPENDENCIES}
-            ngraphFunctions
             inference_engine_transformations
-    INCLUDES
+        PRIVATE
+            ngraphFunctions
+        INCLUDES
         PUBLIC
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     EXPORT_DEPENDENCIES
