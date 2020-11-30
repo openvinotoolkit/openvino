@@ -79,6 +79,7 @@ set(SRC
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
     op_eval/roi_align.cpp
+    op_eval/roi_pooling.cpp
     op_eval/round.cpp
     op_eval/softplus.cpp
     op_eval/split.cpp
@@ -162,6 +163,7 @@ set(SRC
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
+    type_prop/roi_pooling.cpp
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
@@ -328,6 +330,7 @@ set(MULTI_TEST_SRC
     backend/reshape.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
+    backend/roi_pooling.in.cpp
     backend/round.in.cpp
     backend/select.in.cpp
     backend/shape_of.in.cpp
