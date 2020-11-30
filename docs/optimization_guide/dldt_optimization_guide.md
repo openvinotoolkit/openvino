@@ -110,6 +110,26 @@ Also:
 The resulting IR precision, for instance, `FP16` or `FP32`, directly affects performance. As CPU now supports `FP16` (while internally upscaling to `FP32` anyway) and because this is the best precision for a GPU target, you may want to always convert models to `FP16`. Notice that this is the only precision that Intel&reg; Movidius&trade; Myriad&trade; 2 and Intel&reg; Myriad&trade; X VPUs support.
 
 
+## Multi-Device Execution <a name="multi-device-optimizations"></a>
+OpenVINO&trade; toolkit supports automatic multi-device execution, please see [MULTI-Device plugin description](../IE_DG/supported_plugins/MULTI.md).
+In the next chapter you can find the device-specific tips, while this section covers few recommendations 
+for the multi-device execution:
+-	MULTI usually performs best when the fastest device is specified first in the list of the devices. 
+    This is particularly important when the parallelism is not sufficient 
+    (e.g. the number of request in the flight is not enough to saturate all devices).
+- It is highly recommended to query the optimal number of inference requests directly from the instance of the ExecutionNetwork 
+  (resulted from the LoadNetwork call with the specific multi-device configuration as a parameter). 
+Please refer to the code of the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample for details.    
+-   Notice that for example CPU+GPU execution performs better with certain knobs 
+    which you can find in the code of the same [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample.
+    One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams (which is already a default for the GPU) to amortize slower 
+    inference completion from the device to the host.
+-	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 
+    and device-specific 'worker' requests that are being actually scheduled behind the scene. 
+    To facilitate the copy savings, it is recommended to start the requests in the order that they were created 
+    (with ExecutableNetwork's CreateInferRequest).
+  
+
 ## Device-Specific Optimizations <a name="device-specific-optimizations"></a>
 
 The Inference Engine supports several target devices (CPU, GPU, Intel&reg; Movidius&trade; Myriad&trade; 2 VPU, Intel&reg; Movidius&trade; Myriad&trade; X VPU, Intel® Vision Accelerator Design with Intel® Movidius™ Vision Processing Units (VPU) and FPGA), and each of them has a corresponding plugin. If you want to optimize a specific device, you must keep in mind the following tips to increase the performance.
@@ -123,7 +143,7 @@ The only hint you can get from that is how the major primitives are accelerated 
 Internally, the Inference Engine has a threading abstraction level, which allows for compiling the [open source version](https://github.com/opencv/dldt) with either Intel&reg; Threading Building Blocks (Intel&reg; TBB) which is now default, or OpenMP* as an alternative parallelism solution. When using inference on the CPU, this is particularly important to align threading model with the rest of your application (and any third-party libraries that you use) to avoid oversubscription. For more information, see <a href="#note-on-app-level-threading">Note on the App-Level Threading</a> section.
 
  Since R1 2019, the OpenVINO&trade; toolkit comes pre-compiled with Intel TBB,
- so any  OpenMP* API or environment settings (like `OMP_NUM_THREADS`) has no effect anymore.
+ so any  OpenMP* API or environment settings (like `OMP_NUM_THREADS`) has no effect.
  Certain tweaks (like number of threads used for inference on the CPU) are still possible via  [CPU configuration options](../IE_DG/supported_plugins/CPU.md).
  Finally, the OpenVINO CPU inference is NUMA-aware, please refer to the <a href="#note-on-numa">Tips for inference on NUMA systems</a> section.
 

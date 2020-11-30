@@ -125,12 +125,14 @@ public:
     std::atomic_bool                                            _terminate = {false};
     std::mutex                                                  _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
+    const std::vector<DeviceInformation>                        _devicePrioritiesInitial;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
     ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
+    std::atomic_size_t                                          _numRequestsCreated = {0};
 };
 
 }  // namespace MultiDevicePlugin
