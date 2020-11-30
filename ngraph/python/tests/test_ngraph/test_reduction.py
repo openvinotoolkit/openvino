@@ -15,11 +15,13 @@
 # ******************************************************************************
 import numpy as np
 import pytest
+from _pyngraph import PartialShape, Dimension
 
 import ngraph as ng
+from ngraph.utils.types import make_constant_node
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_34323
+from tests import xfail_issue_40957
 
 
 @pytest.mark.parametrize(
@@ -49,7 +51,6 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
     assert np.allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="RuntimeError: Incorrect Reduce layer type")
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
@@ -105,15 +106,16 @@ def test_non_max_suppression():
 
     boxes_shape = [1, 1000, 4]
     scores_shape = [1, 1, 1000]
-    expected_shape = [0, 3]
     boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
 
-    node = ng.non_max_suppression(boxes_parameter, scores_parameter)
+    node = ng.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(1000, np.int64))
 
     assert node.get_type_name() == "NonMaxSuppression"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension(0, 1000), Dimension(3)])
+    assert node.get_output_partial_shape(1) == PartialShape([Dimension(0, 1000), Dimension(3)])
+    assert list(node.get_output_shape(2)) == [1]
 
 
 def test_non_zero():
@@ -160,7 +162,7 @@ def test_roi_align():
     assert list(node.get_output_shape(0)) == expected_shape
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 @pytest.mark.parametrize(
     "input_shape, cumsum_axis, reverse",
     [([5, 2], 0, False), ([5, 2], 1, False), ([5, 2, 6], 2, False), ([5, 2], 0, True)],
@@ -180,7 +182,7 @@ def test_cum_sum(input_shape, cumsum_axis, reverse):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 def test_normalize_l2():
     input_shape = [1, 2, 3, 4]
     input_data = np.arange(np.prod(input_shape)).reshape(input_shape).astype(np.float32)

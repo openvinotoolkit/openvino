@@ -29,7 +29,7 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    INSTANTIATE_TEST_CASE_P(multioutput_eltwise_identity, MultioutputEltwiseReshapeEltwise,
+    INSTANTIATE_TEST_CASE_P(smoke_multioutput_eltwise_identity, MultioutputEltwiseReshapeEltwise,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(netPrecisions),

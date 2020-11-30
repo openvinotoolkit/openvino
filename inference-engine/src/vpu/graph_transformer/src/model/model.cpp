@@ -2166,4 +2166,14 @@ void ModelObj::removeUnusedData(const Data& data) {
     _dataPtrList.erase(data->_ptrPosInModel);
 }
 
+bool ModelObj::isDynamic() const {
+    const auto& dataObjects = datas();
+    return std::any_of(dataObjects.begin(), dataObjects.end(),
+        [](const Data& data) { return data->parentDataToShapeEdge() || !data->childDataToShapeEdges().empty(); });
+}
+
+bool ModelObj::isStatic() const {
+    return !isDynamic();
+}
+
 }  // namespace vpu

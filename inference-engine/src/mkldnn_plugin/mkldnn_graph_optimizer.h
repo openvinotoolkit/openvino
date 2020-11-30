@@ -5,6 +5,7 @@
 #pragma once
 
 #include "mkldnn_graph.h"
+#include "nodes/mkldnn_eltwise_node.h"
 #include <vector>
 
 namespace MKLDNNPlugin {
@@ -18,18 +19,12 @@ public:
     void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
 
 private:
-    void SLTMTransform(MKLDNNGraph& graph);
     void MergeConversions(MKLDNNGraph& graph);
     void MergeGroupConvolution(MKLDNNGraph& graph);
     void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
-    void MergeSigmoidAndMultiplyToSwish(MKLDNNGraph& graph);
-#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
     void FuseConvolutionAndActivation(MKLDNNGraph &graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
-#endif
-#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
     void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
-#endif
     void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
 #if defined(COMPILED_CPU_MKLDNN_QUANTIZE_NODE)
@@ -51,14 +46,19 @@ private:
 #if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
     void DropDoubleReorders(MKLDNNGraph& graph);
     void DropConvertReorder(MKLDNNGraph& graph);
+    void ChangeConvertToReorder(MKLDNNGraph &graph);
 #endif
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);
     void FuseScaleShiftAndQuantize(MKLDNNGraph &graph);
     void FuseClampAndQuantize(MKLDNNGraph &graph);
+    void MergePermuteAndReorder(MKLDNNGraph &graph);
 
     bool IsOneOf(Type type, std::vector<Type> types);
+    bool IsOneOf(EltwiseOpType alg, std::vector<EltwiseOpType> algs);
+
+    void removeEdge(MKLDNNGraph &graph, MKLDNNEdgePtr& edge);
 };
 
 }  // namespace MKLDNNPlugin

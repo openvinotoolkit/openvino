@@ -3,9 +3,9 @@
 //
 
 #include "mkldnn_quantize_node.h"
-#include "mkldnn_depthwise_node.h"
-#include "mkldnn_activation_node.h"
+#include "mkldnn_eltwise_node.h"
 #include <mkldnn_extension_utils.h>
+#include "utils/bfloat16.hpp"
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include "jit_uni_eltwise.hpp"
@@ -24,6 +24,10 @@ using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
+
+static inline bool isFloatCompatible(memory::data_type type) {
+    return memory::f32 == type || memory::bf16 == type;
+}
 
 template <cpu_isa_t isa>
 struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_kernel, public jit_generator {
@@ -120,6 +124,10 @@ private:
             case memory::s32:
                 uni_vmovups(vmm_src, op);
                 break;
+            case memory::bf16:
+                uni_vpmovzxwd(vmm_src, op);
+                uni_vpslld(vmm_src, vmm_src, 16);
+                break;
             case memory::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
@@ -129,8 +137,7 @@ private:
             default:
                 assert(!"unknown dst_dt");
         }
-
-        if (src_dt != memory::f32)
+        if (!isFloatCompatible(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 };
@@ -240,7 +247,7 @@ private:
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        int step = vlen / sizeof(float);
+        int step = jcp_.src_dt == memory::bf16 ? 16 : (vlen / sizeof(float));
         L(main_loop_label);
         {
             cmp(reg_work_amount, step);
@@ -323,7 +330,7 @@ private:
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        int step = vlen / sizeof(float);
+        int step = jcp_.src_dt == memory::bf16 ? 16 : (vlen / sizeof(float));
         L(main_loop_label);
         {
             cmp(reg_work_amount, step);
@@ -521,6 +528,10 @@ private:
             case memory::s32:
                 uni_vmovups(vmm_src, op);
                 break;
+            case memory::bf16:
+                uni_vpmovzxwd(vmm_src, op);
+                uni_vpslld(vmm_src, vmm_src, 16);
+                break;
             case memory::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
@@ -530,8 +541,7 @@ private:
             default:
                 assert(!"unknown dst_dt");
         }
-
-        if (src_dt != memory::f32)
+        if (!isFloatCompatible(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -540,6 +550,10 @@ private:
             case memory::f32:
             case memory::s32:
                 movss(xmm_src, op);
+                break;
+            case memory::bf16:
+                pinsrw(xmm_src, op, 0x0);
+                uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             case memory::s8:
                 movsx(reg_tmp_32, op);
@@ -553,7 +567,7 @@ private:
                 assert(!"unknown dst_dt");
         }
 
-        if (src_dt != data_type::f32) {
+        if (!isFloatCompatible(src_dt)) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
@@ -564,6 +578,9 @@ private:
 
         if (dst_dt == memory::f32) {
             uni_vmovups(op, vmm_dst);
+        } else if (dst_dt == memory::bf16) {
+            vcvtneps2bf16(ymm_dst, vmm_dst);
+            vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
             if (isa == cpu::avx512_common) {
@@ -597,7 +614,7 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (dst_dt != data_type::f32) {
+        if (!isFloatCompatible(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
@@ -605,6 +622,10 @@ private:
             case memory::f32:
             case memory::s32:
                 movss(op, xmm_dst);
+                break;
+            case memory::bf16:
+                uni_vpsrld(xmm_dst, xmm_dst, 16);
+                pextrw(op, xmm_dst, 0x0);
                 break;
             case memory::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -654,7 +675,7 @@ private:
                         || quantization_injectors[quantization_inj_idx] == nullptr)
                     assert(!"Invalid quantization injectors.");
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
+                bool do_rounding = do_dequantization || isFloatCompatible(dst_dt) || i != p.len_ - 1;
 
                 int s_idx = vmm_val.getIdx();
 
@@ -683,31 +704,54 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
+    std::string errPrefix = "Normalize node with name '" + getName() + "' ";
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        THROW_IE_EXCEPTION << errPrefix << " has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        THROW_IE_EXCEPTION << errPrefix << " has incorrect number of output edges: " << getChildEdges().size();
 
     if (getParentEdgeAt(0)->getDims().ndims() > 4 || getParentEdgeAt(0)->getDims().ndims() < 2) {
-        THROW_IE_EXCEPTION << "Normalize supports from 2D to 4D blobs!";
+        THROW_IE_EXCEPTION << errPrefix << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
     }
 
     auto *layer = getCnnLayer().get();
     if (layer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot get Normalize layer.";
+        THROW_IE_EXCEPTION << errPrefix << " has nullable CnnLayer.";
     across_spatial = layer->GetParamAsBool("across_spatial", false);
     channel_shared = layer->GetParamAsBool("channel_shared", false);
     eps = layer->GetParamAsFloat("eps");
 
     MemoryBlob::Ptr tweights = as<MemoryBlob>(layer->blobs.at("weights"));
     if (!tweights) {
-        THROW_IE_EXCEPTION << layer->name << "Weights are not initialized or cannot be casted to MemoryBlob for layer Normalize with name '"
-            << layer->name << "'";
+        THROW_IE_EXCEPTION << errPrefix << "has not initialized weights or they cannot be casted to MemoryBlob.";
     }
+
+    auto inData = getCnnLayer()->insData[0].lock();
+    if (inData == nullptr) {
+        THROW_IE_EXCEPTION << errPrefix << "has nullable input data.";
+    }
+    const auto& inDims = inData->getDims();
+    if (inDims.size() < 2)
+        THROW_IE_EXCEPTION << errPrefix << "has unsupported layout: '" << inData->getLayout() << "'.";
+    const size_t channels = inDims[1];
+    const auto weightsSize = tweights->size();
+    if (weightsSize != channels) {
+        if (weightsSize == 1) {
+            channel_shared = true;
+        } else {
+            THROW_IE_EXCEPTION << errPrefix << "has unsupported broadcast type. Channels size: " << channels << "; Weights size: " << weightsSize;
+        }
+    }
+
     weights_prec = tweights->getTensorDesc().getPrecision();
 
     if (weights_prec == Precision::FP32) {
-        weights_blob = tweights;
+        TensorDesc td(Precision::FP32, tweights->getTensorDesc().getDims(), tweights->getTensorDesc().getLayout());
+        weights_blob = make_shared_blob<float>(td);
+        weights_blob->allocate();
+        float* src = layer->blobs.at("weights")->buffer();
+        float* dst = weights_blob->wmap();
+        memcpy(dst, src, layer->blobs.at("weights")->byteSize());
     } else if (weights_prec == Precision::BF16) {
         MKLDNNPlugin::BF16Transformer transformer;
         weights_blob = transformer.convertBF16ToFloat(tweights);
@@ -725,15 +769,20 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr, true);
 
     Precision inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
-    inputPrecision = inputPrecision == Precision::BF16 ? Precision(Precision::FP32) : inputPrecision;
     Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
-    outputPrecision = outputPrecision == Precision::BF16 ? Precision(Precision::FP32) : outputPrecision;
 
     if (!fusedWith.empty()) {
         auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
         if (lastFusedLayer) {
             outputPrecision = lastFusedLayer->outData[0]->getPrecision();
         }
+    }
+
+    if (inputPrecision == Precision::BF16 || outputPrecision == Precision::BF16) {
+        if (!mayiuse(avx512_core_bf16))
+            inputPrecision = outputPrecision = Precision::FP32;
+        else
+            inputPrecision = outputPrecision = Precision::BF16;
     }
 
     auto isOneOf = [&](InferenceEngine::Precision precision, std::vector<InferenceEngine::Precision> precisions) {
@@ -744,10 +793,10 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
         }
         return false;
     };
-    if (!isOneOf(inputPrecision, {Precision::FP32, Precision::I8, Precision::U8})) {
+    if (!isOneOf(inputPrecision, {Precision::FP32, Precision::BF16, Precision::I8, Precision::U8})) {
         THROW_IE_EXCEPTION << "Unsupported input precision. " << getName();
     }
-    if (!isOneOf(outputPrecision, {Precision::FP32, Precision::I8, Precision::U8})) {
+    if (!isOneOf(outputPrecision, {Precision::FP32, Precision::BF16, Precision::I8, Precision::U8})) {
         THROW_IE_EXCEPTION << "Unsupported output precision. " << getName();
     }
     if (!isOneOf(weights_prec, {Precision::FP32, Precision::BF16})) {
@@ -808,70 +857,9 @@ void MKLDNNNormalizeNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeig
             continue;
         }
 
-        auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
-        if (depthwiseNode) {
-            if (initWeights) {
-                auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
-                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(getParentEdgeAt(0)->getDims()[1], 16))});
-
-                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
-                PostOpsIntBlobMemory[blob_idx]->FillZero();
-
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
-                                                        depthwiseLayer->_weights->buffer(),
-                                                        depthwiseLayer->_weights->size() *
-                                                        MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                if (depthwiseNode->isBroadcast()) {
-                    float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
-                    for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                        static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
-                    }
-                }
-
-                if (depthwiseNode->getAlgorithm() == depthwise_scale_shift) {
-                    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
-                                                               memory::format::x);
-                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
-                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
-                                                                depthwiseLayer->_biases->buffer(),
-                                                                depthwiseLayer->_biases->size() *
-                                                                MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                    if (depthwiseNode->isBroadcast()) {
-                        float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
-                        for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                            static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
-                        }
-                    }
-
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
-
-                    blob_idx += 2;
-                } else {
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         nullptr);
-
-                    blob_idx += 1;
-                }
-            } else {
-                ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                     nullptr,
-                                     nullptr);
-            }
-
-            continue;
-        }
-
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-        if (activationNode) {
-            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(), activationNode->getBeta());
-
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode) {
+            eltwiseNode->appendPostOps(ops);
             continue;
         }
 
@@ -957,6 +945,8 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
         } else if (input_prec == Precision::FP32) {
             auto src_data = reinterpret_cast<const float *>(src_ptr);
             normalize_function<float, uint8_t>(src_data, dst_data, dims);
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
         }
     } else if (output_prec == Precision::I8) {
         auto dst_data = reinterpret_cast<int8_t *>(dst_ptr);
@@ -969,6 +959,8 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
         } else if (input_prec == Precision::FP32) {
             auto src_data = reinterpret_cast<const float *>(src_ptr);
             normalize_function<float, int8_t>(src_data, dst_data, dims);
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
         }
     } else if (output_prec == Precision::FP32) {
         auto dst_data = reinterpret_cast<float *>(dst_ptr);
@@ -981,7 +973,15 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
         } else if (input_prec == Precision::FP32) {
             auto src_data = reinterpret_cast<const float *>(src_ptr);
             normalize_function<float, float>(src_data, dst_data, dims);
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
         }
+    } else if (output_prec == Precision::BF16) {
+        auto dst_data = reinterpret_cast<bfloat16_t*>(dst_ptr);
+        auto src_data = reinterpret_cast<const bfloat16_t*>(src_ptr);
+        normalize_function<bfloat16_t, bfloat16_t>(src_data, dst_data, dims);
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
     }
 }
 

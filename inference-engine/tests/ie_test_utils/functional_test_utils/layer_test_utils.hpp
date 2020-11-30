@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include <ie_plugin_config.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/type/bfloat16.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -27,8 +28,93 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-
 namespace LayerTestsUtils {
+
+class Summary;
+
+class SummaryDestroyer {
+private:
+    Summary *p_instance;
+public:
+    ~SummaryDestroyer();
+
+    void initialize(Summary *p);
+};
+
+class TestEnvironment;
+
+class LayerTestsCommon;
+
+struct PassRate {
+    enum Statuses {
+        PASSED,
+        FAILED,
+        SKIPPED
+    };
+    unsigned long passed = 0;
+    unsigned long failed = 0;
+    unsigned long skipped = 0;
+
+    PassRate() = default;
+
+    PassRate(unsigned long p, unsigned long f, unsigned long s) {
+        passed = p;
+        failed = f;
+        skipped = s;
+    }
+
+    float getPassrate() const {
+        if (passed == 0 && failed == 0) {
+            return 0.;
+        } else if (passed != 0 && failed == 0) {
+            return 100.;
+        } else {
+            return (passed / (passed + failed)) * 100.;
+        }
+    }
+};
+
+class Summary {
+private:
+    static Summary *p_instance;
+    static SummaryDestroyer destroyer;
+    std::map<ngraph::NodeTypeInfo, PassRate> opsStats = {};
+    std::string deviceName;
+
+protected:
+    Summary() = default;
+
+    Summary(const Summary &);
+
+    Summary &operator=(Summary &);
+
+    ~Summary() = default;
+
+    void updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status);
+
+    std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
+
+    std::string getDeviceName() const { return deviceName; }
+
+    void setDeviceName(std::string device) { deviceName = device; }
+
+    friend class SummaryDestroyer;
+
+    friend class TestEnvironment;
+
+    friend class LayerTestsCommon;
+
+public:
+    static Summary &getInstance();
+};
+
+class TestEnvironment : public ::testing::Environment {
+public:
+    void TearDown() override;
+
+private:
+    std::string reportFileName = "report.xml";
+};
 
 using TargetDevice = std::string;
 
@@ -60,22 +146,26 @@ public:
 
     virtual void SetRefMode(RefMode mode);
 
+    std::shared_ptr<ngraph::Function> GetFunction();
+
+    std::map<std::string, std::string>& GetConfiguration();
+
+    std::string getRuntimePrecision(const std::string& layerName);
+
 protected:
     LayerTestsCommon();
 
-
     template<class T>
-    void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
-        std::cout << std::endl;
+    static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
         for (std::size_t i = 0; i < size; ++i) {
             const auto &ref = expected[i];
             const auto &res = actual[i];
-            const auto absoluteDifference = std::abs(res - ref);
+            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
             if (absoluteDifference <= threshold) {
                 continue;
             }
 
-            const auto max = std::max(std::abs(res), std::abs(ref));
+            const auto max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(ref));
             ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= threshold))
                                         << "Relative comparison of values expected: " << ref << " and actual: " << res
                                         << " at index " << i << " with threshold " << threshold
@@ -91,7 +181,7 @@ protected:
         return core;
     }
 
-    void ConfigureNetwork() const;
+    virtual void ConfigureNetwork();
 
     void LoadNetwork();
 
@@ -114,6 +204,7 @@ protected:
     virtual void Validate();
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
+
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;

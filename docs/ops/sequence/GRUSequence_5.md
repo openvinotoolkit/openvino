@@ -31,7 +31,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
 
 * *activations_alpha, activations_beta*
 
-  * **Description**: *activations_alpha, activations_beta* attributes of functions; applicability and meaning of these attributes depends on choosen activation functions
+  * **Description**: *activations_alpha, activations_beta* attributes of functions; applicability and meaning of these attributes depends on chosen activation functions
   * **Range of values**: a list of floating-point numbers
   * **Type**: `float[]`
   * **Default value**: None
@@ -77,7 +77,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
 
 **Outputs**
 
-* **1**: `Y`  3D tensor of type *T1* `[batch_size, num_directions, seq_len, hidden_size]`, concatenation of all the intermediate output values of the hidden.
+* **1**: `Y` - 4D tensor of type *T1* `[batch_size, num_directions, seq_len, hidden_size]`, concatenation of all the intermediate output values of the hidden.
 
 * **2**: `Ho` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, the last output value of hidden state.
 

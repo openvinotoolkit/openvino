@@ -27,25 +27,26 @@ class clDNNEngine : public InferenceEngine::InferencePluginInternal,
     CLDNNRemoteCLContext::Ptr m_defaultContext;
 
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
-    InferenceEngine::ICNNNetwork::Ptr CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network) const;
+    InferenceEngine::ICNNNetwork::Ptr CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network,
+                                                               CLDNNPlugin::Config config) const;
 public:
     clDNNEngine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                        const std::map<std::string, std::string> &config) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                        InferenceEngine::RemoteContext::Ptr context,
                                                                        const std::map<std::string, std::string> &config) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
-                      const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult& res) const override;
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
+                                                     const std::map<std::string, std::string>& config) const override;
 
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override;
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext() override;
+    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const ParamMap& params) override;
 };
 
 };  // namespace CLDNNPlugin

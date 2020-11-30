@@ -21,6 +21,7 @@ const std::vector<float> argPadValue = {0.f, 1.f, 2.f, -1.f};
 const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::EDGE,
         ngraph::helpers::PadMode::REFLECT,
+        ngraph::helpers::PadMode::SYMMETRIC
 };
 
 const auto pad2DConstparams = testing::Combine(
@@ -29,12 +30,15 @@ const auto pad2DConstparams = testing::Combine(
         testing::ValuesIn(argPadValue),
         testing::Values(ngraph::helpers::PadMode::CONSTANT),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{13, 5}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pad2DConst,
+        smoke_Pad2DConst,
         PadLayerTest,
         pad2DConstparams,
         PadLayerTest::getTestCaseName
@@ -46,12 +50,15 @@ const auto pad2Dparams = testing::Combine(
         testing::Values(0),
         testing::ValuesIn(padMode),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{13, 5}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pad2D,
+        smoke_Pad2D,
         PadLayerTest,
         pad2Dparams,
         PadLayerTest::getTestCaseName
@@ -66,12 +73,15 @@ const auto pad4DConstparams = testing::Combine(
         testing::ValuesIn(argPadValue),
         testing::Values(ngraph::helpers::PadMode::CONSTANT),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{3, 5, 10, 11}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pad4DConst,
+        smoke_Pad4DConst,
         PadLayerTest,
         pad4DConstparams,
         PadLayerTest::getTestCaseName
@@ -83,12 +93,15 @@ const auto pad4Dparams = testing::Combine(
         testing::Values(0),
         testing::ValuesIn(padMode),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{3, 5, 10, 11}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pad4D,
+        smoke_Pad4D,
         PadLayerTest,
         pad4Dparams,
         PadLayerTest::getTestCaseName

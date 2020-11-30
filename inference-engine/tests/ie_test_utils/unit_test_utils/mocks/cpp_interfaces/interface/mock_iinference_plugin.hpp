@@ -13,9 +13,9 @@
 class MockIInferencePlugin : public InferenceEngine::IInferencePlugin {
 public:
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr));
-    MOCK_METHOD3(LoadNetwork, void(IExecutableNetwork::Ptr&,
+    MOCK_METHOD2(LoadNetwork, InferenceEngine::ExecutableNetwork(
                 const ICNNNetwork&, const std::map<std::string, std::string>&));
-    MOCK_METHOD2(ImportNetwork, IExecutableNetwork::Ptr(
+    MOCK_METHOD2(ImportNetwork, InferenceEngine::ExecutableNetwork(
                 const std::string&, const std::map<std::string, std::string>&));
     MOCK_METHOD1(SetConfig, void(const std::map<std::string, std::string> &));
 
@@ -29,7 +29,7 @@ public:
                 const std::string&, const std::map<std::string, InferenceEngine::Parameter>&));
     MOCK_METHOD1(CreateContext,
                 InferenceEngine::RemoteContext::Ptr(const InferenceEngine::ParamMap&));
-    MOCK_METHOD0(GetDefaultContext, InferenceEngine::RemoteContext::Ptr(void));
+    MOCK_METHOD1(GetDefaultContext, InferenceEngine::RemoteContext::Ptr(const InferenceEngine::ParamMap&));
     MOCK_METHOD3(LoadNetwork, InferenceEngine::ExecutableNetwork(
                 const InferenceEngine::ICNNNetwork&, const std::map<std::string, std::string>&,
                 InferenceEngine::RemoteContext::Ptr));

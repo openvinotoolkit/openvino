@@ -94,7 +94,7 @@ Refer to a dedicated description about [Intermediate Representation and Operatio
 OpenVINO toolkit is powered by nGraph capabilities for Graph construction API, Graph transformation engine and Reshape.
 nGraph Function is used as an intermediate representation for a model in the run-time underneath the CNNNetwork API.
 The conventional representation for CNNNetwork is still available if requested for backward compatibility when some conventional API methods are used.
-Please refer to the [Overview of nGraph Flow](nGraph_Flow.md) describing the details of nGraph integration into the Inference Engine and co-existence with the conventional representation.
+Please refer to the [Overview of nGraph](../nGraph_DG/nGraph_dg.md) describing the details of nGraph representation.
 
 ## Inference Engine <a name = "IE"></a>
 
@@ -116,7 +116,7 @@ For Intel® Distribution of OpenVINO™ toolkit, the Inference Engine package co
 [sample console applications](Samples_Overview.md) demonstrating how you can use
 the Inference Engine in your applications.
 
-The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and can be built for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md">Inference Engine Build Instructions</a>.
+The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and can be built for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">Inference Engine Build Instructions</a>.
 ## See Also
 - [Inference Engine Samples](Samples_Overview.md)
 - [Intel&reg; Deep Learning Deployment Toolkit Web Page](https://software.intel.com/en-us/computer-vision-sdk)

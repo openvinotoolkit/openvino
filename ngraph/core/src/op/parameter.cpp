@@ -24,11 +24,8 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::Parameter::type_info;
 
-op::Parameter::Parameter(const element::Type& element_type,
-                         const PartialShape& pshape,
-                         const bool cacheable)
-    : m_cacheable(cacheable)
-    , m_partial_shape(pshape)
+op::Parameter::Parameter(const element::Type& element_type, const PartialShape& pshape)
+    : m_partial_shape(pshape)
     , m_element_type(element_type)
     , m_is_relevant_to_shapes(false)
 {
@@ -37,7 +34,6 @@ op::Parameter::Parameter(const element::Type& element_type,
 
 bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("cacheable", m_cacheable);
     visitor.on_attribute("shape", m_partial_shape);
     visitor.on_attribute("element_type", m_element_type);
     return true;

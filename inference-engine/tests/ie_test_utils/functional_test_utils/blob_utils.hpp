@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include "blob_factory.hpp"
 #include "blob_transform.hpp"
+#include "ie_compound_blob.h"
 #include "precision_utils.h"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -327,6 +328,16 @@ convertArrayPrecision<InferenceEngine::Precision::FP16, InferenceEngine::Precisi
     InferenceEngine::PrecisionUtils::f16tof32Arrays(dst, src, nelem, 1.0f, 0.0f);
 }
 
+template<>
+void inline
+convertArrayPrecision<InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32>(float *dst, const short *src,
+                                                                                          size_t nelem) {
+    auto srcBf16 = reinterpret_cast<const ngraph::bfloat16*>(src);
+    for (size_t i = 0; i < nelem; i++) {
+        dst[i] = static_cast<float>(srcBf16[i]);
+    }
+}
+
 template<InferenceEngine::Precision::ePrecision PREC_FROM, InferenceEngine::Precision::ePrecision PREC_TO>
 InferenceEngine::Blob::Ptr inline convertBlobPrecision(const InferenceEngine::Blob::Ptr &blob) {
     using from_d_type = typename InferenceEngine::PrecisionTrait<PREC_FROM>::value_type;
@@ -463,11 +474,13 @@ InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::Tenso
 #define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
+        CASE(InferenceEngine::Precision::BF16)
         CASE(InferenceEngine::Precision::U8)
         CASE(InferenceEngine::Precision::U16)
         CASE(InferenceEngine::Precision::I8)
         CASE(InferenceEngine::Precision::I16)
         CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::U64)
         CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::I32)
         CASE(InferenceEngine::Precision::BOOL)
@@ -598,4 +611,46 @@ static short reducePrecisionBitwiseS(const float in) {
     return s;
 }
 }  // namespace Bf16TestUtils
+
+enum class BlobKind {
+    Simple,
+    Compound,
+    BatchOfSimple
+};
+
+inline std::ostream& operator<<(std::ostream& os, BlobKind kind) {
+    switch (kind) {
+    case BlobKind::Simple:
+        return os << "Simple";
+    case BlobKind::Compound:
+        return os << "Compound";
+    case BlobKind::BatchOfSimple:
+        return os << "BatchOfSimple";
+    default:
+        THROW_IE_EXCEPTION << "Test does not support the blob kind";
+  }
+}
+
+inline InferenceEngine::Blob::Ptr makeBlobOfKind(const InferenceEngine::TensorDesc& td, BlobKind blobKind) {
+    using namespace ::InferenceEngine;
+    switch (blobKind) {
+    case BlobKind::Simple:
+        return createAndFillBlob(td);
+    case BlobKind::Compound:
+        return make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>{});
+    case BlobKind::BatchOfSimple: {
+        const auto subBlobsNum = td.getDims()[0];
+        auto subBlobDesc = td;
+        subBlobDesc.getDims()[0] = 1;
+        std::vector<Blob::Ptr> subBlobs;
+        for (size_t i = 0; i < subBlobsNum; i++) {
+            subBlobs.push_back(makeBlobOfKind(subBlobDesc, BlobKind::Simple));
+        }
+        return make_shared_blob<BatchedBlob>(subBlobs);
+    }
+    default:
+        THROW_IE_EXCEPTION << "Test does not support the blob kind";
+    }
+}
+
 }  // namespace FuncTestUtils

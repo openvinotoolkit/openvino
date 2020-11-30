@@ -89,7 +89,7 @@ elif [[ $DISTRO == "ubuntu" ]]; then
     pip_binary=pip3
 
     system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
-    if [ $system_ver = "16.04" ]; then
+    if [ "$system_ver" = "16.04" ]; then
         sudo -E apt-get install -y libpng12-dev
     else
         sudo -E apt-get install -y libpng-dev
@@ -117,9 +117,9 @@ if ! command -v $python_binary &>/dev/null; then
 fi
 
 if [[ $DISTRO == "macos" ]]; then
-    $pip_binary install -r $ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in
+    "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 else
-    sudo -E $pip_binary install -r $ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in
+    sudo -E "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 fi
 
 if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
@@ -127,7 +127,7 @@ if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
 else
     printf "Error: setupvars.sh is not found\n"
 fi
-if ! . $setupvars_path ; then
+if ! . "$setupvars_path" ; then
     printf "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
     exit 1
 fi
@@ -174,18 +174,18 @@ fi
 OS_PATH=$(uname -m)
 NUM_THREADS="-j2"
 
-if [ $OS_PATH == "x86_64" ]; then
+if [ "$OS_PATH" == "x86_64" ]; then
   OS_PATH="intel64"
   NUM_THREADS="-j8"
 fi
 
 build_dir="$HOME/inference_engine_demos_build"
-if [ -e $build_dir/CMakeCache.txt ]; then
-	rm -rf $build_dir/CMakeCache.txt
+if [ -e "$build_dir/CMakeCache.txt" ]; then
+  rm -rf "$build_dir/CMakeCache.txt"
 fi
-mkdir -p $build_dir
-cd $build_dir
-cmake -DCMAKE_BUILD_TYPE=Release $demos_path
+mkdir -p "$build_dir"
+cd "$build_dir"
+cmake -DCMAKE_BUILD_TYPE=Release "$demos_path"
 make $NUM_THREADS security_barrier_camera_demo
 
 # Step 3. Run samples
@@ -193,7 +193,7 @@ printf "${dashes}"
 printf "Run Inference Engine security_barrier_camera demo\n\n"
 
 binaries_dir="${build_dir}/${OS_PATH}/Release"
-cd $binaries_dir
+cd "$binaries_dir"
 
 print_and_run ./security_barrier_camera_demo -d "$target" -d_va "$target" -d_lpr "$target" -i "$target_image_path" "${model_args[@]}" ${sampleoptions}
 

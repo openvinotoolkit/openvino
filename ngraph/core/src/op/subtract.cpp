@@ -48,7 +48,7 @@ shared_ptr<ngraph::Node> ngraph::operator-(const Output<Node> arg0, const Output
     return make_shared<op::v0::Subtract>(arg0, arg1);
 }
 
-namespace
+namespace subtract
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -86,6 +86,8 @@ namespace
             break;
             TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
             break;
+            TYPE_CASE(bf16)(arg0, arg1, out, broadcast_spec);
+            break;
         default: rc = false; break;
         }
         return rc;
@@ -96,7 +98,7 @@ bool op::v0::Subtract::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Subtract::evaluate");
-    return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
+    return subtract::evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 // ------------------------------- v1 ------------------------------------------
@@ -121,5 +123,5 @@ bool op::v1::Subtract::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Subtract::evaluate");
-    return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
+    return subtract::evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
 }

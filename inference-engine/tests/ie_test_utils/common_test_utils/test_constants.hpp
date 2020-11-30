@@ -11,7 +11,7 @@ const char DEVICE_GPU[] = "GPU";
 const char DEVICE_HDDL[] = "HDDL";
 const char DEVICE_FPGA[] = "FPGA";
 const char DEVICE_MYRIAD[] = "MYRIAD";
-const char DEVICE_KEEMBAY[] = "KMB";
+const char DEVICE_KEEMBAY[] = "VPUX";
 const char DEVICE_MULTI[] = "MULTI";
 const char DEVICE_HETERO[] = "HETERO";
 

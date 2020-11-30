@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "backend/gna_types.h"
@@ -205,8 +205,8 @@ class LayerInfo {
     bool isConcat() const noexcept {
         return isOfType("concat");
     }
-    bool isFakeQnatize() const noexcept {
-        return isOfType("FakeQnatize");
+    bool isFakeQuantize() const noexcept {
+        return isOfType("FakeQuantize");
     }
     bool isNonFunctional() const noexcept {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();

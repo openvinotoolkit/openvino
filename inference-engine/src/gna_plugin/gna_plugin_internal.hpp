@@ -30,20 +30,21 @@ private:
 
 public:
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-                                                const InferenceEngine::ICNNNetwork &network,
+                                                const InferenceEngine::CNNNetwork &network,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
         plgPtr = plg;
-        return std::make_shared<GNAExecutableNetwork>(*cloneNetwork(network), plg);
+        InferenceEngine::CNNNetwork clonedNetwork(cloneNetwork(network));
+        return std::make_shared<GNAExecutableNetwork>(clonedNetwork, plg);
     }
 
     void SetConfig(const std::map<std::string, std::string> &config) override {
         defaultConfig.UpdateFromMap(config);
     }
 
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(
+    InferenceEngine::ExecutableNetwork ImportNetwork(
                                                 const std::string &modelFileName,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
@@ -69,14 +70,13 @@ public:
         return GetCurrentPlugin()->GetName();
     }
 
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
-                      const std::map<std::string, std::string>& config,
-                      InferenceEngine::QueryNetworkResult& res) const override {
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
+                                                     const std::map<std::string, std::string>& config) const override {
         auto plg = GetCurrentPlugin();
         try {
             plg->SetConfig(config);
         } catch (InferenceEngine::details::InferenceEngineException) {}
-        plg->QueryNetwork(network, config, res);
+        return plg->QueryNetwork(network, config);
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name,

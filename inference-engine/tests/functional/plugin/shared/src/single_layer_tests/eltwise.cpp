@@ -18,12 +18,15 @@ namespace LayerTestsDefinitions {
 std::string EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams> obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout;
     ngraph::helpers::InputLayerType secondaryInputType;
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, eltwiseOpType, secondaryInputType, opType, netPrecision, targetName, additional_config) = obj.param;
+    std::tie(inputShapes, eltwiseOpType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetName, additional_config) =
+        obj.param;
     std::ostringstream results;
 
     results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -31,7 +34,10 @@ std::string EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTest
     results << "secondaryInputType=" << secondaryInputType << "_";
     results << "opType=" << opType << "_";
     results << "netPRC=" << netPrecision.name() << "_";
-    results << "targetDevice=" << targetName;
+    results << "inPRC=" << inPrc.name() << "_";
+    results << "outPRC=" << outPrc.name() << "_";
+    results << "inL=" << inLayout << "_";
+    results << "trgDev=" << targetName;
     return results.str();
 }
 
@@ -57,7 +63,8 @@ void EltwiseLayerTest::SetUp() {
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, eltwiseType, secondaryInputType, opType, netPrecision, targetDevice, additional_config) = this->GetParam();
+    std::tie(inputShapes, eltwiseType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetDevice, additional_config) =
+        this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     std::vector<size_t> inputShape1, inputShape2;
@@ -86,10 +93,23 @@ void EltwiseLayerTest::SetUp() {
             FAIL() << "Unsupported Secondary operation type";
     }
 
-    auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);
-    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+    std::shared_ptr<ngraph::Node> secondaryInput;
+    if (eltwiseType == ngraph::helpers::EltwiseTypes::DIVIDE ||
+        eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD ||
+        eltwiseType == ngraph::helpers::EltwiseTypes::MOD) {
+        std::vector<float> data(ngraph::shape_size(shape_input_secondary));
+        data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary), 10, 2);
+        secondaryInput = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, data);
+    } else if (eltwiseType == ngraph::helpers::EltwiseTypes::POWER && secondaryInputType == ngraph::helpers::InputLayerType::CONSTANT) {
+        // to avoid floating point overflow on some platforms, let's fill the constant with small numbers.
+        secondaryInput = ngraph::builder::makeConstant<float>(ngPrc, shape_input_secondary, {}, true, 3);
+    } else {
+        secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);
+        if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+            input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        }
     }
+
     auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
 }

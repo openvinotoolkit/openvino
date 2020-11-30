@@ -17,34 +17,37 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
-        {Sigmoid,     {}},
-        {Tanh,        {}},
-        {Relu,        {}},
-        {Exp,         {}},
-        {Log,         {}},
-        {Sign,        {}},
-        {Abs,         {}},
-        {Gelu,        {}},
-        {Clamp,       {{-2.0f, 2.0f}}},
-        {Negative,    {}},
-        {Acos,        {}},
-        {Asin,        {}},
-        {Atan,        {}},
-        {Cos,         {}},
-        {Cosh,        {}},
-        {Floor,       {}},
-        {Sin,         {}},
-        {Sinh,        {}},
-        {Sqrt,        {}},
-        {Tan,         {}},
-        {Elu,         {{0.1f}}},
-        {Erf,         {}},
-        {HardSigmoid, {{0.2f, 0.5f}}},
-        {Selu,        {{1.6732f, 1.0507f}}},
-        {Ceiling,     {}},
-        {Mish,        {}},
-        {HSwish,      {}},
-        {SoftPlus,    {}}
+        {Sigmoid,               {}},
+        {Tanh,                  {}},
+        {Relu,                  {}},
+        {Exp,                   {}},
+        {Log,                   {}},
+        {Sign,                  {}},
+        {Abs,                   {}},
+        {Gelu,                  {}},
+        {Clamp,                 {{-2.0f, 2.0f}}},
+        {Negative,              {}},
+        {Acos,                  {}},
+        {Asin,                  {}},
+        {Atan,                  {}},
+        {Cos,                   {}},
+        {Cosh,                  {}},
+        {Floor,                 {}},
+        {Sin,                   {}},
+        {Sinh,                  {}},
+        {Sqrt,                  {}},
+        {Tan,                   {}},
+        {Elu,                   {{0.1f}}},
+        {Erf,                   {}},
+        {HardSigmoid,           {{0.2f, 0.5f}}},
+        {Selu,                  {{1.6732f, 1.0507f}}},
+        {Ceiling,               {}},
+        {Mish,                  {}},
+        {HSwish,                {}},
+        {SoftPlus,              {}},
+        {HSigmoid,              {}},
+        {RoundHalfToEven,       {}},
+        {RoundHalfAwayFromZero, {}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -55,10 +58,14 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

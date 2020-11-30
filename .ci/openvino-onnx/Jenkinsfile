@@ -4,6 +4,25 @@
 DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
 DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 
+// workaround for aborting previous builds on PR update
+@NonCPS
+ def stopPreviousRunningBuilds() {
+     def jobname = env.JOB_NAME
+     if (jobname.startsWith("onnx/openvino_ci/PR")){
+         def buildnum = env.BUILD_NUMBER.toInteger()
+         def job = Jenkins.instance.getItemByFullName(jobname)
+         def job_newest = job.builds.first()
+         for (build in job.builds.reverse()[0..<-1]) {
+             if (build.isBuilding()){
+                 echo "Stop task = ${build} because newest #${job_newest} is on the way"
+                 build.doStop();
+                 continue;
+             }
+         }
+     }
+
+ }
+
 def getGitPrInfo(String project) {
     def gitPrInfo = [
         prAuthorEmail : "",
@@ -69,7 +88,9 @@ def buildDockerImage() {
 def runTests() {
     sh """
         docker run --name ${DOCKER_CONTAINER_NAME} \
-        --volume ${HOME}/ONNX_CI/onnx-models/.onnx:/root/.onnx ${DOCKER_IMAGE_TAG}
+        --volume ${HOME}/ONNX_CI/onnx-models-28-Oct/.onnx/model_zoo:/root/.onnx/model_zoo \
+        --volume ${HOME}/ONNX_CI/onnx-models/.onnx/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT \
+        ${DOCKER_IMAGE_TAG}
     """
 }
 
@@ -88,6 +109,7 @@ pipeline {
     stages {
         stage("Clone repository") {
             steps{
+                stopPreviousRunningBuilds()
                 dir("${WORKDIR}") {
                     checkout scm
                 }
@@ -102,6 +124,9 @@ pipeline {
             }
         }
         stage("Run tests") {
+            options {
+                  timeout(time: 15, unit: 'MINUTES')
+              }
             steps{
                 runTests()
             }

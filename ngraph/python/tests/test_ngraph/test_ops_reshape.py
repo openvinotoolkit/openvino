@@ -19,7 +19,7 @@ import pytest
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
-from tests import xfail_issue_34323, xfail_issue_35929
+from tests import xfail_issue_40957, xfail_issue_35929
 
 
 def test_concat():
@@ -37,7 +37,7 @@ def test_concat():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 @pytest.mark.parametrize(
     "val_type, value", [(bool, False), (bool, np.empty((2, 2), dtype=bool))]
 )
@@ -50,16 +50,16 @@ def test_constant_from_bool(val_type, value):
 @pytest.mark.parametrize(
     "val_type, value",
     [
-        pytest.param(np.float32, np.float32(0.1234), marks=xfail_issue_34323),
+        pytest.param(np.float32, np.float32(0.1234), marks=xfail_issue_40957),
         pytest.param(np.float64, np.float64(0.1234), marks=xfail_issue_35929),
-        pytest.param(np.int8, np.int8(-63), marks=xfail_issue_34323),
-        pytest.param(np.int16, np.int16(-12345), marks=xfail_issue_34323),
-        pytest.param(np.int32, np.int32(-123456), marks=xfail_issue_34323),
-        pytest.param(np.int64, np.int64(-1234567), marks=xfail_issue_34323),
-        pytest.param(np.uint8, np.uint8(63), marks=xfail_issue_34323),
-        pytest.param(np.uint16, np.uint16(12345), marks=xfail_issue_34323),
-        pytest.param(np.uint32, np.uint32(123456), marks=xfail_issue_34323),
-        pytest.param(np.uint64, np.uint64(1234567), marks=xfail_issue_34323),
+        pytest.param(np.int8, np.int8(-63), marks=xfail_issue_40957),
+        pytest.param(np.int16, np.int16(-12345), marks=xfail_issue_40957),
+        pytest.param(np.int32, np.int32(-123456), marks=xfail_issue_40957),
+        pytest.param(np.int64, np.int64(-1234567), marks=xfail_issue_40957),
+        pytest.param(np.uint8, np.uint8(63), marks=xfail_issue_40957),
+        pytest.param(np.uint16, np.uint16(12345), marks=xfail_issue_40957),
+        pytest.param(np.uint32, np.uint32(123456), marks=xfail_issue_40957),
+        pytest.param(np.uint64, np.uint64(1234567), marks=xfail_issue_40957),
     ],
 )
 def test_constant_from_scalar(val_type, value):
@@ -71,7 +71,7 @@ def test_constant_from_scalar(val_type, value):
 @pytest.mark.parametrize(
     "val_type",
     [
-        pytest.param(np.float32, marks=xfail_issue_34323),
+        pytest.param(np.float32, marks=xfail_issue_40957),
         pytest.param(np.float64, marks=xfail_issue_35929),
     ],
 )
@@ -82,7 +82,7 @@ def test_constant_from_float_array(val_type):
     assert np.allclose(result, input_data)
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 @pytest.mark.parametrize(
     "val_type, range_start, range_end",
     [
@@ -223,7 +223,7 @@ def test_reshape_v1():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_40957
 def test_shape_of():
     input_tensor = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
 

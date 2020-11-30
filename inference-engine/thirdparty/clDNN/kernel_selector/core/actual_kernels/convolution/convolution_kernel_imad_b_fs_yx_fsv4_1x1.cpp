@@ -120,7 +120,7 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::ValidateAutoTuneParams(const convo
 }
 
 ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetAutoTuneParams(const convolution_params& params,
-                                                                                                         int index) const {
+                                                                                                                   int index) const {
     AutoTuneParams tune_params;
     bool selected = false;
     if (index >= 0 && index < static_cast<int>(all_tune_params.size())) {
@@ -143,13 +143,13 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b
 }
 
 JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetJitConstants(const convolution_params& params,
-                                                                 const DispatchData& kd) const {
-    auto mem_consts = Parent::GetJitConstants(params, kd);
+                                                                      const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
-    auto simd = kd.lws0;
-    auto features_per_wi = kd.cldnnStyle.blockHeight;
-    auto lwg_depth = kd.lws2;
-    auto force_prefetch = kd.cldnnStyle.prefetch == 1;
+    auto simd = dispatchData.lws[0];
+    auto features_per_wi = dispatchData.cldnnStyle.blockHeight;
+    auto lwg_depth = dispatchData.lws[2];
+    auto force_prefetch = dispatchData.cldnnStyle.prefetch == 1;
 
     mem_consts.AddConstant(MakeJitConstant("SIMD", simd));
     mem_consts.AddConstant(MakeJitConstant("FEATURES_PER_WI", features_per_wi));
@@ -175,8 +175,8 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetJitConstants(const conv
 }  // GetJitConstants
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::SetDefault(const convolution_params& params,
-                                                                                   int autoTuneIndex) const {
-    DispatchData kd;
+                                                                                        int autoTuneIndex) const {
+    DispatchData dispatchData;
     auto& out = params.output;
 
     auto autoTuneParam = GetAutoTuneParams(params, autoTuneIndex);
@@ -184,31 +184,23 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Set
     auto simd = autoTuneParam.simd;
     auto features_per_wi = autoTuneParam.features_per_wi;
 
-    std::vector<size_t> global = { RoundUp(out.X().v * out.Y().v, simd), CeilDiv(out.Feature().v, features_per_wi), out.Batch().v * lwg_depth };
-    std::vector<size_t> local = { simd, 1, lwg_depth};
+    dispatchData.gws = { RoundUp(out.X().v * out.Y().v, simd), CeilDiv(out.Feature().v, features_per_wi), out.Batch().v * lwg_depth };
+    dispatchData.lws = { simd, 1, lwg_depth};
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.gemmStyle = { 0, 0, 0, 0, 0, 0 };
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
+    dispatchData.cldnnStyle.blockHeight = features_per_wi;
+    dispatchData.cldnnStyle.blockWidth = simd;
+    dispatchData.cldnnStyle.prefetch = autoTuneParam.force_prefetch ? 1 : 0;
 
-    kd.gemmStyle = { 0, 0, 0, 0, 0, 0 };
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    kd.cldnnStyle.blockHeight = features_per_wi;
-    kd.cldnnStyle.blockWidth = simd;
-    kd.cldnnStyle.prefetch = autoTuneParam.force_prefetch ? 1 : 0;
-
-    kd.efficiency = FORCE_PRIORITY_1;
-
-    return kd;
+    return dispatchData;
 }  // SetDefault
 
 KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetTunedKernelsDataByIndex(const Params& params,
-                                                                           const optional_params& options,
-                                                                           int autoTuneIndex) const {
+                                                                                const optional_params& options,
+                                                                                int autoTuneIndex) const {
     auto convParams = static_cast<const convolution_params&>(params);
     auto tuneParams = GetAutoTuneParams(convParams, autoTuneIndex);
     return GetCommonKernelsData(params, options, tuneParams.exeMode, autoTuneIndex);
@@ -219,7 +211,7 @@ KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetKernelsData(const Params
 }
 
 KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetKernelsDataForAutoTune(const Params& params,
-                                                                          const optional_params& options) const {
+                                                                               const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
