@@ -129,6 +129,13 @@ public:
         return cloned;
     }
 
+    /**
+     * @brief      Visits attributes of the node
+     *
+     * @param[in]  visitor  An attribute visitor
+     *
+     * @return     Returns `true` if an operation has completed successfully
+     */
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
         return true;
     }

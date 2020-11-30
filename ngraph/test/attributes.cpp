@@ -1350,10 +1350,10 @@ TEST(attributes, reorg_yolo_op_strides)
 TEST(attributes, roi_pooling_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset3::ROIPooling>();
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
-    const auto coords = make_shared<op::Parameter>(element::i32, Shape{2, 3});
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
+    const auto coords = make_shared<op::Parameter>(element::f32, Shape{2, 5});
 
-    const auto op = make_shared<opset3::ROIPooling>(data, coords, Shape{5, 5}, 0.123, "Bilinear");
+    const auto op = make_shared<opset3::ROIPooling>(data, coords, Shape{5, 5}, 0.123, "bilinear");
     NodeBuilder builder(op);
     const auto g_op = as_type_ptr<opset3::ROIPooling>(builder.create());
 
