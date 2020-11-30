@@ -32,7 +32,7 @@ namespace ngraph
                 ROIPooling() = default;
                 /// \brief Constructs a ROIPooling operation
                 ///
-                /// \param input          Input feature map {N, C, ...}
+                /// \param input          Input feature map {N, C, H, W}
                 /// \param coords         Coordinates of bounding boxes
                 /// \param output_size    Height/Width of ROI output features
                 /// \param spatial_scale  Ratio of input feature map over input image size
@@ -41,7 +41,7 @@ namespace ngraph
                            const Output<Node>& coords,
                            const Shape& output_size,
                            const float spatial_scale,
-                           const std::string& method);
+                           const std::string& method = "max");
 
                 void validate_and_infer_types() override;
 
@@ -58,7 +58,10 @@ namespace ngraph
                 float m_spatial_scale;
                 std::string m_method;
             };
-        }
+
+        } // namespace v0
         using v0::ROIPooling;
-    }
-}
+
+    } // namespace op
+
+} // namespace ngraph
