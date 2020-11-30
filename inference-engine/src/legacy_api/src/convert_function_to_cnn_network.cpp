@@ -849,7 +849,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-
     addSpecificCreator({"Clamp"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                  const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Clamp", details::convertPrecision(node->get_output_element_type(0))};
@@ -865,7 +864,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
-
 
     addSpecificCreator({"Elu"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                  const std::map<std::string, std::string>& params) -> CNNLayerPtr {
