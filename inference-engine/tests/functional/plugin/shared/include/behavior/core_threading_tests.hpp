@@ -184,7 +184,10 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
 
 using Threads = unsigned int;
 using Iterations = unsigned int;
-using CoreThreadingParams = std::tuple<Params, Threads, Iterations>;
+using ModelClass = std::string;
+using CoreThreadingParams = std::tuple<Params, Threads, Iterations, ModelClass>;
+std::string ConvPoolReluModelSetClass = "ConvPoolRelu";
+std::string DefaultModelSetClass = "";
 
 class CoreThreadingTestsWithIterations : public ::testing::TestWithParam<CoreThreadingParams>,
     public CoreThreadingTestsBase {
@@ -193,10 +196,10 @@ public:
         std::tie(deviceName, config) = std::get<0>(GetParam());
         numThreads = std::get<1>(GetParam());
         numIterations = std::get<2>(GetParam());
-        modelType = config["MODEL_TYPE"];
+        modelSetClass = std::get<3>(GetParam());
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<Params, Threads, Iterations>> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<CoreThreadingParams > obj) {
         unsigned int numThreads, numIterations;
         std::string deviceName;
         Config config;
@@ -215,13 +218,13 @@ public:
         return result.str();
     }
 
-    std::string modelType;
+    std::string modelSetClass;
     unsigned int numIterations;
     unsigned int numThreads;
 
     std::vector<InferenceEngine::CNNNetwork> networks;
-    void SetupNetworks(InferenceEngine::Core& ie) {
-        if (modelType == "ConvPoolRelu") {
+    void SetupNetworks() {
+        if (modelSetClass == ConvPoolReluModelSetClass) {
             for (unsigned i = 0; i < numThreads; i++) {
                 networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeConvPoolRelu()));
             }
@@ -243,7 +246,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
-    SetupNetworks(ie);
+    SetupNetworks();
 
     ie.SetConfig(config, deviceName);
     runParallel([&] () {
@@ -259,7 +262,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
-    SetupNetworks(ie);
+    SetupNetworks();
 
     ie.SetConfig(config, deviceName);
     runParallel([&] () {
@@ -306,6 +309,8 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     std::atomic<unsigned int> counter{0u};
+
+    SetupNetworks();
 
     runParallel([&] () {
         auto value = counter++;
