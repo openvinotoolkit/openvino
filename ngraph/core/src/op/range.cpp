@@ -218,7 +218,8 @@ bool evaluate_v4_range(const HostTensorPtr& out,
     }
     Shape out_shape = Shape({static_cast<size_t>(out_size)});
     out->set_shape(out_shape);
-    runtime::reference::range(&start_val, &step_val, out_shape, out->get_data_ptr<ET>());
+    runtime::reference::range(
+        &start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
     return true;
 }
 
@@ -493,7 +494,8 @@ bool try_evaluate_range(const HostTensorPtr& out,
         }
         Shape out_shape = Shape({static_cast<size_t>(out_size)});
         out->set_shape(out_shape);
-        runtime::reference::range(&start_val, &step_val, out_shape, out->get_data_ptr<ET>());
+        runtime::reference::range(
+            &start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
         return true;
     }
     else
