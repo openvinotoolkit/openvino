@@ -454,6 +454,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
                         return false;
 
                     auto type = LayerTypeFromStr(l->type);
+                    auto next = GetNextLayers(l);
 
                     if (type == LayerType::ScaleShift) {
                         // ScaleShift is supposed to return Dequantized values, so in most of the cases we can convert it's output to FP16
