@@ -126,6 +126,11 @@ function(addIeTarget)
             ie_developer_export_targets(${ARG_NAME} ${ARG_EXPORT_DEPENDENCIES})
         endif()
     endif()
+    if(WIN32)
+        # Provide default compile pdb name equal to target name
+        set_target_properties(${ARG_NAME} PROPERTIES COMPILE_PDB_NAME ${ARG_NAME})
+    endif()
+
 endfunction()
 
 #[[

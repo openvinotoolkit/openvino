@@ -18,7 +18,7 @@ The batch size that was set in passed <code>CNNNetwork</code> object will be use
 
 Here is a code example:
 
-@snippet openvino/docs/snippets/DynamicBatching.cpp part0
+@snippet snippets/DynamicBatching.cpp part0
 
 
 ## Limitations

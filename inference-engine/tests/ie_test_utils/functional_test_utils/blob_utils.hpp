@@ -328,6 +328,16 @@ convertArrayPrecision<InferenceEngine::Precision::FP16, InferenceEngine::Precisi
     InferenceEngine::PrecisionUtils::f16tof32Arrays(dst, src, nelem, 1.0f, 0.0f);
 }
 
+template<>
+void inline
+convertArrayPrecision<InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32>(float *dst, const short *src,
+                                                                                          size_t nelem) {
+    auto srcBf16 = reinterpret_cast<const ngraph::bfloat16*>(src);
+    for (size_t i = 0; i < nelem; i++) {
+        dst[i] = static_cast<float>(srcBf16[i]);
+    }
+}
+
 template<InferenceEngine::Precision::ePrecision PREC_FROM, InferenceEngine::Precision::ePrecision PREC_TO>
 InferenceEngine::Blob::Ptr inline convertBlobPrecision(const InferenceEngine::Blob::Ptr &blob) {
     using from_d_type = typename InferenceEngine::PrecisionTrait<PREC_FROM>::value_type;
@@ -464,6 +474,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::Tenso
 #define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
+        CASE(InferenceEngine::Precision::BF16)
         CASE(InferenceEngine::Precision::U8)
         CASE(InferenceEngine::Precision::U16)
         CASE(InferenceEngine::Precision::I8)

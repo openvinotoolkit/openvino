@@ -3,7 +3,8 @@
 //
 
 /**
- * @file A header file with caseless containers
+ * @file caseless.hpp
+ * @brief A header file with caseless containers
  */
 
 #pragma once

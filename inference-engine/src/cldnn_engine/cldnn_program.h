@@ -85,7 +85,7 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::ICNNNetwork &network, std::shared_ptr<const cldnn::engine> engine, const Config& config);
+    Program(InferenceEngine::CNNNetwork &network, std::shared_ptr<const cldnn::engine> engine, const Config& config);
     std::shared_ptr<cldnn::program> getCompiledProgram(int program_id = 0);
 
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
@@ -241,7 +241,7 @@ private:
     std::shared_ptr<const cldnn::engine> m_engine;
     Config m_config;
 
-    std::shared_ptr<cldnn::program> BuildProgram(InferenceEngine::ICNNNetwork &network);
+    std::shared_ptr<cldnn::program> BuildProgram(InferenceEngine::CNNNetwork &network);
 
     void InitProfileInfo(const std::string& layerName,
                          const std::string& layerType,
