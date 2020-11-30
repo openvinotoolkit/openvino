@@ -205,6 +205,8 @@ kernel_selector::weights_layout to_weights_layout(format f) {
         case format::bfyx:
         case format::oiyx:
             return kernel_selector::weights_layout::oiyx;
+        case format::ioyx:
+            return kernel_selector::weights_layout::ioyx;
         case format::fyxb:
             return kernel_selector::weights_layout::iyxo;
         case format::byxf:
@@ -267,6 +269,8 @@ kernel_selector::weights_layout to_weights_layout(format f) {
         case format::bfzyx:
         case format::oizyx:
             return kernel_selector::weights_layout::oizyx;
+        case format::iozyx:
+            return kernel_selector::weights_layout::iozyx;
         case format::bs_xs_xsv8_bsv8:
             return kernel_selector::weights_layout::os_i_osv8__ai8;
         case format::bs_xs_xsv8_bsv16:
@@ -287,8 +291,12 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::os_zyxi_osv16;
         case format::goiyx:
             return kernel_selector::weights_layout::goiyx;
+        case format::gioyx:
+            return kernel_selector::weights_layout::gioyx;
         case format::goizyx:
             return kernel_selector::weights_layout::goizyx;
+        case format::giozyx:
+            return kernel_selector::weights_layout::giozyx;
         case format::g_os_iyx_osv16:
             return kernel_selector::weights_layout::g_os_iyx_osv16;
         case format::g_os_iyx_osv32:

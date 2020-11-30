@@ -13,7 +13,7 @@
 #include <vector>
 #include <tuple>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include "cpp_interfaces/impl/ie_memory_state_internal.hpp"
+#include "cpp_interfaces/impl/ie_variable_state_internal.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_output_desc.hpp"
@@ -58,6 +58,9 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     bool do_rotate_input = false;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
+    bool do_rotate_output = false;
+    uint32_t num_rotate_output_rows = 0;
+    uint32_t num_rotate_output_columns = 0;
     uint32_t *ptr_active_indices = nullptr;
     uint32_t num_active_indices = 0;
     uint32_t num_group_in = 0;
@@ -96,23 +99,23 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     std::string GetName() const noexcept override;
     void SetName(const std::string & pluginName) noexcept override;
 
-    void LoadNetwork(InferenceEngine::ICNNNetwork &network);
+    void LoadNetwork(InferenceEngine::CNNNetwork &network);
 
     bool Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap);
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
-    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::CNNNetwork &network,
         const std::map<std::string, std::string> &config_map) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::CNNNetwork &network,
                                   const std::map<std::string, std::string> &config_map,
                                   InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     bool Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
     void SetCore(InferenceEngine::ICore*) noexcept override {}
     InferenceEngine::ICore* GetCore() const noexcept override {return nullptr;}
     void Reset();
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork &network,
                                                      const std::map<std::string, std::string>& config) const override;
     uint32_t QueueInference(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
     bool Wait(uint32_t idx);
@@ -219,6 +222,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                     int idx = 0);
 
     void UpdateFieldsFromConfig();
+    void UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork &);
+    void UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork &);
 };
 
 }  // namespace GNAPluginNS

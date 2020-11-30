@@ -1047,25 +1047,32 @@ void PwlApply32(intel_dnn_component_t *component,
             }
             break;
         case kActFakeQuantize: {
-            auto input_low   = transform->func_id.args.fakeQuantize.input_low;
-            auto input_high  = transform->func_id.args.fakeQuantize.input_high;
-            auto output_low  = transform->func_id.args.fakeQuantize.output_low;
-            auto output_high = transform->func_id.args.fakeQuantize.output_high;
             auto levels  = transform->func_id.args.fakeQuantize.levels;
-            // TODO: this special modification for spedup-compute give different result with straight FQ forulae
-            // but this used in referencen graph FakeQuantize implementations so we need to honor it for a while
-            float scaleInput = (input_high - input_low) / (levels-1);
-            float scaleOutputs = (output_high - output_low) / (levels-1);
 
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
+                auto inputChannel  = transform->func_id.args.fakeQuantize.inputPerChannel ? i : 0;
+                auto outputChannel = transform->func_id.args.fakeQuantize.outputPerChannel ? i : 0;
+
+                auto input_low   = transform->func_id.args.fakeQuantize.input_low[inputChannel];
+                auto input_high  = transform->func_id.args.fakeQuantize.input_high[inputChannel];
+                auto output_low  = transform->func_id.args.fakeQuantize.output_low[outputChannel];
+                auto output_high = transform->func_id.args.fakeQuantize.output_high[outputChannel];
+
+                // TODO: this special modification for spedup-compute give different result with straight FQ formulae
+                // but this used in reference graph FakeQuantize implementations so we need to honor it for a while
+                float scaleInput = (input_high - input_low) / (levels-1);
+                float scaleOutputs = (output_high - output_low) / (levels-1);
+
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    auto x = ptr_in[i * num_columns + j];
+                    auto offset = i * num_columns + j;
+                    auto x = ptr_in[offset];
+
                     if (x < std::min(input_low, input_high)) {
-                        ptr_out[i * num_columns + j] = output_low;
+                        ptr_out[offset] = output_low;
                     } else if (x > std::max(input_low, input_high)) {
-                        ptr_out[i * num_columns + j] = output_high;
+                        ptr_out[offset] = output_high;
                     } else {
-                        ptr_out[i * num_columns + j] = nearbyint((x - input_low) / scaleInput) * scaleOutputs + output_low;
+                        ptr_out[offset] = nearbyint((x - input_low) / scaleInput) * scaleOutputs + output_low;
                     }
                 }
             }

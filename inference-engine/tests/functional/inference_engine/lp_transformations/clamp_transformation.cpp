@@ -12,8 +12,8 @@
 #include <low_precision/clamp.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-#include "ngraph_functions/low_precision_transformations/clamp_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/clamp_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 
@@ -331,9 +331,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, {{ 128.f, 0.f, 128.f }, ngraph::element::f32}, {}},
+            {
+                {ngraph::element::f32},
+                {{ 128.f, 0.f, 128.f }},
+                {{ 3.f, 3.f, 3.f }}
+            },
             ngraph::element::f32,
-            {{}, {}, {{3.f, 3.f, 3.f}}}
+            {{}, {}, {}}
         }
     },
     // U8 without asymmetric quantization

@@ -111,8 +111,6 @@ void FakeQuantizeLayerTest::SetUp() {
             {fqDirectArg[2]},
             {fqDirectArg[3]});
     }
-
-
     auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};
@@ -147,7 +145,7 @@ TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
         return;
     }
 
-    size_t nIterations = (inputDataMax - inputDataMin) / inputDataResolution;
+    size_t nIterations = 1;
     for (; nIterations != 0; nIterations--) {
         UpdateSeed();
         Infer();
