@@ -31,6 +31,16 @@ from mo.ops.strided_slice import StridedSlice
 
 
 def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape: np.ndarray, axes: np.ndarray, node_name: str):
+    """
+    This function creates "begin"/"end" parameters for the StridedSlice based on Slice's "starts"/"ends"
+
+    :param graph: graph to operate on.
+    :param slice_border_port: node output port that provides "starts"/"ends" values for the Slice.
+    :param shape: input shape of the Slice
+    :param axes: axes that "starts" and "ends" apply to
+    :param node_name: Slice node name
+    :return: Concat node that forms "begin"/"end" values for the StridedSlice
+    """
     # the value for 'starts' or 'ends' might be maximum/minimum possible value of int64. This
     # value must be converted to maximum/minimum of int32 because such big values do not fit into the int32 which is
     # supported by the StridedSlice layer
@@ -38,11 +48,15 @@ def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape: np.n
         graph, Clamp, port_value_dict={1: np.iinfo(np.int32).min, 2: np.iinfo(np.int32).max},
         op_attrs=dict(name=node_name + '/Clamp'))
     clamp.in_port(0).connect(slice_border_port)
+    # we have to convert "starts"/"ends" values from the network to one data type with constant values that are created
+    # here to prevent type errors in Concat node
     cast = Cast(graph, dict(name=node_name + '/CastToI64', dst_type=np.int64)).create_node()
     cast.in_port(0).connect(clamp.out_port(0))
     concat = Concat(graph, dict(name=node_name + '/Concat', axis=0)).create_node()
     for value_idx, port_idx in enumerate(axes):
         concat.add_input_port(port_idx)
+        # "axes" may not be sorted, so we need to split "starts"/"ends" values and connect each value to the correct
+        # Concat input port
         value = create_op_with_const_inputs(
             graph, Gather, port_value_dict={1: int64_array([value_idx]), 2: int64_array(0)},
             op_attrs={'name': node_name + '/Gather'})
@@ -60,7 +74,7 @@ def create_ss_interval_border(graph: Graph, slice_border_port: Port, shape: np.n
 
 class ConvertSlice(MiddleReplacementPattern):
     """
-    This class converts a Slice operation to StridedSlice in reshape-able way by parsing the 'start' and 'end'
+    This class converts a Slice operation to StridedSlice in reshape-able way by parsing the 'starts' and 'ends'
     parameters based on the 'axes' parameter
     """
 
