@@ -1272,6 +1272,9 @@ void GNAGraphCompiler::FillWeightOfAligningFilter(InferenceEngine::CNNLayerPtr l
     uint32_t num_rows_in = InferenceEngine::details::product(++begin(inputs->getDims()), end(inputs->getDims()));
     uint32_t num_rows_out = InferenceEngine::details::product(++begin(outputs->getDims()), end(outputs->getDims()));
 
+    auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
+    auto scaleFactor = quant ? quant->_weights_quant.GetScale(): 1.0f;
+
     if (!ptrWeights) {
         THROW_GNA_EXCEPTION << "Weights memory is not allocated!!!";
     }
@@ -1285,7 +1288,7 @@ void GNAGraphCompiler::FillWeightOfAligningFilter(InferenceEngine::CNNLayerPtr l
                 *float_ptr = 1.0f;
             } else {
                 auto int_ptr = reinterpret_cast<uint16_t*>(mem_ptr);
-                *int_ptr = 1;
+                *int_ptr = 1 * scaleFactor;
             }
             ++out;
         }

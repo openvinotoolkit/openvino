@@ -181,14 +181,9 @@ private :
             THROW_IE_EXCEPTION << "Activation layer '" << cnnLayer->name << "' does not have functional previous layer\n";
         }
 
-        if (LayerInfo(prevLayer).isWeightable() &&
+        if ((LayerInfo(prevLayer).isWeightable() || LayerInfo(prevLayer).isCropAffined()) &&
             (layerInfo.isIdentity() || layerInfo.isRelu() || layerInfo.isSign() || layerInfo.isAbs() || layerInfo.isClamp())) {
-            auto wl = dynamic_cast<InferenceEngine::WeightableLayer*>(prevLayer.get());
-            if (!wl) {
-                THROW_GNA_EXCEPTION << "Incorrect Weightable Layer pointer\n";
-            }
-
-            auto prevLayerQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+             auto prevLayerQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
             auto maxWeightsVal = std::max(std::abs(prevLayerQuant->_weights_quant.GetMinValues().front()),
                 std::abs(prevLayerQuant->_weights_quant.GetMaxValues().front()));
             auto srcToDstRatio = quant->_src_quant.GetScale() / scaleFactor;
@@ -208,15 +203,20 @@ private :
         }
 
         if (scaleFactor > DEFAULT_SCALE_FACTOR && !fp32eq(quant->_src_quant.GetScale(), scaleFactor)) {
-            auto testSlope = gna_slope(1.0, quant->_src_quant.GetScale(), scaleFactor / 2);
+            auto testScaleFactor = scaleFactor / 2;
+            auto testSlope = gna_slope(1.0, quant->_src_quant.GetScale(), testScaleFactor);
             auto testScale = testSlope.slope * testSlope.slope_scale;
 
             auto slope = gna_slope(1.0, quant->_src_quant.GetScale(), scaleFactor);
             auto defaultScale = slope.slope * slope.slope_scale;
 
             if (testScale < defaultScale) {
-                scaleFactor = scaleFactor / 2;
+                scaleFactor = testScaleFactor;
             }
+        }
+
+        if (layerInfo.isRelu()) {
+            //scaleFactor = 4096.0f * 2;
         }
 
         if (quant->_dst_quant.IsScaleSet() && !fp32eq(quant->_dst_quant.GetScale(), scaleFactor)) {
@@ -494,6 +494,23 @@ private :
         return true;
     }
 
+    /**
+    * @brief Calculates and updates scale factor for crop affined layer
+    * @param cnnLayer Input layar for which scale factor is calculated
+    * @param weightsSize Size of weights
+    * @return Returns true if a scale factor was successfully calculated
+    */
+    bool updateCropAffinedLayerScale(InferenceEngine::CNNLayer* cnnLayer, int weightsSize) {
+        auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
+
+        auto weightScaleFactor = 1.0f;
+        quant->_weights_quant.SetScale(weightScaleFactor);
+        quant->_weights_quant.SetMinValues({ 0.0f });
+        quant->_weights_quant.SetMaxValues({ 1.0f });
+        quant->_dst_quant = quant->_src_quant;
+        return true;
+    }
+
  public :
     bool operator()(InferenceEngine::CNNLayer *cnnLayer, int weightsSize, ScaleFactorUpdateResult &result) {
         if ( !cnnLayer ) {
@@ -554,6 +571,8 @@ private :
             return updateActivationLayerScale(cnnLayer, result);
         } else if (layerInfo.isPooling()) {
             return updatePoolingLayerScale(cnnLayer);
+        } else if (layerInfo.isCropAffined()) {
+            return updateCropAffinedLayerScale(cnnLayer, weightsSize);
         } else if (layerInfo.isInput()) {
             // Scale factor calculation for i.e. input layer
             if (quant->_src_quant.GetMinValues().empty()) {
@@ -1364,7 +1383,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             }
 
             if (fp32eq(minWeightsVal, maxWeightsVal) && fp32eq(minWeightsVal, 1.0f) ||
-                LayerInfo(wl).isCropAffined() || LayerInfo(wl).isConcatAlignFilter()) {
+                LayerInfo(wl).isConcatAlignFilter()) {
                 // If all values in weights are equal to -1, 0 and 1 only 1 level is required
                 // to describe all possible weight values.
                 weightsScaleFactor = 1.0f;

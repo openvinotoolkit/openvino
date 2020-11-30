@@ -231,24 +231,22 @@ void make_gna_pwl(const DnnActivation  fun,
                 gnalog() << "=========================== ReLU Segments ===========================\n";
             else
                 gnalog() << "=========================== LeakyReLU Segments ======================\n";
-            int64_t x_lower_scaled = (-max) * in_scale;
-            int32_t y_lower_scaled = (-max) * out_scale;
+            int64_t x_lower_scaled = (-max) * in_scale + 0.5f;
+            int32_t y_lower_scaled = (-max) * out_scale + 0.5f;
             int32_t x_lower = x_lower_scaled;
             int16_t y_lower = y_lower_scaled;
             if (x_lower_scaled < INT32_MIN) {
                 x_lower = INT32_MIN;
-                y_lower_scaled = FLOAT_TO_INT32(INT32_MIN / static_cast<double>(x_lower_scaled) * y_lower_scaled);
+                y_lower_scaled = FLOAT_TO_INT32(x_lower / static_cast<double>(x_lower_scaled) * y_lower_scaled);
                 y_lower = y_lower_scaled;
             }
 
             if (y_lower_scaled < INT16_MIN) {
                 y_lower = INT16_MIN;
-                x_lower_scaled = FLOAT_TO_INT32(INT32_MIN / static_cast<double>(y_lower_scaled) * x_lower_scaled);
+                x_lower_scaled = FLOAT_TO_INT32(y_lower / static_cast<double>(y_lower_scaled) * x_lower_scaled);
                 x_lower = x_lower_scaled;
             }
 
-            if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
-            if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
             gna_pwl[0].yBase = y_lower * fun.args.lrelu.negative_slope;
             s = gna_slope(fun.args.lrelu.negative_slope, in_scale, out_scale);
             gna_pwl[0].xBase = (x_lower & XBASEMASK) | s.slope_scale_index;  // zero out the 2 lsb
@@ -313,10 +311,10 @@ void make_gna_pwl(const DnnActivation  fun,
                     << " vs. expected max: " << abs_max << "\n";
             }
 
-            int64_t x_lower_scaled = (-max) * in_scale;
-            int64_t x_upper_scaled = max * in_scale;
-            int32_t y_lower_scaled = (-max) * out_scale;
-            int32_t y_upper_scaled = max * out_scale;
+            int64_t x_lower_scaled = (-max) * in_scale + 0.5f;
+            int64_t x_upper_scaled = max * in_scale + 0.5f;
+            int32_t y_lower_scaled = (-max) * out_scale + 0.5f;
+            int32_t y_upper_scaled = max * out_scale + 0.5f;
             int32_t x_lower = x_lower_scaled;
             int32_t x_upper = x_upper_scaled;
             int16_t y_lower = y_lower_scaled;
