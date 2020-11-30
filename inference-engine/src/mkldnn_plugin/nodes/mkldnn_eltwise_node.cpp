@@ -1115,7 +1115,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                     blocks[i] = dims[order[i]];
                 }
 
-                return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
+                return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
             } else if (lt == Blocked && edge->getDims()[1] != 1) {
                 size_t blockSize = mayiuse(x64::avx512_common) ? 16 : 8;
 
@@ -1127,13 +1127,13 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 blocks.push_back(blockSize);
                 order.push_back(1);
 
-                return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
+                return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
             } else {
                 std::vector<size_t> blocks = edge->getDims().ToSizeVector();
                 std::vector<size_t> order(blocks.size());
                 std::iota(order.begin(), order.end(), 0);
 
-                return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
+                return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
             }
         };
 
@@ -1467,6 +1467,26 @@ void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
         THROW_IE_EXCEPTION << "Supported primitive descriptors list is empty for node: " << getName();
     // fallback. If there are no primitives from priority list just select a first
     selectPrimitiveDescriptorByIndex(0);
+}
+
+void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
+    if (!isInitConfig(config)) {
+        for (size_t i = 0; i < config.inConfs.size(); i++) {
+            config.inConfs[i].desc = getConfiguredInputDesc(config, i);
+        }
+
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
+            config.outConfs[i].desc = getConfiguredOutputDesc(config, i);
+        }
+
+        initDescriptor(config);
+    } else {
+        initDescriptor(config);
+    }
 }
 
 void MKLDNNEltwiseNode::offset_out_calc(std::vector<size_t>& offset, std::vector<size_t>& dims) {
