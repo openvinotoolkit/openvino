@@ -114,7 +114,7 @@ function(build_ngraph)
     ie_cpack_add_component(ngraph)
 
     set(SDL_cmake_included ON)
-    # set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
+    set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
 endfunction()

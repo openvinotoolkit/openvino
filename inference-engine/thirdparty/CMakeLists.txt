@@ -50,7 +50,7 @@ function(ie_build_pugixml)
     set(BUILD_TESTS_current ${BUILD_TESTS})
     set(BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
     set(BUILD_SHARED_LIBS OFF)
-    add_subdirectory(pugixml)
+    add_subdirectory(pugixml EXCLUDE_FROM_ALL)
     set(BUILD_TESTS ${BUILD_TESTS_current} CACHE BOOL "Build tests" FORCE)
 endfunction()
 
@@ -63,7 +63,7 @@ else()
 endif()
 
 add_subdirectory(stb_lib)
-add_subdirectory(ade)
+add_subdirectory(ade EXCLUDE_FROM_ALL)
 add_subdirectory(fluid/modules/gapi)
 
 set_target_properties(ade fluid stb_image PROPERTIES FOLDER thirdparty)

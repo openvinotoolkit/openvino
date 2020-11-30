@@ -69,6 +69,7 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
 
 # install
 
-install(FILES "${GNA_KERNEL_LIBRARY}"
-        DESTINATION ${IE_CPACK_IE_DIR}/external/gna/lib
+file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
+install(FILES ${source_list} 
+         DESTINATION ${IE_CPACK_IE_DIR}/external/gna/lib
         COMPONENT gna)
