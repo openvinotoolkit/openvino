@@ -28,6 +28,10 @@ Similarly, the following Gelu approximation (typical for the TensorFlow*) is rec
 
 *   **1**: Multidimensional input tensor. Required.
 
+**Outputs**:
+
+*   **1**: Floating point tensor with shape and type matching the input tensor.
+
 **Example**
 
 ```xml
