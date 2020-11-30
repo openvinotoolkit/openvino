@@ -1,3 +1,15 @@
+resources:
+  repositories:
+  - repository: openvino_contrib
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/openvino_contrib
+
+  - repository: testdata
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/testdata
+
 jobs:
 - job: Win
   # About 150% of total time
@@ -13,6 +25,8 @@ jobs:
     WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
+    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)\..\openvino_contrib
+    MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: D:\build
     BIN_DIR: $(REPO_DIR)\bin\intel64
@@ -45,6 +59,17 @@ jobs:
     submodules: recursive
     path: openvino
 
+  - checkout: openvino_contrib
+    clean: true
+    lfs: false
+    submodules: recursive
+    path: openvino_contrib
+
+  - checkout: testdata
+    clean: true
+    lfs: true
+    path: testdata
+
   - script: |
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
@@ -65,7 +90,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
+      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
@@ -141,25 +166,20 @@ jobs:
     displayName: 'MklDnnBehaviorTests'
     continueOnError: false
 
-  - script: |
-      git clone https://github.com/openvinotoolkit/testdata.git
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Clone testdata'
-
     # Add for gtest-parallel, it hangs now (CVS-33386)
     #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
-      set DATA_PATH=$(BUILD_DIR)\testdata
-      set MODELS_PATH=$(BUILD_DIR)\testdata
+      set DATA_PATH=$(MODELS_PATH)
+      set MODELS_PATH=$(MODELS_PATH)
       $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
 
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
-      set DATA_PATH=$(BUILD_DIR)\testdata
-      set MODELS_PATH=$(BUILD_DIR)\testdata
+      set DATA_PATH=$(MODELS_PATH)
+      set MODELS_PATH=$(MODELS_PATH)
       $(BIN_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
