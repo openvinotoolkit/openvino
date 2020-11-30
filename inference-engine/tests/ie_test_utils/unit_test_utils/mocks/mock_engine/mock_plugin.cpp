@@ -23,7 +23,7 @@ void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
 }
 
 ExecutableNetwork
-MockPlugin::LoadNetwork(const ICNNNetwork &network,
+MockPlugin::LoadNetwork(const CNNNetwork &network,
                         const std::map<std::string, std::string> &config) {
     if (_target) {
         return _target->LoadNetwork(network, config);
@@ -33,7 +33,7 @@ MockPlugin::LoadNetwork(const ICNNNetwork &network,
 }
 
 ExecutableNetworkInternal::Ptr
-MockPlugin::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
+MockPlugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                const std::map<std::string, std::string>& config) {
     return {};
 }
@@ -52,8 +52,8 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, R
     }
 }
 
-INFERENCE_PLUGIN_API(InferenceEngine::IInferencePlugin*)CreatePluginEngineProxy(
-        InferenceEngine::IInferencePlugin *target) {
+INFERENCE_PLUGIN_API(InferenceEngine::IInferencePlugin*)
+CreatePluginEngineProxy(InferenceEngine::IInferencePlugin *target) {
     return new MockPlugin(target);
 }
 

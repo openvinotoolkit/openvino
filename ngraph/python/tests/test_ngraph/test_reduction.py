@@ -15,9 +15,10 @@
 # ******************************************************************************
 import numpy as np
 import pytest
-from _pyngraph import PartialShape
+from _pyngraph import PartialShape, Dimension
 
 import ngraph as ng
+from ngraph.utils.types import make_constant_node
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 from tests import xfail_issue_40957
@@ -108,12 +109,12 @@ def test_non_max_suppression():
     boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
 
-    node = ng.non_max_suppression(boxes_parameter, scores_parameter)
+    node = ng.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(1000, np.int64))
 
     assert node.get_type_name() == "NonMaxSuppression"
     assert node.get_output_size() == 3
-    assert node.get_output_partial_shape(0).same_scheme(PartialShape([-1, 3]))
-    assert node.get_output_partial_shape(1).same_scheme(PartialShape([-1, 3]))
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension(0, 1000), Dimension(3)])
+    assert node.get_output_partial_shape(1) == PartialShape([Dimension(0, 1000), Dimension(3)])
     assert list(node.get_output_shape(2)) == [1]
 
 

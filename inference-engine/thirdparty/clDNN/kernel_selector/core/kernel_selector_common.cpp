@@ -300,6 +300,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::oi:                                          return "OI";
         case WeightsLayout::io:                                          return "IO";
         case WeightsLayout::oiyx:                                        return "OIYX";
+        case WeightsLayout::ioyx:                                        return "IOYX";
         case WeightsLayout::oyxi:                                        return "OYXI";
         case WeightsLayout::iyxo:                                        return "IYXO";
         case WeightsLayout::yxio:                                        return "YXIO";
@@ -343,6 +344,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4:          return "OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::os_is_yx_osv32_isv32p:                       return "OS_IS_YX_OSV32_ISV32P";
         case WeightsLayout::oizyx:                                       return "OIZYX";
+        case WeightsLayout::iozyx:                                       return "IOZYX";
         case WeightsLayout::os_is_zyx_isv16_osv16:                       return "OS_IS_ZYX_ISV16_OSV16";
         case WeightsLayout::is_os_zyx_isv16_osv16:                       return "IS_OS_ZYX_ISV16_OSV16";
         case WeightsLayout::is_os_yx_isv16_osv16:                        return "IS_OS_YX_ISV16_OSV16";
@@ -352,8 +354,10 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_osv32_isv32_swizzled_by_4:             return "OS_IS_OSV32_ISV32_SWIZZLED_BY_4";
         case WeightsLayout::os_i_yxs_osv4_yxsv4:                         return "OS_I_YXS_OSV4_YXSV4";
         case WeightsLayout::goiyx:                                       return "GOIYX";
+        case WeightsLayout::gioyx:                                       return "GIOYX";
         case WeightsLayout::gyxio:                                       return "GYXIO";
         case WeightsLayout::goizyx:                                      return "GOIZYX";
+        case WeightsLayout::giozyx:                                      return "GIOZYX";
         case WeightsLayout::g_os_iyx_osv16:                              return "G_OS_IYX_OSV16";
         case WeightsLayout::g_os_iyx_osv32:                              return "G_OS_IYX_OSV32";
         case WeightsLayout::gs_oiyx_gsv16:                               return "GS_OIYX_GSV16";

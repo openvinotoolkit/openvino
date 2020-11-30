@@ -15,8 +15,8 @@
 #include <low_precision/reshape.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-#include "ngraph_functions/low_precision_transformations/reshape_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/reshape_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -544,7 +544,7 @@ TEST_P(ReshapeTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ReshapeTransformation,
     ::testing::ValuesIn(testValues),
     ReshapeTransformation::getTestCaseName);

@@ -111,6 +111,7 @@ set(SRC
     type_prop/constant.cpp
     type_prop/convert.cpp
     type_prop/convolution.cpp
+    type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_loss.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
@@ -171,6 +172,7 @@ set(SRC
     type_prop/select.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
