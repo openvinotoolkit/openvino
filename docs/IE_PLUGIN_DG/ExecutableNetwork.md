@@ -92,7 +92,7 @@ Returns a metric value for a metric with the name `name`.  A metric is a static 
 
 @snippet src/template_executable_network.cpp executable_network:get_metric
 
-The IE_SET_METRIC helper macro sets metric value and checks that the actual metric type matches a type of the specified value.
+The IE_SET_METRIC_RETURN helper macro sets metric value and checks that the actual metric type matches a type of the specified value.
 
 ### `GetConfig()`
 

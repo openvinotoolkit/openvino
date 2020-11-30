@@ -30,7 +30,7 @@ File with tuned data is the result of this step.
 
 The example below shows how to set and use the key files:
 
-@snippet openvino/docs/snippets/GPU_Kernels_Tuning.cpp part0
+@snippet snippets/GPU_Kernels_Tuning.cpp part0
 
 ---
 

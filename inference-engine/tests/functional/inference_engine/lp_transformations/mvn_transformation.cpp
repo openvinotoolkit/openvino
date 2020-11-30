@@ -15,9 +15,9 @@
 #include "low_precision/mvn.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/mvn_function.hpp"
+#include "lpt_ngraph_functions/mvn_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -91,6 +91,7 @@ public:
 
         std::ostringstream result;
         result <<
+            toString(testValues.params) << "_" <<
             testValues.inputShape << "_" <<
             testValues.reductionAxes << "_" <<
             testValues.normalizeVariance << "_" <<
@@ -145,9 +146,9 @@ const std::vector<MVNTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {127.f}, {}},
+            {{ngraph::element::f32}, {127.f}, {0.45f}},
             ngraph::element::f32,
-            {{}, {}, {1.f}}
+            {{}, {}, {}}
         }
     },
     {
@@ -163,7 +164,7 @@ const std::vector<MVNTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{ngraph::element::f32}, {12.5f}, {0.45f}},
             ngraph::element::f32,
-            {}
+            {{}, {}, {}}
         }
     },
     {

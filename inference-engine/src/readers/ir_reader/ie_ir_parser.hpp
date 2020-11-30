@@ -182,7 +182,7 @@ private:
 
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
-        explicit XmlDeserializer(const pugi::xml_node& node): node(node) {}
+        explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights): node(node), weights(weights) {}
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -243,7 +243,12 @@ private:
             } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
                 if (!getStrAttribute(node.child("data"), name, val)) return;
                 static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
-            }  else {
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::CoordinateDiff>>(&adapter)) {
+                std::vector<size_t> shape;
+                if (!getParameters<size_t>(node.child("data"), name, shape)) return;
+                std::vector<std::ptrdiff_t> coord_diff(shape.begin(), shape.end());
+                static_cast<ngraph::CoordinateDiff&>(*a) = ngraph::CoordinateDiff(coord_diff);
+            } else {
                 THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                                    << " parameter";
             }
@@ -255,6 +260,43 @@ private:
             double value;
             stringToType<double>(val, value);
             adapter.set(value);
+        }
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override  {
+            std::string value;
+            pugi::xml_node dn = node.child("data");
+            auto type = XMLParseUtils::GetStrAttr(node, "type");
+
+            if (dn.empty())
+                THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
+
+            if (getStrAttribute(dn, name, value)) {
+                auto data = static_cast<char*>(adapter.get_ptr());
+                size_t length = std::min(value.size(), adapter.size());
+                value.copy(data, length);
+            } else if (name == "value" && type == "Const") {
+                std::vector<int64_t> shape;
+                std::string el_type_str;
+
+                size_t offset = XMLParseUtils::GetUInt64Attr(dn, "offset");
+                size_t size = XMLParseUtils::GetUInt64Attr(dn, "size");
+                if (!getStrAttribute(dn, "element_type", el_type_str)) return;
+                if (!getParameters<int64_t>(dn, "shape", shape)) return;
+
+                ngraph::element::Type el_type = details::convertPrecision(el_type_str);
+
+                size_t length = weights->byteSize();
+                if (!length)
+                    THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
+                if (length < offset + size)
+                    THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
+                if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
+                    THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
+
+                auto data = static_cast<char*>(adapter.get_ptr());
+                char* weights_data = weights->cbuffer().as<char*>() + offset;
+
+                std::memcpy(data, weights_data, size);
+            }
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
             std::string val;
@@ -285,6 +327,7 @@ private:
 
     private:
         const pugi::xml_node node;
+        const Blob::CPtr& weights;
 
         bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
             if (!node) return false;
