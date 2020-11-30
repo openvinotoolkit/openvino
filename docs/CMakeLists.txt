@@ -184,7 +184,7 @@ function(build_docs)
     # IE dev guide and C++ API
 
     add_custom_target(ie_docs
-                      DEPENDS preprocess_docs
+                      DEPENDS ngraph_cpp_api preprocess_docs
                       COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
@@ -203,6 +203,11 @@ function(build_docs)
     add_custom_target(openvino_docs
                       DEPENDS ngraph_cpp_api ngraph_py_api c_api py_api ie_docs plugin_api
                       COMMENT "Generating OpenVINO documentation"
+                      VERBATIM)
+
+    add_custom_target(docs_check
+                      COMMAND ${Python3_EXECUTABLE} ${LINKCHECKER_EXECUTABLE} ${DOCS_BUILD_DIR}/html/ -f ${DOXYGEN_DIR}/linkchecker_filter.yaml --no_recursive -l ${DOCS_BUILD_DIR}
+                      COMMENT "Check links in generated documentation"
                       VERBATIM)
 
     set_target_properties(openvino_docs ie_docs c_api py_api preprocess_docs plugin_api
