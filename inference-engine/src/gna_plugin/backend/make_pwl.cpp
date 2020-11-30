@@ -218,12 +218,21 @@ void make_gna_pwl(const DnnActivation  fun,
             auto n_segments = 2;
             gna_pwl.resize(n_segments);
 
+            double x_max = INT32_MAX / in_scale;
+            double y_max = INT16_MAX / out_scale;
+            double max = std::min(x_max, y_max);
+            auto abs_max = std::max(std::abs(l_bound), std::abs(u_bound));
+            if (max < abs_max) {
+                gnalog() << "Warning: Saturation in make_gna_pwl! Output values will be saturated. Max PWL value: " << max
+                    << " vs. expected max: " << abs_max << "\n";
+            }
+
             if (fun == kActRelu)
                 gnalog() << "=========================== ReLU Segments ===========================\n";
             else
                 gnalog() << "=========================== LeakyReLU Segments ======================\n";
-            int64_t x_lower_scaled = l_bound * in_scale;
-            int32_t y_lower_scaled = l_bound * out_scale;
+            int64_t x_lower_scaled = (-max) * in_scale;
+            int32_t y_lower_scaled = (-max) * out_scale;
             int32_t x_lower = x_lower_scaled;
             int16_t y_lower = y_lower_scaled;
             if (x_lower_scaled < INT32_MIN) {
@@ -294,15 +303,25 @@ void make_gna_pwl(const DnnActivation  fun,
             break;
         }
         case kActIdentity:
-        case kActKaldiLstmClipping: {            
-            int64_t x_lower_scaled = l_bound * in_scale;
-            int64_t x_upper_scaled = u_bound * in_scale;
-            int32_t y_lower_scaled = l_bound * out_scale;
-            int32_t y_upper_scaled = u_bound * out_scale;
+        case kActKaldiLstmClipping: {
+            double x_max = INT32_MAX / in_scale;
+            double y_max = INT16_MAX / out_scale;
+            double max = std::min(x_max, y_max);
+            auto abs_max = std::max(std::abs(l_bound), std::abs(u_bound));
+            if (max < abs_max) {
+                gnalog() << "Warning: Saturation in make_gna_pwl! Output values will be saturated. Max PWL value: " << max
+                    << " vs. expected max: " << abs_max << "\n";
+            }
+
+            int64_t x_lower_scaled = (-max) * in_scale;
+            int64_t x_upper_scaled = max * in_scale;
+            int32_t y_lower_scaled = (-max) * out_scale;
+            int32_t y_upper_scaled = max * out_scale;
             int32_t x_lower = x_lower_scaled;
             int32_t x_upper = x_upper_scaled;
             int16_t y_lower = y_lower_scaled;
             int16_t y_upper = y_upper_scaled;
+            
             if (x_lower_scaled < INT32_MIN) {
                 x_lower = INT32_MIN;
                 y_lower_scaled = FLOAT_TO_INT32(x_lower / static_cast<double>(x_lower_scaled) * y_lower_scaled);

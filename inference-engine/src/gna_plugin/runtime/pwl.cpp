@@ -605,8 +605,8 @@ void PwlDesign16(const DnnActivation activation_type,
         case kActSigmoid:
            {
                 gnalog() <<  "=========================== Sigmoid Segments===========================\n";
-                double x_min = abs_max > SIGMOID_DOMAIN? -SIGMOID_DOMAIN: input_min;
-                double x_max = abs_max > SIGMOID_DOMAIN? SIGMOID_DOMAIN : input_max;
+                double x_min = abs_max > SIGMOID_DOMAIN? -SIGMOID_DOMAIN: -abs_max;
+                double x_max = abs_max > SIGMOID_DOMAIN? SIGMOID_DOMAIN : abs_max;
                 double sigmoid_domain = x_max - x_min;
                 uint32_t num_segment_size = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -655,8 +655,8 @@ void PwlDesign16(const DnnActivation activation_type,
         case kActTanh:
             {
                 gnalog() <<  "=========================== Tanh Segments===========================\n";
-                double x_min = abs_max > TANH_DOMAIN ? -TANH_DOMAIN : input_min;
-                double x_max = abs_max > TANH_DOMAIN ? TANH_DOMAIN : input_max;
+                double x_min = abs_max > TANH_DOMAIN ? -TANH_DOMAIN : -abs_max;
+                double x_max = abs_max > TANH_DOMAIN ? TANH_DOMAIN : abs_max;
                 double tanh_domain = x_max - x_min;
                 uint32_t num_segment_size = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -705,8 +705,8 @@ void PwlDesign16(const DnnActivation activation_type,
         case kActSoftSign:
             {
                 gnalog() << "=========================== SoftSign Segments===========================\n";
-                double x_min = abs_max > SOFTSIGN_DOMAIN ? -SOFTSIGN_DOMAIN : input_min;
-                double x_max = abs_max > SOFTSIGN_DOMAIN ? SOFTSIGN_DOMAIN : input_max;
+                double x_min = abs_max > SOFTSIGN_DOMAIN ? -SOFTSIGN_DOMAIN : -abs_max;
+                double x_max = abs_max > SOFTSIGN_DOMAIN ? SOFTSIGN_DOMAIN : abs_max;
                 double softsign_domain = x_max - x_min;
                 uint32_t num_segment_size = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -755,10 +755,18 @@ void PwlDesign16(const DnnActivation activation_type,
         case kActKaldiLstmClipping:  // clipping of IDENTITY is more aggressive than Kaldi
             {
                 float slope = 0.0;
-                int64_t x_lower_scaled = (-abs_max) * scale_in;
-                int64_t x_upper_scaled = abs_max * scale_in;
-                int32_t y_lower_scaled = (-abs_max) * scale_out;
-                int32_t y_upper_scaled = abs_max * scale_out;
+                double x_max = INT32_MAX / scale_in;
+                double y_max = INT16_MAX / scale_out;
+                double max = std::min(x_max, y_max);
+                if (max < abs_max) {
+                    gnalog() << "Warning: Saturation in PwlDesign16! Output values will be saturated. Max PWL value: " << max
+                        << " vs. expected max: " << abs_max << "\n";
+                }
+
+                int64_t x_lower_scaled = (-max) * scale_in;
+                int64_t x_upper_scaled = max * scale_in;
+                int32_t y_lower_scaled = (-max) * scale_out;
+                int32_t y_upper_scaled = max * scale_out;
                 int32_t x_lower_limit = x_lower_scaled;
                 int32_t x_upper_limit = x_upper_scaled;
                 int16_t y_lower_limit = y_lower_scaled;
