@@ -3,21 +3,11 @@
 #
 project(InferenceEngine)
 
-set(CMAKE_MODULE_PATH "${IE_MAIN_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
-
-include(features_ie)
-
-# include developer package
-include(developer_package_ie)
-
-# These options are shared with 3rdparty plugins by means of developer package
-include(check_features_ie)
+include(cmake/features.cmake)
+include(cmake/check_features.cmake)
 
 # resolving dependencies for the project
-include(dependencies)
-
-# Fuzz tests also building without ENABLE_FUZZING
-include(fuzzing)
+include(cmake/dependencies.cmake)
 
 if (ENABLE_FUZZING)
     enable_fuzzing()
@@ -49,10 +39,10 @@ endfunction()
 
 function(ie_developer_export)
     export(TARGETS ${OpenVINODeveloperPackageTargets} NAMESPACE IE::
-        APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
+        APPEND FILE "${CMAKE_BINARY_DIR}/inference_engine_targets_developer.cmake")
 
     export(TARGETS ${IEDeveloperPackageTargets} NAMESPACE IE::
-        APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
+        APPEND FILE "${CMAKE_BINARY_DIR}/inference_engine_targets_developer.cmake")
 
     # Custom target to build only Inference Engine Developer Package targets
     add_custom_target(ie_dev_targets ALL DEPENDS ${OpenVINODeveloperPackageTargets} ${IEDeveloperPackageTargets} gflags
@@ -81,7 +71,7 @@ function(ie_build_samples)
                 MINGW64 CMAKE_BUILD_TYPE CMAKE_MACOSX_RPATH)
         unset(${var})
     endforeach()
-    include(sanitizer)
+    include(compile_flags/sanitizer)
     add_subdirectory(samples)
 endfunction()
 
@@ -180,12 +170,12 @@ endif()
 ie_developer_export()
 
 configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/developer_package_config.cmake.in"
+    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
     "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
     @ONLY)
 
 configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
+    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
     "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
     COPYONLY)
 
@@ -194,7 +184,7 @@ configure_file(
 #
 
 if(ENABLE_COVERAGE)
-    include(coverage_ie)
+    include(cmake/coverage.cmake)
 endif()
 
 #

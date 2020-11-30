@@ -68,17 +68,17 @@ function(add_cpplint_target TARGET_NAME)
                 "${output_file}"
             COMMAND
                 "${CMAKE_COMMAND}"
-                -D "CPPLINT_SCRIPT=${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint.py"
+                -D "CPPLINT_SCRIPT=${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint.py"
                 -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "WORKING_DIRECTORY=${CMAKE_CURRENT_SOURCE_DIR}"
                 -D "SKIP_RETURN_CODE=${ENABLE_CPPLINT_REPORT}"
                 -D "CUSTOM_FILTER=${custom_filter}"
-                -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint_run.cmake"
+                -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint_run.cmake"
             DEPENDS
                 "${source_file}"
-                "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint.py"
-                "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint_run.cmake"
+                "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint.py"
+                "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint_run.cmake"
             COMMENT
                 "[cpplint] ${source_file}"
             VERBATIM)
@@ -118,10 +118,10 @@ function(add_cpplint_report_target)
             "${CMAKE_COMMAND}"
             -D "FINAL_OUTPUT_FILE=${cpplint_output_file}"
             -D "OUTPUT_FILES=${CPPLINT_ALL_OUTPUT_FILES}"
-            -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint_merge.cmake"
+            -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint_merge.cmake"
         DEPENDS
             ${CPPLINT_ALL_OUTPUT_FILES}
-            "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint_merge.cmake"
+            "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint_merge.cmake"
         COMMENT
             "[cpplint] Merge all output files"
         VERBATIM)
@@ -136,11 +136,11 @@ function(add_cpplint_report_target)
             -D "CONVERT_SCRIPT=${OpenVINO_MAIN_SOURCE_DIR}/scripts/cpplint_to_cppcheckxml.py"
             -D "INPUT_FILE=${cpplint_output_file}"
             -D "OUTPUT_FILE=${cppcheck_output_file}"
-            -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint_to_cppcheck_xml.cmake"
+            -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint_to_cppcheck_xml.cmake"
         DEPENDS
             "${cpplint_output_file}"
             "${OpenVINO_MAIN_SOURCE_DIR}/scripts/cpplint_to_cppcheckxml.py"
-            "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint_to_cppcheck_xml.cmake"
+            "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint_to_cppcheck_xml.cmake"
         COMMENT
             "[cpplint] Convert to cppcheck XML format"
         VERBATIM)
@@ -158,11 +158,11 @@ function(add_cpplint_report_target)
             -D "REPORT_DIR=${report_dir}"
             -D "SOURCE_DIR=${OpenVINO_MAIN_SOURCE_DIR}"
             -D "TITLE=${CMAKE_PROJECT_NAME}"
-            -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint_html.cmake"
+            -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint_html.cmake"
         DEPENDS
             "${cppcheck_output_file}"
             "${OpenVINO_MAIN_SOURCE_DIR}/scripts/cppcheck-htmlreport.py"
-            "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cpplint/cpplint_html.cmake"
+            "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/cpplint/cpplint_html.cmake"
         COMMENT
             "[cpplint] Generate HTML report"
         VERBATIM)

@@ -2,14 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
-set(IE_MAIN_SOURCE_DIR "@InferenceEngine_SOURCE_DIR@")
-
-file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
-
 # Variables to export in plugin's projects
 
 set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH")
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 foreach(option IN LISTS ie_options)
     if(NOT DEFINED "${option}")
@@ -30,10 +26,7 @@ set(GNA "@GNA@")
 
 # Targets
 
-include("${CMAKE_CURRENT_LIST_DIR}/targets_developer.cmake")
-
-# to allow too create ALIAS for IE::inference_engine in 3rd-party projects
-set_property(TARGET IE::inference_engine PROPERTY IMPORTED_GLOBAL TRUE)
+include("${CMAKE_CURRENT_LIST_DIR}/inference_engine_targets_developer.cmake")
 
 get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
 set(InferenceEngine_LIBRARIES IE::inference_engine)
@@ -42,12 +35,10 @@ set(InferenceEngine_LIBRARIES IE::inference_engine)
 # Common cmake includes
 #
 
-list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
-list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "@OpenVINO_SOURCE_DIR@/cmake")
 
 # generic stuff from developer package
 include(developer_package NO_POLICY_SCOPE)
-include(developer_package_ie)
 
 # Don't threat deprecated API warnings as errors in 3rd party apps
 ie_deprecated_no_errors()

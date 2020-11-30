@@ -144,7 +144,7 @@ else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
 
-if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+if(NOT DEFINED CMAKE_BUILD_TYPE)
     debug_message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
@@ -180,7 +180,7 @@ if (WIN32 OR CMAKE_GENERATOR STREQUAL "Xcode")
     # Support CMake multiconfiguration for Visual Studio or Xcode build
     set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
 else ()
-    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" )
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug" )
         set(IE_BUILD_POSTFIX ${IE_DEBUG_POSTFIX})
     else()
         set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})
@@ -205,11 +205,11 @@ else()
 endif()
 
 if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
     # WA for Xcode generator + object libraries issue:
     # https://gitlab.kitware.com/cmake/cmake/issues/20260
     # http://cmake.3232098.n2.nabble.com/XCODE-DEPEND-HELPER-make-Deletes-Targets-Before-and-While-They-re-Built-td7598277.html
     set(CMAKE_XCODE_GENERATE_TOP_LEVEL_PROJECT_ONLY ON)
-    set(CMAKE_MACOSX_RPATH ON)
 endif()
 
 # Use solution folders
@@ -233,12 +233,15 @@ endif()
 
 # General flags
 
-include(sdl)
-include(os_flags)
-include(sanitizer)
-include(cross_compiled_func)
+include(compile_flags/sdl)
+include(compile_flags/os_flags)
+include(compile_flags/sanitizer)
+include(download/dependency_solver)
+include(cross_compile/cross_compiled_func)
 include(faster_build)
 include(whole_archive)
+include(linux_name)
+include(models)
 include(api_validator/api_validator)
 
 function(set_ci_build_number)
@@ -249,6 +252,8 @@ endfunction()
 set_ci_build_number()
 
 include(vs_version/vs_version)
+include(plugins/plugins)
+include(add_ie_target)
 
 # Code style utils
 

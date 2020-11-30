@@ -5,7 +5,7 @@
 if(DEFINED IE_MAIN_SOURCE_DIR AND TARGET inference_engine)
     set(InferenceEngine_LIBRARIES inference_engine inference_engine_c_api)
 else()
-    include("${CMAKE_CURRENT_LIST_DIR}/targets.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/inference_engine_targets.cmake")
     if(NOT MSVC)
         set_target_properties(IE::inference_engine PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
     endif()

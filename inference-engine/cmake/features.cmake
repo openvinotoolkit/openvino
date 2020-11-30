@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include (target_flags)
-include (options)
-
 #these options are aimed to optimize build time on development system
 
 ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86 OR X86_64" OFF)

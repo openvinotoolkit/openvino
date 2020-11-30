@@ -12,7 +12,8 @@ file(GLOB_RECURSE HEADERS
 
 addVersionDefines(gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
 
-find_package(libGNA)
+find_package(libGNA REQUIRED NO_DEFAULT_PATH
+             PATHS "${IE_MAIN_SOURCE_DIR}/cmake")
 
 if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
     set(GNA_LIBRARY_VERSION_NUMBER 2)

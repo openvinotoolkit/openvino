@@ -136,7 +136,7 @@ macro(ie_register_plugins)
                     -D "IE_CONFIG_OUTPUT_FILE=${config_output_file}"
                     -D "IE_PLUGIN_NAME=${plugin}"
                     -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
-                    -P "${IE_MAIN_SOURCE_DIR}/cmake/plugins/unregister_plugin_cmake.cmake"
+                    -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/plugins/unregister_plugin_cmake.cmake"
                   COMMENT
                     "Remove ${plugin} from the plugins.xml file"
                   VERBATIM)
@@ -161,7 +161,7 @@ macro(ie_register_plugins)
               -D "IE_CONFIG_OUTPUT_FILE=${config_file_name}"
               -D "IE_DEVICE_NAME=${device_name}"
               -D "IE_PLUGIN_LIBRARY_NAME=${library_name}"
-              -P "${IE_MAIN_SOURCE_DIR}/cmake/plugins/create_plugin_file.cmake"
+              -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/plugins/create_plugin_file.cmake"
           COMMENT "Register ${name} plugin"
           VERBATIM)
 
@@ -174,7 +174,7 @@ macro(ie_register_plugins)
                         -D "CMAKE_SHARED_LIBRARY_PREFIX=${CMAKE_SHARED_LIBRARY_PREFIX}"
                         -D "IE_CONFIG_OUTPUT_FILE=${config_output_file}"
                         -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
-                        -P "${IE_MAIN_SOURCE_DIR}/cmake/plugins/register_plugin_cmake.cmake"
+                        -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package/plugins/register_plugin_cmake.cmake"
                       COMMENT
                         "Registering plugins to plugins.xml config file"
                       VERBATIM)

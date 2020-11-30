@@ -8,17 +8,18 @@ project(OpenVINO)
 
 set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(IE_MAIN_SOURCE_DIR ${OpenVINO_MAIN_SOURCE_DIR}/inference-engine)
-list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+                              "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
 
 include(CTest)
-include(features)
+include(cmake/features.cmake) # TODO: split by OpenVINO and developer package options
 
 # include developer package
-include(developer_package)
+include(cmake/developer_package/developer_package.cmake)
 
 # These options are shared with 3rdparty plugins by means of developer package
-include(check_features)
-include(dependencies)
+include(cmake/check_features.cmake)
+include(cmake/dependencies.cmake)
 
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
@@ -30,8 +31,8 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
-file(REMOVE "${CMAKE_BINARY_DIR}/targets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets_developer.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
 
 #
 # Build

@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include ("extract")
-include ("download_and_check")
+include(download/extract)
+include(download/download_and_check)
 
 function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win archive_name_lin archive_name_mac archive_name_android)
   if (archive_name_unified)

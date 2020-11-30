@@ -21,5 +21,5 @@ function (Download from to fatal result output sha256)
 
 endfunction(Download)
 
-include ("download_and_apply")
-include ("download_and_extract")
+include(download/download_and_apply)
+include(download/download_and_extract)

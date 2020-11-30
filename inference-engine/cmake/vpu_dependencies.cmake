@@ -11,8 +11,6 @@ else()
     set(__CURRENT_FILE_VAR__ TRUE)
 endif()
 
-include(dependency_solver)
-
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
     "becaeea32805cc59a59fced0ed08235255a43a3c8535a36fa376351607b24ad6"

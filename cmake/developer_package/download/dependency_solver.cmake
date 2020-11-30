@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include ("download")
+include (download/download)
 
 function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH FOLDER ENVIRONMENT SHA256)
   if (ENVIRONMENT AND (DEFINED ${ENVIRONMENT} OR DEFINED ENV{${ENVIRONMENT}}))
