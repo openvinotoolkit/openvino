@@ -192,7 +192,7 @@ function(build_docs)
     # Plugin API
 
     add_custom_target(plugin_api
-                      DEPENDS ie_docs
+                      DEPENDS ngraph_cpp_api ie_docs
                       COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating Plugin API Reference"
@@ -206,6 +206,7 @@ function(build_docs)
                       VERBATIM)
 
     set_target_properties(openvino_docs ie_docs c_api py_api preprocess_docs plugin_api
+                          ngraph_py_api ngraph_cpp_api
                           PROPERTIES FOLDER docs)
 
     find_program(browser NAMES xdg-open)
