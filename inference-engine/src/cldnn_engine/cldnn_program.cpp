@@ -405,8 +405,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
         }
     }
 
-    OutputsDataMap outputsMap;
-    network.getOutputsInfo(outputsMap);
+    OutputsDataMap outputsMap = network.getOutputsInfo(outputsMap);
 
     // [WA part2] Try to find non-quantized layers and convert them back to FP16
     if (config.enableInt8) {
