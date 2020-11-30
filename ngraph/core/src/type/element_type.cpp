@@ -58,7 +58,7 @@ struct element_type_hash
     size_t operator()(element::Type_t t) const { return static_cast<size_t>(t); }
 };
 
-typedef unordered_map<element::Type_t, const TypeInfo, element_type_hash> element_types_map_t;
+using element_types_map_t = unordered_map<element::Type_t, const TypeInfo, element_type_hash>;
 
 static const element_types_map_t& get_type_info_map()
 {
