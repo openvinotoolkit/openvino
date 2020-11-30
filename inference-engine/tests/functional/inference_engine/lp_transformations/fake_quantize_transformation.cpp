@@ -15,7 +15,7 @@
 #include <low_precision/fake_quantize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
+#include "lpt_ngraph_functions/fake_quantize_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;

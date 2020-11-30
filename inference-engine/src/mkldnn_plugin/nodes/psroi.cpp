@@ -212,8 +212,8 @@ public:
                             int part_w = w * part_size_ / pooled_width_;
                             int class_id = c / channels_each_class;
                             float trans_x = no_trans_ ? 0 :
-                                    bottom_trans[(((n * num_classes + class_id) * 2) * part_size_ + part_h)
-                                                                                      * part_size_ + part_w] * trans_std_;
+                                            bottom_trans[(((n * num_classes + class_id) * 2) * part_size_ + part_h)
+                                                         * part_size_ + part_w] * trans_std_;
                             float trans_y = no_trans_ ? 0 :
                                             bottom_trans[(((n * num_classes + class_id) * 2 + 1) * part_size_ + part_h)
                                                          * part_size_ + part_w] * trans_std_;

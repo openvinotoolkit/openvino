@@ -15,6 +15,7 @@
 #include <ie_plugin_config.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/type/bfloat16.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -154,29 +155,17 @@ public:
 protected:
     LayerTestsCommon();
 
-    template<typename T>
-    typename std::enable_if<std::is_signed<T>::value, T>::type
-    static ie_abs(const T &val) {
-        return std::abs(val);
-    }
-
-    template<typename T>
-    typename std::enable_if<std::is_unsigned<T>::value, T>::type
-    static ie_abs(const T &val) {
-        return val;
-    }
-
     template<class T>
     static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
         for (std::size_t i = 0; i < size; ++i) {
             const auto &ref = expected[i];
             const auto &res = actual[i];
-            const auto absoluteDifference = ie_abs(res - ref);
+            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
             if (absoluteDifference <= threshold) {
                 continue;
             }
 
-            const auto max = std::max(ie_abs(res), ie_abs(ref));
+            const auto max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(ref));
             ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= threshold))
                                         << "Relative comparison of values expected: " << ref << " and actual: " << res
                                         << " at index " << i << " with threshold " << threshold

@@ -385,7 +385,7 @@ bool Program::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network) const {
     return check_result;
 }
 
-Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config)
+Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config)
     : m_config(config)
     , m_defaultFormat(cldnn::format::bfyx)
     , m_engine(engine)
@@ -396,8 +396,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
     bool fqFound = false;
 
     bool baselineIsFP16 = false;
-    InputsDataMap inputsMap;
-    network.getInputsInfo(inputsMap);
+    InputsDataMap inputsMap = network.getInputsInfo();
     if (!inputsMap.empty()) {
         auto input0 = getInputTo(inputsMap.begin()->second->getInputData());
         if (!input0.empty() && (input0.begin()->second->params.count("lpt_back_to_fp16") != 0)) {
@@ -575,7 +574,7 @@ void Program::InitFormat(InferenceEngine::ICNNNetwork &network) {
     m_defaultFormat = FormatFromLayout(InferenceEngine::Layout::NCHW);
 }
 
-std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwork &network) {
+std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::CNNNetwork &network) {
     cldnn::build_options options;
     if (!m_config.graph_dumps_dir.empty()) {
         options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
@@ -586,11 +585,8 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwo
     cldnn::topology topology;
 
     // 1. create inputs
-    InferenceEngine::InputsDataMap networkInputs;
-    network.getInputsInfo(networkInputs);
-
-    InferenceEngine::OutputsDataMap networkOutputs;
-    network.getOutputsInfo(networkOutputs);
+    InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();
+    InferenceEngine::OutputsDataMap networkOutputs = network.getOutputsInfo();
     p_currentOutputs = networkOutputs;
 
     if (networkInputs.empty()) {

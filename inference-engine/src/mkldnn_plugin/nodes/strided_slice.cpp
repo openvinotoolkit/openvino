@@ -35,8 +35,6 @@ public:
             begin_dims = {};
             if (layer->insData.size() > 1) {
                 begin_dims = layer->insData[STRIDEDSLICE_BEGIN].lock()->getTensorDesc().getDims();
-                if (layer->insData[STRIDEDSLICE_BEGIN].lock()->getTensorDesc().getPrecision() != Precision::I32)
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect 'begin' input precision. Only I32 is supported!";
                 if (begin_dims.size() > 1)
                     THROW_IE_EXCEPTION << layer->name << " Begin vector should be 1 dimension";
                 bounds_size = begin_dims[0];
@@ -44,8 +42,6 @@ public:
 
             if (layer->insData.size() > 2) {
                 end_dims = layer->insData[STRIDEDSLICE_END].lock()->getTensorDesc().getDims();
-                if (layer->insData[STRIDEDSLICE_END].lock()->getTensorDesc().getPrecision() != Precision::I32)
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect 'end' input precision. Only I32 is supported!";
                 if (end_dims.size() > 1)
                     THROW_IE_EXCEPTION << layer->name << " End vector should be 1 dimension";
                 if (begin_dims[0] != end_dims[0])
@@ -54,8 +50,6 @@ public:
 
             if (layer->insData.size() > 3) {
                 stride_dims = layer->insData[STRIDEDSLICE_STRIDE].lock()->getTensorDesc().getDims();
-                if (layer->insData[STRIDEDSLICE_STRIDE].lock()->getTensorDesc().getPrecision() != Precision::I32)
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect 'strides' input precision. Only I32 is supported!";
                 if (stride_dims.size() > 1)
                     THROW_IE_EXCEPTION << layer->name << " End vector should be 1 dimension";
                 if (begin_dims[0] != stride_dims[0])
@@ -134,16 +128,19 @@ public:
 
             srcStrides = layer->insData[STRIDEDSLICE_DATA].lock()->getTensorDesc().getBlockingDesc().getStrides();
             dstStrides = layer->outData[0]->getTensorDesc().getBlockingDesc().getStrides();
+            Precision dataPrecision = layer->insData[STRIDEDSLICE_DATA].lock()->getTensorDesc().getPrecision();
             if (layer->insData.size() == 1) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, dataPrecision) }, { DataConfigurator(ConfLayout::PLN, dataPrecision) });
             } else if (layer->insData.size() == 2) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, dataPrecision), DataConfigurator(ConfLayout::PLN, Precision::I32) },
+                    { DataConfigurator(ConfLayout::PLN, dataPrecision) });
             } else if (layer->insData.size() == 3) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                          { DataConfigurator(ConfLayout::PLN) });
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, dataPrecision), DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32) }, { DataConfigurator(ConfLayout::PLN, dataPrecision) });
             } else {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                                   DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, dataPrecision), DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32) },
+                    { DataConfigurator(ConfLayout::PLN, dataPrecision) });
             }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
@@ -151,8 +148,6 @@ public:
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
-        const float *src_data = inputs[STRIDEDSLICE_DATA]->cbuffer().as<const float *>() +
-            inputs[STRIDEDSLICE_DATA]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         int *begin = nullptr, *end = nullptr, *stride = nullptr;
         if (begin_dims.size())
             begin = inputs[STRIDEDSLICE_BEGIN]->cbuffer().as<int *>() + inputs[STRIDEDSLICE_BEGIN]->getTensorDesc().getBlockingDesc().getOffsetPadding();
@@ -160,16 +155,11 @@ public:
             end = inputs[STRIDEDSLICE_END]->cbuffer().as<int *>() + inputs[STRIDEDSLICE_END]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         if (stride_dims.size())
             stride = inputs[STRIDEDSLICE_STRIDE]->cbuffer().as<int *>() + inputs[STRIDEDSLICE_STRIDE]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        float* dst_data = outputs[0]->cbuffer().as<float *>() +
-            outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         InferenceEngine::SizeVector src_dims = inputs[STRIDEDSLICE_DATA]->getTensorDesc().getDims();
         InferenceEngine::SizeVector srcStrides = inputs[STRIDEDSLICE_DATA]->getTensorDesc().getBlockingDesc().getStrides();
         InferenceEngine::SizeVector dst_dims = outputs[0]->getTensorDesc().getDims();
         InferenceEngine::SizeVector dstStrides = outputs[0]->getTensorDesc().getBlockingDesc().getStrides();
-
-        auto dst_size = outputs[0]->byteSize();
-        memset(dst_data, 0, dst_size);
 
         size_t i, j, k, bj, ej, sj;
         InferenceEngine::SizeVector our_dims;
@@ -231,13 +221,49 @@ public:
                 return PARAMETER_MISMATCH;
         }
 
+        const size_t inputsPrecSize = inputs[STRIDEDSLICE_DATA]->getTensorDesc().getPrecision().size();
         if (static_cast<int>(src_dims.size()) == max_dims && shrink_axis == 0 &&
-                stride_dms[stride_dms.size()-1] == 1 && stride_dms.size() > 1)
-            strided_slice_vp(src_data, dst_data);
-        else if (static_cast<int>(src_dims.size()) == max_dims && shrink_axis == 0)
-            strided_slice_p(src_data, dst_data);
-        else
-            strided_slice(src_data, dst_data, our_dims);
+                stride_dms[stride_dms.size()-1] == 1 && stride_dms.size() > 1) {
+            if (inputsPrecSize != outputs[0]->getTensorDesc().getPrecision().size()) {
+                if (resp) {
+                    std::string errorMsg = "StridedSlice layer doesn't support 'Data' input precision: "
+                        + std::string(inputs[STRIDEDSLICE_DATA]->getTensorDesc().getPrecision().name());
+                        errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+                }
+                return GENERAL_ERROR;
+            }
+            strided_slice_vp(inputs[STRIDEDSLICE_DATA], outputs[0]);
+        } else if (static_cast<int>(src_dims.size()) == max_dims && shrink_axis == 0) {
+            switch (inputsPrecSize) {
+                case 1: { strided_slice_p<uint8_t>(inputs[STRIDEDSLICE_DATA], outputs[0]); break; }
+                case 2: { strided_slice_p<uint16_t>(inputs[STRIDEDSLICE_DATA], outputs[0]); break; }
+                case 4: { strided_slice_p<uint32_t>(inputs[STRIDEDSLICE_DATA], outputs[0]); break; }
+                case 8: { strided_slice_p<uint64_t>(inputs[STRIDEDSLICE_DATA], outputs[0]); break; }
+                default: {
+                    if (resp) {
+                        std::string errorMsg = "StridedSlice layer doesn't support 'Data' input precision: "
+                            + std::string(inputs[STRIDEDSLICE_DATA]->getTensorDesc().getPrecision().name());
+                            errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+                    }
+                    return GENERAL_ERROR;
+                }
+            }
+        } else {
+            switch (inputsPrecSize) {
+                case 1: { strided_slice<uint8_t>(inputs[STRIDEDSLICE_DATA], outputs[0], our_dims); break; }
+                case 2: { strided_slice<uint16_t>(inputs[STRIDEDSLICE_DATA], outputs[0], our_dims); break; }
+                case 4: { strided_slice<uint32_t>(inputs[STRIDEDSLICE_DATA], outputs[0], our_dims); break; }
+                case 8: { strided_slice<uint64_t>(inputs[STRIDEDSLICE_DATA], outputs[0], our_dims); break; }
+                default: {
+                    if (resp) {
+                        std::string errorMsg = "StridedSlice layer doesn't support 'Data' input precision: "
+                            + std::string(inputs[STRIDEDSLICE_DATA]->getTensorDesc().getPrecision().name());
+                            errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+                    }
+                    return GENERAL_ERROR;
+                }
+            }
+        }
 
         return OK;
     }
@@ -248,9 +274,11 @@ private:
     const size_t STRIDEDSLICE_END = 2;
     const size_t STRIDEDSLICE_STRIDE = 3;
 
-    void strided_slice(const float *src_data, float* dst_data, std::vector<size_t> &dims);
-    void strided_slice_vp(const float *src_data, float* dst_data);
-    void strided_slice_p(const float *src_data, float* dst_data);
+    template <typename T>
+    void strided_slice(Blob::Ptr&, Blob::Ptr& dst_data, std::vector<size_t> &dims);
+    void strided_slice_vp(Blob::Ptr&, Blob::Ptr& dst_data);
+    template <typename T>
+    void strided_slice_p(Blob::Ptr&, Blob::Ptr& dst_data);
 
     SizeVector begin_dims;
     SizeVector end_dims;
@@ -275,7 +303,13 @@ private:
     int ellipsis_pos1, ellipsis_pos2;
 };
 
-void StridedSliceImpl::strided_slice(const float *src_data, float* dst_data, std::vector<size_t> &dims) {
+template <typename T>
+void StridedSliceImpl::strided_slice(Blob::Ptr& input, Blob::Ptr& output, std::vector<size_t> &dims) {
+    auto* src_data = input->cbuffer().as<const T*>() + input->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    auto* dst_data = output->buffer().as<T*>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    auto dst_size = output->byteSize();
+    memset(dst_data, 0, dst_size);
+
     size_t work_amount_dst = dstStrides[0] * dst_dims[0];
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int j;
@@ -306,10 +340,16 @@ void StridedSliceImpl::strided_slice(const float *src_data, float* dst_data, std
     });
 }
 
-void StridedSliceImpl::strided_slice_vp(const float *src_data, float* dst_data) {
+void StridedSliceImpl::strided_slice_vp(Blob::Ptr& input, Blob::Ptr& output) {
+    size_t dataSize = input->getTensorDesc().getPrecision().size();
+    const uint8_t* src_data = input->cbuffer().as<const uint8_t*>() + input->getTensorDesc().getBlockingDesc().getOffsetPadding() * dataSize;
+    uint8_t* dst_data = output->buffer().as<uint8_t*>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding() * dataSize;
+    auto dst_size = output->byteSize();
+    memset(dst_data, 0, dst_size);
+
     //  Vectorized copy
     size_t dims_size_1 = dst_dims.size() - 1;
-    size_t dataLength = dst_dims[dims_size_1];
+    size_t len = dst_dims[dims_size_1] * dataSize;
     size_t work_amount_dst = dstStrides[0] * dst_dims[0] / dst_dims[dims_size_1];
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -323,8 +363,8 @@ void StridedSliceImpl::strided_slice_vp(const float *src_data, float* dst_data) 
             i /= dst_dims[j];
         }
 
-        for (size_t iwork = start, dst_idx = start * dataLength, i = 1; iwork < end; ++iwork, dst_idx += dataLength) {
-            cpu_memcpy(&dst_data[dst_idx], &src_data[src_idx], sizeof(float) * dataLength);
+        for (size_t iwork = start, dst_idx = start * len, i = 1; iwork < end; ++iwork, dst_idx += len) {
+            cpu_memcpy(&dst_data[dst_idx], &src_data[src_idx * dataSize], len);
             for (int j = dims_size_1 - 1; j >= 0; j--) {
                 counters[j]++;
                 if (counters[j] < dst_dims[j]) {
@@ -342,7 +382,13 @@ void StridedSliceImpl::strided_slice_vp(const float *src_data, float* dst_data) 
     });
 }
 
-void StridedSliceImpl::strided_slice_p(const float *src_data, float* dst_data) {
+template <typename T>
+void StridedSliceImpl::strided_slice_p(Blob::Ptr& input, Blob::Ptr& output) {
+    auto* src_data = input->cbuffer().as<const T*>() + input->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    auto* dst_data = output->buffer().as<T*>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    auto dst_size = output->byteSize();
+    memset(dst_data, 0, dst_size);
+
     size_t dims_size = dst_dims.size();
     size_t work_amount_dst = dstStrides[0] * dst_dims[0];
 
