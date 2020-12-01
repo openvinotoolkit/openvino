@@ -951,7 +951,12 @@ void FlattenTrivialConcatPass::run() {
             auto reshapeName = l->name + "_output_"+ std::to_string(output_idx) +"_reshape";
 
             auto reshape = CNNNetworkCreateReshape(output_tensor_copy, reshapeName, quantized);
-            CNNNetworkInsertLayer(l, nullptr, reshape, output_idx);
+            if (getInputTo(new_output).empty()) {
+                reshape->insData.push_back(new_output);
+                getInputTo(new_output)[reshape->name] = reshape;
+            } else {
+                CNNNetworkInsertLayer(l, nullptr, reshape, output_idx);
+            }
             gnalog() << "\tInserted " << reshapeName << " after " << l->name << std::endl;
         }
 
