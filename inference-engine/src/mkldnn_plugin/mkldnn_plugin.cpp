@@ -140,12 +140,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
                        node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
             });
 
-    // Disable FC reshaping for 3D case
-    pass_config->set_callback<ngraph::pass::ReshapeFullyConnected>(
-            [](const_node_ptr &node) -> bool {
-                return node->input_value(0).get_shape().size() == 3ul;
-            });
-
     pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
                               ngraph::pass::ConvertSpaceToBatch>(
             [](const_node_ptr &node) -> bool {
@@ -248,6 +242,13 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
+
+    // Disable FC reshaping for 3D case
+    legacyManager.get_pass_config()->set_callback<ngraph::pass::ReshapeFullyConnected>(
+        [](const_node_ptr& node) -> bool {
+            return node->input_value(0).get_shape().size() == 3ul;
+        });
+
     legacyManager.run_passes(nGraphFunc);
 
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
