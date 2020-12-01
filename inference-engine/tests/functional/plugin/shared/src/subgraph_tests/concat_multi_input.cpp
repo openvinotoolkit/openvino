@@ -38,17 +38,19 @@ std::string ConcatMultiInput::getTestCaseName(testing::TestParamInfo<concatMulti
 }
 
 void ConcatMultiInput::SetUp() {
-    std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> additional_config;
     std::tie(inputShapes, netPrecision, targetDevice, additional_config) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    std::vector<size_t> paramSize = { 1, 0 };
+    ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    paramSize = { 1, 0 };
     for (const auto& val : inputShapes) {
         paramSize[1] += val[1];
     }
+}
+
+void ConcatMultiInput::GenerateStridedSliceModel() {
     auto params = ngraph::builder::makeParams(ngPrc, { paramSize });
     auto stride = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, std::vector<int64_t>{ 1, 1 });
 
@@ -80,9 +82,53 @@ void ConcatMultiInput::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "ConcatMultiInput");
 }
 
-TEST_P(ConcatMultiInput, CompareWithRefImpl) {
+void ConcatMultiInput::GenerateConstOnlyModel() {
+    ngraph::OutputVector concatInputs;
+
+    const int seed = 0;
+    std::mt19937 gen(static_cast<float>(seed));
+
+    auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
+        std::vector<float> res;
+
+        std::uniform_real_distribution<float> dist(min, max);
+        for (int i = 0; i < vec_len; i++)
+            res.emplace_back(static_cast<float>(dist(gen)));
+
+        return res;
+    };
+    ngraph::ParameterVector input_vector;
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
+        size_t total_size = 1;
+        for (auto dim : inputShapes[i]) {
+            total_size *= dim;
+        }
+        if (i == 0) {
+            input_vector = ngraph::builder::makeParams(ngPrc, {{1, total_size}});
+            auto relu = ngraph::builder::makeActivation(input_vector[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+            concatInputs.push_back(relu);
+        } else {
+            auto min_max = (i % 2 == 0) ? 2 : 30;
+            auto const_values = generateFloatNumbers(total_size, -min_max, min_max);
+            auto const_node = ngraph::builder::makeConstant(ngPrc, {1, total_size}, const_values);
+            concatInputs.push_back(const_node);
+        }
+    }
+
+    auto concat = ngraph::builder::makeConcat(concatInputs, 1);
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+    function = std::make_shared<ngraph::Function>(results, input_vector, "ConcatConstOnly");
+}
+
+TEST_P(ConcatMultiInput, CompareWithRefStridedSlice) {
+    GenerateStridedSliceModel();
     Run();
 };
 
+TEST_P(ConcatMultiInput, CompareWithRefConstOnly) {
+    GenerateConstOnlyModel();
+    Run();
+};
 
 }  // namespace LayerTestsDefinitions

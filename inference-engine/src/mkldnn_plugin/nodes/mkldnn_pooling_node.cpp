@@ -91,13 +91,7 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
         createDescriptor({ in_candidate }, { out_candidate });
-    } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && (inputDataType == memory::bf16 || outputDataType == memory::bf16)) {
-        MKLDNNMemoryDesc in_candidate{ parentDims, memory::bf16, parentDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c};
-        MKLDNNMemoryDesc out_candidate{ childDims, memory::bf16, parentDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c};
-        createDescriptor({ in_candidate }, { out_candidate });
     } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && parentDims[1] == 1) {
-        inputDataType = memory::f32;
-        outputDataType = memory::f32;
         // WA. We should force planar layout since it provides better performance
         MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};

@@ -83,7 +83,7 @@ public:
     /**
      * constructs InferRequest from the initialized shared_pointer
      * @param request Initialized shared pointer to IInferRequest interface
-     * @param plg Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
+     * @param splg Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
      */
     explicit InferRequest(IInferRequest::Ptr request,
                           InferenceEngine::details::SharedObjectLoader::Ptr splg = {}):
