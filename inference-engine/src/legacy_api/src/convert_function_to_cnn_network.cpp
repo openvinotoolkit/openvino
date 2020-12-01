@@ -591,7 +591,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
             auto step = std::stof(res->params["step"]);
             if (step == -1)
-                step = static_cast<float>(1. * img_H / data_H);
+                step = img_H / static_cast<float>(data_H);
             else
                 step *= img_H;
             res->params["step"] = Builder::asString(step);
