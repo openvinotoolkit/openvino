@@ -93,6 +93,7 @@ def insert_do(graph: Graph, replacement_descriptions: dict):
 
 def insert_ExperimentalDetectronROIFeatureExtractor1(graph: Graph, replacement_descriptions: dict):
     if 'ROIFeatureExtractor1_output' not in replacement_descriptions:
+        # In case of Faster-RCNN this transformation is not needed and this attribute shouldn't be set
         return
     input_fpn_heads = replacement_descriptions['input_fpn_heads']
     old_output_node = Node(graph, replacement_descriptions['ROIFeatureExtractor1_output'])
