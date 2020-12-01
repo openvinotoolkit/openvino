@@ -84,6 +84,7 @@ void op::NormalizeL2::pre_validate_and_infer_types()
             }
         }
     }
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 AxisSet op::NormalizeL2::get_reduction_axes() const
