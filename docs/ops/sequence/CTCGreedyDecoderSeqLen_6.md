@@ -8,14 +8,14 @@
 
 **Detailed description**:
 
-This operation is similar to TensorFlow CTCGreedyDecoder [Reference](https://www.tensorflow.org/api_docs/python/tf/nn/ctc_greedy_decoder)
+This operation is similar to TensorFlow CTCGreedyDecoder [TensorFlow CTCGreedyDecoder](https://www.tensorflow.org/api_docs/python/tf/nn/ctc_greedy_decoder).
 
 The operation *CTCGreedyDecoderSeqLen* implements best path decoding.
 Decoding is done in two steps:
 
-1. Concatenate most probable characters per time-step which yields the best path.
+1. Concatenate the most probable classes per time-step which yields the best path.
 
-2. Then, undo the encoding by first removing duplicate characters and then removing all blanks. This gives us the recognized text.
+2. Remove duplicate consecutive elements if the attribute merge_repeated is true and then remove all blank elements.
 
 Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor `sequence_length`.
 
@@ -25,7 +25,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * *merge_repeated*
 
-  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation. If value is false the sequence `ABB*B*B`  (where '*' is the blank label) will look like `ABBBB`. But if we set it to true, the sequences will be `ABBB`. `ABB` will be merged to `AB`.
+  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation. If value is false the sequence `ABB*B*B`  (where '*' is the blank class) will look like `ABBBB`. But if we set it to true, the sequences will be `ABBB`. `ABB` will be merged to `AB`.
   * **Range of values**: true or false
   * **Type**: `boolean`
   * **Default value**: true
@@ -37,7 +37,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * **2**: `sequence_length` - input tensor of type *T_I* of shape `[N]` with sequence lengths. Value of sequence lengths must be less or equal shape `T` of data. **Required.**
 
-* **3**: `blank_index` - Scalar of type *T_I*. Set the class index to use for the blank label. The blank_index is not saved to the result sequence and it is used for post-processing. Default value is `C-1`. **Optional**.
+* **3**: `blank_index` - Scalar of type *T_I*. Set the class index to use for the blank class. The blank_index is not saved to the result sequence and it is used for post-processing. Default value is `C-1`. **Optional**.
 
 **Output**
 
