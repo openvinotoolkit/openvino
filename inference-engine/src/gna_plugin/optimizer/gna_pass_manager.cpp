@@ -892,6 +892,16 @@ void FlattenTrivialConcatPass::run() {
     if (getPassManager()->getPolicy().ConcatConversionPolicy == Policy::FlattenTrivialConcatConversion::DISABLED) return;
     if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED) return;
     if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED_FOR_FP32 && !quantized) return;
+
+    auto getLayerByIndex = [&concatLayer](int idx) {
+        auto input = concatLayer->insData[idx];
+        auto lockedInput = input.lock();
+        if (!lockedInput) {
+            THROW_GNA_EXCEPTION << "cannot get insdata : "<< idx << " for layer: " << concatLayer->name;
+        }
+        return lockedInput;
+    };
+
     for (auto & l : *pLayers) {
         LayerInfo info(l);
         auto concatLayer = info.as<ConcatLayer*>();
@@ -914,15 +924,6 @@ void FlattenTrivialConcatPass::run() {
         }
 
         for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
-            auto getLayerByIndex = [&concatLayer](int idx) {
-                auto input = concatLayer->insData[idx];
-                auto lockedInput = input.lock();
-                if (!lockedInput) {
-                    THROW_GNA_EXCEPTION << "cannot get insdata : "<< idx << " for layer: " << concatLayer->name;
-                }
-                return lockedInput;
-            };
-
             auto concatInput = getLayerByIndex(input_idx);
 
             auto tensor = InferenceEngine::TensorDesc(concatInput->getTensorDesc());
