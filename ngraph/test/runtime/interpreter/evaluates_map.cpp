@@ -57,6 +57,7 @@
 #include "ngraph/runtime/reference/mvn.hpp"
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/region_yolo.hpp"
+#include "ngraph/runtime/reference/roi_pooling.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "ngraph/runtime/reference/squared_difference.hpp"
 #include "reference/elu.hpp"
@@ -1427,7 +1428,22 @@ namespace
         }
         return true;
     }
-
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::ROIPooling>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::roi_pooling<T>(inputs[0]->get_data_ptr<const T>(),
+                                           inputs[1]->get_data_ptr<const T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           op->get_input_shape(0),
+                                           op->get_input_shape(1),
+                                           op->get_output_shape(0),
+                                           op->get_spatial_scale(),
+                                           op->get_method());
+        return true;
+    }
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::ReorgYolo>& op,
                   const HostTensorVector& outputs,
