@@ -168,8 +168,8 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         this->preamble();
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
-            bf16_emu_ = new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
-                bf16_emu_reserv_3, bf16_emu_scratch, bf16_emu_reserv_4);
+            bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
+                bf16_emu_reserv_3, bf16_emu_scratch, bf16_emu_reserv_4));
             bf16_emu_->init_vcvtneps2bf16();
         }
 
@@ -199,7 +199,6 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         ker_ = (decltype(ker_)) this->getCode();
     }
-    ~jit_uni_normalize_kernel_f32() { if (bf16_emu_) delete bf16_emu_; }
 
 private:
     using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
@@ -242,7 +241,7 @@ private:
     Vmm bf16_emu_reserv_3 = Vmm(10);
     Reg64 bf16_emu_scratch = rsi;
     Vmm bf16_emu_reserv_4 = Vmm(11);
-    bf16_emulation_t<isa>* bf16_emu_ = nullptr;
+    std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
