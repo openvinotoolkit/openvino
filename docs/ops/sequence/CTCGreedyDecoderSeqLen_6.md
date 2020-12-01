@@ -8,7 +8,7 @@
 
 **Detailed description**:
 
-This operation is similar [Reference](https://www.tensorflow.org/api_docs/python/tf/nn/ctc_greedy_decoder)
+This operation is similar to TensorFlow CTCGreedyDecoder [Reference](https://www.tensorflow.org/api_docs/python/tf/nn/ctc_greedy_decoder)
 
 Given an input sequence \f$X\f$ of length \f$T\f$, *CTCGreedyDecoderSeqLen* assumes the probability of a length \f$T\f$ character sequence \f$C\f$ is given by
 \f[
@@ -23,7 +23,7 @@ The main difference between CTCGreedyDecoder and CTCGreedyDecoderSeqLen is in se
 
 * *merge_repeated*
 
-  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation. If value is false the squense A B B * B * B  (where '*' is the blank label) will look like ABB * B * B. But if we set it to true, the squensy will be AB * B * B. A B B will be merged repeted to A B.
+  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation. If value is false the sequence ABB*B*B  (where '*' is the blank label) will look like ABBBB. But if we set it to true, the squensy will be ABBB. ABB will be merged repeted to AB.
   * **Range of values**: true or false
   * **Type**: `boolean`
   * **Default value**: true
@@ -35,7 +35,7 @@ The main difference between CTCGreedyDecoder and CTCGreedyDecoderSeqLen is in se
 
 * **2**: `sequence_length` - 1D input integer tensor with sequence lengths and having size batch. Value of sequence lengths must be less or equal shape `T` of data. A tensor of type *T_I*. **Required.**
 
-* **3**: `blank_index` - Scalar of type *T_I*. Set the class index to use for the blank label. Default value is `C-1`. Optional.
+* **3**: `blank_index` - Scalar of type *T_I*. Set the class index to use for the blank label. The blank_index is not outputted in the resulted sequence and it used for post-processing. Default value is `C-1`. Optional.
 
 **Output**
 
