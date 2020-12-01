@@ -184,10 +184,13 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
 
 using Threads = unsigned int;
 using Iterations = unsigned int;
-using ModelClass = std::string;
+
+enum struct ModelClass : unsigned {
+    Default,
+    ConvPoolRelu
+};
+
 using CoreThreadingParams = std::tuple<Params, Threads, Iterations, ModelClass>;
-std::string ConvPoolReluModelSetClass = "ConvPoolRelu";
-std::string DefaultModelSetClass = "";
 
 class CoreThreadingTestsWithIterations : public ::testing::TestWithParam<CoreThreadingParams>,
     public CoreThreadingTestsBase {
@@ -196,7 +199,7 @@ public:
         std::tie(deviceName, config) = std::get<0>(GetParam());
         numThreads = std::get<1>(GetParam());
         numIterations = std::get<2>(GetParam());
-        modelSetClass = std::get<3>(GetParam());
+        modelClass = std::get<3>(GetParam());
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<CoreThreadingParams > obj) {
@@ -218,18 +221,17 @@ public:
         return result.str();
     }
 
-    std::string modelSetClass;
+    ModelClass modelClass;
     unsigned int numIterations;
     unsigned int numThreads;
 
     std::vector<InferenceEngine::CNNNetwork> networks;
     void SetupNetworks() {
-        if (modelSetClass == ConvPoolReluModelSetClass) {
+        if (modelClass == ModelClass::ConvPoolRelu) {
             for (unsigned i = 0; i < numThreads; i++) {
                 networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeConvPoolRelu()));
             }
-        }
-        else {
+        } else {
             networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
             networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
             networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
@@ -317,6 +319,5 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
         InferenceEngine::Core ie;
         ie.SetConfig(config, deviceName);
         (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
-
     }, numIterations, numThreads);
 }

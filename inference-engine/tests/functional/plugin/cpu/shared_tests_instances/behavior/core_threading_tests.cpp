@@ -23,12 +23,12 @@ INSTANTIATE_TEST_CASE_P(CPU, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(4),
                      testing::Values(50),
-                     testing::Values(DefaultModelSetClass)),
+                     testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(CPU_Streams, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(paramsStreams),
                      testing::Values(4),
                      testing::Values(50),
-                     testing::Values(DefaultModelSetClass)),
+                     testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);

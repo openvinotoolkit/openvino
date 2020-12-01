@@ -19,5 +19,5 @@ INSTANTIATE_TEST_CASE_P(GNA, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(3),
                      testing::Values(4),
-                     testing::Values(ConvPoolReluModelSetClass)),
+                     testing::Values(ModelClass::ConvPoolRelu)),
     CoreThreadingTestsWithIterations::getTestCaseName);
