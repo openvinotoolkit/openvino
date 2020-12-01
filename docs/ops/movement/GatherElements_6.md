@@ -93,7 +93,7 @@ data = [
 
 **Outputs**:
 
-*   **1**: Tensor with gathered values of type *T*.
+*   **1**: Tensor with gathered values of type *T*. Tensor has the same shape as `indices`. 
 
 **Types**
       
