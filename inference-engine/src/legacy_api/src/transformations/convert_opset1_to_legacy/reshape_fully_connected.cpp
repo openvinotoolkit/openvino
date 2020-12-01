@@ -31,7 +31,7 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
         auto input_shape = fc->input_value(0).get_shape();
         auto output_shape = fc->get_shape();
 
-        if (input_shape.size() == 2 || input_shape.size() == 3) {
+        if (input_shape.size() == 2) {
             return false;
         }
 
