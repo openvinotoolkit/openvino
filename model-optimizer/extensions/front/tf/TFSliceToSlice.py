@@ -16,6 +16,7 @@
 
 import numpy as np
 
+from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Add, Equal
 from extensions.ops.select import Select
 from mo.front.common.replacement import FrontReplacementOp
@@ -73,5 +74,8 @@ class TFSliceToSliceReplacer(FrontReplacementOp):
         sum_node.out_port(0).connect(select_node.in_port(2))
         # out of select to end (2nd of slice)
         select_node.out_port(0).connect(slice_node.in_port(2))
+
+        cast = Cast(graph, dict(name=sum_node.name + '/CastToI64', dst_type=np.int64)).create_node()
+        select_node.in_port(2).get_connection().insert_node(cast)
 
         node.out_port(0).get_connection().set_source(slice_node.out_port(0))
