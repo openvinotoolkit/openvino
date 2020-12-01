@@ -63,6 +63,8 @@ namespace ngraph
                 const Attributes& get_attrs() const { return m_attrs; }
             private:
                 Attributes m_attrs;
+
+                void validate();
             };
         } // namespace v6
         using v6::ExperimentalDetectronPriorGridGenerator;

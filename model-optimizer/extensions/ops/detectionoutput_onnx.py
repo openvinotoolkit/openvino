@@ -54,7 +54,7 @@ class ExperimentalDetectronDetectionOutput(Op):
         # boxes
         node.out_node(0).shape = np.array([rois_num, 4], dtype=np.int64)
         # classes, scores, batch indices
-        for port_ind in range(1, 3):
+        for port_ind in range(1, 4):
             if not node.out_port(port_ind).disconnected():
                 node.out_port(port_ind).data.set_shape(int64_array([rois_num]))
 
@@ -64,3 +64,4 @@ class ExperimentalDetectronDetectionOutput(Op):
         node.out_port(0).set_data_type(in_data_type)
         node.out_port(1).set_data_type(np.int32)  # the second output contains class indices
         node.out_port(2).set_data_type(in_data_type)
+        node.out_port(3).set_data_type(np.int32)  # the fourth output contains batch indices
