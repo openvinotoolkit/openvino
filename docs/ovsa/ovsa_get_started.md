@@ -284,7 +284,7 @@ The OVMS images are available.
 
 Begin these steps on the Host Machine.
 
-1. Download the [OpenVINO Security Add-on (OVSA)[(https://github.com/openvinotoolkit/OVSA)
+1. Download the [OpenVINO Security Add-on (OVSA)](https://github.com/openvinotoolkit/OVSA)
 2. Go to the top-level OVSA source directory.
 3. Build the OVSA Docker image:
    ```sh
@@ -330,7 +330,7 @@ In this step you use the Protect tool to create a certificate and put the certif
    ```
 
 ### Step 2: Use a Sample Model to Learn to Protect Models	
-1. Use the Model Downloader to download the sample model named `Person_Detection_Retail_0013_Model` from the Model Zoo.
+1. Use the [Model Downloader](@ref omz_tools_downloader_README) to download the sample model named `Person_Detection_Retail_0013_Model` from the Model Zoo.
 
 2. Protect the model:
    ```sh	
