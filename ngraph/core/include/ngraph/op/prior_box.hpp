@@ -41,7 +41,7 @@ namespace ngraph
             std::vector<float> fixed_size;
             bool clip = false;
             bool flip = false;
-            float step = 1.0f;
+            float step = 0.0f;
             float offset = 0.0f;
             std::vector<float> variance;
             bool scale_all_sizes = true;
