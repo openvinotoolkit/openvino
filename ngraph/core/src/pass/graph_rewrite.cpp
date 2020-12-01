@@ -128,6 +128,8 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // including ones triggered by parent type info.
     }
 
+    std::set<DiscreteTypeInfo> info;
+
     // This lambda preforms execution of particular MatcherPass on given node.
     // It automatically handles nodes registered by MatcherPass during transformation and set
     // transformation callback.
@@ -147,6 +149,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node
         bool status = m_pass->apply(node);
+
+        if (status) {
+            info.insert(m_pass->get_type_info());
+        }
 
         // In case if MatcherPass registered nodes they will be added to the beginning of execution
         // queue
@@ -235,6 +241,9 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 }
             }
         }
+    }
+    for (auto pass : info) {
+        std::cout << "    " << pass.name << std::endl;
     }
     return rewritten;
 }
