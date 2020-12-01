@@ -23,7 +23,7 @@ The main difference between CTCGreedyDecoder and CTCGreedyDecoderSeqLen is in se
 
 * *merge_repeated*
 
-  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation. If value is false the squense A B B * B * B  (where '*' is the blank label) will look like ABB * B * B. But if we set it to true, the squensy will be AB * B * B. A B B sequence will be merged repeted to A B.
+  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation. If value is false the squense A B B * B * B  (where '*' is the blank label) will look like ABB * B * B. But if we set it to true, the squensy will be AB * B * B. A B B will be merged repeted to A B.
   * **Range of values**: true or false
   * **Type**: `boolean`
   * **Default value**: true
@@ -35,11 +35,15 @@ The main difference between CTCGreedyDecoder and CTCGreedyDecoderSeqLen is in se
 
 * **2**: `sequence_length` - 1D input integer tensor with sequence lengths and having size batch. Value of sequence lengths must be less or equal shape `T` of data. A tensor of type *T_I*. **Required.**
 
+* **3**: `blank_index` - Scalar of type *T_I*. Set the class index to use for the blank label. Default value is `C-1`. Optional.
+
 **Output**
 
 * **1**: Output tensor of type *T_I* with shape `[N, T]` and containing final sequence class indices. A final sequence can be shorter than the size `T` of the tensor, all elements than do not code sequence classes are filled with -1.
 
-* **2**: Output tensor of type *T_F* with shape `[N]` where `N` is the batch size and containing, for the sequence found, the negative of the sum of the greatest logit at each timeframe.
+* **2**: Output tensor of type *T_I* with shape `[N, C]` and containing vector stores the decoded classes.
+
+* **3**: Output tensor of type *T_I* with shape `[N, 1]` and containing length of decoded class array for each batch.
 
 **Types**
 
