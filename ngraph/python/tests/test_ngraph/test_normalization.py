@@ -19,7 +19,7 @@ import numpy as np
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_40957, xfail_issue_35929
+from tests import xfail_issue_40957
 
 
 @xfail_issue_40957

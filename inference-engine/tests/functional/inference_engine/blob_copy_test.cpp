@@ -270,7 +270,7 @@ TEST_P(BlobCopyTest, BlobCopy) {
 
     std::cout << "Blob_copy execution time : " << std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() << " micros" << std::endl;
 
-    ASSERT_TRUE(IsCorrectBlobCopy(srcBlob, dstBlob)) << "'blob_copy' function is't correct";
+    ASSERT_TRUE(IsCorrectBlobCopy(srcBlob, dstBlob)) << "'blob_copy' function is not correct";
 }
 
 namespace {
@@ -304,7 +304,6 @@ std::vector<Dims> BlobCopy_Dims = {
 //  Cases with other precision are not supported
 std::vector<PrecisionType> BlobCopy_PrecisionParams = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP64,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::U8,
         InferenceEngine::Precision::I8,
