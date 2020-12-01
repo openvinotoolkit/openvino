@@ -972,20 +972,20 @@ Refer to the `mo/front/common/replacement.py` for the implementation details on 
 work.
 
 ##### Node Name Pattern Front Phase Transformations <a name="node-name-pattern-front-phase-transformations"></a>
-Let's review a real life example before going into details how this type of transformations work.
+Let's review a real life example before going into details how this type of transformation works.
 
 TensorFlow\* uses a mechanism of scope to group related operation nodes. It is a good practice to put nodes performing
 particular task into the same scope. This approach divides a graph into logical blocks that are easier to review in the
-TensorBoard\*. The scope, in fact, just defines a common name prefix for the node belonging to it.
+TensorBoard\*. The scope, in fact, just defines a common name prefix for the nodes belonging to it.
 
 For example, Inception topologies contain several types of so-called "Inception blocks". Some of them are equal to each
 other, but located in different places of the network. For example, Inception V4 from the [TensorFlow-Slim image
 classification model library](https://github.com/tensorflow/models/tree/master/research/slim) has inception blocks
 `Mixed_5b`, `Mixed_5c` and `Mixed_5d` with exactly the same nodes with the same set of attributes.
 
-Consider situation when someone implemented these Inception blocks extremely efficiently using a single Inference Engine
-operation called `InceptionBlock` and would like to replace these blocks with instances of this operation. Model
-Optimizer provides mechanism to trigger the transformation for a sub-graph of operations defined by the node name
+Consider a situation when someone implemented these Inception blocks extremely efficiently using a single Inference
+Engine operation called `InceptionBlock` and need to replace these blocks in the model with instances of this operation.
+Model Optimizer provides mechanism to trigger the transformation for a sub-graph of operations defined by the node name
 regular expressions (scope). In this particular case, some of the patterns are: `.*InceptionV4/Mixed_5b`,
 `.*InceptionV4/Mixed_5c` and `.*InceptionV4/Mixed_5d`. Each pattern starts with `.*`, because a prefix `InceptionV4`
 is added to all nodes names during a model freeze.
@@ -1017,13 +1017,13 @@ Consider the following possible configuration file template for the Inception Bl
 ]
 ```
 
-The configuration file contains list of dictionaries. Each dictionary defines one transformation. Each transformation is
-defined with several parameters:
+The configuration file contains a list of dictionaries. Each dictionary defines one transformation. Each transformation
+is defined with several parameters:
 
 * `id` (mandatory) is a unique identifier of the transformation. It is used in the Python\* code that implements the
 transformation to link the class and the transformation description from the configuration file.
-* `match_kind` (mandatory) is a string that specifies what matching algorithm is used. For the node name pattern case
- the value should be equal to `scope`. Another possible values are described in the dedicated sections below.
+* `match_kind` (mandatory) is a string that specifies the matching algorithm. For the node name pattern case the value
+should be equal to `scope`. Another possible values are described in the dedicated sections below.
 * `instances` (mandatory) specifies instances of the sub-graph to be matched. It contains a list of node names prefixes
 patterns for the match kind of type `scope`.
 * `custom_attributes` (optional) is a dictionary with attributes that can be used in the transformation code.
@@ -1088,18 +1088,18 @@ contains one list corresponding to this tensor. Four input nodes of the sub-grap
 
 The order of items in the internal list describing nodes does not matter, but the order of elements in the top-level
 list is important. This order defines the order in which the Model Optimizer attaches input tensors to a new generated
-node if the sub-graph is replaced with a single node. The i-th input node of the sub-graph is obtained using call
+node if the sub-graph is replaced with a single node. The `i`-th input node of the sub-graph is obtained using call
 `match.single_input_node(i)` in the sub-graph transformation code. More information about API is given below. If it is
 necessary to change the order of input tensors, the configuration file can be edited in the text-editor.
 
 The value for the key `outputs` is a list describing nodes of the sub-graph producing tensor that goes outside of the
 sub-graph or does not have child nodes. Denote these nodes as output nodes of the sub-graph. The order of elements in
-the list is important. The i-th element of the list describes the i-th output tensor of the sub-graph, which could be
+the list is important. The i-th element of the list describes the `i`-th output tensor of the sub-graph, which could be
 obtained using call `match.output_node(i)`. The order of elements can be manually changed in the configuration file.
 Model Optimizer uses this order to connect output edges if the sub-graph is replaced with a single node.
 
 Refer to [Converting TensorFlow\* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md)
-for more examples of this type of transformations.
+for more examples of this type of transformation.
 
 ##### Front Phase Transformations Using Start and End Points <a name="start-end-points-front-phase-transformations"></a>
 This type of transformation is implemented using `mo.front.tf.replacement.FrontReplacementFromConfigFileSubGraph` as a
@@ -1109,8 +1109,8 @@ base class and works the following way.
 2. Model Optimizer executes developer-defined transformation **only** when an user specifies the path to the
 configuration file using the command line parameter `--transformations_config`.Model Optimizer performs the following
 steps to match the sub-graph:
-   1. Starts graph traversal from every start node following the direction of the graph edges. The search stops in end
-   node or in case of node without children. All visited nodes are added to the matched sub-graph.
+   1. Starts a graph traversal from every start node following the direction of the graph edges. The search stops in an
+   end node or in case of a node without consumers. All visited nodes are added to the matched sub-graph.
    2. Starts another graph traversal from each non-start node of the sub-graph, i.e. every node except nodes from the
    "start" list. In this step the edges are traversed in the opposite edge direction. All newly visited nodes are added
    to the matched sub-graph. This step is needed to add nodes required for calculation values of internal nodes of the
@@ -1121,7 +1121,7 @@ steps to match the sub-graph:
    Model Optimizer exits with an error.
 
 This algorithm finds all nodes "between" start and end nodes and nodes needed for calculation of non-input nodes of the
-matched sub-graph produce constant values because they do not depend on input of the network.
+matched sub-graph.
 
 The example of a JSON configuration file for a transformation with start and end points is
 `extensions/front/tf/ssd_support_api_v1.15.json`:
@@ -1159,12 +1159,12 @@ The example of a JSON configuration file for a transformation with start and end
 ```
 
 The format of the file is similar to the one provided as an example in the [Node Name Pattern Front Phase
-Transformations](#node-name-pattern-front-phase-transformations). There difference is in the value of the "match_kind"
-parameter which should be eqaul to "points" and the format of the "instances" parameter which should be a dictionary
-with two keys "start_points" and "end_points" defining start and end node names correspondingly.
+Transformations](#node-name-pattern-front-phase-transformations). There difference is in the value of the `match_kind`
+parameter which should be equal to `points` and the format of the `instances` parameter which should be a dictionary
+with two keys `start_points` and `end_points` defining start and end node names correspondingly.
 
-"include_inputs_to_sub_graph" and "include_outputs_to_sub_graph" parameters are redundant and should be always equal to
-"true".
+> **NOTE**: `include_inputs_to_sub_graph` and `include_outputs_to_sub_graph` parameters are redundant and should be
+> always equal to `true`.
 
 > **NOTE**: This sub-graph match algorithm has a limitation that each start node must have only one input. Therefore, it
 > is not possible to specify, for example, [Convolution](../../../ops/convolution/Convolution_1.md) node as input
@@ -1174,17 +1174,17 @@ For other examples of transformations with points, please refer to the
 [Converting TensorFlow\* Object Detection API Models](../convert_model/tf_specific/Convert_Object_Detection_API_Models.md).
 
 ##### Generic Front Phase Transformations Enabled with Transformations Configuration File<a name="generic-transformations-config-front-phase-transformations"></a>
-This type of transformations works similarly to the [Generic Front Phase Transformations](#generic-front-phase-transformations)
+This type of transformation works similarly to the [Generic Front Phase Transformations](#generic-front-phase-transformations)
 but require a JSON configuration file to enable it similarly to
 [Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformation) and
 [Front Phase Transformations Using Start and End Points](#start-end-points-front-phase-transformations).
 
-The base class for this type of transformations is type of transformation is
+The base class for this type of transformation is
 `mo.front.common.replacement.FrontReplacementFromConfigFileGeneral`. The Model Optimizer executes the method
 `transform_graph(self, graph, replacement_descriptions)` and provides the `Graph` object and dictionary with values
-parsed from the `custom_attributes` field of the JSON configuration file.
+parsed from the `custom_attributes` attribute of the provided JSON configuration file.
 
-The example of the configuration file for this type of transformations is `extensions/front/tf/yolo_v1_tiny.json`:
+The example of the configuration file for this type of transformation is `extensions/front/tf/yolo_v1_tiny.json`:
 
 ```json
 [
@@ -1236,8 +1236,8 @@ class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
             graph.remove_node(op_output)
 ```
 
-The configuration file has only 3 parameters: identifier of the transformation "id", "match_kind" which should be equal to
-"general" and the dictionary with custom attributes "custom_attributes" accessible in the transformation.
+The configuration file has only 3 parameters: identifier of the transformation `id`, `match_kind` (which should be equal
+to `general`) and the dictionary with custom attributes `custom_attributes` accessible in the transformation.
 
 #### Middle Phase Transformations <a name="middle-phase-transformations"></a>
 There are two types of middle phase transformations:
@@ -1263,7 +1263,7 @@ implemented using `mo.middle.replacement.MiddleReplacementPattern` as a base cla
 Front Phase Transformations](#generic-front-phase-transformations). The only difference is that the transformation entry
 function name is `find_and_replace_pattern(self, graph: Graph)`.
 
-Refer to the `extensions/middle/CheckForCycle.py` for the example of such type of transformation.
+Refer to the `extensions/middle/CheckForCycle.py` for the example of a such type of transformation.
 
 #### Back Phase Transformations <a name="back-phase-transformations"></a>
 There are two types of back phase transformations:
@@ -1287,7 +1287,7 @@ Model Optimizer provides mechanism to implement generic back phase transformatio
 implemented using `mo.back.replacement.BackReplacementPattern` as a base class and works the same way as [Generic
 Middle Phase Transformations](#generic-middle-phase-transformations).
 
-Refer to the `extensions/back/GatherNormalizer.py` for the example of such type of transformation.
+Refer to the `extensions/back/GatherNormalizer.py` for the example of a such type of transformation.
 
 ## See Also
 * [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md)
