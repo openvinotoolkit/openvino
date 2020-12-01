@@ -70,9 +70,9 @@
 
 **Mathematical Formulation**
 
-    \f[
-    output_{j} = MAX\{ x_{0}, ... x_{i}\}
-    \f]
+\f[
+output_{j} = MAX\{ x_{0}, ... x_{i}\}
+\f]
 
 **Example**
 
