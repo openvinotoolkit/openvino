@@ -142,9 +142,9 @@ DECL_PASS(InsertCopyLayer);
 DECL_PASS(InsertSplitAligningFilter);
 
 /**
-* @brief Pass that changes 4D concat to 2D concat in cases that would have to use ConcatAlignFilter
+* @brief Pass that flattens trivial concatenations inputs and output and changes its axis to 1
 */
-DECL_PASS(Concat4Dto2D);
+DECL_PASS(FlattenTrivialConcat);
 
 /**
  * @brief concat-aligning filter layer insertion required in cases when concat inputs size are not 64-aligned

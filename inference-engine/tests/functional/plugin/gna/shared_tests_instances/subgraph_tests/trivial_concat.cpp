@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "single_layer_tests/concat_4D.hpp"
+#include "subgraph_tests/trivial_concat.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -13,6 +13,9 @@ namespace {
 std::vector<std::vector<size_t>> inShapes = {
     {1, 1, 33, 16},
     {1, 1, 65, 16},
+    {10, 16},
+    {10, 64},
+    {15, 15},
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
@@ -24,11 +27,11 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_SCALE_FACTOR_0", "2000.0"},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat4D_Basic, Concat4DLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_trivial_concat_Basic, TrivialConcatLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(additional_config)),
-    Concat4DLayerTest::getTestCaseName);
+    TrivialConcatLayerTest::getTestCaseName);
 }  // namespace

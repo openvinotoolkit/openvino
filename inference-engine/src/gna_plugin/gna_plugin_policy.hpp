@@ -34,10 +34,10 @@ class Policy {
         AUTO_PERMUTE
     } PermutePolicy = Permute::DISABLED;
 
-    enum class Concat4Dto2DConversion {
+    enum class FlattenTrivialConcatConversion {
         DISABLED,
         ENABLED
-    } ConcatConversionPolicy = Concat4Dto2DConversion::ENABLED;
+    } ConcatConversionPolicy = FlattenTrivialConcatConversion::ENABLED;
 
     enum class ConcatAlignment {
         DISABLED,
