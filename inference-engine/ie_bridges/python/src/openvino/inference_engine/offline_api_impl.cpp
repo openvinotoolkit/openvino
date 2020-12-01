@@ -12,3 +12,9 @@ void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENet
     manager.register_pass<MOCTransformations>(cf);
     manager.run_passes(network.actual->getFunction());
 }
+
+void InferenceEnginePython::ApplyMOCTransformationsCPU(InferenceEnginePython::IENetwork network) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<MOCTransformationsCPU>();
+    manager.run_passes(network.actual->getFunction());
+}

@@ -44,7 +44,6 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
         OutputVector replacements(node->get_output_size());
         if (node->constant_fold(replacements, node->input_values()))
         {
-            std::cout << "Folded: " << node << std::endl;
             NGRAPH_CHECK(replacements.size() == node->get_output_size(),
                          "constant_fold_default returned incorrect number of replacements for ",
                          node);

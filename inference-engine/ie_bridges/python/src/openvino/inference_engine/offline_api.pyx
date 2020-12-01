@@ -20,3 +20,6 @@ from libcpp cimport bool
 
 def ApplyMOCTransformations(IENetwork network, bool cf):
     C.ApplyMOCTransformations(network.impl, cf)
+
+def ApplyMOCTransformationsCPU(IENetwork network):
+    C.ApplyMOCTransformationsCPU(network.impl)

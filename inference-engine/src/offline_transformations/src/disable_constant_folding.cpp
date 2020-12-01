@@ -7,6 +7,7 @@
 #include "disable_constant_folding.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/variant.hpp>
 
@@ -31,7 +32,7 @@ ngraph::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding() {
 }
 
 ngraph::pass::EnableShapeOfConstantFolding::EnableShapeOfConstantFolding() {
-    auto shape_of = ngraph::pattern::wrap_type<ngraph::opset5::ShapeOf>();
+    auto shape_of = ngraph::pattern::wrap_type<ngraph::opset1::ShapeOf>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto shape_of = m.get_match_root();

@@ -8,3 +8,4 @@
 
 
 NGRAPH_RTTI_DEFINITION(MOCTransformations, "MOCTransformations", 0);
+NGRAPH_RTTI_DEFINITION(MOCTransformationsCPU, "MOCTransformationsCPU", 0);

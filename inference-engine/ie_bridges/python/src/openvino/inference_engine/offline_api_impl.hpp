@@ -11,4 +11,6 @@ namespace InferenceEnginePython {
 
 void ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf);
 
+void ApplyMOCTransformationsCPU(InferenceEnginePython::IENetwork network);
+
 };  // namespace InferenceEnginePython
