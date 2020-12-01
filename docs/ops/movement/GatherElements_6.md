@@ -4,13 +4,13 @@
 
 **Category**: Data movement operations
 
-**Short description**: *GatherElements* takes elements from input `data` tensor at positions specified in `indices`.
+**Short description**: *GatherElements* takes elements from the input `data` tensor at positions specified in the `indices` tensor.
 
-**Detailed description** *GatherElements* takes elements from `data` tensor at positions specified in `indices`. `data` 
-and `indices` tensors have the same rank `r >= 1`. Optional attribute `axis` determines 
-along which axis elements with indices specified in `indices` are taken. `indices` tensor has the same shape as `data` 
-except for `axis` dimension. Output consists of values (gathered from the `data`) for each element in `indices` 
-and has the same shape as `indices`.
+**Detailed description** *GatherElements* takes elements from the `data` tensor at positions specified in the `indices` tensor. 
+The `data` and `indices` tensors have the same rank `r >= 1`. Optional attribute `axis` determines 
+along which axis elements with indices specified in `indices` are taken. The `indices` tensor has the same shape as 
+the `data` tensor except for the `axis` dimension. Output consists of values (gathered from the `data` tensor) for each 
+element in the `indices` tensor and has the same shape as `indices`.
 
 For instance, in the 3D case (`r = 3`), the output is determined by the following equations:
 ```
@@ -18,7 +18,7 @@ For instance, in the 3D case (`r = 3`), the output is determined by the followin
   out[i][j][k] = data[i][indices[i][j][k]][k] if axis = 1
   out[i][j][k] = data[i][j][indices[i][j][k]] if axis = 2
 ```
-Example 1:
+Example 1 with concrete values:
 ```
   data = [
       [1, 2],
@@ -36,7 +36,7 @@ Example 1:
       ],
   ]
 ```
-Example 2 with axis = 1 and `indices` having greater (than `data`) shape:
+Example 2 with `axis` = 1 and `indices` having greater (than `data`) shape:
 ```
 data = [
       [1, 7],
@@ -85,10 +85,10 @@ data = [
 
 **Inputs**:
 
-* **1**:  `data` tensor of type *T*. This is a tensor of a `rank >= 1`. Required.
+* **1**:  Tensor of type *T*. This is a tensor of a `rank >= 1`. Required.
 
-* **2**:  `indices` tensor of type *T_IND* with the same rank as the input. All index values are expected to be within
- bounds `[0, s-1]`, where `s` is size along `axis` dimension of `data` tensor. It is an error if any of the index 
+* **2**:  Tensor of type *T_IND* with the same rank as the input. All index values are expected to be within
+ bounds `[0, s-1]`, where `s` is size along `axis` dimension of the `data` tensor. It is an error if any of the index 
  values are out of bounds. Required.
 
 **Outputs**:
