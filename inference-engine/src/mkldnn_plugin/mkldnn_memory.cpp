@@ -595,6 +595,7 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims = dims;
             break;
         case memory::tnc:
+        case memory::ncw:
             layout = Layout::CHW;
             order = {0, 1, 2};
             blkDims = dims;
@@ -605,6 +606,13 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims = {static_cast<size_t>(dims[1]),
                        static_cast<size_t>(dims[0]),
                        static_cast<size_t>(dims[2])};
+            break;
+        case memory::nwc:
+            layout = Layout::CHW;
+            order = {0, 2, 1};
+            blkDims = {static_cast<size_t>(dims[0]),
+                       static_cast<size_t>(dims[2]),
+                       static_cast<size_t>(dims[1])};
             break;
         case memory::oihw:
         case memory::nchw:
