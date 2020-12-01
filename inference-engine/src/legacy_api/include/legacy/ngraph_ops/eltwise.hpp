@@ -31,9 +31,27 @@ public:
 
     ELTWISE_TYPE eltwise_type;
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 private:
     element::Type m_output_type;
 };
 
 }  // namespace op
+
+template <>
+class NGRAPH_API AttributeAdapter<ELTWISE_TYPE>
+    : public EnumAttributeAdapterBase<ELTWISE_TYPE>
+{
+public:
+    AttributeAdapter(ELTWISE_TYPE& value)
+        : EnumAttributeAdapterBase<ELTWISE_TYPE>(value)
+    {
+    }
+
+    static constexpr DiscreteTypeInfo type_info{
+        "AttributeAdapter<op::Eltwise::ELTWISE_TYPE>", 0};
+    const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+};
+
 }  // namespace ngraph

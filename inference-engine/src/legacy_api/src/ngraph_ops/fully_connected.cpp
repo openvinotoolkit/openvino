@@ -34,3 +34,9 @@ void op::FullyConnected::validate_and_infer_types() {
         m_output_type == element::undefined ? input_value(0).get_element_type() : m_output_type,
         m_output_shape);
 }
+
+bool op::FullyConnected::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("output_shape", m_output_shape);
+    visitor.on_attribute("output_type", m_output_type);
+    return true;
+}

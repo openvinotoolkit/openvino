@@ -75,3 +75,26 @@ void op::Eltwise::validate_and_infer_types() {
 
     set_output_type(0, et_result, output_shape);
 }
+
+constexpr DiscreteTypeInfo AttributeAdapter<ELTWISE_TYPE>::type_info;
+
+namespace ngraph {
+template<>
+EnumNames<ELTWISE_TYPE> &EnumNames<ELTWISE_TYPE>::get() {
+    static auto enum_names =
+            EnumNames<ELTWISE_TYPE>("op::Eltwise::ELTWISE_TYPE",
+                                    {{"prod", ELTWISE_TYPE::Prod},
+                                     {"div",  ELTWISE_TYPE::Div},
+                                     {"max",  ELTWISE_TYPE::Max},
+                                     {"min",  ELTWISE_TYPE::Min},
+                                     {"sub",  ELTWISE_TYPE::Sub},
+                                     {"sum",  ELTWISE_TYPE::Sum}});
+    return enum_names;
+}
+}  // namespace ngraph
+
+bool op::Eltwise::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("eltwise_type", eltwise_type);
+    visitor.on_attribute("output_type", m_output_type);
+    return true;
+}

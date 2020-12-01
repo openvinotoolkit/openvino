@@ -40,6 +40,8 @@ public:
 
     element::Type get_output_type() const { return m_output_type; }
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 private:
     size_t m_output_size = 0;
     Shape m_output_shape = {};
