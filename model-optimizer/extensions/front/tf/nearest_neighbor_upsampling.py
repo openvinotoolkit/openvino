@@ -85,7 +85,7 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
                           }).create_node()
         sizes_node = Const(graph, {'value': np.array([input_height * height_scale, input_width * width_scale]),
                                    'name': resample_node.name + '/target_shape_'}).create_node()
-        scales_node = Const(graph, {'value': np.array([height_scale, width_scale]),
+        scales_node = Const(graph, {'value': np.array([height_scale, width_scale], dtype=np.float32),
                                     'name': resample_node.name + '/scales_'}).create_node()
 
         match['reshape_2'].replace_node(resample_node)
