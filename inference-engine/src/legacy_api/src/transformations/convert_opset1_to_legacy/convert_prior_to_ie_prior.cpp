@@ -81,9 +81,9 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
             return false;
         }
 
-        auto begin_val = begin->get_vector<int64_t>();
-        auto end_val = end->get_vector<int64_t>();
-        auto stride_val = stride->get_vector<int64_t>();
+        auto begin_val = begin->cast_vector<int64_t>();
+        auto end_val = end->cast_vector<int64_t>();
+        auto stride_val = stride->cast_vector<int64_t>();
 
         if (begin_val.size() != 1 && begin_val[0] != 2) {
             return false;
@@ -220,9 +220,9 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
             return false;
         }
 
-        auto begin_val = begin->get_vector<int64_t>();
-        auto end_val = end->get_vector<int64_t>();
-        auto stride_val = stride->get_vector<int64_t>();
+        auto begin_val = begin->cast_vector<int64_t>();
+        auto end_val = end->cast_vector<int64_t>();
+        auto stride_val = stride->cast_vector<int64_t>();
 
         if (begin_val.size() != 1 && begin_val[0] != 2) {
             return false;
