@@ -8,6 +8,7 @@
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
+#include "moc_transformations.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
 #define IR_SERIALIZATION_MODELS_PATH ""
@@ -54,4 +55,15 @@ TEST_F(SerializationTransformationTest, PassManagerInstantiation) {
     std::ifstream bin(m_out_bin_path);
     ASSERT_TRUE(xml.good());
     ASSERT_TRUE(bin.good());
+}
+
+TEST(Serialize, Test) {
+    std::string model_path = "/home/gkazanta/openvino/model-optimizer/kso_off.xml";
+    InferenceEngine::Core ie;
+    auto cnn = ie.ReadNetwork(model_path);
+    ngraph::pass::Manager manager;
+    manager.register_pass<MOCTransformations>(true);
+    manager.register_pass<ngraph::pass::Serialize>("/home/gkazanta/openvino/model-optimizer/kso_off_s.xml",
+            "/home/gkazanta/openvino/model-optimizer/kso_off_s.bin");
+    manager.run_passes(cnn.getFunction());
 }

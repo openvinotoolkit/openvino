@@ -12,6 +12,7 @@ set(LINK_LIBRARIES
     ngraphFunctions
     lptNgraphFunctions
     inference_engine_transformations
+    offline_transformations
     openvino::itt
     openvino::conditional_compilation
 )
