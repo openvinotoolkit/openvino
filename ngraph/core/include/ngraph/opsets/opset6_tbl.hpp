@@ -173,5 +173,6 @@ NGRAPH_OP(NonMaxSuppression, ngraph::op::v5)
 NGRAPH_OP(RNNSequence, ngraph::op::v5)
 NGRAPH_OP(Round, ngraph::op::v5)
 
-// New operations added in opset5
+// New operations added in opset6
 NGRAPH_OP(ExperimentalDetectronDetectionOutput, ngraph::op::v6)
+NGRAPH_OP(ExperimentalDetectronPriorGridGenerator, ngraph::op::v6)
