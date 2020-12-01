@@ -35,17 +35,17 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * **1**: `data` - input tensor of type *T_F* of shape `[T, N, C]` with a batch of sequences. Where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required.**
 
-* **2**: `sequence_length` - input tensor of type *T_I* of shape `[N]` with sequence lengths. Value of sequence lengths must be less or equal shape `T` of data. **Required.**
+* **2**: `sequence_length` - input tensor of type *T_I* of shape `[N]` with sequence lengths. The values of sequence length must be less or equal to `T`. **Required.**
 
-* **3**: `blank_index` - Scalar of type *T_I*. Set the class index to use for the blank class. The blank_index is not saved to the result sequence and it is used for post-processing. Default value is `C-1`. **Optional**.
+* **3**: `blank_index` - Scalar of type *T_I*. Specifies the class index to use for the blank class. The `blank_index` is not saved to the result sequence and it is used for post-processing. Default value is `C-1`. **Optional**.
 
 **Output**
 
-* **1**: Output tensor of type *T_I* shape `[N, T]` and containing final sequence class indices. A final sequence can be shorter than the size `T` of the tensor, all elements than do not code sequence classes are filled with -1.
+* **1**: Output tensor of type *T_I* shape `[N * T, 2]` and containing final sequence class indices. A final sequence can be shorter than the size `T` of the tensor, all elements than do not code sequence classes are filled with -1.
 
 * **2**: Output tensor of type *T_I* shape `[N, T]` and containing vector stores the decoded classes.
 
-* **3**: Output tensor of type *T_I* shape `[2]` and containing shape of vector size.
+* **3**: Output tensor of type *T_I* shape `[2]` and containing shape of decoded classes vector.
 
 * **4**: Output tensor of type *T_I* shape `[N]` and containing length of decoded class array for each batch.
 
