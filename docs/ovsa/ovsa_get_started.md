@@ -150,12 +150,12 @@ This step uses the following names. Your configuration might use different names
    ```
 4. Save and close the network configuration file.
 5. Run two commands to activate the new network configuration file. If you use ssh, you might lose network connectivity when issuing these commands. If so, reconnect to the network.
-   ```sh
-   sudo netplan generate
-   ```
-   ```sh
-   sudo netplan apply
-   ```	
+```sh
+sudo netplan generate
+```
+```sh
+sudo netplan apply
+```	
    A bridge is created and an IP address is assigned to the new bridge.
 6. Verify the the new bridge:
    ```sh
@@ -273,7 +273,8 @@ As an option, you can use `virsh` and the virtual machine manager to create the 
 
 Complete these steps on the Host Machine.
 
-1. Configure the NGINX server: https://github.com/openvinotoolkit/model_server/tree/main/extras/nginx-mtls-auth1. 2. Download the OVMS from https://github.com/openvinotoolkit/model_server
+1. Configure the NGINX server: https://github.com/openvinotoolkit/model_server/tree/main/extras/nginx-mtls-auth1. 
+2. Download the OVMS from https://github.com/openvinotoolkit/model_server
 3. Build the OVMS Docker images: https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md
 
 The OVMS images are available.
@@ -298,16 +299,16 @@ Begin these steps on the Host Machine.
    The file is copied to `/<username-home-directory>/OVSA`
 5. Log on to the Guest VM as `<user>`
 6. Unpack `ovsa.tar.gz` in `/<username-home-directory>/OVSA`
-   ```sh
-   cd OVSA
-   ```
-   ```sh
-   tar -xvfz ovsa.tar.gz
-   ```
+```sh
+cd OVSA
+```
+```sh
+tar -xvfz ovsa.tar.gz
+```
 7. Install OVSA and its related components:
-	```sh
-	sudo ./install.sh
-	```
+   ```sh
+   sudo ./install.sh
+   ```
 
 ## How to Use the OVSA
 
