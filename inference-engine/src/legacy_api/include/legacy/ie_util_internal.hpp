@@ -79,7 +79,7 @@ using printer_callback =
  * @param layer_cb - callback function, that called on every printed layer node
  */
 INFERENCE_ENGINE_API_CPP(void)
-saveGraphToDot(InferenceEngine::ICNNNetwork& network, std::ostream& out, printer_callback layer_cb = nullptr);
+saveGraphToDot(const InferenceEngine::ICNNNetwork& network, std::ostream& out, printer_callback layer_cb = nullptr);
 
 /**
   @brief Return root data objects, i.e. objects came from input or const layers

@@ -11,8 +11,8 @@
 //#include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
-#include "ngraph_functions/low_precision_transformations/avg_pool_function.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/avg_pool_function.hpp"
 
 namespace LayerTestsDefinitions {
 

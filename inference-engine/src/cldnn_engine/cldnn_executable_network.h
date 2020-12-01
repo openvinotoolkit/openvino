@@ -24,7 +24,7 @@ class CLDNNExecNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefa
 public:
     typedef std::shared_ptr<CLDNNExecNetwork> Ptr;
 
-    explicit CLDNNExecNetwork(InferenceEngine::ICNNNetwork &network, RemoteContext::Ptr context, Config config);
+    CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteContext::Ptr context, Config config);
 
     InferenceEngine::CNNNetwork GetExecGraphInfo() override;
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;

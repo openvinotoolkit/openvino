@@ -4,10 +4,12 @@
 
 set(TARGET_NAME "inference_engine_legacy")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
-
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp
+                                 ${PUBLIC_HEADERS_DIR}/*.h)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

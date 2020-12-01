@@ -30,6 +30,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     double get_alpha() const { return m_alpha; }
     void set_alpha(double alpha) { m_alpha = alpha; }
