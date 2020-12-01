@@ -64,3 +64,5 @@ ie_option_enum(SELECTIVE_BUILD "Enable OpenVINO conditional compilation or stati
 In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics. \
 Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
                ALLOWED_VALUES ON OFF COLLECT)
+
+set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")
