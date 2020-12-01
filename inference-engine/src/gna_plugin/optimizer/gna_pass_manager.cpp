@@ -893,7 +893,7 @@ void FlattenTrivialConcatPass::run() {
     if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED) return;
     if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED_FOR_FP32 && !quantized) return;
 
-    auto getLayerByIndex = [&concatLayer](int idx) {
+    auto getLayerByIndex = [](int idx, ConcatLayer* concatLayer) {
         auto input = concatLayer->insData[idx];
         auto lockedInput = input.lock();
         if (!lockedInput) {
@@ -924,7 +924,7 @@ void FlattenTrivialConcatPass::run() {
         }
 
         for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
-            auto concatInput = getLayerByIndex(input_idx);
+            auto concatInput = getLayerByIndex(input_idx, concatLayer);
 
             auto tensor = InferenceEngine::TensorDesc(concatInput->getTensorDesc());
             tensor.reshape(SizeVector({1, total_sizes[input_idx]}), Layout::NC);
