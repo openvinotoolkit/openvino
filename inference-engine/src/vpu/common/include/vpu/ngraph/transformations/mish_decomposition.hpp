@@ -8,10 +8,11 @@
 
 namespace vpu {
 
-class ConvertExtractImagePatchesToReorgYolo : public ngraph::pass::MatcherPass {
+class MishDecomposition : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertExtractImagePatchesToReorgYolo();
+    MishDecomposition();
 };
 
 }  // namespace vpu
+

@@ -25,43 +25,7 @@ from mo.ops.op import Op
 
 class MatMul(Op):
     """
-    MatMul operation takes two tensors and performs usual matrix-matrix multiplication, matrix-vector multiplication
-    or vector-matrix multiplication depending on argument shapes.
-
-    Input tensors can have any rank >= 1.
-
-    Two right-most axes in each tensor are interpreted as matrix rows and columns dimensions while
-    all left-most axes (if present) are interpreted as multi-dimensional batch:
-
-    [BATCH_DIM_1, BATCH_DIM_2,..., BATCH_DIM_K, ROW_INDEX_DIM, COL_INDEX_DIM]
-
-    The operation supports usual broadcast semantics for batch dimensions.
-    It enables multiplication of batch of pairs of matrices in a single shot.
-
-    Before matrix multiplication, there is an implicit shape alignment for input arguments.
-    It consists of the following steps:
-
-    1. If rank of an input less than 2 it is unsqueezed to 2D tensor by adding axes with size 1 to the left of the shape
-        For example, if input has shape [S] it will be reshaped to [1, S]. It is applied for each input independently
-    2. Applied transpositions specified by optional transpose_a and transpose_b attributes
-    3. If ranks of input arguments are different after steps 1 and 2, each is unsqueezed from the left side of
-        the shape by necessary number of axes to make both shapes of the same rank
-    4. Usual rules of the broadcasting are applied for batch dimensions
-
-    Two attributes, transpose_a and transpose_b specifies embedded transposition for two right-most dimension for the
-    first and the second input tensors correspondingly. It implies swapping of ROW_INDEX_DIM and COL_INDEX_DIM in
-    the corresponding input tensor. Batch dimensions are not affected by these attributes.
-
-    Shape inference mechanism:
-        0-port aligned input shape:
-            [BATCH_DIM_1, BATCH_DIM_2,..., BATCH_DIM_K, A_ROW_INDEX_DIM, A_COL_INDEX_DIM]
-        1-port aligned input shape:
-            [BATCH_DIM_1, BATCH_DIM_2,..., BATCH_DIM_K, B_ROW_INDEX_DIM, B_COL_INDEX_DIM]
-        where A_COL_INDEX_DIM == B_ROW_INDEX_DIM
-
-        Output shape:
-            [BATCH_DIM_1, BATCH_DIM_2,..., BATCH_DIM_K, A_ROW_INDEX_DIM, B_COL_INDEX_DIM]
-
+    Operation is specified at docs/ops/matrix/MatMul_1.md
     """
     op = 'MatMul'
 
@@ -72,7 +36,7 @@ class MatMul(Op):
             'version': 'opset1',
             'transpose_a': False,
             'transpose_b': False,
-            'infer': __class__.infer,
+            'infer': self.infer,
             'in_ports_count': 2,
             'out_ports_count': 1,
         }
@@ -88,8 +52,6 @@ class MatMul(Op):
     def shape_alignment(node: Node):
         """
         Specification of MatMul operation allows inputs to be aligned together before matrix multiplication.
-        Alignment steps described in MatMul operation doc-string upper in current file.
-
         Current method raises an error if input shapes are not valid at any step of alignment process
         :return: aligned copies of both input shapes
         """
@@ -107,12 +69,12 @@ class MatMul(Op):
                                           "".format(i, node_name, input_shape)
             assert input_shape.size >= 1, "MatMul doesn't support inputs with rank lower than 1. {} input of `{}` " \
                                           "node has shape {}".format(i, node_name, input_shape)
-
+            rank = input_shape.size
             # shape alignment
-            if input_shape.size < 2:
-                input_shape = np.insert(input_shape, 0, 1)
-            if (i == 0 and transpose_a) or (i == 1 and transpose_b):
+            if rank != 1 and ((i == 0 and transpose_a) or (i == 1 and transpose_b)):
                 input_shape[-2], input_shape[-1] = input_shape[-1], input_shape[-2]
+            if rank == 1:
+                input_shape = np.insert(input_shape, int(i == 1), 1)
 
             max_shape_length = max(input_shapes[0].size, input_shapes[1].size)
             input_shape = np.insert(input_shape, 0, [1] * (max_shape_length - input_shape.size))
@@ -176,6 +138,14 @@ class MatMul(Op):
             "".format(name, [A_shape, B_shape])
 
         output_shape = np.concatenate((A_shape[:-1], B_shape[-1:]))
+
+        if node.in_port(0).data.get_shape().size == 1:
+            assert output_shape[-2] == 1
+            output_shape = np.delete(output_shape, -2, 0)
+        if node.in_port(1).data.get_shape().size == 1:
+            assert output_shape[-1] == 1
+            output_shape = np.delete(output_shape, -1, 0)
+
         node.out_port(0).data.set_shape(output_shape)
 
         in_ch = 0 if not node.transpose_b else 1
@@ -187,12 +157,9 @@ class MatMul(Op):
 def transpose(value):
     num_of_dims = value.ndim
     if num_of_dims == 1:
-        return np.reshape(value, (len(value), 1))
-    elif num_of_dims == 2:
-        return np.transpose(value, [1, 0])
+        return value
     else:
         return np.transpose(value, [*range(0, num_of_dims - 2), num_of_dims - 1, num_of_dims - 2])
-
 
 # MatMul-like operation from frameworks
 
