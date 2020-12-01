@@ -21,6 +21,5 @@ bool ngraph::pass::ConvertOpSet2ToOpSet1::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConvertSpaceToBatch>();
     manager.register_pass<ngraph::pass::ConvertBatchToSpace>();
 
-    manager.run_passes(f);
-    return true;
+    return manager.run_passes(f);
 }

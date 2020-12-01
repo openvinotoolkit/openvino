@@ -122,6 +122,5 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
-    manager.run_passes(f);
-    return true;
+    return manager.run_passes(f);
 }

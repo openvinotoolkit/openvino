@@ -180,5 +180,6 @@ bool op::ConvolutionIE::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("pads_end", m_pads_end);
     visitor.on_attribute("auto_pad", m_auto_pad);
     visitor.on_attribute("group", m_group);
+    visitor.on_attribute("output_type", m_output_type);
     return true;
 }

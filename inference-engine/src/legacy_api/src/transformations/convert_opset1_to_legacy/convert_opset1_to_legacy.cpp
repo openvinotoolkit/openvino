@@ -147,6 +147,5 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    manager.run_passes(f);
-    return true;
+    return manager.run_passes(f);
 }

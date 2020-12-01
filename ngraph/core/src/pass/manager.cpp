@@ -92,7 +92,7 @@ pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config)
 {
 }
 
-void pass::Manager::run_passes(shared_ptr<Function> func)
+bool pass::Manager::run_passes(shared_ptr<Function> func)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::Manager::run_passes");
 
@@ -102,9 +102,11 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
     stopwatch pass_timer;
     stopwatch overall_timer;
     overall_timer.start();
+    bool global_function_changed = false;
     bool function_changed = false;
     for (auto& pass : m_pass_list)
     {
+        global_function_changed |= function_changed;
         if (m_pass_config->is_disabled(pass->get_type_info()))
         {
             NGRAPH_DEBUG << "Pass " << pass->get_name() << " is disabled";
@@ -170,6 +172,10 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
                 function_changed |= node_pass->run_on_node(n);
             }
         }
+
+        if (function_changed) {
+            std::cout << "Executed: " << pass->get_name() << std::endl;
+        }
         NGRAPH_SUPPRESS_DEPRECATED_END
 
         if (m_visualize)
@@ -200,4 +206,6 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
     {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
+
+    return global_function_changed;
 }

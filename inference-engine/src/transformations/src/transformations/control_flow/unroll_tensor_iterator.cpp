@@ -16,11 +16,13 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
 
 bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    bool rewritten = false;
     for (const auto& op : f->get_ops()) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(op);
         if (!ti || m_transformation_callback(ti)) {
             continue;
         }
+        rewritten = true;
 
         const auto& function = ti->get_body();
         const auto num_iter = ti->get_num_iterations();
@@ -167,5 +169,5 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
             f->add_sinks(body_func->get_sinks());
         }
     }
-    return true;
+    return rewritten;
 }

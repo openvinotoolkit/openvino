@@ -69,7 +69,7 @@ public:
         return rc;
     }
 
-    void run_passes(std::shared_ptr<Function>);
+    bool run_passes(std::shared_ptr<Function>);
 
     void set_pass_visualization(bool new_state) { m_visualize = new_state; }
     /// \brief Set flag to enable/disable running Validate pass after executing

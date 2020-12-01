@@ -27,6 +27,5 @@ bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConvertTopK3>();
     manager.register_pass<ngraph::pass::SoftPlusDecomposition>();
 
-    manager.run_passes(f);
-    return true;
+    return manager.run_passes(f);
 }
