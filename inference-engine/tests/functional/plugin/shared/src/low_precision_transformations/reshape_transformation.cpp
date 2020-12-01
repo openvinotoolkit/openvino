@@ -12,7 +12,7 @@
 
 #include "ngraph_functions/builders.hpp"
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/reshape_function.hpp"
+#include "lpt_ngraph_functions/reshape_function.hpp"
 
 
 namespace LayerTestsDefinitions {

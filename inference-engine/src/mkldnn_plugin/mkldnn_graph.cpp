@@ -1083,7 +1083,7 @@ void MKLDNNGraph::RemoveDroppedEdges() {
     }
 }
 
-void MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const TensorDesc& inDesc, const TensorDesc& outDesc,
+MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const TensorDesc& inDesc, const TensorDesc& outDesc,
                                 bool isOptimized, InferenceEngine::Blob::Ptr scales) {
     CNNLayerPtr layer(new CNNLayer({layerName,
                                     "Reorder",
@@ -1133,6 +1133,7 @@ void MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const
     }
 
     graphNodes.push_back(newReorder);
+    return newReorder;
 }
 
 void MKLDNNGraph::dumpToDotFile(std::string file) const {

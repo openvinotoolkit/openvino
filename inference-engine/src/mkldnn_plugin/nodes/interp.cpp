@@ -157,21 +157,13 @@ public:
             if (inData->getTensorDesc().getDims().size() != 4)
                 THROW_IE_EXCEPTION << "Interp supports only 4d blobs!";
 
-            auto src_precision = inData->getTensorDesc().getPrecision();
-            if (src_precision != Precision::FP32 && src_precision != Precision::U8 && src_precision != Precision::BF16)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only U8 or FP32 or BF16 are supported!";
-
-            auto dst_precision = layer->outData[0]->getTensorDesc().getPrecision();
-            if (dst_precision != Precision::FP32 && dst_precision != Precision::BF16)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect output data tensor precision. Only FP32 or BF16 are supported!";
-
             // We don't read other parameters since they are needed only for dst reshape in caffe
             pad_beg = layer->GetParamAsInt("pad_beg");
             pad_end = layer->GetParamAsInt("pad_end");
             align_corners = layer->GetParamAsBool("align_corners", true);
 
             ConfLayout blk_layout;
-            if (src_precision == Precision::U8) {
+            if (inData->getTensorDesc().getPrecision() == Precision::U8) {
                 LayerConfig config;
                 DataConfig dataConfigDct;
                 dataConfigDct.desc = TensorDesc(Precision::U8, inData->getTensorDesc().getDims(), Layout::NCHW);
@@ -197,15 +189,15 @@ public:
                 if (mayiuse(avx512_common)) {
                     blk_layout = ConfLayout::BLK16;
                     interp_kernel.reset(new jit_uni_interp_kernel_f32<avx512_common>());
-                    addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
+                    addConfig(layer, { DataConfigurator(blk_layout, Precision::FP32) }, { DataConfigurator(blk_layout, Precision::FP32) });
                 } else if (mayiuse(avx2)) {
                     blk_layout = ConfLayout::BLK8;
                     interp_kernel.reset(new jit_uni_interp_kernel_f32<avx2>());
-                    addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
+                    addConfig(layer, { DataConfigurator(blk_layout, Precision::FP32) }, { DataConfigurator(blk_layout, Precision::FP32) });
                 } else {
                     blk_layout = ConfLayout::BLK8;
                     interp_kernel.reset(new jit_uni_interp_kernel_f32<sse42>());
-                    addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
+                    addConfig(layer, { DataConfigurator(blk_layout, Precision::FP32) }, { DataConfigurator(blk_layout, Precision::FP32) });
                 }
             }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {

@@ -200,12 +200,12 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
         string(REPLACE ${TEMP} ${ALTERNATIVE_PATH} archive_path ${archive_path})
 
         debug_message("dependency different: use local path for fetching updated version: ${alternative_path}")
-        CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} ${result_path} ${folder} ${fattal} ${resultExt} FALSE)
+        CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} ${result_path} ${folder} ${fattal} ${resultExt} FALSE ${sha256})
 
       else()
         debug_message("dependency updated: download it again")
         file(REMOVE_RECURSE "${unpacked_path}")
-        DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} status)
+        DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} status ${sha256})
       endif()
     endif ()
    endif()

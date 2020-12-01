@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <vector>
 #include <utility>
-#include <legacy/ie_util_internal.hpp>
 
 namespace HeteroPlugin {
 
@@ -25,11 +24,11 @@ public:
     Engine();
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const Configs &config) override;
+    LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const Configs &config) override;
 
     void SetConfig(const Configs &config) override;
 
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork &network,
                                                      const Configs& config) const override;
 
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string,
@@ -40,24 +39,10 @@ public:
 
     ExecutableNetwork ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
 
-
-    void SetAffinity(InferenceEngine::ICNNNetwork& network, const Configs &config);
-
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback,
         const Configs & localConfig) const;
 
 private:
     Configs GetSupportedConfig(const Configs& config, const std::string & deviceName) const;
 };
-
-struct HeteroLayerColorer {
-    explicit HeteroLayerColorer(const std::vector<std::string>& devices);
-
-    void operator() (const CNNLayerPtr layer,
-                    ordered_properties &printed_properties,
-                    ordered_properties &node_properties);
-
-    std::unordered_map<std::string, std::string> deviceColorMap;
-};
-
 }  // namespace HeteroPlugin

@@ -79,12 +79,22 @@ void NmsLayerTest::Compare(const std::vector<std::vector<std::uint8_t>> &expecte
         const auto &precision = actual->getTensorDesc().getPrecision();
         size_t size = expected.size() / actual->getTensorDesc().getPrecision().size();
         switch (precision) {
-            case Precision::FP32:
+            case Precision::FP32: {
                 LayerTestsCommon::Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer), size, threshold);
+                const auto fBuffer = lockedMemory.as<const float *>();
+                for (int i = size; i < actual->size(); i++) {
+                    ASSERT_TRUE(fBuffer[i] == -1.f) << "Invalid default value: " << fBuffer[i] << " at index: " << i;
+                }
                 break;
-            case Precision::I32:
+            }
+            case Precision::I32: {
                 LayerTestsCommon::Compare(reinterpret_cast<const int32_t *>(expectedBuffer), reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                const auto iBuffer = lockedMemory.as<const int *>();
+                for (int i = size; i < actual->size(); i++) {
+                    ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
+                }
                 break;
+            }
             default:
                 FAIL() << "Comparator for " << precision << " precision isn't supported";
         }
