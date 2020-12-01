@@ -224,13 +224,13 @@ The graph before running the partial inference can be depicted like in the follo
 
 ![Graph Before Partial Inference](../../../img/MO_graph_before_partial_inference.png)
 
-The difference in a grahh structure with a graph during the front phase is not only in the data nodes, but also in the
-edge attributes. Note, that an `out` attribute is in edges **from operation** nodes only, while an `in` attribute is in
-edges **from data** nodes only. This corresponds to the fact that a tensor (data node) is produced from a specific
-output port of an operation and is consumed with a specific input port of an operation. Also, a unique data node is
-created for each output port of an operation and may be used as an input node for several operation nodes, like the data
-node "data2_0" which is consumed with the input port 1 of the operation "Operation 3" and input port 0 of the operation
-"Operation 5".
+The difference in a graph structure with a graph during the front phase is not only in the data nodes, but also in the
+edge attributes. Note, that an `out` attribute is specified for edges **from operation** nodes only, while an `in`
+attribute is specified for edges **from data** nodes only. This corresponds to the fact that a tensor (data node) is
+produced from a specific output port of an operation and is consumed with a specific input port of an operation. Also,
+a unique data node is created for each output port of an operation and may be used as an input node for several
+operation nodes, like the data node "data2_0" which is consumed with the input port 1 of the operation "Operation 3" and
+input port 0 of the operation "Operation 5".
 
 Now consider how the Model Optimizer performs shape and value propagation. Model Optimizer performs graph nodes
 topological sort. An error message is thrown if a graph contains a cycle. Then shape inference functions are called for
@@ -277,21 +277,21 @@ them.
 > Optimizer code but is not recommended. Instead use approach described in the [Ports](#intro-ports).
 
 ### Middle Phase <a name="middle-phase"></a>
-The phase called "middle" starts after the partial inference. At this phase the graph contains data nodes and output
-shapes of all operations in the graph are calculated. Any transformation implemented at this stage must update `shape`
-attribute for all newly added operations. It is highly recommended to use
+The middle phase starts after the partial inference. At this phase a graph contains data nodes and output shapes of all
+operations in the graph have been calculated. Any transformation implemented at this stage must update `shape`
+attribute for all newly added operations. It is highly recommended to use API desribed in the
 [Graph Traversal and Modification Using `Port`s and `Connection`s](#graph-ports-and-conneсtions) because modification of
-the graph causes automatic re-inference of affected nodes as well as creation of necessary data nodes.
+a graph using this API causes automatic re-inference of affected nodes as well as necessary data nodes creation.
 
-More information on how to develop middle transformations and dedicated API description is provided in the
-[Middle Phase Transformations](#middle-phase-transformations).
+More information on how to develop middle transformations and dedicated API description is provided in the [Middle
+Phase Transformations](#middle-phase-transformations).
 
 ### NHWC to NCHW Layout Change <a name="layout-change"></a>
 There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations
 are triggered by default for TensorFlow\* models only because it is the only framework with Convolution operations in
 NHWC layout.
 
-> **NOTE**: If a TensorFlow\* model is in NCHW layout then user should specify `--disable_nhwc_to_nchw` command line
+> **NOTE**: If a TensorFlow\* model is in NCHW layout then an user should specify `--disable_nhwc_to_nchw` command line
 > parameter to disable these transformations.
 
 The layout change is a complex problem and detailed explanation of it is out of scope of this document. A very brief
@@ -300,13 +300,13 @@ explanation of this process is provided below:
 1. Model Optimizer changes output shapes of most of operations producing 4D and 5D (four dimensional and five
 dimensional) tensors as if they were in NHWC layout to NCHW layout: `nchw_shape = np.array(nhwc_shape)[0, 3, 1, 2]` for
 4D and `nchw_shape = np.array(nhwc_shape)[0, 4, 1, 2, 3]` for 5D. This permutation does not happen for some operations
-with specific conditions identified during the model conversion.
+with specific conditions identified during a model conversion.
 2. Model Optimizer inserts [Gather](../../../ops/movement/Gather_1.md) operations to the sub-graph relates to shapes
 calculation to perform shape calculation in a correct layout.
-3. Model Optimizer inserts [Transpose](../../../ops/movement/Transpose_1.md) operations to produce correct inference
-results.
+3. Model Optimizer inserts [Transpose](../../../ops/movement/Transpose_1.md) operations for some operations with
+specific conditions identified during a model conversion to produce correct inference results.
 
-The list of main transformations responsible for the layout change are: `extensions/middle/ApplyPermutations.py`,
+The list of main transformations responsible for a layout change are: `extensions/middle/ApplyPermutations.py`,
 `extensions/middle/InsertLayoutPropagationTransposes.py`, `extensions/middle/MarkSubgraphsWithCorrectLayout.py`,
 `extensions/middle/ApplyNHWCtoNCHWpermutation.py` and `extensions/middle/LayoutChangeForConstantShapePaths.py`.
 Refer to the source code of these transformations for more details on how the layout change works.
@@ -321,47 +321,48 @@ phase.
 3. Transformations which normalize operations inputs according to the specification.
 4. Final optimization transformations.
 
-The graph structure during the back phase is the same as as during the middle phase. There is no difference in writing
-middle and back transformations.
+A graph structure during the back phase is the same as during the middle phase. There is no difference in writing middle
+and back transformations.
+
+More information on how to develop back transformations and dedicated API description is provided in the [Back Phase
+Transformations](#back-phase-transformations).
 
 ### Intermediate Representation Emitting <a name="ir-emitting"></a>
-The last phase of the model conversion is Intermediate Representation Emitting. Model Optimizer performs the following
-most notable steps:
+The last phase of a model conversion is the Intermediate Representation emitting. Model Optimizer performs the following
+steps:
 
-1. Iterates over all operation nodes in the graph and checks that all have attribute `type` set. This attribute defines
-the operation type and used in the Inference Engine to instantiate proper operation from the
+1. Iterates over all operation nodes in the graph and checks that all nodes have attribute `type` set. This attribute
+defines the operation type and used in the Inference Engine to instantiate proper operation from the
 [opset](@ref openvino_docs_ops_opset) specified in the `version` attribute of the node. If some node does not have
-attribute `type` or its values is `None` then the Model Optimizer exits with an error.
-2. Performs type inference of all operations in the graph similar to the shape inference. The inferred data types are
-saved to the node attributes in the IR.
+attribute `type` or its values is equal to `None` then the Model Optimizer exits with an error.
+2. Performs type inference of graph operations similar to the shape inference. Inferred data types are saved to a port
+attributes in the IR.
 3. Performs topological sort of the graph and changes `id` attribute of all operation nodes to be sequential integer
 values starting from 0.
-4. Saves all Constants values to the `.bin` file. Constants with the same values are shared among different operations.
-5. Generates `.xml` file defining the graph structure. The information about operation inputs and outputs are prepared
-uniformly for all operations regardless of its type. The attributes to be dumped and how they are represented in the XML
-file is defined with the `backend_attrs` or `supported_attrs`. For more information on how the operation attributes are
-saved to XML refer to the [Model Optimizer Operation](#extension-operation).
-
-For more information about the Intermediate Representation Emitting process refer to the function `prepare_emit_ir` in
-the `mo/pipeline/commom.py` file.
+4. Saves all Constants values to the `.bin` file. Constants with the same value are shared among different operations.
+5. Generates `.xml` file defining a graph structure. The information about operation inputs and outputs are prepared
+uniformly for all operations regardless of their type. A list of attributes to be saved to an `.xml` file is defined
+with the `backend_attrs()` or `supported_attrs()` of the `Op` class used for a graph node instantiation. For more
+information on how the operation attributes are saved to XML refer to the function `prepare_emit_ir()` in
+the `mo/pipeline/common.py` file and [Model Optimizer Operation](#extension-operation).
 
 ## Graph Traversal and Modification Using `Port`s and `Connection`s <a name="graph-ports-and-conneсtions"></a>
-There are 3 layers of a graph traversal and transformation API in the Model Optimizer:
+There are three APIs for a graph traversal and transformation used in the Model Optimizer:
 1. The API provided with the `networkx` Python library for the `networkx.MultiDiGraph` class which is the base class for
 the `mo.graph.graph.Graph` object. Refer to the [Model Representation in Memory](#model-representation-in-memory) for
 more details. For example, the following methods belong to this API level: `graph.add_edges_from([list])`,
 `graph.add_node(x, attrs)`, `graph.out_edges(node_id)` etc where `graph` is a an instance of the `networkx.MultiDiGraph`
 class. **This is the lowest-level API and its usage should be avoided in the Model Optimizer transformations**.
 2. The API built around the `mo.graph.graph.Node` class. The `Node` class is the primary class to work with graph nodes
-and their attributes. **However some of the `Node` methods are not recommended to use and some functions defined in the
-`mo.graph.graph` have been deprecated**. Examples of such methods and functions which are:
+and their attributes. **There are some `Node` class methods not recommended to use and some functions defined in the
+`mo.graph.graph` have been deprecated**. Examples of such methods and functions are:
 `node.in_node(y)`, `node.out_node(x)`, `node.get_outputs()`, `node.insert_node_after(n1, y)`, `create_edge(n1, n2)` etc.
 Refer to the `mo/graph/graph.py` for more details.
-3. The high-level called Model Optimizer Graph API which uses `mo.graph.graph.Graph`, `mo.graph.port.Port` and
+3. The high-level API called Model Optimizer Graph API which uses `mo.graph.graph.Graph`, `mo.graph.port.Port` and
 `mo.graph.connection.Connection` classes. For example, the following methods belong to this API level:
 `node.in_port(x)`, `node.out_port(y)`,  `port.get_connection()`, `connection.get_source()`,
 `connection.set_destination(dest_port)` etc. **This is the recommended API to be used in the Model Optimizer
-transformations**.
+transformations and operations implementation**.
 
 The main benefit of using Model Optimizer Graph API is that it hides some internal implementation details (the fact that
 the graph contains data nodes), provides API to perform safe and predictable graph manipulations and adds operation
@@ -369,7 +370,6 @@ semantic to the graph. This is achieved with introduction of concepts of ports a
 dedicated to the Model Optimizer Graph API and does not cover other two non-recommended APIs.
 
 ### Ports <a name="intro-ports"></a>
-
 An operation semantic describes how many inputs and outputs the operation have. For example, operations
 [Parameter](../../../ops/infrastructure/Parameter_1.md) and [Const](../../../ops/infrastructure/Constant_1.md) have no
 inputs and have one output, operation [ReLU](../../../ops/activation/ReLU_1.md) has one input and one output, operation
@@ -377,7 +377,7 @@ inputs and have one output, operation [ReLU](../../../ops/activation/ReLU_1.md) 
 attribute `num_splits`.
 
 Each operation node in the graph (an instance of the `Node` class) has 0 or more input and output ports (instances of
-the `mo.graph.port.Port` class). Port has several attributes:
+the `mo.graph.port.Port` class). `Port` object has several attributes:
 * `node` - the instance of the `Node` object the port belongs to.
 * `idx` - the port number. Input and output ports are numbered independently starting from `0`. Thus operation
 [ReLU](../../../ops/activation/ReLU_1.md) has one input port (with index `0`) and one output port (with index `0`).
@@ -392,13 +392,13 @@ For example, `in_port.data.get_shape()` returns an input shape of a tensor conne
 > [Model Conversion Pipeline](#model-conversion-pipeline) for more information about model conversion phases and
 > [Partial Inference](#partial-inference) about partial inference phase.
 
-There are several methods of the `Node` class to get the instance of the corresponding port:
-* `in_port(x)` and `out_port(x)` to get input/output port with number `x`.
-* `in_ports()` and `out_ports()` to get a dictionary where key is a the port number and the value is the corresponding
+There are several methods of the `Node` class to get the instance of a corresponding port:
+* `in_port(x)` and `out_port(x)` to get the input/output port with number `x`.
+* `in_ports()` and `out_ports()` to get a dictionary where key is a port number and the value is the corresponding
 input/output port.
 
-Default number of input and output ports to be created for the `Node` is defined with attributes `in_ports_count` and
-`out_ports_count` in the `Op` class instance. However, additional input/output ports can be added using methods
+Attributes `in_ports_count` and `out_ports_count` of the `Op` class instance define default number of input and output
+ports to be created for the `Node` . However, additional input/output ports can be added using methods
 `add_input_port()` and `add_output_port()`. Port also can be removed using `delete_input_port()` and
 `delete_output_port()` methods.
 
@@ -411,12 +411,13 @@ depicted with light green boxes.
 
 ![Ports example 1](../../../img/MO_ports_example_1.png)
 
-Operation nodes have input ports (yellow squares) and output ports (light purple squares). Input ports may not be
-connected as for the input port 2 of node "Op1", while output ports always have a associated data node (after the
-partial inference when the data nodes are added to the graph) which may have no consumers.
+Operation nodes have input ports (yellow squares) and output ports (light purple squares). Input port may not be
+connected. For example, the input port 2 of node "Op1" does not have incoming edge, while output port always has an
+associated data node (after the partial inference when the data nodes are added to the graph) which may have no
+consumers.
 
 Ports can be used to traverse a graph. The method `get_source()` of an input port returns an output port producing the
-tensor the input port consumes. It is important that the method works the same during front/middle and back phases of a
+tensor the input port consumes. It is important that the method works the same during front, middle and back phases of a
 model conversion even though the graph structure changes (there is no data nodes in the graph during the front phase).
 
 Let's assume that there are 4 instances of `Node` object `op1, op2, op3` and `op4` corresponding to nodes "Op1", "Op2",
@@ -424,15 +425,15 @@ Let's assume that there are 4 instances of `Node` object `op1, op2, op3` and `op
 same object `op1.out_port(1)` of type `Port`.
 
 The method `get_destination()` of an output port returns the input port of the node consuming this tensor. If there are
-multiple consumers of this tensor then the error is raised. The method `get_destinations()` of an output port returns
-list of input ports consuming this tensor.
+multiple consumers of this tensor then the error is raised. The method `get_destinations()` of an output port returns a
+list of input ports consuming the tensor.
 
 The method `disconnect()` removes a node incoming edge corresponding to the specific input port. The method removes
 several edges if it is applied during the front phase for a node output port connected with multiple nodes.
 
 The method `port.connect(another_port)` connects output port `port` and input port `another_port`. The method handles
-situations when the graph contains data nodes (middle/back phases) and not just create an edge between two nodes but
-also automatically create data node or re-uses existing data node. If the method is used during the front phase and
+situations when the graph contains data nodes (middle and back phases) and not just creates an edge between two nodes
+but also automatically creates data node or re-uses existing data node. If the method is used during the front phase and
 data nodes do not exist the method creates edge and properly sets `in` and `out` edge attributes.
 
 For example, applying the following two methods to the graph above will result in the graph depicted below:
@@ -465,17 +466,17 @@ The `Connection` class provides methods to get source and destination(s) ports t
 * `connection.get_destination()` - returns a single input `Port` consuming the data. If there are multiple consumers
 then the exception is raised.
 
-The `Connection` class provides methods to modify the graph by changing source/destination of a connection. For example,
-the function call `op3.out_port(0).get_connection().set_source(op1.out_port(0))` changes source port of edges consuming
-data from port `op3.out_port(0)` to `op1.out_port(0)`. The transformed graph from the sample above is the depicted
+The `Connection` class provides methods to modify a graph by changing a source or destination(s) of a connection. For
+example, the function call `op3.out_port(0).get_connection().set_source(op1.out_port(0))` changes source port of edges
+consuming data from port `op3.out_port(0)` to `op1.out_port(0)`. The transformed graph from the sample above is depicted
 below:
 
 ![Connection example 1](../../../img/MO_connection_example_1.png)
 
 Another example is the method `connection.set_destination(dest_port)`. It disconnects `dest_port` and all input ports
-the connection is currently connected and connect the connection source port to the `dest_port`.
+the connection is currently connected to and connects the connection source port to the `dest_port`.
 
-Note that connections work seamlessly during front/middle/back phases and hide the fact that the graph structure is
+Note that connection work seamlessly during front, middle and back phases and hides the fact that the graph structure is
 different.
 
 > **NOTE**: Refer to the `Connection` class implementation in the `mo/graph/connection.py` for a full list of available
@@ -485,8 +486,8 @@ methods.
 Model Optimizer extensions allow to inject some logic to the model conversion pipeline without changing the Model
 Optimizer core code. There are three types of the Model Optimizer extensions:
 
-1. The Model Optimizer operation.
-2. The framework operation extractor.
+1. Model Optimizer operation.
+2. A framework operation extractor.
 3. A model transformation which can be executed during front, middle or back phase of the model conversion.
 
 An extension is just a plain text file with a Python code. The file should contain a class (or classes) inherited from
@@ -503,7 +504,7 @@ one of extension base classes. Extension files should be saved to a directory wi
            back/                 - back transformations
 ```
 
-Model Optimizer uses the same layout internally to load built-in extensions. The only exception is that the directory
+Model Optimizer uses the same layout internally to keep built-in extensions. The only exception is that the directory
 `mo/ops/` is also used as a source of the Model Optimizer operations due to historical reasons.
 
 > **NOTE**: The name of a root directory with extensions should not be equal to "extensions" because it will result in a
@@ -514,40 +515,39 @@ Model Optimizer uses the same layout internally to load built-in extensions. The
 
 ### Model Optimizer Operation <a name="extension-operation"></a>
 Model Optimizer defines a class `mo.ops.Op` (`Op` will be used later in the document to be short) which is a base class
-for operations used in the Model Optimizer. The instance of the `Op` class serves the following purposes:
+for an operation used in the Model Optimizer. The instance of the `Op` class serves several purposes:
 
-1. Stores operation attributes.
-2. Stores the operation shape/value/type inference functions.
-3. Defines operation attributes to be saved to an IR.
-4. Contains convenient methods to create a graph node from the `Op` object instance and connect it with the existing
+1. Stores the operation attributes.
+2. Stores the operation shape/value and type inference functions.
+3. Defines operation attributes to be saved to the corresponding IR section.
+4. Contains convenient methods to create a graph node from an `Op` object instance and connect it with the existing
 graph.
 5. Used in the extractors to store parsed attributes and operation specific attributes in the dedicated graph node.
 
 It is important to mention that there is no connection between the instance of the `Op` class and the `Node` object
-created from it. The `Op` class is just a container of attributes describing the operation. Model Optimizer uses `Op`
-class during model conversion to create nodes of the graph with attributes copied from the `Op` class instance. Graph
+created from it. The `Op` class is just an attributes container describing the operation. Model Optimizer uses the `Op`
+class during a model conversion to create node of the graph with attributes copied from the `Op` class instance. Graph
 manipulations are performed with graph `Node`s and their attributes and does not involve `Op`s.
 
 There are a number of common attributes used in the operations. Here is the list of these attributes with description.
 
-* `id` — unique identifier of a node in the graph. Generated automatically equal to the number of nodes in the graph
-plus 1 if not specified. **Mandatory**.
+* `id` — unique identifier of a node in a graph. Generated automatically equal to the number of nodes in the graph plus
+1 if not specified. **Mandatory**.
 * `name` — name of the operation. Generated automatically equal to the `id` if not specified. **Mandatory**.
 * `type` — type of the operation according to the [opset specification](@ref openvino_docs_ops_opset). For the internal
-Model Optimizer operations this attribute should be equal to `None`. The model conversion fails if an operation with
-`type` equal to `None` stays in the graph till the IR emitting phase. **Mandatory**.
-* `version` — name of the operation set it belongs to. If not specified then the Model Optimizer sets it equal to
-`experimental`. Refer to [nGraph Basic Concepts](@ref openvino_docs_nGraph_DG_basic_concepts) for more information about
-opsets. **Mandatory**.
+Model Optimizer operations this attribute should be set to `None`. The model conversion fails if an operation with
+`type` equal to `None` comes to the IR emitting phase. **Mandatory**.
+* `version` — the operation set (opset) name the operation belongs to. If not specified then the Model Optimizer sets it
+equal to `experimental`. Refer to [nGraph Basic Concepts](@ref openvino_docs_nGraph_DG_basic_concepts) for more
+information about operation sets. **Mandatory**.
 * `op` — Model Optimizer type of the operation. In many cases the value of `type` is equal to the value of `op`. But
-when the Model Optimizer cannot instantiate opset operation during model loading it creates an instance of internal
-operation. And the attribute `op` is used as a type of this internal operation. Later in the pipeline the node created
-from an internal operation will be replaced during front, middle or back phase with node(s) created from an opset
-operation(s).
-* `infer` — the attribute defining a function calculating output tensor(s) shape and optionally value. May be set to
-`None` for internal Model Optimizer operations used during the front phase only. Refer to the
-[Partial Inference](#partial-inference) section for more information about the shape inference function.
-* `type_infer` — the attribute defining a function calculating output tensor(s) data type. If the attribute is not
+when the Model Optimizer cannot instantiate opset operation during model loading it creates an instance of an internal
+operation and the attribute `op` is used as a type of this internal operation. Later in the pipeline the node created
+from an internal operation will be replaced during front, middle or back phase with node(s) created from the opset.
+* `infer` — the attribute defines a function calculating output tensor(s) shape and optionally value(s). The attribute
+may be set to `None` for internal Model Optimizer operations used during the front phase only. Refer to the
+[Partial Inference](#partial-inference) for more information about the shape inference function.
+* `type_infer` — the attribute defines a function calculating output tensor(s) data type. If the attribute is not
 defined then the default function is used. The function checks if the node attribute `data_type` is set and then
 propagates this type to the output tensor from the port 0, otherwise it propagates the data type of the tensor coming
 into the input port 0 to the output tensor from the port 0.
@@ -556,12 +556,12 @@ redundant ports can be removed using dedicated `Node` class API methods.
 * `out_ports_count` — default number of output ports to be created for the operation. Additional ports can be created or
 redundant ports can be removed using dedicated `Node` class API methods.
 
-Here is an example of the Model Optimizer class for the operation [`SoftMax`](../../../ops/activation/SoftMax_1.md) from
-the file `mo/ops/softmax.py` with the in code explanations.
+Here is an example of the Model Optimizer class for the operation [SoftMax](../../../ops/activation/SoftMax_1.md) from
+the file `mo/ops/softmax.py` with the in code comments.
 
 ```py
 class Softmax(Op):
-    # the class attribute defining a name of the operation so the operation class can be obtained using the
+    # the class attribute defines a name of the operation so the operation class can be obtained using the
     # "Op.get_op_class_by_name()" static method
     op = 'SoftMax'
 
@@ -580,7 +580,7 @@ class Softmax(Op):
             'out_ports_count': 1,  # the operation produces one output
         }, attrs)
 
-    # the method returns list of operation specific attributes. This method is important for the case when implementing
+    # the method returns operation specific attributes list. This method is important for the case when implementing
     # extractor inherited from CaffePythonFrontExtractorOp class to extract attribute for Caffe Python operation.
     # But currently it is used interchangeably with the "backend_attrs()" method. If the "backend_attrs()" is not used
     # then the "supported_attrs()" is used instead. In this particular case the operation has just one attribute "axis"
@@ -611,7 +611,7 @@ example from the `mo/ops/pooling.py` file:
         ]
 ```
 
-The `backend_attrs` function returns a list of records. A record can be of one of the following formats:
+The `backend_attrs()` function returns a list of records. A record can be of one of the following formats:
 1. A string defining the attribute to be saved to the IR. If the value of the attribute is `None` then the attribute is
 not saved. Example of this case are `rounding_type` and `auto_pad`.
 2. A tuple where the first element is a string defining the name of the attribute as it will appear in the IR and the
@@ -712,15 +712,15 @@ class ConstantExtractor(FrontExtractorOp):
 ```
 
 The extractors for operations from different frameworks work similarly. The only difference is in the helper methods
-used to parse operation attributes encoded with framework-specific representation.
+used to parse operation attributes encoded with a framework-specific representation.
 
-Common practice is to use `update_node_stat()` method of the dedicated `Op` class to update node attributes. This method
-does the following:
+A common practice is to use `update_node_stat()` method of the dedicated `Op` class to update the node attributes. This
+method does the following:
 
-1. Sets values for common attribute like `op`, `type`, `infer`, `in_ports_count`, `out_ports_count`, `version` etc to
+1. Sets values for common attributes like `op`, `type`, `infer`, `in_ports_count`, `out_ports_count`, `version` etc to
 values specific to the dedicated operation (`Const` operation in this case).
 2. Uses methods `supported_attrs()` and `backend_attrs()` defined in the `Op` class to update specific node attribute
-`IE` which stores information about operation attributes to be saved to IR.
+`IE`. The IR emitter uses the value stored in the `IE` attribute to pre-process attribute values and save them to IR.
 3. Optionally sets additional attributes provided to the `update_node_stat()` function as a second parameter. Usually
 these attributes are parsed from the particular instance of the operation.
 
@@ -744,15 +744,15 @@ example, body of the [TensorIterator](../../../ops/infrastructure/TensorIterator
 graph cleanup removes nodes of the graph not reachable from the model inputs. Default value is `False`.
 5. Attribute `force_shape_inference` specifies whether the nodes marked with attribute `need_shape_inference` equal to
 `True` should be re-inferred after the transformation. Model Optimizer sets this attribute automatically for nodes which
-input(s) were changed during the transformation or developer can set this attribute manually in the transformation.
-Default value is `False`.
+input(s) were changed during the transformation or developer can set this attribute manually in the transformation for
+the specific nodes. Default value is `False`.
 5. Attribute `graph_condition` specifies a list of functions with one parameter -- `Graph` object. The transformation
 is executed if and only if all functions return `True`. If the attribute is not set then no check is performed.
 7. Method `run_before()` returns a list of transformation classes which this transformation should be executed before.
 8. Method `run_after()` returns a list of transformation classes which this transformation should be executed after.
 
 > **NOTE**: Some of the transformation types have specific class attributes and methods which are explained in the
-> dedicated sections of this document.
+> corresponding sections of this document.
 
 Model Optimizer builds a graph of dependencies between registered transformations and executes them in the topological
 order. In order to execute the transformation during a proper model conversion phase the Model Optimizer defines several
@@ -768,15 +768,15 @@ transformations by default (if `run_before()` and `run_after()` methods have not
 > the Model Optimizer pipeline which initially had a hardcoded order of transformations.
 
 #### Front Phase Transformations <a name="front-phase-transformations"></a>
-There are several types of front phase transformations:
+There are several types of a front phase transformation:
 
 1. [Pattern-Defined Front Phase Transformations](#pattern-defined-front-phase-transformations) triggered for each
 sub-graph of the original graph isomorphic to the specified pattern.
 2. [Specific Operation Front Phase Transformations](#specific-operation-front-phase-transformations) triggered for the
-node with specific `op` attribute value.
+node with a specific `op` attribute value.
 3. [Generic Front Phase Transformations](#generic-front-phase-transformations).
 4. Manually enabled transformation defined with a JSON configuration file (for TensorFlow\*, ONNX\* and MXNet\* models
-only) specified using `--transformations_config` command line parameter:
+only) specified using the `--transformations_config` command line parameter:
     1. [Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformation).
     2. [Front Phase Transformations Using Start and End Points](#start-end-points-front-phase-transformations).
     3. [Generic Front Phase Transformations Enabled with Transformations Configuration File](#generic-transformations-config-front-phase-transformations).
@@ -784,17 +784,17 @@ only) specified using `--transformations_config` command line parameter:
 ##### Pattern-Defined Front Phase Transformations <a name="pattern-defined-front-phase-transformations"></a>
 This type of transformation is implemented using `mo.front.common.replacement.FrontReplacementSubgraph` and
 `mo.front.common.replacement.FrontReplacementPattern` as base classes and works the following way.
-1. Developer defines a sub-graph to be matched by specifying a list of nodes with attributes and edges connecting them
-(edges may also have attributes).
-2. Model Optimizer search for all sub-graphs of the original graph isomorphic to the specified sub-graph (pattern).
-3. Model Optimizer executes developer-defined function performing graph transformation for each instance of a matched
-sub-graph. Developer can override different functions in the base transformation class and the Model Optimizer works
-slightly differently.
-   1. Override method `replace_sub_graph(self, graph, match)`. In this case Model Optimizer only executes the overridden
-   function, pass the `graph` object and a dictionary describing the matched sub-graph. A developer is responsible for
-   writing the transformation and connecting the newly created nodes to the rest of the graph.
-   2. Override method `generate_sub_graph(self, graph, match)`. This case is not recommended to use because it is the
-   most complicated and can be effectively replaced with one of two previous approaches and therefore it is not
+1. Developer defines a sub-graph to be matched using a list of nodes with attributes and edges connecting them (edges
+may also have attributes).
+2. Model Optimizer searches for all sub-graphs of the original graph isomorphic to the specified sub-graph (pattern).
+3. Model Optimizer executes the developer-defined function performing graph transformation for each instance of a
+matched sub-graph. Developer can override different functions in the base transformation class so the Model Optimizer
+works differently:
+   1. Override the method `replace_sub_graph(self, graph, match)`. In this case Model Optimizer only executes the
+   overridden function, pass the `graph` object and a dictionary describing the matched sub-graph. A developer is
+   responsible for writing the transformation and connecting the newly created nodes to the rest of the graph.
+   2. Override the method `generate_sub_graph(self, graph, match)`. This case is not recommended to use because it is
+   the most complicated approach and it can be effectively replaced with one of two previous approaches and so it is not
    explained in this section. The explanation of this function is provided in the [Node Name Defined Sub-Graph
    Transformations](#node-name-defined-sub-graph-transformations) section.
 
@@ -813,8 +813,9 @@ The sub-graph pattern is defined in the `pattern()` function. This function shou
    * The third element (optional) is the dictionary with expected edge attributes. Usually this dictionary contains
    attributes like `in` and `out` defining input and output ports.
 
-Consider the example of a front transformation performing fusing of the sub-graph defining Mish activation function into
-a single operation implemented in the `extensions/front/Mish_fusion.py`:
+Consider the example of a front transformation implemented in the `extensions/front/Mish_fusion.py` file performing
+fusing of the sub-graph defining the [Mish](../../../ops/activation/Mish_4.md) activation function into a single
+operation:
 
 ```py
 from extensions.front.Softplus_fusion import SoftplusFusion
@@ -873,14 +874,14 @@ works the following way.
 2. Model Optimizer search for all nodes in the graph with the attribute `op` equal to the specified value.
 3. Model Optimizer executes developer-defined function performing graph transformation for each instance of a matched
 node. Developer can override different functions in the base transformation class and the Model Optimizer works
-slightly differently.
+differently:
    1. Override method `replace_sub_graph(self, graph, match)`. In this case Model Optimizer only executes the overridden
    function, pass the `graph` object and a dictionary with a single key `op` with the matched node as value. A developer
    is responsible for writing the transformation and connecting the newly created nodes to the rest of the graph.
    2. Override method `replace_op(self, graph, node)`. In this case Model Optimizer executes the overridden function,
-   pass the `graph` object and a matched node as `node` parameter. If the function returns an `id` of some node then the
-   `Node` with this `id` is connected to the consumers of the matched node. Then the matched node is removed from the
-   graph.
+   pass the `graph` object and the matched node as `node` parameter. If the function returns an `id` of some node then
+   the `Node` with this `id` is connected to the consumers of the matched node. After applying the transformation the
+   matched node is removed from the graph.
 
 The `FrontReplacementOp` class provides a simpler mechanism to match a singe operation with specific value of `op`
 (write an attribute `op` in the class instead of defining a `pattern()` function) attribute and perform the
@@ -924,11 +925,11 @@ Model Optimizer provides mechanism to implement generic front phase transformati
 implemented using `mo.front.common.replacement.FrontReplacementSubgraph` or
 `mo.front.common.replacement.FrontReplacementPattern` as base classes. The only condition to execute the transformation
 is to check that it is enabled. Then the Model Optimizer executes the method `find_and_replace_pattern(self, graph)` and
-provide the `Graph` object as input.
+provides a `Graph` object as an input.
 
 Consider the example of a generic front transformation from a file `extensions/front/SqueezeNormalize.py` performing
-normalization of the [Squeeze](../../../ops/shape/Squeeze_1.md) operation. In older version of the operation the list of
-axes to squeeze was an attribute, but now it is a separate input. For backward compatibility the Model Optimizer
+normalization of the [Squeeze](../../../ops/shape/Squeeze_1.md) operation. Older version of the operation had a list of
+axes to squeeze as an attribute, but now it is a separate input. For backward compatibility the Model Optimizer
 operation supports both semantics but before IR generation the operation should normalized according to the
 specification.
 
@@ -967,7 +968,8 @@ class SqueezeNormalize(FrontReplacementPattern):
                             'attribute'.format(squeeze_node.soft_get('name')))
 ```
 
-Refer to the `mo/front/common/replacement.py` for implementation details on how these front phase transformations work.
+Refer to the `mo/front/common/replacement.py` for the implementation details on how these front phase transformations
+work.
 
 ##### Node Name Pattern Front Phase Transformations <a name="node-name-pattern-front-phase-transformations"></a>
 Let's review a real life example before going into details how this type of transformations work.
@@ -1290,4 +1292,5 @@ Refer to the `extensions/back/GatherNormalizer.py` for the example of such type 
 ## See Also
 * [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md)
 * [Converting a Model to Intermediate Representation (IR)](../convert_model/Converting_Model.md)
+* [nGraph Basic Concepts](@ref openvino_docs_nGraph_DG_basic_concepts)
 * [Inference Engine Extensibility Mechanism](../../../IE_DG/Extensibility_DG/Intro.md)
