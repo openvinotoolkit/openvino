@@ -8,16 +8,22 @@ The sections below contain detailed list of changes made to the Inference Engine
 
  **State API**
 
- * InferRequest::QueryState query state value of network on current infer request
- * IVariableState class instead of IMemoryState (rename)
- * IVariableState::GetState instead of IMemoryState::GetLastState (rename)
+ * InferenceEngine::InferRequest::QueryState query state value of network on current infer request
+ * InferenceEngine::IVariableState class instead of IMemoryState (rename)
+ * InferenceEngine::IVariableState::GetState instead of IMemoryState::GetLastState (rename)
+
+ **BatchedBlob** - represents a InferenceEngine::BatchedBlob containing other blobs - one per batch.
+
+ **Transformations API** - added a new header `ie_transformations.hpp` which contains transformations for InferenceEngine::CNNNetwork object. Such transformations can be called prior to loading network for compilation for particular device:
+
+ * InferenceEngine::LowLatency
 
 ### Deprecated API
 
  **State API**
 
- * ExecutableNetwork::QueryState - use InferRequest::QueryState
- * IVariableState::GetLastState - use IVariableState::GetState
+ * InferenceEngine::ExecutableNetwork::QueryState - use InferenceEngine::InferRequest::QueryState
+ * InferenceEngine::IVariableState::GetLastState - use InferenceEngine::IVariableState::GetState
 
 ## 2021.1
 
