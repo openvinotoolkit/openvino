@@ -85,6 +85,7 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
             * [Converting a Style Transfer Model from MXNet](prepare_model/convert_model/mxnet_specific/Convert_Style_Transfer_From_MXNet.md)
         * [Converting Your Kaldi* Model](prepare_model/convert_model/Convert_Model_From_Kaldi.md)
         * [Converting Your ONNX* Model](prepare_model/convert_model/Convert_Model_From_ONNX.md)
+            * [Converting Faster-RCNN ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_Faster_RCNN.md)
             * [Converting Mask-RCNN ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_Mask_RCNN.md)
             * [Converting DLRM ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_DLRM.md)
         * [Model Optimizations Techniques](prepare_model/Model_Optimization_Techniques.md)
