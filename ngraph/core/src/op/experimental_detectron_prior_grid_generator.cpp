@@ -135,4 +135,5 @@ void op::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
     {
         out_shape = Shape{grid_height, grid_width, priors_num, 4};
     }
+    set_output_type(0, input_et, out_shape);
 }
