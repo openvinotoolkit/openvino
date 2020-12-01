@@ -203,23 +203,25 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_large_tensors)
     out.reserve(shape_size(shape));
 
     auto test_case = test::TestCase<TestEngine>(f);
-    
+
     test::Timer t{"division of large tensors"};
     std::cout << "Generating random input\n";
     testing::internal::Random random(12345);
     {
         const auto input_gen = t.measure_scope_time("random input generation");
-        for (size_t i = 0; i < shape_size(shape); ++i) {
+        for (size_t i = 0; i < shape_size(shape); ++i)
+        {
             a.push_back(random.Generate(1000));
         }
     }
 
     b = std::vector<int32_t>(shape_size(shape), 2);
-    
+
     std::cout << "Generating expected results\n";
     {
         const auto expected_output_gen = t.measure_scope_time("expected output generation");
-        for (size_t i = 0; i < shape_size(shape); ++i) {
+        for (size_t i = 0; i < shape_size(shape); ++i)
+        {
             out.push_back(a[i] / 2);
         }
     }

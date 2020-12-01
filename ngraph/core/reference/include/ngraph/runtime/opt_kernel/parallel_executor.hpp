@@ -15,56 +15,103 @@
 //*****************************************************************************
 
 #pragma once
-#include <future>
-#include <vector>
 #include <algorithm>
+#include <future>
 #include <iostream>
+#include <type_traits>
+#include <vector>
 
 namespace ngraph
 {
     namespace runtime
     {
-        namespace parallel
+        namespace detail
         {
-            // template <typename Iterator>
-            // struct ContainerView
-            // {
-            //     Iterator first;
-            //     Iterator last;
-            // };
+            /**
+             * @brief Returns the number of tasks to be created when running a kernel in parallel
+             *
+             * This function relies on an environment variable REF_TASKS_NUMBER which the
+             * user can set to control the number of created tasks. If the variable is not set
+             * or contains invalid number, a default number of tasks is returned.
+             **/
+            size_t parallel_tasks_number();
 
-            // template <typename InputIterator, typename OutputIterator, typename Function>
-            // void execute(ContainerView<InputIterator> input1,
-            //              InputIterator input2,
-            //              OutputIterator output,
-            //              Function f)
-            // {
-            //     std::transform(input1.first, input1.last, input2, output, f);
-            // }
-
-            size_t parallel_tasks_count();
-
+            /**
+             * @brief Returns true if an anvironment variable indicating forced single threaded
+             *        execution is set, false otherwise
+             *
+             * The env variable is REF_SINGLE_THREADED and can be set to any value
+             * in order to force single-threaded execution of all reference implementations
+             * that use the parallel executor.
+             **/
             bool forced_single_threaded_execution();
 
-            template <typename T, typename Operation>
-            void
-                execute(const T* arg0, const T* arg1, T* out, const uint64_t elements, Operation op)
+            /**
+             * @brief Returns the minimum number of elements for each a kernel execution should
+             *        be attempted in parallel. If a reference implementation using the parallel
+             *        executor is spawned with a tensor containing less elements, the executor
+             *        should force single-threaded execution.
+             **/
+            uint64_t parallelism_threshold();
+        } // namespace detail
+
+        namespace parallel
+        {
+            /**
+             * @brief Attempts to execute the unary op kernel in parallel
+             **/
+            template <typename T, typename Kernel>
+            void execute(const T* arg0, T* out, const uint64_t elements, Kernel op)
             {
-                if (forced_single_threaded_execution())
+                if (detail::forced_single_threaded_execution() ||
+                    elements < detail::parallelism_threshold())
                 {
-                    std::cout << "Single threaded execution\n";
-                    // TODO: execute in a single thread
+                    std::transform(arg0, arg0 + elements, out, op);
+                }
+                else
+                {
+                    const size_t num_tasks = detail::parallel_tasks_number();
+                    std::vector<std::future<void>> tasks;
+                    tasks.reserve(num_tasks);
+
+                    const uint64_t chunk_length = elements / num_tasks;
+                    for (size_t chunk = 0; chunk < num_tasks; ++chunk)
+                    {
+                        auto in0_chunk_begin = arg0 + chunk_length * chunk;
+                        auto in0_chunk_end = arg0 + chunk_length * chunk + chunk_length;
+                        auto out_chunk_begin = out + chunk_length * chunk;
+                        tasks.push_back(
+                            std::async([in0_chunk_begin, in0_chunk_end, out_chunk_begin, op] {
+                                std::transform(in0_chunk_begin, in0_chunk_end, out_chunk_begin, op);
+                            }));
+                    }
+
+                    for (auto&& task : tasks)
+                    {
+                        task.get();
+                    }
+                }
+            }
+
+            /**
+             * @brief Attempts to execute the binary op kernel in parallel
+             **/
+            template <typename T, typename Kernel>
+            void execute(const T* arg0, const T* arg1, T* out, const uint64_t elements, Kernel op)
+            {
+                if (detail::forced_single_threaded_execution() ||
+                    elements < detail::parallelism_threshold())
+                {
                     std::transform(arg0, arg0 + elements, arg1, out, op);
                 }
                 else
                 {
-                    const size_t TASKS_COUNT = parallel_tasks_count();
-                    std::cout << "Multi threaded execution " << TASKS_COUNT << std::endl;
+                    const size_t num_tasks = detail::parallel_tasks_number();
                     std::vector<std::future<void>> tasks;
-                    tasks.reserve(TASKS_COUNT);
+                    tasks.reserve(num_tasks);
 
-                    const uint64_t chunk_length = elements / TASKS_COUNT;
-                    for (size_t chunk = 0; chunk < TASKS_COUNT; ++chunk)
+                    const uint64_t chunk_length = elements / num_tasks;
+                    for (size_t chunk = 0; chunk < num_tasks; ++chunk)
                     {
                         auto in0_chunk_begin = arg0 + chunk_length * chunk;
                         auto in0_chunk_end = arg0 + chunk_length * chunk + chunk_length;

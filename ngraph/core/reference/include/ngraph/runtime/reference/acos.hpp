@@ -19,6 +19,8 @@
 #include <cmath>
 #include <cstddef>
 
+#include "ngraph/runtime/opt_kernel/parallel_executor.hpp"
+
 namespace ngraph
 {
     namespace runtime
@@ -26,13 +28,10 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void acos(const T* arg, T* out, size_t count)
+            void acos(const T* arg, T* out, const uint64_t count)
             {
-                for (size_t i = 0; i < count; i++)
-                {
-                    out[i] = std::acos(arg[i]);
-                }
+                parallel::execute(arg, out, count, [](const T& elem) { return std::acos(elem); });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

@@ -19,17 +19,37 @@
 
 using namespace ngraph;
 
-bool runtime::parallel::forced_single_threaded_execution()
+bool runtime::detail::forced_single_threaded_execution()
 {
     return getenv_bool("REF_SINGLE_THREADED", false);
 }
 
-size_t runtime::parallel::parallel_tasks_count()
+uint64_t runtime::detail::parallelism_threshold()
 {
-    const auto c = getenv_int("REF_TASKS_NUMBER", 4);
+    const int32_t DEFAULT_THRESHOLD = 1000000;
+    const auto t = getenv_int("REF_THRESHOLD", DEFAULT_THRESHOLD);
+    if (t < 0)
+    {
+        return DEFAULT_THRESHOLD;
+    }
+    else
+    {
+        return t;
+    }
+}
+
+size_t runtime::detail::parallel_tasks_number()
+{
+    const size_t DEFAULT_TASKS_NUMBER = 4;
+    const size_t MAX_TASKS_NUMBER = 128;
+    const auto c = getenv_int("REF_TASKS_NUMBER", DEFAULT_TASKS_NUMBER);
     if (c < 1)
     {
-        return 4;
+        return DEFAULT_TASKS_NUMBER;
+    }
+    else if (c > MAX_TASKS_NUMBER)
+    {
+        return MAX_TASKS_NUMBER;
     }
     else
     {

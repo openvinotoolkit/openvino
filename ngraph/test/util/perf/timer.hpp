@@ -44,7 +44,7 @@ namespace ngraph
         {
             explicit ScopedTimer(TimeBlock& block);
             ~ScopedTimer();
-            
+
             ScopedTimer() = delete;
             ScopedTimer(const ScopedTimer&) = delete;
             ScopedTimer& operator=(const ScopedTimer&) = delete;

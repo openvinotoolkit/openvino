@@ -70,8 +70,8 @@ namespace ngraph
                 const auto block_to_str = [&longest_name](const TimeBlock& block) {
                     std::stringstream stringifier;
                     const std::string padding(longest_name - block.name().length() + 2, ' ');
-                    stringifier << "  " << block.name() << padding << std::setw(10)
-                                << std::fixed << block.elapsed_time() << " [s]";
+                    stringifier << "  " << block.name() << padding << std::setw(10) << std::fixed
+                                << block.elapsed_time() << " [s]";
                     return stringifier.str();
                 };
 
@@ -92,7 +92,6 @@ namespace ngraph
         }
 
         Timer::~Timer() {}
-
         ScopedTimer Timer::measure_scope_time(std::string name)
         {
             if (name.empty())
@@ -118,7 +117,6 @@ namespace ngraph
             return elapsed_time.count();
         }
         const std::string& TimeBlock::name() const { return m_name; }
-
         ScopedTimer::ScopedTimer(TimeBlock& block)
             : m_time_block{block}
         {

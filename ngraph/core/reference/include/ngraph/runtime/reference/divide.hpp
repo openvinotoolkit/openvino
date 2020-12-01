@@ -111,12 +111,12 @@ namespace ngraph
                         return x / y;
                     }
                 };
-                
-                if (arg0_shape == arg1_shape) 
+
+                if (arg0_shape == arg1_shape)
                 {
                     parallel::execute(arg0, arg1, out, shape_size(arg0_shape), functor);
-                } 
-                else 
+                }
+                else
                 {
                     autobroadcast_binop(
                         arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, functor);
