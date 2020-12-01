@@ -17,6 +17,11 @@ p(C|X) = \prod_{t=1}^{T} p(c_{t}|X)
 
 Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor `sequence_length`.
 
+
+For greedy search [10] based decoding, the most likely symbol at each time step is chose as the output. The best CTC-path can be generated as followings:
+
+
+
 The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGreedyDecoderSeqLen is in the second input. CTCGreedyDecoder uses 2D input floating point tensor with sequence masks for each sequence in the batch while CTCGreedyDecoderSeqLen uses 1D integer tensor with sequence lengths.
 
 **Attributes**
@@ -64,14 +69,22 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
         <port id="1">
             <dim>8</dim>
         </port>
+		<port id="2">
+            <dim>1</dim>
+        </port>
     </input>
     <output>
         <port id="0">
             <dim>8</dim>
             <dim>20</dim>
         </port>
-	    <port id="1">
+		<port id="1">
             <dim>8</dim>
+            <dim>128</dim>
+        </port>
+	    <port id="2">
+            <dim>8</dim>
+			<dim>1</dim>
         </port>
     </output>
 </layer>
