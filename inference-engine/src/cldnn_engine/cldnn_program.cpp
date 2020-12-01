@@ -385,7 +385,7 @@ bool Program::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network) const {
     return check_result;
 }
 
-Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config)
+Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config)
     : m_config(config)
     , m_defaultFormat(cldnn::format::bfyx)
     , m_engine(engine)
@@ -396,8 +396,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
     bool fqFound = false;
 
     bool baselineIsFP16 = false;
-    InputsDataMap inputsMap;
-    network.getInputsInfo(inputsMap);
+    InputsDataMap inputsMap = network.getInputsInfo();
     if (!inputsMap.empty()) {
         auto input0 = getInputTo(inputsMap.begin()->second->getInputData());
         if (!input0.empty() && (input0.begin()->second->params.count("lpt_back_to_fp16") != 0)) {
@@ -405,6 +404,8 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
             fqFound = true;
         }
     }
+
+    OutputsDataMap outputsMap = network.getOutputsInfo();
 
     // [WA part2] Try to find non-quantized layers and convert them back to FP16
     if (config.enableInt8) {
@@ -418,13 +419,41 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                 if (layer->outData.empty() || layer->insData.empty())
                     continue;
 
-                auto canReduceOutputPrecision = [](const CNNLayerPtr& l) -> bool {
-                    auto type = LayerTypeFromStr(l->type);
-                    // Don't do conversion for outputs
-                    auto next = GetNextLayers(l);
-                    if (next.empty()) {
-                        return false;
+                auto isOutputLayer = [](const CNNLayerPtr& l, const OutputsDataMap& networkOutputs) -> bool {
+                    bool is_output = false;
+
+                    if (GetNextLayers(l).empty())
+                        is_output = true;
+
+                    // Condition above is not enough, as network output layer
+                    // can still be used in other parts of the graph
+                    // (e.g. 1st output form TopK primitive may become network output
+                    // while 2nd output from the same primitive may still be used
+                    // in the graph).
+                    if (!is_output) {
+                        for (auto layerOutput : l->outData) {
+                            for (auto networkOutput : networkOutputs) {
+                               if (layerOutput->getName() == networkOutput.second->getName()) {
+                                   is_output = true;
+                                   break;
+                               }
+                            }
+
+                            if (is_output)
+                                break;
+                        }
                     }
+
+                    return is_output;
+                };
+
+                auto canReduceOutputPrecision = [](const CNNLayerPtr& l, const bool isNetworkOutput) -> bool {
+                    // Don't do the conversion for network outputs
+                    if (isNetworkOutput)
+                        return false;
+
+                    auto type = LayerTypeFromStr(l->type);
+                    auto next = GetNextLayers(l);
 
                     if (type == LayerType::ScaleShift) {
                         // ScaleShift is supposed to return Dequantized values, so in most of the cases we can convert it's output to FP16
@@ -463,9 +492,11 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                     return result;
                 };
 
+                bool is_network_output = isOutputLayer(layer, outputsMap);
+
                 if (canReducePrecision(layer)) {
-                    convertLayerPrecision<Precision::FP32, Precision::FP16>(layer, GetNextLayers(layer).empty());
-                } else if (canReduceOutputPrecision(layer)) {
+                    convertLayerPrecision<Precision::FP32, Precision::FP16>(layer, is_network_output);
+                } else if (canReduceOutputPrecision(layer, is_network_output)) {
                     for (auto &out_data : layer->outData) {
                         if (out_data->getPrecision() == Precision::FP32)
                             out_data->setPrecision(Precision::FP16);
@@ -575,7 +606,7 @@ void Program::InitFormat(InferenceEngine::ICNNNetwork &network) {
     m_defaultFormat = FormatFromLayout(InferenceEngine::Layout::NCHW);
 }
 
-std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwork &network) {
+std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::CNNNetwork &network) {
     cldnn::build_options options;
     if (!m_config.graph_dumps_dir.empty()) {
         options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
@@ -586,11 +617,8 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwo
     cldnn::topology topology;
 
     // 1. create inputs
-    InferenceEngine::InputsDataMap networkInputs;
-    network.getInputsInfo(networkInputs);
-
-    InferenceEngine::OutputsDataMap networkOutputs;
-    network.getOutputsInfo(networkOutputs);
+    InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();
+    InferenceEngine::OutputsDataMap networkOutputs = network.getOutputsInfo();
     p_currentOutputs = networkOutputs;
 
     if (networkInputs.empty()) {

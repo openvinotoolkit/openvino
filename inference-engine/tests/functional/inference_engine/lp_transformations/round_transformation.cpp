@@ -9,9 +9,8 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/round_function.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
+#include "lpt_ngraph_functions/round_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "low_precision/network_helper.hpp"
 
 

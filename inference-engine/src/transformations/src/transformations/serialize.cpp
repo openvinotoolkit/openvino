@@ -300,9 +300,73 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
+bool resolve_dynamic_shapes(const ngraph::Function& f) {
+    const auto & f_results = f.get_results();
+    if (std::all_of(f_results.begin(), f_results.end(),
+            [](std::shared_ptr<Node> results) { return !results->is_dynamic(); })) {
+        return false;
+    }
+
+    auto f_clone = ngraph::clone_function(f);
+
+    const auto & f_ops = f.get_ordered_ops();
+    const auto & f_clone_ops = f_clone->get_ordered_ops();
+    NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
+
+    for (size_t id = 0; id < f_ops.size(); ++id) {
+        auto & op = f_ops[id];
+        auto & clone_op = f_clone_ops[id];
+
+        if (auto op_subgraph = std::dynamic_pointer_cast<op::util::SubGraphOp>(op)) {
+            resolve_dynamic_shapes(*op_subgraph->get_function());
+        }
+
+        op->validate_and_infer_types();
+        clone_op->validate_and_infer_types();
+
+        // dynamic_to_static function converts dynamic dimensions to static using
+        // upperbound (get_max_length) dimension value.
+        auto dynamic_to_static = [](const PartialShape & shape) -> PartialShape {
+            if (shape.is_static() || shape.rank().is_dynamic()) {
+                return shape;
+            }
+            auto out_shape = PartialShape::dynamic(shape.rank());
+            for (size_t i = 0; i < shape.rank().get_length(); ++i) {
+                const auto & in_dim = shape[i];
+                out_shape[i] = (in_dim.is_dynamic() ? Dimension(in_dim.get_max_length()) : in_dim);
+            }
+            return out_shape;
+        };
+
+        OutputVector replacements(clone_op->get_output_size());
+        if (!clone_op->constant_fold(replacements, clone_op->input_values())) {
+            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
+                clone_op->set_output_type(output_id, clone_op->output(output_id).get_element_type(),
+                        dynamic_to_static(clone_op->output(output_id).get_partial_shape()));
+                op->set_output_type(output_id, clone_op->output(output_id).get_element_type(),
+                        clone_op->output(output_id).get_partial_shape());
+            }
+        } else {
+            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
+                op->set_output_type(output_id, replacements[output_id].get_element_type(),
+                        replacements[output_id].get_partial_shape());
+            }
+
+            for (size_t i = 0; i < replacements.size(); ++i) {
+                auto node_output = clone_op->output(i);
+                auto replacement = replacements.at(i);
+                if (replacement.get_node_shared_ptr() && (node_output != replacement)) {
+                    node_output.replace(replacement);
+                }
+            }
+        }
+    }
+    return true;
+}
+
 void ngfunction_2_irv10(
     pugi::xml_document& doc, std::vector<uint8_t>& bin,
-    const ngraph::Function& f,
+    ngraph::Function& f,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     const bool exec_graph = is_exec_graph(f);
 
@@ -314,6 +378,8 @@ void ngfunction_2_irv10(
     const std::unordered_map<ngraph::Node*, int> layer_ids =
         create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
+
+    bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
     for (const auto& n : f.get_ordered_ops()) {
         ngraph::Node* node = n.get();
@@ -332,7 +398,7 @@ void ngfunction_2_irv10(
         // <layers/data>
         pugi::xml_node data = layer.append_child("data");
 
-        // <layers/data> general atributes
+        // <layers/data> general attributes
         std::string node_type_name{node->get_type_name()};
         if (exec_graph) {
             visit_exec_graph_node(data, node_type_name, node);
@@ -402,6 +468,10 @@ void ngfunction_2_irv10(
         edge.append_attribute("from-port").set_value(e.from_port);
         edge.append_attribute("to-layer").set_value(e.to_layer);
         edge.append_attribute("to-port").set_value(e.to_port);
+    }
+    // move back dynamic shapes
+    if (has_dynamic_shapes) {
+        f.validate_nodes_and_infer_types();
     }
 }
 

@@ -175,7 +175,7 @@ void GNAModelSerial::Import(void *basePointer,
             for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 inputNames.push_back(inName.substr(0, nameSize - 1));
             }
@@ -188,7 +188,7 @@ void GNAModelSerial::Import(void *basePointer,
             for (auto inputIndex = 0; inputIndex < modelHeader.nOutputs; inputIndex++) {
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string outName("", nameSize);
+                std::string outName(nameSize, '\0');
                 readNBytes(&outName[0], nameSize, is);
                 outputNames.push_back(outName.substr(0, nameSize - 1));
             }

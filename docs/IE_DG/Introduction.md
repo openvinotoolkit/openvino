@@ -116,7 +116,7 @@ For Intel® Distribution of OpenVINO™ toolkit, the Inference Engine package co
 [sample console applications](Samples_Overview.md) demonstrating how you can use
 the Inference Engine in your applications.
 
-The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and can be built for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md">Inference Engine Build Instructions</a>.
+The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and can be built for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">Inference Engine Build Instructions</a>.
 ## See Also
 - [Inference Engine Samples](Samples_Overview.md)
 - [Intel&reg; Deep Learning Deployment Toolkit Web Page](https://software.intel.com/en-us/computer-vision-sdk)
