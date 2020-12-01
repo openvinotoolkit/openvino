@@ -29,6 +29,9 @@ if(NOT ENABLE_DOCKER)
     foreach(target_name IN LISTS all_docs_targets)
         if (TARGET ${target_name})
             set_target_properties(${target_name} PROPERTIES FOLDER docs)
+            if(WIN32)
+                set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
+            endif()
         endif()
     endforeach()
 endif()
@@ -59,7 +62,7 @@ function(build_docs)
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
     set(NGRAPH_DIR "${OpenVINO_MAIN_SOURCE_DIR}/ngraph")
     set(NGRAPH_PY_DIR "${NGRAPH_DIR}/python/src/ngraph/")
-    set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/ ${NGRAPH_DIR}/frontend/onnx_import/include")
+    set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
@@ -67,10 +70,10 @@ function(build_docs)
 
     file(GLOB_RECURSE doc_source_files
         LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg" 
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg"
         "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.md"
         "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.png"
         "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.gif"
@@ -108,7 +111,7 @@ function(build_docs)
 
     # Tables of contents
     configure_file(${NGRAPH_CPP_LAYOUT_SOURCE} ${NGRAPH_CPP_LAYOUT_BUILD} @ONLY)
-    configure_file(${NGRAPH_PY_LAYOUT_SOURCE} ${NGRAPG_PY_LAYOUT_BUILD} @ONLY)
+    configure_file(${NGRAPH_PY_LAYOUT_SOURCE} ${NGRAPH_PY_LAYOUT_BUILD} @ONLY)
     configure_file(${IE_LAYOUT_SOURCE} ${IE_LAYOUT_BUILD} @ONLY)
     configure_file(${C_LAYOUT_SOURCE} ${C_LAYOUT_BUILD} @ONLY)
     configure_file(${PY_LAYOUT_SOURCE} ${PY_LAYOUT_BUILD} @ONLY)
@@ -181,7 +184,7 @@ function(build_docs)
     # IE dev guide and C++ API
 
     add_custom_target(ie_docs
-                      DEPENDS preprocess_docs
+                      DEPENDS ngraph_cpp_api preprocess_docs
                       COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
@@ -189,7 +192,7 @@ function(build_docs)
     # Plugin API
 
     add_custom_target(plugin_api
-                      DEPENDS ie_docs
+                      DEPENDS ngraph_cpp_api ie_docs
                       COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating Plugin API Reference"
@@ -203,7 +206,21 @@ function(build_docs)
                       VERBATIM)
 
     set_target_properties(openvino_docs ie_docs c_api py_api preprocess_docs plugin_api
+                          ngraph_py_api ngraph_cpp_api
                           PROPERTIES FOLDER docs)
+
+    # added linkcheker
+
+    if(EXISTS "${LINKCHECKER_PY}")
+        add_custom_target(docs_check
+                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER_PY}"
+                                    "${DOCS_BUILD_DIR}/html/" -f "${DOXYGEN_DIR}/linkchecker_filter.yaml"
+                                    --no_recursive -l "${DOCS_BUILD_DIR}"
+                            COMMENT "Check links in generated documentation"
+                            WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
+                            VERBATIM)
+        set_target_properties(docs_check PROPERTIES FOLDER docs)
+    endif()
 
     find_program(browser NAMES xdg-open)
     if(browser)
