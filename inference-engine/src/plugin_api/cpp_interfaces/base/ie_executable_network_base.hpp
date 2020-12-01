@@ -10,8 +10,8 @@
 #pragma once
 
 #include <cpp/ie_executable_network.hpp>
-#include <cpp_interfaces/base/ie_memory_state_base.hpp>
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include <cpp_interfaces/base/ie_variable_state_base.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -33,7 +33,7 @@ class ExecutableNetworkBase : public IExecutableNetwork {
 public:
     /**
      * @brief Constructor with actual underlying implementation.
-     * @param impl Underplying implementation of type IExecutableNetworkInternal
+     * @param impl Underlying implementation of type IExecutableNetworkInternal
      */
     explicit ExecutableNetworkBase(std::shared_ptr<T> impl) {
         if (impl.get() == nullptr) {
@@ -113,6 +113,13 @@ private:
     ~ExecutableNetworkBase() = default;
 };
 
+/**
+ * @brief Create an execuable network public C++ object wrapper based on internal inplementation
+ * @ingroup ie_dev_api_exec_network_api
+ * @param impl An internal implementation for executable network
+ * @tparam T A type of internal implementation
+ * @return C++ wrapper for executable network
+ */
 template <class T>
 inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
     typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {

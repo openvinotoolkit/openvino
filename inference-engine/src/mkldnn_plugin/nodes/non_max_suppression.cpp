@@ -400,6 +400,9 @@ public:
             }
         }
         std::fill(selectedIndicesPtr, selectedIndicesPtr + (selectedBoxesNum - idx) * selectedIndicesStride, -1);
+        if (outputs.size() > NMS_SELECTEDSCORES) {
+            std::fill(selectedScoresPtr, selectedScoresPtr + (selectedBoxesNum - idx) * selectedIndicesStride, -1.f);
+        }
         if (outputs.size() > NMS_VALIDOUTPUTS)
             *valid_outputs = static_cast<int>(validOutputs);
 

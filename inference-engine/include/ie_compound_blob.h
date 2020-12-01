@@ -49,12 +49,14 @@ public:
     explicit CompoundBlob(std::vector<Blob::Ptr>&& blobs);
 
     /**
-     * @brief Always returns 0
+     * @brief Always returns `0`
+     * @return Returns `0`
      */
     size_t byteSize() const noexcept override;
 
     /**
-     * @brief Always returns 0
+     * @brief Always returns `0`
+     * @return Returns `0`
      */
     size_t element_size() const noexcept override;
 
@@ -65,7 +67,7 @@ public:
 
     /**
      * @brief No operation is performed. Compound blob does not allocate/deallocate any data
-     * @return false
+     * @return Returns `false`
      */
     bool deallocate() noexcept override;
 

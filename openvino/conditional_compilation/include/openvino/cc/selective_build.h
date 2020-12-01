@@ -70,50 +70,52 @@
 #include <openvino/itt.hpp>
 
 #ifdef SELECTIVE_BUILD_ANALYZER
-#include <string>
+# include <string>
 #endif
 
 #include <utility>
 #include <tuple>
 
-namespace openvino
-{
-    namespace cc
-    {
+namespace openvino {
+namespace cc {
+
 #ifndef SELECTIVE_BUILD_ANALYZER
-        namespace internal
-        {
-            template<typename C, typename T>
-            struct case_wrapper {
-                using type = T;
-                const C value {};
 
-                case_wrapper(C && val)
-                    : value(std::forward<C>(val))
-                {}
-            };
+namespace internal {
 
-            template<typename T, typename C>
-            case_wrapper<C, T> make_case_wrapper(C && val) {
-                return case_wrapper<C, T>(std::forward<C>(val));
-            }
+template<typename C, typename T>
+struct case_wrapper {
+    using type = T;
+    const C value {};
 
-            template<template<typename...> class Fn, typename Ctx, typename T, typename Case>
-            bool match(Ctx && ctx, T && val, Case && cs) {
-                const bool is_matched = val == cs.value;
-                if (is_matched)
-                    Fn<typename Case::type>()(std::forward<Ctx>(ctx));
-                return is_matched;
-            }
+    case_wrapper(C && val)
+        : value(std::forward<C>(val))
+    {}
+};
 
-            template<template<typename...> class Fn, typename Ctx, typename T, typename Case, typename ...Cases>
-            bool match(Ctx && ctx, T && val, Case && cs, Cases&&... cases) {
-                if (match<Fn>(std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Case>(cs)))
-                    return true;
-                return match<Fn>(std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Cases>(cases)...);
-            }
-        }   // namespace internal
-#endif
+template<typename T, typename C>
+case_wrapper<C, T> make_case_wrapper(C && val) {
+    return case_wrapper<C, T>(std::forward<C>(val));
+}
+
+template<template<typename...> class Fn, typename Ctx, typename T, typename Case>
+bool match(Ctx && ctx, T && val, Case && cs) {
+    const bool is_matched = val == cs.value;
+    if (is_matched)
+        Fn<typename Case::type>()(std::forward<Ctx>(ctx));
+    return is_matched;
+}
+
+template<template<typename...> class Fn, typename Ctx, typename T, typename Case, typename ...Cases>
+bool match(Ctx && ctx, T && val, Case && cs, Cases&&... cases) {
+    if (match<Fn>(std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Case>(cs)))
+        return true;
+    return match<Fn>(std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Cases>(cases)...);
+}
+
+}  // namespace internal
+
+#endif  // SELECTIVE_BUILD_ANALYZER
 
 // Macros for names concatenation
 #define OV_CC_CAT_(x, y) x ## y
@@ -137,52 +139,53 @@ namespace openvino
     OV_ITT_DOMAIN(OV_CC_CAT(SWITCH_, Module));  /* Domain for switch/cases */                       \
     OV_ITT_DOMAIN(OV_CC_CAT(FACTORY_, Module)); /* Domain for factories */
 
-namespace internal
-{
-    template<typename C, typename T>
-    struct case_wrapper {
-        using type = T;
-        const C value {};
-        const char *name = nullptr;
+namespace internal {
 
-        case_wrapper(C && val, const char *name)
-            : value(std::forward<C>(val))
-            , name(name)
-        {}
-    };
+template<typename C, typename T>
+struct case_wrapper {
+    using type = T;
+    const C value {};
+    const char *name = nullptr;
 
-    template<typename T, typename C>
-    case_wrapper<C, T> make_case_wrapper(C && val, const char *name) {
-        return case_wrapper<C, T>(std::forward<C>(val), name);
+    case_wrapper(C && val, const char *name)
+        : value(std::forward<C>(val))
+        , name(name)
+    {}
+};
+
+template<typename T, typename C>
+case_wrapper<C, T> make_case_wrapper(C && val, const char *name) {
+    return case_wrapper<C, T>(std::forward<C>(val), name);
+}
+
+template<openvino::itt::domain_t(*domain)(),
+        template<typename...> class Fn,
+        typename Ctx,
+        typename T,
+        typename Case>
+bool match(char const *region, Ctx && ctx, T && val, Case && cs) {
+    const bool is_matched = val == cs.value;
+    if (is_matched) {
+        openvino::itt::ScopedTask<domain> task(
+            openvino::itt::handle<struct OV_CC_CAT(Task_, __LINE__)>(
+                std::string(region) + "$" + cs.name));
+        Fn<typename Case::type>()(std::forward<Ctx>(ctx));
     }
+    return is_matched;
+}
 
-    template<openvino::itt::domain_t(*domain)(),
-            template<typename...> class Fn,
-            typename Ctx,
-            typename T,
-            typename Case>
-    bool match(char const *region, Ctx && ctx, T && val, Case && cs) {
-        const bool is_matched = val == cs.value;
-        if (is_matched) {
-            openvino::itt::ScopedTask<domain> task(
-                openvino::itt::handle<struct OV_CC_CAT(Task_, __LINE__)>(
-                    std::string(region) + "$" + cs.name));
-            Fn<typename Case::type>()(std::forward<Ctx>(ctx));
-        }
-        return is_matched;
-    }
+template<openvino::itt::domain_t(*domain)(),
+        template<typename...> class Fn,
+        typename Ctx,
+        typename T,
+        typename Case, typename ...Cases>
+bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... cases) {
+    if (match<domain, Fn>(region, std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Case>(cs)))
+        return true;
+    return match<domain, Fn>(region, std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Cases>(cases)...);
+}
 
-    template<openvino::itt::domain_t(*domain)(),
-            template<typename...> class Fn,
-            typename Ctx,
-            typename T,
-            typename Case, typename ...Cases>
-    bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... cases) {
-        if (match<domain, Fn>(region, std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Case>(cs)))
-            return true;
-        return match<domain, Fn>(region, std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Cases>(cases)...);
-    }
-}   // namespace internal
+}  // namespace internal
 
 #define OV_SCOPE(Module, region, ...)                                                       \
     OV_ITT_SCOPED_TASK(OV_CC_CAT(SIMPLE_, Module), OV_CC_TOSTRING(region));                 \
@@ -261,5 +264,5 @@ namespace internal
 
 #endif
 
-    }
-}
+}  // namespace cc
+}  // namespace openvino

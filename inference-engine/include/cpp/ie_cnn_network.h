@@ -124,7 +124,6 @@ public:
      * Wraps ICNNNetwork::setBatchSize
      *
      * @param size Size of batch to set
-     * @return Status code of the operation
      */
     virtual void setBatchSize(const size_t size) {
         CALL_STATUS_FNC(setBatchSize, size);

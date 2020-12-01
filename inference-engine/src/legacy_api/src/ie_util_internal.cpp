@@ -544,7 +544,7 @@ struct NodePrinter {
     }
 };
 
-void saveGraphToDot(InferenceEngine::ICNNNetwork& network, std::ostream& out, printer_callback layer_cb) {
+void saveGraphToDot(const InferenceEngine::ICNNNetwork& network, std::ostream& out, printer_callback layer_cb) {
     NodePrinter printer(out, std::move(layer_cb));
 
     out << "digraph Network {\n";
