@@ -14,7 +14,7 @@ o_{i} = i_{i} - ReduceMean(i_{k}, axes)
 \f]
 If *normalize_variance* is set to `true`, the output blob is divided by variance. In the case of `eps_mode` equal to `inside_sqrt`:
 \f[
-o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}}
+o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2+\epsilon}}
 \f]
 And in the case of `eps_mode` equal to `outside_sqrt`:
 \f[
@@ -65,7 +65,7 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
 
 * *T*: any floating point type.
 
-* *T_IND*: int64 or int32.
+* *T_IND*: `int64` or `int32`.
 
 **Example**
 
