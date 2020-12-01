@@ -150,9 +150,10 @@ This step uses the following names. Your configuration might use different names
    ```
 4. Save and close the network configuration file.
 5. Run two commands to activate the new network configuration file. If you use ssh, you might lose network connectivity when issuing these commands. If so, reconnect to the network.
-```sh
-sudo netplan generate
-```
+   ```sh
+   sudo netplan generate
+   ```
+   
    ```sh
    sudo netplan apply
    ```	
