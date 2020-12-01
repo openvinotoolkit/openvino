@@ -130,24 +130,25 @@ void op::v1::Reshape::validate_and_infer_types()
         else
         {
             std::vector<Dimension> partial_shape(output_rank.get_length());
-            if(input_pshape.rank().is_static())
+            if (input_pshape.rank().is_static())
             {
                 size_t input_static_elements = 1;
                 size_t dynamic_dim_count = 0;
                 size_t output_static_elements = 1;
                 for (size_t i = 0; i < input_pshape.rank().get_length(); i++)
                 {
-                    if(input_pshape[i].is_static())
+                    if (input_pshape[i].is_static())
                     {
-                        input_static_elements*=input_pshape[i].get_length();
-                    }else
+                        input_static_elements *= input_pshape[i].get_length();
+                    }
+                    else
                     {
                         dynamic_dim_count++;
                     }
                 }
                 size_t handled_dynamic_dim_count = 0;
                 int negative_dim = -1;
-                
+
                 for (size_t i = 0; i < out_shape_val.size(); ++i)
                 {
                     const auto& v = out_shape_val[i];
@@ -158,51 +159,60 @@ void op::v1::Reshape::validate_and_infer_types()
                     }
                     else if (v == 0 && m_special_zero)
                     {
-                        NODE_VALIDATION_CHECK(this, i < input_pshape.rank().get_length(), "'0' dimension is out of range");
+                        NODE_VALIDATION_CHECK(this,
+                                              i < input_pshape.rank().get_length(),
+                                              "'0' dimension is out of range");
                         partial_shape[i] = input_pshape[i];
-                        if(input_pshape[i].is_dynamic())
+                        if (input_pshape[i].is_dynamic())
                         {
                             handled_dynamic_dim_count++;
-                        }else{
-                            output_static_elements*=input_pshape[i].get_length();
-                        } 
+                        }
+                        else
+                        {
+                            output_static_elements *= input_pshape[i].get_length();
+                        }
                     }
                     else
                     {
                         partial_shape[i] = Dimension(v);
-                        output_static_elements*=v;
+                        output_static_elements *= v;
                     }
                 }
 
-                if(negative_dim != -1)
+                if (negative_dim != -1)
                 {
-                        if(handled_dynamic_dim_count == dynamic_dim_count)
+                    if (handled_dynamic_dim_count == dynamic_dim_count)
+                    {
+                        if (output_static_elements == 0)
                         {
-                            if(output_static_elements == 0)
-                            {
-                                // TODO(amprocte): Decide if this is desired behavior here. (NumPy seems
-                                // to fail.)
-                                NODE_VALIDATION_CHECK(this,
-                                                    input_static_elements == 0,
-                                                    "Cannot infer '-1' dimension with zero-size output "
-                                                    "dimension unless at least one input dimension is "
-                                                    "also zero-size");
-                                partial_shape[negative_dim] = Dimension(0);
-                            }
-                            else
-                            {
-                                partial_shape[negative_dim] = Dimension(input_static_elements / output_static_elements);
-                            }
-                        }else
-                        {
-                            partial_shape[negative_dim] = Dimension();
+                            // TODO(amprocte): Decide if this is desired behavior here. (NumPy seems
+                            // to fail.)
+                            NODE_VALIDATION_CHECK(
+                                this,
+                                input_static_elements == 0,
+                                "Cannot infer '-1' dimension with zero-size output "
+                                "dimension unless at least one input dimension is "
+                                "also zero-size");
+                            partial_shape[negative_dim] = Dimension(0);
                         }
+                        else
+                        {
+                            partial_shape[negative_dim] =
+                                Dimension(input_static_elements / output_static_elements);
+                        }
+                    }
+                    else
+                    {
+                        partial_shape[negative_dim] = Dimension();
+                    }
                 }
-                
-            }else{
+            }
+            else
+            {
                 for (size_t i = 0; i < out_shape_val.size(); ++i)
                 {
-                    partial_shape[i] = out_shape_val[i] <= 0 ? Dimension::dynamic() : out_shape_val[i];
+                    partial_shape[i] =
+                        out_shape_val[i] <= 0 ? Dimension::dynamic() : out_shape_val[i];
                 }
             }
             set_output_type(0, get_input_element_type(0), PartialShape(partial_shape));

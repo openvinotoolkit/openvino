@@ -246,6 +246,6 @@ TEST(type_prop, reshape_partial_rank_dynamic_special_neg)
     auto r = make_shared<op::v1::Reshape>(
         param, op::Constant::create(element::u64, {4}, std::vector<int64_t>{3, -1, 0, 2}), true);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_output_partial_shape(0), (PartialShape{3, Dimension::dynamic(), Dimension::dynamic(), 2}));
+    ASSERT_EQ(r->get_output_partial_shape(0),
+              (PartialShape{3, Dimension::dynamic(), Dimension::dynamic(), 2}));
 }
-
