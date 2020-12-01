@@ -261,11 +261,13 @@ TEST(type_prop, reshape_deduce_special_zero_shape_zero_zero_one_neg_dynamic_with
 
 TEST(type_prop, reshape_deduce_special_zero_shape_zero_zero_one_neg_double_dynamic_with_interval)
 {
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension(1, 3), Dimension::dynamic()});
+    auto param = make_shared<op::Parameter>(element::f32,
+                                            PartialShape{2, Dimension(1, 3), Dimension::dynamic()});
     auto r = make_shared<op::v1::Reshape>(
         param, op::Constant::create(element::u64, {4}, std::vector<int64_t>{0, 0, 1, -1}), true);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_output_partial_shape(0), (PartialShape{2, Dimension(1, 3), 1, Dimension::dynamic()}));
+    ASSERT_EQ(r->get_output_partial_shape(0),
+              (PartialShape{2, Dimension(1, 3), 1, Dimension::dynamic()}));
 }
 
 TEST(type_prop, reshape_deduce_special_zero_shape_zero_neg_dynamic_with_interval)
@@ -285,6 +287,3 @@ TEST(type_prop, reshape_deduce_special_zero_shape_neg_zero_dynamic_with_interval
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_output_partial_shape(0), (PartialShape{2, Dimension(1, 3)}));
 }
-
-
-
