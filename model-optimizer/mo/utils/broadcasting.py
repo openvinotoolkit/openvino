@@ -124,7 +124,20 @@ def bi_directional_broadcasting(input_value: np.array, second_shape: np.array):
                                                                                                second_shape)
     return np.array(input_value * np.ones(second_shape), dtype=input_value.dtype)
 
+def expand_dims(input_value: np.array, axis):
+    """
+    This function contains implementation of numpy.expand_dims(numpy>=18.x)
+    """
+    if type(axis) not in (tuple, list):
+        axis = (axis,)
 
+    out_ndim = len(axis) + input_value.ndim
+    axis = np.core.numeric.normalize_axis_tuple(axis, out_ndim)
+    shape_it = iter(input_value.shape)
+    shape = [1 if ax in axis else next(shape_it) for ax in range(out_ndim)]
+
+    return input_value.reshape(shape)
+     
 def explicit_broadcasting(input_value: np.array, target_shape: np.array, axes_mapping: np.array) -> np.array:
     """
     Explicit broadcasting of input tensor. Resulting shape is equal to target_shape except for axes specified in axes_mapping
@@ -134,7 +147,7 @@ def explicit_broadcasting(input_value: np.array, target_shape: np.array, axes_ma
     :return: broadcasted value
     """
     res_shape, normalized_axes_mapping = explicit_shape_broadcasting(input_value.shape, target_shape, axes_mapping)
+    #TODO: Function 'expand_dims' should be replaced with 'numpy.expand_dims' if numpy version will be >=18.x in requirements.
     expand_dim_axis = set(np.arange(len(target_shape))) - set(normalized_axes_mapping)
-
-    input_expanded = np.expand_dims(input_value.copy(), axis=list(expand_dim_axis))
+    input_expanded = expand_dims(input_value.copy(), axis=list(expand_dim_axis))
     return np.broadcast_to(input_expanded, res_shape)
