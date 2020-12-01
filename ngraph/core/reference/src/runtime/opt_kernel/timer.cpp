@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "timer.hpp"
+#include "ngraph/runtime/opt_kernel/timer.hpp"
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
@@ -23,7 +23,7 @@
 
 namespace ngraph
 {
-    namespace test
+    namespace perf
     {
         Timer::Timer(std::string timer_name)
             : m_name{std::move(timer_name)}

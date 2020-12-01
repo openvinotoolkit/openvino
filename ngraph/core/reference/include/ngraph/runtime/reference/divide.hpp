@@ -22,6 +22,7 @@
 
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/runtime/opt_kernel/parallel_executor.hpp"
+#include "ngraph/runtime/opt_kernel/timer.hpp"
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/bfloat16.hpp"
@@ -114,7 +115,10 @@ namespace ngraph
 
                 if (arg0_shape == arg1_shape)
                 {
-                    parallel::execute(arg0, arg1, out, shape_size(arg0_shape), functor);
+                    const auto elems = shape_size(arg0_shape);
+                    perf::Timer t{"Elementwise division with " + std::to_string(elems) + " elements"};
+                    parallel::execute(arg0, arg1, out, elems, functor);
+                    t.finish();
                 }
                 else
                 {
@@ -158,6 +162,6 @@ namespace ngraph
                         return x / y;
                     });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

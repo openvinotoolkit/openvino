@@ -41,7 +41,6 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 #include "util/engine/test_engines.hpp"
-#include "util/perf/timer.hpp"
 #include "util/test_case.hpp"
 #include "misc.hpp"
 
@@ -191,7 +190,7 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_by_zero_float32)
 
 NGRAPH_TEST(${BACKEND_NAME}, divide_large_tensors)
 {
-    Shape shape{10, 10, 10, 10, 10, 10, 10, 5, 5};
+    Shape shape{10, 10, 10, 10, 10, 10};
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto B = make_shared<op::Parameter>(element::i32, shape);
     auto T = make_shared<op::v1::Divide>(A, B);
@@ -204,11 +203,9 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_large_tensors)
 
     auto test_case = test::TestCase<TestEngine>(f);
 
-    test::Timer t{"division of large tensors"};
     std::cout << "Generating random input\n";
     testing::internal::Random random(12345);
     {
-        const auto input_gen = t.measure_scope_time("random input generation");
         for (size_t i = 0; i < shape_size(shape); ++i)
         {
             a.push_back(random.Generate(1000));
@@ -219,7 +216,6 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_large_tensors)
 
     std::cout << "Generating expected results\n";
     {
-        const auto expected_output_gen = t.measure_scope_time("expected output generation");
         for (size_t i = 0; i < shape_size(shape); ++i)
         {
             out.push_back(a[i] / 2);
@@ -232,7 +228,6 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_large_tensors)
 
     std::cout << "Running the test\n";
     {
-        const auto test_exec = t.measure_scope_time("test execution (multi threaded)");
         test_case.run();
     }
 
@@ -243,9 +238,6 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_large_tensors)
     std::cout << "Running the test single threaded\n";
     {
         set_environment("REF_SINGLE_THREADED", "1", 1);
-        const auto test_exec = t.measure_scope_time("test execution (single threaded)");
         test_case.run();
     }
-
-    t.finish();
 }

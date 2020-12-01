@@ -22,7 +22,7 @@
 
 namespace ngraph
 {
-    namespace test
+    namespace perf
     {
         using time_point_t = std::chrono::time_point<std::chrono::system_clock>;
 

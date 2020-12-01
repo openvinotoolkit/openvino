@@ -26,7 +26,6 @@ set (SRC
     test_tools.cpp
     test_control.cpp
     visitor.hpp
-    perf/timer.cpp
     provenance_enabler.hpp
 )
 
