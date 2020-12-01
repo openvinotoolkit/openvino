@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/low_precision_transformations/normalize_dequantization_function.hpp"
+#include "lpt_ngraph_functions/normalize_dequantization_function.hpp"
 
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 #include "ngraph_ops/type_relaxed.hpp"
 
 namespace ngraph {
