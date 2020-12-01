@@ -205,13 +205,6 @@ void op::v1::Reshape::validate_and_infer_types()
                 }
             }
 
-            if (out_shape_val == std::vector<std::int64_t>{0, -1} &&
-                input_pshape.rank().is_static() && input_pshape.rank().get_length() == 2)
-            {
-                partial_shape[0] = input_pshape[0];
-                partial_shape[1] = input_pshape[1];
-            }
-
             set_output_type(0, get_input_element_type(0), PartialShape(partial_shape));
         }
     }

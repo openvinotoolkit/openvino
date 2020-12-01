@@ -727,6 +727,77 @@ TEST(eval, evaluate_reshape_v1_pattern_int16)
     ASSERT_EQ(computed_val, expected_val);
 }
 
+TEST(eval, evaluate_reshape_v1_special_zero_shape_neg_zero)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{3, 1, 2});
+    auto pattern = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
+    auto func = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(
+        func->evaluate({result_tensor},
+                       {make_host_tensor<element::Type_t::f32>({3, 1, 2}, {0, 1, 2, 3, 4, 5}),
+                        make_host_tensor<element::Type_t::i64>({2}, {-1, 0})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{6, 1}));
+    auto computed_val = read_vector<float>(result_tensor);
+    vector<float> expected_val{0, 1, 2, 3, 4, 5};
+    ASSERT_EQ(computed_val, expected_val);
+}
+
+TEST(eval, evaluate_reshape_v1_special_zero_shape_zero_neg)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{3, 1, 2});
+    auto pattern = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
+    auto func = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(
+        func->evaluate({result_tensor},
+                       {make_host_tensor<element::Type_t::f32>({3, 1, 2}, {0, 1, 2, 3, 4, 5}),
+                        make_host_tensor<element::Type_t::i64>({2}, {0, -1})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{3, 2}));
+    auto computed_val = read_vector<float>(result_tensor);
+    vector<float> expected_val{0, 1, 2, 3, 4, 5};
+    ASSERT_EQ(computed_val, expected_val);
+}
+
+TEST(eval, evaluate_reshape_v1_special_zero_shape_zero_neg_copy_input)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{3, 1});
+    auto pattern = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
+    auto func = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(func->evaluate({result_tensor},
+                               {make_host_tensor<element::Type_t::f32>({3, 1}, {0, 1, 2}),
+                                make_host_tensor<element::Type_t::i64>({2}, {0, -1})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{3, 1}));
+    auto computed_val = read_vector<float>(result_tensor);
+    vector<float> expected_val{0, 1, 2};
+    ASSERT_EQ(computed_val, expected_val);
+}
+
+TEST(eval, evaluate_reshape_v1_special_zero_shape_zero_zero_one_neg)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 3});
+    auto pattern = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
+    auto func = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(func->evaluate(
+        {result_tensor},
+        {make_host_tensor<element::Type_t::f32>({2, 2, 3}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+         make_host_tensor<element::Type_t::i64>({4}, {0, 0, 1, -1})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{2, 2, 1, 3}));
+    auto computed_val = read_vector<float>(result_tensor);
+    vector<float> expected_val{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    ASSERT_EQ(computed_val, expected_val);
+}
+
 TEST(eval, evaluate_convert)
 {
     auto p = make_shared<op::Parameter>(element::f32, PartialShape{-1, -1});
