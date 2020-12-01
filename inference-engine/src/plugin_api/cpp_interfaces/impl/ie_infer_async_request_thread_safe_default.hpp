@@ -125,6 +125,7 @@ public:
         switch (millis_timeout) {
         case IInferRequest::WaitMode::RESULT_READY: {
             future.wait();
+            future.get();
             status = std::future_status::ready;
         } break;
         case IInferRequest::WaitMode::STATUS_ONLY: {

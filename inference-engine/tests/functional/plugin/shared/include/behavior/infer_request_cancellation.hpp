@@ -122,14 +122,24 @@ TEST_P(CancellationTests, canCancelInferRequest) {
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
 
-    auto infer = std::async(std::launch::async, [&req]{ req.Infer(); });
-    infer.wait_for(std::chrono::milliseconds(1));
+    auto infer = std::async(std::launch::async, [&req]{ return req.Infer(); });
+
+    const auto statusOnly = InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY;
+    while (req.Wait(statusOnly) == InferenceEngine::StatusCode::INFER_NOT_STARTED) {
+    }
+
     InferenceEngine::StatusCode cancelStatus = req.Cancel();
+    InferenceEngine::StatusCode inferStatus = infer.get();
 
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
+        if (cancelStatus == InferenceEngine::StatusCode::OK) {
+            ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_CANCELLED), inferStatus);
+        } else {
+            ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), inferStatus);
+        }
     } else {
         ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::NOT_IMPLEMENTED), cancelStatus);
+        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), inferStatus);
     }
 }
 }  // namespace BehaviorTestsDefinitions
