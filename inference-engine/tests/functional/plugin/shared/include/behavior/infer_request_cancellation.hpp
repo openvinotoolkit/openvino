@@ -122,14 +122,20 @@ TEST_P(CancellationTests, canCancelInferRequest) {
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
 
-    auto infer = std::async(std::launch::async, [&req]{ return req.Infer(); });
+    auto infer = std::async(std::launch::async, [&req]{ req.Infer(); });
 
     const auto statusOnly = InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY;
     while (req.Wait(statusOnly) == InferenceEngine::StatusCode::INFER_NOT_STARTED) {
     }
 
     InferenceEngine::StatusCode cancelStatus = req.Cancel();
-    InferenceEngine::StatusCode inferStatus = infer.get();
+    InferenceEngine::StatusCode inferStatus = InferenceEngine::StatusCode::OK;
+
+    try {
+        infer.get();
+    } catch (InferenceEngine::details::InferenceEngineException& ex) {
+        inferStatus = ex.getStatus();
+    }
 
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
         if (cancelStatus == InferenceEngine::StatusCode::OK) {

@@ -156,10 +156,8 @@ public:
      *
      * Wraps IInferRequest::Infer
      */
-    StatusCode Infer() {
-        if (!actual)  THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATUS_FNC_NO_ARGS was not initialized.";
-        ResponseDesc resp;
-        return actual->Infer(&resp);
+    void Infer() {
+        CALL_STATUS_FNC_NO_ARGS(Infer);
     }
 
     StatusCode Cancel() {
