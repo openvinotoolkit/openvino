@@ -16,7 +16,7 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/mat_mul_with_optimized_constant_fake_quantize_function.hpp"
+#include "lpt_ngraph_functions/mat_mul_with_optimized_constant_fake_quantize_function.hpp"
 
 namespace LayerTestsDefinitions {
 

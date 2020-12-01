@@ -58,13 +58,12 @@ void MKLDNNCropNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+    if (inputDataType != outputDataType) {
+        outputDataType = inputDataType; // Crop doesn't convert precisions, only moves data
+    }
 
     auto& inDims = getParentEdgeAt(0)->getDims();
     if (inDims.ndims() != 2 && inDims.ndims() != 4 && inDims.ndims() != 5) {
@@ -125,19 +124,19 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
     if (!MKLDNNMemory::IsPlainFormat(parentMem.GetFormat())) {
         m_block_size = parentMem.GetDescriptor().data.layout_desc.blocking.block_dims[1];
     }
-    int m_inner_dim = dims[dims.size() - 1] * m_block_size;
+    const int m_inner_dim = dims[dims.size() - 1] * m_block_size;
 
     const memory &dst_d = getChildEdgeAt(0)->getMemory().GetPrimitive();
 
-    int dst_ndims = dst_d.get_primitive_desc().desc().data.ndims;
+    const int dst_ndims = dst_d.get_primitive_desc().desc().data.ndims;
 
     // TODO: Rewrite it in general case. For every tensor
     // and rank, without using letter N,C,D,H,W
-    int OFFSET_N = (dst_ndims > 0) ? offsets[0] : 0;
-    int OFFSET_C = (dst_ndims > 1) ? offsets[1] : 0;
-    int OFFSET_D = (dst_ndims > 4) ? offsets[offsets.size() - 3] : 0;
-    int OFFSET_H = (dst_ndims > 2) ? offsets[offsets.size() - 2] : 0;
-    int OFFSET_W = (dst_ndims > 3) ? offsets[offsets.size() - 1] : 0;
+    const int OFFSET_N = (dst_ndims > 0) ? offsets[0] : 0;
+    const int OFFSET_C = (dst_ndims > 1) ? offsets[1] : 0;
+    const int OFFSET_D = (dst_ndims > 4) ? offsets[offsets.size() - 3] : 0;
+    const int OFFSET_H = (dst_ndims > 2) ? offsets[offsets.size() - 2] : 0;
+    const int OFFSET_W = (dst_ndims > 3) ? offsets[offsets.size() - 1] : 0;
 
     // TODO: Check applicability of dyn_batch_lim in early steps.
     //       crop of batch dimension doesn't support dyn batch.
@@ -155,42 +154,16 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
     const int IH = (src_ndims  > 2) ? src_dims[src_dims.size() - 2] : 1;
     const int IW = (src_ndims  > 3) ? src_dims[src_dims.size() - 1] : 1;
 
-    const auto *src_data = reinterpret_cast<const float*>(parentMem.GetData()) +
-            parentMem.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    float *dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetData()) +
-            getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(parentMem.GetDataType()));
 
-#ifdef _WIN32
-    if (OD == 1 && OH == 1 && OW == 1 && ID == 1 && IH == 1 && IW == 1) {
-        for (int n = 0; n < ON; ++n) {
-            cpu_memcpy(&dst_data[n*OC], &src_data[(n+OFFSET_N)*IC + OFFSET_C], OC * sizeof(float));
-        }
-    } else {
-        for (int n = 0; n < ON; ++n) {
-            for (int c = 0; c < OC; c += m_block_size) {
-                for (int d = 0; d < OD; ++d) {
-                    for (int h = 0; h < OH; ++h) {
-                        int dst_ind =
-                                n*OC*OD*OH*OW + c*OD*OH*OW + d*OH*OW*m_block_size +
-                                h*OW*m_block_size;
+    const auto *src_data = reinterpret_cast<const uint8_t *>(parentMem.GetData()) +
+            itemSize * parentMem.GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto *dst_data = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetData()) +
+            itemSize * getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
 
-                        int src_ind =
-                                (n+OFFSET_N)*IC*ID*IH*IW +
-                                (c+OFFSET_C)*ID*IH*IW +
-                                (d+OFFSET_D)*IH*IW*m_block_size +
-                                (h+OFFSET_H)*IW*m_block_size +
-                                OFFSET_W*m_block_size;
-
-                        cpu_memcpy(dst_data + dst_ind, src_data + src_ind, m_inner_dim * sizeof(float));
-                    }
-                }
-            }
-        }
-    }
-#else
     if (OD == 1 && OH == 1 && OW == 1 && ID == 1 && IH == 1 && IW == 1) {
         parallel_for(ON, [&](int n) {
-            cpu_memcpy(&dst_data[n*OC], &src_data[(n+OFFSET_N)*IC + OFFSET_C], OC * sizeof(float));
+            cpu_memcpy(dst_data + itemSize * n * OC, src_data + itemSize *((n+OFFSET_N)*IC + OFFSET_C), OC * itemSize);
         });
     } else {
         parallel_for2d(ON, (OC / m_block_size), [&](int n, int c) {
@@ -201,7 +174,7 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
                               ((d+OFFSET_D)*IH*IW + OFFSET_H*IW + OFFSET_W)*m_block_size;
 
                 for (int h = 0; h < OH; ++h) {
-                    cpu_memcpy(dst_data + dst_ind, src_data + src_ind, m_inner_dim * sizeof(float));
+                    cpu_memcpy(dst_data + itemSize * dst_ind, src_data + itemSize * src_ind, m_inner_dim * itemSize);
 
                     src_ind += IW * m_block_size;
                     dst_ind += OW * m_block_size;
@@ -209,7 +182,6 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
             }
         });
     }
-#endif
 }
 
 bool MKLDNNCropNode::created() const {
