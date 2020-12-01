@@ -152,7 +152,7 @@
             </tab>
             <tab type="usergroup" title="Add-Ons" url="">
               <tab type="user" title="Model Server" url="@ref openvino_docs_ovms"/>
-              <tab type="user" title="Sequrity Add-on" url="@ref ovsa_get_started"/>  
+              <tab type="user" title="Security Add-on" url="@ref ovsa_get_started"/>  
             </tab>
         </tab>
 
