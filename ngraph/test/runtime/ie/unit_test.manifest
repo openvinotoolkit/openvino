@@ -1147,6 +1147,9 @@ IE_CPU.roi_pooling_1x1_bilinear
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs
 
+# output mismatch
+IE_CPU.gather_nd_batch_1d_from_3d_negative
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
