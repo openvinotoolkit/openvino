@@ -10,10 +10,12 @@
 
 This operation is similar to TensorFlow CTCGreedyDecoder [Reference](https://www.tensorflow.org/api_docs/python/tf/nn/ctc_greedy_decoder)
 
-Given an input sequence \f$X\f$ of length \f$T\f$, *CTCGreedyDecoderSeqLen* assumes the probability of a length \f$T\f$ character sequence \f$C\f$ is given by
-\f[
-p(C|X) = \prod_{t=1}^{T} p(c_{t}|X)
-\f]
+The operation *CTCGreedyDecoderSeqLen* implements best path decoding.
+Decoding is done in two steps:
+
+1. Concatenate most probable characters per time-step which yields the best path.
+
+2. Then, undo the encoding by first removing duplicate characters and then removing all blanks. This gives us the recognized text.
 
 Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor `sequence_length`.
 
@@ -33,7 +35,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * **1**: `data` - input tensor of type *T_F* of shape `[T, N, C]` with a batch of sequences. Where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required.**
 
-* **2**: `sequence_length` - input tensor of type T_I of shape [N] with sequence lengths. Value of sequence lengths must be less or equal shape `T` of data. **Required.**
+* **2**: `sequence_length` - input tensor of type *T_I* of shape `[N]` with sequence lengths. Value of sequence lengths must be less or equal shape `T` of data. **Required.**
 
 * **3**: `blank_index` - Scalar of type *T_I*. Set the class index to use for the blank label. The blank_index is not saved to the result sequence and it is used for post-processing. Default value is `C-1`. **Optional**.
 
@@ -41,9 +43,11 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * **1**: Output tensor of type *T_I* shape `[N, T]` and containing final sequence class indices. A final sequence can be shorter than the size `T` of the tensor, all elements than do not code sequence classes are filled with -1.
 
-* **2**: Output tensor of type *T_I* shape `[N, C]` and containing vector stores the decoded classes.
+* **2**: Output tensor of type *T_I* shape `[N, T]` and containing vector stores the decoded classes.
 
-* **3**: Output tensor of type *T_I* shape `[N, 1]` and containing length of decoded class array for each batch.
+* **3**: Output tensor of type *T_I* shape `[2]` and containing shape of vector size.
+
+* **4**: Output tensor of type *T_I* shape `[N]` and containing length of decoded class array for each batch.
 
 **Types**
 
