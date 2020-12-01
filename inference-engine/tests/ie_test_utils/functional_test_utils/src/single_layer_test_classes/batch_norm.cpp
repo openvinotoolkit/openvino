@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/batch_norm.hpp"
+#include "functional_test_utils/single_layer_test_classes/batch_norm.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -45,10 +45,6 @@ void BatchNormLayerTest::SetUp() {
     auto batchNorm = ngraph::builder::makeBatchNormInference(paramOuts[0], epsilon);
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(batchNorm)};
     function = std::make_shared<ngraph::Function>(results, params, "BatchNormInference");
-}
-
-TEST_P(BatchNormLayerTest, CompareWithRefs) {
-    Run();
 }
 
 }  // namespace LayerTestsDefinitions

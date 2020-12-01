@@ -17,6 +17,9 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/bfloat16.hpp>
 
+#include "transformations/serialize.hpp"
+
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
@@ -137,6 +140,8 @@ public:
 
     virtual void Run();
 
+    virtual void Serialize();
+
     virtual void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
 
@@ -211,6 +216,8 @@ protected:
 
 private:
     RefMode refMode = RefMode::INTERPRETER;
+    std::string GetTimestamp();
+    std::string GetTestName();
 };
 
 }  // namespace LayerTestsUtils

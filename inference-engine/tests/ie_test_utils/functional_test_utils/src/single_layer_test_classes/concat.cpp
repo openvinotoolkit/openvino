@@ -11,12 +11,10 @@
 #include "ie_core.hpp"
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include "single_layer_tests/concat.hpp"
+#include "functional_test_utils/single_layer_test_classes/concat.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -53,9 +51,4 @@ void ConcatLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "concat");
 }
-
-
-TEST_P(ConcatLayerTest, CompareWithRefs) {
-    Run();
-};
 }  // namespace LayerTestsDefinitions

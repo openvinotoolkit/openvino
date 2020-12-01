@@ -6,18 +6,14 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <functional>
 #include <functional_test_utils/skip_tests_config.hpp>
-
 #include "ie_core.hpp"
+
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
-
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
 
-#include "single_layer_tests/variadic_split.hpp"
+#include "functional_test_utils/layer_test_utils.hpp"
+#include "functional_test_utils/single_layer_test_classes/variadic_split.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -61,10 +57,6 @@ namespace LayerTestsDefinitions {
             results.push_back(std::make_shared<ngraph::opset3::Result>(VariadicSplit->output(i)));
         }
         function = std::make_shared<ngraph::Function>(results, params, "VariadicSplit");
-    }
-
-    TEST_P(VariadicSplitLayerTest, CompareWithRefs) {
-        Run();
     }
 
 }  // namespace LayerTestsDefinitions

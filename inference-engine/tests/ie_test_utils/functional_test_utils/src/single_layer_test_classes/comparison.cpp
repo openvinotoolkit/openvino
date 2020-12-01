@@ -11,7 +11,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-#include "single_layer_tests/comparison.hpp"
+#include "functional_test_utils/single_layer_test_classes/comparison.hpp"
 
 using namespace LayerTestsDefinitions::ComparisonParams;
 
@@ -83,10 +83,5 @@ void ComparisonLayerTest::SetUp() {
 
     auto comparisonNode = ngraph::builder::makeComparison(inputs[0], secondInput, comparisonOpType);
     function = std::make_shared<ngraph::Function>(comparisonNode, inputs, "Comparison");
-}
-
-
-TEST_P(ComparisonLayerTest, ComparisonTests) {
-    Run();
 }
 } // namespace LayerTestsDefinitions

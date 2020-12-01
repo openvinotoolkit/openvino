@@ -7,6 +7,7 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <pugixml.hpp>
+#include <common_test_utils/file_utils.hpp>
 
 #include "ngraph/variant.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
@@ -188,6 +189,31 @@ void LayerTestsCommon::Run() {
         reportStatus(PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
+}
+
+void LayerTestsCommon::Serialize() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    std::string output_name = GetTestName() + "_" + GetTimestamp();
+
+    std::string out_xml_path = output_name + ".xml";
+    std::string out_bin_path = output_name + ".bin";
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
+    manager.run_passes(function);
+
+    InferenceEngine::Core ie;
+    auto result = ie.ReadNetwork(out_xml_path, out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+            compare_functions(result.getFunction(), function);
+
+    ASSERT_TRUE(success) << message;
+
+    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -455,5 +481,20 @@ std::shared_ptr<ngraph::Function> LayerTestsCommon::GetFunction() {
 
 std::map<std::string, std::string> &LayerTestsCommon::GetConfiguration() {
     return configuration;
+}
+
+std::string LayerTestsCommon::GetTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto epoch = now.time_since_epoch();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
+    return std::to_string(ns.count());
+}
+
+std::string LayerTestsCommon::GetTestName() {
+    std::string test_name =
+            ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::replace_if(test_name.begin(), test_name.end(),
+                    [](char c) { return !std::isalnum(c); }, '_');
+    return test_name;
 }
 }  // namespace LayerTestsUtils

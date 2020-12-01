@@ -20,6 +20,7 @@ set(DEPENDENCIES
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
     template_extension
+    funcTestUtils
     lptNgraphFunctions
 )
 

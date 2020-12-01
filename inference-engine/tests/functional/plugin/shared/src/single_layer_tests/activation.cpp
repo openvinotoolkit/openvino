@@ -168,8 +168,7 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             auto blobHardSigmoidLambda = inferRequest.GetBlob("lambda");
             float alpha = constantsValue[0], lambda = constantsValue[1];
             blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
-            blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda,
-  1);
+            blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
         }
         default:
             THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";

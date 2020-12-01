@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/broadcast.hpp"
+#include "functional_test_utils/single_layer_test_classes/broadcast.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -40,10 +40,6 @@ void BroadcastLayerTest::SetUp() {
     auto broadcast = ngraph::builder::makeBroadcast(params[0], target_shape_const, mode, axesMapping);
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(broadcast)};
     function = std::make_shared<ngraph::Function>(results, params, "BroadcastInference");
-}
-
-TEST_P(BroadcastLayerTest, CompareWithRefs) {
-    Run();
 }
 
 }  // namespace LayerTestsDefinitions
