@@ -74,16 +74,18 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
     </input>
     <output>
         <port id="0">
-            <dim>8</dim>
-            <dim>20</dim>
+            <dim>160</dim>
+            <dim>2</dim>
         </port>
 		<port id="1">
             <dim>8</dim>
-            <dim>128</dim>
+            <dim>20</dim>
         </port>
 	    <port id="2">
+            <dim>2</dim>
+        </port>
+		<port id="3">
             <dim>8</dim>
-            <dim>1</dim>
         </port>
     </output>
 </layer>
