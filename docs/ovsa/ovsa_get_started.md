@@ -153,9 +153,9 @@ This step uses the following names. Your configuration might use different names
 ```sh
 sudo netplan generate
 ```
-```sh
-sudo netplan apply
-```	
+   ```sh
+   sudo netplan apply
+   ```	
    A bridge is created and an IP address is assigned to the new bridge.
 6. Verify the the new bridge:
    ```sh
@@ -296,15 +296,13 @@ Begin these steps on the Host Machine.
    ```sh
    scp ovsa.tar.gz username@<guest-vm-ip-address>:/<username-home-directory>/OVSA
    ```
-   The file is copied to `/<username-home-directory>/OVSA`
-5. Log on to the Guest VM as `<user>`
-6. Unpack `ovsa.tar.gz` in `/<username-home-directory>/OVSA`
-```sh
-cd OVSA
-```
-```sh
-tar -xvfz ovsa.tar.gz
-```
+   The file is copied to `/<username-home-directory>/OVSA`.
+5. Log on to the Guest VM as `<user>`.
+6. Unpack `ovsa.tar.gz` in `/<username-home-directory>/OVSA`:
+   ```sh
+   cd OVSA
+   tar -xvfz ovsa.tar.gz
+   ```
 7. Install OVSA and its related components:
    ```sh
    sudo ./install.sh
