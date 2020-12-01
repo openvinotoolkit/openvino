@@ -51,13 +51,10 @@ namespace ngraph
                         const Shape& out_shape,
                         size_t axis)
             {
-                using namespace std;
                 // prepare shape of params_prime (remove first "axis" dimensions)
-                Shape params_prime_shape(params_shape);
-                params_prime_shape.erase(params_prime_shape.begin(),
-                                         params_prime_shape.begin() + axis);
+                const Shape params_prime_shape(params_shape.begin() + axis, params_shape.end());
                 // prepare shape of indices_prime
-                size_t indices_ndim = static_cast<size_t>(indices_shape.size());
+                const size_t indices_ndim = indices_shape.size();
                 Shape indices_prime_shape;
                 // prepare shape of out_prime (same as params_prime except for first dim)
                 Shape out_prime_shape(params_prime_shape);
@@ -73,8 +70,8 @@ namespace ngraph
                 indices_prime_shape.emplace_back(1);
 
                 // Create a CoordinateTransform for "out" that visits the outer "axis" dimensions
-                size_t out_ndim = static_cast<size_t>(out_shape.size());
-                Coordinate out_outer_start_corner(out_ndim, 0);
+                const size_t out_ndim = out_shape.size();
+                const Coordinate out_outer_start_corner(out_ndim, 0);
                 Coordinate out_outer_end_corner(out_shape);
                 for (size_t i = axis; i < out_ndim; i++)
                 {
@@ -90,44 +87,43 @@ namespace ngraph
                                                         out_outer_axis_order);
 
                 // Create a CoordinateTransform for "params" that visits the outer "axis" dimensions
-                size_t params_ndim = static_cast<size_t>(params_shape.size());
-                Coordinate params_outer_start_corner(params_ndim, 0);
+                const size_t params_ndim = params_shape.size();
+                const Coordinate params_outer_start_corner(params_ndim, 0);
                 Coordinate params_outer_end_corner(params_shape);
                 for (size_t i = axis; i < params_ndim; i++)
                 {
                     params_outer_end_corner[i] = 1;
                 }
-                Strides params_outer_strides(params_ndim, 1);
+                const Strides params_outer_strides(params_ndim, 1);
                 AxisVector params_outer_axis_order(params_ndim);
                 std::iota(params_outer_axis_order.begin(), params_outer_axis_order.end(), 0);
-                CoordinateTransform params_outer_transform(params_shape,
-                                                           params_outer_start_corner,
-                                                           params_outer_end_corner,
-                                                           params_outer_strides,
-                                                           params_outer_axis_order);
+                const CoordinateTransform params_outer_transform(params_shape,
+                                                                 params_outer_start_corner,
+                                                                 params_outer_end_corner,
+                                                                 params_outer_strides,
+                                                                 params_outer_axis_order);
 
                 // Create a CoordinateTransform for "indices" that visits only the first element
                 // along inner most axis
-                Coordinate indices_outer_start_corner(indices_ndim, 0);
+                const Coordinate indices_outer_start_corner(indices_ndim, 0);
                 Coordinate indices_outer_end_corner(indices_shape);
                 if (indices_ndim > 0)
                 {
                     indices_outer_end_corner[indices_ndim - 1] = 1;
                 }
-                Strides indices_outer_strides(indices_ndim, 1);
+                const Strides indices_outer_strides(indices_ndim, 1);
                 AxisVector indices_outer_axis_order(indices_ndim);
                 std::iota(indices_outer_axis_order.begin(), indices_outer_axis_order.end(), 0);
-                CoordinateTransform indices_outer_transform(indices_shape,
-                                                            indices_outer_start_corner,
-                                                            indices_outer_end_corner,
-                                                            indices_outer_strides,
-                                                            indices_outer_axis_order);
+                const CoordinateTransform indices_outer_transform(indices_shape,
+                                                                  indices_outer_start_corner,
+                                                                  indices_outer_end_corner,
+                                                                  indices_outer_strides,
+                                                                  indices_outer_axis_order);
 
                 // Create an inner CoordinateTransfrom for "out"
-                size_t out_inner_ndim = out_ndim - axis;
-                Shape out_inner_shape(out_shape);
-                out_inner_shape.erase(out_inner_shape.begin(), out_inner_shape.begin() + axis);
-                Coordinate out_inner_start_corner(out_inner_ndim, 0);
+                const size_t out_inner_ndim = out_ndim - axis;
+                const Shape out_inner_shape(out_shape.begin() + axis, out_shape.end());
+                const Coordinate out_inner_start_corner(out_inner_ndim, 0);
                 Coordinate out_inner_end_corner(out_inner_shape);
                 if (indices_ndim > 0)
                 {
@@ -137,14 +133,14 @@ namespace ngraph
                 {
                     out_inner_end_corner[i] = 1;
                 }
-                Strides out_inner_strides(out_inner_ndim, 1);
+                const Strides out_inner_strides(out_inner_ndim, 1);
                 AxisVector out_inner_axis_order(out_inner_ndim);
                 std::iota(out_inner_axis_order.begin(), out_inner_axis_order.end(), 0);
-                CoordinateTransform out_inner_transform(out_inner_shape,
-                                                        out_inner_start_corner,
-                                                        out_inner_end_corner,
-                                                        out_inner_strides,
-                                                        out_inner_axis_order);
+                const CoordinateTransform out_inner_transform(out_inner_shape,
+                                                              out_inner_start_corner,
+                                                              out_inner_end_corner,
+                                                              out_inner_strides,
+                                                              out_inner_axis_order);
 
                 auto out_outer_coord_iter = out_outer_transform.begin();
                 for (const Coordinate& params_outer_coord : params_outer_transform)
@@ -169,11 +165,11 @@ namespace ngraph
                                         params_prime_shape,
                                         indices_prime_shape,
                                         out_prime_shape);
-                        out_inner_coord_iter++;
+                        ++out_inner_coord_iter;
                     }
-                    out_outer_coord_iter++;
+                    ++out_outer_coord_iter;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
