@@ -211,11 +211,10 @@ function(build_docs)
 
     # added linkcheker
 
-    if(EXISTS "${LINKCHECKER_PY}")
+    if(EXISTS "${LINKCHECKER}")
         add_custom_target(docs_check
-                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER_PY}"
-                                    "${DOCS_BUILD_DIR}/html/" -f "${DOXYGEN_DIR}/linkchecker_filter.yaml"
-                                    --no_recursive -l "${DOCS_BUILD_DIR}"
+                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER}"  --ignore-url=".*?\@ref.*?"
+                                    "${DOCS_BUILD_DIR}/html/"
                             COMMENT "Check links in generated documentation"
                             WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
                             VERBATIM)
