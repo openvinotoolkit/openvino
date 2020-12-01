@@ -8,7 +8,8 @@ The OpenVINO™ Security Add-on (OVSA) works with the [OpenVINO™ Model Server 
 
 The OVSA consists of three components that run in a Kernel-based Virtual Machine (KVM) to run security-sensitive operations in an isolated environment. A brief description of the three OVSA components are as follows. Click each triangled line for full descriptions. 
  
-<details><summary><b>OVSA Protect Tool</b>: As a model developer, you use the OVSA Protect Tool to generate protected models. You provide instructions to your users use this tool.</summary>
+<details><summary><strong>OVSA Protect Tool</strong>: As a model developer, you use the OVSA Protect Tool to generate protected models. You provide instructions to your users use this tool.</summary>
+
 The Protect Tool:
 
 * Generates and manages cryptographic keys and related collateral for protected models. Cryptographic material is only available in the virtual machine (VM) environment. The OVSA key management system lets you use of external Certificate Authorities to generate certificates that you add a key-store. 
@@ -16,17 +17,21 @@ The Protect Tool:
 * Generates protected models from the OpenVINO™ toolkit output. The protected models use the model’s IR files to create a protected archive output file that you can distribute to your users. You can also put the archive file in long-term storage or back it up without additional security. 
 
 * Generates user-specific licenses in a JSON format file for the protected model. You can define licenses for specific users and attach licensing policies. For example, you can limit the time for which a model will work or the number of times the user can use the model. 
+
 </details>
 
-<details><summary><b>OVSA License Service</b>: Use the OVSA License Service to define user parameters.</summary>
+<details><summary><strong>OVSA License Service</strong>: Use the OVSA License Service to define user parameters.</summary>
+    
 You host the OVSA License Service, which responds to license validation requests when a user attempts to run a protected model is executed by a user. When you generate a user license for a model, the license is registered with the OVSA License Service.
 
 When a user loads the model, the OVSE Run Time contacts the License Service to make sure the license is valid and within the parameters you defined with the Protect Tool. The user must be able to reach the License Service over the Internet. 
+
 </details>
 
-<details><summary><b>OVSA Run Time</b>: Your users install and use use the OVSA Run Time on a virtual machine. </summary>
+<details><summary><strong>OVSA Run Time</strong>: Your users install and use use the OVSA Run Time on a virtual machine. </summary>
 
 When a user attempts to run your protected model, OVMS loads the model in memory and uses OVSA Run Time to check for license validity. Users must host the OVSA Run Time and related components in a VM in their environment to use your protected model. 
+
 </details> 
 
 
@@ -61,37 +66,28 @@ In this section, you prepare the physical machine that will serve as the host.
 Use this step on the Intel® Core™ or Xeon® processor machine that meets the prerequisites. 
 
 1. Test the Trusted Platform Module (TPM) support:
-	```sh	
-	dmesg | grep -i TPM 
-	```	
-
-	The output indicates TPM availability in the kernel boot logs. Look for these values to indicate support is available:
-	
-	* `/dev/tpm0`
-	* `/dev/tpmrm0`
-	
-	If you do not see this information, your system does not meet the prerequisites required to use the OVSA.
-	
+   ```sh	
+   dmesg | grep -i TPM 
+   ```	
+   The output indicates TPM availability in the kernel boot logs. Look for these values to indicate support is available:
+   * `/dev/tpm0`
+   * `/dev/tpmrm0`
+   
+   If you do not see this information, your system does not meet the prerequisites required to use the OVSA.
 2. Make sure hardware virtualization support is enabled in the BIOS:
-	```sh	
-	kvm-ok 
-	```
-
-	The output should be `INFO: /dev/kvm exists`
-	
-	If your output is different, modify your BIOS settings to enable hardware virtualization.
-	
+```sh	
+kvm-ok 
+```
+   The output should be `INFO: /dev/kvm exists`. If your output is different, modify your BIOS settings to enable hardware virtualization.
 3. Install the Kernel-based Virtual Machine (KVM) and QEMU packages. 
-	* Ubuntu 20.04 (preferred):
-	```sh	
-	sudo apt install qemu qemu-utils qemu-kvm virt-manager libvirt-daemon-system libvirt-clients bridge-utils 
-	```	
-	
-	* Ubuntu 18.04:
-	```sh	
-	sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager 
-	```	
-
+   * Ubuntu 20.04 (preferred):
+```sh	
+sudo apt install qemu qemu-utils qemu-kvm virt-manager libvirt-daemon-system libvirt-clients bridge-utils 
+```	
+   * Ubuntu 18.04:
+```sh	
+sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager 
+```	
 4. Check the QEMU version:
 	```sh	
 	qemu-system-x86_64 --version 
@@ -131,26 +127,26 @@ This step uses the following names. Your configuration might use different names
 
 1. Open the network configuration file for editing. This file is in `/etc/netplan` with a name such as `50-cloud-init.yaml`
 2. Look for these lines:
-	```sh	
-    network:
-      ethernets:
-	     eno1:
-           dhcp4: true
-           dhcp-identifier: mac
-      version: 2
-	```
+   ```sh	
+   network:
+     ethernets:
+        eno1:
+          dhcp4: true
+          dhcp-identifier: mac
+     version: 2
+   ```
 3. Change these lines to add the `br0` network bridge for external network access:
-	```sh	
-	network:
-      ethernets:
-         eno1:
-           dhcp4: false
-      bridges:
-         br0:
-           interfaces: [eno1]
-           dhcp4: yes
-      version: 2
-	```
+   ```sh	
+   network:
+     ethernets:
+        eno1:
+          dhcp4: false
+     bridges:
+        br0:
+          interfaces: [eno1]
+          dhcp4: yes
+     version: 2
+   ```
 4. Save and close the network configuration file.
 5. Run two commands to activate the new network configuration file. If you use ssh, you might lose network connectivity when issuing these commands. If so, reconnect to the network.
 	```sh
@@ -316,7 +312,7 @@ Begin these steps on the Host Machine.
 ## How to Use the OVSA
 
 ### Step 1: Create a Key Store and Add a Certificate to it
-<b>Is this on the Host Machine or on the Guest VM?</b>
+<strong>Is this on the Host Machine or on the Guest VM?</strong>
 
 In this step you use the Protect tool to create a certificate and put the certificate in a key store file. 
 
@@ -417,7 +413,7 @@ To do so:
 ## User Instructions
 
 ### Step 1: Install the OpenVINO™ Security Add-on (OVSA) Run Time Software
-<b>The Word source file refers to Step 7, but the numbers are missing from the Word file. Need to copy/paste the correct steps here</b>
+<strong>The Word source file refers to Step 7, but the numbers are missing from the Word file. Need to copy/paste the correct steps here</strong>
 
 ### Step 2: Create a Key Store
 1. Go to the `Ovsa_tool` directory.
