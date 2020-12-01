@@ -25,7 +25,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * *merge_repeated*
 
-  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation. If value is false the sequence `ABB*B*B`  (where '*' is the blank class) will look like `ABBBB`. But if we set it to true, the sequences will be `ABBB`. `ABB` will be merged to `AB`.
+  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation. If the value is false the sequence `ABB*B*B`  (where '*' is the blank class) will look like `ABBBB`. But if the value is true, the sequence will be `ABBB`.
   * **Range of values**: true or false
   * **Type**: `boolean`
   * **Default value**: true
