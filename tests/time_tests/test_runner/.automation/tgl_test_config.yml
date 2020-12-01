@@ -1,476 +1,2153 @@
+# References collected on TGL Win10 from releases/2021/1: http://nnlvdp-elk1.inn.intel.com:8080/?pageId=ec2e3557da2671dc5fa733ba66228dd3
 - device:
     name: CPU
   model:
+    framework: caffe2
+    name: resnet-50-pytorch
     path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml
-    name: resnet-50-pytorch
     precision: FP16
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 400197.2
+      stdev: 21676.810021310794
+    fill_inputs:
+      avg: 2383
+      stdev: 21.72556098240043
+    first_inference:
+      avg: 111632.4
+      stdev: 17514.05976066086
+    first_inference_latency:
+      avg: 421479.2
+      stdev: 42927.27672704151
+    full_run:
+      avg: 553570.6
+      stdev: 59876.789240907034
+    load_network:
+      avg: 319192.6
+      stdev: 7438.500137796597
+    load_plugin:
+      avg: 21240.8
+      stdev: 21662.771307014253
+    read_network:
+      avg: 80972.4
+      stdev: 14712.521497010634
 - device:
     name: GPU
   model:
+    framework: caffe2
+    name: resnet-50-pytorch
     path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml
-    name: resnet-50-pytorch
     precision: FP16
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 852605
+      stdev: 14135.629805565792
+    fill_inputs:
+      avg: 4625.6
+      stdev: 5050.628802436386
+    first_inference:
+      avg: 16408
+      stdev: 5528.42305725602
+    first_inference_latency:
+      avg: 983331.8
+      stdev: 14408.508725749518
+    full_run:
+      avg: 1026346.0
+      stdev: 14672.163439656744
+    load_network:
+      avg: 776004.4
+      stdev: 14505.010110303268
+    load_plugin:
+      avg: 130679.8
+      stdev: 3708.9915340965663
+    read_network:
+      avg: 76571
+      stdev: 5842.645548037293
 - device:
     name: CPU
   model:
+    framework: caffe2
+    name: resnet-50-pytorch
     path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml
-    name: resnet-50-pytorch
     precision: FP16-INT8
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 1605104.0
+      stdev: 11896.097259185468
+    fill_inputs:
+      avg: 2411.6
+      stdev: 24.764894508154075
+    first_inference:
+      avg: 35163
+      stdev: 4784.931556459298
+    first_inference_latency:
+      avg: 1614636.0
+      stdev: 12067.101143190936
+    full_run:
+      avg: 1671858.0
+      stdev: 10470.552516462538
+    load_network:
+      avg: 1413418.0
+      stdev: 6274.302351656318
+    load_plugin:
+      avg: 9492.4
+      stdev: 186.07874677136022
+    read_network:
+      avg: 191648.6
+      stdev: 6070.159742543849
 - device:
     name: GPU
   model:
+    framework: caffe2
+    name: resnet-50-pytorch
     path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml
-    name: resnet-50-pytorch
     precision: FP16-INT8
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 2610610.0
+      stdev: 10568.675413693052
+    fill_inputs:
+      avg: 2400.6
+      stdev: 70.72693970475466
+    first_inference:
+      avg: 10222.6
+      stdev: 329.3452595681316
+    first_inference_latency:
+      avg: 2739506.0
+      stdev: 12546.28351345529
+    full_run:
+      avg: 2786868.0
+      stdev: 12773.843196156746
+    load_network:
+      avg: 2421376.0
+      stdev: 12561.617332175025
+    load_plugin:
+      avg: 128855.6
+      stdev: 5298.222324516026
+    read_network:
+      avg: 189195.4
+      stdev: 4459.797899008429
 - device:
     name: CPU
   model:
+    framework: caffe2
+    name: mobilenet-v2
     path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml
-    name: mobilenet-v2
     precision: FP16
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 264934.6
+      stdev: 14865.610828351455
+    fill_inputs:
+      avg: 2293.6
+      stdev: 55.513962207718514
+    first_inference:
+      avg: 15156
+      stdev: 1843.5235284639032
+    first_inference_latency:
+      avg: 275067.4
+      stdev: 14623.756384732345
+    full_run:
+      avg: 299622.4
+      stdev: 13934.188989675718
+    load_network:
+      avg: 221650.4
+      stdev: 9945.500027650696
+    load_plugin:
+      avg: 10092.6
+      stdev: 794.6076390269603
+    read_network:
+      avg: 43254.4
+      stdev: 4927.5854431962925
 - device:
     name: GPU
   model:
+    framework: caffe2
+    name: mobilenet-v2
     path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml
-    name: mobilenet-v2
     precision: FP16
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 820175.2
+      stdev: 7587.544345834165
+    fill_inputs:
+      avg: 2637
+      stdev: 788.0187180517986
+    first_inference:
+      avg: 7882.4
+      stdev: 1425.7742808733788
+    first_inference_latency:
+      avg: 949578.4
+      stdev: 6824.1671506492285
+    full_run:
+      avg: 982670.8
+      stdev: 8516.533960479463
+    load_network:
+      avg: 778467.4
+      stdev: 8575.524403790127
+    load_plugin:
+      avg: 129360
+      stdev: 6592.748326760244
+    read_network:
+      avg: 41679
+      stdev: 2278.902367368993
 - device:
     name: CPU
   model:
+    framework: caffe2
+    name: mobilenet-v2
     path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml
-    name: mobilenet-v2
     precision: FP16-INT8
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 545703.6
+      stdev: 23485.828488686537
+    fill_inputs:
+      avg: 2374.6
+      stdev: 39.21479312708407
+    first_inference:
+      avg: 11582.6
+      stdev: 671.0400882212626
+    first_inference_latency:
+      avg: 555726.6
+      stdev: 23041.621618280256
+    full_run:
+      avg: 580350.6
+      stdev: 23668.120020398746
+    load_network:
+      avg: 446269.8
+      stdev: 12949.150172887794
+    load_plugin:
+      avg: 9982
+      stdev: 876.8218177030041
+    read_network:
+      avg: 99399.8
+      stdev: 10573.291857316717
 - device:
     name: GPU
   model:
+    framework: caffe2
+    name: mobilenet-v2
     path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml
-    name: mobilenet-v2
     precision: FP16-INT8
-    framework: caffe2
+  # no references due failure while executing model
 - device:
     name: CPU
   model:
+    framework: tf
+    name: faster_rcnn_resnet101_coco
     path: ${VPUX_MODELS_PKG}/faster_rcnn_resnet101_coco/tf/FP16/faster_rcnn_resnet101_coco.xml
-    name: faster_rcnn_resnet101_coco
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 807316
+      stdev: 12516.387158441528
+    fill_inputs:
+      avg: 27851
+      stdev: 718.5019137065676
+    first_inference:
+      avg: 1647224.0
+      stdev: 85092.80686403523
+    first_inference_latency:
+      avg: 816865.4
+      stdev: 12511.547857879137
+    full_run:
+      avg: 2504460.0
+      stdev: 92653.93326783272
+    load_network:
+      avg: 661969.2
+      stdev: 7649.735531376232
+    load_plugin:
+      avg: 9508.8
+      stdev: 120.07372735115705
+    read_network:
+      avg: 145314
+      stdev: 5311.453049778375
 - device:
     name: GPU
   model:
+    framework: tf
+    name: faster_rcnn_resnet101_coco
     path: ${VPUX_MODELS_PKG}/faster_rcnn_resnet101_coco/tf/FP16/faster_rcnn_resnet101_coco.xml
-    name: faster_rcnn_resnet101_coco
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1651044.0
+      stdev: 27503.59485594565
+    fill_inputs:
+      avg: 27342.8
+      stdev: 218.16553348317876
+    first_inference:
+      avg: 245690.6
+      stdev: 26767.462455376677
+    first_inference_latency:
+      avg: 1777516.0
+      stdev: 31064.230716372167
+    full_run:
+      avg: 2072588.0
+      stdev: 37755.162163603534
+    load_network:
+      avg: 1506912.0
+      stdev: 26970.58249278276
+    load_plugin:
+      avg: 126426.6
+      stdev: 4581.326587354366
+    read_network:
+      avg: 144102
+      stdev: 4569.888018321674
 - device:
     name: CPU
   model:
+    framework: tf
+    name: faster_rcnn_resnet101_coco
     path: ${VPUX_MODELS_PKG}/faster_rcnn_resnet101_coco/tf/FP16-INT8/faster_rcnn_resnet101_coco.xml
-    name: faster_rcnn_resnet101_coco
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 3073348.0
+      stdev: 17186.418184135982
+    fill_inputs:
+      avg: 28676.2
+      stdev: 2644.917238780828
+    first_inference:
+      avg: 769707
+      stdev: 41019.37094227556
+    first_inference_latency:
+      avg: 3082948.0
+      stdev: 17184.980942672006
+    full_run:
+      avg: 3893328.0
+      stdev: 55573.32696537072
+    load_network:
+      avg: 2704872.0
+      stdev: 12650.366397855834
+    load_plugin:
+      avg: 9558
+      stdev: 151.31259035519813
+    read_network:
+      avg: 368441.2
+      stdev: 6096.821401353332
 - device:
     name: GPU
   model:
+    framework: tf
+    name: faster_rcnn_resnet101_coco
     path: ${VPUX_MODELS_PKG}/faster_rcnn_resnet101_coco/tf/FP16-INT8/faster_rcnn_resnet101_coco.xml
-    name: faster_rcnn_resnet101_coco
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 4792574.0
+      stdev: 29276.58245082578
+    fill_inputs:
+      avg: 27514.4
+      stdev: 419.3582001105976
+    first_inference:
+      avg: 155610.2
+      stdev: 4973.352661937418
+    first_inference_latency:
+      avg: 4917660.0
+      stdev: 30751.305663337287
+    full_run:
+      avg: 5159870.0
+      stdev: 32960.86694854976
+    load_network:
+      avg: 4427572.0
+      stdev: 28249.572032156524
+    load_plugin:
+      avg: 125038.4
+      stdev: 2493.2221722100903
+    read_network:
+      avg: 364962.4
+      stdev: 4761.288985138373
 - device:
     name: CPU
   model:
+    framework: tf
+    name: faster-rcnn-resnet101-coco-sparse-60-0001
     path: ${VPUX_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16/faster-rcnn-resnet101-coco-sparse-60-0001.xml
-    name: faster-rcnn-resnet101-coco-sparse-60-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1183084.0
+      stdev: 16662.590734936748
+    fill_inputs:
+      avg: 45739.2
+      stdev: 143.5189882907485
+    first_inference:
+      avg: 3552734.0
+      stdev: 236746.0471264515
+    first_inference_latency:
+      avg: 1193242.0
+      stdev: 16454.689908959088
+    full_run:
+      avg: 4853692.0
+      stdev: 230595.85939474282
+    load_network:
+      avg: 1031984.0
+      stdev: 10933.408892015335
+    load_plugin:
+      avg: 10116.6
+      stdev: 1081.9548511837265
+    read_network:
+      avg: 151069.8
+      stdev: 6104.138817228848
 - device:
     name: GPU
   model:
+    framework: tf
+    name: faster-rcnn-resnet101-coco-sparse-60-0001
     path: ${VPUX_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16/faster-rcnn-resnet101-coco-sparse-60-0001.xml
-    name: faster-rcnn-resnet101-coco-sparse-60-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 2001234.0
+      stdev: 29061.715881895205
+    fill_inputs:
+      avg: 45303.4
+      stdev: 193.53242622361765
+    first_inference:
+      avg: 1236444.0
+      stdev: 20867.45863779296
+    first_inference_latency:
+      avg: 2126538.0
+      stdev: 32742.175706571485
+    full_run:
+      avg: 3460022.0
+      stdev: 37678.20749451863
+    load_network:
+      avg: 1853890.0
+      stdev: 28470.510181589652
+    load_plugin:
+      avg: 125259.4
+      stdev: 4827.846290013798
+    read_network:
+      avg: 147311
+      stdev: 812.0966691225867
 - device:
     name: CPU
   model:
+    framework: tf
+    name: faster-rcnn-resnet101-coco-sparse-60-0001
     path: ${VPUX_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml
-    name: faster-rcnn-resnet101-coco-sparse-60-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 3222472.0
+      stdev: 29470.943656421998
+    fill_inputs:
+      avg: 45652.2
+      stdev: 124.54396813976982
+    first_inference:
+      avg: 1417032.0
+      stdev: 77888.73711904694
+    first_inference_latency:
+      avg: 3233108.0
+      stdev: 28426.874080700465
+    full_run:
+      avg: 4759072.0
+      stdev: 79385.13821868676
+    load_network:
+      avg: 2827694.0
+      stdev: 20481.250694232516
+    load_plugin:
+      avg: 10595.6
+      stdev: 1622.1532911534593
+    read_network:
+      avg: 394741.4
+      stdev: 12572.261880823195
 - device:
     name: GPU
   model:
+    framework: tf
+    name: faster-rcnn-resnet101-coco-sparse-60-0001
     path: ${VPUX_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml
-    name: faster-rcnn-resnet101-coco-sparse-60-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 5305900.0
+      stdev: 89373.70138916705
+    fill_inputs:
+      avg: 45360.8
+      stdev: 96.06352065170212
+    first_inference:
+      avg: 404727.8
+      stdev: 12379.146101407803
+    first_inference_latency:
+      avg: 5433424.0
+      stdev: 90669.1319027595
+    full_run:
+      avg: 5940814.0
+      stdev: 91914.83030501661
+    load_network:
+      avg: 4916008.0
+      stdev: 83739.8108428721
+    load_plugin:
+      avg: 127477.4
+      stdev: 7061.5398674793305
+    read_network:
+      avg: 389840
+      stdev: 7902.489069907026
 - device:
     name: CPU
   model:
+    framework: tf
+    name: googlenet-v1
     path: ${VPUX_MODELS_PKG}/googlenet-v1/tf/FP16/googlenet-v1.xml
-    name: googlenet-v1
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 313495
+      stdev: 4312.094734580863
+    fill_inputs:
+      avg: 2298.8
+      stdev: 65.23572640815767
+    first_inference:
+      avg: 39285.8
+      stdev: 8039.828648671562
+    first_inference_latency:
+      avg: 323291
+      stdev: 4260.511412964411
+    full_run:
+      avg: 375132.6
+      stdev: 8180.855352589972
+    load_network:
+      avg: 270934.8
+      stdev: 766.3753649485349
+    load_plugin:
+      avg: 9756.6
+      stdev: 197.69243789280358
+    read_network:
+      avg: 42530.4
+      stdev: 3695.7451616690237
 - device:
     name: GPU
   model:
+    framework: tf
+    name: googlenet-v1
     path: ${VPUX_MODELS_PKG}/googlenet-v1/tf/FP16/googlenet-v1.xml
-    name: googlenet-v1
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 864821.4
+      stdev: 19417.45466841625
+    fill_inputs:
+      avg: 2305.2
+      stdev: 39.18800836990826
+    first_inference:
+      avg: 9302.2
+      stdev: 653.0778667203475
+    first_inference_latency:
+      avg: 992290.4
+      stdev: 18915.671156477638
+    full_run:
+      avg: 1020164.0
+      stdev: 18494.5391940432
+    load_network:
+      avg: 824275.8
+      stdev: 19388.05059050548
+    load_plugin:
+      avg: 127427
+      stdev: 5390.659653511803
+    read_network:
+      avg: 40514.6
+      stdev: 376.0043882722647
 - device:
     name: CPU
   model:
+    framework: tf
+    name: googlenet-v1
     path: ${VPUX_MODELS_PKG}/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml
-    name: googlenet-v1
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 707051.2
+      stdev: 10443.569681866446
+    fill_inputs:
+      avg: 2375.2
+      stdev: 39.27085433244355
+    first_inference:
+      avg: 15980.8
+      stdev: 2220.0858541957336
+    first_inference_latency:
+      avg: 717013.8
+      stdev: 10616.735760110072
+    full_run:
+      avg: 749700.4
+      stdev: 11267.386245265581
+    load_network:
+      avg: 606320
+      stdev: 6266.136130024626
+    load_plugin:
+      avg: 9919.4
+      stdev: 355.0828072436062
+    read_network:
+      avg: 100695
+      stdev: 4534.839302555273
 - device:
     name: GPU
   model:
+    framework: tf
+    name: googlenet-v1
     path: ${VPUX_MODELS_PKG}/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml
-    name: googlenet-v1
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1634256.0
+      stdev: 18151.34375190994
+    fill_inputs:
+      avg: 2315.6
+      stdev: 53.575180820973436
+    first_inference:
+      avg: 8305.4
+      stdev: 257.1153437661782
+    first_inference_latency:
+      avg: 1761140.0
+      stdev: 17853.575272196882
+    full_run:
+      avg: 1799268.0
+      stdev: 17847.553613871005
+    load_network:
+      avg: 1535032.0
+      stdev: 18160.098292685532
+    load_plugin:
+      avg: 126821.4
+      stdev: 4485.013801539522
+    read_network:
+      avg: 99190.6
+      stdev: 663.7927387370247
 - device:
     name: CPU
   model:
+    framework: tf
+    name: googlenet-v3
     path: ${VPUX_MODELS_PKG}/googlenet-v3/tf/FP16/googlenet-v3.xml
-    name: googlenet-v3
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 594310
+      stdev: 4408.802898747006
+    fill_inputs:
+      avg: 4088.8
+      stdev: 40.05870691872118
+    first_inference:
+      avg: 139635.4
+      stdev: 8099.90943159243
+    first_inference_latency:
+      avg: 603848.2
+      stdev: 4533.325457101001
+    full_run:
+      avg: 770070.4
+      stdev: 2801.7169378793424
+    load_network:
+      avg: 502323
+      stdev: 636.6117341048624
+    load_plugin:
+      avg: 9498.8
+      stdev: 175.08055288923438
+    read_network:
+      avg: 91955.4
+      stdev: 4123.008464701474
 - device:
     name: GPU
   model:
+    framework: tf
+    name: googlenet-v3
     path: ${VPUX_MODELS_PKG}/googlenet-v3/tf/FP16/googlenet-v3.xml
-    name: googlenet-v3
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1122618.0
+      stdev: 9422.389293592152
+    fill_inputs:
+      avg: 5994.4
+      stdev: 4213.373980552878
+    first_inference:
+      avg: 21317.8
+      stdev: 4073.4407691778215
+    first_inference_latency:
+      avg: 1249682.0
+      stdev: 8536.130270796013
+    full_run:
+      avg: 1302026.0
+      stdev: 6146.790219293318
+    load_network:
+      avg: 1032830.0
+      stdev: 11456.749102603233
+    load_plugin:
+      avg: 127017
+      stdev: 3760.2011249399943
+    read_network:
+      avg: 89754.2
+      stdev: 3593.2165534517953
 - device:
     name: CPU
   model:
+    framework: tf
+    name: googlenet-v3
     path: ${VPUX_MODELS_PKG}/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml
-    name: googlenet-v3
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1958496.0
+      stdev: 14900.27952757934
+    fill_inputs:
+      avg: 4104.6
+      stdev: 44.43309577330844
+    first_inference:
+      avg: 43167.8
+      stdev: 4206.48769164965
+    first_inference_latency:
+      avg: 1967966.0
+      stdev: 14812.966617122986
+    full_run:
+      avg: 2039948.0
+      stdev: 18428.713194360585
+    load_network:
+      avg: 1731514.0
+      stdev: 11841.983786511448
+    load_plugin:
+      avg: 9432.6
+      stdev: 167.39563913077305
+    read_network:
+      avg: 226940.6
+      stdev: 5270.050502604316
 - device:
     name: GPU
   model:
+    framework: tf
+    name: googlenet-v3
     path: ${VPUX_MODELS_PKG}/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml
-    name: googlenet-v3
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 3217420.0
+      stdev: 57959.08772573978
+    fill_inputs:
+      avg: 4062
+      stdev: 22.825424421026653
+    first_inference:
+      avg: 15861.2
+      stdev: 889.29674462465
+    first_inference_latency:
+      avg: 3340324.0
+      stdev: 59574.79609700733
+    full_run:
+      avg: 3410678.0
+      stdev: 59212.67237678097
+    load_network:
+      avg: 2997224.0
+      stdev: 57514.105052586885
+    load_plugin:
+      avg: 122861.8
+      stdev: 3174.3378364629057
+    read_network:
+      avg: 220163.8
+      stdev: 771.8479124801726
 - device:
     name: CPU
   model:
+    framework: caffe
+    name: ssd512
     path: ${VPUX_MODELS_PKG}/ssd512/caffe/FP16/ssd512.xml
-    name: ssd512
     precision: FP16
-    framework: caffe
+  references:
+    create_exenetwork:
+      avg: 408300.2
+      stdev: 8582.963340245606
+    fill_inputs:
+      avg: 11782.4
+      stdev: 157.53031454294756
+    first_inference:
+      avg: 735947.8
+      stdev: 87338.15622166522
+    first_inference_latency:
+      avg: 417797.2
+      stdev: 8577.272684251097
+    full_run:
+      avg: 1178438.0
+      stdev: 88865.31421201413
+    load_network:
+      avg: 325127
+      stdev: 5387.791384231576
+    load_plugin:
+      avg: 9455.8
+      stdev: 161.2442247027781
+    read_network:
+      avg: 83144.4
+      stdev: 3265.353549005069
 - device:
     name: GPU
   model:
+    framework: caffe
+    name: ssd512
     path: ${VPUX_MODELS_PKG}/ssd512/caffe/FP16/ssd512.xml
-    name: ssd512
     precision: FP16
-    framework: caffe
+  references:
+    create_exenetwork:
+      avg: 893767.8
+      stdev: 3893.0054841985516
+    fill_inputs:
+      avg: 12247.6
+      stdev: 697.8687555694122
+    first_inference:
+      avg: 105783
+      stdev: 10168.152216602582
+    first_inference_latency:
+      avg: 1025178.0
+      stdev: 3168.0230428454906
+    full_run:
+      avg: 1147932.0
+      stdev: 8052.454284253963
+    load_network:
+      avg: 813646
+      stdev: 3682.739673123801
+    load_plugin:
+      avg: 131369
+      stdev: 1711.12579899901
+    read_network:
+      avg: 80092.2
+      stdev: 369.08901365388806
 - device:
     name: CPU
   model:
+    framework: caffe
+    name: ssd512
     path: ${VPUX_MODELS_PKG}/ssd512/caffe/FP16-INT8/ssd512.xml
-    name: ssd512
     precision: FP16-INT8
-    framework: caffe
+  references:
+    create_exenetwork:
+      avg: 1557154.0
+      stdev: 15525.885804037076
+    fill_inputs:
+      avg: 11965
+      stdev: 128.48929916533905
+    first_inference:
+      avg: 250417.8
+      stdev: 23011.363664502805
+    first_inference_latency:
+      avg: 1566664.0
+      stdev: 15350.331592509656
+    full_run:
+      avg: 1836928.0
+      stdev: 17377.64857510935
+    load_network:
+      avg: 1372610.0
+      stdev: 11958.52833755057
+    load_plugin:
+      avg: 9466.8
+      stdev: 233.36387895302047
+    read_network:
+      avg: 184511
+      stdev: 4809.029371921116
 - device:
     name: GPU
   model:
+    framework: caffe
+    name: ssd512
     path: ${VPUX_MODELS_PKG}/ssd512/caffe/FP16-INT8/ssd512.xml
-    name: ssd512
     precision: FP16-INT8
-    framework: caffe
+  references:
+    create_exenetwork:
+      avg: 2299874.0
+      stdev: 61459.81557082644
+    fill_inputs:
+      avg: 12356
+      stdev: 1073.6163188029511
+    first_inference:
+      avg: 75071.8
+      stdev: 5383.31753661253
+    first_inference_latency:
+      avg: 2427952.0
+      stdev: 61285.926361604426
+    full_run:
+      avg: 2526016.0
+      stdev: 63505.907048084904
+    load_network:
+      avg: 2120110.0
+      stdev: 61945.35979393453
+    load_plugin:
+      avg: 128034.2
+      stdev: 2753.2551098654117
+    read_network:
+      avg: 179725.2
+      stdev: 931.1920854474655
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-ava-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16/yolo-v2-ava-0001.xml
-    name: yolo-v2-ava-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 485093.6
+      stdev: 8110.854474098274
+    fill_inputs:
+      avg: 7842.8
+      stdev: 115.92972008937139
+    first_inference:
+      avg: 198328
+      stdev: 15890.959001897903
+    first_inference_latency:
+      avg: 494739.8
+      stdev: 8342.818630415024
+    full_run:
+      avg: 714611.2
+      stdev: 22507.19398770091
+    load_network:
+      avg: 368342.2
+      stdev: 2590.1334328563075
+    load_plugin:
+      avg: 9607.6
+      stdev: 310.7302688828367
+    read_network:
+      avg: 116717
+      stdev: 5744.124476367134
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-ava-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16/yolo-v2-ava-0001.xml
-    name: yolo-v2-ava-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 778041.6
+      stdev: 10743.821075390264
+    fill_inputs:
+      avg: 8634.8
+      stdev: 1431.4381579376736
+    first_inference:
+      avg: 29079.8
+      stdev: 2944.839333478144
+    first_inference_latency:
+      avg: 908534
+      stdev: 12105.270525684256
+    full_run:
+      avg: 952338.6
+      stdev: 11882.098291126866
+    load_network:
+      avg: 663376.6
+      stdev: 6800.6148472031555
+    load_plugin:
+      avg: 130448.8
+      stdev: 7365.629586125004
+    read_network:
+      avg: 114635.8
+      stdev: 4758.016782231857
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-ava-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml
-    name: yolo-v2-ava-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 2845200.0
+      stdev: 50706.33392387976
+    fill_inputs:
+      avg: 7799.6
+      stdev: 53.90547282048456
+    first_inference:
+      avg: 91472
+      stdev: 11818.91500942451
+    first_inference_latency:
+      avg: 2854986.0
+      stdev: 50604.025333959355
+    full_run:
+      avg: 2967294.0
+      stdev: 46806.50734673545
+    load_network:
+      avg: 2568918.0
+      stdev: 51478.165954120785
+    load_plugin:
+      avg: 9740.4
+      stdev: 379.2608600950011
+    read_network:
+      avg: 276246.2
+      stdev: 5595.573044827492
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-ava-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml
-    name: yolo-v2-ava-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 3263312.0
+      stdev: 9005.904729675969
+    fill_inputs:
+      avg: 7966.2
+      stdev: 134.52025869734268
+    first_inference:
+      avg: 25109.8
+      stdev: 7549.4790018914555
+    first_inference_latency:
+      avg: 3388426.0
+      stdev: 8235.173343652215
+    full_run:
+      avg: 3430440.0
+      stdev: 10192.3623365734
+    load_network:
+      avg: 2993138.0
+      stdev: 10098.451366422478
+    load_plugin:
+      avg: 125073.4
+      stdev: 4662.856667323155
+    read_network:
+      avg: 270136
+      stdev: 1654.4379710342723
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-ava-sparse-35-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16/yolo-v2-ava-sparse-35-0001.xml
-    name: yolo-v2-ava-sparse-35-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 801632.2
+      stdev: 4416.954742806405
+    fill_inputs:
+      avg: 7918
+      stdev: 175.3467992294128
+    first_inference:
+      avg: 180788.8
+      stdev: 18526.356150090603
+    first_inference_latency:
+      avg: 811250.6
+      stdev: 4325.204191711647
+    full_run:
+      avg: 1014551.6
+      stdev: 16171.576694929905
+    load_network:
+      avg: 685031.8
+      stdev: 1030.049125042102
+    load_plugin:
+      avg: 9579.6
+      stdev: 314.6971560087571
+    read_network:
+      avg: 116561.8
+      stdev: 3456.863997903302
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-ava-sparse-35-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16/yolo-v2-ava-sparse-35-0001.xml
-    name: yolo-v2-ava-sparse-35-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 777142.2
+      stdev: 19214.787708949585
+    fill_inputs:
+      avg: 7746.4
+      stdev: 39.18928424965172
+    first_inference:
+      avg: 32571
+      stdev: 11761.63674834417
+    first_inference_latency:
+      avg: 902004.2
+      stdev: 23376.275381249256
+    full_run:
+      avg: 948608.8
+      stdev: 29816.819677826137
+    load_network:
+      avg: 660457.6
+      stdev: 19068.172206585507
+    load_plugin:
+      avg: 124819.2
+      stdev: 5813.288716380772
+    read_network:
+      avg: 116656.8
+      stdev: 5868.6458574359385
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-ava-sparse-35-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml
-    name: yolo-v2-ava-sparse-35-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 2909322.0
+      stdev: 22508.895352726664
+    fill_inputs:
+      avg: 7839.6
+      stdev: 162.0965761513796
+    first_inference:
+      avg: 89282.6
+      stdev: 9588.998294921112
+    first_inference_latency:
+      avg: 2919154.0
+      stdev: 22328.03014150599
+    full_run:
+      avg: 3028460.0
+      stdev: 28131.028242849567
+    load_network:
+      avg: 2634108.0
+      stdev: 19110.079016058517
+    load_plugin:
+      avg: 9791.2
+      stdev: 738.4160074104569
+    read_network:
+      avg: 275176.4
+      stdev: 4135.665037209857
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-ava-sparse-35-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml
-    name: yolo-v2-ava-sparse-35-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 3347552.0
+      stdev: 19975.272714033217
+    fill_inputs:
+      avg: 7897
+      stdev: 97.49871794028884
+    first_inference:
+      avg: 23556.6
+      stdev: 2877.8287475108727
+    first_inference_latency:
+      avg: 3482502.0
+      stdev: 33703.746379297365
+    full_run:
+      avg: 3522386.0
+      stdev: 33764.14710902676
+    load_network:
+      avg: 3077554.0
+      stdev: 19474.418604928876
+    load_plugin:
+      avg: 134904.2
+      stdev: 17244.040077661615
+    read_network:
+      avg: 269964.8
+      stdev: 684.8158146538382
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-ava-sparse-70-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16/yolo-v2-ava-sparse-70-0001.xml
-    name: yolo-v2-ava-sparse-70-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 743397.6
+      stdev: 3752.2346408507024
+    fill_inputs:
+      avg: 8182.4
+      stdev: 910.8881929194164
+    first_inference:
+      avg: 181766.6
+      stdev: 13241.396406723878
+    first_inference_latency:
+      avg: 753158.6
+      stdev: 3712.725723777613
+    full_run:
+      avg: 956526
+      stdev: 13974.806349284416
+    load_network:
+      avg: 628639
+      stdev: 1819.7811681628095
+    load_plugin:
+      avg: 9723
+      stdev: 287.122796029852
+    read_network:
+      avg: 114722.2
+      stdev: 3383.4959287695324
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-ava-sparse-70-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16/yolo-v2-ava-sparse-70-0001.xml
-    name: yolo-v2-ava-sparse-70-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 786755.2
+      stdev: 34409.25449206943
+    fill_inputs:
+      avg: 7832.6
+      stdev: 307.92417897917665
+    first_inference:
+      avg: 29371.2
+      stdev: 4063.627898811603
+    first_inference_latency:
+      avg: 913234.8
+      stdev: 33419.31961006986
+    full_run:
+      avg: 956973.2
+      stdev: 33477.827852177026
+    load_network:
+      avg: 671920.8
+      stdev: 33031.80133901268
+    load_plugin:
+      avg: 126435.8
+      stdev: 3639.0597961561443
+    read_network:
+      avg: 114805.4
+      stdev: 5299.617703193317
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-ava-sparse-70-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml
-    name: yolo-v2-ava-sparse-70-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 2666594.0
+      stdev: 21028.337547224222
+    fill_inputs:
+      avg: 7871.8
+      stdev: 99.93848107711064
+    first_inference:
+      avg: 95056.4
+      stdev: 9625.269700117498
+    first_inference_latency:
+      avg: 2676132.0
+      stdev: 21063.87832285403
+    full_run:
+      avg: 2793234.0
+      stdev: 20737.83450604233
+    load_network:
+      avg: 2391402.0
+      stdev: 16619.79301916844
+    load_plugin:
+      avg: 9496.4
+      stdev: 154.4273291875502
+    read_network:
+      avg: 275157.8
+      stdev: 5390.251033115248
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-ava-sparse-70-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml
-    name: yolo-v2-ava-sparse-70-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 3114476.0
+      stdev: 36014.17956860881
+    fill_inputs:
+      avg: 7933
+      stdev: 146.15573885414148
+    first_inference:
+      avg: 23057.6
+      stdev: 1757.3418278752713
+    first_inference_latency:
+      avg: 3240820.0
+      stdev: 37470.92939866851
+    full_run:
+      avg: 3280418.0
+      stdev: 38462.988313442314
+    load_network:
+      avg: 2839384.0
+      stdev: 31592.187008815963
+    load_plugin:
+      avg: 126301.4
+      stdev: 4044.404195923053
+    read_network:
+      avg: 275052
+      stdev: 6150.078332834469
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml
-    name: yolo-v2-tiny-ava-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 175937
+      stdev: 4815.938797368588
+    fill_inputs:
+      avg: 7866
+      stdev: 57.67581815631227
+    first_inference:
+      avg: 56042.4
+      stdev: 9262.597168181286
+    first_inference_latency:
+      avg: 185645.4
+      stdev: 4736.301278423914
+    full_run:
+      avg: 251789.4
+      stdev: 12726.881739059258
+    load_network:
+      avg: 133352.2
+      stdev: 2131.3821102749266
+    load_plugin:
+      avg: 9669.6
+      stdev: 186.00618269294168
+    read_network:
+      avg: 42553.8
+      stdev: 3649.050383318926
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml
-    name: yolo-v2-tiny-ava-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 527604.2
+      stdev: 5479.66332907415
+    fill_inputs:
+      avg: 7781.8
+      stdev: 91.00659316774801
+    first_inference:
+      avg: 15883.6
+      stdev: 234.76541482935684
+    first_inference_latency:
+      avg: 652806.4
+      stdev: 4831.148134760515
+    full_run:
+      avg: 678775.6
+      stdev: 4635.025275011993
+    load_network:
+      avg: 486520.6
+      stdev: 5208.772628940526
+    load_plugin:
+      avg: 125159
+      stdev: 3495.0997839832844
+    read_network:
+      avg: 41053.6
+      stdev: 1562.7056024728392
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml
-    name: yolo-v2-tiny-ava-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 874812
+      stdev: 35700.37426974681
+    fill_inputs:
+      avg: 7819.8
+      stdev: 69.29429990987714
+    first_inference:
+      avg: 28948.2
+      stdev: 4190.196976276891
+    first_inference_latency:
+      avg: 884472.6
+      stdev: 35689.33990423471
+    full_run:
+      avg: 923037.6
+      stdev: 32345.830137747274
+    load_network:
+      avg: 777869.4
+      stdev: 29681.658365057705
+    load_plugin:
+      avg: 9621
+      stdev: 90.77995373429091
+    read_network:
+      avg: 96910
+      stdev: 6933.009844216291
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml
-    name: yolo-v2-tiny-ava-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1287772.0
+      stdev: 5026.098884821109
+    fill_inputs:
+      avg: 7790.8
+      stdev: 72.46171402885803
+    first_inference:
+      avg: 13059.2
+      stdev: 39.05380903317882
+    first_inference_latency:
+      avg: 1417230.0
+      stdev: 7048.37569940763
+    full_run:
+      avg: 1440758.0
+      stdev: 7346.674077431229
+    load_network:
+      avg: 1196908.0
+      stdev: 4915.370789675993
+    load_plugin:
+      avg: 129407.8
+      stdev: 4988.367588700737
+    read_network:
+      avg: 90830.8
+      stdev: 412.4181130842825
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-sparse-30-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16/yolo-v2-tiny-ava-sparse-30-0001.xml
-    name: yolo-v2-tiny-ava-sparse-30-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 277430.8
+      stdev: 6445.087912511357
+    fill_inputs:
+      avg: 7775
+      stdev: 75.44203072558426
+    first_inference:
+      avg: 62747.8
+      stdev: 5210.908721134923
+    first_inference_latency:
+      avg: 287058.8
+      stdev: 6199.336553212771
+    full_run:
+      avg: 359662.6
+      stdev: 10961.80752887041
+    load_network:
+      avg: 234770.2
+      stdev: 5824.676574712111
+    load_plugin:
+      avg: 9588.6
+      stdev: 321.0682170505203
+    read_network:
+      avg: 42628.4
+      stdev: 3564.2708651279577
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-sparse-30-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16/yolo-v2-tiny-ava-sparse-30-0001.xml
-    name: yolo-v2-tiny-ava-sparse-30-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 534443.6
+      stdev: 13075.101961361524
+    fill_inputs:
+      avg: 7732.4
+      stdev: 66.22159768534733
+    first_inference:
+      avg: 15742.6
+      stdev: 117.34479110723237
+    first_inference_latency:
+      avg: 664949.2
+      stdev: 8227.758303450582
+    full_run:
+      avg: 690601
+      stdev: 8248.513290284498
+    load_network:
+      avg: 492301.8
+      stdev: 14051.315639469494
+    load_plugin:
+      avg: 130457.4
+      stdev: 5580.400370941139
+    read_network:
+      avg: 42112.8
+      stdev: 4833.485874604373
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-sparse-30-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml
-    name: yolo-v2-tiny-ava-sparse-30-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 877314.2
+      stdev: 17330.989403377986
+    fill_inputs:
+      avg: 7825.4
+      stdev: 97.92497127903587
+    first_inference:
+      avg: 33017.4
+      stdev: 7636.219503131114
+    first_inference_latency:
+      avg: 887511.4
+      stdev: 17161.84839403961
+    full_run:
+      avg: 929857.2
+      stdev: 11351.364045787624
+    load_network:
+      avg: 783750.2
+      stdev: 13549.530847966655
+    load_plugin:
+      avg: 10157.8
+      stdev: 1216.6306752667385
+    read_network:
+      avg: 93531.8
+      stdev: 4132.621407774973
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-sparse-30-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml
-    name: yolo-v2-tiny-ava-sparse-30-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1312436.0
+      stdev: 17194.18302798944
+    fill_inputs:
+      avg: 7846.6
+      stdev: 116.28112486556019
+    first_inference:
+      avg: 13229.2
+      stdev: 109.14989693078047
+    first_inference_latency:
+      avg: 1439396.0
+      stdev: 18552.29716234623
+    full_run:
+      avg: 1462956.0
+      stdev: 18256.958399470597
+    load_network:
+      avg: 1220894.0
+      stdev: 17148.920665744536
+    load_plugin:
+      avg: 126909.4
+      stdev: 3713.5806575325655
+    read_network:
+      avg: 91509.6
+      stdev: 469.5793862596611
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-sparse-60-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16/yolo-v2-tiny-ava-sparse-60-0001.xml
-    name: yolo-v2-tiny-ava-sparse-60-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 276968.8
+      stdev: 4328.052818531678
+    fill_inputs:
+      avg: 7827.2
+      stdev: 114.59362984040605
+    first_inference:
+      avg: 57030.4
+      stdev: 6701.337650051667
+    first_inference_latency:
+      avg: 286709.2
+      stdev: 4222.926082706161
+    full_run:
+      avg: 354270.2
+      stdev: 6799.4488158967715
+    load_network:
+      avg: 233827.6
+      stdev: 893.1709242916498
+    load_plugin:
+      avg: 9701.8
+      stdev: 251.82771888733774
+    read_network:
+      avg: 43108.6
+      stdev: 4093.6245919722537
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-sparse-60-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16/yolo-v2-tiny-ava-sparse-60-0001.xml
-    name: yolo-v2-tiny-ava-sparse-60-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 537110.4
+      stdev: 15824.629120456504
+    fill_inputs:
+      avg: 7958.6
+      stdev: 225.34706565651126
+    first_inference:
+      avg: 16051.6
+      stdev: 277.925889402193
+    first_inference_latency:
+      avg: 671181.4
+      stdev: 16958.825041847682
+    full_run:
+      avg: 697192.6
+      stdev: 16961.718966543456
+    load_network:
+      avg: 496407.6
+      stdev: 16266.483894806524
+    load_plugin:
+      avg: 134019.2
+      stdev: 1876.4636154213063
+    read_network:
+      avg: 40674.2
+      stdev: 1243.4732405645084
 - device:
     name: CPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-sparse-60-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml
-    name: yolo-v2-tiny-ava-sparse-60-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 843033.4
+      stdev: 13155.386056668956
+    fill_inputs:
+      avg: 7864.8
+      stdev: 131.78467285689942
+    first_inference:
+      avg: 36084.6
+      stdev: 6170.926291894922
+    first_inference_latency:
+      avg: 852812.6
+      stdev: 13460.585176729874
+    full_run:
+      avg: 898775
+      stdev: 9286.459847541473
+    load_network:
+      avg: 746950
+      stdev: 5461.12996549249
+    load_plugin:
+      avg: 9740.6
+      stdev: 329.8898300948363
+    read_network:
+      avg: 96050.2
+      stdev: 8366.814250358377
 - device:
     name: GPU
   model:
+    framework: tf
+    name: yolo-v2-tiny-ava-sparse-60-0001
     path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml
-    name: yolo-v2-tiny-ava-sparse-60-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1263188.0
+      stdev: 12436.16178730399
+    fill_inputs:
+      avg: 7782.4
+      stdev: 77.37118326612305
+    first_inference:
+      avg: 14318
+      stdev: 2402.9935497208476
+    first_inference_latency:
+      avg: 1395348.0
+      stdev: 11527.329265705912
+    full_run:
+      avg: 1419886.0
+      stdev: 11739.975723995343
+    load_network:
+      avg: 1172662.0
+      stdev: 12521.899616272285
+    load_plugin:
+      avg: 132111.6
+      stdev: 1777.5481146793186
+    read_network:
+      avg: 90492
+      stdev: 378.3523490081699
 - device:
     name: CPU
   model:
+    framework: caffe2
+    name: squeezenet1.1
     path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml
-    name: squeezenet1.1
     precision: FP16
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 141365
+      stdev: 10668.189279348206
+    fill_inputs:
+      avg: 2393.2
+      stdev: 49.226009385283305
+    first_inference:
+      avg: 12864.4
+      stdev: 1343.5197430629742
+    first_inference_latency:
+      avg: 151609.2
+      stdev: 11205.621834597132
+    full_run:
+      avg: 171375.4
+      stdev: 10493.155450101747
+    load_network:
+      avg: 118294
+      stdev: 739.648903196645
+    load_plugin:
+      avg: 10205.4
+      stdev: 642.0664295849768
+    read_network:
+      avg: 23042
+      stdev: 10643.129192112629
 - device:
     name: GPU
   model:
+    framework: caffe2
+    name: squeezenet1.1
     path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml
-    name: squeezenet1.1
     precision: FP16
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 580972
+      stdev: 9237.058135575417
+    fill_inputs:
+      avg: 2372.4
+      stdev: 36.03886790674757
+    first_inference:
+      avg: 5996.8
+      stdev: 197.53151647268848
+    first_inference_latency:
+      avg: 709193.8
+      stdev: 9717.918100087076
+    full_run:
+      avg: 725815.2
+      stdev: 9732.31294194756
+    load_network:
+      avg: 562221.4
+      stdev: 8098.948592255664
+    load_plugin:
+      avg: 128181.6
+      stdev: 4761.896187444661
+    read_network:
+      avg: 18721.6
+      stdev: 1398.1140153792894
 - device:
     name: CPU
   model:
+    framework: caffe2
+    name: squeezenet1.1
     path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml
-    name: squeezenet1.1
     precision: FP16-INT8
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 227941.2
+      stdev: 6792.686964670167
+    fill_inputs:
+      avg: 2413.6
+      stdev: 33.94554462665167
+    first_inference:
+      avg: 6913.2
+      stdev: 686.9353681388083
+    first_inference_latency:
+      avg: 237536.4
+      stdev: 6492.874656113423
+    full_run:
+      avg: 252589
+      stdev: 6950.115142931087
+    load_network:
+      avg: 183865.6
+      stdev: 5221.1812648097175
+    load_plugin:
+      avg: 9554.6
+      stdev: 307.7414499218459
+    read_network:
+      avg: 44046.8
+      stdev: 6079.80453633174
 - device:
     name: GPU
   model:
+    framework: caffe2
+    name: squeezenet1.1
     path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml
-    name: squeezenet1.1
     precision: FP16-INT8
-    framework: caffe2
+  references:
+    create_exenetwork:
+      avg: 857377
+      stdev: 10369.142659834515
+    fill_inputs:
+      avg: 4467.4
+      stdev: 3777.5468627139494
+    first_inference:
+      avg: 8336.6
+      stdev: 4243.863369619715
+    first_inference_latency:
+      avg: 988135.8
+      stdev: 10205.982152639695
+    full_run:
+      avg: 1013046.0
+      stdev: 7595.885728471697
+    load_network:
+      avg: 816168.8
+      stdev: 10105.127940803124
+    load_plugin:
+      avg: 130714.2
+      stdev: 2310.0523154249126
+    read_network:
+      avg: 41178
+      stdev: 4060.8511423099467
 - device:
     name: CPU
   model:
+    framework: tf
+    name: icnet-camvid-ava-0001
     path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16/icnet-camvid-ava-0001.xml
-    name: icnet-camvid-ava-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 491588.8
+      stdev: 6628.023362964256
+    fill_inputs:
+      avg: 30809.4
+      stdev: 64.4111791539326
+    first_inference:
+      avg: 550503
+      stdev: 41468.90013612611
+    first_inference_latency:
+      avg: 501162
+      stdev: 6670.242386900194
+    full_run:
+      avg: 1075906.0
+      stdev: 44792.35850008347
+    load_network:
+      avg: 405866.2
+      stdev: 2338.752274183822
+    load_plugin:
+      avg: 9533.2
+      stdev: 294.90879946179973
+    read_network:
+      avg: 85689.4
+      stdev: 4674.935165325825
 - device:
     name: GPU
   model:
+    framework: tf
+    name: icnet-camvid-ava-0001
     path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16/icnet-camvid-ava-0001.xml
-    name: icnet-camvid-ava-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1051646.0
+      stdev: 6722.241441662149
+    fill_inputs:
+      avg: 31331.6
+      stdev: 537.6005022319082
+    first_inference:
+      avg: 99049.4
+      stdev: 8402.638889063364
+    first_inference_latency:
+      avg: 1181098.0
+      stdev: 6175.30323142111
+    full_run:
+      avg: 1304074.0
+      stdev: 10040.305274243408
+    load_network:
+      avg: 968490.8
+      stdev: 6213.834218902207
+    load_plugin:
+      avg: 129405.4
+      stdev: 1786.2774980388685
+    read_network:
+      avg: 83118.6
+      stdev: 1309.4797822036048
 - device:
     name: CPU
   model:
+    framework: tf
+    name: icnet-camvid-ava-0001
     path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml
-    name: icnet-camvid-ava-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1829226.0
+      stdev: 14651.128966738366
+    fill_inputs:
+      avg: 31001.6
+      stdev: 311.44389542901627
+    first_inference:
+      avg: 317120
+      stdev: 14819.598864341775
+    first_inference_latency:
+      avg: 1838676.0
+      stdev: 14680.259875083955
+    full_run:
+      avg: 2187012.0
+      stdev: 13275.103389427895
+    load_network:
+      avg: 1608166.0
+      stdev: 16096.533167113967
+    load_plugin:
+      avg: 9412.8
+      stdev: 194.74008318782242
+    read_network:
+      avg: 221017.2
+      stdev: 5434.385862266315
 - device:
     name: GPU
   model:
+    framework: tf
+    name: icnet-camvid-ava-0001
     path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml
-    name: icnet-camvid-ava-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 3032886.0
+      stdev: 34006.861513524
+    fill_inputs:
+      avg: 31025.4
+      stdev: 429.26949577159564
+    first_inference:
+      avg: 81663
+      stdev: 4041.049554261863
+    first_inference_latency:
+      avg: 3161960.0
+      stdev: 34685.2122669013
+    full_run:
+      avg: 3291516.0
+      stdev: 35236.209075324776
+    load_network:
+      avg: 2815686.0
+      stdev: 32816.253290100016
+    load_plugin:
+      avg: 129027.6
+      stdev: 2002.7762730769505
+    read_network:
+      avg: 217168
+      stdev: 1706.1223578629993
 - device:
     name: CPU
   model:
+    framework: tf
+    name: icnet-camvid-ava-sparse-30-0001
     path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16/icnet-camvid-ava-sparse-30-0001.xml
-    name: icnet-camvid-ava-sparse-30-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 640780.8
+      stdev: 5623.009532270064
+    fill_inputs:
+      avg: 31132.2
+      stdev: 493.4584075684596
+    first_inference:
+      avg: 557770.2
+      stdev: 29183.46897132005
+    first_inference_latency:
+      avg: 651174.8
+      stdev: 5175.938919655061
+    full_run:
+      avg: 1233268.0
+      stdev: 34664.95160821662
+    load_network:
+      avg: 554868
+      stdev: 2925.2549461542662
+    load_plugin:
+      avg: 10354
+      stdev: 1689.7527925705583
+    read_network:
+      avg: 85881.8
+      stdev: 4223.348931831231
 - device:
     name: GPU
   model:
+    framework: tf
+    name: icnet-camvid-ava-sparse-30-0001
     path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16/icnet-camvid-ava-sparse-30-0001.xml
-    name: icnet-camvid-ava-sparse-30-0001
     precision: FP16
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1046370.0
+      stdev: 12895.702772629338
+    fill_inputs:
+      avg: 33850.2
+      stdev: 5625.4789307222545
+    first_inference:
+      avg: 121863.4
+      stdev: 50064.94497949639
+    first_inference_latency:
+      avg: 1174060.0
+      stdev: 11100.781504020337
+    full_run:
+      avg: 1318842.0
+      stdev: 60212.27051025397
+    load_network:
+      avg: 961055.4
+      stdev: 8727.76370555482
+    load_plugin:
+      avg: 127641.2
+      stdev: 4958.539674137941
+    read_network:
+      avg: 85281.6
+      stdev: 5289.106663700402
 - device:
     name: CPU
   model:
+    framework: tf
+    name: icnet-camvid-ava-sparse-30-0001
     path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-30-0001.xml
-    name: icnet-camvid-ava-sparse-30-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 1838690.0
+      stdev: 12867.536671795422
+    fill_inputs:
+      avg: 31572
+      stdev: 320.66337489647924
+    first_inference:
+      avg: 311514.6
+      stdev: 25844.77787290887
+    first_inference_latency:
+      avg: 1848396.0
+      stdev: 13047.303552841866
+    full_run:
+      avg: 2190170.0
+      stdev: 19021.76122234742
+    load_network:
+      avg: 1616692.0
+      stdev: 8892.157780876361
+    load_plugin:
+      avg: 9668.4
+      stdev: 347.72733571003585
+    read_network:
+      avg: 221954.8
+      stdev: 5604.2343544859
 - device:
     name: GPU
   model:
+    framework: tf
+    name: icnet-camvid-ava-sparse-30-0001
     path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-30-0001.xml
-    name: icnet-camvid-ava-sparse-30-0001
     precision: FP16-INT8
-    framework: tf
+  references:
+    create_exenetwork:
+      avg: 3062962.0
+      stdev: 36881.5945967633
+    fill_inputs:
+      avg: 30965.2
+      stdev: 331.5708069176175
+    first_inference:
+      avg: 77990.6
+      stdev: 4451.659948828077
+    first_inference_latency:
+      avg: 3189828.0
+      stdev: 36683.41614408342
+    full_run:
+      avg: 3315568.0
+      stdev: 39909.45840273957
+    load_network:
+      avg: 2845446.0
+      stdev: 38096.42673532519
+    load_plugin:
+      avg: 126828.4
+      stdev: 4964.723486761372
+    read_network:
+      avg: 217480.6
+      stdev: 1950.445538844907
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16/icnet-camvid-ava-sparse-60-0001.xml
-    name: icnet-camvid-ava-sparse-60-0001
-    precision: FP16
     framework: tf
+    name: icnet-camvid-ava-sparse-60-0001
+    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16/icnet-camvid-ava-sparse-60-0001.xml
+    precision: FP16
+  references:
+    create_exenetwork:
+      avg: 666161.8
+      stdev: 8040.81517633629
+    fill_inputs:
+      avg: 30929.2
+      stdev: 246.76952810264075
+    first_inference:
+      avg: 550783.8
+      stdev: 35786.305805433454
+    first_inference_latency:
+      avg: 675899.6
+      stdev: 8045.57731303354
+    full_run:
+      avg: 1249906.0
+      stdev: 43444.43842426784
+    load_network:
+      avg: 579611.4
+      stdev: 6977.997585267567
+    load_plugin:
+      avg: 9699.2
+      stdev: 93.58525524889058
+    read_network:
+      avg: 86522.4
+      stdev: 3899.652587090291
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16/icnet-camvid-ava-sparse-60-0001.xml
-    name: icnet-camvid-ava-sparse-60-0001
-    precision: FP16
     framework: tf
+    name: icnet-camvid-ava-sparse-60-0001
+    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16/icnet-camvid-ava-sparse-60-0001.xml
+    precision: FP16
+  references:
+    create_exenetwork:
+      avg: 1045714.0
+      stdev: 12673.161799645737
+    fill_inputs:
+      avg: 31303.2
+      stdev: 295.778971531108
+    first_inference:
+      avg: 108314.2
+      stdev: 9175.457901380181
+    first_inference_latency:
+      avg: 1173072.0
+      stdev: 15197.18954280692
+    full_run:
+      avg: 1304700.0
+      stdev: 12044.68139885817
+    load_network:
+      avg: 962973.6
+      stdev: 12440.993782652575
+    load_plugin:
+      avg: 127313.8
+      stdev: 3613.485118275707
+    read_network:
+      avg: 82709
+      stdev: 671.6624896478886
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-60-0001.xml
-    name: icnet-camvid-ava-sparse-60-0001
-    precision: FP16-INT8
     framework: tf
+    name: icnet-camvid-ava-sparse-60-0001
+    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-60-0001.xml
+    precision: FP16-INT8
+  references:
+    create_exenetwork:
+      avg: 1781928.0
+      stdev: 24139.457740388454
+    fill_inputs:
+      avg: 31193.4
+      stdev: 423.7030799982459
+    first_inference:
+      avg: 302726.8
+      stdev: 8805.332912502514
+    first_inference_latency:
+      avg: 1791454.0
+      stdev: 24369.022959486905
+    full_run:
+      avg: 2124252.0
+      stdev: 31706.81425182921
+    load_network:
+      avg: 1560806.0
+      stdev: 18480.738080498842
+    load_plugin:
+      avg: 9486.8
+      stdev: 234.13500379054815
+    read_network:
+      avg: 221084.4
+      stdev: 5975.732030471246
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-60-0001.xml
-    name: icnet-camvid-ava-sparse-60-0001
-    precision: FP16-INT8
     framework: tf
+    name: icnet-camvid-ava-sparse-60-0001
+    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-60-0001.xml
+    precision: FP16-INT8
+  references:
+    create_exenetwork:
+      avg: 3019126.0
+      stdev: 55947.329963100114
+    fill_inputs:
+      avg: 33397.4
+      stdev: 4113.2163570617095
+    first_inference:
+      avg: 84471
+      stdev: 7141.719785877908
+    first_inference_latency:
+      avg: 3147812.0
+      stdev: 55639.72474770162
+    full_run:
+      avg: 3279750.0
+      stdev: 55144.103945934236
+    load_network:
+      avg: 2798974.0
+      stdev: 56944.886776601816
+    load_plugin:
+      avg: 128643.6
+      stdev: 3603.7110455751026
+    read_network:
+      avg: 220122.6
+      stdev: 5368.265297095515
