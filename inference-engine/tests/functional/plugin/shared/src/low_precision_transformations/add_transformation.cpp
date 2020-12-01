@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/add_function.hpp"
+#include "lpt_ngraph_functions/add_function.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
 namespace LayerTestsDefinitions {

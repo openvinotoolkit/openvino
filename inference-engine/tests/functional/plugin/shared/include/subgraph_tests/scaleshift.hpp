@@ -8,7 +8,6 @@
 #include <vector>
 #include <memory>
 #include "functional_test_utils/layer_test_utils.hpp"
-#include "../../../../../ngraph_functions/include/ngraph_functions/builders.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 namespace LayerTestsDefinitions {
