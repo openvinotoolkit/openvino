@@ -61,20 +61,12 @@ public:
             // check dimensions of output tensors and its precisions
             size_t cur_output_port = 0;
             SizeVector output_uniques_dims = layer->outData[cur_output_port]->getTensorDesc().getDims();
-            Precision output_uniques_precision = layer->outData[cur_output_port]->getTensorDesc().getPrecision();
-            if (output_uniques_precision != Precision::FP32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect precision for output tensor of unique elements. Only FP32 is supported!";
-            }
             if (output_uniques_dims.size() != 1 || output_uniques_dims[0] != num_elements) {
                 THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output tensor of unique elements.";
             }
             if (return_inverse) {
                 cur_output_port++;
                 SizeVector output_indices_dims = layer->outData[cur_output_port]->getTensorDesc().getDims();
-                Precision output_indices_precision = layer->outData[cur_output_port]->getTensorDesc().getPrecision();
-                if (output_indices_precision != Precision::FP32) {
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect precision for output tensor of indices. Only FP32 is supported!";
-                }
                 if (output_indices_dims.size() != 1 || output_indices_dims[0] != num_elements) {
                     THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output tensor of indices.";
                 }
@@ -82,10 +74,6 @@ public:
             if (return_counts) {
                 cur_output_port++;
                 SizeVector output_counts_dims = layer->outData[cur_output_port]->getTensorDesc().getDims();
-                Precision output_counts_precision = layer->outData[cur_output_port]->getTensorDesc().getPrecision();
-                if (output_counts_precision != Precision::FP32) {
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect precision for output tensor of counts. Only FP32 is supported!";
-                }
                 if (output_counts_dims.size() != 1 || output_counts_dims[0] != num_elements) {
                     THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output tensor of counts.";
                 }
@@ -94,16 +82,16 @@ public:
             // add a layer configuration
             if (layer->outData.size() == 1) {
                 addConfig(layer,
-                    { DataConfigurator(ConfLayout::PLN) },
-                    { DataConfigurator(ConfLayout::PLN) });
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
             } else if (layer->outData.size() == 2) {
                 addConfig(layer,
-                    { DataConfigurator(ConfLayout::PLN) },
-                    { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) });
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32) });
             } else if (layer->outData.size() == 3) {
                 addConfig(layer,
-                    { DataConfigurator(ConfLayout::PLN) },
-                    { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) });
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32) }, { DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                    DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32) });
             }
         }
         catch (InferenceEngine::details::InferenceEngineException &ex) {
