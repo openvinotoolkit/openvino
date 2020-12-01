@@ -116,7 +116,8 @@ namespace ngraph
                 if (arg0_shape == arg1_shape)
                 {
                     const auto elems = shape_size(arg0_shape);
-                    perf::Timer t{"Elementwise division with " + std::to_string(elems) + " elements"};
+                    perf::Timer t{"Elementwise division with " + std::to_string(elems) +
+                                  " elements"};
                     parallel::execute(arg0, arg1, out, elems, functor);
                     t.finish();
                 }
