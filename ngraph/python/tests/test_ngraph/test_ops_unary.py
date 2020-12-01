@@ -19,7 +19,6 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_36483
 
 
 @pytest.mark.parametrize(
@@ -33,8 +32,8 @@ from tests import xfail_issue_36483
         (ng.asinh, np.arcsinh, -1, 1),
         (ng.atan, np.arctan, -100.0, 100.0),
         (ng.atanh, np.arctanh, 0.0, 1.0),
-        pytest.param(ng.ceiling, np.ceil, -100.0, 100.0, marks=xfail_issue_36483),
-        pytest.param(ng.ceil, np.ceil, -100.0, 100.0, marks=xfail_issue_36483),
+        (ng.ceiling, np.ceil, -100.0, 100.0),
+        (ng.ceil, np.ceil, -100.0, 100.0),
         (ng.cos, np.cos, -100.0, 100.0),
         (ng.cosh, np.cosh, -100.0, 100.0),
         (ng.exp, np.exp, -100.0, 100.0),

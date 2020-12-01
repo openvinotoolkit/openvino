@@ -155,9 +155,9 @@ def test_convert_to_bool(destination_type, input_data):
     "destination_type, rand_range, in_dtype, expected_type",
     [
         pytest.param(np.float32, (-8, 8), np.int32, np.float32),
-        pytest.param(np.float64, (-16383, 16383), np.int64, np.float64, marks=xfail_issue_40319),
+        pytest.param(np.float64, (-16383, 16383), np.int64, np.float64),
         pytest.param("f32", (-8, 8), np.int32, np.float32),
-        pytest.param("f64", (-16383, 16383), np.int64, np.float64, marks=xfail_issue_40319),
+        pytest.param("f64", (-16383, 16383), np.int64, np.float64),
     ],
 )
 def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type):
@@ -169,7 +169,6 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_40319
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -185,14 +184,13 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
 )
 def test_convert_to_int(destination_type, expected_type):
     np.random.seed(133391)
-    input_data = (np.ceil(-8 + np.random.rand(2, 3, 4) * 16))
+    input_data = (np.ceil(-8 + np.random.rand(2, 3, 4) * 16)).astype(np.float32)
     expected = np.array(input_data, dtype=expected_type)
     result = run_op_node([input_data], ng.convert, destination_type)
     assert np.allclose(result, expected)
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_40319
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -208,7 +206,7 @@ def test_convert_to_int(destination_type, expected_type):
 )
 def test_convert_to_uint(destination_type, expected_type):
     np.random.seed(133391)
-    input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
+    input_data = np.ceil(np.random.rand(2, 3, 4) * 16).astype(np.float32)
     expected = np.array(input_data, dtype=expected_type)
     result = run_op_node([input_data], ng.convert, destination_type)
     assert np.allclose(result, expected)
