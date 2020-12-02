@@ -81,11 +81,9 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         this->preamble();
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
-            push(bf16_emu_scratch);
             bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
-                bf16_emu_reserv_3, bf16_emu_scratch, bf16_emu_reserv_4));
+                bf16_emu_reserv_3, bf16_emu_reserv_4));
             bf16_emu_->init_vcvtneps2bf16();
-            pop(bf16_emu_scratch);
         }
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -154,11 +152,10 @@ private:
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
 
-    Vmm bf16_emu_reserv_1 = Vmm(8);
-    Vmm bf16_emu_reserv_2 = Vmm(9);
-    Vmm bf16_emu_reserv_3 = Vmm(10);
-    Reg64 bf16_emu_scratch = rsi;
-    Vmm bf16_emu_reserv_4 = Vmm(11);
+    Vmm bf16_emu_reserv_1 = Vmm(28);
+    Vmm bf16_emu_reserv_2 = Vmm(29);
+    Vmm bf16_emu_reserv_3 = Vmm(30);
+    Vmm bf16_emu_reserv_4 = Vmm(31);
     std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
 
     Xbyak::Label l_table;
@@ -827,11 +824,9 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         this->preamble();
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
-            push(bf16_emu_scratch);
             bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
-                bf16_emu_reserv_3, bf16_emu_scratch, bf16_emu_reserv_4));
+                bf16_emu_reserv_3, bf16_emu_reserv_4));
             bf16_emu_->init_vcvtneps2bf16();
-            pop(bf16_emu_scratch);
         }
 
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
@@ -881,11 +876,10 @@ private:
     Xbyak::Xmm xmm_aux2 = Xbyak::Xmm(5);
     Xbyak::Xmm xmm_aux3 = Xbyak::Xmm(6);
 
-    Vmm bf16_emu_reserv_1 = Vmm(8);
-    Vmm bf16_emu_reserv_2 = Vmm(9);
-    Vmm bf16_emu_reserv_3 = Vmm(10);
-    Reg64 bf16_emu_scratch = rsi;
-    Vmm bf16_emu_reserv_4 = Vmm(11);
+    Vmm bf16_emu_reserv_1 = Vmm(28);
+    Vmm bf16_emu_reserv_2 = Vmm(29);
+    Vmm bf16_emu_reserv_3 = Vmm(30);
+    Vmm bf16_emu_reserv_4 = Vmm(31);
     std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
 
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> log_injector;

@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <limits>
+#include "utils.hpp"
 #include "jit_generator.hpp"
 
 /**
@@ -150,13 +151,11 @@ template <cpu_isa_t isa>
 struct bf16_emulation_t {
     using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    bf16_emulation_t(jit_generator* host, Vmm one, Vmm even,
-        Vmm selector, const Xbyak::Reg64 scratch, Vmm tr)
+    bf16_emulation_t(jit_generator* host, Vmm one, Vmm even, Vmm selector, Vmm tr)
         : one_(one)
         , even_(even)
         , selector_(selector)
         , tr_(tr)
-        , scratch_(scratch)
         , host_(host) {}
 
     void r_vcvtneps2bf16(const Xbyak::Ymm& out, Vmm in) {
@@ -170,6 +169,8 @@ struct bf16_emulation_t {
     }
 
     void init_vcvtneps2bf16() {
+        Xbyak::Reg64 scratch_ = Xbyak::util::rsi;
+        host_->push(scratch_);
         const int selector_int32 =
             /* qnan input to qnan output (presenrving input bits 0..21) */
             encode_fixup_selector(fixup_input_code_snan_, fixup_output_code_qnan_input_) |
@@ -191,6 +192,7 @@ struct bf16_emulation_t {
         host_->xor_(scratch_, scratch_);
         host_->mov(scratch_.cvt32(), selector_int32);
         host_->vpbroadcastd(selector_, scratch_.cvt32());
+        host_->pop(scratch_);
     }
 
 private:
@@ -198,7 +200,6 @@ private:
     Vmm even_;
     Vmm selector_;
     Vmm tr_;
-    const Xbyak::Reg64 scratch_;
     jit_generator* const host_;
 
     inline int encode_fixup_selector(int input, int output) {
