@@ -31,8 +31,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, logical_and)
 {
     Shape shape{3, 4};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto B = make_shared<op::Parameter>(element::boolean, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::boolean, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::boolean, shape);
     auto f =
         make_shared<Function>(std::make_shared<op::v1::LogicalAnd>(A, B), ParameterVector{A, B});
 
