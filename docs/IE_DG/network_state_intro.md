@@ -25,11 +25,13 @@ of network with state and how it can be inferred.
 * `Assign` to save value in state
 * `ReadValue` to read value saved on previous iteration.
 
-More details on these operations you can find in [specification](../ops/opset3.md).
+More details on these operations you can find in [ReadValue specification](../ops/infrastructure/ReadValue_3.md) and 
+[Assign specification](../ops/infrastructure/Assign_3.md).
 
 ## Examples of representation of network with states
 
-To get model with states ready for inference you can convert model from another framework with ModelOptimizer to IR or create it with Ngraph builder. 
+To get model with states ready for inference you can convert model from another framework with ModelOptimizer to IR or create ngraph function 
+(details can be found in [Build nGraph Function section](../nGraph_DG/build_function.md)). 
 Let's represent in both forms the following graph.
 
 [state_network_example]: img/state_network_example.png
@@ -42,7 +44,7 @@ Let's represent in both forms the following graph.
 <?xml version="1.0" ?>
 <net name="summator" version="10">
 	<layers>
-		<layer id="0" name="init_value" type="Const" version="opset1">
+		<layer id="0" name="init_value" type="Const" version="opset5">
 			<data element_type="f32" offset="0" shape="1,1" size="4"/>
 			<output>
 				<port id="1" precision="FP32">
@@ -51,7 +53,7 @@ Let's represent in both forms the following graph.
 				</port>
 			</output>
 		</layer>
-		<layer id="1" name="read" type="ReadValue" version="opset3">
+		<layer id="1" name="read" type="ReadValue" version="opset5">
 			<data variable_id="id"/>
 			<input>
 				<port id="0">
@@ -66,7 +68,7 @@ Let's represent in both forms the following graph.
 				</port>
 			</output>
 		</layer>
-		<layer id="2" name="input" type="Parameter" version="opset1">
+		<layer id="2" name="input" type="Parameter" version="opset5">
 			<data element_type="f32" shape="1,1"/>
 			<output>
 				<port id="0" precision="FP32">
@@ -75,7 +77,7 @@ Let's represent in both forms the following graph.
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="add_sum" type="Add" version="opset1">
+		<layer id="3" name="add_sum" type="Add" version="opset5">
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -93,7 +95,7 @@ Let's represent in both forms the following graph.
 				</port>
 			</output>
 		</layer>
-		<layer id="4" name="save" type="Assign" version="opset3">
+		<layer id="4" name="save" type="Assign" version="opset5">
 			<data variable_id="id"/>
 			<input>
 				<port id="0">
@@ -102,7 +104,7 @@ Let's represent in both forms the following graph.
 				</port>
 			</input>
 		</layer>
-        <layer id="10" name="add" type="Add" version="opset1">
+                <layer id="10" name="add" type="Add" version="opset5">
 			<data axis="1"/>
 			<input>
 				<port id="0">
@@ -121,7 +123,7 @@ Let's represent in both forms the following graph.
 				</port>
 			</output>
 		</layer>
-		<layer id="5" name="output/sink_port_0" type="Result" version="opset1">
+		<layer id="5" name="output/sink_port_0" type="Result" version="opset5">
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -132,12 +134,12 @@ Let's represent in both forms the following graph.
 	</layers>
 	<edges>
 		<edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
-        <edge from-layer="2" from-port="0" to-layer="3" to-port="1"/>
-        <edge from-layer="1" from-port="1" to-layer="3" to-port="0"/>
-        <edge from-layer="3" from-port="2" to-layer="4" to-port="0"/>
-        <edge from-layer="3" from-port="2" to-layer="10" to-port="0"/>
-        <edge from-layer="1" from-port="1" to-layer="10" to-port="1"/>
-        <edge from-layer="10" from-port="2" to-layer="5" to-port="0"/>
+                <edge from-layer="2" from-port="0" to-layer="3" to-port="1"/>
+                <edge from-layer="1" from-port="1" to-layer="3" to-port="0"/>
+                <edge from-layer="3" from-port="2" to-layer="4" to-port="0"/>
+                <edge from-layer="3" from-port="2" to-layer="10" to-port="0"/> 
+                <edge from-layer="1" from-port="1" to-layer="10" to-port="1"/>
+                <edge from-layer="10" from-port="2" to-layer="5" to-port="0"/>
 	</edges>
 	<meta_data>
 		<MO_version value="unknown version"/>
