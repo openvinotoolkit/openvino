@@ -6,16 +6,14 @@ if(NOT ENABLE_DOCKER)
     add_subdirectory(snippets)
 
     # Detect nGraph
-    find_package(ngraph QUIET)
-    if(NOT ngraph_FOUND)
-        set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
-    endif()
+    find_package(ngraph QUIET
+                 PATHS "${CMAKE_BINARY_DIR}/ngraph"
+                 NO_DEFAULT_PATH)
 
     # Detect InferenceEngine
-    find_package(InferenceEngine QUIET)
-    if(NOT InferenceEngine_FOUND)
-        set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
-    endif()
+    find_package(InferenceEngine QUIET
+                 PATHS "${CMAKE_BINARY_DIR}"
+                 NO_DEFAULT_PATH)
 
     if (NGRAPH_ONNX_IMPORT_ENABLE)
         add_subdirectory(onnx_custom_op)
