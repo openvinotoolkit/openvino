@@ -27,6 +27,8 @@ using namespace ngraph::coordinates;
 using Index = size_t;
 using ExpectedOutput = std::vector<std::pair<Index, Coordinate>>;
 
+
+/*
 ///
 ///
 ///     SliceRange
@@ -445,3 +447,4 @@ TEST(coordinate_range, reverse_2_range_3d)
         << "not all expected values return, (" << std::distance(expected_val, end(expected))
         << " is missing)";
 }
+*/

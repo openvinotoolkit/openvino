@@ -170,7 +170,7 @@ namespace ngraph
                 const std::ptrdiff_t step =
                     static_cast<std::ptrdiff_t>(m_memory_strides.back()) * m_axis_directions.back();
 
-                return range(m_index, end_index, step);
+                return IntegerRangeData{m_index, end_index, step};
             }
 
             bool ReverseRange::increment()

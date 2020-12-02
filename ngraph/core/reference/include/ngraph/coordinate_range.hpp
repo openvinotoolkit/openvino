@@ -96,7 +96,10 @@ namespace ngraph
                 Coordinate m_lower;
                 Coordinate m_upper;
 
-                size_t last_dim_size() const noexcept { return m_upper.back() - m_lower.back(); }
+                std::ptrdiff_t last_dim_size() const noexcept
+                {
+                    return m_upper.back() - m_lower.back();
+                }
             };
 
             template <typename Range>
@@ -116,47 +119,10 @@ namespace ngraph
                 const std::ptrdiff_t m_step;
             };
 
-            class IntegerRange : public RangeBase<IntegerRange>, public IntegerRangeData
-            {
-            public:
-                using value_type = std::ptrdiff_t;
-                IntegerRange(std::ptrdiff_t begin, std::ptrdiff_t end, std::ptrdiff_t step = 1)
-                    : IntegerRangeData{begin, end, step}
-                    , m_value{begin}
-                {
-                    if (m_step == 0)
-                    {
-                        throw std::runtime_error{"Invalid step value"};
-                    }
-                }
-
-                bool increment()
-                {
-                    m_value += m_step;
-                    return is_valid();
-                }
-
-                bool is_valid() const noexcept
-                {
-                    return (m_step > 0 && m_value < m_end) || (m_step < 0 && m_value > m_end);
-                }
-
-                value_type get_value() const noexcept { return m_value; }
-
-            private:
-                std::ptrdiff_t m_value;
-            };
-
-            inline IntegerRange
-                range(std::ptrdiff_t begin, std::ptrdiff_t end, std::ptrdiff_t step = 1)
-            {
-                return IntegerRange{begin, end, step};
-            }
-
             class SliceRange : public RangeBase<SliceRange>
             {
             public:
-                using value_type = IntegerRange;
+                using value_type = IntegerRangeData;
                 SliceRange(const Shape& source_shape,
                            const Coordinate& source_start_corner,
                            const Coordinate& source_end_corner,
@@ -166,8 +132,9 @@ namespace ngraph
 
                 value_type get_value() const
                 {
-                    return range(
-                        m_index, m_index + m_bounds.last_dim_size(), m_source_strides.back());
+                    return IntegerRangeData{m_index,
+                                            m_index + m_bounds.last_dim_size(),
+                                            static_cast<std::ptrdiff_t>(m_source_strides.back())};
                 }
 
                 bool increment();
@@ -182,7 +149,7 @@ namespace ngraph
                 const Strides m_source_strides;
                 const std::vector<std::ptrdiff_t> m_memory_strides;
                 Coordinate m_coordinate;
-                ptrdiff_t m_index{0};
+                std::ptrdiff_t m_index{0};
             };
 
             inline SliceRange slice(const Shape& source_shape,
@@ -205,7 +172,7 @@ namespace ngraph
             class ReverseRange : public RangeBase<ReverseRange>
             {
             public:
-                using value_type = IntegerRange;
+                using value_type = IntegerRangeData;
                 ReverseRange(const Shape& source_shape, const AxisSet& reversed_axis);
 
                 value_type get_value() const;
@@ -221,7 +188,7 @@ namespace ngraph
                 const std::vector<std::ptrdiff_t> m_memory_strides;
                 const std::vector<signed char> m_axis_directions;
                 Coordinate m_coordinate;
-                size_t m_index{0};
+                ptrdiff_t m_index{0};
             };
 
             inline ReverseRange reverse(const Shape& source_shape, const AxisSet& reversed_axis)
@@ -230,7 +197,6 @@ namespace ngraph
             }
 
         } // namespace impl
-        using impl::range;
         using impl::reverse;
         using impl::slice;
     } // namespace coordinates
