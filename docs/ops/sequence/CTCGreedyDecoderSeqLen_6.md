@@ -30,6 +30,14 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
   * **Type**: `boolean`
   * **Default value**: true
   * **Required**: *no*
+  
+* *index_element_type*
+
+  * **Description**: the type of output tensor with indices
+  * **Range of values**: "i64" or "i32"
+  * **Type**: string
+  * **Default value**: "i32"
+  * **Required**: *No*
 
 **Inputs**
 
@@ -54,7 +62,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 **Example**
 
 ```xml
-<layer type="CTCGreedyDecoderSeqLen" merge_repeated="true">
+<layer type="CTCGreedyDecoderSeqLen" merge_repeated="true" index_element_type="i64">
     <input>
         <port id="0">
             <dim>20</dim>
