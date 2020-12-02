@@ -1,11 +1,11 @@
 Introduction to OpenVINO state API {#openvino_docs_IE_DG_network_state_intro}
 ==============================
 
-This section provides description how to work with stateful networks in OpenVINO: how such networks 
-are represented in IR and Ngraph, how operations with state can be done. Section provides small examples 
-of stateful network and code to infer it.
+This section provides description how to work with networks with state in OpenVINO: how such networks 
+are represented in IR and Ngraph and operations with state can be done. Section provides small examples 
+of network with state and how it can be inferred.
 
-## What is stateful network
+## What is network with state
 
  Several use cases require processing of data sequences. When length of sequence is known and small enough, 
  we can process it with RNN like networks which contains cycle inside. But in some cases like online speech recognition of time series 
@@ -32,9 +32,9 @@ More details on these operations you can find in [ReadValue specification](../op
 
 To get model with states ready for inference you can convert model from another framework with ModelOptimizer to IR or create ngraph function 
 (details can be found in [Build nGraph Function section](../nGraph_DG/build_function.md)). 
-Let's represent in both forms the following graph:
+Let's represent in both forms the following graph.
 
-[state_network_example]: ./img/state_network_example.png
+[state_network_example]: img/state_network_example.png
 
 ### Example of IR with state
 
@@ -164,8 +164,8 @@ Let's represent in both forms the following graph:
     auto f = make_shared<Function>(ResultVector({res}), ParameterVector({arg}), SinkVector({assign}));
 ```
 
-In this example `SinkVector` was used to create `ngraph::Function`. For network with states except inputs and outputs also Assign nodes should be pointed to Function 
-to avoid deleting it during graph transformations. It can be done with constructor as shown in example or with special method `Function::add_sink`. Also you can delete 
+In this example `SinkVector` was used to create Ngraph::Function. For network with states except inputs and outputs also Assign nodes should be pointed to Function 
+to avoid deleting it during graph transformations. It can be done with constructor as shown in example or with special method `Fuction::add_sink`. Also you can delete 
 sink from `Function` after deleting node from graph with `Function::delete_sink` method.
 
 ## OpenVINO state API
@@ -182,16 +182,12 @@ sink from `Function` after deleting node from graph with `Function::delete_sink`
  * `Blob::CPtr GetState() const`
    returns current value of state
 
-## Example of inference stateful network
+## Example of inference network with state
 
-Let's take IR from example in prevous sections. In this example inference of 2 independent sequences of data will be demonstrated. Between these sequences state should be reset.
-
-One infer request and one thread 
-will be used in this example. Using several threads is possible if you have several independent sequences. Then each sequence can be processed in its own infer 
-request. Inference of one sequence in several infer requests is not recommended. In one infer request state will be saved automatically between inferences, but 
-if the first step done in one infer request and the second in another, state should be set in new infer request manually (using `IVariableState::SetState` method).
+Let's take IR from example in prevous sections. In this example inference of 2 independent sequences of data will be demonstrated. Between these sequences state 
+should be reset.
 
 @snippet openvino/docs/snippets/InferenceEngine_network_with_state_infer.cpp part1
 
 More powerfull examples of work with networks with states are sample and demo demonstrating work with speech. 
-Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
+Decsriptions can be found in [Samples Overview][{./Samples_Overview.md}
