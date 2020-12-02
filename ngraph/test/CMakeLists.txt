@@ -86,6 +86,7 @@ set(SRC
     op_eval/swish.cpp
     op_eval/strided_slice.cpp
     op_eval/variadic_split.cpp
+    op_is.cpp
     opset1.cpp
     partial_shape.cpp
     pass_config.cpp
