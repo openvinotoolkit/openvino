@@ -26,6 +26,7 @@
 using namespace ngraph;
 using namespace std;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 const element::Type element::undefined(element::Type_t::undefined);
 const element::Type element::dynamic(element::Type_t::dynamic);
 const element::Type element::boolean(element::Type_t::boolean);
@@ -42,6 +43,7 @@ const element::Type element::u8(element::Type_t::u8);
 const element::Type element::u16(element::Type_t::u16);
 const element::Type element::u32(element::Type_t::u32);
 const element::Type element::u64(element::Type_t::u64);
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type>::type_info;
 
