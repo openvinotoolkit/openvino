@@ -12,11 +12,14 @@
 \f[
 o_{i} = i_{i} - ReduceMean(i_{k}, axes)
 \f]
-If *normalize_variance* is set to `true`, the output blob is divided by variance. In the case of `eps_mode` equal to `inside_sqrt`:
+
+If *normalize_variance* is set to `true`, the output blob is divided by variance.
+
+If `eps_mode` is equal to `inside_sqrt`:
 \f[
 o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2+\epsilon}}
 \f]
-And in the case of `eps_mode` equal to `outside_sqrt`:
+If `eps_mode` equal to `outside_sqrt`:
 \f[
 o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
 \f]
@@ -27,8 +30,8 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
 
   * **Description**: *normalize_variance* is a flag that specifies whether to perform variance normalization.
   * **Range of values**:
-    * `false` -- do not normalize variance
-    * `true` -- normalize variance
+    * `false` -- Do not normalize variance
+    * `true` -- Normalize variance
   * **Type**: `boolean`
   * **Default value**: `false`
   * **Required**: *no*
@@ -45,15 +48,15 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
 
   * **Description**: Choose where to add epsilon.
   * **Range of values**:
-    * `inside_sqrt` -- add epsilon inside sqrt
-    * `outside_sqrt` -- add epsilon outside of sqrt
+    * `inside_sqrt` -- Add epsilon inside sqrt
+    * `outside_sqrt` -- Add epsilon outside of sqrt
   * **Type**: `string`
   * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
 
-* **1**: `data` - input tensor to be normalized. Type *T*. Required.
+* **1**: `data` - Input tensor to be normalized. Type *T*. Required.
 
 * **2**: `axes` - 1D tensor which specifies indices of dimensions in `data` that define normalization slices. Type *T_IND*. Required.
 
